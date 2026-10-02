@@ -126,16 +126,30 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task AddAsync(ModTask task, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO Tasks (Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
-                              StartTime, EndTime, Errors, Result)
-            VALUES (@id, @name, @type, @status, @progress, @stage, @currentItem, @message,
-                   @startTime, @endTime, @errors, @result)";
+        // 重试机制处理 SQLite 并发锁
+        const int maxRetries = 3;
+        for (int retry = 0; retry < maxRetries; retry++)
+        {
+            try
+            {
+                var connection = await _context.GetConnectionAsync(cancellationToken);
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    INSERT INTO Tasks (Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
+                                      StartTime, EndTime, Errors, Result)
+                    VALUES (@id, @name, @type, @status, @progress, @stage, @currentItem, @message,
+                           @startTime, @endTime, @errors, @result)";
 
-        AddParameters(command, task);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+                AddParameters(command, task);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+                return; // 成功，退出重试循环
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 5 && retry < maxRetries - 1) // SQLITE_BUSY
+            {
+                // 等待后重试
+                await Task.Delay(100 * (retry + 1), cancellationToken);
+            }
+        }
     }
 
     /// <summary>

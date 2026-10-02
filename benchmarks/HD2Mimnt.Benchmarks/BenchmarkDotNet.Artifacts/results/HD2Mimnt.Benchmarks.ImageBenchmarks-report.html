@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>HD2Mimnt.Benchmarks.ImageBenchmarks-20261003-012237</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValley2)
+12th Gen Intel Core i5-12400F 2.50GHz, 1 CPU, 12 logical and 6 physical cores
+.NET SDK 10.0.401
+  [Host]   : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+  ShortRun : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                 </th><th>count</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Rank</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>GenerateThumbnail_SmallImage</td><td>?</td><td>11.854 ms</td><td>9.612 ms</td><td>0.5269 ms</td><td>2</td><td>800 B</td>
+</tr><tr><td>GenerateThumbnail_MediumImage</td><td>?</td><td>21.104 ms</td><td>3.291 ms</td><td>0.1804 ms</td><td>3</td><td>800 B</td>
+</tr><tr><td>GenerateThumbnail_LargeImage</td><td>?</td><td>123.377 ms</td><td>9.186 ms</td><td>0.5035 ms</td><td>4</td><td>832 B</td>
+</tr><tr><td>LoadImageFromDisk</td><td>?</td><td>4.846 ms</td><td>1.918 ms</td><td>0.1051 ms</td><td>1</td><td>4693 B</td>
+</tr><tr><td>BatchLoadImages</td><td>10</td><td>132.077 ms</td><td>13.041 ms</td><td>0.7148 ms</td><td>4</td><td>47332 B</td>
+</tr><tr><td>BatchLoadImages</td><td>50</td><td>714.192 ms</td><td>115.265 ms</td><td>6.3181 ms</td><td>5</td><td>235664 B</td>
+</tr></tbody></table>
+</body>
+</html>

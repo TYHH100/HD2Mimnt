@@ -1,0 +1,245 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
+        x:Class="HD2Mimnt.UI.Views.PluginPermissionDialog"
+        x:DataType="vm:PluginPermissionDialogViewModel"
+        Title="Plugin Permission Request"
+        Width="600" Height="700"
+        MinWidth="500" MinHeight="500"
+        MaxWidth="700" MaxHeight="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#0A0D12"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:PluginPermissionDialogViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#0F131C" BorderBrush="#1E2636" BorderThickness="0,0,0,1" Padding="24,20">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Plugin Permission Request"
+                          FontSize="20"
+                          FontWeight="SemiBold"
+                          Foreground="#E0E0E0"/>
+                <TextBlock Text="This plugin is requesting permissions to access system resources."
+                          FontSize="13"
+                          Foreground="#9CA3AF"
+                          TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="20" Margin="24,20">
+                <!-- Plugin Info Card -->
+                <Border Background="#0F131C"
+                       CornerRadius="6"
+                       BorderBrush="#1E2636"
+                       BorderThickness="1"
+                       Padding="16">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="80,*">
+                        <!-- Icon -->
+                        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="4"
+                               Width="64" Height="64"
+                               CornerRadius="8"
+                               Background="#161D2B"
+                               VerticalAlignment="Top"
+                               Margin="0,0,12,0">
+                            <TextBlock Text="📦"
+                                     FontSize="32"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Plugin Name -->
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                  Text="{Binding PluginName}"
+                                  FontSize="16"
+                                  FontWeight="SemiBold"
+                                  Foreground="#E0E0E0"
+                                  Margin="0,0,0,4"/>
+
+                        <!-- Version & Author -->
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
+                            <TextBlock Text="{Binding PluginVersion}"
+                                     FontSize="12"
+                                     Foreground="#9CA3AF"/>
+                            <TextBlock Text="•"
+                                     FontSize="12"
+                                     Foreground="#6B7280"/>
+                            <TextBlock Text="{Binding PluginAuthor}"
+                                     FontSize="12"
+                                     Foreground="#9CA3AF"/>
+                        </StackPanel>
+
+                        <!-- Description -->
+                        <TextBlock Grid.Row="2" Grid.Column="1"
+                                  Text="{Binding PluginDescription}"
+                                  FontSize="13"
+                                  Foreground="#9CA3AF"
+                                  TextWrapping="Wrap"
+                                  Margin="0,0,0,8"/>
+
+                        <!-- Permission Mode Badge -->
+                        <Border Grid.Row="3" Grid.Column="1"
+                               Background="#1E2636"
+                               CornerRadius="999"
+                               Padding="10,4"
+                               HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding PermissionModeIcon}"
+                                         FontSize="12"
+                                         Foreground="#E0E0E0"/>
+                                <TextBlock Text="{Binding PermissionMode}"
+                                         FontSize="12"
+                                         FontWeight="Medium"
+                                         Foreground="#E0E0E0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Warning Banner -->
+                <Border IsVisible="{Binding ShowWarning}"
+                       Background="#1E1506"
+                       BorderBrush="#E9A568"
+                       BorderThickness="1"
+                       CornerRadius="6"
+                       Padding="16">
+                    <TextBlock Text="{Binding WarningMessage}"
+                              FontSize="13"
+                              Foreground="#E9A568"
+                              TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- Requested Permissions Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Requested Permissions"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Foreground="#E0E0E0"/>
+
+                    <ItemsControl ItemsSource="{Binding RequestedPermissions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#0F131C"
+                                       CornerRadius="6"
+                                       BorderBrush="#1E2636"
+                                       BorderThickness="1"
+                                       Padding="12"
+                                       Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <!-- Icon -->
+                                        <TextBlock Grid.Column="0"
+                                                 Text="{Binding Icon}"
+                                                 FontSize="20"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,0,12,0"/>
+
+                                        <!-- Permission Info -->
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                     FontSize="13"
+                                                     FontWeight="Medium"
+                                                     Foreground="#E0E0E0"/>
+                                            <TextBlock Text="{Binding Description}"
+                                                     FontSize="12"
+                                                     Foreground="#9CA3AF"
+                                                     TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Risk Badge -->
+                                        <Border Grid.Column="2"
+                                               IsVisible="{Binding IsHighRisk}"
+                                               Background="#1E0F0F"
+                                               BorderBrush="#E94560"
+                                               BorderThickness="1"
+                                               CornerRadius="999"
+                                               Padding="8,4"
+                                               VerticalAlignment="Center">
+                                            <TextBlock Text="High Risk"
+                                                     FontSize="11"
+                                                     FontWeight="Medium"
+                                                     Foreground="#E94560"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Information Text -->
+                <TextBlock Text="Allow Once: Grant permissions for this session only&#x0a;Allow Always: Remember this decision and don't ask again&#x0a;Deny: Do not install this plugin"
+                          FontSize="12"
+                          Foreground="#6B7280"
+                          TextWrapping="Wrap"
+                          Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Action Buttons -->
+        <Border Grid.Row="2" Background="#0F131C" BorderBrush="#1E2636" BorderThickness="0,1,0,0" Padding="24,16">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <StackPanel Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                    <Button Content="Deny"
+                           Command="{Binding DenyCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           CornerRadius="999"
+                           Background="#161D2B"
+                           Foreground="#9CA3AF"
+                           BorderBrush="#1E2636"
+                           BorderThickness="1"
+                           MinWidth="100">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#1E2636"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+
+                    <Button Content="Allow Once"
+                           Command="{Binding AllowOnceCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           CornerRadius="999"
+                           Background="#1E2636"
+                           Foreground="#E0E0E0"
+                           BorderBrush="#38BDF8"
+                           BorderThickness="1"
+                           MinWidth="120">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#2A3644"/>
+                                <Setter Property="BorderBrush" Value="#60D5FF"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+
+                    <Button Content="Allow Always"
+                           Command="{Binding AllowAlwaysCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           CornerRadius="999"
+                           Background="#38BDF8"
+                           Foreground="#05070C"
+                           BorderThickness="0"
+                           FontWeight="Medium"
+                           MinWidth="120">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#60D5FF"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

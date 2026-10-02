@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" />
   </ItemGroup>
 
   <ItemGroup>

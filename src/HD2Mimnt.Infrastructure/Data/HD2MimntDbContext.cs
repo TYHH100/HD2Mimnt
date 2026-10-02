@@ -24,9 +24,14 @@ public class HD2MimntDbContext : IDisposable
             await _connection.OpenAsync(cancellationToken);
 
             // 启用 WAL 模式
-            using var command = _connection.CreateCommand();
-            command.CommandText = "PRAGMA journal_mode=WAL;";
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            using var walCommand = _connection.CreateCommand();
+            walCommand.CommandText = "PRAGMA journal_mode=WAL;";
+            await walCommand.ExecuteNonQueryAsync(cancellationToken);
+
+            // 设置 busy_timeout 以处理并发写入
+            using var timeoutCommand = _connection.CreateCommand();
+            timeoutCommand.CommandText = "PRAGMA busy_timeout=5000;";
+            await timeoutCommand.ExecuteNonQueryAsync(cancellationToken);
         }
 
         return _connection;
@@ -150,6 +155,83 @@ public class HD2MimntDbContext : IDisposable
 
             CREATE INDEX IF NOT EXISTS idx_platformcaches_platform ON PlatformCaches(PlatformId, PlatformModId);
             CREATE INDEX IF NOT EXISTS idx_platformcaches_expiresat ON PlatformCaches(ExpiresAt);
+
+            CREATE TABLE IF NOT EXISTS Plugins (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Version TEXT NOT NULL,
+                Author TEXT,
+                Description TEXT,
+                ManifestPath TEXT NOT NULL,
+                AssemblyPath TEXT NOT NULL,
+                InstalledAt TEXT NOT NULL,
+                Enabled INTEGER NOT NULL DEFAULT 1,
+                PermissionMode TEXT NOT NULL DEFAULT 'Sandbox'
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_plugins_name ON Plugins(Name);
+            CREATE INDEX IF NOT EXISTS idx_plugins_enabled ON Plugins(Enabled);
+
+            CREATE TABLE IF NOT EXISTS PluginPermissions (
+                Id TEXT PRIMARY KEY,
+                PluginId TEXT NOT NULL,
+                Permission TEXT NOT NULL,
+                Granted INTEGER NOT NULL DEFAULT 0,
+                GrantedAt TEXT,
+                FOREIGN KEY (PluginId) REFERENCES Plugins(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pluginpermissions_pluginid ON PluginPermissions(PluginId);
+
+            CREATE TABLE IF NOT EXISTS PluginExecutionHistory (
+                Id TEXT PRIMARY KEY,
+                PluginId TEXT NOT NULL,
+                Command TEXT NOT NULL,
+                StartTime TEXT NOT NULL,
+                EndTime TEXT,
+                Status TEXT NOT NULL,
+                Result TEXT,
+                Error TEXT,
+                FOREIGN KEY (PluginId) REFERENCES Plugins(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pluginexecution_pluginid ON PluginExecutionHistory(PluginId);
+            CREATE INDEX IF NOT EXISTS idx_pluginexecution_starttime ON PluginExecutionHistory(StartTime DESC);
+
+            CREATE TABLE IF NOT EXISTS ExternalTools (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Description TEXT,
+                ExecutablePath TEXT NOT NULL,
+                Arguments TEXT,
+                WorkingDirectory TEXT,
+                Icon TEXT,
+                SupportedExtensions TEXT,
+                IsEnabled INTEGER NOT NULL DEFAULT 1,
+                DisplayOrder INTEGER NOT NULL DEFAULT 0,
+                CreatedAt TEXT NOT NULL,
+                ModifiedAt TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_externaltools_enabled ON ExternalTools(IsEnabled);
+            CREATE INDEX IF NOT EXISTS idx_externaltools_displayorder ON ExternalTools(DisplayOrder);
+
+            -- AI Provider Configs table
+            CREATE TABLE IF NOT EXISTS AIProviderConfigs (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Type INTEGER NOT NULL,
+                ApiEndpoint TEXT NOT NULL,
+                ApiKey TEXT,
+                Model TEXT,
+                IsEnabled INTEGER NOT NULL DEFAULT 0,
+                MaxTokens INTEGER NOT NULL DEFAULT 4000,
+                Temperature REAL NOT NULL DEFAULT 0.7,
+                CreatedAt TEXT NOT NULL,
+                ModifiedAt TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_aiproviderconfigs_enabled ON AIProviderConfigs(IsEnabled);
         ";
 
         using var command = connection.CreateCommand();
@@ -173,9 +255,19 @@ public class HD2MimntDbContext : IDisposable
                 // 忽略错误，继续关闭连接
             }
 
-            _connection.Close();
-            _connection.Dispose();
-            _connection = null;
+            try
+            {
+                _connection.Close();
+                _connection.Dispose();
+            }
+            catch
+            {
+                // 忽略清理错误
+            }
+            finally
+            {
+                _connection = null;
+            }
         }
 
         // 强制 GC 以确保文件锁释放

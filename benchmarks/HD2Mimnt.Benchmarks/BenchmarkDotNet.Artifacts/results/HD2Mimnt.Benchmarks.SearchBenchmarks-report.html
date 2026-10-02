@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>HD2Mimnt.Benchmarks.SearchBenchmarks-20261003-012155</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValley2)
+12th Gen Intel Core i5-12400F 2.50GHz, 1 CPU, 12 logical and 6 physical cores
+.NET SDK 10.0.401
+  [Host]     : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+  DefaultJob : .NET 10.0.12 (10.0.12, 10.0.1226.42308), X64 RyuJIT x86-64-v3
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                 </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Rank</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>SearchByName_SingleKeyword</td><td>240.2 &mu;s</td><td>4.26 &mu;s</td><td>4.73 &mu;s</td><td>239.7 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>49.3 KB</td>
+</tr><tr><td>SearchByName_PartialMatch</td><td>1,900.8 &mu;s</td><td>37.69 &mu;s</td><td>77.84 &mu;s</td><td>1,869.6 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</tr><tr><td>SearchByAuthor</td><td>253.4 &mu;s</td><td>4.87 &mu;s</td><td>5.80 &mu;s</td><td>254.0 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.52 KB</td>
+</tr><tr><td>SearchByCategory</td><td>826.4 &mu;s</td><td>15.24 &mu;s</td><td>22.82 &mu;s</td><td>820.7 &mu;s</td><td>2</td><td>23.4375</td><td>7.8125</td><td>239.88 KB</td>
+</tr><tr><td>SearchByTag</td><td>249.4 &mu;s</td><td>4.80 &mu;s</td><td>4.01 &mu;s</td><td>251.1 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.44 KB</td>
+</tr><tr><td>SearchByMultipleTags</td><td>251.3 &mu;s</td><td>3.28 &mu;s</td><td>2.91 &mu;s</td><td>251.8 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.46 KB</td>
+</tr><tr><td>SearchComplex_NameAndCategory</td><td>1,923.9 &mu;s</td><td>29.47 &mu;s</td><td>27.57 &mu;s</td><td>1,925.8 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</tr><tr><td>EmptySearch_ReturnAll</td><td>3,674.3 &mu;s</td><td>68.11 &mu;s</td><td>63.71 &mu;s</td><td>3,670.3 &mu;s</td><td>4</td><td>128.9063</td><td>89.8438</td><td>1192.55 KB</td>
+</tr><tr><td>SearchNoResults</td><td>261.6 &mu;s</td><td>5.18 &mu;s</td><td>8.37 &mu;s</td><td>263.2 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.62 KB</td>
+</tr><tr><td>SearchWithPagination</td><td>1,893.5 &mu;s</td><td>35.39 &mu;s</td><td>33.10 &mu;s</td><td>1,888.9 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</tr></tbody></table>
+</body>
+</html>
