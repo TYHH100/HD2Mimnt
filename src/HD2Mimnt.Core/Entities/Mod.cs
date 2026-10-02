@@ -40,4 +40,24 @@ public class Mod
     /// Nexus Mods ID（如果来自 Nexus）
     /// </summary>
     public int? NexusModId { get; set; }
+
+    /// <summary>
+    /// Platform identifier (e.g., "nexusmods", "github")
+    /// </summary>
+    public string? PlatformId { get; set; }
+
+    /// <summary>
+    /// Platform-specific mod identifier
+    /// </summary>
+    public string? PlatformModId { get; set; }
+
+    /// <summary>
+    /// Platform version string
+    /// </summary>
+    public string? PlatformVersion { get; set; }
+
+    /// <summary>
+    /// Last time update was checked
+    /// </summary>
+    public DateTime? LastUpdateCheck { get; set; }
 }

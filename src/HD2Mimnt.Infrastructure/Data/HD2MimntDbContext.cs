@@ -137,6 +137,19 @@ public class HD2MimntDbContext : IDisposable
                 Key TEXT PRIMARY KEY,
                 Value TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS PlatformCaches (
+                Id TEXT PRIMARY KEY,
+                PlatformId TEXT NOT NULL,
+                PlatformModId TEXT NOT NULL,
+                CachedData TEXT NOT NULL,
+                CachedAt TEXT NOT NULL,
+                ExpiresAt TEXT NOT NULL,
+                Etag TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_platformcaches_platform ON PlatformCaches(PlatformId, PlatformModId);
+            CREATE INDEX IF NOT EXISTS idx_platformcaches_expiresat ON PlatformCaches(ExpiresAt);
         ";
 
         using var command = connection.CreateCommand();
