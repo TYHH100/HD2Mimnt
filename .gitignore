@@ -1,0 +1,145 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.log
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio
+.vs/
+.vscode/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Rider
+.idea/
+*.sln.iml
+
+## User-specific files
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+
+## Build
+*.sbr
+*.sbr.tmp
+.nuget/
+packages/
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+## Backup & report files
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+## Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+## Application Data
+AppData/
+LocalAppData/
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## Thumbnails
+._*
+
+## Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+## Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+## Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk

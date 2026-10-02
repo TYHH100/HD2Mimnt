@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Platforms>AnyCPU;x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <ProductName>HD2Mimnt</ProductName>
+    <ProductVersion>0.1.0</ProductVersion>
+    <AssemblyVersion>0.1.0</AssemblyVersion>
+    <FileVersion>0.1.0</FileVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HD2Mimnt.Application/HD2Mimnt.Application.csproj" />
+    <Project Path="src/HD2Mimnt.Core/HD2Mimnt.Core.csproj" />
+    <Project Path="src/HD2Mimnt.Infrastructure/HD2Mimnt.Infrastructure.csproj" />
+    <Project Path="src/HD2Mimnt.UI/HD2Mimnt.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj" />
+  </Folder>
+</Solution>
