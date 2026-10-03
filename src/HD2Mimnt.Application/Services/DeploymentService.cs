@@ -129,6 +129,7 @@ public class DeploymentService
         // 3. 遍历每个部署记录，清理其文件
         int totalFilesDeleted = 0;
         int totalRecordsDeleted = 0;
+        var allRecordsCleaned = true;
 
         foreach (var deployment in deploymentList)
         {
@@ -139,12 +140,16 @@ public class DeploymentService
 
             totalFilesDeleted += filesDeleted;
             totalRecordsDeleted += recordDeleted ? 1 : 0;
+            allRecordsCleaned &= recordDeleted;
         }
 
-        // 4. 删除会话记录（DeploymentFiles 已经通过 CleanupDeploymentAsync 删除）
-        await CleanupDeploymentRecordsAsync(latestSessionId.Value, cancellationToken);
+        // 4. 仅在所有部署记录的文件均已清理时删除会话残留记录。
+        if (allRecordsCleaned)
+        {
+            await CleanupDeploymentRecordsAsync(latestSessionId.Value, cancellationToken);
+        }
 
-        progress?.Report($"Pre-Deployment Cleanup 完成: 删除 {totalFilesDeleted} 个文件, {totalRecordsDeleted} 个记录");
+        progress?.Report($"Pre-Deployment Cleanup 完成: 会话 {latestSessionId.Value}，删除 {totalFilesDeleted} 个文件, {totalRecordsDeleted} 个记录");
 
         return (totalFilesDeleted, totalRecordsDeleted);
     }
@@ -184,6 +189,7 @@ public class DeploymentService
         progress?.Report($"清理 Mod {deployment.ModId}: {fileList.Count} 个文件");
 
         int filesDeleted = 0;
+        var allFilesCleaned = true;
 
         // 遍历清理每个文件
         foreach (var file in fileList)
@@ -199,24 +205,27 @@ public class DeploymentService
                 }
                 else
                 {
+                    allFilesCleaned = false;
                     _logger?.LogWarning("清理文件失败: {TargetPath}", file.TargetPath);
                 }
             }
             catch (Exception ex)
             {
+                allFilesCleaned = false;
                 _logger?.LogError(ex, "清理文件异常: {TargetPath}", file.TargetPath);
             }
         }
 
-        // 删除 DeploymentFiles 记录
-        await _deploymentRepository.DeleteDeploymentFilesByDeploymentIdAsync(deploymentId, cancellationToken);
-
-        // 删除 DeploymentRecord
-        await _deploymentRepository.DeleteAsync(deploymentId, cancellationToken);
+        if (allFilesCleaned)
+        {
+            // 只有所有目标文件都已清理，才删除记录；失败记录保留以便重试。
+            await _deploymentRepository.DeleteDeploymentFilesByDeploymentIdAsync(deploymentId, cancellationToken);
+            await _deploymentRepository.DeleteAsync(deploymentId, cancellationToken);
+        }
 
         progress?.Report($"已清理 {filesDeleted}/{fileList.Count} 个文件");
 
-        return (filesDeleted, true);
+        return (filesDeleted, allFilesCleaned);
     }
 
     /// <summary>
@@ -391,7 +400,9 @@ public class DeploymentService
                     }
 
                     // 遍历 Mod 目录中的所有文件
-                    var files = Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories);
+                    var files = await Task.Run(
+                        () => Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories),
+                        cancellationToken);
                     var deployedFiles = new List<(string SourcePath, string TargetPath)>();
                     int fileIndex = 0;
                     bool hasFailure = false;

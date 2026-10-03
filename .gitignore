@@ -143,3 +143,5 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+tests/HD2Mimnt.PerformanceTests/TestData/

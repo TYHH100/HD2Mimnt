@@ -1,0 +1,14 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.TaskCenterView" x:DataType="vm:TaskCenterViewModel">
+  <Grid RowDefinitions="Auto,*" Margin="24"><StackPanel Spacing="4"><TextBlock Text="任务中心" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}"/></StackPanel>
+    <Grid Grid.Row="1" Margin="0,16,0,0">
+      <ListBox ItemsSource="{Binding Tasks}" IsVisible="{Binding !IsEmpty}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate><DataTemplate><Border Padding="12" Margin="0,0,0,8" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"><Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="3"><TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/><TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextSecondaryBrush}"/><ProgressBar Value="{Binding Progress}" IsIndeterminate="{Binding Progress, Converter={StaticResource EqualConverter}, ConverterParameter=0}" Height="6"/></StackPanel><Button Grid.Column="1" Content="取消" Command="{Binding $parent[UserControl].DataContext.CancelCommand}" CommandParameter="{Binding}" Classes="secondary" IsEnabled="{Binding Status, Converter={StaticResource EqualConverter}, ConverterParameter=Running}"/></Grid></Border></DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+      <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"><TextBlock Text="暂无后台任务" FontSize="18" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/><TextBlock Text="导入、扫描或部署任务完成后会显示在这里" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/></StackPanel>
+      <StackPanel IsVisible="{Binding HasError}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"><TextBlock Text="任务中心加载失败" FontSize="18" Foreground="#EF4444" HorizontalAlignment="Center"/><TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" MaxWidth="360" Foreground="{DynamicResource TextSecondaryBrush}"/><Button Content="重试" Command="{Binding LoadCommand}" Classes="primary" HorizontalAlignment="Center"/></StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

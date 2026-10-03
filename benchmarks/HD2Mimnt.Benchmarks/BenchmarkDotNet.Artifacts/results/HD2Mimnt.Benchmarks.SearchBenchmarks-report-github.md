@@ -8,15 +8,15 @@ BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValle
 
 
 ```
-| Method                        | Mean       | Error    | StdDev   | Median     | Rank | Gen0     | Gen1    | Allocated  |
-|------------------------------ |-----------:|---------:|---------:|-----------:|-----:|---------:|--------:|-----------:|
-| SearchByName_SingleKeyword    |   240.2 μs |  4.26 μs |  4.73 μs |   239.7 μs |    1 |   4.8828 |       - |    49.3 KB |
-| SearchByName_PartialMatch     | 1,900.8 μs | 37.69 μs | 77.84 μs | 1,869.6 μs |    3 |  35.1563 |  3.9063 |  339.15 KB |
-| SearchByAuthor                |   253.4 μs |  4.87 μs |  5.80 μs |   254.0 μs |    1 |   4.8828 |       - |   47.52 KB |
-| SearchByCategory              |   826.4 μs | 15.24 μs | 22.82 μs |   820.7 μs |    2 |  23.4375 |  7.8125 |  239.88 KB |
-| SearchByTag                   |   249.4 μs |  4.80 μs |  4.01 μs |   251.1 μs |    1 |   4.8828 |       - |   47.44 KB |
-| SearchByMultipleTags          |   251.3 μs |  3.28 μs |  2.91 μs |   251.8 μs |    1 |   4.8828 |       - |   47.46 KB |
-| SearchComplex_NameAndCategory | 1,923.9 μs | 29.47 μs | 27.57 μs | 1,925.8 μs |    3 |  35.1563 |  3.9063 |  339.15 KB |
-| EmptySearch_ReturnAll         | 3,674.3 μs | 68.11 μs | 63.71 μs | 3,670.3 μs |    4 | 128.9063 | 89.8438 | 1192.55 KB |
-| SearchNoResults               |   261.6 μs |  5.18 μs |  8.37 μs |   263.2 μs |    1 |   4.8828 |       - |   47.62 KB |
-| SearchWithPagination          | 1,893.5 μs | 35.39 μs | 33.10 μs | 1,888.9 μs |    3 |  35.1563 |  3.9063 |  339.15 KB |
+| Method                        | Mean       | Error    | StdDev   | Rank | Gen0     | Gen1    | Allocated  |
+|------------------------------ |-----------:|---------:|---------:|-----:|---------:|--------:|-----------:|
+| SearchByName_SingleKeyword    |   235.9 μs |  2.20 μs |  2.06 μs |    1 |   5.1270 |       - |    49.3 KB |
+| SearchByName_PartialMatch     | 1,743.6 μs | 19.34 μs | 16.15 μs |    3 |  35.1563 |  3.9063 |  339.15 KB |
+| SearchByAuthor                |   231.5 μs |  4.59 μs |  4.91 μs |    1 |   5.1270 |       - |   47.52 KB |
+| SearchByCategory              |   772.8 μs | 14.07 μs | 13.16 μs |    2 |  25.3906 |  8.7891 |  239.88 KB |
+| SearchByTag                   |   230.2 μs |  3.20 μs |  3.00 μs |    1 |   5.1270 |       - |   47.44 KB |
+| SearchByMultipleTags          |   235.6 μs |  2.51 μs |  2.35 μs |    1 |   5.1270 |       - |   47.46 KB |
+| SearchComplex_NameAndCategory | 1,987.9 μs | 39.32 μs | 65.69 μs |    4 |  35.1563 |  3.9063 |  339.15 KB |
+| EmptySearch_ReturnAll         | 3,366.4 μs | 27.69 μs | 24.55 μs |    5 | 128.9063 | 89.8438 | 1192.55 KB |
+| SearchNoResults               |   234.3 μs |  2.90 μs |  2.71 μs |    1 |   5.1270 |       - |   47.62 KB |
+| SearchWithPagination          | 1,695.8 μs | 16.05 μs | 14.23 μs |    3 |  35.1563 |  3.9063 |  339.15 KB |

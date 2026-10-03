@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.BackupView" x:DataType="vm:BackupViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" MinHeight="300">
+    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+      <StackPanel Spacing="3"><TextBlock Text="数据备份与恢复" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Text="备份包含模组库数据库和应用设置，恢复前会要求确认。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
+      <Button Grid.Column="1" Content="刷新" Command="{Binding RefreshCommand}" Classes="secondary" Margin="8,0,0,0"/><Button Grid.Column="2" Content="创建备份" Command="{Binding CreateCommand}" Classes="primary" Margin="8,0,0,0"/>
+    </Grid>
+    <ListBox Grid.Row="1" ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}">
+      <ListBox.ItemTemplate><DataTemplate>
+        <Border Background="#151B26" Padding="10" Margin="0,0,0,6"><Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+          <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Grid.Column="1" Text="{Binding DisplayDate}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="12,0,0,0"/><TextBlock Grid.Row="1" Text="{Binding DisplaySize}" Foreground="{DynamicResource TextMutedBrush}"/>
+          <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0"><Button Content="恢复" Command="{Binding $parent[ListBox].((vm:BackupViewModel)DataContext).RestoreCommand}" CommandParameter="{Binding}" Classes="secondary"/><Button Content="删除" Command="{Binding $parent[ListBox].((vm:BackupViewModel)DataContext).DeleteCommand}" CommandParameter="{Binding}" Classes="danger"/></StackPanel>
+        </Grid></Border>
+      </DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0"><TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/><TextBlock Grid.Column="1" Text="{Binding IsLoading, StringFormat='处理中：{0}'}" Foreground="{DynamicResource TextSecondaryBrush}"/></Grid>
+  </Grid>
+</UserControl>

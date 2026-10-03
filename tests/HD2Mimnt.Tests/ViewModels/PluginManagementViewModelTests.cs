@@ -41,6 +41,40 @@ public class PluginManagementViewModelTests
     }
 
     [Fact]
+    public void InstallPluginCommand_RaisesManifestPickerRequest()
+    {
+        var requested = false;
+        _viewModel.InstallManifestRequested += (_, _) => requested = true;
+
+        _viewModel.InstallPluginCommand.Execute(null);
+
+        Assert.True(requested);
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_Success_RefreshesPlugins()
+    {
+        _mockPluginService
+            .Setup(s => s.InstallPluginAsync("manifest.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PluginOperationResult.SuccessResult("Installed"));
+        _mockPluginService
+            .Setup(s => s.GetAllPluginsAsync(default))
+            .ReturnsAsync(new List<Plugin>
+            {
+                new Plugin { Id = "plugin1", Name = "Installed Plugin", Version = "1.0.0" }
+            });
+        _mockPluginService
+            .Setup(s => s.GetPluginPermissionsAsync(It.IsAny<string>(), default))
+            .ReturnsAsync(new List<PluginPermission>());
+
+        await _viewModel.InstallPluginAsync("manifest.json");
+
+        Assert.Single(_viewModel.InstalledPlugins);
+        Assert.Equal("Installed Plugin", _viewModel.InstalledPlugins[0].Name);
+        Assert.Equal("插件安装成功", _viewModel.StatusMessage);
+    }
+
+    [Fact]
     public async Task LoadPluginsAsync_UpdatesStatistics()
     {
         // Arrange

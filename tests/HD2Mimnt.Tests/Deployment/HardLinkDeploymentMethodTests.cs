@@ -207,7 +207,9 @@ public class HardLinkDeploymentMethodTests : IDisposable
         await File.WriteAllTextAsync(sourceFile, "Test content");
 
         var progressReports = new List<string>();
-        var progress = new Progress<string>(report => progressReports.Add(report));
+        // 这里验证部署方法是否同步报告关键阶段；Progress<T> 可能将回调排队到上下文，
+        // 会在 DeployFileAsync 返回后才执行，导致断言时序不稳定。
+        var progress = new ImmediateProgress<string>(report => progressReports.Add(report));
 
         // Act
         var result = await _hardlinkMethod.DeployFileAsync(sourceFile, targetFile, progress);
@@ -331,5 +333,14 @@ public class HardLinkDeploymentMethodTests : IDisposable
             }
         }
         catch { }
+    }
+
+    private sealed class ImmediateProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public ImmediateProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }

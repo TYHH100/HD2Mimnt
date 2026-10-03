@@ -47,6 +47,11 @@ public class ModService
         return await _modRepository.GetAllAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<Mod>> GetModsByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        return await _modRepository.GetByIdsAsync(ids, cancellationToken);
+    }
+
     public async Task<bool> DeleteModAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var mod = await _modRepository.GetByIdAsync(id, cancellationToken);

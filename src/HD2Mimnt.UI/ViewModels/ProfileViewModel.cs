@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using System.Collections.ObjectModel;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -10,9 +11,22 @@ public partial class ProfileViewModel : ObservableObject
 {
     private readonly ProfileService _profileService;
     private readonly ModService _modService;
+    private readonly NotificationService _notificationService;
+    private readonly IConfirmationService _confirmationService;
+
+    public event EventHandler? ActiveProfileChanged;
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _profiles = new();
+
+    [ObservableProperty]
+    private ObservableCollection<ProfileItemViewModel> _visibleProfiles = new();
+
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    [ObservableProperty]
+    private string _newProfileName = string.Empty;
 
     [ObservableProperty]
     private ProfileItemViewModel? _selectedProfile;
@@ -23,15 +37,52 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService)
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private string _errorMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isEmpty;
+
+    [ObservableProperty]
+    private bool _hasNoResults;
+
+    [ObservableProperty]
+    private bool _isCompareOpen;
+
+    [ObservableProperty]
+    private ProfileItemViewModel? _compareLeftProfile;
+
+    [ObservableProperty]
+    private ProfileItemViewModel? _compareRightProfile;
+
+    [ObservableProperty]
+    private ObservableCollection<ProfileCompareItemViewModel> _compareResults = new();
+
+    [ObservableProperty]
+    private string _compareFilter = "全部";
+
+    private CancellationTokenSource? _compareCts;
+    private CancellationTokenSource? _profileModsCts;
+
+    public IEnumerable<string> CompareFilterOptions { get; } = new[] { "全部", "仅左侧", "仅右侧", "状态不同", "两边共有" };
+
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService)
     {
         _profileService = profileService;
         _modService = modService;
+        _notificationService = notificationService;
+        _confirmationService = confirmationService;
     }
 
+    [RelayCommand]
     public async Task LoadProfilesAsync()
     {
         IsLoading = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
         try
         {
             var profiles = await _profileService.GetAllProfilesAsync();
@@ -40,6 +91,7 @@ public partial class ProfileViewModel : ObservableObject
             {
                 Profiles.Add(new ProfileItemViewModel(profile));
             }
+            ApplySearch();
 
             // 选中激活的 Profile
             var activeProfile = Profiles.FirstOrDefault(p => p.IsActive);
@@ -49,10 +101,46 @@ public partial class ProfileViewModel : ObservableObject
                 await LoadProfileModsAsync(activeProfile.Id);
             }
         }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"加载配置文件失败: {ex.Message}";
+            _notificationService.ShowError(ErrorMessage, "配置文件");
+        }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    partial void OnSearchTextChanged(string value) => ApplySearch();
+
+    partial void OnCompareRightProfileChanged(ProfileItemViewModel? value)
+    {
+        if (IsCompareOpen) _ = LoadCompareAsync();
+    }
+
+    partial void OnCompareLeftProfileChanged(ProfileItemViewModel? value)
+    {
+        if (IsCompareOpen) _ = LoadCompareAsync();
+    }
+
+    partial void OnCompareFilterChanged(string value) => ApplyCompareFilter();
+
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
+    private void ApplySearch()
+    {
+        var query = SearchText.Trim();
+        var result = string.IsNullOrEmpty(query)
+            ? Profiles
+            : new ObservableCollection<ProfileItemViewModel>(Profiles.Where(p =>
+                p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(query, StringComparison.OrdinalIgnoreCase)));
+        VisibleProfiles = result;
+        IsEmpty = Profiles.Count == 0;
+        HasNoResults = Profiles.Count > 0 && VisibleProfiles.Count == 0;
     }
 
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
@@ -65,35 +153,171 @@ public partial class ProfileViewModel : ObservableObject
 
     private async Task LoadProfileModsAsync(Guid profileId)
     {
-        var profile = await _profileService.GetProfileByIdAsync(profileId);
-        if (profile == null) return;
+        _profileModsCts?.Cancel();
+        _profileModsCts?.Dispose();
+        _profileModsCts = new CancellationTokenSource();
+        var cancellationToken = _profileModsCts.Token;
 
-        ProfileMods.Clear();
-        foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
+        try
         {
-            var mod = await _modService.GetModByIdAsync(profileMod.ModId);
-            if (mod != null)
+            var profile = await _profileService.GetProfileByIdAsync(profileId, cancellationToken);
+            if (profile == null) return;
+
+            var modsById = (await _modService.GetModsByIdsAsync(
+                profile.Mods.Select(profileMod => profileMod.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            var profileMods = new List<ProfileModViewModel>();
+            foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
-                ProfileMods.Add(new ProfileModViewModel
+                if (modsById.TryGetValue(profileMod.ModId, out var mod))
                 {
-                    ProfileId = profileMod.ProfileId,
-                    ModId = profileMod.ModId,
-                    ModName = mod.Name,
-                    ModVersion = mod.Version,
-                    Enabled = profileMod.Enabled,
-                    Order = profileMod.Order
-                });
+                    profileMods.Add(new ProfileModViewModel
+                    {
+                        ProfileId = profileMod.ProfileId,
+                        ModId = profileMod.ModId,
+                        ModName = mod.Name,
+                        ModVersion = mod.Version,
+                        Enabled = profileMod.Enabled,
+                        Order = profileMod.Order
+                    });
+                }
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
         }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenCompareAsync(ProfileItemViewModel? leftProfile)
+    {
+        if (leftProfile == null) return;
+
+        CompareLeftProfile = leftProfile;
+        CompareRightProfile = Profiles.FirstOrDefault(profile => profile.Id != leftProfile.Id);
+        IsCompareOpen = true;
+        await LoadCompareAsync();
+    }
+
+    [RelayCommand]
+    private void CloseCompare()
+    {
+        _compareCts?.Cancel();
+        IsCompareOpen = false;
+        CompareResults.Clear();
+    }
+
+    private async Task LoadCompareAsync()
+    {
+        if (CompareLeftProfile == null || CompareRightProfile == null) return;
+
+        _compareCts?.Cancel();
+        _compareCts?.Dispose();
+        _compareCts = new CancellationTokenSource();
+        var cancellationToken = _compareCts.Token;
+
+        try
+        {
+            var profilesTask = Task.WhenAll(
+                _profileService.GetProfileByIdAsync(CompareLeftProfile.Id, cancellationToken),
+                _profileService.GetProfileByIdAsync(CompareRightProfile.Id, cancellationToken));
+            await profilesTask;
+
+            var left = profilesTask.Result[0];
+            var right = profilesTask.Result[1];
+            if (left == null || right == null) return;
+
+            var leftMods = left.Mods.ToDictionary(mod => mod.ModId);
+            var rightMods = right.Mods.ToDictionary(mod => mod.ModId);
+            var names = (await _modService.GetModsByIdsAsync(
+                leftMods.Keys.Concat(rightMods.Keys), cancellationToken))
+                .ToDictionary(mod => mod.Id, mod => mod.Name);
+            var results = leftMods.Keys.Concat(rightMods.Keys).Distinct()
+                .Select(id => CreateCompareItem(id, leftMods, rightMods, names))
+                .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            CompareResults = new ObservableCollection<ProfileCompareItemViewModel>(results);
+            ApplyCompareFilter();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"配置文件对比失败: {ex.Message}", "配置文件对比");
+        }
+    }
+
+    private void ApplyCompareFilter()
+    {
+        foreach (var item in CompareResults)
+        {
+            item.IsVisible = CompareFilter switch
+            {
+                "仅左侧" => item.Status == ProfileCompareStatus.OnlyLeft,
+                "仅右侧" => item.Status == ProfileCompareStatus.OnlyRight,
+                "状态不同" => item.Status == ProfileCompareStatus.EnabledStateDifferent,
+                "两边共有" => item.Status == ProfileCompareStatus.Common,
+                _ => true
+            };
+        }
+    }
+
+    private static ProfileCompareItemViewModel CreateCompareItem(
+        Guid modId,
+        IReadOnlyDictionary<Guid, ProfileMod> left,
+        IReadOnlyDictionary<Guid, ProfileMod> right,
+        IReadOnlyDictionary<Guid, string> names)
+    {
+        var hasLeft = left.TryGetValue(modId, out var leftMod);
+        var hasRight = right.TryGetValue(modId, out var rightMod);
+        var status = !hasLeft ? ProfileCompareStatus.OnlyRight
+            : !hasRight ? ProfileCompareStatus.OnlyLeft
+            : leftMod!.Enabled == rightMod!.Enabled ? ProfileCompareStatus.Common
+            : ProfileCompareStatus.EnabledStateDifferent;
+
+        return new ProfileCompareItemViewModel
+        {
+            ModId = modId,
+            Name = names.TryGetValue(modId, out var name) ? name : modId.ToString(),
+            Status = status,
+            StatusText = status switch
+            {
+                ProfileCompareStatus.OnlyLeft => "仅左侧",
+                ProfileCompareStatus.OnlyRight => "仅右侧",
+                ProfileCompareStatus.EnabledStateDifferent => "启用状态不同",
+                _ => "两边共有"
+            },
+            LeftState = !hasLeft ? "-" : leftMod!.Enabled ? "已启用" : "已禁用",
+            RightState = !hasRight ? "-" : rightMod!.Enabled ? "已启用" : "已禁用"
+        };
     }
 
     [RelayCommand]
     private async Task CreateProfileAsync()
     {
-        // TODO: 打开创建 Profile 对话框
-        var name = $"New Profile {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-        await _profileService.CreateProfileAsync(name);
-        await LoadProfilesAsync();
+        var name = NewProfileName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            _notificationService.ShowWarning("请输入配置文件名称", "新建配置文件");
+            return;
+        }
+
+        try
+        {
+            await _profileService.CreateProfileAsync(name);
+            NewProfileName = string.Empty;
+            await LoadProfilesAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"创建失败: {ex.Message}", "新建配置文件");
+        }
     }
 
     [RelayCommand]
@@ -101,10 +325,46 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (profile == null) return;
 
-        // TODO: 确认对话框
+        if (profile.IsActive)
+        {
+            _notificationService.ShowWarning("请先切换到其他配置文件，再删除当前配置", "删除配置文件");
+            return;
+        }
 
-        await _profileService.DeleteProfileAsync(profile.Id);
-        Profiles.Remove(profile);
+        if (!await _confirmationService.ConfirmAsync("删除配置文件", $"确定删除配置文件“{profile.Name}”吗？模组库中的模组不会被删除。"))
+        {
+            return;
+        }
+
+        try
+        {
+            await _profileService.DeleteProfileAsync(profile.Id);
+            Profiles.Remove(profile);
+            ApplySearch();
+            _notificationService.ShowSuccess($"已删除配置文件“{profile.Name}”", "删除配置文件");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"删除失败: {ex.Message}", "删除配置文件");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RenameProfileAsync(ProfileItemViewModel? profile)
+    {
+        if (profile == null) return;
+        var name = profile.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+        try
+        {
+            await _profileService.RenameProfileAsync(profile.Id, name);
+            await LoadProfilesAsync();
+            _notificationService.ShowSuccess("配置文件名称已更新", "重命名配置文件");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"重命名失败: {ex.Message}", "重命名配置文件");
+        }
     }
 
     [RelayCommand]
@@ -113,8 +373,16 @@ public partial class ProfileViewModel : ObservableObject
         if (profile == null) return;
 
         var newName = $"{profile.Name} (Copy)";
-        await _profileService.DuplicateProfileAsync(profile.Id, newName);
-        await LoadProfilesAsync();
+        try
+        {
+            await _profileService.DuplicateProfileAsync(profile.Id, newName);
+            await LoadProfilesAsync();
+            _notificationService.ShowSuccess($"已复制配置文件为“{newName}”", "复制配置文件");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"复制失败: {ex.Message}", "复制配置文件");
+        }
     }
 
     [RelayCommand]
@@ -122,12 +390,20 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (profile == null) return;
 
-        await _profileService.SetActiveProfileAsync(profile.Id);
-
-        // 更新所有 Profile 的激活状态
-        foreach (var p in Profiles)
+        try
         {
-            p.IsActive = p.Id == profile.Id;
+            await _profileService.SetActiveProfileAsync(profile.Id);
+
+            // 更新所有 Profile 的激活状态
+            foreach (var p in Profiles)
+            {
+                p.IsActive = p.Id == profile.Id;
+            }
+            ActiveProfileChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"切换失败: {ex.Message}", "切换配置文件");
         }
     }
 
@@ -136,8 +412,16 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (profileMod == null || SelectedProfile == null) return;
 
-        profileMod.Enabled = !profileMod.Enabled;
-        await _profileService.SetModEnabledAsync(SelectedProfile.Id, profileMod.ModId, profileMod.Enabled);
+        var enabled = !profileMod.Enabled;
+        try
+        {
+            await _profileService.SetModEnabledAsync(SelectedProfile.Id, profileMod.ModId, enabled);
+            profileMod.Enabled = enabled;
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"更新模组状态失败: {ex.Message}", "配置文件");
+        }
     }
 
     [RelayCommand]
@@ -145,8 +429,15 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (profileMod == null || SelectedProfile == null) return;
 
-        await _profileService.RemoveModFromProfileAsync(SelectedProfile.Id, profileMod.ModId);
-        ProfileMods.Remove(profileMod);
+        try
+        {
+            await _profileService.RemoveModFromProfileAsync(SelectedProfile.Id, profileMod.ModId);
+            ProfileMods.Remove(profileMod);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"移除模组失败: {ex.Message}", "配置文件");
+        }
     }
 }
 
@@ -155,6 +446,7 @@ public partial class ProfileItemViewModel : ObservableObject
     private readonly Profile _profile;
 
     public Guid Id => _profile.Id;
+    public DateTime ModifiedAt => _profile.ModifiedAt;
 
     [ObservableProperty]
     private string _name;
@@ -176,6 +468,8 @@ public partial class ProfileItemViewModel : ObservableObject
         _isActive = profile.IsActive;
         _modCount = profile.Mods.Count;
     }
+
+    partial void OnNameChanged(string value) => _profile.Name = value;
 }
 
 public partial class ProfileModViewModel : ObservableObject
@@ -197,4 +491,23 @@ public partial class ProfileModViewModel : ObservableObject
 
     [ObservableProperty]
     private int _order;
+}
+
+public enum ProfileCompareStatus
+{
+    Common,
+    OnlyLeft,
+    OnlyRight,
+    EnabledStateDifferent
+}
+
+public partial class ProfileCompareItemViewModel : ObservableObject
+{
+    [ObservableProperty] private Guid _modId;
+    [ObservableProperty] private string _name = string.Empty;
+    [ObservableProperty] private string _leftState = "-";
+    [ObservableProperty] private string _rightState = "-";
+    [ObservableProperty] private string _statusText = string.Empty;
+    [ObservableProperty] private ProfileCompareStatus _status;
+    [ObservableProperty] private bool _isVisible = true;
 }

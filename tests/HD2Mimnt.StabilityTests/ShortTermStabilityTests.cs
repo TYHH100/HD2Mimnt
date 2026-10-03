@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using Xunit.Abstractions;
@@ -240,9 +241,21 @@ public class ShortTermStabilityTests : IDisposable
         _monitor?.Dispose();
         _dbContext?.Dispose();
 
-        if (File.Exists(_testDbPath))
+        // SQLite may release pooled handles shortly after the context is disposed.
+        // Retry only for this test's known temporary database path.
+        SqliteConnection.ClearAllPools();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        for (var attempt = 0; attempt < 5 && File.Exists(_testDbPath); attempt++)
         {
-            File.Delete(_testDbPath);
+            try
+            {
+                File.Delete(_testDbPath);
+            }
+            catch (IOException) when (Path.GetFileName(_testDbPath).StartsWith("stability_test_", StringComparison.Ordinal))
+            {
+                Thread.Sleep(100);
+            }
         }
 
         _disposed = true;

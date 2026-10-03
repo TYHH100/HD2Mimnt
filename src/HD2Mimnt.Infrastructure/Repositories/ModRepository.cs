@@ -36,6 +36,35 @@ public class ModRepository : IModRepository
         return null;
     }
 
+    public async Task<IEnumerable<Mod>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        var distinctIds = ids.Distinct().ToArray();
+        if (distinctIds.Length == 0) return Array.Empty<Mod>();
+
+        var mods = new List<Mod>(distinctIds.Length);
+        foreach (var chunk in distinctIds.Chunk(500))
+        {
+            var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+            using var command = connection.CreateCommand();
+            var parameters = new List<string>(chunk.Length);
+            for (var index = 0; index < chunk.Length; index++)
+            {
+                var parameterName = $"@Id{index}";
+                parameters.Add(parameterName);
+                command.Parameters.AddWithValue(parameterName, chunk[index].ToString());
+            }
+
+            command.CommandText = $"SELECT * FROM Mods WHERE Id IN ({string.Join(",", parameters)})";
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                mods.Add(MapToMod(reader));
+            }
+        }
+
+        return mods.OrderBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
     public async Task<IEnumerable<Mod>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var connection = await _dbContext.GetConnectionAsync(cancellationToken);
@@ -58,13 +87,13 @@ public class ModRepository : IModRepository
         var connection = await _dbContext.GetConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
+        // 使用 FTS5 全文搜索索引以提高性能
         command.CommandText = @"
-            SELECT * FROM Mods
-            WHERE Name LIKE @Keyword
-               OR Description LIKE @Keyword
-               OR Author LIKE @Keyword
-            ORDER BY Name";
-        command.Parameters.AddWithValue("@Keyword", $"%{keyword}%");
+            SELECT m.* FROM Mods m
+            INNER JOIN ModsFTS fts ON m.rowid = fts.rowid
+            WHERE ModsFTS MATCH @Keyword
+            ORDER BY m.Name";
+        command.Parameters.AddWithValue("@Keyword", keyword);
 
         var mods = new List<Mod>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

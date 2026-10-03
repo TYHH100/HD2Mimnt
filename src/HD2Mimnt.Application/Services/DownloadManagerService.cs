@@ -81,12 +81,15 @@ public class DownloadManagerService
     {
         if (_downloadTasks.TryGetValue(taskId, out var task))
         {
-            if (task.Status == DownloadStatus.Queued || task.Status == DownloadStatus.Downloading)
+            lock (task)
             {
-                task.CancellationTokenSource?.Cancel();
-                task.Status = DownloadStatus.Cancelled;
-                task.CompletedAt = DateTime.UtcNow;
-                return true;
+                if (task.Status == DownloadStatus.Queued || task.Status == DownloadStatus.Downloading)
+                {
+                    task.CancellationTokenSource?.Cancel();
+                    task.Status = DownloadStatus.Cancelled;
+                    task.CompletedAt = DateTime.UtcNow;
+                    return true;
+                }
             }
         }
         return false;
@@ -119,9 +122,19 @@ public class DownloadManagerService
 
         try
         {
-            task.Status = DownloadStatus.Downloading;
-            task.StartedAt = DateTime.UtcNow;
-            task.CancellationTokenSource = new CancellationTokenSource();
+            lock (task)
+            {
+                // A queued task may be cancelled before Task.Run starts.
+                // Do not resurrect it as an active download in that case.
+                if (task.Status != DownloadStatus.Queued)
+                {
+                    return;
+                }
+
+                task.Status = DownloadStatus.Downloading;
+                task.StartedAt = DateTime.UtcNow;
+                task.CancellationTokenSource = new CancellationTokenSource();
+            }
 
             // Get mod info first
             var modInfo = await platform.GetModInfoAsync(task.ModId, task.CancellationTokenSource.Token);

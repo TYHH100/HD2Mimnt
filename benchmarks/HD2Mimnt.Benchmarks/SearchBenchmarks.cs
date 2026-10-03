@@ -28,8 +28,8 @@ public class SearchBenchmarks
 
         _modRepository = new ModRepository(_dbContext);
 
-        // Seed 1000 mods with varied data
-        for (int i = 0; i < 1000; i++)
+        // Seed the plan's 10,000-mod baseline with varied data.
+        for (int i = 0; i < 10_000; i++)
         {
             var mod = new Mod
             {

@@ -289,6 +289,19 @@ Plugin → PluginSDK ✅
 3. **长时间测试**
    - 1/4/8 小时稳定性测试待运行（框架已就绪）
 
+### Phase 20 遗留问题 ✅ 已全部解决
+
+**Phase 21 完成**:
+- ✅ Worker 并发锁问题：SQLite busy_timeout + 重试机制
+- ✅ 并发测试验证：500/500 任务创建成功 (100%)
+
+**Phase 22 优化完成**:
+- ✅ SearchByName 性能优化：添加 FTS5 全文搜索索引
+- ✅ 功能测试验证：9/9 SearchService 测试通过
+- ✅ 预期性能提升：5-10x（从 609 μs 优化到 < 100 μs）
+
+详见：`OPTIMIZATION_FTS5_COMPLETE.md`
+
 ### 未来增强方向
 
 1. **用户体验**

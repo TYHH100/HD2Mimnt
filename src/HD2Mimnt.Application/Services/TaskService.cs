@@ -82,6 +82,16 @@ public class TaskService
         {
             try
             {
+                if (cts.IsCancellationRequested)
+                {
+                    task.Status = Core.Entities.TaskStatus.Cancelled;
+                    task.Stage = "Cancelled";
+                    task.Message = "Task was cancelled before it started";
+                    task.EndTime = DateTime.UtcNow;
+                    await _taskRepository.UpdateAsync(task, CancellationToken.None);
+                    return;
+                }
+
                 // 更新为运行状态
                 task.Status = Core.Entities.TaskStatus.Running;
                 task.Progress = 0;
@@ -90,7 +100,7 @@ public class TaskService
                 await _taskRepository.UpdateAsync(task, CancellationToken.None);
 
                 // 创建进度报告器
-                var progress = new Progress<TaskProgress>(async p =>
+                var progress = new SynchronousProgress<TaskProgress>(p =>
                 {
                     try
                     {
@@ -98,7 +108,10 @@ public class TaskService
                         task.Stage = p.Stage;
                         task.CurrentItem = p.CurrentItem;
                         task.Message = p.Message;
-                        await _taskRepository.UpdateAsync(task, CancellationToken.None);
+                        // Worker 在后台线程执行，串行写入可避免进度和完成状态并发覆盖。
+                        _taskRepository.UpdateAsync(task, CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult();
                     }
                     catch
                     {
@@ -231,5 +244,14 @@ public class TaskService
                 await _taskRepository.DeleteAsync(task.Id, cancellationToken);
             }
         }
+    }
+
+    private sealed class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public SynchronousProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }

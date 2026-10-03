@@ -60,6 +60,20 @@ public class ModServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetModsByIds_ShouldReturnOnlyRequestedMods()
+    {
+        var requested = new Mod { Id = Guid.NewGuid(), Name = "Requested", Version = "1.0.0", Path = @"C:\Test\Requested" };
+        var other = new Mod { Id = Guid.NewGuid(), Name = "Other", Version = "1.0.0", Path = @"C:\Test\Other" };
+        await _modRepository.AddAsync(requested);
+        await _modRepository.AddAsync(other);
+
+        var result = (await _modService.GetModsByIdsAsync(new[] { requested.Id, Guid.NewGuid() })).ToList();
+
+        var mod = Assert.Single(result);
+        Assert.Equal(requested.Id, mod.Id);
+    }
+
+    [Fact]
     public async Task SearchMods_ShouldReturnMatchingMods()
     {
         // Arrange

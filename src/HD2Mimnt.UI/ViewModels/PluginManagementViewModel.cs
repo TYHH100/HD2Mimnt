@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using System.Collections.ObjectModel;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -12,6 +13,7 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class PluginManagementViewModel : ObservableObject
 {
     private readonly IPluginService _pluginService;
+    private readonly IConfirmationService _confirmationService;
 
     [ObservableProperty]
     private ObservableCollection<PluginItemViewModel> _installedPlugins = new();
@@ -34,9 +36,27 @@ public partial class PluginManagementViewModel : ObservableObject
     [ObservableProperty]
     private int _disabledPlugins;
 
+    [ObservableProperty]
+    private ObservableCollection<PluginExecutionHistory> _executionHistory = new();
+
+    [ObservableProperty]
+    private PluginItemViewModel? _historyPlugin;
+
+    [ObservableProperty]
+    private bool _isHistoryOpen;
+
+    public event EventHandler? InstallManifestRequested;
+    public event EventHandler<PluginItemViewModel>? PermissionEditorRequested;
+
     public PluginManagementViewModel(IPluginService pluginService)
+        : this(pluginService, new TestConfirmationService())
+    {
+    }
+
+    public PluginManagementViewModel(IPluginService pluginService, IConfirmationService confirmationService)
     {
         _pluginService = pluginService;
+        _confirmationService = confirmationService;
     }
 
     public async Task InitializeAsync()
@@ -75,11 +95,70 @@ public partial class PluginManagementViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task InstallPluginAsync()
+    private void InstallPlugin()
     {
-        // TODO: Show file picker dialog for plugin manifest
-        StatusMessage = "Plugin installation coming soon...";
+        InstallManifestRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    [RelayCommand]
+    private void EditPermissions(PluginItemViewModel? plugin)
+    {
+        if (plugin != null) PermissionEditorRequested?.Invoke(this, plugin);
+    }
+
+    public async Task ApplyPermissionsAsync(PluginItemViewModel plugin, IEnumerable<PermissionItemViewModel> items)
+    {
+        foreach (var item in items)
+        {
+            var result = item.IsGranted
+                ? await _pluginService.GrantPermissionAsync(plugin.PluginId, item.Permission)
+                : await _pluginService.RevokePermissionAsync(plugin.PluginId, item.Permission);
+            if (!result.Success)
+            {
+                StatusMessage = $"权限更新失败：{result.Error ?? result.Message}";
+                return;
+            }
+        }
+
+        await RefreshPermissionsAsync(plugin);
+        StatusMessage = $"已更新 {plugin.Name} 的权限";
+    }
+
+    public async Task RefreshPermissionsAsync(PluginItemViewModel plugin)
+    {
+        var permissions = await _pluginService.GetPluginPermissionsAsync(plugin.PluginId);
+        plugin.ReplacePermissions(permissions);
+    }
+
+    public async Task InstallPluginAsync(string manifestPath, CancellationToken cancellationToken = default)
+    {
+        IsLoading = true;
+        StatusMessage = "正在安装插件...";
+        try
+        {
+            var result = await _pluginService.InstallPluginAsync(manifestPath, cancellationToken);
+            if (result.Success)
+            {
+                await LoadPluginsAsync();
+                StatusMessage = "插件安装成功";
+            }
+            else
+            {
+                StatusMessage = $"插件安装失败：{result.Error ?? result.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"插件安装失败：{ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public Task<PluginManifestPreview?> GetManifestPreviewAsync(string manifestPath, CancellationToken cancellationToken = default) =>
+        _pluginService.GetManifestPreviewAsync(manifestPath, cancellationToken);
 
     [RelayCommand]
     private async Task EnablePluginAsync(PluginItemViewModel? plugin)
@@ -150,7 +229,12 @@ public partial class PluginManagementViewModel : ObservableObject
     {
         if (plugin == null) return;
 
-        // TODO: Show confirmation dialog
+        if (!await _confirmationService.ConfirmAsync(
+                "卸载插件",
+                $"确定卸载“{plugin.Name}”吗？插件将停止运行并从已安装列表移除。"))
+        {
+            return;
+        }
 
         IsLoading = true;
         StatusMessage = $"Uninstalling {plugin.Name}...";
@@ -187,7 +271,9 @@ public partial class PluginManagementViewModel : ObservableObject
         try
         {
             var history = await _pluginService.GetExecutionHistoryAsync(plugin.PluginId, 50);
-            // TODO: Show execution history dialog
+            HistoryPlugin = plugin;
+            ExecutionHistory = new ObservableCollection<PluginExecutionHistory>(history);
+            IsHistoryOpen = true;
             StatusMessage = $"Found {history.Count} execution records for {plugin.Name}";
         }
         catch (Exception ex)
@@ -202,11 +288,24 @@ public partial class PluginManagementViewModel : ObservableObject
         await LoadPluginsAsync();
     }
 
+    [RelayCommand]
+    private void CloseHistory()
+    {
+        IsHistoryOpen = false;
+        HistoryPlugin = null;
+        ExecutionHistory.Clear();
+    }
+
     private void UpdateStatistics()
     {
         TotalPlugins = InstalledPlugins.Count;
         EnabledPlugins = InstalledPlugins.Count(p => p.IsEnabled);
         DisabledPlugins = InstalledPlugins.Count(p => !p.IsEnabled);
+    }
+
+    private sealed class TestConfirmationService : IConfirmationService
+    {
+        public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(true);
     }
 }
 
@@ -262,8 +361,8 @@ public partial class PluginItemViewModel : ObservableObject
         _pluginId = plugin.Id;
         _name = plugin.Name;
         _version = plugin.Version;
-        _author = plugin.Author;
-        _description = plugin.Description;
+        _author = plugin.Author ?? string.Empty;
+        _description = plugin.Description ?? string.Empty;
         _isEnabled = plugin.Enabled;
         _permissionMode = plugin.PermissionMode;
         _installedAt = plugin.InstalledAt;
@@ -273,5 +372,11 @@ public partial class PluginItemViewModel : ObservableObject
         {
             Permissions.Add(permission);
         }
+    }
+
+    public void ReplacePermissions(IEnumerable<PluginPermission> permissions)
+    {
+        Permissions = new ObservableCollection<PluginPermission>(permissions);
+        OnPropertyChanged(nameof(GrantedPermissionsCount));
     }
 }

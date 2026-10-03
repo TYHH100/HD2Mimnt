@@ -35,4 +35,16 @@ public partial class PluginPermissionDialog : Window
 
         return viewModel.Result;
     }
+
+    public static async Task<PluginPermissionDialogViewModel> ShowManagementAsync(
+        Window owner,
+        PluginItemViewModel plugin)
+    {
+        var dialog = new PluginPermissionDialog();
+        var viewModel = new PluginPermissionDialogViewModel();
+        viewModel.InitializeManagement(plugin);
+        dialog.DataContext = viewModel;
+        await dialog.ShowDialog(owner);
+        return viewModel;
+    }
 }

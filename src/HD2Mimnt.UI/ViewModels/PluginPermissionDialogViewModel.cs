@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Core.Interfaces;
 using System.Collections.ObjectModel;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -38,6 +39,9 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
 
     [ObservableProperty]
     private string _warningMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isManagementMode;
 
     public PluginPermissionDialogResult Result { get; private set; } = PluginPermissionDialogResult.Deny;
 
@@ -81,6 +85,38 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         }
     }
 
+    public void InitializeManagement(PluginItemViewModel plugin)
+    {
+        PluginName = plugin.Name;
+        PluginVersion = plugin.Version;
+        PluginAuthor = plugin.Author;
+        PluginDescription = plugin.Description;
+        PermissionMode = plugin.PermissionMode;
+        IsFullAccess = plugin.PermissionMode == "FullAccess";
+        PermissionModeIcon = IsFullAccess ? "🔓" : "🔒";
+        IsManagementMode = true;
+        RequestedPermissions.Clear();
+
+        foreach (var permission in plugin.Permissions)
+        {
+            RequestedPermissions.Add(new PermissionItemViewModel
+            {
+                Permission = permission.Permission,
+                DisplayName = GetPermissionDisplayName(permission.Permission),
+                Description = GetPermissionDescription(permission.Permission),
+                Icon = GetPermissionIcon(permission.Permission),
+                IsHighRisk = IsHighRiskPermission(permission.Permission),
+                IsGranted = permission.Granted,
+                CanEdit = !IsFullAccess
+            });
+        }
+
+        ShowWarning = IsFullAccess || RequestedPermissions.Any(p => p.IsHighRisk);
+        WarningMessage = IsFullAccess
+            ? "⚠️ Full Access 模式绕过权限列表检查，只有可信插件才应保持此模式。"
+            : "修改权限后，插件下次访问资源时会按新的授权状态执行。";
+    }
+
     [RelayCommand]
     private void AllowOnce(object? window)
     {
@@ -97,6 +133,20 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
 
     [RelayCommand]
     private void Deny(object? window)
+    {
+        Result = PluginPermissionDialogResult.Deny;
+        CloseWindow(window);
+    }
+
+    [RelayCommand]
+    private void SavePermissions(object? window)
+    {
+        Result = PluginPermissionDialogResult.AllowAlways;
+        CloseWindow(window);
+    }
+
+    [RelayCommand]
+    private void CancelEdit(object? window)
     {
         Result = PluginPermissionDialogResult.Deny;
         CloseWindow(window);
@@ -122,6 +172,12 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "WriteConfiguration" => "Write Configuration",
             "FileSystemAccess" => "File System Access",
             "RegistryAccess" => "Registry Access",
+            "mods.read" => "读取模组文件",
+            "mods.write" => "写入模组文件",
+            "storage.read" => "读取插件存储",
+            "storage.write" => "写入插件存储",
+            "config.write" => "写入配置",
+            "network" => "网络访问",
             _ => permission
         };
     }
@@ -138,6 +194,12 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "WriteConfiguration" => "Modify application settings",
             "FileSystemAccess" => "Read and write files outside plugin directory",
             "RegistryAccess" => "Read and modify Windows registry",
+            "mods.read" => "读取模组元数据和文件信息",
+            "mods.write" => "修改模组文件和元数据",
+            "storage.read" => "读取插件专用存储",
+            "storage.write" => "写入插件专用存储",
+            "config.write" => "修改插件配置",
+            "network" => "向外部服务发起网络请求",
             _ => "Custom permission"
         };
     }
@@ -154,6 +216,12 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "WriteConfiguration" => "🔧",
             "FileSystemAccess" => "📁",
             "RegistryAccess" => "🔑",
+            "mods.read" => "📖",
+            "mods.write" => "✏️",
+            "storage.read" => "📁",
+            "storage.write" => "📁",
+            "config.write" => "🔧",
+            "network" => "🌐",
             _ => "🔒"
         };
     }
@@ -166,6 +234,8 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "WriteModFiles" => true,
             "FileSystemAccess" => true,
             "RegistryAccess" => true,
+            "mods.write" => true,
+            "storage.write" => true,
             _ => false
         };
     }
@@ -190,6 +260,12 @@ public partial class PermissionItemViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isHighRisk;
+
+    [ObservableProperty]
+    private bool _isGranted;
+
+    [ObservableProperty]
+    private bool _canEdit;
 }
 
 /// <summary>

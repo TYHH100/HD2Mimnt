@@ -377,6 +377,29 @@ public class PluginServiceTests
     }
 
     [Fact]
+    public async Task GetManifestPreviewAsync_ReturnsPermissionMetadata()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "preview.plugin",
+            Name = "Preview Plugin",
+            Version = "1.2.3",
+            Author = "Author",
+            Description = "Description",
+            PermissionMode = PluginPermissionMode.Sandbox,
+            RequestedPermissions = new List<string> { "mods.read", "storage.write" }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+
+        var preview = await _service.GetManifestPreviewAsync(_tempManifestPath);
+
+        Assert.NotNull(preview);
+        Assert.Equal("Preview Plugin", preview!.Name);
+        Assert.Equal("Sandbox", preview.PermissionMode);
+        Assert.Equal(manifest.RequestedPermissions, preview.RequestedPermissions);
+    }
+
+    [Fact]
     public async Task ValidateManifestAsync_MissingFields_Failure()
     {
         // Arrange

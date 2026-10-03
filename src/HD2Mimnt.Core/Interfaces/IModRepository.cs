@@ -9,6 +9,7 @@ namespace HD2Mimnt.Core.Interfaces;
 public interface IModRepository
 {
     Task<Mod?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Mod>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
     Task<IEnumerable<Mod>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IEnumerable<Mod>> SearchAsync(string keyword, CancellationToken cancellationToken = default);
     Task<IEnumerable<Mod>> GetByTagAsync(string tag, CancellationToken cancellationToken = default);

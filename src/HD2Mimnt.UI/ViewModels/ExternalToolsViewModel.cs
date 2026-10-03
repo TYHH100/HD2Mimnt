@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using System.Collections.ObjectModel;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -12,6 +13,7 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class ExternalToolsViewModel : ObservableObject
 {
     private readonly IExternalToolService _toolService;
+    private readonly IConfirmationService _confirmationService;
 
     [ObservableProperty]
     private ObservableCollection<ExternalToolItemViewModel> _tools = new();
@@ -31,13 +33,25 @@ public partial class ExternalToolsViewModel : ObservableObject
     [ObservableProperty]
     private int _enabledTools;
 
-    public ExternalToolsViewModel(IExternalToolService toolService)
+    [ObservableProperty] private bool _isEditorOpen;
+    [ObservableProperty] private bool _isEditing;
+    [ObservableProperty] private string _editId = string.Empty;
+    [ObservableProperty] private string _editName = string.Empty;
+    [ObservableProperty] private string _editDescription = string.Empty;
+    [ObservableProperty] private string _editExecutablePath = string.Empty;
+    [ObservableProperty] private string _editArguments = string.Empty;
+    [ObservableProperty] private string _editWorkingDirectory = string.Empty;
+    [ObservableProperty] private string _editSupportedExtensions = string.Empty;
+    [ObservableProperty] private bool _editIsEnabled = true;
+
+    public ExternalToolsViewModel(IExternalToolService toolService, IConfirmationService confirmationService)
     {
         _toolService = toolService;
+        _confirmationService = confirmationService;
     }
 
     [RelayCommand]
-    private async Task InitializeAsync()
+    public async Task InitializeAsync()
     {
         await LoadToolsAsync();
     }
@@ -72,21 +86,80 @@ public partial class ExternalToolsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task AddToolAsync()
+    private void AddTool()
     {
-        // TODO: Open add tool dialog
-        StatusMessage = "Add tool dialog not implemented yet";
-        await Task.CompletedTask;
+        IsEditing = false;
+        EditId = Guid.NewGuid().ToString("N");
+        EditName = string.Empty;
+        EditDescription = string.Empty;
+        EditExecutablePath = string.Empty;
+        EditArguments = string.Empty;
+        EditWorkingDirectory = string.Empty;
+        EditSupportedExtensions = string.Empty;
+        EditIsEnabled = true;
+        IsEditorOpen = true;
+        StatusMessage = "请输入外部工具信息";
     }
 
     [RelayCommand]
-    private async Task EditToolAsync(ExternalToolItemViewModel? tool)
+    private void EditTool(ExternalToolItemViewModel? tool)
     {
         if (tool == null) return;
 
-        // TODO: Open edit tool dialog
-        StatusMessage = $"Edit dialog for '{tool.Name}' not implemented yet";
-        await Task.CompletedTask;
+        IsEditing = true;
+        EditId = tool.Id;
+        EditName = tool.Name;
+        EditDescription = tool.Description ?? string.Empty;
+        EditExecutablePath = tool.ExecutablePath;
+        EditArguments = tool.Arguments ?? string.Empty;
+        EditWorkingDirectory = tool.WorkingDirectory ?? string.Empty;
+        EditSupportedExtensions = tool.SupportedExtensions ?? string.Empty;
+        EditIsEnabled = tool.IsEnabled;
+        IsEditorOpen = true;
+        StatusMessage = $"正在编辑“{tool.Name}”";
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsEditorOpen = false;
+        StatusMessage = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task SaveToolAsync()
+    {
+        var tool = new ExternalTool
+        {
+            Id = EditId.Trim(),
+            Name = EditName.Trim(),
+            Description = NullIfEmpty(EditDescription),
+            ExecutablePath = EditExecutablePath.Trim(),
+            Arguments = NullIfEmpty(EditArguments),
+            WorkingDirectory = NullIfEmpty(EditWorkingDirectory),
+            SupportedExtensions = NullIfEmpty(EditSupportedExtensions),
+            IsEnabled = EditIsEnabled
+        };
+
+        var validation = await _toolService.ValidateToolAsync(tool);
+        if (!validation.IsValid)
+        {
+            StatusMessage = $"校验失败：{string.Join("；", validation.Errors)}";
+            return;
+        }
+
+        var result = IsEditing
+            ? await _toolService.UpdateToolAsync(tool)
+            : await _toolService.RegisterToolAsync(tool);
+        if (!result.Success)
+        {
+            StatusMessage = result.Error ?? "保存外部工具失败";
+            return;
+        }
+
+        await LoadToolsAsync();
+        IsEditorOpen = false;
+        StatusMessage = IsEditing ? "外部工具已更新" : "外部工具已添加";
     }
 
     [RelayCommand]
@@ -94,7 +167,10 @@ public partial class ExternalToolsViewModel : ObservableObject
     {
         if (tool == null) return;
 
-        // TODO: Show confirmation dialog
+        if (!await _confirmationService.ConfirmAsync("删除外部工具", $"确定删除“{tool.Name}”吗？"))
+        {
+            return;
+        }
 
         StatusMessage = $"Deleting tool '{tool.Name}'...";
 
@@ -147,6 +223,15 @@ public partial class ExternalToolsViewModel : ObservableObject
         }
     }
 
+    public async Task LaunchToolAsync(string toolId, string filePath, CancellationToken cancellationToken = default)
+    {
+        StatusMessage = "正在启动外部工具...";
+        var result = await _toolService.LaunchToolAsync(toolId, filePath, cancellationToken);
+        StatusMessage = result.Success
+            ? result.Message ?? "外部工具已启动"
+            : $"启动失败：{result.Error}";
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -158,6 +243,9 @@ public partial class ExternalToolsViewModel : ObservableObject
         TotalTools = Tools.Count;
         EnabledTools = Tools.Count(t => t.IsEnabled);
     }
+
+    private static string? NullIfEmpty(string value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 /// <summary>

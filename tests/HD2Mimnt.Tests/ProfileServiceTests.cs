@@ -66,6 +66,32 @@ public class ProfileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SetActiveProfile_ShouldRejectUnknownProfileWithoutClearingCurrentProfile()
+    {
+        var profileId = await _profileService.CreateProfileAsync("Profile 1");
+        await _profileService.SetActiveProfileAsync(profileId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _profileService.SetActiveProfileAsync(Guid.NewGuid()));
+
+        var activeProfile = await _profileService.GetActiveProfileAsync();
+        Assert.NotNull(activeProfile);
+        Assert.Equal(profileId, activeProfile.Id);
+    }
+
+    [Fact]
+    public async Task DeleteProfile_ShouldRejectActiveProfile()
+    {
+        var profileId = await _profileService.CreateProfileAsync("Profile 1");
+        await _profileService.SetActiveProfileAsync(profileId);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _profileService.DeleteProfileAsync(profileId));
+
+        Assert.NotNull(await _profileRepository.GetByIdAsync(profileId));
+    }
+
+    [Fact]
     public async Task AddModToProfile_ShouldAddMod()
     {
         // Arrange
@@ -136,6 +162,45 @@ public class ProfileServiceTests : IDisposable
         var profile = await _profileRepository.GetByIdAsync(profileId);
         Assert.NotNull(profile);
         Assert.False(profile.Mods[0].Enabled);
+    }
+
+    [Fact]
+    public async Task SetModEnabled_ShouldAddMissingModWhenEnabling()
+    {
+        var mod = new Mod { Id = Guid.NewGuid(), Name = "New Mod", Version = "1.0.0", Path = @"C:\TestMods\NewMod" };
+        await _modRepository.AddAsync(mod);
+        var profileId = await _profileService.CreateProfileAsync("Test Profile");
+
+        await _profileService.SetModEnabledAsync(profileId, mod.Id, true);
+
+        var profile = await _profileRepository.GetByIdAsync(profileId);
+        Assert.NotNull(profile);
+        var profileMod = Assert.Single(profile.Mods);
+        Assert.Equal(mod.Id, profileMod.ModId);
+        Assert.True(profileMod.Enabled);
+    }
+
+    [Fact]
+    public async Task SetModsEnabled_ShouldPersistBatchInOneProfileUpdate()
+    {
+        var mods = Enumerable.Range(1, 3)
+            .Select(index => new Mod
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Mod {index}",
+                Version = "1.0.0",
+                Path = $@"C:\TestMods\Mod{index}"
+            })
+            .ToArray();
+        foreach (var mod in mods) await _modRepository.AddAsync(mod);
+        var profileId = await _profileService.CreateProfileAsync("Test Profile");
+
+        await _profileService.SetModsEnabledAsync(profileId, mods.Select(mod => mod.Id).ToArray(), true);
+
+        var profile = await _profileRepository.GetByIdAsync(profileId);
+        Assert.NotNull(profile);
+        Assert.Equal(mods.Select(mod => mod.Id), profile.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
+        Assert.All(profile.Mods, mod => Assert.True(mod.Enabled));
     }
 
     [Fact]

@@ -10,10 +10,10 @@ BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValle
 ```
 | Method                           | Mean        | Error     | StdDev    | Rank | Gen0     | Gen1    | Allocated |
 |--------------------------------- |------------:|----------:|----------:|-----:|---------:|--------:|----------:|
-| QueryById                        |    16.57 μs |  0.208 μs |  0.174 μs |    1 |   0.5493 |       - |   5.15 KB |
-| QueryAll_1000Records             | 3,431.31 μs | 67.384 μs | 92.236 μs |    6 | 101.5625 | 74.2188 | 937.19 KB |
-| QueryByCategory                  |   732.31 μs |  7.274 μs |  5.679 μs |    5 |  20.5078 |  5.8594 | 191.77 KB |
-| InsertSingleMod                  |   555.79 μs |  8.560 μs |  8.007 μs |    4 |        - |       - |   5.45 KB |
-| UpdateModMetadata                |   501.70 μs |  4.285 μs |  3.799 μs |    3 |   0.9766 |       - |   10.2 KB |
-| ComplexJoinQuery_ProfileWithMods |    89.70 μs |  0.712 μs |  0.631 μs |    2 |   3.1738 |       - |  30.13 KB |
-| SearchByName                     |   539.90 μs |  6.721 μs |  6.287 μs |    4 |  11.7188 |  1.9531 | 108.26 KB |
+| QueryById                        |    15.98 μs |  0.157 μs |  0.147 μs |    1 |   0.5493 |       - |   5.15 KB |
+| QueryAll_1000Records             | 3,317.84 μs | 62.660 μs | 52.324 μs |    7 | 101.5625 | 74.2188 | 937.19 KB |
+| QueryByCategory                  |   762.48 μs |  9.163 μs |  7.652 μs |    6 |  20.5078 |  5.8594 | 191.77 KB |
+| InsertSingleMod                  |   722.25 μs | 13.340 μs | 11.825 μs |    5 |        - |       - |   5.45 KB |
+| UpdateModMetadata                |   620.26 μs |  9.308 μs |  8.706 μs |    4 |   0.9766 |       - |   10.2 KB |
+| ComplexJoinQuery_ProfileWithMods |    88.65 μs |  0.626 μs |  0.522 μs |    2 |   3.1738 |       - |  30.13 KB |
+| SearchByName                     |   432.20 μs |  8.595 μs |  8.826 μs |    3 |   9.7656 |  0.9766 |  97.73 KB |

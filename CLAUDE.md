@@ -1,203 +1,195 @@
-# HD2Mimnt - Helldivers 2 Mod Manager
+# CLAUDE.md
 
-## 项目概述
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-HD2Mimnt 是一个专门为 Helldivers 2 设计的 Mod 管理器，采用 Clean Architecture 架构。
+## Project Overview
 
-## 技术栈
+HD2Mimnt is a Helldivers 2 Mod Manager built with .NET 10, Avalonia UI, and SQLite. It provides mod library management, profile-based configurations, multiple deployment methods (Copy, Symbolic Link, Hard Link), workflow system for different mod formats, and plugin architecture for extensibility.
 
-- **UI 框架**: Jalium.UI (基于 Avalonia 的跨平台桌面应用框架)
-- **运行时**: .NET 10
-- **数据库**: SQLite (WAL 模式)
-- **架构模式**: Clean Architecture + MVVM
-- **依赖注入**: Microsoft.Extensions.DependencyInjection
-- **MVVM**: CommunityToolkit.Mvvm
+**Architecture**: Clean Architecture with 4 main layers:
+- **Core** (`HD2Mimnt.Core`): Domain entities, interfaces, enums
+- **Infrastructure** (`HD2Mimnt.Infrastructure`): Data access (SQLite), deployment methods, workflows, platform adapters
+- **Application** (`HD2Mimnt.Application`): Business logic services (ModService, ProfileService, DeploymentService, TaskService, etc.)
+- **UI** (`HD2Mimnt.UI`): Avalonia-based MVVM presentation layer
 
-## 项目结构
+**Additional Projects**:
+- `HD2Mimnt.PluginSDK`: Plugin development SDK (interfaces: IPlugin, IModPlugin, IDeploymentPlugin, IAnalysisPlugin)
+- `HD2Mimnt.PluginHost`: Isolated plugin execution host (separate process)
+- `HD2Mimnt.Worker`: Background worker process for long-running tasks
 
-```
-HD2Mimnt/
-├── src/
-│   ├── HD2Mimnt.Core/              # 核心层 - 实体和接口
-│   │   ├── Entities/               # 领域实体
-│   │   │   ├── Mod.cs
-│   │   │   ├── Profile.cs
-│   │   │   ├── ModTask.cs
-│   │   │   └── DeploymentRecord.cs
-│   │   ├── Interfaces/             # 仓储接口
-│   │   │   ├── IModRepository.cs
-│   │   │   ├── IProfileRepository.cs
-│   │   │   └── ITaskRepository.cs
-│   │   └── Enums/                  # 枚举类型
-│   │       └── CoreEnums.cs
-│   │
-│   ├── HD2Mimnt.Infrastructure/    # 基础设施层 - 数据访问
-│   │   ├── Data/
-│   │   │   └── HD2MimntDbContext.cs
-│   │   ├── Repositories/
-│   │   │   ├── ModRepository.cs
-│   │   │   └── ProfileRepository.cs
-│   │   └── Services/
-│   │
-│   ├── HD2Mimnt.Application/       # 应用层 - 业务逻辑
-│   │   ├── Services/
-│   │   │   ├── ModLibraryService.cs
-│   │   │   └── ProfileService.cs
-│   │   ├── Commands/
-│   │   └── DTOs/
-│   │
-│   └── HD2Mimnt.UI/                # 表示层 - Jalium.UI
-│       ├── ViewModels/
-│       │   ├── MainWindowViewModel.cs
-│       │   ├── LibraryViewModel.cs
-│       │   └── ProfileViewModel.cs
-│       ├── Views/
-│       ├── Services/
-│       ├── App.axaml
-│       ├── MainWindow.axaml
-│       └── Program.cs
-```
+## Build and Test Commands
 
-## 依赖关系
-
-```
-UI -> Application -> Core
-        ↓
-   Infrastructure -> Core
-```
-
-- **Core**: 不依赖任何项目，只包含实体、接口和枚举
-- **Infrastructure**: 依赖 Core，实现数据访问
-- **Application**: 依赖 Core 和 Infrastructure，实现业务逻辑
-- **UI**: 依赖 Application，实现用户界面
-
-## 核心概念
-
-### 1. Mod Library
-- Mod 是用户导入并管理的 Mod 资产
-- 每个 Mod 有唯一的 Guid
-- Mod 存储在 Library 中，由 ModRepository 管理
-
-### 2. Profile
-- Profile 是 Mod 使用配置
-- 每个 Profile 包含多个 Mod 引用
-- Profile 中的 Mod 可以启用/禁用，并有加载顺序
-- 同一时刻只能有一个 Active Profile
-
-### 3. Task Center
-- 所有后台操作（Import、Scan、Deploy、Cleanup）都是 Task
-- Task 有状态、进度、错误信息
-- Task 历史记录用于追踪和诊断
-
-### 4. Deployment
-- 部署有三种方式：Copy、Symbolic Link、Hard Link
-- DeploymentRecord 记录每次部署的详细信息
-- DeploymentFile 记录每个文件的部署位置，用于精准清理
-
-## 数据库设计
-
-### 表结构
-
-- **Mods**: 存储 Mod 元数据
-- **Profiles**: 存储 Profile 配置
-- **ProfileMods**: Profile 和 Mod 的多对多关系
-- **Tasks**: 任务记录
-- **DeploymentRecords**: 部署会话记录
-- **DeploymentFiles**: 具体文件部署记录
-- **Settings**: 应用设置
-
-### 索引策略
-
-- Mods: Name, Category
-- ProfileMods: Order
-- Tasks: Status, StartTime
-- DeploymentRecords: SessionId, ModId
-- DeploymentFiles: DeploymentId, ModId, TargetPath
-
-## UI 设计原则
-
-### 色彩系统
-- **背景层级**: 
-  - `#05070C` - 最深背景
-  - `#0A0D12` - 主背景
-  - `#0F131C` - 卡片背景
-  - `#161D2B` - Hover 状态
-  - `#1E2636` - 边框/分隔
-- **强调色**: `#38BDF8` (青色)
-- **文字颜色**:
-  - `#E0E0E0` - 主要文字
-  - `#9CA3AF` - 次要文字
-  - `#6B7280` - 辅助文字
-
-### 组件样式
-- **按钮**: 完全圆角 (`CornerRadius="999"`)
-- **卡片**: 圆角 6px
-- **间距**: 8px、12px、16px、24px 的倍数
-- **字体**: Inter (Avalonia 默认)
-
-## 开发约定
-
-### 命名规范
-- **文件**: PascalCase (MyClass.cs)
-- **类**: PascalCase
-- **接口**: I 前缀 + PascalCase (IModRepository)
-- **私有字段**: _camelCase
-- **公共属性**: PascalCase
-- **方法**: PascalCase + Async 后缀（异步方法）
-
-### 异步编程
-- 所有数据访问方法都是异步的
-- 使用 CancellationToken 参数（默认值 default）
-- 返回 Task 或 Task<T>
-
-### MVVM 模式
-- 使用 CommunityToolkit.Mvvm 的特性
-  - `[ObservableProperty]` 自动生成属性
-  - `[RelayCommand]` 自动生成命令
-- ViewModel 不直接访问 Repository，通过 Service 层
-
-### 错误处理
-- Repository 层：抛出异常
-- Service 层：捕获并处理异常，返回结果或 null
-- UI 层：显示用户友好的错误消息
-
-## 下一步开发计划
-
-参见 `HD2Mimnt v2 总体开发计划.md` 中的 Phase 规划。
-
-当前已完成：
-- ✅ Phase 0: 项目初始化
-- ✅ Phase 1: 项目骨架（基础架构）
-
-待实现：
-- Phase 2: Mod Library 完整功能
-- Phase 3: Profile 管理
-- Phase 4: Task Center
-- Phase 5: Deployment & Cleanup
-- ...
-
-## 构建和运行
-
-### 构建
 ```bash
+# Build the entire solution
 dotnet build
-```
 
-### 运行
-```bash
+# Build specific project
+dotnet build src/HD2Mimnt.UI/HD2Mimnt.UI.csproj
+
+# Run the application
 cd src/HD2Mimnt.UI
 dotnet run
+
+# Run all tests
+dotnet test
+
+# Run tests with detailed output
+dotnet test --verbosity normal
+
+# Run specific test class
+dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
+
+# Run single test method
+dotnet test --filter "FullyQualifiedName~ProfileServiceTests.CreateProfile_ShouldSucceed"
+
+# Run benchmarks
+cd benchmarks/HD2Mimnt.Benchmarks
+dotnet run -c Release
+
+# Run stability tests
+cd tests/HD2Mimnt.StabilityTests
+dotnet test
+
+# Publish for Windows x64
+dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained
 ```
 
-### 发布
-```bash
-dotnet publish -c Release -r win-x64 --self-contained
-```
+## Architecture Highlights
 
-## 数据库位置
+### Deployment System
+The deployment system supports three methods with complete file tracking:
+- **Copy**: Traditional file copying
+- **SymbolicLink**: Windows symbolic links (requires admin)
+- **HardLink**: NTFS hard links (same volume only)
 
-Windows: `%LOCALAPPDATA%\HD2Mimnt\hd2mimnt.db`
+Each deployment creates a `SessionId` for batch operations. The `DeploymentService` handles:
+- Pre-deployment cleanup (removes previous session files)
+- Profile deployment (deploys all enabled mods in order)
+- File-level tracking via `DeploymentRecord` and `DeploymentFile` entities
+- Cleanup operations using the appropriate method for each file
 
-## 参考项目
+### Workflow System
+Workflows define how different mod formats are parsed, validated, and deployed:
+- **LegacyWorkflow**: Original format with dropdown options (manifest v0)
+- **V1Workflow**: Modern format with independent toggles (manifest v1)
+- **IntegratedArmorWorkflow**: Specialized armor mod format with variants
 
-部分代码参考和学习自：`D:\TYHH10-git\Helldivers2ModManager`
+Workflows implement `IWorkflow` and are managed by `WorkflowRegistry`. The `ManifestParser` service handles JSON parsing.
+
+### Plugin Architecture
+Plugin system uses isolated processes for safety:
+- Plugins implement `IPlugin` (base), `IModPlugin`, `IDeploymentPlugin`, or `IAnalysisPlugin`
+- PluginHost runs in separate process, communicates via IPC
+- Plugins have manifest-based permissions (filesystem, network, database)
+- Sandbox isolation prevents plugins from affecting main application
+
+### Task System
+All long-running operations are tracked through the `TaskService`:
+- Import, Scan, Validation, Deployment, Cleanup tasks
+- Progress tracking with stages and percentages
+- Cancellation support via CancellationToken
+- Workers (`ScanWorker`, `ValidationWorker`, `ImportWorker`) execute background operations
+
+### Platform Integration
+External mod platforms (Nexus Mods, etc.) are abstracted via `IModPlatform`:
+- Search, download, version checking
+- Platform-specific metadata
+- `PlatformRegistry` manages available adapters
+- Currently includes `MockPlatformAdapter` for testing
+
+## Key Design Patterns
+
+### Repository Pattern
+All data access goes through repository interfaces:
+- `IModRepository`, `IProfileRepository`, `ITaskRepository`, `IDeploymentRepository`
+- Concrete implementations in Infrastructure layer use SQLite
+- Enables testing with in-memory implementations
+
+### Service Layer
+Business logic lives in Application services:
+- `ModService`: Mod CRUD, import, search
+- `ProfileService`: Profile management, mod assignment
+- `DeploymentService`: Deployment orchestration and cleanup
+- `TaskService`: Task lifecycle management
+- `SearchService`: Full-text search across mods
+- `ResourceExplorerService`: Mod resource dependency analysis
+
+### Dependency Injection
+The application uses Microsoft.Extensions.DependencyInjection. Services are registered in the UI project's Program.cs or App.axaml.cs.
+
+### Image Handling
+- `ImageLoaderService`: Loads images from disk/resources
+- `ImageCacheService`: LRU cache for thumbnail optimization
+- `ThumbnailService`: Generates thumbnails from mod icons
+
+## Database Schema
+
+SQLite database with core tables:
+- `Mods`: Mod library (Id, Name, Path, Version, Author, etc.)
+- `Profiles`: User configurations
+- `ProfileMods`: Many-to-many relationship (ProfileId, ModId, Enabled, Order)
+- `Tasks`: Task tracking
+- `DeploymentRecords`: Deployment sessions (SessionId, ProfileId, ModId, Method, Status)
+- `DeploymentFiles`: Individual file tracking (DeploymentId, SourcePath, TargetPath, Method)
+
+## Testing
+
+Test framework: xUnit with Moq for mocking
+- Unit tests: `tests/HD2Mimnt.Tests/`
+- Benchmarks: `benchmarks/HD2Mimnt.Benchmarks/` (BenchmarkDotNet)
+- Stability tests: `tests/HD2Mimnt.StabilityTests/` (long-running scenarios)
+
+When writing tests:
+- Use InMemory database for repository tests
+- Mock external dependencies (IModRepository, ILogger, etc.)
+- Follow existing test patterns (arrange-act-assert)
+- Test files use descriptive method names: `MethodName_Scenario_ExpectedResult`
+
+## Code Conventions
+
+- **Nullable reference types** enabled project-wide
+- **ImplicitUsings** enabled
+- Target framework: `net10.0`
+- Use async/await consistently; append `Async` suffix to async methods
+- CancellationToken parameters default to `default`
+- Use `ILogger<T>?` with null-conditional for logging (logger is optional)
+- Entity IDs are `Guid`, timestamps are `DateTime` (UTC)
+- Enums are in `HD2Mimnt.Core.Enums` namespace
+
+## Important Paths and Entry Points
+
+- Main entry: `src/HD2Mimnt.UI/Program.cs`
+- Main window: `src/HD2Mimnt.UI/MainWindow.axaml` + `.cs`
+- ViewModels: `src/HD2Mimnt.UI/ViewModels/`
+- Core entities: `src/HD2Mimnt.Core/Entities/`
+- Service implementations: `src/HD2Mimnt.Application/Services/`
+
+## Common Patterns
+
+### Deployment Workflow
+1. Call `PreDeploymentCleanupAsync()` to remove previous session
+2. Call `DeployProfileAsync()` with method (Copy/SymbolicLink/HardLink) and order
+3. Service creates new SessionId, deploys enabled mods in order
+4. Each file deployment creates `DeploymentFile` record
+5. Cleanup uses tracked records to reverse deployment
+
+### Task Creation
+1. Create `ModTask` entity with Name, Type, Status
+2. Add to database via `TaskService.CreateTaskAsync()`
+3. Update progress via `UpdateTaskProgressAsync()`
+4. Update status via `UpdateTaskStatusAsync()` when complete
+
+### Adding a New Workflow
+1. Create class implementing `IWorkflow` in `Infrastructure/Workflows/`
+2. Implement `CanHandleAsync()` detection logic
+3. Implement `ParseManifestAsync()` for manifest parsing
+4. Implement `ValidateAsync()` for structure validation
+5. Implement `GetDeploymentFilesAsync()` for file mapping
+6. Register in `WorkflowRegistry`
+
+## Current Status
+
+Version: 0.1.0-alpha
+Recent phases completed: Phase 22 (Release preparation), Phase 21 (Stability testing), Phase 20 (Performance testing), Phase 19 (AI Integration), Phase 18 (External platforms), Phase 17 (Plugin system)
+
+All core systems are functional. The application is in early alpha with ongoing UI and feature development.

@@ -158,7 +158,7 @@ public class CopyDeploymentMethodTests : IDisposable
         await File.WriteAllTextAsync(sourceFile, "Test content");
 
         var progressReports = new List<string>();
-        var progress = new Progress<string>(report => progressReports.Add(report));
+        var progress = new ImmediateProgress<string>(report => progressReports.Add(report));
 
         // Act
         var result = await _copyMethod.DeployFileAsync(sourceFile, targetFile, progress);
@@ -182,7 +182,7 @@ public class CopyDeploymentMethodTests : IDisposable
         await File.WriteAllBytesAsync(sourceFile, largeData);
 
         var cts = new CancellationTokenSource();
-        cts.CancelAfter(10); // 10ms 后取消
+        cts.Cancel(); // 预取消，避免测试依赖磁盘速度
 
         // Act
         var result = await _copyMethod.DeployFileAsync(sourceFile, targetFile, null, cts.Token);
@@ -267,5 +267,14 @@ public class CopyDeploymentMethodTests : IDisposable
             }
         }
         catch { }
+    }
+
+    private sealed class ImmediateProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public ImmediateProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }

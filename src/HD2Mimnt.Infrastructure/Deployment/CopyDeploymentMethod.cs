@@ -127,6 +127,8 @@ public class CopyDeploymentMethod : IDeploymentMethod
                 await CopyLargeFileAsync(sourcePath, targetPath, fileSize, progress, cancellationToken);
             }
 
+            // 取消可能在最后一次写入完成后到达，完成通知前仍要尊重它。
+            cancellationToken.ThrowIfCancellationRequested();
             progress?.Report($"Completed: {Path.GetFileName(sourcePath)}");
             return true;
         }

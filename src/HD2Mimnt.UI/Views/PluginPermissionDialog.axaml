@@ -11,7 +11,7 @@
         MinWidth="500" MinHeight="500"
         MaxWidth="700" MaxHeight="900"
         WindowStartupLocation="CenterOwner"
-        Background="#0A0D12"
+        Background="{DynamicResource Surface1Brush}"
         CanResize="False">
 
     <Design.DataContext>
@@ -20,15 +20,15 @@
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="0">
         <!-- Header -->
-        <Border Grid.Row="0" Background="#0F131C" BorderBrush="#1E2636" BorderThickness="0,0,0,1" Padding="24,20">
+        <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,20">
             <StackPanel Spacing="8">
                 <TextBlock Text="Plugin Permission Request"
                           FontSize="20"
                           FontWeight="SemiBold"
-                          Foreground="#E0E0E0"/>
+                          Foreground="{DynamicResource TextPrimaryBrush}"/>
                 <TextBlock Text="This plugin is requesting permissions to access system resources."
                           FontSize="13"
-                          Foreground="#9CA3AF"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
                           TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -37,9 +37,9 @@
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="20" Margin="24,20">
                 <!-- Plugin Info Card -->
-                <Border Background="#0F131C"
+                <Border Background="{DynamicResource Surface2Brush}"
                        CornerRadius="6"
-                       BorderBrush="#1E2636"
+                       BorderBrush="{DynamicResource BorderBrush}"
                        BorderThickness="1"
                        Padding="16">
                     <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="80,*">
@@ -47,7 +47,7 @@
                         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="4"
                                Width="64" Height="64"
                                CornerRadius="8"
-                               Background="#161D2B"
+                               Background="{DynamicResource Surface3Brush}"
                                VerticalAlignment="Top"
                                Margin="0,0,12,0">
                             <TextBlock Text="📦"
@@ -61,44 +61,44 @@
                                   Text="{Binding PluginName}"
                                   FontSize="16"
                                   FontWeight="SemiBold"
-                                  Foreground="#E0E0E0"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                   Margin="0,0,0,4"/>
 
                         <!-- Version & Author -->
                         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
                             <TextBlock Text="{Binding PluginVersion}"
                                      FontSize="12"
-                                     Foreground="#9CA3AF"/>
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBlock Text="•"
                                      FontSize="12"
-                                     Foreground="#6B7280"/>
+                                     Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock Text="{Binding PluginAuthor}"
                                      FontSize="12"
-                                     Foreground="#9CA3AF"/>
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
 
                         <!-- Description -->
                         <TextBlock Grid.Row="2" Grid.Column="1"
                                   Text="{Binding PluginDescription}"
                                   FontSize="13"
-                                  Foreground="#9CA3AF"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"
                                   TextWrapping="Wrap"
                                   Margin="0,0,0,8"/>
 
                         <!-- Permission Mode Badge -->
                         <Border Grid.Row="3" Grid.Column="1"
-                               Background="#1E2636"
+                               Background="{DynamicResource BorderBrush}"
                                CornerRadius="999"
                                Padding="10,4"
                                HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <TextBlock Text="{Binding PermissionModeIcon}"
                                          FontSize="12"
-                                         Foreground="#E0E0E0"/>
+                                         Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock Text="{Binding PermissionMode}"
                                          FontSize="12"
                                          FontWeight="Medium"
-                                         Foreground="#E0E0E0"/>
+                                         Foreground="{DynamicResource TextPrimaryBrush}"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -122,14 +122,14 @@
                     <TextBlock Text="Requested Permissions"
                               FontSize="14"
                               FontWeight="SemiBold"
-                              Foreground="#E0E0E0"/>
+                              Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                     <ItemsControl ItemsSource="{Binding RequestedPermissions}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#0F131C"
+                                <Border Background="{DynamicResource Surface2Brush}"
                                        CornerRadius="6"
-                                       BorderBrush="#1E2636"
+                                       BorderBrush="{DynamicResource BorderBrush}"
                                        BorderThickness="1"
                                        Padding="12"
                                        Margin="0,0,0,8">
@@ -146,27 +146,31 @@
                                             <TextBlock Text="{Binding DisplayName}"
                                                      FontSize="13"
                                                      FontWeight="Medium"
-                                                     Foreground="#E0E0E0"/>
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <TextBlock Text="{Binding Description}"
                                                      FontSize="12"
-                                                     Foreground="#9CA3AF"
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"
                                                      TextWrapping="Wrap"/>
                                         </StackPanel>
 
-                                        <!-- Risk Badge -->
-                                        <Border Grid.Column="2"
-                                               IsVisible="{Binding IsHighRisk}"
-                                               Background="#1E0F0F"
-                                               BorderBrush="#E94560"
-                                               BorderThickness="1"
-                                               CornerRadius="999"
-                                               Padding="8,4"
-                                               VerticalAlignment="Center">
-                                            <TextBlock Text="High Risk"
-                                                     FontSize="11"
-                                                     FontWeight="Medium"
-                                                     Foreground="#E94560"/>
-                                        </Border>
+                                        <!-- Risk and management state -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <Border IsVisible="{Binding IsHighRisk}"
+                                                   Background="#1E0F0F"
+                                                   BorderBrush="#E94560"
+                                                   BorderThickness="1"
+                                                   CornerRadius="999"
+                                                   Padding="8,4">
+                                                <TextBlock Text="High Risk"
+                                                         FontSize="11"
+                                                         FontWeight="Medium"
+                                                         Foreground="#E94560"/>
+                                            </Border>
+                                            <CheckBox IsVisible="{Binding CanEdit}"
+                                                     IsChecked="{Binding IsGranted}"
+                                                     VerticalAlignment="Center"
+                                                     ToolTip.Tip="授予此权限"/>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -175,42 +179,47 @@
                 </StackPanel>
 
                 <!-- Information Text -->
-                <TextBlock Text="Allow Once: Grant permissions for this session only&#x0a;Allow Always: Remember this decision and don't ask again&#x0a;Deny: Do not install this plugin"
+                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="Allow Once: Grant permissions for this session only&#x0a;Allow Always: Remember this decision and don't ask again&#x0a;Deny: Do not install this plugin"
                           FontSize="12"
-                          Foreground="#6B7280"
+                          Foreground="{DynamicResource TextMutedBrush}"
                           TextWrapping="Wrap"
                           Margin="0,8,0,0"/>
             </StackPanel>
         </ScrollViewer>
 
         <!-- Action Buttons -->
-        <Border Grid.Row="2" Background="#0F131C" BorderBrush="#1E2636" BorderThickness="0,1,0,0" Padding="24,16">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                <StackPanel Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+        <Border Grid.Row="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="24,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsManagementMode}">
+                    <TextBlock Text="勾选需要授予的权限" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
                     <Button Content="Deny"
+                           IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding DenyCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
                            CornerRadius="999"
-                           Background="#161D2B"
-                           Foreground="#9CA3AF"
-                           BorderBrush="#1E2636"
+                           Background="{DynamicResource Surface3Brush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           BorderBrush="{DynamicResource BorderBrush}"
                            BorderThickness="1"
                            MinWidth="100">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#1E2636"/>
+                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
 
                     <Button Content="Allow Once"
+                           IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowOnceCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
                            CornerRadius="999"
-                           Background="#1E2636"
-                           Foreground="#E0E0E0"
+                           Background="{DynamicResource BorderBrush}"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
                            BorderBrush="#38BDF8"
                            BorderThickness="1"
                            MinWidth="120">
@@ -223,12 +232,13 @@
                     </Button>
 
                     <Button Content="Allow Always"
+                           IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowAlwaysCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
                            CornerRadius="999"
                            Background="#38BDF8"
-                           Foreground="#05070C"
+                           Foreground="{DynamicResource Surface0Brush}"
                            BorderThickness="0"
                            FontWeight="Medium"
                            MinWidth="120">
@@ -238,6 +248,16 @@
                             </Style>
                         </Button.Styles>
                     </Button>
+                    <Button Content="取消"
+                           IsVisible="{Binding IsManagementMode}"
+                           Command="{Binding CancelEditCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Classes="secondary"/>
+                    <Button Content="保存权限"
+                           IsVisible="{Binding IsManagementMode}"
+                           Command="{Binding SavePermissionsCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Classes="primary"/>
                 </StackPanel>
             </Grid>
         </Border>

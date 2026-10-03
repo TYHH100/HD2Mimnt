@@ -10,6 +10,9 @@ namespace HD2Mimnt.Benchmarks;
 [RankColumn]
 public class SQLiteBenchmarks
 {
+    [Params(1000, 5000, 10000)]
+    public int ModCount { get; set; }
+
     private HD2MimntDbContext? _dbContext;
     private ModRepository? _modRepository;
     private ProfileRepository? _profileRepository;
@@ -27,8 +30,8 @@ public class SQLiteBenchmarks
         _modRepository = new ModRepository(_dbContext);
         _profileRepository = new ProfileRepository(_dbContext);
 
-        // Seed 1000 mods for testing
-        for (int i = 0; i < 1000; i++)
+        // Run the same queries against the plan's 1k/5k/10k data sizes.
+        for (int i = 0; i < ModCount; i++)
         {
             var mod = new Mod
             {
@@ -97,7 +100,7 @@ public class SQLiteBenchmarks
     }
 
     [Benchmark]
-    public async Task QueryAll_1000Records()
+    public async Task QueryAllRecords()
     {
         var mods = await _modRepository!.GetAllAsync();
     }

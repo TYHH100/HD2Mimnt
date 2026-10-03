@@ -1,14 +1,54 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:HD2Mimnt.UI.Converters"
              x:Class="HD2Mimnt.UI.App"
              RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Surface0Brush" Color="#F3F5F8"/>
+                    <SolidColorBrush x:Key="Surface1Brush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="Surface2Brush" Color="#F8FAFC"/>
+                    <SolidColorBrush x:Key="Surface3Brush" Color="#EEF2F6"/>
+                    <SolidColorBrush x:Key="BorderBrush" Color="#D7DEE8"/>
+                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#B5C0CF"/>
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#172033"/>
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#526071"/>
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#697586"/>
+                    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#E5EAF1"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Surface0Brush" Color="#05070C"/>
+                    <SolidColorBrush x:Key="Surface1Brush" Color="#0A0D12"/>
+                    <SolidColorBrush x:Key="Surface2Brush" Color="#0F131C"/>
+                    <SolidColorBrush x:Key="Surface3Brush" Color="#161D2B"/>
+                    <SolidColorBrush x:Key="BorderBrush" Color="#1E2636"/>
+                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#374151"/>
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E0E0E0"/>
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280"/>
+                    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#2A3347"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
+        <converters:EqualConverter x:Key="EqualConverter"/>
+        <converters:NotNullConverter x:Key="NotNullConverter"/>
+        <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
+        <converters:LevelToColorConverter x:Key="LevelToColorConverter"/>
+        <converters:LevelToIconConverter x:Key="LevelToIconConverter"/>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
 
         <Style Selector="Button.nav-button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontSize" Value="14"/>
@@ -18,12 +58,12 @@
         </Style>
 
         <Style Selector="Button.nav-button:pointerover">
-            <Setter Property="Background" Value="#161D2B"/>
-            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
 
         <Style Selector="Button.nav-button:pressed">
-            <Setter Property="Background" Value="#1E2636"/>
+            <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
         </Style>
 
@@ -52,10 +92,10 @@
         </Style>
 
         <Style Selector="Button.secondary">
-            <Setter Property="Background" Value="#1E2636"/>
-            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
             <Setter Property="Padding" Value="16,10"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
@@ -64,14 +104,14 @@
         </Style>
 
         <Style Selector="Button.secondary:pointerover">
-            <Setter Property="Background" Value="#2A3347"/>
-            <Setter Property="BorderBrush" Value="#4B5563"/>
+            <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
         </Style>
 
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#0F131C"/>
-            <Setter Property="Foreground" Value="#E0E0E0"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="CornerRadius" Value="6"/>
@@ -79,6 +119,180 @@
 
         <Style Selector="TextBox:focus">
             <Setter Property="BorderBrush" Value="#38BDF8"/>
+        </Style>
+
+        <!-- Icon Button Style -->
+        <Style Selector="Button.icon-button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.icon-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button.icon-button:pressed">
+            <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- Badge Style -->
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="MinWidth" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+        </Style>
+
+        <Style Selector="Border.badge > TextBlock">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Status Indicator Style -->
+        <Style Selector="Ellipse.status-indicator">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- RadioButton Navigation Style -->
+        <Style Selector="RadioButton.nav-button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="RadioButton.nav-button:pointerover /template/ Border">
+            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+        </Style>
+
+        <Style Selector="RadioButton.nav-button:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="RadioButton.nav-button:checked /template/ Border">
+            <Setter Property="Background" Value="#38BDF8"/>
+        </Style>
+
+        <Style Selector="RadioButton.nav-button:checked">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- Filter Button Style -->
+        <Style Selector="RadioButton.filter-button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="RadioButton.filter-button:pointerover /template/ Border">
+            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
+        </Style>
+
+        <Style Selector="RadioButton.filter-button:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="RadioButton.filter-button:checked /template/ Border">
+            <Setter Property="Background" Value="#38BDF8"/>
+            <Setter Property="BorderBrush" Value="#38BDF8"/>
+        </Style>
+
+        <Style Selector="RadioButton.filter-button:checked">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <!-- ListBox Style -->
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+
+        <Style Selector="ComboBox:focus">
+            <Setter Property="BorderBrush" Value="#38BDF8"/>
+        </Style>
+
+        <Style Selector="ComboBox:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
     </Application.Styles>
 </Application>

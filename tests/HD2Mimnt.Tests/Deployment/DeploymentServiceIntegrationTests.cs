@@ -579,4 +579,65 @@ public class DeploymentServiceIntegrationTests : IDisposable
         var fileList = deploymentFiles.ToList();
         Assert.Equal(3, fileList.Count);
     }
+
+    [Fact]
+    public async Task CleanupDeployment_ShouldKeepRecordWhenFileCleanupFails()
+    {
+        var sessionId = Guid.NewGuid();
+        var profile = new Profile
+        {
+            Id = Guid.NewGuid(),
+            Name = "Failing Cleanup Profile",
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+        var mod = new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Failing Cleanup Mod",
+            Version = "1.0.0",
+            Path = _testSourceDir,
+            ImportedAt = DateTime.UtcNow
+        };
+        await _profileRepository.AddAsync(profile);
+        await _modRepository.AddAsync(mod);
+
+        var failingService = new DeploymentService(
+            _profileRepository,
+            _modRepository,
+            _deploymentRepository,
+            new[] { new FailingCleanupDeploymentMethod() });
+        var record = await failingService.CreateDeploymentRecordAsync(
+            sessionId, profile.Id, mod.Id, DeploymentMethod.Copy);
+        await failingService.AddDeploymentFileAsync(
+            record.Id, mod.Id, "source.txt", Path.Combine(_testTargetDir, "locked.txt"), DeploymentMethod.Copy);
+
+        var (filesDeleted, recordDeleted) = await failingService.CleanupDeploymentAsync(record.Id);
+
+        Assert.Equal(0, filesDeleted);
+        Assert.False(recordDeleted);
+        Assert.NotEmpty(await failingService.GetDeploymentsBySessionIdAsync(sessionId));
+        Assert.Single(await failingService.GetDeploymentFilesAsync(record.Id));
+    }
+
+    private sealed class FailingCleanupDeploymentMethod : HD2Mimnt.Core.Interfaces.IDeploymentMethod
+    {
+        public string Name => "Copy";
+
+        public Task<(bool CanDeploy, string? ErrorMessage)> CheckCompatibilityAsync(
+            string sourceDirectory,
+            string targetDirectory,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult((true, (string?)null));
+
+        public Task<bool> DeployFileAsync(
+            string sourcePath,
+            string targetPath,
+            IProgress<string>? progress = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<bool> CleanupFileAsync(
+            string targetPath,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
 }

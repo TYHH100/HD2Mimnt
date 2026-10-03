@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.SettingsView" x:DataType="vm:SettingsViewModel">
+  <ScrollViewer><StackPanel Margin="24" Spacing="16" MaxWidth="760">
+    <TextBlock Text="设置" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+    <TextBlock Text="游戏、部署和模组库偏好" Foreground="{DynamicResource TextSecondaryBrush}"/>
+    <ComboBox ItemsSource="{Binding SettingsCategories}" SelectedItem="{Binding SelectedCategory}" PlaceholderText="设置分类"/>
+    <Border IsVisible="{Binding IsGameCategoryVisible}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
+      <StackPanel Spacing="12">
+        <TextBlock Text="游戏设置" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBox Text="{Binding GamePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="游戏安装目录"/>
+          <Button Grid.Column="1" Content="检测" Command="{Binding ValidateGameCommand}" Classes="secondary"/>
+          <Button Grid.Column="2" Content="自动识别" Command="{Binding DetectGameCommand}" Classes="secondary"/>
+        </Grid>
+        <CheckBox Content="启动时自动识别游戏" IsChecked="{Binding AutoDetectGame}"/>
+      </StackPanel>
+    </Border>
+    <Border IsVisible="{Binding IsDeploymentCategoryVisible}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
+      <StackPanel Spacing="12">
+        <TextBlock Text="部署设置" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <Grid ColumnDefinitions="*,Auto"><TextBlock Text="默认部署方式" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" Width="160" ItemsSource="{Binding DeploymentMethods}" SelectedItem="{Binding DefaultDeploymentMethod}"/></Grid>
+        <CheckBox Content="部署前检查" IsChecked="{Binding CheckBeforeDeploy}"/>
+      </StackPanel>
+    </Border>
+    <Border IsVisible="{Binding IsLibraryCategoryVisible}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
+      <StackPanel Spacing="12">
+        <TextBlock Text="模组库设置" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"><TextBlock Text="默认排序" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" Width="180" ItemsSource="{Binding SortModes}" SelectedItem="{Binding DefaultSortMode}"/></Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"><TextBlock Text="默认筛选" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" Width="180" ItemsSource="{Binding FilterTypes}" SelectedItem="{Binding DefaultFilterType}"/></Grid>
+        <CheckBox Content="显示模组缩略图" IsChecked="{Binding ShowThumbnails}"/>
+      </StackPanel>
+    </Border>
+    <Border IsVisible="{Binding IsAppearanceCategoryVisible}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
+      <StackPanel Spacing="12">
+        <TextBlock Text="外观设置" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"><TextBlock Text="主题" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" Width="160" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}"/></Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"><TextBlock Text="列表密度" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/><ComboBox Grid.Column="1" Width="160" ItemsSource="{Binding ListDensityOptions}" SelectedItem="{Binding ListDensity}"/></Grid>
+        <CheckBox Content="启用界面动画" IsChecked="{Binding EnableAnimations}"/>
+      </StackPanel>
+    </Border>
+    <Border IsVisible="{Binding IsCacheCategoryVisible}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
+      <StackPanel Spacing="12">
+        <TextBlock Text="缓存信息" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <TextBlock Text="{Binding CacheStatus}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="刷新信息" Command="{Binding RefreshCacheCommand}" Classes="secondary"/><Button Content="清理图片缓存" Command="{Binding ClearImageCacheCommand}" Classes="secondary"/></StackPanel>
+      </StackPanel>
+    </Border>
+    <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="保存设置" Command="{Binding SaveCommand}" Classes="primary"/><Button Content="恢复默认" Command="{Binding ResetCommand}" Classes="secondary"/><TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/></StackPanel>
+  </StackPanel></ScrollViewer>
+</UserControl>

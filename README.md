@@ -1,121 +1,271 @@
 # HD2Mimnt
 
-> **Helldivers 2 Mod Manager** - 专业的 Helldivers 2 Mod 管理工具
+**Helldivers 2 Mod Manager**
 
-## 功能特性
+A comprehensive mod management solution for Helldivers 2, featuring advanced support for HD2IR (nested archive) mods, profile-based configurations, and multiple deployment methods.
 
-- 🗂️ **Mod Library**: 统一管理所有 Mod 资产
-- 👤 **Profile 系统**: 多配置快速切换
-- 🚀 **智能部署**: 支持 Copy、Symbolic Link、Hard Link 三种部署方式
-- 🧹 **精准清理**: 完整追踪部署文件，安全清理
-- 📋 **Task Center**: 统一的任务管理和进度追踪
-- 🔍 **Mod 分析**: 自动识别 Mod 类型和冲突
-- 🎨 **现代化 UI**: 基于 Avalonia 的深色主题界面
+---
 
-## 技术栈
+## Project Status
 
-- **UI**: Avalonia.UI 12.0+
-- **Runtime**: .NET 10
-- **Database**: SQLite
-- **Architecture**: Clean Architecture + MVVM
+**Version:** 0.2.0-alpha  
+**Current Phase:** Phase 5 (Performance Optimization) - Ready to start  
+**Last Update:** 2026-10-03
 
-## 开发状态
+### Recent Achievements ✅
 
-🚧 **当前版本**: v0.1.0-alpha
+**Phase 1-4 (HD2IR Nested Archive Support) - Completed 2026-10-03**
+- ✅ **Phase 1 (P0)**: Import & Detection - Nested ZIP parsing, component detection, LogicalMod building
+- ✅ **Phase 2 (P2)**: Manifest & Ownership - Manifest standardization, file ownership tracking
+- ✅ **Phase 3 (P3)**: Deployment Integration - Unified deployment engine, diff-driven deployment
+- ✅ **Phase 4 (P4)**: Profile Integration - LogicalMod profile integration, diff-driven profile switching
+- ✅ **24/24 Acceptance Criteria Passed** (100%)
 
-项目处于早期开发阶段，核心架构已完成，功能正在逐步实现中。
+See [HD2IR Documentation Index](docs/HD2IR_DOCUMENTATION_INDEX.md) for complete documentation.
 
-## 项目结构
+---
+
+## Features
+
+### Core Features
+- **Mod Library Management**: Import, organize, and manage your mod collection
+- **Profile System**: Create multiple profiles for different gameplay scenarios
+- **Multiple Deployment Methods**: Copy, Symbolic Link, Hard Link
+- **Workflow System**: Support for different mod formats (Legacy, V1, Integrated Armor)
+- **Full-text Search**: Fast mod search across name, description, and author
+- **Resource Explorer**: Analyze mod dependencies and resource usage
+
+### HD2IR Support (NEW - Phase 1-4)
+- **Nested Archive Parsing**: Handle arbitrarily nested ZIP files
+- **Smart Component Detection**: Automatically detect HD2IR, Model, Texture, and Audio components
+- **LogicalMod Abstraction**: Unified user-facing mod objects containing multiple components
+- **Diff-Driven Deployment**: Only deploy changed files, skip identical content
+- **Profile Integration**: LogicalMods work seamlessly with the profile system
+- **Component-Level Control**: Selectively enable/disable individual components
+
+### Advanced Features
+- **Plugin System**: Extensible architecture for custom functionality
+- **External Tools Integration**: Launch external tools directly from the manager
+- **Task System**: Background task execution with progress tracking
+- **Deployment History**: Complete audit trail of all deployment operations
+- **Thumbnail Cache**: Optimized image loading for mod icons
+
+---
+
+## Architecture
+
+HD2Mimnt follows Clean Architecture principles with four main layers:
+
+```
+┌─────────────────────────────────────────┐
+│              UI Layer                   │
+│        (Avalonia MVVM)                  │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│         Application Layer               │
+│    (Business Logic Services)            │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│       Infrastructure Layer              │
+│   (Data Access, Deployment, etc.)       │
+└─────────────────┬───────────────────────┘
+                  │
+┌─────────────────▼───────────────────────┐
+│            Core Layer                   │
+│      (Entities, Interfaces)             │
+└─────────────────────────────────────────┘
+```
+
+### HD2IR Four-Layer Architecture (NEW)
+
+```
+Profile Layer (Configuration Management)
+    ↓
+Logical Mod Layer (User Perspective)
+    ↓
+Import Layer (Archive Parsing)
+    ↓
+Deployment Engine (File Operations)
+```
+
+---
+
+## Technology Stack
+
+- **Framework**: .NET 10
+- **UI**: Avalonia 11.2.2 (Cross-platform MVVM)
+- **Database**: SQLite with WAL mode
+- **Dependency Injection**: Microsoft.Extensions.DependencyInjection
+- **Archive Processing**: SharpCompress
+- **Testing**: xUnit, Moq
+- **Benchmarking**: BenchmarkDotNet
+
+---
+
+## Getting Started
+
+### Prerequisites
+- .NET 10 SDK
+- Windows 10/11 (primary support)
+- Helldivers 2 installed
+
+### Build and Run
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/HD2Mimnt.git
+cd HD2Mimnt
+
+# Build the solution
+dotnet build
+
+# Run the application
+cd src/HD2Mimnt.UI
+dotnet run
+
+# Run tests
+dotnet test
+
+# Run benchmarks
+cd benchmarks/HD2Mimnt.Benchmarks
+dotnet run -c Release
+```
+
+---
+
+## Documentation
+
+### Quick Start
+- [CLAUDE.md](CLAUDE.md) - Project overview and development guide
+- [HD2IR Quick Reference](docs/HD2IR_QUICKREF.md) - API and usage examples
+
+### HD2IR Phase 1-4 Documentation
+- [Documentation Index](docs/HD2IR_DOCUMENTATION_INDEX.md) - Complete documentation navigation
+- [Final Summary](docs/HD2IR_PHASE1-4_FINAL_SUMMARY.md) - Phase 1-4 overview
+- [Acceptance Report](docs/HD2IR_PHASE1-4_ACCEPTANCE_REPORT.md) - Verification and acceptance
+- [Implementation Report](docs/HD2IR_PHASE1-4_IMPLEMENTATION_REPORT.md) - Technical details
+
+### Phase-Specific Reports
+- [Phase 1 Complete](docs/HD2IR_PHASE1_COMPLETE.md) - Import & Detection
+- [Phase 2-3 Complete](docs/HD2IR_PHASE2-3_COMPLETE.md) - Deployment Integration
+- [Phase 4 Complete](docs/HD2IR_PHASE4_COMPLETE.md) - Profile Integration
+
+---
+
+## Key Concepts
+
+### Traditional Mods
+Standard mod packages with predefined structure, managed as single units.
+
+### LogicalMods (NEW)
+User-facing unified mod objects that may contain multiple components:
+- **HD2IR Component**: Game integration layer
+- **Model Component**: 3D models and assets
+- **Texture Component**: Textures and materials
+- **Audio Component**: Sound effects and music
+
+### Components
+Individual parts of a LogicalMod, each with its own files and configuration.
+
+### Profiles
+User-defined configurations specifying which mods/LogicalMods to deploy and in what order.
+
+### Deployment Methods
+- **Copy**: Traditional file copying
+- **Symbolic Link**: Windows symbolic links (requires admin)
+- **Hard Link**: NTFS hard links (same volume only)
+
+---
+
+## Performance Optimizations
+
+### HD2IR Optimizations (Phase 1-4)
+- **Lazy Extraction**: Archives are analyzed but not extracted until deployment
+- **Fast Fingerprinting**: First+last 1KB SHA256 for quick file comparison
+- **Analysis Caching**: ZIP analysis results cached to avoid redundant processing
+- **Diff-Driven Operations**: Only deploy/remove changed files
+- **Reference Counting**: Shared resources tracked with reference counts for safe cleanup
+
+### Target Performance (Phase 5)
+- 100MB ZIP: Analysis < 5s
+- 500MB ZIP: Analysis < 20s
+- 1GB ZIP: Analysis < 60s
+- 5-layer nesting: No timeout
+- Memory peak: < 1GB
+
+---
+
+## Development
+
+### Project Structure
 
 ```
 HD2Mimnt/
 ├── src/
-│   ├── HD2Mimnt.Core/              # 核心层 - 实体和接口
-│   ├── HD2Mimnt.Infrastructure/    # 基础设施层 - 数据访问
-│   ├── HD2Mimnt.Application/       # 应用层 - 业务逻辑
-│   └── HD2Mimnt.UI/                # 表示层 - Avalonia UI
-└── CLAUDE.md                        # 开发文档
+│   ├── HD2Mimnt.Core/              # Domain entities and interfaces
+│   ├── HD2Mimnt.Infrastructure/    # Data access and implementations
+│   ├── HD2Mimnt.Application/       # Business logic services
+│   ├── HD2Mimnt.UI/                # Avalonia UI (MVVM)
+│   ├── HD2Mimnt.PluginSDK/         # Plugin development SDK
+│   ├── HD2Mimnt.PluginHost/        # Isolated plugin host
+│   └── HD2Mimnt.Worker/            # Background worker process
+├── tests/
+│   ├── HD2Mimnt.Tests/             # Unit tests
+│   └── HD2Mimnt.StabilityTests/    # Long-running stability tests
+├── benchmarks/
+│   └── HD2Mimnt.Benchmarks/        # Performance benchmarks
+└── docs/                            # Documentation
 ```
 
-## 快速开始
+### Coding Conventions
+- Nullable reference types enabled
+- Implicit usings enabled
+- Async/await for all I/O operations
+- Repository pattern for data access
+- Service layer for business logic
+- MVVM pattern for UI
 
-### 前置要求
+### Testing
+- Unit tests with xUnit and Moq
+- InMemory database for repository tests
+- Arrange-Act-Assert pattern
+- Method naming: `MethodName_Scenario_ExpectedResult`
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Windows 10/11
+---
 
-### 构建
+## Contributing
 
-```bash
-# 克隆仓库
-git clone https://github.com/yourusername/HD2Mimnt.git
-cd HD2Mimnt
+We welcome contributions! Please follow these guidelines:
+1. Follow the existing code style and conventions
+2. Add unit tests for new features
+3. Update documentation as needed
+4. Ensure `dotnet build` succeeds with no errors
+5. Run `dotnet test` to verify all tests pass
 
-# 构建项目
-dotnet build
+---
 
-# 运行
-cd src/HD2Mimnt.UI
-dotnet run
-```
+## License
 
-### 测试
+[Your License Here]
 
-```bash
-# 运行所有测试
-dotnet test
+---
 
-# 运行测试并查看详细输出
-dotnet test --verbosity normal
-```
+## Acknowledgments
 
-**当前测试状态**: ✅ 11/11 通过
+- Helldivers 2 by Arrowhead Game Studios
+- HD2IR format specification
+- All contributors and testers
 
-### 发布
+---
 
-```bash
-dotnet publish -c Release -r win-x64 --self-contained
-```
+## Contact
 
-## 开发计划
+[Your Contact Information]
 
-详细的开发计划请参考：`HD2Mimnt v2 总体开发计划.md`
+---
 
-### 已完成 ✅
-
-- Phase 0: 项目初始化
-- Phase 1: 项目骨架
-  - Clean Architecture 分层
-  - Avalonia UI 基础框架
-  - SQLite 数据库设计
-  - 基础实体和仓储
-
-### 进行中 🚧
-
-- Phase 2: Mod Library 功能
-  - Mod 导入
-  - Mod 扫描和分析
-  - Mod 搜索和过滤
-
-### 计划中 📋
-
-- Phase 3: Profile 管理
-- Phase 4: Task Center
-- Phase 5: Deployment & Cleanup
-- Phase 6: Workflow 系统
-- Phase 7: Plugin 扩展
-- Phase 8: AI 辅助功能
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 许可证
-
-MIT License
-
-## 致谢
-
-- [Helldivers 2](https://www.helldivers.com/) - 游戏本体
-- [Avalonia](https://avaloniaui.net/) - UI 框架
-- 所有 Mod 作者和社区贡献者
+**Last Updated:** 2026-10-03  
+**Phase 1-4 Status:** ✅ Complete (24/24 acceptance criteria passed)  
+**Next Phase:** Phase 5 - Performance Optimization

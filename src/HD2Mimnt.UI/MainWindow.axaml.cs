@@ -1,19 +1,25 @@
 using Avalonia.Controls;
-using HD2Mimnt.UI.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace HD2Mimnt.UI;
 
 public partial class MainWindow : Window
 {
+    private bool _closeConfirmed;
+
     public MainWindow()
     {
         InitializeComponent();
+    }
 
-        // 从依赖注入容器获取 ViewModel
-        if (Program.AppHost != null)
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_closeConfirmed || DataContext is not ViewModels.MainWindowViewModel viewModel) return;
+
+        e.Cancel = true;
+        if (await viewModel.CanCloseAsync())
         {
-            DataContext = Program.AppHost.Services.GetRequiredService<MainWindowViewModel>();
+            _closeConfirmed = true;
+            Close();
         }
     }
 }

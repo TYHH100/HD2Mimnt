@@ -1,0 +1,237 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
+             x:Class="HD2Mimnt.UI.Controls.ModDetailPanel"
+             x:DataType="vm:ModItemViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.detail-label">
+      <Setter Property="Foreground" Value="#A0A0A0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+    <Style Selector="TextBlock.detail-value">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="#0F0F0F"
+          BorderBrush="#2A2A2A"
+          BorderThickness="1,0,0,0"
+          Padding="24">
+
+    <ScrollViewer>
+      <StackPanel Spacing="16">
+
+        <!-- Header -->
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0"
+                     Text="模组详情"
+                     FontSize="20"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+          <Button Grid.Column="2"
+                  Content="✕"
+                  Classes="icon-button"
+                  Command="{Binding CloseDetailPanelCommand}"
+                  ToolTip.Tip="关闭"/>
+        </Grid>
+
+        <!-- Mod Icon -->
+        <Border Classes="section">
+          <StackPanel>
+            <Border Width="120"
+                    Height="120"
+                    CornerRadius="12"
+                    ClipToBounds="True"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,16">
+              <Image Source="{Binding IconBitmap}"
+                     Stretch="UniformToFill"/>
+            </Border>
+
+            <!-- Mod Name -->
+            <TextBlock Text="{Binding Name}"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,8"/>
+
+            <!-- Version -->
+            <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                       FontSize="14"
+                       Foreground="#A0A0A0"
+                       TextAlignment="Center"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Status Badges -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="状态" Classes="detail-label"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Background="#22C55E"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsEnabled}">
+                <TextBlock Text="已启用"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="#3B82F6"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsDeployed}">
+                <TextBlock Text="已部署"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="{DynamicResource TextMutedBrush}"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding !IsEnabled}">
+                <TextBlock Text="未启用"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Basic Info -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="基本信息"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="作者" Classes="detail-label"/>
+            <TextBlock Text="{Binding Author}" Classes="detail-value"/>
+
+            <TextBlock Text="分类" Classes="detail-label"/>
+            <TextBlock Text="{Binding CategoryDisplay}" Classes="detail-value"/>
+
+            <TextBlock Text="描述" Classes="detail-label"/>
+            <TextBlock Text="{Binding Description}" Classes="detail-value"/>
+
+            <TextBlock Text="标签"
+                       Classes="detail-label"
+                       IsVisible="{Binding HasTags}"/>
+            <ItemsControl ItemsSource="{Binding Tags}"
+                          IsVisible="{Binding HasTags}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="#2A2A2A"
+                          CornerRadius="4"
+                          Padding="8,4"
+                          Margin="0,0,8,8">
+                    <TextBlock Text="{Binding}"
+                               FontSize="12"
+                               Foreground="#A0A0A0"/>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- File Info -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="文件信息"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="路径" Classes="detail-label"/>
+            <TextBlock Text="{Binding Path}" Classes="detail-value"/>
+
+            <TextBlock Text="大小" Classes="detail-label"/>
+            <TextBlock Text="{Binding SizeFormatted}" Classes="detail-value"/>
+
+            <TextBlock Text="哈希" Classes="detail-label"/>
+            <TextBlock Text="{Binding Hash}"
+                       Classes="detail-value"
+                       FontFamily="Consolas"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Timestamps -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="时间信息"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="导入时间" Classes="detail-label"/>
+            <TextBlock Text="{Binding ImportedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                       Classes="detail-value"/>
+
+            <TextBlock Text="修改时间" Classes="detail-label"/>
+            <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                       Classes="detail-value"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Actions -->
+        <Border Classes="section">
+          <StackPanel Spacing="8">
+            <TextBlock Text="操作"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <Button Content="{Binding EnableButtonText}"
+                    Command="{Binding ToggleEnabledCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="36"
+                    Background="#3B82F6"
+                    Foreground="White"/>
+
+            <Button Content="删除模组"
+                    Command="{Binding DeleteCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="36"
+                    Background="#EF4444"
+                    Foreground="White"/>
+
+            <Button Content="在文件夹中打开"
+                    Command="{Binding OpenFolderCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="36"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+
+</UserControl>

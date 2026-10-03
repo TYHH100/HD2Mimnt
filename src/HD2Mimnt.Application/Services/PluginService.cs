@@ -278,6 +278,30 @@ public class PluginService : IPluginService
         }
     }
 
+    public async Task<PluginManifestPreview?> GetManifestPreviewAsync(string manifestPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!File.Exists(manifestPath)) return null;
+            await using var stream = File.OpenRead(manifestPath);
+            var manifest = await JsonSerializer.DeserializeAsync<PluginSDK.PluginManifest>(stream, cancellationToken: cancellationToken);
+            if (manifest == null) return null;
+            return new PluginManifestPreview
+            {
+                Name = manifest.Name,
+                Version = manifest.Version,
+                Author = manifest.Author,
+                Description = manifest.Description,
+                PermissionMode = manifest.PermissionMode.ToString(),
+                RequestedPermissions = manifest.RequestedPermissions.ToArray()
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<bool> CheckPermissionAsync(string pluginId, string permission, CancellationToken cancellationToken = default)
     {
         var plugin = await _pluginRepository.GetByIdAsync(pluginId, cancellationToken);

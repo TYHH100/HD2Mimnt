@@ -6,11 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
              x:Class="HD2Mimnt.UI.Views.PluginManagementView"
              x:DataType="vm:PluginManagementViewModel"
-             Background="#05070C">
-
-    <Design.DataContext>
-        <vm:PluginManagementViewModel />
-    </Design.DataContext>
+             Background="{DynamicResource Surface0Brush}">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24">
         <!-- Header -->
@@ -18,18 +14,18 @@
             <TextBlock Text="Plugin Management"
                       FontSize="24"
                       FontWeight="SemiBold"
-                      Foreground="#E0E0E0"/>
+                      Foreground="{DynamicResource TextPrimaryBrush}"/>
             <TextBlock Text="Manage and configure third-party plugins"
                       FontSize="14"
-                      Foreground="#9CA3AF"/>
+                      Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
         <!-- Statistics Cards -->
         <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*" Margin="0,0,0,20">
             <Grid.Styles>
                 <Style Selector="Border.stat-card">
-                    <Setter Property="Background" Value="#0F131C"/>
-                    <Setter Property="BorderBrush" Value="#1E2636"/>
+                    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
                     <Setter Property="BorderThickness" Value="1"/>
                     <Setter Property="CornerRadius" Value="6"/>
                     <Setter Property="Padding" Value="16"/>
@@ -41,11 +37,11 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Total Plugins"
                               FontSize="12"
-                              Foreground="#9CA3AF"/>
+                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="{Binding TotalPlugins}"
                               FontSize="28"
                               FontWeight="Bold"
-                              Foreground="#E0E0E0"/>
+                              Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </StackPanel>
             </Border>
 
@@ -54,7 +50,7 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Enabled"
                               FontSize="12"
-                              Foreground="#9CA3AF"/>
+                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="{Binding EnabledPlugins}"
                               FontSize="28"
                               FontWeight="Bold"
@@ -67,11 +63,11 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Disabled"
                               FontSize="12"
-                              Foreground="#9CA3AF"/>
+                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="{Binding DisabledPlugins}"
                               FontSize="28"
                               FontWeight="Bold"
-                              Foreground="#6B7280"/>
+                              Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>
             </Border>
 
@@ -79,11 +75,11 @@
             <Border Grid.Column="3" Classes="stat-card">
                 <StackPanel Spacing="8" VerticalAlignment="Center">
                     <Button Content="Install Plugin"
-                           Command="{Binding InstallPluginCommand}"
+                           Click="OnInstallPluginClicked"
                            Padding="16,8"
                            CornerRadius="999"
                            Background="#38BDF8"
-                           Foreground="#05070C"
+                           Foreground="{DynamicResource Surface0Brush}"
                            FontWeight="Medium"
                            HorizontalAlignment="Stretch"
                            BorderThickness="0">
@@ -97,14 +93,14 @@
                            Command="{Binding RefreshCommand}"
                            Padding="16,8"
                            CornerRadius="999"
-                           Background="#161D2B"
-                           Foreground="#9CA3AF"
-                           BorderBrush="#1E2636"
+                           Background="{DynamicResource Surface3Brush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           BorderBrush="{DynamicResource BorderBrush}"
                            BorderThickness="1"
                            HorizontalAlignment="Stretch">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#1E2636"/>
+                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
@@ -119,8 +115,8 @@
                              IsVisible="{Binding !!InstalledPlugins.Count}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="#0F131C"
-                               BorderBrush="#1E2636"
+                        <Border Background="{DynamicResource Surface2Brush}"
+                               BorderBrush="{DynamicResource BorderBrush}"
                                BorderThickness="1"
                                CornerRadius="6"
                                Padding="20"
@@ -130,7 +126,7 @@
                                 <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
                                        Width="64" Height="64"
                                        CornerRadius="8"
-                                       Background="#161D2B"
+                                       Background="{DynamicResource Surface3Brush}"
                                        VerticalAlignment="Top"
                                        Margin="0,0,16,0">
                                     <TextBlock Text="📦"
@@ -144,7 +140,7 @@
                                     <TextBlock Text="{Binding Name}"
                                              FontSize="16"
                                              FontWeight="SemiBold"
-                                             Foreground="#E0E0E0"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
                                              VerticalAlignment="Center"/>
 
                                     <!-- Status Badge -->
@@ -159,12 +155,12 @@
                                             <TextBlock Text="{Binding StatusText}"
                                                      FontSize="11"
                                                      FontWeight="Medium"
-                                                     Foreground="#E0E0E0"/>
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         </StackPanel>
                                     </Border>
 
                                     <!-- Permission Mode Badge -->
-                                    <Border Background="#1E2636"
+                                    <Border Background="{DynamicResource BorderBrush}"
                                            CornerRadius="999"
                                            Padding="8,4">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
@@ -173,7 +169,7 @@
                                             <TextBlock Text="{Binding PermissionModeDisplay}"
                                                      FontSize="11"
                                                      FontWeight="Medium"
-                                                     Foreground="#9CA3AF"/>
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -182,26 +178,26 @@
                                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
                                     <TextBlock Text="{Binding Version}"
                                              FontSize="12"
-                                             Foreground="#9CA3AF"/>
+                                             Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <TextBlock Text="•"
                                              FontSize="12"
-                                             Foreground="#6B7280"/>
+                                             Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding Author}"
                                              FontSize="12"
-                                             Foreground="#9CA3AF"/>
+                                             Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <TextBlock Text="•"
                                              FontSize="12"
-                                             Foreground="#6B7280"/>
+                                             Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding InstalledAtFormatted, StringFormat='Installed: {0}'}"
                                              FontSize="12"
-                                             Foreground="#9CA3AF"/>
+                                             Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
 
                                 <!-- Row 2: Description -->
                                 <TextBlock Grid.Row="2" Grid.Column="1"
                                           Text="{Binding Description}"
                                           FontSize="13"
-                                          Foreground="#9CA3AF"
+                                          Foreground="{DynamicResource TextSecondaryBrush}"
                                           TextWrapping="Wrap"
                                           MaxWidth="600"
                                           HorizontalAlignment="Left"/>
@@ -218,14 +214,14 @@
                                            IsVisible="{Binding !IsEnabled}"
                                            Padding="16,8"
                                            CornerRadius="999"
-                                           Background="#161D2B"
+                                           Background="{DynamicResource Surface3Brush}"
                                            Foreground="#6EE7B7"
-                                           BorderBrush="#1E2636"
+                                           BorderBrush="{DynamicResource BorderBrush}"
                                            BorderThickness="1"
                                            MinWidth="100">
                                         <Button.Styles>
                                             <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="#1E2636"/>
+                                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
                                             </Style>
                                         </Button.Styles>
                                     </Button>
@@ -236,14 +232,14 @@
                                            IsVisible="{Binding IsEnabled}"
                                            Padding="16,8"
                                            CornerRadius="999"
-                                           Background="#161D2B"
-                                           Foreground="#9CA3AF"
-                                           BorderBrush="#1E2636"
+                                           Background="{DynamicResource Surface3Brush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           BorderBrush="{DynamicResource BorderBrush}"
                                            BorderThickness="1"
                                            MinWidth="100">
                                         <Button.Styles>
                                             <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="#1E2636"/>
+                                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
                                             </Style>
                                         </Button.Styles>
                                     </Button>
@@ -253,14 +249,31 @@
                                            CommandParameter="{Binding}"
                                            Padding="16,8"
                                            CornerRadius="999"
-                                           Background="#161D2B"
-                                           Foreground="#9CA3AF"
-                                           BorderBrush="#1E2636"
+                                           Background="{DynamicResource Surface3Brush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           BorderBrush="{DynamicResource BorderBrush}"
                                            BorderThickness="1"
                                            MinWidth="100">
                                         <Button.Styles>
                                             <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="#1E2636"/>
+                                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
+                                            </Style>
+                                        </Button.Styles>
+                                    </Button>
+
+                                    <Button Content="权限"
+                                           Command="{Binding $parent[ItemsControl].((vm:PluginManagementViewModel)DataContext).EditPermissionsCommand}"
+                                           CommandParameter="{Binding}"
+                                           Padding="16,8"
+                                           CornerRadius="999"
+                                           Background="{DynamicResource Surface3Brush}"
+                                           Foreground="#C4B5FD"
+                                           BorderBrush="{DynamicResource BorderBrush}"
+                                           BorderThickness="1"
+                                           MinWidth="100">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
                                             </Style>
                                         </Button.Styles>
                                     </Button>
@@ -290,8 +303,8 @@
 
                 <!-- Empty State -->
                 <Border IsVisible="{Binding !InstalledPlugins.Count}"
-                   Background="#0F131C"
-                   BorderBrush="#1E2636"
+                   Background="{DynamicResource Surface2Brush}"
+                   BorderBrush="{DynamicResource BorderBrush}"
                    BorderThickness="1"
                    CornerRadius="6"
                    Padding="48"
@@ -304,18 +317,18 @@
                     <TextBlock Text="No Plugins Installed"
                               FontSize="18"
                               FontWeight="SemiBold"
-                              Foreground="#E0E0E0"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Install a plugin to extend HD2Mimnt functionality"
                               FontSize="13"
-                              Foreground="#9CA3AF"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               HorizontalAlignment="Center"/>
                     <Button Content="Install Plugin"
-                           Command="{Binding InstallPluginCommand}"
+                           Click="OnInstallPluginClicked"
                            Padding="24,10"
                            CornerRadius="999"
                            Background="#38BDF8"
-                           Foreground="#05070C"
+                           Foreground="{DynamicResource Surface0Brush}"
                            FontWeight="Medium"
                            HorizontalAlignment="Center"
                            BorderThickness="0">
@@ -331,12 +344,12 @@
         </ScrollViewer>
 
         <!-- Status Bar -->
-        <Border Grid.Row="3" Background="#0F131C" BorderBrush="#1E2636" BorderThickness="0,1,0,0" Padding="16,12" Margin="-24,16,-24,-24">
+        <Border Grid.Row="3" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,12" Margin="-24,16,-24,-24">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0"
                           Text="{Binding StatusMessage}"
                           FontSize="12"
-                          Foreground="#9CA3AF"/>
+                          Foreground="{DynamicResource TextSecondaryBrush}"/>
 
                 <StackPanel Grid.Column="1"
                            Orientation="Horizontal"
@@ -348,10 +361,38 @@
                               VerticalAlignment="Center"/>
                     <TextBlock Text="Loading..."
                               FontSize="12"
-                              Foreground="#9CA3AF"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
+        </Border>
+
+        <Border IsVisible="{Binding IsHistoryOpen}" Background="#CC05070C" ZIndex="20">
+            <Border Width="680" Height="460" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1" Padding="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid RowDefinitions="Auto,* ,Auto" RowSpacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding HistoryPlugin.Name, StringFormat='执行历史：{0}'}" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button Grid.Column="1" Content="关闭" Command="{Binding CloseHistoryCommand}" Classes="secondary"/>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding ExecutionHistory}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#151B26" Padding="10" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                            <TextBlock Text="{Binding Command}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Grid.Row="1" Text="{Binding StartTime, StringFormat='开始：{0:yyyy-MM-dd HH:mm:ss}'}" Foreground="{DynamicResource TextMutedBrush}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Error}" Foreground="#F87171" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="2" IsVisible="{Binding ExecutionHistory.Count, Converter={StaticResource EqualConverter}, ConverterParameter=0}" Text="暂无执行记录" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                </Grid>
+            </Border>
         </Border>
     </Grid>
 </UserControl>

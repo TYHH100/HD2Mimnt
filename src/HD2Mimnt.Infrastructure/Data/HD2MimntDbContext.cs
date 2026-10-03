@@ -11,8 +11,11 @@ public class HD2MimntDbContext : IDisposable
     private readonly string _connectionString;
     private SqliteConnection? _connection;
 
+    public string DatabasePath { get; }
+
     public HD2MimntDbContext(string databasePath)
     {
+        DatabasePath = databasePath;
         _connectionString = $"Data Source={databasePath};Mode=ReadWriteCreate;";
     }
 
@@ -87,6 +90,21 @@ public class HD2MimntDbContext : IDisposable
             );
 
             CREATE INDEX IF NOT EXISTS idx_profilemods_order ON ProfileMods([Order]);
+
+            CREATE TABLE IF NOT EXISTS ProfileLogicalMods (
+                ProfileId TEXT NOT NULL,
+                LogicalModId TEXT NOT NULL,
+                Enabled INTEGER NOT NULL,
+                [Order] INTEGER NOT NULL,
+                EnabledComponentIds TEXT NOT NULL DEFAULT '[]',
+                ComponentConfigurations TEXT NOT NULL DEFAULT '{}',
+                PRIMARY KEY (ProfileId, LogicalModId),
+                FOREIGN KEY (ProfileId) REFERENCES Profiles(Id) ON DELETE CASCADE,
+                FOREIGN KEY (LogicalModId) REFERENCES LogicalMods(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_profilelogicalmods_order ON ProfileLogicalMods([Order]);
+            CREATE INDEX IF NOT EXISTS idx_profilelogicalmods_enabled ON ProfileLogicalMods(Enabled);
 
             CREATE TABLE IF NOT EXISTS Tasks (
                 Id TEXT PRIMARY KEY,
@@ -232,6 +250,180 @@ public class HD2MimntDbContext : IDisposable
             );
 
             CREATE INDEX IF NOT EXISTS idx_aiproviderconfigs_enabled ON AIProviderConfigs(IsEnabled);
+
+            -- FTS5 全文搜索索引（优化 SearchByName 性能）
+            CREATE VIRTUAL TABLE IF NOT EXISTS ModsFTS USING fts5(
+                Id UNINDEXED,
+                Name,
+                Description,
+                Author,
+                content='Mods',
+                content_rowid='rowid'
+            );
+
+            -- FTS5 触发器：插入时同步
+            CREATE TRIGGER IF NOT EXISTS mods_fts_insert AFTER INSERT ON Mods BEGIN
+                INSERT INTO ModsFTS(rowid, Id, Name, Description, Author)
+                VALUES (new.rowid, new.Id, new.Name, new.Description, new.Author);
+            END;
+
+            -- FTS5 触发器：更新时同步
+            CREATE TRIGGER IF NOT EXISTS mods_fts_update AFTER UPDATE ON Mods BEGIN
+                UPDATE ModsFTS SET Name=new.Name, Description=new.Description, Author=new.Author
+                WHERE rowid=new.rowid;
+            END;
+
+            -- FTS5 触发器：删除时同步
+            CREATE TRIGGER IF NOT EXISTS mods_fts_delete AFTER DELETE ON Mods BEGIN
+                DELETE FROM ModsFTS WHERE rowid=old.rowid;
+            END;
+
+            -- Logical Mods table (HD2IR nested archive support)
+            CREATE TABLE IF NOT EXISTS LogicalMods (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Version TEXT NOT NULL DEFAULT '',
+                Author TEXT NOT NULL DEFAULT '',
+                Description TEXT NOT NULL DEFAULT '',
+                ManifestVersion INTEGER NOT NULL DEFAULT 1,
+                CreatedAt TEXT NOT NULL,
+                ModifiedAt TEXT NOT NULL,
+                TotalSize INTEGER NOT NULL DEFAULT 0,
+                ThumbnailPath TEXT,
+                Tags TEXT NOT NULL DEFAULT '[]',
+                Metadata TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_logicalmods_name ON LogicalMods(Name);
+            CREATE INDEX IF NOT EXISTS idx_logicalmods_createdat ON LogicalMods(CreatedAt DESC);
+
+            -- Logical Mod Components table
+            CREATE TABLE IF NOT EXISTS LogicalModComponents (
+                Id TEXT PRIMARY KEY,
+                LogicalModId TEXT NOT NULL,
+                ComponentId TEXT NOT NULL,
+                Type INTEGER NOT NULL,
+                Name TEXT NOT NULL,
+                SourcePackageId TEXT NOT NULL,
+                Size INTEGER NOT NULL DEFAULT 0,
+                Enabled INTEGER NOT NULL DEFAULT 1,
+                Dependencies TEXT NOT NULL DEFAULT '[]',
+                Metadata TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (LogicalModId) REFERENCES LogicalMods(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_components_logicalmodid ON LogicalModComponents(LogicalModId);
+            CREATE INDEX IF NOT EXISTS idx_components_type ON LogicalModComponents(Type);
+
+            -- Package Sources table
+            CREATE TABLE IF NOT EXISTS PackageSources (
+                Id TEXT PRIMARY KEY,
+                LogicalModId TEXT NOT NULL,
+                Name TEXT NOT NULL,
+                PhysicalPath TEXT NOT NULL,
+                ArchiveType INTEGER NOT NULL,
+                Size INTEGER NOT NULL DEFAULT 0,
+                Hash TEXT NOT NULL DEFAULT '',
+                LastModified TEXT NOT NULL,
+                ParentPackageId TEXT,
+                Depth INTEGER NOT NULL DEFAULT 0,
+                PathInParent TEXT,
+                FOREIGN KEY (LogicalModId) REFERENCES LogicalMods(Id) ON DELETE CASCADE,
+                FOREIGN KEY (ParentPackageId) REFERENCES PackageSources(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_packages_logicalmodid ON PackageSources(LogicalModId);
+            CREATE INDEX IF NOT EXISTS idx_packages_hash ON PackageSources(Hash);
+
+            -- Deployable Files table
+            CREATE TABLE IF NOT EXISTS DeployableFiles (
+                Id TEXT PRIMARY KEY,
+                ComponentId TEXT NOT NULL,
+                SourcePath TEXT NOT NULL,
+                TargetPath TEXT NOT NULL,
+                Size INTEGER NOT NULL DEFAULT 0,
+                Hash TEXT NOT NULL DEFAULT '',
+                PackageId TEXT NOT NULL,
+                IsShared INTEGER NOT NULL DEFAULT 0,
+                Metadata TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (ComponentId) REFERENCES LogicalModComponents(Id) ON DELETE CASCADE,
+                FOREIGN KEY (PackageId) REFERENCES PackageSources(Id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_deployablefiles_componentid ON DeployableFiles(ComponentId);
+            CREATE INDEX IF NOT EXISTS idx_deployablefiles_targetpath ON DeployableFiles(TargetPath);
+
+            -- File Ownerships table
+            CREATE TABLE IF NOT EXISTS FileOwnerships (
+                Id TEXT PRIMARY KEY,
+                LogicalModId TEXT NOT NULL,
+                ComponentId TEXT NOT NULL,
+                PackageId TEXT NOT NULL,
+                DeployPath TEXT NOT NULL,
+                ContentHash TEXT NOT NULL,
+                TransactionId TEXT NOT NULL,
+                DeployedAt TEXT NOT NULL,
+                IsShared INTEGER NOT NULL DEFAULT 0,
+                ReferenceCount INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (LogicalModId) REFERENCES LogicalMods(Id) ON DELETE CASCADE,
+                FOREIGN KEY (ComponentId) REFERENCES LogicalModComponents(Id) ON DELETE CASCADE,
+                FOREIGN KEY (PackageId) REFERENCES PackageSources(Id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ownerships_logicalmodid ON FileOwnerships(LogicalModId);
+            CREATE INDEX IF NOT EXISTS idx_ownerships_deploypath ON FileOwnerships(DeployPath);
+            CREATE INDEX IF NOT EXISTS idx_ownerships_shared ON FileOwnerships(IsShared);
+
+            -- Archive Analysis Cache table
+            CREATE TABLE IF NOT EXISTS ArchiveAnalysisCache (
+                Id TEXT PRIMARY KEY,
+                FilePath TEXT NOT NULL,
+                FileSize INTEGER NOT NULL,
+                LastModified TEXT NOT NULL,
+                ContentHash TEXT NOT NULL,
+                ArchiveTreeJson TEXT NOT NULL,
+                DetectionResultsJson TEXT NOT NULL,
+                CachedAt TEXT NOT NULL,
+                LastAccessed TEXT NOT NULL,
+                AccessCount INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_archivecache_filepath ON ArchiveAnalysisCache(FilePath);
+            CREATE INDEX IF NOT EXISTS idx_archivecache_cachedat ON ArchiveAnalysisCache(CachedAt);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_archivecache_unique ON ArchiveAnalysisCache(FilePath, FileSize, LastModified);
+
+            -- Deployment Transactions table
+            CREATE TABLE IF NOT EXISTS DeploymentTransactions (
+                Id TEXT PRIMARY KEY,
+                SessionId TEXT NOT NULL,
+                ProfileId TEXT,
+                LogicalModId TEXT,
+                ModId TEXT,
+                ComponentId TEXT,
+                Operation TEXT NOT NULL,
+                Method TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                AddedFiles TEXT NOT NULL DEFAULT '[]',
+                UpdatedFiles TEXT NOT NULL DEFAULT '[]',
+                RemovedFiles TEXT NOT NULL DEFAULT '[]',
+                SkippedFiles TEXT NOT NULL DEFAULT '[]',
+                FileHashes TEXT NOT NULL DEFAULT '{}',
+                Conflicts TEXT NOT NULL DEFAULT '[]',
+                StartTime TEXT NOT NULL,
+                EndTime TEXT,
+                ErrorMessage TEXT,
+                Metadata TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (ProfileId) REFERENCES Profiles(Id),
+                FOREIGN KEY (LogicalModId) REFERENCES LogicalMods(Id),
+                FOREIGN KEY (ModId) REFERENCES Mods(Id),
+                FOREIGN KEY (ComponentId) REFERENCES LogicalModComponents(Id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_transactions_sessionid ON DeploymentTransactions(SessionId);
+            CREATE INDEX IF NOT EXISTS idx_transactions_profileid ON DeploymentTransactions(ProfileId);
+            CREATE INDEX IF NOT EXISTS idx_transactions_logicalmodid ON DeploymentTransactions(LogicalModId);
+            CREATE INDEX IF NOT EXISTS idx_transactions_modid ON DeploymentTransactions(ModId);
+            CREATE INDEX IF NOT EXISTS idx_transactions_starttime ON DeploymentTransactions(StartTime DESC);
         ";
 
         using var command = connection.CreateCommand();

@@ -1,0 +1,107 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        x:Class="HD2Mimnt.UI.Views.DevToolsWindow"
+        x:DataType="vm:DevToolsViewModel"
+        Title="开发工具 - 测试数据生成"
+        Width="600"
+        Height="500"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Surface1Brush}">
+
+    <Design.DataContext>
+        <vm:DevToolsViewModel />
+    </Design.DataContext>
+
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0"
+                  Text="测试数据生成工具"
+                  FontSize="24"
+                  FontWeight="SemiBold"
+                  Foreground="{DynamicResource TextPrimaryBrush}"
+                  Margin="0,0,0,24"/>
+
+        <!-- Mod Count Input -->
+        <Border Grid.Row="1"
+               Background="{DynamicResource Surface2Brush}"
+               Padding="16"
+               CornerRadius="8"
+               Margin="0,0,0,16">
+            <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0"
+                          Text="生成数量:"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,16,0"/>
+                <NumericUpDown Grid.Column="1"
+                              Value="{Binding ModCount}"
+                              Minimum="1"
+                              Maximum="10000"
+                              Increment="100"
+                              FormatString="N0"
+                              IsEnabled="{Binding !IsGenerating}"/>
+            </Grid>
+        </Border>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="2" Spacing="12">
+            <Button Content="生成测试模组"
+                   Command="{Binding GenerateTestModsCommand}"
+                   IsEnabled="{Binding !IsGenerating}"
+                   Classes="primary"
+                   HorizontalAlignment="Stretch"
+                   Padding="16,12"/>
+
+            <Button Content="设置随机启用状态"
+                   Command="{Binding GenerateEnabledStatesCommand}"
+                   IsEnabled="{Binding !IsGenerating}"
+                   Classes="secondary"
+                   HorizontalAlignment="Stretch"
+                   Padding="16,12"/>
+
+            <Button Content="清除所有测试数据"
+                   Command="{Binding ClearTestDataCommand}"
+                   IsEnabled="{Binding !IsGenerating}"
+                   Classes="secondary"
+                   HorizontalAlignment="Stretch"
+                   Padding="16,12"/>
+        </StackPanel>
+
+        <!-- Progress Bar -->
+        <Border Grid.Row="3"
+               IsVisible="{Binding IsGenerating}"
+               Background="{DynamicResource Surface2Brush}"
+               Padding="16"
+               CornerRadius="8"
+               Margin="0,16,0,0">
+            <StackPanel Spacing="8">
+                <ProgressBar Value="{Binding Progress}"
+                            Minimum="0"
+                            Maximum="100"
+                            Height="8"/>
+                <TextBlock Text="{Binding Progress, StringFormat='{}{0}%'}"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
+                          FontSize="12"
+                          HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status Message -->
+        <Border Grid.Row="4"
+               Background="{DynamicResource Surface2Brush}"
+               Padding="16"
+               CornerRadius="8"
+               Margin="0,16,0,0">
+            <TextBlock Text="{Binding StatusMessage}"
+                      Foreground="{DynamicResource TextPrimaryBrush}"
+                      TextWrapping="Wrap"
+                      TextAlignment="Center"/>
+        </Border>
+
+    </Grid>
+</Window>

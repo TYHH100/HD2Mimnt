@@ -1,74 +1,263 @@
-using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
+/// <summary>
+/// 模组库 ViewModel
+/// 实现搜索、筛选、排序、批量操作等功能
+/// </summary>
 public partial class LibraryViewModel : ObservableObject
 {
     private readonly ModService _modService;
+    private readonly SearchService _searchService;
+    private readonly ProfileService _profileService;
+    private readonly NotificationService _notificationService;
+    private readonly DeploymentService _deploymentService;
+    private readonly GameDetectionService _gameDetectionService;
+    private readonly IConfirmationService _confirmationService;
+
+    // 数据源
+    private List<ModItemViewModel> _allMods = new();
+    private bool _selectionSyncInProgress;
 
     [ObservableProperty]
-    private ObservableCollection<ModViewModel> _mods = new();
+    private ObservableCollection<ModItemViewModel> _filteredMods = new();
 
     [ObservableProperty]
-    private ModViewModel? _selectedMod;
+    private ObservableCollection<ModItemViewModel> _selectedMods = new();
 
+    // 搜索
     [ObservableProperty]
     private string _searchText = string.Empty;
 
     [ObservableProperty]
+    private bool _isSearching;
+
+    private CancellationTokenSource? _searchCts;
+    private int _filterGeneration;
+    private int _searchGeneration;
+    private const int SearchDebounceMs = 300;
+
+    // 筛选
+    [ObservableProperty]
+    private ModFilterType _currentFilter = ModFilterType.All;
+
+    [ObservableProperty]
+    private ModCategory? _selectedCategory;
+
+    [ObservableProperty]
+    private ObservableCollection<ModCategory> _availableCategories = new();
+
+    // 排序
+    [ObservableProperty]
+    private ModSortMode _currentSortMode = ModSortMode.NameAscending;
+
+    // 统计
+    [ObservableProperty]
+    private int _totalModCount;
+
+    [ObservableProperty]
+    private int _filteredModCount;
+
+    [ObservableProperty]
+    private int _enabledCount;
+
+    [ObservableProperty]
+    private int _disabledCount;
+
+    [ObservableProperty]
+    private int _deployedCount;
+
+    [ObservableProperty]
+    private int _notDeployedCount;
+
+    [ObservableProperty]
+    private int _selectedCount;
+
+    [ObservableProperty]
+    private bool _isAllSelected;
+
+    [ObservableProperty]
+    private string _listDensity = "Comfortable";
+
+    // 状态
+    [ObservableProperty]
     private bool _isLoading;
 
     [ObservableProperty]
-    private string _statusMessage = string.Empty;
+    private bool _hasError;
 
     [ObservableProperty]
-    private ModStatistics? _statistics;
+    private string _errorMessage = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<string> _availableTags = new();
+    private bool _isEmpty;
 
     [ObservableProperty]
-    private ModCategory _selectedCategory = ModCategory.Unknown;
+    private bool _hasFilteredResults;
 
     [ObservableProperty]
-    private string? _selectedTag;
+    private bool _hasNoResults;
 
-    public LibraryViewModel(ModService modService)
+    [ObservableProperty]
+    private ModItemViewModel? _focusedMod;
+
+    // 当前配置文件
+    private Profile? _currentProfile;
+
+    // 模组详情面板
+    [ObservableProperty]
+    private ModItemViewModel? _selectedModDetail;
+
+    [ObservableProperty]
+    private bool _isDetailPanelOpen;
+
+    [ObservableProperty]
+    private DeploymentMethod _currentDeploymentMethod = DeploymentMethod.Copy;
+
+    [ObservableProperty]
+    private bool _isDeploying;
+
+    [ObservableProperty]
+    private string _deploymentMessage = string.Empty;
+
+    private CancellationTokenSource? _deploymentCts;
+
+    public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
+    public IEnumerable<ModSortMode> SortModes => Enum.GetValues<ModSortMode>();
+    public string ModItemPadding => ListDensity == "Compact" ? "16,6" : "16,12";
+
+    partial void OnListDensityChanged(string value) => OnPropertyChanged(nameof(ModItemPadding));
+
+    public void ApplyListDensity(string value)
+    {
+        ListDensity = value is "Compact" or "Comfortable" ? value : "Comfortable";
+    }
+
+    public void ApplyLibraryDefaults(ModSortMode sortMode, ModFilterType filterType)
+    {
+        CurrentSortMode = sortMode;
+        CurrentFilter = filterType;
+    }
+
+    public LibraryViewModel(
+        ModService modService,
+        SearchService searchService,
+        ProfileService profileService,
+        NotificationService notificationService,
+        DeploymentService deploymentService,
+        GameDetectionService gameDetectionService,
+        IConfirmationService confirmationService)
     {
         _modService = modService;
+        _searchService = searchService;
+        _profileService = profileService;
+        _notificationService = notificationService;
+        _deploymentService = deploymentService;
+        _gameDetectionService = gameDetectionService;
+        _confirmationService = confirmationService;
+
+        // 监听选择变化
+        SelectedMods.CollectionChanged += OnSelectedModsChanged;
+
+        // 初始化可用分类
+        AvailableCategories = new ObservableCollection<ModCategory>(
+            Enum.GetValues<ModCategory>());
     }
 
     public async Task InitializeAsync()
     {
         await LoadModsAsync();
-        await LoadStatisticsAsync();
-        await LoadTagsAsync();
+        await _searchService.BuildIndexAsync();
     }
 
-    public async Task LoadModsAsync()
+    public async Task RefreshProfileStateAsync()
+    {
+        _currentProfile = await _profileService.GetActiveProfileAsync();
+        var profileMods = _currentProfile?.Mods.ToDictionary(pm => pm.ModId) ?? new Dictionary<Guid, ProfileMod>();
+        foreach (var mod in _allMods)
+        {
+            mod.IsEnabled = profileMods.TryGetValue(mod.Id, out var profileMod) && profileMod.Enabled;
+            mod.Order = profileMods.TryGetValue(mod.Id, out profileMod) ? profileMod.Order : 0;
+        }
+        await ApplyFiltersAsync();
+        await UpdateStatisticsAsync();
+    }
+
+    /// <summary>
+    /// 加载所有模组
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadModsAsync()
     {
         IsLoading = true;
-        StatusMessage = "Loading mods...";
+        HasError = false;
+        ErrorMessage = string.Empty;
+
         try
         {
+            // 获取当前配置文件
+            _currentProfile = await _profileService.GetActiveProfileAsync();
+
+            // 获取所有模组
             var mods = await _modService.GetAllModsAsync();
-            Mods.Clear();
-            foreach (var mod in mods)
+            var modsList = mods.ToList();
+
+            // 创建 ViewModels
+            ClearSelection();
+            DetachModSelectionHandlers();
+            _allMods = await Task.Run(() => modsList.Select(m => new ModItemViewModel(m)).ToList());
+            AttachModSelectionHandlers();
+
+            // 如果有配置文件，设置启用状态
+            if (_currentProfile != null)
             {
-                Mods.Add(new ModViewModel(mod));
+                var profileMods = _currentProfile.Mods.ToDictionary(pm => pm.ModId);
+                foreach (var modVm in _allMods)
+                {
+                    if (profileMods.TryGetValue(modVm.Id, out var pm))
+                    {
+                        modVm.IsEnabled = pm.Enabled;
+                        modVm.Order = pm.Order;
+                    }
+                }
             }
-            StatusMessage = $"Loaded {Mods.Count} mods";
+
+            var deployedModIds = (await _deploymentService.GetLatestDeploymentsAsync())
+                .Where(d => Enum.TryParse<DeploymentStatus>(d.Status, out var status) &&
+                            (status == DeploymentStatus.Completed || status == DeploymentStatus.PartiallyFailed))
+                .Select(d => d.ModId)
+                .ToHashSet();
+            foreach (var modVm in _allMods)
+            {
+                modVm.IsDeployed = deployedModIds.Contains(modVm.Id);
+            }
+
+            // 应用筛选和排序
+            await ApplyFiltersAsync();
+
+            // 更新统计
+            await UpdateStatisticsAsync();
+
+            // 异步加载图标
+            _ = LoadIconsAsync();
+
+            IsEmpty = _allMods.Count == 0;
+            UpdateResultState();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to load mods: {ex.Message}";
+            HasError = true;
+            ErrorMessage = $"加载模组失败: {ex.Message}";
+            _notificationService.ShowError(ErrorMessage, "加载失败");
         }
         finally
         {
@@ -76,59 +265,392 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    private async Task LoadStatisticsAsync()
+    /// <summary>
+    /// 异步加载图标
+    /// </summary>
+    private async Task LoadIconsAsync()
     {
-        try
+        // 只加载可见的模组图标
+        foreach (var mod in FilteredMods.Take(50))
         {
-            Statistics = await _modService.GetStatisticsAsync();
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Failed to load statistics: {ex.Message}";
+            await mod.LoadIconAsync();
         }
     }
 
-    private async Task LoadTagsAsync()
+    /// <summary>
+    /// 搜索文本变化时触发
+    /// </summary>
+    partial void OnSearchTextChanged(string value)
+    {
+        // 取消之前的搜索
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+
+        // 防抖执行搜索
+        var token = _searchCts.Token;
+        _ = DebounceSearchAsync(token);
+    }
+
+    private async Task DebounceSearchAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var tags = await _modService.GetAllTagsAsync();
-            AvailableTags.Clear();
-            foreach (var tag in tags)
+            await Task.Delay(SearchDebounceMs, cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
             {
-                AvailableTags.Add(tag);
+                await SearchAsync(cancellationToken);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            StatusMessage = $"Failed to load tags: {ex.Message}";
+            // 新的输入会取消旧搜索。
         }
+    }
+
+    /// <summary>
+    /// 执行搜索
+    /// </summary>
+    private async Task SearchAsync(CancellationToken cancellationToken = default)
+    {
+        var generation = Interlocked.Increment(ref _filterGeneration);
+        var searchGeneration = Interlocked.Increment(ref _searchGeneration);
+        var searchText = SearchText;
+        var filter = CurrentFilter;
+        var category = SelectedCategory;
+        var sortMode = CurrentSortMode;
+        IsSearching = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                // 清空搜索，显示所有
+                await ApplyFiltersAsync();
+                if (searchGeneration == Volatile.Read(ref _searchGeneration))
+                {
+                    IsSearching = false;
+                }
+                return;
+            }
+            // 执行搜索
+            var results = await _searchService.SearchAsync(searchText, cancellationToken);
+            var resultIds = new HashSet<Guid>(results.Select(m => m.Id));
+
+            // 筛选 _allMods
+            var filtered = _allMods.Where(m => resultIds.Contains(m.Id));
+
+            // 应用其他筛选条件
+            filtered = ApplyFilter(filtered, filter, category);
+
+            // 应用排序
+            filtered = ApplySort(filtered, sortMode);
+
+            if (generation != Volatile.Read(ref _filterGeneration)) return;
+
+            FilteredMods = new ObservableCollection<ModItemViewModel>(filtered);
+            FilteredModCount = FilteredMods.Count;
+            IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
+            UpdateResultState();
+        }
+        finally
+        {
+            if (searchGeneration == Volatile.Read(ref _searchGeneration))
+            {
+                IsSearching = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 清空搜索
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearSearchAsync()
+    {
+        SearchText = string.Empty;
+        await ApplyFiltersAsync();
+    }
+
+    /// <summary>
+    /// 筛选
+    /// </summary>
+    [RelayCommand]
+    private async Task FilterAsync(ModFilterType filterType)
+    {
+        CurrentFilter = filterType;
+        await ApplyFiltersAsync();
+    }
+
+    /// <summary>
+    /// 按分类筛选
+    /// </summary>
+    [RelayCommand]
+    private async Task FilterByCategoryAsync(ModCategory? category)
+    {
+        SelectedCategory = category;
+        await ApplyFiltersAsync();
     }
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private async Task ClearFiltersAsync()
     {
-        if (string.IsNullOrWhiteSpace(SearchText))
+        SelectedCategory = null;
+        CurrentFilter = ModFilterType.All;
+        await ApplyFiltersAsync();
+    }
+
+    /// <summary>
+    /// 应用所有筛选条件
+    /// </summary>
+    private async Task ApplyFiltersAsync()
+    {
+        var generation = Interlocked.Increment(ref _filterGeneration);
+        var searchText = SearchText;
+        var filter = CurrentFilter;
+        var category = SelectedCategory;
+        var sortMode = CurrentSortMode;
+        var filtered = await Task.Run(() =>
         {
-            await LoadModsAsync();
+            var filtered = _allMods.AsEnumerable();
+
+            // 应用搜索（如果有）
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var query = searchText.ToLowerInvariant();
+                filtered = filtered.Where(m =>
+                    m.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    m.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    m.Author.Contains(query, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // 应用状态筛选
+            filtered = ApplyFilter(filtered, filter, category);
+
+            // 应用排序
+            filtered = ApplySort(filtered, sortMode);
+
+            return filtered.ToList();
+        });
+
+        if (generation != Volatile.Read(ref _filterGeneration)) return;
+
+        FilteredMods = new ObservableCollection<ModItemViewModel>(filtered);
+        FilteredModCount = filtered.Count;
+        IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
+        UpdateResultState();
+    }
+
+    /// <summary>
+    /// 应用筛选条件
+    /// </summary>
+    private IEnumerable<ModItemViewModel> ApplyFilter(IEnumerable<ModItemViewModel> mods)
+        => ApplyFilter(mods, CurrentFilter, SelectedCategory);
+
+    private static IEnumerable<ModItemViewModel> ApplyFilter(
+        IEnumerable<ModItemViewModel> mods,
+        ModFilterType filter,
+        ModCategory? category)
+    {
+        // 状态筛选
+        mods = filter switch
+        {
+            ModFilterType.Enabled => mods.Where(m => m.IsEnabled),
+            ModFilterType.Disabled => mods.Where(m => !m.IsEnabled),
+            ModFilterType.Deployed => mods.Where(m => m.IsDeployed),
+            ModFilterType.NotDeployed => mods.Where(m => !m.IsDeployed),
+            _ => mods
+        };
+
+        // 分类筛选
+        if (category.HasValue && category.Value != ModCategory.Unknown)
+        {
+            mods = mods.Where(m => m.Category == category.Value);
+        }
+
+        return mods;
+    }
+
+    /// <summary>
+    /// 排序
+    /// </summary>
+    [RelayCommand]
+    private async Task SortAsync(ModSortMode sortMode)
+    {
+        CurrentSortMode = sortMode;
+        await ApplyFiltersAsync();
+    }
+
+    /// <summary>
+    /// 应用排序
+    /// </summary>
+    private IEnumerable<ModItemViewModel> ApplySort(IEnumerable<ModItemViewModel> mods)
+        => ApplySort(mods, CurrentSortMode);
+
+    private static IEnumerable<ModItemViewModel> ApplySort(
+        IEnumerable<ModItemViewModel> mods,
+        ModSortMode sortMode)
+    {
+        return sortMode switch
+        {
+            ModSortMode.NameAscending => mods.OrderBy(m => m.Name),
+            ModSortMode.NameDescending => mods.OrderByDescending(m => m.Name),
+            ModSortMode.DateAddedNewest => mods.OrderByDescending(m => m.ImportedAt),
+            ModSortMode.DateAddedOldest => mods.OrderBy(m => m.ImportedAt),
+            ModSortMode.Category => mods.OrderBy(m => m.Category).ThenBy(m => m.Name),
+            _ => mods
+        };
+    }
+
+    /// <summary>
+    /// 切换当前筛选结果的全选状态。
+    /// </summary>
+    [RelayCommand]
+    private void SelectAll()
+    {
+        if (IsAllSelected)
+        {
+            _selectionSyncInProgress = true;
+            try
+            {
+                foreach (var mod in FilteredMods)
+                {
+                    mod.IsSelected = false;
+                }
+
+                foreach (var mod in FilteredMods)
+                {
+                    SelectedMods.Remove(mod);
+                }
+            }
+            finally
+            {
+                _selectionSyncInProgress = false;
+            }
+
+            UpdateSelectionState();
+            return;
+        }
+
+        _selectionSyncInProgress = true;
+        try
+        {
+            foreach (var mod in FilteredMods)
+            {
+                mod.IsSelected = true;
+                if (!SelectedMods.Contains(mod))
+                {
+                    SelectedMods.Add(mod);
+                }
+            }
+        }
+        finally
+        {
+            _selectionSyncInProgress = false;
+        }
+
+        UpdateSelectionState();
+    }
+
+    /// <summary>
+    /// 反选当前筛选结果，筛选之外的模组保持原状态。
+    /// </summary>
+    [RelayCommand]
+    private void InvertSelection()
+    {
+        _selectionSyncInProgress = true;
+        try
+        {
+            foreach (var mod in FilteredMods)
+            {
+                mod.IsSelected = !mod.IsSelected;
+            }
+
+            var filteredSet = FilteredMods.ToHashSet();
+            foreach (var selected in SelectedMods.Where(filteredSet.Contains).ToArray())
+            {
+                SelectedMods.Remove(selected);
+            }
+
+            foreach (var mod in FilteredMods.Where(static mod => mod.IsSelected))
+            {
+                if (!SelectedMods.Contains(mod))
+                {
+                    SelectedMods.Add(mod);
+                }
+            }
+        }
+        finally
+        {
+            _selectionSyncInProgress = false;
+        }
+
+        UpdateSelectionState();
+    }
+
+    [RelayCommand]
+    private void FocusSearch()
+    {
+        SearchFocusRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void OpenFocusedMod()
+    {
+        var mod = FocusedMod ?? SelectedMods.FirstOrDefault();
+        if (mod != null)
+        {
+            ShowModDetail(mod);
+        }
+    }
+
+    /// <summary>
+    /// 清空选择
+    /// </summary>
+    [RelayCommand]
+    private void ClearSelection()
+    {
+        _selectionSyncInProgress = true;
+        try
+        {
+            foreach (var mod in SelectedMods.ToArray())
+            {
+                mod.IsSelected = false;
+            }
+            SelectedMods.Clear();
+        }
+        finally
+        {
+            _selectionSyncInProgress = false;
+        }
+
+        UpdateSelectionState();
+    }
+
+    /// <summary>
+    /// 批量启用
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task BatchEnableAsync()
+    {
+        if (_currentProfile == null)
+        {
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择一个配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "无配置文件");
             return;
         }
 
         IsLoading = true;
-        StatusMessage = "Searching...";
         try
         {
-            var mods = await _modService.SearchModsAsync(SearchText);
-            Mods.Clear();
-            foreach (var mod in mods)
-            {
-                Mods.Add(new ModViewModel(mod));
-            }
-            StatusMessage = $"Found {Mods.Count} mods";
+            var selected = SelectedMods.ToList();
+            await _profileService.SetModsEnabledAsync(_currentProfile.Id, selected.Select(mod => mod.Id).ToArray(), true);
+            foreach (var mod in selected) mod.IsEnabled = true;
+
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已启用 {SelectedCount} 个模组", "批量启用");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Search failed: {ex.Message}";
+            _notificationService.ShowError($"批量启用失败: {ex.Message}", "操作失败");
         }
         finally
         {
@@ -136,30 +658,31 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task FilterByCategoryAsync()
+    /// <summary>
+    /// 批量禁用
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task BatchDisableAsync()
     {
-        if (SelectedCategory == ModCategory.Unknown)
+        if (_currentProfile == null)
         {
-            await LoadModsAsync();
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择一个配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "无配置文件");
             return;
         }
 
         IsLoading = true;
-        StatusMessage = $"Filtering by {SelectedCategory}...";
         try
         {
-            var mods = await _modService.GetModsByCategoryAsync(SelectedCategory);
-            Mods.Clear();
-            foreach (var mod in mods)
-            {
-                Mods.Add(new ModViewModel(mod));
-            }
-            StatusMessage = $"Found {Mods.Count} mods in {SelectedCategory}";
+            var selected = SelectedMods.ToList();
+            await _profileService.SetModsEnabledAsync(_currentProfile.Id, selected.Select(mod => mod.Id).ToArray(), false);
+            foreach (var mod in selected) mod.IsEnabled = false;
+
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已禁用 {SelectedCount} 个模组", "批量禁用");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Filter failed: {ex.Message}";
+            _notificationService.ShowError($"批量禁用失败: {ex.Message}", "操作失败");
         }
         finally
         {
@@ -167,30 +690,41 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task FilterByTagAsync()
+    /// <summary>
+    /// 批量删除
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task BatchDeleteAsync()
     {
-        if (string.IsNullOrWhiteSpace(SelectedTag))
+        var selectedCount = SelectedMods.Count;
+        if (!await _confirmationService.ConfirmAsync("删除模组", $"确定删除选中的 {selectedCount} 个模组吗？此操作会删除模组文件。"))
         {
-            await LoadModsAsync();
             return;
         }
-
         IsLoading = true;
-        StatusMessage = $"Filtering by tag '{SelectedTag}'...";
         try
         {
-            var mods = await _modService.GetModsByTagAsync(SelectedTag);
-            Mods.Clear();
-            foreach (var mod in mods)
+            var modsToDelete = SelectedMods.ToList();
+            foreach (var mod in modsToDelete)
             {
-                Mods.Add(new ModViewModel(mod));
+                await _deploymentService.DeleteModDeploymentRecordsAsync(mod.Id);
+                await _modService.DeleteModAsync(mod.Id);
+                SyncListSelection(Array.Empty<ModItemViewModel>(), new[] { mod });
+                mod.PropertyChanged -= OnModPropertyChanged;
+                _allMods.Remove(mod);
+                FilteredMods.Remove(mod);
+
+                // 从搜索索引中移除
+                _searchService.RemoveModFromIndex(mod.Id);
             }
-            StatusMessage = $"Found {Mods.Count} mods with tag '{SelectedTag}'";
+
+            ClearSelection();
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已删除 {modsToDelete.Count} 个模组", "批量删除");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Filter failed: {ex.Message}";
+            _notificationService.ShowError($"批量删除失败: {ex.Message}", "操作失败");
         }
         finally
         {
@@ -198,39 +732,95 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 单个模组启用/禁用
+    /// </summary>
+    [RelayCommand]
+    private async Task ToggleModEnabledAsync(ModItemViewModel mod)
+    {
+        if (_currentProfile == null) return;
+
+        try
+        {
+            var newState = !mod.IsEnabled;
+            await _profileService.SetModEnabledAsync(_currentProfile.Id, mod.Id, newState);
+            mod.IsEnabled = newState;
+            await UpdateStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"操作失败: {ex.Message}", "错误");
+        }
+    }
+
+    /// <summary>
+    /// 删除单个模组
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteModAsync(ModItemViewModel mod)
+    {
+        if (!await _confirmationService.ConfirmAsync("删除模组", $"确定删除“{mod.Name}”吗？此操作会删除模组文件。"))
+        {
+            return;
+        }
+        IsLoading = true;
+        try
+        {
+            await _deploymentService.DeleteModDeploymentRecordsAsync(mod.Id);
+            await _modService.DeleteModAsync(mod.Id);
+            SyncListSelection(Array.Empty<ModItemViewModel>(), new[] { mod });
+            mod.PropertyChanged -= OnModPropertyChanged;
+            _allMods.Remove(mod);
+            FilteredMods.Remove(mod);
+            _searchService.RemoveModFromIndex(mod.Id);
+
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已删除 {mod.Name}", "删除模组");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"删除失败: {ex.Message}", "错误");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// 导入模组
+    /// </summary>
     [RelayCommand]
     private async Task ImportModAsync()
     {
-        // TODO: 实现文件夹选择对话框
-        StatusMessage = "Import function coming soon...";
+        _notificationService.ShowInfo("请使用文件选择器选择模组文件", "导入模组");
     }
 
-    [RelayCommand]
-    private async Task DeleteModAsync(ModViewModel? mod)
+    public async Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
     {
-        if (mod == null) return;
-
-        // TODO: 添加确认对话框
+        var sourcePaths = paths.Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (sourcePaths.Count == 0) return;
 
         IsLoading = true;
-        StatusMessage = $"Deleting {mod.Name}...";
         try
         {
-            var success = await _modService.DeleteModAsync(mod.Id);
-            if (success)
+            foreach (var path in sourcePaths)
             {
-                Mods.Remove(mod);
-                StatusMessage = $"Deleted {mod.Name}";
-                await LoadStatisticsAsync();
+                cancellationToken.ThrowIfCancellationRequested();
+                await _modService.ImportModAsync(path, cancellationToken);
             }
-            else
-            {
-                StatusMessage = $"Failed to delete {mod.Name}";
-            }
+
+            await LoadModsAsync();
+            _notificationService.ShowSuccess($"已导入 {sourcePaths.Count} 个模组", "导入完成");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowWarning("模组导入已取消", "导入模组");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Delete failed: {ex.Message}";
+            _notificationService.ShowError($"导入失败: {ex.Message}", "导入模组");
         }
         finally
         {
@@ -238,95 +828,339 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 刷新
+    /// </summary>
     [RelayCommand]
     private async Task RefreshAsync()
     {
         await LoadModsAsync();
-        await LoadStatisticsAsync();
-        await LoadTagsAsync();
-    }
-}
-
-public partial class ModViewModel : ObservableObject
-{
-    private readonly Mod _mod;
-
-    public Guid Id => _mod.Id;
-
-    [ObservableProperty]
-    private string _name;
-
-    [ObservableProperty]
-    private string _version;
-
-    [ObservableProperty]
-    private string _author;
-
-    [ObservableProperty]
-    private string _description;
-
-    [ObservableProperty]
-    private ModCategory _category;
-
-    [ObservableProperty]
-    private ModStatus _status;
-
-    [ObservableProperty]
-    private ObservableCollection<string> _tags;
-
-    [ObservableProperty]
-    private long _size;
-
-    [ObservableProperty]
-    private ModSource _source;
-
-    [ObservableProperty]
-    private bool _containsScripts;
-
-    public string SizeFormatted => FormatSize(Size);
-
-    public string CategoryDisplay => Category.ToString();
-
-    public string SourceDisplay => Source.ToString();
-
-    public ModViewModel(Mod mod)
-    {
-        _mod = mod;
-        _name = mod.Name;
-        _version = mod.Version;
-        _author = mod.Author;
-        _description = mod.Description;
-        _category = mod.Category;
-        _status = mod.Status;
-        _tags = new ObservableCollection<string>(mod.Tags);
-        _size = mod.Size;
-        _source = mod.Source;
-        _containsScripts = mod.ContainsScripts;
     }
 
-    public Mod ToModel()
+    [RelayCommand]
+    private async Task DeployAsync()
     {
-        _mod.Name = Name;
-        _mod.Version = Version;
-        _mod.Author = Author;
-        _mod.Description = Description;
-        _mod.Category = Category;
-        _mod.Status = Status;
-        _mod.Tags = Tags.ToList();
-        return _mod;
-    }
-
-    private static string FormatSize(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
+        if (IsDeploying) return;
+        if (_currentProfile == null)
         {
-            order++;
-            len = len / 1024;
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "部署模组");
+            return;
         }
-        return $"{len:0.##} {sizes[order]}";
+
+        var gamePath = _gameDetectionService.CurrentGameInfo?.Path;
+        if (string.IsNullOrWhiteSpace(gamePath))
+        {
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "未检测到有效的游戏目录", "打开设置", NotificationNavigationTarget.Settings, "部署模组");
+            return;
+        }
+
+        if (!await _confirmationService.ConfirmAsync(
+                "部署模组",
+                $"将清理之前的部署并部署当前配置中的启用模组。部署方式：{CurrentDeploymentMethod}。是否继续？"))
+        {
+            return;
+        }
+
+        IsDeploying = true;
+        _deploymentCts = new CancellationTokenSource();
+        DeploymentMessage = "正在准备部署...";
+        try
+        {
+            var progress = new Progress<DeploymentProgress>(p => DeploymentMessage = p.Message);
+            var result = await _deploymentService.DeployProfileAsync(
+                _currentProfile.Id, CurrentDeploymentMethod, DeploymentOrder.TopToBottom, gamePath, progress, _deploymentCts.Token);
+            if (result.Status == DeploymentStatus.Completed)
+            {
+                _notificationService.ShowSuccess($"已部署 {result.CompletedMods} 个模组", "部署完成");
+            }
+            else
+            {
+                _notificationService.ShowWarning(result.ErrorMessage ?? result.Message ?? "部署未完全成功", "部署结果");
+            }
+            await LoadModsAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowWarning("部署已取消", "部署模组");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"部署失败: {ex.Message}", "部署模组");
+        }
+        finally
+        {
+            IsDeploying = false;
+            DeploymentMessage = string.Empty;
+            _deploymentCts.Dispose();
+            _deploymentCts = null;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CleanupAsync()
+    {
+        if (IsDeploying) return;
+        if (!await _confirmationService.ConfirmAsync(
+                "清理部署",
+                "将删除最近一次部署产生的目标文件和部署记录。是否继续？"))
+        {
+            return;
+        }
+
+        IsDeploying = true;
+        _deploymentCts = new CancellationTokenSource();
+        DeploymentMessage = "正在清理部署文件...";
+        try
+        {
+            var result = await _deploymentService.PreDeploymentCleanupAsync(
+                new Progress<string>(message => DeploymentMessage = message), _deploymentCts.Token);
+            _notificationService.ShowSuccess($"已清理 {result.FilesDeleted} 个文件", "清理完成");
+            await LoadModsAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowWarning("清理部署已取消", "清理部署");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"清理失败: {ex.Message}", "清理部署");
+        }
+        finally
+        {
+            IsDeploying = false;
+            DeploymentMessage = string.Empty;
+            _deploymentCts.Dispose();
+            _deploymentCts = null;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelDeployment()
+    {
+        _deploymentCts?.Cancel();
+        DeploymentMessage = "正在取消操作...";
+    }
+
+    /// <summary>
+    /// 显示模组详情
+    /// </summary>
+    [RelayCommand]
+    private void ShowModDetail(ModItemViewModel mod)
+    {
+        SelectedModDetail = mod;
+        IsDetailPanelOpen = true;
+
+        // 设置详情面板的命令
+        mod.ToggleEnabledCommand = new RelayCommand(async () => await ToggleModEnabledAsync(mod));
+        mod.DeleteCommand = new RelayCommand(async () => await DeleteModDetailAsync(mod));
+        mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
+    }
+
+    /// <summary>
+    /// 关闭模组详情面板
+    /// </summary>
+    [RelayCommand]
+    private void CloseDetailPanel()
+    {
+        IsDetailPanelOpen = false;
+        SelectedModDetail = null;
+    }
+
+    /// <summary>
+    /// 从详情面板删除模组
+    /// </summary>
+    private async Task DeleteModDetailAsync(ModItemViewModel mod)
+    {
+        await DeleteModAsync(mod);
+        CloseDetailPanel();
+    }
+
+    /// <summary>
+    /// 更新统计
+    /// </summary>
+    private async Task UpdateStatisticsAsync()
+    {
+        var statistics = await Task.Run(() =>
+        {
+            var total = _allMods.Count;
+            var enabled = _allMods.Count(m => m.IsEnabled);
+            var deployed = _allMods.Count(m => m.IsDeployed);
+            return (total, enabled, total - enabled, deployed, total - deployed);
+        });
+
+        TotalModCount = statistics.total;
+        EnabledCount = statistics.enabled;
+        DisabledCount = statistics.Item3;
+        DeployedCount = statistics.deployed;
+        NotDeployedCount = statistics.Item5;
+    }
+
+    /// <summary>
+    /// 选择变化事件
+    /// </summary>
+    private void OnSelectedModsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!_selectionSyncInProgress)
+        {
+            _selectionSyncInProgress = true;
+            try
+            {
+                if (e.OldItems != null)
+                {
+                    foreach (ModItemViewModel mod in e.OldItems)
+                    {
+                        mod.IsSelected = false;
+                    }
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (ModItemViewModel mod in e.NewItems)
+                    {
+                        mod.IsSelected = true;
+                    }
+                }
+            }
+            finally
+            {
+                _selectionSyncInProgress = false;
+            }
+        }
+
+        UpdateSelectionState();
+    }
+
+    public void SyncListSelection(
+        IEnumerable<ModItemViewModel> addedItems,
+        IEnumerable<ModItemViewModel> removedItems)
+    {
+        _selectionSyncInProgress = true;
+        try
+        {
+            foreach (var mod in removedItems)
+            {
+                mod.IsSelected = false;
+                SelectedMods.Remove(mod);
+            }
+
+            foreach (var mod in addedItems)
+            {
+                mod.IsSelected = true;
+                if (!SelectedMods.Contains(mod))
+                {
+                    SelectedMods.Add(mod);
+                }
+            }
+        }
+        finally
+        {
+            _selectionSyncInProgress = false;
+        }
+
+        UpdateSelectionState();
+    }
+
+    private void AttachModSelectionHandlers()
+    {
+        foreach (var mod in _allMods)
+        {
+            mod.PropertyChanged += OnModPropertyChanged;
+        }
+    }
+
+    private void DetachModSelectionHandlers()
+    {
+        foreach (var mod in _allMods)
+        {
+            mod.PropertyChanged -= OnModPropertyChanged;
+        }
+    }
+
+    private void OnModPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_selectionSyncInProgress || e.PropertyName != nameof(ModItemViewModel.IsSelected) || sender is not ModItemViewModel mod)
+        {
+            return;
+        }
+
+        _selectionSyncInProgress = true;
+        try
+        {
+            if (mod.IsSelected)
+            {
+                if (!SelectedMods.Contains(mod))
+                {
+                    SelectedMods.Add(mod);
+                }
+            }
+            else
+            {
+                SelectedMods.Remove(mod);
+            }
+        }
+        finally
+        {
+            _selectionSyncInProgress = false;
+        }
+
+        UpdateSelectionState();
+    }
+
+    private void UpdateSelectionState()
+    {
+        SelectedCount = SelectedMods.Count;
+        IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
+        BatchEnableCommand.NotifyCanExecuteChanged();
+        BatchDisableCommand.NotifyCanExecuteChanged();
+        BatchDeleteCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// 是否有选中项
+    /// </summary>
+    private bool HasSelection() => SelectedCount > 0;
+
+    public event EventHandler? SearchFocusRequested;
+
+    private void UpdateResultState()
+    {
+        HasFilteredResults = FilteredModCount > 0;
+        HasNoResults = !_allMods.Any() || HasError || IsLoading
+            ? false
+            : FilteredModCount == 0;
+    }
+
+    partial void OnSelectedCategoryChanged(ModCategory? value)
+    {
+        _ = ApplyFiltersAsync();
+    }
+
+    partial void OnCurrentSortModeChanged(ModSortMode value)
+    {
+        _ = ApplyFiltersAsync();
     }
 }
 
+/// <summary>
+/// 模组筛选类型
+/// </summary>
+public enum ModFilterType
+{
+    All,
+    Enabled,
+    Disabled,
+    Deployed,
+    NotDeployed
+}
+
+/// <summary>
+/// 模组排序模式
+/// </summary>
+public enum ModSortMode
+{
+    NameAscending,
+    NameDescending,
+    DateAddedNewest,
+    DateAddedOldest,
+    Category
+}

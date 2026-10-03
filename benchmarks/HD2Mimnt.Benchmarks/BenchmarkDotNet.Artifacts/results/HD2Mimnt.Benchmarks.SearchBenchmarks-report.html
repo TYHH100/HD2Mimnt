@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>HD2Mimnt.Benchmarks.SearchBenchmarks-20261003-012155</title>
+<title>HD2Mimnt.Benchmarks.SearchBenchmarks-20261003-114723</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -22,18 +22,18 @@ BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9457/25H2/2025Update/HudsonValle
 <pre><code></code></pre>
 
 <table>
-<thead><tr><th>Method                 </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Rank</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
+<thead><tr><th>Method                 </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Rank</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>SearchByName_SingleKeyword</td><td>240.2 &mu;s</td><td>4.26 &mu;s</td><td>4.73 &mu;s</td><td>239.7 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>49.3 KB</td>
-</tr><tr><td>SearchByName_PartialMatch</td><td>1,900.8 &mu;s</td><td>37.69 &mu;s</td><td>77.84 &mu;s</td><td>1,869.6 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
-</tr><tr><td>SearchByAuthor</td><td>253.4 &mu;s</td><td>4.87 &mu;s</td><td>5.80 &mu;s</td><td>254.0 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.52 KB</td>
-</tr><tr><td>SearchByCategory</td><td>826.4 &mu;s</td><td>15.24 &mu;s</td><td>22.82 &mu;s</td><td>820.7 &mu;s</td><td>2</td><td>23.4375</td><td>7.8125</td><td>239.88 KB</td>
-</tr><tr><td>SearchByTag</td><td>249.4 &mu;s</td><td>4.80 &mu;s</td><td>4.01 &mu;s</td><td>251.1 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.44 KB</td>
-</tr><tr><td>SearchByMultipleTags</td><td>251.3 &mu;s</td><td>3.28 &mu;s</td><td>2.91 &mu;s</td><td>251.8 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.46 KB</td>
-</tr><tr><td>SearchComplex_NameAndCategory</td><td>1,923.9 &mu;s</td><td>29.47 &mu;s</td><td>27.57 &mu;s</td><td>1,925.8 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
-</tr><tr><td>EmptySearch_ReturnAll</td><td>3,674.3 &mu;s</td><td>68.11 &mu;s</td><td>63.71 &mu;s</td><td>3,670.3 &mu;s</td><td>4</td><td>128.9063</td><td>89.8438</td><td>1192.55 KB</td>
-</tr><tr><td>SearchNoResults</td><td>261.6 &mu;s</td><td>5.18 &mu;s</td><td>8.37 &mu;s</td><td>263.2 &mu;s</td><td>1</td><td>4.8828</td><td>-</td><td>47.62 KB</td>
-</tr><tr><td>SearchWithPagination</td><td>1,893.5 &mu;s</td><td>35.39 &mu;s</td><td>33.10 &mu;s</td><td>1,888.9 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</thead><tbody><tr><td>SearchByName_SingleKeyword</td><td>235.9 &mu;s</td><td>2.20 &mu;s</td><td>2.06 &mu;s</td><td>1</td><td>5.1270</td><td>-</td><td>49.3 KB</td>
+</tr><tr><td>SearchByName_PartialMatch</td><td>1,743.6 &mu;s</td><td>19.34 &mu;s</td><td>16.15 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</tr><tr><td>SearchByAuthor</td><td>231.5 &mu;s</td><td>4.59 &mu;s</td><td>4.91 &mu;s</td><td>1</td><td>5.1270</td><td>-</td><td>47.52 KB</td>
+</tr><tr><td>SearchByCategory</td><td>772.8 &mu;s</td><td>14.07 &mu;s</td><td>13.16 &mu;s</td><td>2</td><td>25.3906</td><td>8.7891</td><td>239.88 KB</td>
+</tr><tr><td>SearchByTag</td><td>230.2 &mu;s</td><td>3.20 &mu;s</td><td>3.00 &mu;s</td><td>1</td><td>5.1270</td><td>-</td><td>47.44 KB</td>
+</tr><tr><td>SearchByMultipleTags</td><td>235.6 &mu;s</td><td>2.51 &mu;s</td><td>2.35 &mu;s</td><td>1</td><td>5.1270</td><td>-</td><td>47.46 KB</td>
+</tr><tr><td>SearchComplex_NameAndCategory</td><td>1,987.9 &mu;s</td><td>39.32 &mu;s</td><td>65.69 &mu;s</td><td>4</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
+</tr><tr><td>EmptySearch_ReturnAll</td><td>3,366.4 &mu;s</td><td>27.69 &mu;s</td><td>24.55 &mu;s</td><td>5</td><td>128.9063</td><td>89.8438</td><td>1192.55 KB</td>
+</tr><tr><td>SearchNoResults</td><td>234.3 &mu;s</td><td>2.90 &mu;s</td><td>2.71 &mu;s</td><td>1</td><td>5.1270</td><td>-</td><td>47.62 KB</td>
+</tr><tr><td>SearchWithPagination</td><td>1,695.8 &mu;s</td><td>16.05 &mu;s</td><td>14.23 &mu;s</td><td>3</td><td>35.1563</td><td>3.9063</td><td>339.15 KB</td>
 </tr></tbody></table>
 </body>
 </html>

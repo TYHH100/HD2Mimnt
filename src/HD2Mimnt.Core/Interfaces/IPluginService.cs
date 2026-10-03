@@ -46,6 +46,11 @@ public interface IPluginService
     Task<PluginValidationResult> ValidateManifestAsync(string manifestPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Read the user-facing manifest metadata before installation.
+    /// </summary>
+    Task<PluginManifestPreview?> GetManifestPreviewAsync(string manifestPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if plugin has a specific permission
     /// </summary>
     Task<bool> CheckPermissionAsync(string pluginId, string permission, CancellationToken cancellationToken = default);
@@ -98,4 +103,14 @@ public class PluginValidationResult
             Errors = errors.ToList()
         };
     }
+}
+
+public sealed class PluginManifestPreview
+{
+    public string Name { get; init; } = string.Empty;
+    public string Version { get; init; } = string.Empty;
+    public string Author { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public string PermissionMode { get; init; } = "Sandbox";
+    public IReadOnlyList<string> RequestedPermissions { get; init; } = Array.Empty<string>();
 }

@@ -1,0 +1,132 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:HD2Mimnt.UI.Controls"
+             xmlns:services="using:HD2Mimnt.Application.Services"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+             x:Class="HD2Mimnt.UI.Controls.NotificationPanel"
+             x:DataType="vm:NotificationPanelViewModel"
+             Background="{DynamicResource Surface2Brush}"
+             MinWidth="320"
+             MaxWidth="400">
+
+    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Header -->
+            <Border Grid.Row="0" Background="{DynamicResource Surface3Brush}" Padding="16,12" CornerRadius="8,8,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0"
+                              Text="Notifications"
+                              FontSize="16"
+                              FontWeight="SemiBold"
+                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <Button Grid.Column="1"
+                           Content="✕"
+                           Classes="icon-button"
+                           Command="{Binding CloseCommand}"
+                           Width="24" Height="24"
+                           Padding="0"
+                           FontSize="14"/>
+                </Grid>
+            </Border>
+
+            <!-- Notification List -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                    <ItemsControl ItemsSource="{Binding Notifications}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="services:Notification">
+                                <Border Background="{DynamicResource Surface1Brush}"
+                                       BorderBrush="{DynamicResource BorderBrush}"
+                                       BorderThickness="0,0,0,1"
+                                       Padding="16,12">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <!-- Icon -->
+                                        <Border Grid.Column="0"
+                                               Width="32" Height="32"
+                                               CornerRadius="999"
+                                               Background="{Binding Level, Converter={StaticResource LevelToColorConverter}}"
+                                               Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Level, Converter={StaticResource LevelToIconConverter}}"
+                                                      FontSize="16"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="#FFFFFF"/>
+                                        </Border>
+
+                                        <!-- Content -->
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="{Binding Title}"
+                                                      FontSize="14"
+                                                      FontWeight="Medium"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Message}"
+                                                      FontSize="12"
+                                                      Foreground="{DynamicResource TextSecondaryBrush}"
+                                                      TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Timestamp, Converter={StaticResource TimeAgoConverter}}"
+                                                      FontSize="11"
+                                                      Foreground="{DynamicResource TextMutedBrush}"
+                                                      Margin="0,2,0,0"/>
+                                            <Button Content="{Binding ActionText, TargetNullValue=打开}"
+                                                    Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).ExecuteActionCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Classes="secondary"
+                                                    HorizontalAlignment="Left"
+                                                    IsVisible="{Binding HasAction}"
+                                                    Padding="8,4"
+                                                    FontSize="11"/>
+                                        </StackPanel>
+
+                                        <!-- Close Button -->
+                                        <Button Grid.Column="2"
+                                               Content="✕"
+                                               Classes="icon-button"
+                                               Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).RemoveNotificationCommand}"
+                                               CommandParameter="{Binding}"
+                                               Width="24" Height="24"
+                                               Padding="0"
+                                               FontSize="12"
+                                               Margin="8,0,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Empty State (shown when no notifications) -->
+                    <StackPanel Spacing="12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="0,60,0,0"
+                               IsVisible="{Binding !Notifications.Count}">
+                        <TextBlock Text="🔔"
+                                  FontSize="48"
+                                  HorizontalAlignment="Center"
+                                  Opacity="0.3"/>
+                        <TextBlock Text="No notifications"
+                                  FontSize="14"
+                                  Foreground="{DynamicResource TextMutedBrush}"
+                                  HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Panel>
+            </ScrollViewer>
+
+            <!-- Footer -->
+            <Border Grid.Row="2"
+                   Background="{DynamicResource Surface3Brush}"
+                   Padding="12,8"
+                   CornerRadius="0,0,8,8"
+                   IsVisible="{Binding Notifications.Count}">
+                <Button Content="Clear All"
+                       Command="{Binding ClearAllCommand}"
+                       Classes="secondary"
+                       HorizontalAlignment="Stretch"
+                       Padding="12,8"
+                       FontSize="12"/>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
