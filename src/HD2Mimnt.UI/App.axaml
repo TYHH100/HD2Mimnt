@@ -18,6 +18,13 @@
                     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#526071"/>
                     <SolidColorBrush x:Key="TextMutedBrush" Color="#697586"/>
                     <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#E5EAF1"/>
+                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#DCE8F5"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#087EA4"/>
+                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#05627F"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#16794A"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#A15C00"/>
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#B42318"/>
+                    <SolidColorBrush x:Key="DisabledBrush" Color="#8A94A3"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Surface0Brush" Color="#05070C"/>
@@ -30,6 +37,13 @@
                     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
                     <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280"/>
                     <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#2A3347"/>
+                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#1B3147"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#38BDF8"/>
+                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#0EA5E9"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#6EE7B7"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24"/>
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#F87171"/>
+                    <SolidColorBrush x:Key="DisabledBrush" Color="#6B7280"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -41,19 +55,64 @@
         <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
         <converters:LevelToColorConverter x:Key="LevelToColorConverter"/>
         <converters:LevelToIconConverter x:Key="LevelToIconConverter"/>
+
+        <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
+        <CornerRadius x:Key="SubtleCornerRadius">2</CornerRadius>
+        <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+        <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
+        <x:Double x:Key="Space4">4</x:Double>
+        <x:Double x:Key="Space8">8</x:Double>
+        <x:Double x:Key="Space12">12</x:Double>
+        <x:Double x:Key="Space16">16</x:Double>
+        <x:Double x:Key="Space20">20</x:Double>
+        <x:Double x:Key="Space24">24</x:Double>
+        <x:Double x:Key="Space32">32</x:Double>
+        <x:Double x:Key="PageTitleFontSize">22</x:Double>
+        <x:Double x:Key="SectionTitleFontSize">16</x:Double>
+        <x:Double x:Key="BodyFontSize">14</x:Double>
+        <x:Double x:Key="SecondaryFontSize">12</x:Double>
+        <x:Double x:Key="CaptionFontSize">11</x:Double>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
 
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="{DynamicResource PageTitleFontSize}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="{DynamicResource SectionTitleFontSize}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.body-text">
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.secondary-text">
+            <Setter Property="FontSize" Value="{DynamicResource SecondaryFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.caption-text">
+            <Setter Property="FontSize" Value="{DynamicResource CaptionFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+
         <Style Selector="Button.nav-button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource FlatCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -68,23 +127,26 @@
         </Style>
 
         <Style Selector="Button.nav-button.selected">
-            <Setter Property="Background" Value="#38BDF8"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
         </Style>
 
         <Style Selector="Button.primary">
-            <Setter Property="Background" Value="#38BDF8"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
         <Style Selector="Button.primary:pointerover">
-            <Setter Property="Background" Value="#0EA5E9"/>
+            <Setter Property="Background" Value="{DynamicResource AccentStrongBrush}"/>
         </Style>
 
         <Style Selector="Button.primary:pressed">
@@ -96,10 +158,11 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -108,13 +171,43 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
         </Style>
 
+        <Style Selector="Button.tertiary">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.tertiary:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.danger:pointerover">
+            <Setter Property="Background" Value="#DC2626"/>
+        </Style>
+
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
         </Style>
 
         <Style Selector="TextBox:focus">
@@ -129,7 +222,7 @@
             <Setter Property="Padding" Value="8"/>
             <Setter Property="Width" Value="36"/>
             <Setter Property="Height" Value="36"/>
-            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -146,7 +239,7 @@
         <!-- Badge Style -->
         <Style Selector="Border.badge">
             <Setter Property="Background" Value="#EF4444"/>
-            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="6,2"/>
             <Setter Property="MinWidth" Value="20"/>
             <Setter Property="Height" Value="20"/>
@@ -175,7 +268,7 @@
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <ControlTemplate>
@@ -201,11 +294,13 @@
         </Style>
 
         <Style Selector="RadioButton.nav-button:checked /template/ Border">
-            <Setter Property="Background" Value="#38BDF8"/>
+            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
         </Style>
 
         <Style Selector="RadioButton.nav-button:checked">
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!-- Filter Button Style -->
@@ -217,7 +312,7 @@
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <ControlTemplate>
@@ -244,12 +339,12 @@
         </Style>
 
         <Style Selector="RadioButton.filter-button:checked /template/ Border">
-            <Setter Property="Background" Value="#38BDF8"/>
-            <Setter Property="BorderBrush" Value="#38BDF8"/>
+            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="RadioButton.filter-button:checked">
-            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!-- ListBox Style -->
@@ -262,14 +357,17 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="MinHeight" Value="32"/>
         </Style>
 
-        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
+        <Style Selector="ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
         </Style>
 
-        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="2,0,0,0"/>
         </Style>
 
         <!-- ComboBox Style -->
@@ -278,7 +376,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
             <Setter Property="Padding" Value="12,8"/>
         </Style>
 
@@ -293,6 +391,10 @@
         <!-- CheckBox Style -->
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style Selector="Button:focus, TextBox:focus, ComboBox:focus, RadioButton:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
     </Application.Styles>
 </Application>

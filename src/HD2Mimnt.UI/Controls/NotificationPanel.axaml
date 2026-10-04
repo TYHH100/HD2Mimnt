@@ -11,10 +11,10 @@
              MinWidth="320"
              MaxWidth="400">
 
-    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
         <Grid RowDefinitions="Auto,*,Auto">
             <!-- Header -->
-            <Border Grid.Row="0" Background="{DynamicResource Surface3Brush}" Padding="16,12" CornerRadius="8,8,0,0">
+            <Border Grid.Row="0" Background="{DynamicResource Surface3Brush}" Padding="16,12" CornerRadius="6,6,0,0">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0"
                               Text="Notifications"
@@ -45,7 +45,7 @@
                                         <!-- Icon -->
                                         <Border Grid.Column="0"
                                                Width="32" Height="32"
-                                               CornerRadius="999"
+                                               CornerRadius="16"
                                                Background="{Binding Level, Converter={StaticResource LevelToColorConverter}}"
                                                Margin="0,0,12,0">
                                             <TextBlock Text="{Binding Level, Converter={StaticResource LevelToIconConverter}}"
@@ -118,7 +118,7 @@
             <Border Grid.Row="2"
                    Background="{DynamicResource Surface3Brush}"
                    Padding="12,8"
-                   CornerRadius="0,0,8,8"
+                   CornerRadius="0,0,6,6"
                    IsVisible="{Binding Notifications.Count}">
                 <Button Content="Clear All"
                        Command="{Binding ClearAllCommand}"

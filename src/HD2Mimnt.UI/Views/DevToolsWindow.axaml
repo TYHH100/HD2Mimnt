@@ -30,7 +30,7 @@
         <Border Grid.Row="1"
                Background="{DynamicResource Surface2Brush}"
                Padding="16"
-               CornerRadius="8"
+               CornerRadius="6"
                Margin="0,0,0,16">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0"
@@ -84,7 +84,7 @@
                IsVisible="{Binding IsGenerating}"
                Background="{DynamicResource Surface2Brush}"
                Padding="16"
-               CornerRadius="8"
+               CornerRadius="6"
                Margin="0,16,0,0">
             <StackPanel Spacing="8">
                 <ProgressBar Value="{Binding Progress}"
@@ -102,7 +102,7 @@
         <Border Grid.Row="4"
                Background="{DynamicResource Surface2Brush}"
                Padding="16"
-               CornerRadius="8"
+               CornerRadius="6"
                Margin="0,16,0,0">
             <TextBlock Text="{Binding StatusMessage}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
