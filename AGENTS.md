@@ -220,3 +220,12 @@ All core systems are functional. The application is in early alpha with ongoing 
 - Avalonia Headless 测试在同一进程只能进行一次 `AppBuilder.SetupWithoutStarting()`；新增窗口布局测试必须复用现有测试应用或拆分到独立测试程序集，不能再创建第二个 AppBuilder，否则会出现初始化冲突、资源缺失或测试宿主不退出。
 - 参考旧版 WPF 前端时只迁移可验证的业务行为语义（例如筛选列表中的范围选择），必须继续通过当前 UI 的 Application 服务和 ViewModel 对接；不要直接复制旧 UI 或绕过当前 Infrastructure/数据库边界。
 - 共享 `bin/obj` 输出的构建和测试必须顺序执行；并行启动会锁定 Core 或 UI 程序集，产生误导性的 CS2012 文件占用错误。
+- Avalonia `CheckBox` 如果绑定了“切换状态”的命令，`IsChecked` 应使用 `Mode=OneWay`，由命令完成持久化并更新 ViewModel；双向绑定会先写一次状态、命令再反转一次，造成 UI 与 Profile 数据库相反。
+- 设置页保存的运行时前置条件必须同步到对应 Application 服务；例如游戏路径不能只写 `SettingsService`，还要通过 `GameDetectionService` 校验并更新当前状态，否则部署页仍会读取旧检测结果。
+- 任务中心或其它覆盖层的自动刷新必须有明确的 Start/Stop 生命周期；关闭面板和应用退出时取消刷新令牌，并串行化加载，不能留下后台轮询或让旧快照覆盖新状态。
+- 任务完成事件必须在最终状态写入数据库并从运行任务集合移除后发布；UI 通知处理器只负责呈现结果和刷新视图，不能在事件回调中重新执行任务状态持久化。
+- 强制终止任务必须与后台执行体的最终写入使用同一任务级闸门；先标记并持久化 `ForceTerminated`，后台取消回调不能覆盖终止状态，也不能重复发布完成事件。
+- 后台服务事件（游戏检测、通知、任务完成等）不能直接修改 Avalonia 绑定属性；事件处理器必须检查 UI 线程并通过 Dispatcher 派发，测试无 UI 上下文时才允许同步回退。
+- 设置页的“自动识别游戏”必须同时约束启动流程和保存后的检测流程；关闭时只能应用用户配置路径，不能仍然调用会扫描常见目录的 `AutoDetectAsync`。
+- 开发工具生成测试模组必须通过 Application 层服务完成导入和删除；ViewModel 不得直接创建 manifest、复制模组或删除模组目录，临时源目录必须按每项完成/失败清理。
+- 开发工具的批量生成、启用状态和清理命令必须传递 CancellationToken，并提供可见取消入口；Application 服务在每项操作前检查取消并保证临时源目录清理。

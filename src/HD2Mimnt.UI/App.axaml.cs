@@ -119,6 +119,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IModRepository>(),
             modsStoragePath,
             sp.GetService<ILogger<ModService>>()));
+        services.AddSingleton(sp => new TestDataService(
+            sp.GetRequiredService<ModService>()));
 
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
@@ -218,7 +220,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<TaskService>(),
-            sp.GetRequiredService<ModService>(),
+            sp.GetRequiredService<TestDataService>(),
             sp.GetRequiredService<ProfileService>(),
             sp.GetRequiredService<SettingsViewModel>(),
             sp.GetRequiredService<TaskCenterViewModel>(),

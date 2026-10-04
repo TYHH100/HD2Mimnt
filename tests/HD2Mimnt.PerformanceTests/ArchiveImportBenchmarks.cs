@@ -5,6 +5,16 @@ using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Exporters.Csv;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Columns;
+using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Repositories;
+using HD2Mimnt.Infrastructure.Archive;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.PerformanceTests;
 
@@ -16,6 +26,8 @@ namespace HD2Mimnt.PerformanceTests;
 public class ArchiveImportBenchmarks
 {
     private string _testDataPath = null!;
+    private ServiceProvider _serviceProvider = null!;
+    private SqliteConnection _connection = null!;
 
     private class Config : ManualConfig
     {
@@ -45,114 +57,190 @@ public class ArchiveImportBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _testDataPath = Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "TestData",
-            "Generated"
-        );
+        // 查找测试数据目录（向上搜索，因为 BenchmarkDotNet 在子目录中运行）
+        var currentDir = Directory.GetCurrentDirectory();
+        var searchDir = currentDir;
+
+        // 尝试在当前目录和父目录中查找 TestData
+        while (searchDir != null)
+        {
+            var candidatePath = Path.Combine(searchDir, "TestData", "Generated");
+            if (Directory.Exists(candidatePath))
+            {
+                _testDataPath = candidatePath;
+                break;
+            }
+
+            var parentDir = Directory.GetParent(searchDir);
+            searchDir = parentDir?.FullName;
+        }
+
+        if (_testDataPath == null)
+        {
+            throw new DirectoryNotFoundException(
+                $"Test data directory not found. Searched from: {currentDir}\n" +
+                "Please run TestFileGenerator first to generate test files.");
+        }
 
         Console.WriteLine($"Test data path: {_testDataPath}");
 
-        // 验证测试文件存在
-        if (!Directory.Exists(_testDataPath))
-        {
-            throw new DirectoryNotFoundException(
-                $"Test data directory not found: {_testDataPath}\n" +
-                "Please run TestFileGenerator first to generate test files.");
-        }
+        // 配置服务
+        _serviceProvider = ConfigureServices();
+
+        // 初始化数据库
+        InitializeDatabase();
+
+        Console.WriteLine("✓ Services configured and database initialized");
+    }
+
+    [GlobalCleanup]
+    public void Cleanup()
+    {
+        _connection?.Dispose();
+        _serviceProvider?.Dispose();
+    }
+
+    private ServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        // 配置 InMemory SQLite 数据库
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
+
+        // 注册 HD2MimntDbContext (不使用 EF Core)
+        var tempDbPath = Path.Combine(Path.GetTempPath(), $"benchmark_{Guid.NewGuid():N}.db");
+        services.AddSingleton(new HD2MimntDbContext(tempDbPath));
+
+        // 注册 Repositories
+        services.AddScoped<ILogicalModRepository, LogicalModRepository>();
+        services.AddScoped<IArchiveAnalysisCacheRepository, ArchiveAnalysisCacheRepository>();
+        services.AddScoped<IFileOwnershipRepository, FileOwnershipRepository>();
+        services.AddScoped<IDeploymentTransactionRepository, DeploymentTransactionRepository>();
+
+        // 注册 Services
+        services.AddScoped<IArchiveInspector, ArchiveInspector>();
+        services.AddScoped<IComponentDetector, ComponentDetector>();
+        services.AddScoped<IHd2IrDetector, Hd2IrDetector>();
+        services.AddScoped<IModMerger, ModMerger>();
+        services.AddScoped<DiffEngine>();
+
+        // 注册 Logger（使用 NullLogger 避免日志开销影响性能测试）
+        services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.None));
+
+        return services.BuildServiceProvider();
+    }
+
+    private void InitializeDatabase()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<HD2MimntDbContext>();
+
+        // 创建数据库架构
+        var connection = dbContext.GetConnectionAsync().GetAwaiter().GetResult();
     }
 
     [Benchmark(Description = "Import 100MB ZIP")]
-    public async Task<TestResult> Import_100MB()
+    public async Task<AnalysisResult> Import_100MB()
     {
         var filePath = Path.Combine(_testDataPath, "test_100mb_flat.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     [Benchmark(Description = "Import 500MB ZIP")]
-    public async Task<TestResult> Import_500MB()
+    public async Task<AnalysisResult> Import_500MB()
     {
         var filePath = Path.Combine(_testDataPath, "test_500mb_flat.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     [Benchmark(Description = "Import 1GB ZIP")]
-    public async Task<TestResult> Import_1GB()
+    public async Task<AnalysisResult> Import_1GB()
     {
         var filePath = Path.Combine(_testDataPath, "test_1gb_flat.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     [Benchmark(Description = "Import Nested 2 Levels")]
-    public async Task<TestResult> Import_Nested2()
+    public async Task<AnalysisResult> Import_Nested2()
     {
         var filePath = Path.Combine(_testDataPath, "test_nested_2.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     [Benchmark(Description = "Import Nested 5 Levels")]
-    public async Task<TestResult> Import_Nested5()
+    public async Task<AnalysisResult> Import_Nested5()
     {
         var filePath = Path.Combine(_testDataPath, "test_nested_5.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     [Benchmark(Description = "Import 1000 Small Files")]
-    public async Task<TestResult> Import_1000Files()
+    public async Task<AnalysisResult> Import_1000Files()
     {
         var filePath = Path.Combine(_testDataPath, "test_1000_files.zip");
-        return await SimulateImportAsync(filePath);
+        return await AnalyzeArchiveAsync(filePath);
     }
 
     /// <summary>
-    /// 模拟导入过程（实际测试中会使用真实服务）
+    /// 执行归档分析（使用真实服务）
     /// </summary>
-    private async Task<TestResult> SimulateImportAsync(string filePath)
+    private async Task<AnalysisResult> AnalyzeArchiveAsync(string filePath)
     {
         if (!File.Exists(filePath))
         {
             throw new FileNotFoundException($"Test file not found: {filePath}");
         }
 
+        using var scope = _serviceProvider.CreateScope();
+
+        var inspector = scope.ServiceProvider.GetRequiredService<IArchiveInspector>();
+        var detector = scope.ServiceProvider.GetRequiredService<IComponentDetector>();
+        var merger = scope.ServiceProvider.GetRequiredService<IModMerger>();
+
         var startTime = DateTime.UtcNow;
 
-        // TODO: 这里会调用实际的导入服务
-        // var result = await _archiveImportService.ImportAsync(filePath);
+        // Stage 1: 分析归档结构
+        var archiveTree = await inspector.InspectAsync(filePath, maxDepth: 5, CancellationToken.None);
+        var analysisDuration = DateTime.UtcNow - startTime;
 
-        // 目前模拟基本的 ZIP 读取
-        using var archive = System.IO.Compression.ZipFile.OpenRead(filePath);
-        var entryCount = archive.Entries.Count;
+        // Stage 2: 检测组件
+        var detectionStart = DateTime.UtcNow;
+        var candidates = await detector.ExtractCandidatesAsync(archiveTree, CancellationToken.None);
+        var detectionDuration = DateTime.UtcNow - detectionStart;
 
-        // 模拟分析每个 entry
-        foreach (var entry in archive.Entries)
-        {
-            var name = entry.FullName;
-            var size = entry.Length;
-            // 模拟读取 metadata
-            await Task.Yield();
-        }
+        // Stage 3: 合并组件为 LogicalMod
+        var buildStart = DateTime.UtcNow;
+        var mergeResult = await merger.MergeAsync(candidates, CancellationToken.None);
+        var buildDuration = DateTime.UtcNow - buildStart;
 
-        var duration = DateTime.UtcNow - startTime;
+        var totalDuration = DateTime.UtcNow - startTime;
 
-        return new TestResult
+        return new AnalysisResult
         {
             FilePath = filePath,
             FileSize = new FileInfo(filePath).Length,
-            EntryCount = entryCount,
-            Duration = duration,
+            TotalDuration = totalDuration,
+            AnalysisDuration = analysisDuration,
+            DetectionDuration = detectionDuration,
+            BuildDuration = buildDuration,
+            ComponentCount = candidates.Count,
             Success = true
         };
     }
 }
 
 /// <summary>
-/// 测试结果
+/// 分析结果
 /// </summary>
-public class TestResult
+public class AnalysisResult
 {
     public string FilePath { get; set; } = string.Empty;
     public long FileSize { get; set; }
-    public int EntryCount { get; set; }
-    public TimeSpan Duration { get; set; }
+    public TimeSpan TotalDuration { get; set; }
+    public TimeSpan AnalysisDuration { get; set; }
+    public TimeSpan DetectionDuration { get; set; }
+    public TimeSpan BuildDuration { get; set; }
+    public int ComponentCount { get; set; }
     public bool Success { get; set; }
 }

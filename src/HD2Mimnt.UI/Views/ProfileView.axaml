@@ -96,7 +96,7 @@
                                         <TextBlock Text="{Binding ModName}" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBlock Text="{Binding ModVersion}" Foreground="{DynamicResource TextMutedBrush}" FontSize="12"/>
                                     </StackPanel>
-                                    <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" Command="{Binding $parent[UserControl].DataContext.ToggleModEnabledCommand}" CommandParameter="{Binding}" Content="启用" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding Enabled, Mode=OneWay}" Command="{Binding $parent[UserControl].DataContext.ToggleModEnabledCommand}" CommandParameter="{Binding}" Content="启用" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Grid>
                                 </Border>
                             </DataTemplate>

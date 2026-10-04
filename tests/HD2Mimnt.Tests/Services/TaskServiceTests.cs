@@ -37,6 +37,7 @@ public class TaskServiceTests : IDisposable
         _taskService.RegisterWorker(new ImportWorker(_modRepository));
         _taskService.RegisterWorker(new ScanWorker(_modRepository));
         _taskService.RegisterWorker(new ValidationWorker(_modRepository));
+        _taskService.RegisterWorker(new BlockingWorker());
     }
 
     [Fact]
@@ -153,6 +154,45 @@ public class TaskServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TaskCompletion_ShouldRaiseCompletionEvent()
+    {
+        var completed = new TaskCompletionSource<ModTask>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _taskService.TaskCompleted += (_, args) => completed.TrySetResult(args.Task);
+        var taskId = await _taskService.CreateTaskAsync("Notification Task", "Import");
+
+        await _taskService.StartTaskAsync(taskId);
+        var task = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(taskId, task.Id);
+        Assert.Equal(Core.Entities.TaskStatus.Completed, task.Status);
+    }
+
+    [Fact]
+    public async Task ForceTerminateTask_ShouldPersistAndRaiseOneCompletionEvent()
+    {
+        var completed = new TaskCompletionSource<ModTask>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var eventCount = 0;
+        _taskService.TaskCompleted += (_, args) =>
+        {
+            Interlocked.Increment(ref eventCount);
+            completed.TrySetResult(args.Task);
+        };
+        var taskId = await _taskService.CreateTaskAsync("Force terminate task", "Blocking");
+
+        await _taskService.StartTaskAsync(taskId);
+        await _taskService.ForceTerminateTaskAsync(taskId);
+        var eventTask = await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.Delay(150);
+        var storedTask = await _taskService.GetTaskAsync(taskId);
+
+        Assert.Equal(taskId, eventTask.Id);
+        Assert.Equal(Core.Entities.TaskStatus.ForceTerminated, eventTask.Status);
+        Assert.NotNull(storedTask);
+        Assert.Equal(Core.Entities.TaskStatus.ForceTerminated, storedTask.Status);
+        Assert.Equal(1, eventCount);
+    }
+
+    [Fact]
     public async Task GetHistory_ShouldReturnCompletedTasks()
     {
         // Arrange
@@ -215,6 +255,17 @@ public class TaskServiceTests : IDisposable
         if (File.Exists(_testDbPath))
         {
             File.Delete(_testDbPath);
+        }
+    }
+
+    private sealed class BlockingWorker : IWorker
+    {
+        public string Type => "Blocking";
+
+        public async Task ExecuteAsync(ModTask task, IProgress<TaskProgress> progress, CancellationToken cancellationToken)
+        {
+            progress.Report(new TaskProgress { Progress = 10, Stage = "Running", Message = "Waiting" });
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
     }
 }

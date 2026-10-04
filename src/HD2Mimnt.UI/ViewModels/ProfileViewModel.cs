@@ -340,6 +340,10 @@ public partial class ProfileViewModel : ObservableObject
         {
             await _profileService.DeleteProfileAsync(profile.Id);
             Profiles.Remove(profile);
+            if (ReferenceEquals(SelectedProfile, profile))
+            {
+                SelectedProfile = Profiles.FirstOrDefault(item => item.IsActive) ?? Profiles.FirstOrDefault();
+            }
             ApplySearch();
             _notificationService.ShowSuccess($"已删除配置文件“{profile.Name}”", "删除配置文件");
         }
@@ -399,6 +403,8 @@ public partial class ProfileViewModel : ObservableObject
             {
                 p.IsActive = p.Id == profile.Id;
             }
+            SelectedProfile = profile;
+            await LoadProfileModsAsync(profile.Id);
             ActiveProfileChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)

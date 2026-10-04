@@ -13,6 +13,10 @@ public class TaskService
     private readonly IServiceProvider _serviceProvider;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _runningTasks;
     private readonly ConcurrentDictionary<string, IWorker> _workers;
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _taskStateGates;
+    private readonly ConcurrentDictionary<Guid, byte> _forceTerminatedTasks;
+
+    public event EventHandler<TaskCompletedEventArgs>? TaskCompleted;
 
     public TaskService(
         ITaskRepository taskRepository,
@@ -22,6 +26,8 @@ public class TaskService
         _serviceProvider = serviceProvider;
         _runningTasks = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         _workers = new ConcurrentDictionary<string, IWorker>();
+        _taskStateGates = new ConcurrentDictionary<Guid, SemaphoreSlim>();
+        _forceTerminatedTasks = new ConcurrentDictionary<Guid, byte>();
     }
 
     /// <summary>
@@ -76,6 +82,7 @@ public class TaskService
         // 创建任务专用的 CancellationTokenSource
         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _runningTasks[taskId] = cts;
+        var stateGate = _taskStateGates.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
 
         // 在后台执行任务
         _ = Task.Run(async () =>
@@ -157,9 +164,23 @@ public class TaskService
             }
             finally
             {
-                await _taskRepository.UpdateAsync(task, CancellationToken.None);
-                _runningTasks.TryRemove(taskId, out _);
-                cts.Dispose();
+                await stateGate.WaitAsync();
+                try
+                {
+                    if (!_forceTerminatedTasks.ContainsKey(taskId))
+                    {
+                        await _taskRepository.UpdateAsync(task, CancellationToken.None);
+                        _runningTasks.TryRemove(taskId, out _);
+                        TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task));
+                    }
+                }
+                finally
+                {
+                    stateGate.Release();
+                    cts.Dispose();
+                    _taskStateGates.TryRemove(taskId, out _);
+                    _forceTerminatedTasks.TryRemove(taskId, out _);
+                }
             }
         }, CancellationToken.None);
 
@@ -186,20 +207,40 @@ public class TaskService
     /// </summary>
     public async Task ForceTerminateTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        if (_runningTasks.TryRemove(taskId, out var cts))
+        if (!_runningTasks.TryGetValue(taskId, out var cts))
         {
+            return;
+        }
+
+        var stateGate = _taskStateGates.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
+        await stateGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_runningTasks.ContainsKey(taskId))
+            {
+                return;
+            }
+
+            _forceTerminatedTasks[taskId] = 0;
             cts.Cancel();
-            cts.Dispose();
 
             var task = await _taskRepository.GetByIdAsync(taskId, cancellationToken);
-            if (task != null)
+            if (task == null)
             {
-                task.Status = Core.Entities.TaskStatus.ForceTerminated;
-                task.Stage = "Terminated";
-                task.Message = "Task was force terminated";
-                task.EndTime = DateTime.UtcNow;
-                await _taskRepository.UpdateAsync(task, cancellationToken);
+                return;
             }
+
+            task.Status = Core.Entities.TaskStatus.ForceTerminated;
+            task.Stage = "Terminated";
+            task.Message = "Task was force terminated";
+            task.EndTime = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(task, cancellationToken);
+            _runningTasks.TryRemove(taskId, out _);
+            TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task));
+        }
+        finally
+        {
+            stateGate.Release();
         }
     }
 
@@ -254,4 +295,11 @@ public class TaskService
 
         public void Report(T value) => _handler(value);
     }
+}
+
+public sealed class TaskCompletedEventArgs : EventArgs
+{
+    public ModTask Task { get; }
+
+    public TaskCompletedEventArgs(ModTask task) => Task = task;
 }

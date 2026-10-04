@@ -99,7 +99,25 @@ public partial class SettingsViewModel : ObservableObject
     {
         try
         {
-            await _settingsService.SetSettingAsync(SettingKeys.GamePath, GamePath.Trim());
+            var gamePath = GamePath.Trim();
+            if (string.IsNullOrWhiteSpace(gamePath))
+            {
+                await _settingsService.SetSettingAsync(SettingKeys.GamePath, string.Empty);
+                if (AutoDetectGame)
+                {
+                    await _gameDetectionService.AutoDetectAsync();
+                }
+                else
+                {
+                    await _gameDetectionService.ApplyConfiguredPathAsync(string.Empty);
+                }
+                GamePath = _gameDetectionService.CurrentGameInfo?.Path ?? string.Empty;
+            }
+            else
+            {
+                await _gameDetectionService.SetGamePathAsync(gamePath);
+                GamePath = gamePath;
+            }
             await _settingsService.SetSettingAsync(SettingKeys.GameAutoDetect, AutoDetectGame);
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentMethod, DefaultDeploymentMethod.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, CheckBeforeDeploy);
@@ -114,7 +132,7 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = ex.Message;
+            StatusMessage = $"保存设置失败：{ex.Message}";
             _notificationService.ShowError($"保存设置失败: {ex.Message}", "设置");
         }
     }

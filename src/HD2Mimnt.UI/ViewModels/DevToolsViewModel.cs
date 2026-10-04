@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.UI.Utilities;
-using System.Text.Json;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -14,8 +13,9 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class DevToolsViewModel : ObservableObject
 {
-    private readonly ModService _modService;
+    private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
+    private CancellationTokenSource? _operationCts;
 
     [ObservableProperty]
     private int _modCount = 100;
@@ -24,16 +24,24 @@ public partial class DevToolsViewModel : ObservableObject
     private bool _isGenerating;
 
     [ObservableProperty]
+    private bool _canCancel;
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
     private int _progress;
 
-    public DevToolsViewModel(ModService modService, ProfileService profileService)
+    public DevToolsViewModel(TestDataService testDataService, ProfileService profileService)
     {
-        _modService = modService;
+        _testDataService = testDataService;
         _profileService = profileService;
     }
+
+    partial void OnIsGeneratingChanged(bool value) => CanCancel = value;
+
+    [RelayCommand]
+    private void Cancel() => _operationCts?.Cancel();
 
     /// <summary>
     /// 生成测试模组
@@ -44,6 +52,7 @@ public partial class DevToolsViewModel : ObservableObject
         if (IsGenerating) return;
 
         IsGenerating = true;
+        _operationCts = new CancellationTokenSource();
         StatusMessage = "正在生成测试数据...";
         Progress = 0;
 
@@ -52,39 +61,20 @@ public partial class DevToolsViewModel : ObservableObject
             // 生成模组实体
             var mods = TestDataGenerator.GenerateMods(ModCount);
 
-            int completed = 0;
-            foreach (var mod in mods)
+            var progress = new Progress<int>(completed =>
             {
-                try
-                {
-                    // 创建模组目录
-                    Directory.CreateDirectory(mod.Path);
-                    await File.WriteAllTextAsync(
-                        Path.Combine(mod.Path, "manifest.json"),
-                        JsonSerializer.Serialize(new
-                        {
-                            name = mod.Name,
-                            version = mod.Version,
-                            author = "HD2Mimnt"
-                        }));
-
-                    // 保存到数据库，正式导入会复制到应用存储
-                    await _modService.ImportModAsync(mod.Path, default);
-                }
-                finally
-                {
-                    if (Directory.Exists(mod.Path))
-                    {
-                        Directory.Delete(mod.Path, true);
-                    }
-                }
-
-                completed++;
                 Progress = (int)((completed / (double)ModCount) * 100);
                 StatusMessage = $"已生成 {completed}/{ModCount} 个模组...";
-            }
+            });
+            await Task.Run(
+                () => _testDataService.ImportGeneratedModsAsync(mods, progress, _operationCts.Token),
+                _operationCts.Token);
 
             StatusMessage = $"✅ 成功生成 {ModCount} 个测试模组";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "测试数据生成已取消";
         }
         catch (Exception ex)
         {
@@ -92,6 +82,8 @@ public partial class DevToolsViewModel : ObservableObject
         }
         finally
         {
+            _operationCts?.Dispose();
+            _operationCts = null;
             IsGenerating = false;
         }
     }
@@ -105,12 +97,13 @@ public partial class DevToolsViewModel : ObservableObject
         if (IsGenerating) return;
 
         IsGenerating = true;
+        _operationCts = new CancellationTokenSource();
         StatusMessage = "正在设置模组启用状态...";
 
         try
         {
             // 获取所有模组
-            var allMods = await _modService.GetAllModsAsync();
+            var allMods = await _testDataService.GetAllModsAsync(_operationCts.Token);
             var modList = allMods.ToList();
 
             if (modList.Count == 0)
@@ -120,13 +113,13 @@ public partial class DevToolsViewModel : ObservableObject
             }
 
             // 获取或创建默认配置文件
-            var profiles = await _profileService.GetAllProfilesAsync();
+            var profiles = await _profileService.GetAllProfilesAsync(_operationCts.Token);
             var profile = profiles.FirstOrDefault();
 
             if (profile == null)
             {
-                var profileId = await _profileService.CreateProfileAsync("默认配置", "测试用配置文件");
-                profile = await _profileService.GetProfileByIdAsync(profileId);
+                var profileId = await _profileService.CreateProfileAsync("默认配置", "测试用配置文件", _operationCts.Token);
+                profile = await _profileService.GetProfileByIdAsync(profileId, _operationCts.Token);
                 if (profile == null)
                 {
                     StatusMessage = "❌ 无法创建配置文件";
@@ -139,9 +132,13 @@ public partial class DevToolsViewModel : ObservableObject
                 .Where(_ => random.Next(0, 100) < 30)
                 .Select(mod => mod.Id)
                 .ToArray();
-            await _profileService.SetModsEnabledAsync(profile.Id, enabledModIds, true);
+            await _profileService.SetModsEnabledAsync(profile.Id, enabledModIds, true, _operationCts.Token);
 
             StatusMessage = $"✅ 已随机启用 {enabledModIds.Length}/{modList.Count} 个模组";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "启用状态生成已取消";
         }
         catch (Exception ex)
         {
@@ -149,6 +146,8 @@ public partial class DevToolsViewModel : ObservableObject
         }
         finally
         {
+            _operationCts?.Dispose();
+            _operationCts = null;
             IsGenerating = false;
         }
     }
@@ -162,28 +161,18 @@ public partial class DevToolsViewModel : ObservableObject
         if (IsGenerating) return;
 
         IsGenerating = true;
+        _operationCts = new CancellationTokenSource();
         StatusMessage = "正在清除测试数据...";
 
         try
         {
-            var allMods = await _modService.GetAllModsAsync();
-            var modList = allMods.ToList();
-
-            int deleted = 0;
-            foreach (var mod in modList)
-            {
-                if (mod.Name.StartsWith("HD2Mimnt Test ", StringComparison.Ordinal))
-                {
-                    await _modService.DeleteModAsync(mod.Id);
-
-                    if (Directory.Exists(mod.Path))
-                        Directory.Delete(mod.Path, true);
-
-                    deleted++;
-                }
-            }
+            var deleted = await _testDataService.ClearGeneratedModsAsync(cancellationToken: _operationCts.Token);
 
             StatusMessage = $"✅ 已清除 {deleted} 个测试模组";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "测试数据清理已取消";
         }
         catch (Exception ex)
         {
@@ -191,6 +180,8 @@ public partial class DevToolsViewModel : ObservableObject
         }
         finally
         {
+            _operationCts?.Dispose();
+            _operationCts = null;
             IsGenerating = false;
         }
     }

@@ -70,6 +70,13 @@
                    Classes="secondary"
                    HorizontalAlignment="Stretch"
                    Padding="16,12"/>
+
+            <Button Content="取消当前操作"
+                   Command="{Binding CancelCommand}"
+                   IsVisible="{Binding CanCancel}"
+                   Classes="secondary"
+                   HorizontalAlignment="Stretch"
+                   Padding="16,12"/>
         </StackPanel>
 
         <!-- Progress Bar -->

@@ -7,6 +7,7 @@ using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -17,7 +18,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly GameDetectionService _gameDetectionService;
     private readonly NotificationService _notificationService;
     private readonly TaskService _taskService;
-    private readonly ModService _modService;
+    private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly TaskCenterViewModel _taskCenterViewModel;
@@ -94,7 +95,7 @@ public partial class MainWindowViewModel : ObservableObject
         GameDetectionService gameDetectionService,
         NotificationService notificationService,
         TaskService taskService,
-        ModService modService,
+        TestDataService testDataService,
         ProfileService profileService,
         SettingsViewModel settingsViewModel,
         TaskCenterViewModel taskCenterViewModel,
@@ -110,7 +111,7 @@ public partial class MainWindowViewModel : ObservableObject
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _taskService = taskService;
-        _modService = modService;
+        _testDataService = testDataService;
         _profileService = profileService;
         _settingsViewModel = settingsViewModel;
         _taskCenterViewModel = taskCenterViewModel;
@@ -135,25 +136,73 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _gameDetectionService.GameStatusChanged += OnGameStatusChanged;
         _notificationService.NotificationAdded += OnNotificationAdded;
+        _taskService.TaskCompleted += OnTaskCompleted;
     }
 
     private void OnGameStatusChanged(object? sender, GameStatusChangedEventArgs e)
     {
-        GameDetected = e.NewStatus == Application.Services.GameStatus.Found;
-        GamePath = e.GameInfo.Path;
-        GameStatus = e.NewStatus switch
+        ApplyOnUiThread(() =>
         {
-            Application.Services.GameStatus.Found => "Game Found",
-            Application.Services.GameStatus.NotFound => "Game Not Found",
-            Application.Services.GameStatus.Invalid => "Invalid Path",
-            Application.Services.GameStatus.Checking => "Checking...",
-            _ => "Unknown"
-        };
+            GameDetected = e.NewStatus == Application.Services.GameStatus.Found;
+            GamePath = e.GameInfo.Path;
+            GameStatus = e.NewStatus switch
+            {
+                Application.Services.GameStatus.Found => "Game Found",
+                Application.Services.GameStatus.NotFound => "Game Not Found",
+                Application.Services.GameStatus.Invalid => "Invalid Path",
+                Application.Services.GameStatus.Checking => "Checking...",
+                _ => "Unknown"
+            };
+        });
     }
 
     private void OnNotificationAdded(object? sender, Notification e)
     {
-        UnreadNotificationCount = _notificationService.GetUnreadCount();
+        ApplyOnUiThread(() => UnreadNotificationCount = _notificationService.GetUnreadCount());
+    }
+
+    private static void ApplyOnUiThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess() || global::Avalonia.Application.Current is null)
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
+    }
+
+    private void OnTaskCompleted(object? sender, TaskCompletedEventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            _ = HandleTaskCompletedAsync(e.Task);
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() => _ = HandleTaskCompletedAsync(e.Task));
+    }
+
+    private async Task HandleTaskCompletedAsync(Core.Entities.ModTask task)
+    {
+        switch (task.Status)
+        {
+            case Core.Entities.TaskStatus.Completed:
+                _notificationService.ShowSuccess($"任务“{task.Name}”已完成", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.PartiallyFailed:
+                _notificationService.ShowWarning($"任务“{task.Name}”部分失败", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.Cancelled:
+                _notificationService.ShowInfo($"任务“{task.Name}”已取消", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.Failed:
+            case Core.Entities.TaskStatus.ForceTerminated:
+                _notificationService.ShowError($"任务“{task.Name}”执行失败：{task.Message}", "后台任务");
+                break;
+        }
+
+        await UpdateRunningTasksAsync();
     }
 
     private void OnNotificationNavigationRequested(object? sender, NotificationNavigationTarget target)
@@ -211,8 +260,15 @@ public partial class MainWindowViewModel : ObservableObject
         await _logViewModel.InitializeAsync();
         await UpdateRunningTasksAsync();
 
-        // 检测游戏
-        await _gameDetectionService.AutoDetectAsync();
+        // 根据设置决定是否扫描常见安装位置。
+        if (_settingsViewModel.AutoDetectGame)
+        {
+            await _gameDetectionService.AutoDetectAsync();
+        }
+        else
+        {
+            await _gameDetectionService.ApplyConfiguredPathAsync(_settingsViewModel.GamePath);
+        }
 
         // 更新当前配置
         UpdateCurrentProfile();
@@ -249,7 +305,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void NavigateToTasks()
     {
         IsTaskCenterOpen = true;
-        _ = _taskCenterViewModel.LoadAsync();
+        _taskCenterViewModel.StartAutoRefresh();
         _ = UpdateRunningTasksAsync();
         StatusBarText = "任务中心";
     }
@@ -269,7 +325,11 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CloseTaskCenter() => IsTaskCenterOpen = false;
+    private void CloseTaskCenter()
+    {
+        IsTaskCenterOpen = false;
+        _taskCenterViewModel.StopAutoRefresh();
+    }
 
     [RelayCommand]
     private void OpenTaskCenter()
@@ -296,6 +356,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         IsTaskCenterOpen = false;
         IsNotificationPanelOpen = false;
+        _taskCenterViewModel.StopAutoRefresh();
     }
 
     public void AttachOwner(Avalonia.Controls.Window owner) => _confirmationService.SetOwner(owner);
@@ -303,10 +364,21 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task<bool> CanCloseAsync()
     {
         var runningTasks = await _taskService.GetRunningTasksAsync();
-        if (!runningTasks.Any()) return true;
-        return await _confirmationService.ConfirmAsync(
+        if (!runningTasks.Any())
+        {
+            _taskCenterViewModel.StopAutoRefresh();
+            return true;
+        }
+
+        var canClose = await _confirmationService.ConfirmAsync(
             "退出应用",
             $"当前仍有 {runningTasks.Count()} 个后台任务运行中。退出可能中断正在进行的操作，确定退出吗？");
+        if (canClose)
+        {
+            _taskCenterViewModel.StopAutoRefresh();
+        }
+
+        return canClose;
     }
 
     private void OnThemeChanged(object? sender, string theme) => ApplyTheme(theme);
@@ -345,7 +417,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void OpenDevTools()
     {
-        var devToolsViewModel = new DevToolsViewModel(_modService, _profileService);
+        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService);
         var devToolsWindow = new DevToolsWindow
         {
             DataContext = devToolsViewModel

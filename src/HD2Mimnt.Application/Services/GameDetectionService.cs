@@ -127,6 +127,24 @@ public class GameDetectionService
         }
     }
 
+    /// <summary>
+    /// 只应用已保存的游戏路径，不扫描常见安装位置。
+    /// </summary>
+    public async Task<bool> ApplyConfiguredPathAsync(string? path, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, cancellationToken);
+            return false;
+        }
+
+        var status = await ValidateGameDirectoryAsync(path, cancellationToken)
+            ? GameStatus.Found
+            : GameStatus.Invalid;
+        await UpdateGameInfoAsync(path, status, cancellationToken);
+        return status == GameStatus.Found;
+    }
+
     private async Task<string?> DetectFromCommonLocationsAsync(CancellationToken cancellationToken)
     {
         var commonPaths = GetCommonGamePaths();
