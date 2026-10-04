@@ -35,7 +35,25 @@ public partial class ProfileViewModel : ObservableObject
     private ObservableCollection<ProfileModViewModel> _profileMods = new();
 
     [ObservableProperty]
+    private bool _isProfileModsEmpty = true;
+
+    [ObservableProperty]
+    private bool _hasProfileModsError;
+
+    [ObservableProperty]
+    private string _profileModsErrorMessage = string.Empty;
+
+    [ObservableProperty]
+    private ObservableCollection<LibraryModChoiceViewModel> _availableLibraryMods = new();
+
+    [ObservableProperty]
     private bool _isLoading;
+
+    [ObservableProperty]
+    private bool _isProfileModsLoading;
+
+    [ObservableProperty]
+    private bool _isAddModOpen;
 
     [ObservableProperty]
     private bool _hasError;
@@ -68,6 +86,13 @@ public partial class ProfileViewModel : ObservableObject
     private CancellationTokenSource? _profileModsCts;
 
     public IEnumerable<string> CompareFilterOptions { get; } = new[] { "全部", "仅左侧", "仅右侧", "状态不同", "两边共有" };
+
+    public bool HasSelectedProfile => SelectedProfile != null;
+    public bool HasNoSelectedProfile => SelectedProfile == null;
+    public bool IsProfileModsContentVisible => HasSelectedProfile && !IsProfileModsLoading && !IsProfileModsEmpty && !HasProfileModsError;
+    public bool IsProfileModsEmptyStateVisible => HasSelectedProfile && !IsProfileModsLoading && IsProfileModsEmpty && !HasProfileModsError;
+    public bool IsProfileModsLoadingStateVisible => HasSelectedProfile && IsProfileModsLoading;
+    public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
 
     public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService)
     {
@@ -115,6 +140,12 @@ public partial class ProfileViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value) => ApplySearch();
 
+    partial void OnIsProfileModsLoadingChanged(bool value) => RefreshProfileModStateProperties();
+
+    partial void OnIsProfileModsEmptyChanged(bool value) => RefreshProfileModStateProperties();
+
+    partial void OnHasProfileModsErrorChanged(bool value) => RefreshProfileModStateProperties();
+
     partial void OnCompareRightProfileChanged(ProfileItemViewModel? value)
     {
         if (IsCompareOpen) _ = LoadCompareAsync();
@@ -145,6 +176,19 @@ public partial class ProfileViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
+        IsAddModOpen = false;
+        AvailableLibraryMods.Clear();
+        if (value == null && IsCompareOpen)
+        {
+            IsCompareOpen = false;
+            CompareResults.Clear();
+        }
+        HasProfileModsError = false;
+        ProfileModsErrorMessage = string.Empty;
+        IsProfileModsEmpty = value == null;
+        OnPropertyChanged(nameof(HasSelectedProfile));
+        OnPropertyChanged(nameof(HasNoSelectedProfile));
+        RefreshProfileModStateProperties();
         if (value != null)
         {
             _ = LoadProfileModsAsync(value.Id);
@@ -158,10 +202,19 @@ public partial class ProfileViewModel : ObservableObject
         _profileModsCts = new CancellationTokenSource();
         var cancellationToken = _profileModsCts.Token;
 
+        IsProfileModsLoading = true;
+        IsProfileModsEmpty = false;
+        HasProfileModsError = false;
+        ProfileModsErrorMessage = string.Empty;
         try
         {
             var profile = await _profileService.GetProfileByIdAsync(profileId, cancellationToken);
-            if (profile == null) return;
+            if (profile == null)
+            {
+                HasProfileModsError = true;
+                ProfileModsErrorMessage = "找不到所选 Profile。";
+                return;
+            }
 
             var modsById = (await _modService.GetModsByIdsAsync(
                 profile.Mods.Select(profileMod => profileMod.ModId), cancellationToken))
@@ -185,9 +238,95 @@ public partial class ProfileViewModel : ObservableObject
 
             cancellationToken.ThrowIfCancellationRequested();
             ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
+            IsProfileModsEmpty = ProfileMods.Count == 0;
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception ex)
+        {
+            if (_profileModsCts?.Token == cancellationToken)
+            {
+                ProfileMods = new ObservableCollection<ProfileModViewModel>();
+                IsProfileModsEmpty = false;
+                HasProfileModsError = true;
+                ProfileModsErrorMessage = $"加载 Profile Mod 失败: {ex.Message}";
+                _notificationService.ShowError(ProfileModsErrorMessage, "配置文件");
+            }
+        }
+        finally
+        {
+            if (_profileModsCts?.Token == cancellationToken)
+            {
+                IsProfileModsLoading = false;
+            }
+        }
+    }
+
+    private void RefreshProfileModStateProperties()
+    {
+        OnPropertyChanged(nameof(IsProfileModsContentVisible));
+        OnPropertyChanged(nameof(IsProfileModsEmptyStateVisible));
+        OnPropertyChanged(nameof(IsProfileModsLoadingStateVisible));
+        OnPropertyChanged(nameof(IsProfileModsErrorStateVisible));
+    }
+
+    [RelayCommand]
+    private Task RetryProfileModsAsync() => SelectedProfile == null
+        ? Task.CompletedTask
+        : LoadProfileModsAsync(SelectedProfile.Id);
+
+    [RelayCommand]
+    private async Task OpenAddModAsync()
+    {
+        if (SelectedProfile == null) return;
+
+        try
+        {
+            var profile = await _profileService.GetProfileByIdAsync(SelectedProfile.Id);
+            if (profile == null) return;
+
+            var usedModIds = profile.Mods.Select(mod => mod.ModId).ToHashSet();
+            var available = (await _modService.GetAllModsAsync())
+                .Where(mod => !usedModIds.Contains(mod.Id))
+                .OrderBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(mod => new LibraryModChoiceViewModel
+                {
+                    Id = mod.Id,
+                    Name = mod.Name,
+                    Version = mod.Version,
+                    Author = mod.Author
+                })
+                .ToList();
+
+            AvailableLibraryMods = new ObservableCollection<LibraryModChoiceViewModel>(available);
+            IsAddModOpen = true;
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"读取模组库失败: {ex.Message}", "添加模组");
+        }
+    }
+
+    [RelayCommand]
+    private void CloseAddMod() => IsAddModOpen = false;
+
+    [RelayCommand]
+    private async Task AddModToProfileAsync(LibraryModChoiceViewModel? mod)
+    {
+        if (mod == null || SelectedProfile == null) return;
+
+        try
+        {
+            await _profileService.AddModToProfileAsync(SelectedProfile.Id, mod.Id);
+            SelectedProfile.ModCount++;
+            AvailableLibraryMods.Remove(mod);
+            await LoadProfileModsAsync(SelectedProfile.Id);
+            _notificationService.ShowSuccess($"已将“{mod.Name}”添加到当前查看的 Profile", "添加模组");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"添加模组失败: {ex.Message}", "添加模组");
         }
     }
 
@@ -439,6 +578,8 @@ public partial class ProfileViewModel : ObservableObject
         {
             await _profileService.RemoveModFromProfileAsync(SelectedProfile.Id, profileMod.ModId);
             ProfileMods.Remove(profileMod);
+            SelectedProfile.ModCount = Math.Max(0, SelectedProfile.ModCount - 1);
+            IsProfileModsEmpty = ProfileMods.Count == 0;
         }
         catch (Exception ex)
         {
@@ -497,6 +638,14 @@ public partial class ProfileModViewModel : ObservableObject
 
     [ObservableProperty]
     private int _order;
+}
+
+public partial class LibraryModChoiceViewModel : ObservableObject
+{
+    [ObservableProperty] private Guid _id;
+    [ObservableProperty] private string _name = string.Empty;
+    [ObservableProperty] private string _version = string.Empty;
+    [ObservableProperty] private string _author = string.Empty;
 }
 
 public enum ProfileCompareStatus
