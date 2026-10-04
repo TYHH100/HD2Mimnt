@@ -38,11 +38,25 @@ public partial class ModItemViewModel : ObservableObject
     public string Hash => _mod.Hash;
     public DateTime ModifiedAt => _mod.ModifiedAt;
     public Bitmap? IconBitmap => Icon;
-    public string EnableButtonText => IsEnabled ? "禁用模组" : "启用模组";
+    public string EnableButtonText => !IsInCurrentProfile
+        ? "加入并启用当前 Profile"
+        : IsEnabled ? "禁用当前 Profile Mod" : "启用当前 Profile Mod";
+    public bool IsProfileEnabled => IsInCurrentProfile && IsEnabled;
+    public bool IsProfileMemberDisabled => IsInCurrentProfile && !IsEnabled;
+    public bool IsNotInCurrentProfile => !IsInCurrentProfile;
+    public string ProfileStateText => IsProfileEnabled
+        ? "已启用"
+        : IsProfileMemberDisabled ? "已加入" : "未加入当前 Profile";
+    public string ProfileStateDetailText => IsProfileMemberDisabled ? "未启用" : string.Empty;
+    public string DeploymentStateText => IsDeployed ? "部署状态：已部署" : "部署状态：未部署";
+    public string MetadataLine => $"{Version} · {CategoryDisplay} · {Author}";
 
     // 状态属性（从外部设置）
     [ObservableProperty]
     private bool _isEnabled;
+
+    [ObservableProperty]
+    private bool _isInCurrentProfile;
 
     [ObservableProperty]
     private bool _isDeployed;
@@ -63,6 +77,7 @@ public partial class ModItemViewModel : ObservableObject
 
     // Commands
     public IRelayCommand? ToggleEnabledCommand { get; set; }
+    public IRelayCommand? RemoveFromProfileCommand { get; set; }
     public IRelayCommand? DeleteCommand { get; set; }
     public IRelayCommand? OpenFolderCommand { get; set; }
     public IRelayCommand? CloseDetailPanelCommand { get; set; }
@@ -74,6 +89,27 @@ public partial class ModItemViewModel : ObservableObject
         // Initialize commands
         OpenFolderCommand = new RelayCommand(OpenFolder);
     }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EnableButtonText));
+        OnPropertyChanged(nameof(IsProfileEnabled));
+        OnPropertyChanged(nameof(IsProfileMemberDisabled));
+        OnPropertyChanged(nameof(ProfileStateText));
+        OnPropertyChanged(nameof(ProfileStateDetailText));
+    }
+
+    partial void OnIsInCurrentProfileChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EnableButtonText));
+        OnPropertyChanged(nameof(IsProfileEnabled));
+        OnPropertyChanged(nameof(IsProfileMemberDisabled));
+        OnPropertyChanged(nameof(IsNotInCurrentProfile));
+        OnPropertyChanged(nameof(ProfileStateText));
+        OnPropertyChanged(nameof(ProfileStateDetailText));
+    }
+
+    partial void OnIsDeployedChanged(bool value) => OnPropertyChanged(nameof(DeploymentStateText));
 
 
     /// <summary>

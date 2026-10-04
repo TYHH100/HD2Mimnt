@@ -88,8 +88,17 @@
               <Border Background="#22C55E"
                       CornerRadius="4"
                       Padding="8,4"
-                      IsVisible="{Binding IsEnabled}">
+                      IsVisible="{Binding IsProfileEnabled}">
                 <TextBlock Text="已启用"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="#64748B"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsProfileMemberDisabled}">
+                <TextBlock Text="已加入 · 未启用"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -106,8 +115,8 @@
               <Border Background="{DynamicResource TextMutedBrush}"
                       CornerRadius="4"
                       Padding="8,4"
-                      IsVisible="{Binding !IsEnabled}">
-                <TextBlock Text="未启用"
+                      IsVisible="{Binding IsNotInCurrentProfile}">
+                <TextBlock Text="未加入当前 Profile"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -216,7 +225,15 @@
                     Background="#3B82F6"
                     Foreground="White"/>
 
-            <Button Content="删除模组"
+            <Button Content="从当前 Profile 移除"
+                    Command="{Binding RemoveFromProfileCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="36"
+                    IsVisible="{Binding IsInCurrentProfile}"
+                    Background="{DynamicResource BorderBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+            <Button Content="从 Library 删除 Mod"
                     Command="{Binding DeleteCommand}"
                     HorizontalAlignment="Stretch"
                     Height="36"

@@ -71,6 +71,9 @@ public partial class LibraryViewModel : ObservableObject
     private int _enabledCount;
 
     [ObservableProperty]
+    private int _currentProfileCount;
+
+    [ObservableProperty]
     private int _disabledCount;
 
     [ObservableProperty]
@@ -108,6 +111,9 @@ public partial class LibraryViewModel : ObservableObject
     private bool _hasNoResults;
 
     [ObservableProperty]
+    private string _currentProfileName = "无当前 Profile";
+
+    [ObservableProperty]
     private ModItemViewModel? _focusedMod;
 
     // 当前配置文件
@@ -134,6 +140,12 @@ public partial class LibraryViewModel : ObservableObject
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
     public IEnumerable<ModSortMode> SortModes => Enum.GetValues<ModSortMode>();
     public string ModItemPadding => ListDensity == "Compact" ? "16,6" : "16,12";
+    public bool IsLibraryEmptyStateVisible => !IsLoading && !HasError && IsEmpty;
+    public bool IsSearchEmptyStateVisible => !IsLoading && !HasError && HasNoResults && !string.IsNullOrWhiteSpace(SearchText);
+    public bool IsFilterEmptyStateVisible => !IsLoading && !HasError && HasNoResults && string.IsNullOrWhiteSpace(SearchText) && (CurrentFilter != ModFilterType.All || SelectedCategory.HasValue);
+    public bool IsResultsVisible => !IsLoading && !HasError && HasFilteredResults;
+    public bool IsLoadingStateVisible => IsLoading;
+    public bool IsErrorStateVisible => HasError && !IsLoading;
 
     partial void OnListDensityChanged(string value) => OnPropertyChanged(nameof(ModItemPadding));
 
@@ -182,11 +194,22 @@ public partial class LibraryViewModel : ObservableObject
     public async Task RefreshProfileStateAsync()
     {
         _currentProfile = await _profileService.GetActiveProfileAsync();
+        CurrentProfileName = _currentProfile?.Name ?? "无当前 Profile";
         var profileMods = _currentProfile?.Mods.ToDictionary(pm => pm.ModId) ?? new Dictionary<Guid, ProfileMod>();
         foreach (var mod in _allMods)
         {
-            mod.IsEnabled = profileMods.TryGetValue(mod.Id, out var profileMod) && profileMod.Enabled;
-            mod.Order = profileMods.TryGetValue(mod.Id, out profileMod) ? profileMod.Order : 0;
+            if (profileMods.TryGetValue(mod.Id, out var profileMod))
+            {
+                mod.IsInCurrentProfile = true;
+                mod.IsEnabled = profileMod.Enabled;
+                mod.Order = profileMod.Order;
+            }
+            else
+            {
+                mod.IsInCurrentProfile = false;
+                mod.IsEnabled = false;
+                mod.Order = 0;
+            }
         }
         await ApplyFiltersAsync();
         await UpdateStatisticsAsync();
@@ -206,6 +229,7 @@ public partial class LibraryViewModel : ObservableObject
         {
             // 获取当前配置文件
             _currentProfile = await _profileService.GetActiveProfileAsync();
+            CurrentProfileName = _currentProfile?.Name ?? "无当前 Profile";
 
             // 获取所有模组
             var mods = await _modService.GetAllModsAsync();
@@ -225,8 +249,13 @@ public partial class LibraryViewModel : ObservableObject
                 {
                     if (profileMods.TryGetValue(modVm.Id, out var pm))
                     {
+                        modVm.IsInCurrentProfile = true;
                         modVm.IsEnabled = pm.Enabled;
                         modVm.Order = pm.Order;
+                    }
+                    else
+                    {
+                        modVm.IsInCurrentProfile = false;
                     }
                 }
             }
@@ -455,7 +484,8 @@ public partial class LibraryViewModel : ObservableObject
         mods = filter switch
         {
             ModFilterType.Enabled => mods.Where(m => m.IsEnabled),
-            ModFilterType.Disabled => mods.Where(m => !m.IsEnabled),
+            ModFilterType.Disabled => mods.Where(m => m.IsInCurrentProfile && !m.IsEnabled),
+            ModFilterType.CurrentProfile => mods.Where(m => m.IsInCurrentProfile),
             ModFilterType.Deployed => mods.Where(m => m.IsDeployed),
             ModFilterType.NotDeployed => mods.Where(m => !m.IsDeployed),
             _ => mods
@@ -643,7 +673,11 @@ public partial class LibraryViewModel : ObservableObject
         {
             var selected = SelectedMods.ToList();
             await _profileService.SetModsEnabledAsync(_currentProfile.Id, selected.Select(mod => mod.Id).ToArray(), true);
-            foreach (var mod in selected) mod.IsEnabled = true;
+            foreach (var mod in selected)
+            {
+                mod.IsInCurrentProfile = true;
+                mod.IsEnabled = true;
+            }
 
             await UpdateStatisticsAsync();
             _notificationService.ShowSuccess($"已启用 {SelectedCount} 个模组", "批量启用");
@@ -683,6 +717,57 @@ public partial class LibraryViewModel : ObservableObject
         catch (Exception ex)
         {
             _notificationService.ShowError($"批量禁用失败: {ex.Message}", "操作失败");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// 从当前 Profile 移除选中的 Mod，但保留 Library 资产。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task RemoveSelectedFromProfileAsync()
+    {
+        if (_currentProfile == null)
+        {
+            _notificationService.ShowWarning("当前没有可操作的 Profile", "从 Profile 移除");
+            return;
+        }
+
+        var selected = SelectedMods.Where(mod => mod.IsInCurrentProfile).ToList();
+        if (selected.Count == 0)
+        {
+            _notificationService.ShowInfo("所选 Mod 均未加入当前 Profile", "从 Profile 移除");
+            return;
+        }
+
+        if (!await _confirmationService.ConfirmAsync(
+                "从当前 Profile 移除",
+                $"将从“{_currentProfile.Name}”移除 {selected.Count} 个 Mod，Library 中的 Mod 文件不会删除。是否继续？"))
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            foreach (var mod in selected)
+            {
+                await _profileService.RemoveModFromProfileAsync(_currentProfile.Id, mod.Id);
+                mod.IsInCurrentProfile = false;
+                mod.IsEnabled = false;
+                mod.Order = 0;
+            }
+
+            await ApplyFiltersAsync();
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已从当前 Profile 移除 {selected.Count} 个 Mod，Library 资产已保留", "从 Profile 移除");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"从 Profile 移除失败: {ex.Message}", "操作失败");
         }
         finally
         {
@@ -744,6 +829,7 @@ public partial class LibraryViewModel : ObservableObject
         {
             var newState = !mod.IsEnabled;
             await _profileService.SetModEnabledAsync(_currentProfile.Id, mod.Id, newState);
+            mod.IsInCurrentProfile = true;
             mod.IsEnabled = newState;
             await UpdateStatisticsAsync();
         }
@@ -952,6 +1038,7 @@ public partial class LibraryViewModel : ObservableObject
 
         // 设置详情面板的命令
         mod.ToggleEnabledCommand = new RelayCommand(async () => await ToggleModEnabledAsync(mod));
+        mod.RemoveFromProfileCommand = new RelayCommand(async () => await RemoveModFromProfileAsync(mod));
         mod.DeleteCommand = new RelayCommand(async () => await DeleteModDetailAsync(mod));
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
     }
@@ -975,6 +1062,38 @@ public partial class LibraryViewModel : ObservableObject
         CloseDetailPanel();
     }
 
+    [RelayCommand]
+    private async Task RemoveModFromProfileAsync(ModItemViewModel mod)
+    {
+        if (_currentProfile == null || !mod.IsInCurrentProfile)
+        {
+            return;
+        }
+
+        if (!await _confirmationService.ConfirmAsync(
+                "从当前 Profile 移除",
+                $"将从“{_currentProfile.Name}”移除“{mod.Name}”，Library 中的 Mod 文件不会删除。是否继续？"))
+        {
+            return;
+        }
+
+        try
+        {
+            await _profileService.RemoveModFromProfileAsync(_currentProfile.Id, mod.Id);
+            mod.IsInCurrentProfile = false;
+            mod.IsEnabled = false;
+            mod.Order = 0;
+            await ApplyFiltersAsync();
+            await UpdateStatisticsAsync();
+            CloseDetailPanel();
+            _notificationService.ShowSuccess($"已从当前 Profile 移除 {mod.Name}，Library 资产已保留", "从 Profile 移除");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"从 Profile 移除失败: {ex.Message}", "操作失败");
+        }
+    }
+
     /// <summary>
     /// 更新统计
     /// </summary>
@@ -983,16 +1102,19 @@ public partial class LibraryViewModel : ObservableObject
         var statistics = await Task.Run(() =>
         {
             var total = _allMods.Count;
-            var enabled = _allMods.Count(m => m.IsEnabled);
+            var currentProfile = _allMods.Count(m => m.IsInCurrentProfile);
+            var enabled = _allMods.Count(m => m.IsProfileEnabled);
+            var disabled = _allMods.Count(m => m.IsProfileMemberDisabled);
             var deployed = _allMods.Count(m => m.IsDeployed);
-            return (total, enabled, total - enabled, deployed, total - deployed);
+            return (total, currentProfile, enabled, disabled, deployed, total - deployed);
         });
 
         TotalModCount = statistics.total;
+        CurrentProfileCount = statistics.currentProfile;
         EnabledCount = statistics.enabled;
-        DisabledCount = statistics.Item3;
+        DisabledCount = statistics.Item4;
         DeployedCount = statistics.deployed;
-        NotDeployedCount = statistics.Item5;
+        NotDeployedCount = statistics.Item6;
     }
 
     /// <summary>
@@ -1112,6 +1234,7 @@ public partial class LibraryViewModel : ObservableObject
         IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
         BatchEnableCommand.NotifyCanExecuteChanged();
         BatchDisableCommand.NotifyCanExecuteChanged();
+        RemoveSelectedFromProfileCommand.NotifyCanExecuteChanged();
         BatchDeleteCommand.NotifyCanExecuteChanged();
     }
 
@@ -1128,10 +1251,28 @@ public partial class LibraryViewModel : ObservableObject
         HasNoResults = !_allMods.Any() || HasError || IsLoading
             ? false
             : FilteredModCount == 0;
+        RefreshStateVisibilityProperties();
     }
+
+    private void RefreshStateVisibilityProperties()
+    {
+        OnPropertyChanged(nameof(IsLibraryEmptyStateVisible));
+        OnPropertyChanged(nameof(IsSearchEmptyStateVisible));
+        OnPropertyChanged(nameof(IsFilterEmptyStateVisible));
+        OnPropertyChanged(nameof(IsResultsVisible));
+        OnPropertyChanged(nameof(IsLoadingStateVisible));
+        OnPropertyChanged(nameof(IsErrorStateVisible));
+    }
+
+    partial void OnIsLoadingChanged(bool value) => RefreshStateVisibilityProperties();
+    partial void OnHasErrorChanged(bool value) => RefreshStateVisibilityProperties();
+    partial void OnIsEmptyChanged(bool value) => RefreshStateVisibilityProperties();
+    partial void OnHasNoResultsChanged(bool value) => RefreshStateVisibilityProperties();
+    partial void OnCurrentFilterChanged(ModFilterType value) => RefreshStateVisibilityProperties();
 
     partial void OnSelectedCategoryChanged(ModCategory? value)
     {
+        RefreshStateVisibilityProperties();
         _ = ApplyFiltersAsync();
     }
 
@@ -1147,6 +1288,7 @@ public partial class LibraryViewModel : ObservableObject
 public enum ModFilterType
 {
     All,
+    CurrentProfile,
     Enabled,
     Disabled,
     Deployed,
