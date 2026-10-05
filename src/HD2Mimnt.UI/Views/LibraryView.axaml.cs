@@ -58,6 +58,17 @@ public partial class LibraryView : UserControl
         }
     }
 
+    private async void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not LibraryViewModel vm) return;
+
+        if (e.Key == Key.Enter)
+        {
+            await vm.ExecuteSearchCommand.ExecuteAsync(null);
+            e.Handled = true;
+        }
+    }
+
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is not LibraryViewModel vm) return;

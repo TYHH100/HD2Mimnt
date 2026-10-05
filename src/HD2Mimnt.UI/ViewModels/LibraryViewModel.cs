@@ -44,7 +44,6 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _searchCts;
     private int _filterGeneration;
     private int _searchGeneration;
-    private const int SearchDebounceMs = 300;
 
     // 筛选
     [ObservableProperty]
@@ -307,33 +306,17 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 搜索文本变化时触发
+    /// 执行搜索命令
     /// </summary>
-    partial void OnSearchTextChanged(string value)
+    [RelayCommand]
+    private async Task ExecuteSearchAsync()
     {
         // 取消之前的搜索
         _searchCts?.Cancel();
         _searchCts = new CancellationTokenSource();
 
-        // 防抖执行搜索
         var token = _searchCts.Token;
-        _ = DebounceSearchAsync(token);
-    }
-
-    private async Task DebounceSearchAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(SearchDebounceMs, cancellationToken);
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                await SearchAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 新的输入会取消旧搜索。
-        }
+        await SearchAsync(token);
     }
 
     /// <summary>
@@ -394,10 +377,9 @@ public partial class LibraryViewModel : ObservableObject
     /// 清空搜索
     /// </summary>
     [RelayCommand]
-    private async Task ClearSearchAsync()
+    private void ClearSearch()
     {
         SearchText = string.Empty;
-        await ApplyFiltersAsync();
     }
 
     /// <summary>

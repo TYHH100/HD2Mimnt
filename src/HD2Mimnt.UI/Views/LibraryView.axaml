@@ -48,10 +48,11 @@
                     <TextBlock Grid.Row="0" Grid.Column="2" Text="Library 全部 Mod" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding TotalModCount, StringFormat='共 {0:N0} 个'}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1" CornerRadius="4" Padding="10,4">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                             <TextBlock Grid.Column="0" Text="🔍" FontSize="14" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <TextBox Grid.Column="1" x:Name="SearchBox" Text="{Binding SearchText}" PlaceholderText="搜索名称、作者或描述..." Background="Transparent" BorderThickness="0" Padding="0" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" x:Name="SearchBox" Text="{Binding SearchText}" PlaceholderText="搜索名称、作者或描述..." Background="Transparent" BorderThickness="0" Padding="0" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
                             <Button Grid.Column="2" Content="✕" Command="{Binding ClearSearchCommand}" Classes="icon-button" Width="24" Height="24" FontSize="12" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}" ToolTip.Tip="清除搜索"/>
+                            <Button Grid.Column="3" Content="搜索" Command="{Binding ExecuteSearchCommand}" Classes="secondary" Margin="6,0,0,0" ToolTip.Tip="执行搜索"/>
                         </Grid>
                     </Border>
                     <ComboBox Grid.Row="1" Grid.Column="2" ItemsSource="{Binding AvailableCategories}" SelectedItem="{Binding SelectedCategory}" PlaceholderText="分类" MinWidth="120"/>
