@@ -288,7 +288,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToLibrary()
     {
-        SelectedTabIndex = 0;
+        SelectedTabIndex = 1;
         CurrentView = _libraryViewModel;
         StatusBarText = "Library";
     }
@@ -296,7 +296,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToProfiles()
     {
-        SelectedTabIndex = 1;
+        SelectedTabIndex = 0;
         CurrentView = _profileViewModel;
         StatusBarText = "Profiles";
     }

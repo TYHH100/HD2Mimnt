@@ -1,197 +1,91 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
              x:Class="HD2Mimnt.UI.Views.ProfileView"
-             x:DataType="vm:ProfileViewModel"
-             Background="{DynamicResource Surface0Brush}">
-    <Grid RowDefinitions="Auto,*" Margin="24">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-            <StackPanel Spacing="4">
-                <TextBlock Text="Profiles" Classes="page-title"/>
-                <TextBlock Text="管理独立的 Mod 配置文件" Classes="secondary-text"/>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBox Width="190" Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="新 Profile 名称"/>
-                <Button Content="新建 Profile" Command="{Binding CreateProfileCommand}" Classes="primary"/>
-            </StackPanel>
-        </Grid>
-
-        <Grid Grid.Row="1" ColumnDefinitions="260,*" ColumnSpacing="20">
-            <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" MinWidth="260" MaxWidth="320">
-                <TextBlock Text="Profile 列表" Classes="section-title" Margin="0,0,0,8"/>
-                <Grid Grid.Row="1">
-                    <Grid RowDefinitions="Auto,*">
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="搜索 Profile" Margin="0,0,0,8"/>
-                        <ListBox Grid.Row="1" ItemsSource="{Binding VisibleProfiles}" SelectedItem="{Binding SelectedProfile}" IsVisible="{Binding !IsEmpty}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ProfileItemViewModel">
-                                    <Border Padding="0,10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Background="Transparent">
-                                        <Grid ColumnDefinitions="4,*,52" ColumnSpacing="10">
-                                            <Border Width="3" Background="{DynamicResource AccentBrush}" IsVisible="{Binding IsActive}"/>
-                                            <StackPanel Grid.Column="1" Spacing="3">
-                                                <TextBlock Text="{Binding Name}" Classes="body-text" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Description}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding ModCount, StringFormat='模组 {0} 个'}" Classes="caption-text"/>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="2" Width="48" Text="当前" Classes="caption-text" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsActive}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <StackPanel Grid.Row="1" IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Text="还没有 Profile" Classes="section-title" HorizontalAlignment="Center"/>
-                            <TextBlock Text="创建 Profile 后开始管理独立的 Mod 配置。" Classes="secondary-text" TextWrapping="Wrap" MaxWidth="240" HorizontalAlignment="Center"/>
-                            <Button Content="创建 Profile" Command="{Binding CreateProfileCommand}" Classes="primary" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Grid.Row="1" IsVisible="{Binding HasNoResults}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Text="没有匹配的 Profile" Classes="section-title" HorizontalAlignment="Center"/>
-                            <Button Content="清除搜索" Command="{Binding ClearSearchCommand}" Classes="tertiary" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Grid.Row="1" IsVisible="{Binding HasError}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Text="Profile 加载失败" Classes="section-title" Foreground="{DynamicResource ErrorBrush}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding ErrorMessage}" Classes="secondary-text" TextWrapping="Wrap" MaxWidth="240"/>
-                            <Button Content="重试" Command="{Binding RetryProfileModsCommand}" Classes="primary" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,12,0,0">
-                    <Button Content="设为当前" Command="{Binding SetActiveProfileCommand}" CommandParameter="{Binding SelectedProfile}" Classes="primary" IsVisible="{Binding !SelectedProfile.IsActive}" IsEnabled="{Binding SelectedProfile}"/>
-                    <Button Content="复制" Command="{Binding DuplicateProfileCommand}" CommandParameter="{Binding SelectedProfile}" Classes="tertiary" IsEnabled="{Binding SelectedProfile}"/>
-                    <Button Content="删除" Command="{Binding DeleteProfileCommand}" CommandParameter="{Binding SelectedProfile}" Classes="danger" IsEnabled="{Binding SelectedProfile}"/>
-                </StackPanel>
-            </Grid>
-
-            <Grid Grid.Column="1" IsVisible="{Binding HasSelectedProfile}" RowDefinitions="Auto,Auto,*,Auto">
-                <Border Grid.Row="0" Padding="0,0,0,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                        <StackPanel Spacing="4">
-                            <TextBox Text="{Binding SelectedProfile.Name, UpdateSourceTrigger=PropertyChanged}" FontSize="18" FontWeight="SemiBold" Background="Transparent" BorderThickness="0" Padding="0"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding SelectedProfile.ModCount, StringFormat='模组 {0} 个'}" Classes="secondary-text"/>
-                                <TextBlock Text="当前工作 Profile" Classes="caption-text" Foreground="{DynamicResource AccentBrush}" IsVisible="{Binding SelectedProfile.IsActive}"/>
-                                <TextBlock Text="当前查看 Profile" Classes="caption-text" IsVisible="{Binding !SelectedProfile.IsActive}"/>
-                            </StackPanel>
-                            <TextBlock Text="{Binding SelectedProfile.Description}" Classes="secondary-text" TextWrapping="Wrap"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
-                            <Button Content="重命名" Command="{Binding RenameProfileCommand}" CommandParameter="{Binding SelectedProfile}" Classes="tertiary"/>
-                            <Button Content="比较" Command="{Binding OpenCompareCommand}" CommandParameter="{Binding SelectedProfile}" Classes="secondary"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="1" IsVisible="{Binding IsAddModOpen}" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10">
-                    <Grid RowDefinitions="Auto,*" MinHeight="120" MaxHeight="240">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="从 Mod Library 添加" Classes="section-title"/>
-                                <TextBlock Text="添加后只属于当前 Profile，不会删除或修改 Library Mod。" Classes="caption-text"/>
-                            </StackPanel>
-                            <Button Grid.Column="1" Content="关闭" Command="{Binding CloseAddModCommand}" Classes="tertiary"/>
-                        </Grid>
-                        <ListBox Grid.Row="1" ItemsSource="{Binding AvailableLibraryMods}" Margin="0,8,0,0">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:LibraryModChoiceViewModel">
-                                    <Border Padding="8,6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <StackPanel Spacing="2">
-                                                <TextBlock Text="{Binding Name}" Classes="body-text"/>
-                                                <TextBlock Text="{Binding Version, StringFormat='版本 {0}'}" Classes="caption-text"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="添加到 Profile" Command="{Binding $parent[UserControl].DataContext.AddModToProfileCommand}" CommandParameter="{Binding}" Classes="secondary"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-                </Border>
-
-                <Grid Grid.Row="2" RowDefinitions="Auto,*" Margin="0,12,0,0">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="当前 Profile 使用的 Mod" Classes="section-title"/>
-                            <TextBlock Text="启用状态和后续配置只属于当前 Profile。" Classes="caption-text"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="{Binding ProfileMods.Count, StringFormat='共 {0} 个'}" Classes="secondary-text" VerticalAlignment="Center"/>
-                            <Button Content="从 Mod Library 添加" Command="{Binding OpenAddModCommand}" Classes="primary"/>
-                        </StackPanel>
-                    </Grid>
-                    <Grid Grid.Row="1" Margin="0,8,0,0">
-                        <ListBox ItemsSource="{Binding ProfileMods}" IsVisible="{Binding IsProfileModsContentVisible}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ProfileModViewModel">
-                                    <Border Padding="10,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
-                                            <StackPanel Spacing="2">
-                                                <TextBlock Text="{Binding ModName}" Classes="body-text" FontWeight="Medium"/>
-                                                <TextBlock Text="{Binding ModVersion, StringFormat='版本 {0} · Profile Mod'}" Classes="caption-text"/>
-                                            </StackPanel>
-                                            <CheckBox Grid.Column="1" Content="启用" IsChecked="{Binding Enabled, Mode=OneWay}" Command="{Binding $parent[UserControl].DataContext.ToggleModEnabledCommand}" CommandParameter="{Binding}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="2" Content="从 Profile 移除" Command="{Binding $parent[UserControl].DataContext.RemoveModFromProfileCommand}" CommandParameter="{Binding}" Classes="tertiary" VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <StackPanel IsVisible="{Binding IsProfileModsLoadingStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <ProgressBar IsIndeterminate="True" Width="180"/>
-                            <TextBlock Text="正在加载 Profile Mod..." Classes="secondary-text"/>
-                        </StackPanel>
-                        <StackPanel IsVisible="{Binding IsProfileModsEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Text="当前 Profile 没有 Mod" Classes="section-title" HorizontalAlignment="Center"/>
-                            <TextBlock Text="从 Mod Library 添加属于这个 Profile 的 Mod。" Classes="secondary-text" HorizontalAlignment="Center"/>
-                            <Button Content="添加 Mod" Command="{Binding OpenAddModCommand}" Classes="primary" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel IsVisible="{Binding IsProfileModsErrorStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                            <TextBlock Text="Profile Mod 加载失败" Classes="section-title" Foreground="{DynamicResource ErrorBrush}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding ProfileModsErrorMessage}" Classes="secondary-text" TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Center"/>
-                            <Button Content="重试" Command="{Binding LoadProfilesCommand}" Classes="primary" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
-                </Grid>
-
-                <Border Grid.Row="3" Padding="0,12,0,0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
-                    <TextBlock Text="部署和清理操作位于 Mod Library，并继续作用于当前工作 Profile。" Classes="caption-text" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                </Border>
-            </Grid>
-
-            <StackPanel Grid.Column="1" IsVisible="{Binding HasNoSelectedProfile}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                <TextBlock Text="选择一个 Profile" Classes="section-title" HorizontalAlignment="Center"/>
-                <TextBlock Text="从左侧列表查看该 Profile 使用的 Mod。" Classes="secondary-text" HorizontalAlignment="Center"/>
-            </StackPanel>
-
-            <Grid Grid.Column="1" IsVisible="{Binding IsCompareOpen}" Background="{DynamicResource Surface0Brush}" ZIndex="2" RowDefinitions="Auto,Auto,*">
-                <Border Padding="0,0,0,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Spacing="3"><TextBlock Text="Profile 对比" Classes="section-title"/><TextBlock Text="只读查看两个 Profile 的 Mod 差异。" Classes="secondary-text"/></StackPanel>
-                        <Button Grid.Column="1" Content="关闭比较" Command="{Binding CloseCompareCommand}" Classes="secondary"/>
-                    </Grid>
-                </Border>
-                <Grid Grid.Row="1" ColumnDefinitions="*,*,Auto" ColumnSpacing="8" Margin="0,12,0,8">
-                    <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding CompareLeftProfile}" DisplayMemberBinding="{Binding Name}"/>
-                    <ComboBox Grid.Column="1" ItemsSource="{Binding Profiles}" SelectedItem="{Binding CompareRightProfile}" DisplayMemberBinding="{Binding Name}"/>
-                    <ComboBox Grid.Column="2" Width="130" ItemsSource="{Binding CompareFilterOptions}" SelectedItem="{Binding CompareFilter}"/>
-                </Grid>
-                <ListBox Grid.Row="2" ItemsSource="{Binding CompareResults}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ProfileCompareItemViewModel">
-                            <Border Padding="10,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" IsVisible="{Binding IsVisible}">
-                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
-                                    <TextBlock Text="{Binding Name}" Classes="body-text" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding LeftState}" Classes="secondary-text"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding RightState}" Classes="secondary-text"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding StatusText}" Classes="caption-text" Foreground="{DynamicResource AccentBrush}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-        </Grid>
+             x:DataType="vm:ProfileViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24,16,24,20">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+      <StackPanel Spacing="4">
+        <TextBlock Text="配置文件" Classes="page-title" />
+        <TextBlock Text="为不同模组组合保存独立的启用状态与部署顺序。" Classes="page-subtitle" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <TextBox Width="220" PlaceholderText="新配置文件名称" Text="{Binding NewProfileName}" />
+        <Button Classes="accent" Command="{Binding CreateProfileCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6"><controls:UtilityIcon Kind="Add" Width="14" Height="14"/><TextBlock Text="新建配置文件" /></StackPanel>
+        </Button>
+      </StackPanel>
     </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="280,*,360" ColumnSpacing="16" Margin="0,0,0,16">
+      <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" Classes="section">
+        <TextBox PlaceholderText="搜索配置文件" Text="{Binding SearchText}" Margin="0,0,0,8" />
+        <ListBox Grid.Row="1" ItemsSource="{Binding VisibleProfiles}" SelectedItem="{Binding SelectedProfile}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ProfileItemViewModel">
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="8,7">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Grid.Row="1" Text="{Binding ModCount, StringFormat='{}{0} 个模组'}" Classes="muted" FontSize="12" />
+                <TextBlock Grid.Column="1" Text="当前" Foreground="#54B8B0" IsVisible="{Binding IsActive}" FontSize="12" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0">
+          <Button Command="{Binding SetActiveProfileCommand}" CommandParameter="{Binding SelectedProfile}" IsEnabled="{Binding HasSelectedProfile}">设为当前</Button>
+          <Button Command="{Binding DuplicateProfileCommand}" CommandParameter="{Binding SelectedProfile}" IsEnabled="{Binding HasSelectedProfile}">复制</Button>
+          <Button Command="{Binding DeleteProfileCommand}" CommandParameter="{Binding SelectedProfile}" IsEnabled="{Binding HasSelectedProfile}">删除</Button>
+        </StackPanel>
+      </Grid>
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Classes="section">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3">
+            <TextBlock Text="{Binding SelectedProfile.Name}" Classes="section-title" />
+            <TextBlock Text="{Binding SelectedProfile.Description}" Classes="muted" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+          <Button Grid.Column="1" Content="重命名" Command="{Binding RenameProfileCommand}" CommandParameter="{Binding SelectedProfile}" IsEnabled="{Binding HasSelectedProfile}" />
+        </Grid>
+        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,12" />
+        <Grid Grid.Row="2" RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+            <TextBlock Text="已启用模组" Classes="section-title" />
+            <Button Grid.Column="1" Content="添加模组" Command="{Binding OpenAddModCommand}" IsEnabled="{Binding HasSelectedProfile}" />
+          </Grid>
+          <ListBox Grid.Row="1" ItemsSource="{Binding ProfileMods}" IsVisible="{Binding IsProfileModsContentVisible}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:ProfileModViewModel">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,7" ColumnSpacing="10">
+                  <CheckBox IsChecked="{Binding Enabled, Mode=OneWay}" Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).ToggleModEnabledCommand}" CommandParameter="{Binding}" />
+                  <StackPanel Grid.Column="1" Spacing="2"><TextBlock Text="{Binding ModName}" /><TextBlock Text="{Binding ModVersion}" Classes="muted" FontSize="12" /></StackPanel>
+                  <TextBlock Grid.Column="2" Text="{Binding Order, StringFormat='#{0}'}" Classes="muted" VerticalAlignment="Center" />
+                  <Button Grid.Column="3" Content="移除" Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).RemoveModFromProfileCommand}" CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Grid.Row="1" Text="选择配置文件后查看模组。" Classes="muted" IsVisible="{Binding HasNoSelectedProfile}" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Text="此配置文件暂未添加模组。" Classes="muted" IsVisible="{Binding IsProfileModsEmptyStateVisible}" VerticalAlignment="Center" />
+        </Grid>
+      </Grid>
+      <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto" Classes="section">
+        <TextBlock Text="部署" Classes="section-title" />
+        <TextBlock Grid.Row="1" Text="直接对当前配置文件执行部署或清理，状态会同步到任务中心。" Classes="muted" TextWrapping="Wrap" Margin="0,8,0,16" />
+        <StackPanel Grid.Row="2" Spacing="10">
+          <Button Classes="accent" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryViewModel.DeployCommand}" IsEnabled="{Binding HasSelectedProfile}">部署当前配置文件</Button>
+          <Button Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryViewModel.CleanupCommand}" IsEnabled="{Binding HasSelectedProfile}">清理当前部署</Button>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Spacing="4" Margin="0,16,0,0"><TextBlock Text="配置文件状态" Classes="muted" FontSize="12" /><TextBlock Text="{Binding SelectedProfile.IsActive, StringFormat='当前配置：{0}'}" /></StackPanel>
+      </Grid>
+    </Grid>
+    <Border Grid.Row="2" IsVisible="{Binding IsAddModOpen}" Classes="section" Padding="12" Margin="0,0,0,12">
+      <Grid RowDefinitions="Auto,*" ColumnDefinitions="*,Auto">
+        <TextBlock Text="从模组库添加" Classes="section-title" />
+        <Button Grid.Column="1" Content="关闭" Command="{Binding CloseAddModCommand}" />
+        <ListBox Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding AvailableLibraryMods}" Margin="0,10,0,0">
+          <ListBox.ItemTemplate><DataTemplate x:DataType="vm:LibraryModChoiceViewModel"><Button HorizontalContentAlignment="Left" Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).AddModToProfileCommand}" CommandParameter="{Binding}"><TextBlock Text="{Binding Name}" /></Button></DataTemplate></ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+    <TextBlock Grid.Row="3" Text="提示：启用状态只影响配置文件，实际文件变更在部署后生效。" Classes="muted" />
+  </Grid>
 </UserControl>

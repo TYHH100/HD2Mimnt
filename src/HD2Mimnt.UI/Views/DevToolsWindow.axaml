@@ -28,9 +28,9 @@
 
         <!-- Mod Count Input -->
         <Border Grid.Row="1"
-               Background="{DynamicResource Surface2Brush}"
+               Background="Transparent"
                Padding="16"
-               CornerRadius="6"
+               CornerRadius="0"
                Margin="0,0,0,16">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0"
@@ -82,9 +82,9 @@
         <!-- Progress Bar -->
         <Border Grid.Row="3"
                IsVisible="{Binding IsGenerating}"
-               Background="{DynamicResource Surface2Brush}"
+               Background="Transparent"
                Padding="16"
-               CornerRadius="6"
+               CornerRadius="0"
                Margin="0,16,0,0">
             <StackPanel Spacing="8">
                 <ProgressBar Value="{Binding Progress}"
@@ -100,9 +100,9 @@
 
         <!-- Status Message -->
         <Border Grid.Row="4"
-               Background="{DynamicResource Surface2Brush}"
+               Background="Transparent"
                Padding="16"
-               CornerRadius="6"
+               CornerRadius="0"
                Margin="0,16,0,0">
             <TextBlock Text="{Binding StatusMessage}"
                       Foreground="{DynamicResource TextPrimaryBrush}"

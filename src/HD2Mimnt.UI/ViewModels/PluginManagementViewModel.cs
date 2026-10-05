@@ -68,7 +68,7 @@ public partial class PluginManagementViewModel : ObservableObject
     private async Task LoadPluginsAsync()
     {
         IsLoading = true;
-        StatusMessage = "Loading plugins...";
+        StatusMessage = "正在加载插件...";
 
         try
         {
@@ -82,11 +82,11 @@ public partial class PluginManagementViewModel : ObservableObject
             }
 
             UpdateStatistics();
-            StatusMessage = $"Loaded {InstalledPlugins.Count} plugins";
+            StatusMessage = $"已加载 {InstalledPlugins.Count} 个插件";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to load plugins: {ex.Message}";
+            StatusMessage = $"加载插件失败：{ex.Message}";
         }
         finally
         {
@@ -166,7 +166,7 @@ public partial class PluginManagementViewModel : ObservableObject
         if (plugin == null) return;
 
         IsLoading = true;
-        StatusMessage = $"Enabling {plugin.Name}...";
+        StatusMessage = $"正在启用 {plugin.Name}...";
 
         try
         {
@@ -175,16 +175,16 @@ public partial class PluginManagementViewModel : ObservableObject
             {
                 plugin.IsEnabled = true;
                 UpdateStatistics();
-                StatusMessage = $"Enabled {plugin.Name}";
+                StatusMessage = $"已启用 {plugin.Name}";
             }
             else
             {
-                StatusMessage = $"Failed to enable {plugin.Name}: {result.Error}";
+                StatusMessage = $"启用 {plugin.Name} 失败：{result.Error}";
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = $"操作失败：{ex.Message}";
         }
         finally
         {
@@ -198,7 +198,7 @@ public partial class PluginManagementViewModel : ObservableObject
         if (plugin == null) return;
 
         IsLoading = true;
-        StatusMessage = $"Disabling {plugin.Name}...";
+        StatusMessage = $"正在停用 {plugin.Name}...";
 
         try
         {
@@ -207,16 +207,16 @@ public partial class PluginManagementViewModel : ObservableObject
             {
                 plugin.IsEnabled = false;
                 UpdateStatistics();
-                StatusMessage = $"Disabled {plugin.Name}";
+                StatusMessage = $"已停用 {plugin.Name}";
             }
             else
             {
-                StatusMessage = $"Failed to disable {plugin.Name}: {result.Error}";
+                StatusMessage = $"停用 {plugin.Name} 失败：{result.Error}";
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = $"操作失败：{ex.Message}";
         }
         finally
         {
@@ -237,7 +237,7 @@ public partial class PluginManagementViewModel : ObservableObject
         }
 
         IsLoading = true;
-        StatusMessage = $"Uninstalling {plugin.Name}...";
+        StatusMessage = $"正在卸载 {plugin.Name}...";
 
         try
         {
@@ -246,16 +246,16 @@ public partial class PluginManagementViewModel : ObservableObject
             {
                 InstalledPlugins.Remove(plugin);
                 UpdateStatistics();
-                StatusMessage = $"Uninstalled {plugin.Name}";
+                StatusMessage = $"已卸载 {plugin.Name}";
             }
             else
             {
-                StatusMessage = $"Failed to uninstall {plugin.Name}: {result.Error}";
+                StatusMessage = $"卸载 {plugin.Name} 失败：{result.Error}";
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = $"操作失败：{ex.Message}";
         }
         finally
         {
@@ -274,11 +274,11 @@ public partial class PluginManagementViewModel : ObservableObject
             HistoryPlugin = plugin;
             ExecutionHistory = new ObservableCollection<PluginExecutionHistory>(history);
             IsHistoryOpen = true;
-            StatusMessage = $"Found {history.Count} execution records for {plugin.Name}";
+            StatusMessage = $"已找到 {plugin.Name} 的 {history.Count} 条运行记录";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = $"读取记录失败：{ex.Message}";
         }
     }
 
@@ -346,11 +346,11 @@ public partial class PluginItemViewModel : ObservableObject
 
     public string InstalledAtFormatted => InstalledAt.ToString("yyyy-MM-dd HH:mm");
 
-    public string StatusText => IsEnabled ? "Enabled" : "Disabled";
+    public string StatusText => IsEnabled ? "已启用" : "已停用";
 
-    public string StatusIcon => IsEnabled ? "✅" : "⏸️";
+    public string StatusIcon => IsEnabled ? "启" : "停";
 
-    public string PermissionModeIcon => PermissionMode == "FullAccess" ? "🔓" : "🔒";
+    public string PermissionModeIcon => PermissionMode == "FullAccess" ? "全" : "沙";
 
     public string PermissionModeDisplay => PermissionMode == "FullAccess" ? "Full Access" : "Sandbox";
 

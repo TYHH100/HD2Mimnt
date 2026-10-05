@@ -70,7 +70,7 @@ public partial class DevToolsViewModel : ObservableObject
                 () => _testDataService.ImportGeneratedModsAsync(mods, progress, _operationCts.Token),
                 _operationCts.Token);
 
-            StatusMessage = $"✅ 成功生成 {ModCount} 个测试模组";
+            StatusMessage = $"成功生成 {ModCount} 个测试模组";
         }
         catch (OperationCanceledException)
         {
@@ -78,7 +78,7 @@ public partial class DevToolsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ 生成失败: {ex.Message}";
+            StatusMessage = $"生成失败：{ex.Message}";
         }
         finally
         {
@@ -108,7 +108,7 @@ public partial class DevToolsViewModel : ObservableObject
 
             if (modList.Count == 0)
             {
-                StatusMessage = "❌ 没有模组可设置";
+                StatusMessage = "没有模组可设置";
                 return;
             }
 
@@ -122,7 +122,7 @@ public partial class DevToolsViewModel : ObservableObject
                 profile = await _profileService.GetProfileByIdAsync(profileId, _operationCts.Token);
                 if (profile == null)
                 {
-                    StatusMessage = "❌ 无法创建配置文件";
+                    StatusMessage = "无法创建配置文件";
                     return;
                 }
             }
@@ -134,7 +134,7 @@ public partial class DevToolsViewModel : ObservableObject
                 .ToArray();
             await _profileService.SetModsEnabledAsync(profile.Id, enabledModIds, true, _operationCts.Token);
 
-            StatusMessage = $"✅ 已随机启用 {enabledModIds.Length}/{modList.Count} 个模组";
+            StatusMessage = $"已随机启用 {enabledModIds.Length}/{modList.Count} 个模组";
         }
         catch (OperationCanceledException)
         {
@@ -142,7 +142,7 @@ public partial class DevToolsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ 设置失败: {ex.Message}";
+            StatusMessage = $"设置失败：{ex.Message}";
         }
         finally
         {
@@ -168,7 +168,7 @@ public partial class DevToolsViewModel : ObservableObject
         {
             var deleted = await _testDataService.ClearGeneratedModsAsync(cancellationToken: _operationCts.Token);
 
-            StatusMessage = $"✅ 已清除 {deleted} 个测试模组";
+            StatusMessage = $"已清除 {deleted} 个测试模组";
         }
         catch (OperationCanceledException)
         {
@@ -176,7 +176,7 @@ public partial class DevToolsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ 清除失败: {ex.Message}";
+            StatusMessage = $"清除失败：{ex.Message}";
         }
         finally
         {

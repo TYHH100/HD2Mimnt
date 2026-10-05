@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
         x:Class="HD2Mimnt.UI.Views.PluginPermissionDialog"
         x:DataType="vm:PluginPermissionDialogViewModel"
-        Title="Plugin Permission Request"
+        Title="插件权限请求"
         Width="600" Height="700"
         MinWidth="500" MinHeight="500"
         MaxWidth="700" MaxHeight="900"
@@ -22,11 +22,11 @@
         <!-- Header -->
         <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,20">
             <StackPanel Spacing="8">
-                <TextBlock Text="Plugin Permission Request"
+                <TextBlock Text="插件权限请求"
                           FontSize="20"
                           FontWeight="SemiBold"
                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                <TextBlock Text="This plugin is requesting permissions to access system resources."
+                <TextBlock Text="此插件请求访问系统资源的权限。"
                           FontSize="13"
                           Foreground="{DynamicResource TextSecondaryBrush}"
                           TextWrapping="Wrap"/>
@@ -50,7 +50,7 @@
                                Background="{DynamicResource Surface3Brush}"
                                VerticalAlignment="Top"
                                Margin="0,0,12,0">
-                            <TextBlock Text="📦"
+                            <TextBlock Text="插件"
                                      FontSize="32"
                                      HorizontalAlignment="Center"
                                      VerticalAlignment="Center"/>
@@ -119,7 +119,7 @@
 
                 <!-- Requested Permissions Section -->
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Requested Permissions"
+                    <TextBlock Text="请求的权限"
                               FontSize="14"
                               FontWeight="SemiBold"
                               Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -161,7 +161,7 @@
                                                    BorderThickness="1"
                                                    CornerRadius="999"
                                                    Padding="8,4">
-                                                <TextBlock Text="High Risk"
+                                                <TextBlock Text="高风险"
                                                          FontSize="11"
                                                          FontWeight="Medium"
                                                          Foreground="#E94560"/>
@@ -179,7 +179,7 @@
                 </StackPanel>
 
                 <!-- Information Text -->
-                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="Allow Once: Grant permissions for this session only&#x0a;Allow Always: Remember this decision and don't ask again&#x0a;Deny: Do not install this plugin"
+                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="仅本次允许：仅在本次会话授予权限&#x0a;始终允许：记住此决定，不再询问&#x0a;拒绝：不安装此插件"
                           FontSize="12"
                           Foreground="{DynamicResource TextMutedBrush}"
                           TextWrapping="Wrap"
@@ -194,7 +194,7 @@
                     <TextBlock Text="勾选需要授予的权限" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-                    <Button Content="Deny"
+                    <Button Content="拒绝"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding DenyCommand}"
                            CommandParameter="{Binding $parent[Window]}"
@@ -212,7 +212,7 @@
                         </Button.Styles>
                     </Button>
 
-                    <Button Content="Allow Once"
+                    <Button Content="仅本次允许"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowOnceCommand}"
                            CommandParameter="{Binding $parent[Window]}"
@@ -231,7 +231,7 @@
                         </Button.Styles>
                     </Button>
 
-                    <Button Content="Allow Always"
+                    <Button Content="始终允许"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowAlwaysCommand}"
                            CommandParameter="{Binding $parent[Window]}"

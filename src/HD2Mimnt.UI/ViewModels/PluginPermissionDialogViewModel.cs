@@ -26,7 +26,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     private string _permissionMode = "Sandbox";
 
     [ObservableProperty]
-    private string _permissionModeIcon = "🔒";
+    private string _permissionModeIcon = "沙";
 
     [ObservableProperty]
     private ObservableCollection<PermissionItemViewModel> _requestedPermissions = new();
@@ -58,7 +58,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         PluginDescription = description;
         PermissionMode = permissionMode;
         IsFullAccess = permissionMode == "FullAccess";
-        PermissionModeIcon = IsFullAccess ? "🔓" : "🔒";
+        PermissionModeIcon = IsFullAccess ? "全" : "沙";
 
         RequestedPermissions.Clear();
         foreach (var permission in requestedPermissions)
@@ -77,11 +77,11 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         ShowWarning = IsFullAccess || RequestedPermissions.Any(p => p.IsHighRisk);
         if (IsFullAccess)
         {
-            WarningMessage = "⚠️ This plugin requests Full Access mode, which grants unrestricted system access. Only allow plugins from trusted sources.";
+            WarningMessage = "此插件请求完全访问模式，可不受限制地访问系统资源。仅允许可信来源的插件。";
         }
         else if (RequestedPermissions.Any(p => p.IsHighRisk))
         {
-            WarningMessage = "⚠️ This plugin requests potentially dangerous permissions. Review carefully before allowing.";
+            WarningMessage = "此插件请求潜在危险权限，请在允许前仔细检查。";
         }
     }
 
@@ -93,7 +93,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         PluginDescription = plugin.Description;
         PermissionMode = plugin.PermissionMode;
         IsFullAccess = plugin.PermissionMode == "FullAccess";
-        PermissionModeIcon = IsFullAccess ? "🔓" : "🔒";
+        PermissionModeIcon = IsFullAccess ? "全" : "沙";
         IsManagementMode = true;
         RequestedPermissions.Clear();
 
@@ -113,7 +113,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
 
         ShowWarning = IsFullAccess || RequestedPermissions.Any(p => p.IsHighRisk);
         WarningMessage = IsFullAccess
-            ? "⚠️ Full Access 模式绕过权限列表检查，只有可信插件才应保持此模式。"
+            ? "完全访问模式绕过权限列表检查，只有可信插件才应保持此模式。"
             : "修改权限后，插件下次访问资源时会按新的授权状态执行。";
     }
 
@@ -164,14 +164,14 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     {
         return permission switch
         {
-            "ReadModFiles" => "Read Mod Files",
-            "WriteModFiles" => "Write Mod Files",
-            "AccessNetwork" => "Network Access",
-            "ExecuteProcesses" => "Execute External Programs",
-            "ReadDatabase" => "Read Database",
-            "WriteConfiguration" => "Write Configuration",
-            "FileSystemAccess" => "File System Access",
-            "RegistryAccess" => "Registry Access",
+            "ReadModFiles" => "读取模组文件",
+            "WriteModFiles" => "写入模组文件",
+            "AccessNetwork" => "网络访问",
+            "ExecuteProcesses" => "执行外部程序",
+            "ReadDatabase" => "读取数据库",
+            "WriteConfiguration" => "写入配置",
+            "FileSystemAccess" => "文件系统访问",
+            "RegistryAccess" => "注册表访问",
             "mods.read" => "读取模组文件",
             "mods.write" => "写入模组文件",
             "storage.read" => "读取插件存储",
@@ -186,21 +186,21 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     {
         return permission switch
         {
-            "ReadModFiles" => "Read mod metadata and file information",
-            "WriteModFiles" => "Modify mod files and metadata",
-            "AccessNetwork" => "Make network requests to external services",
-            "ExecuteProcesses" => "Run external programs and scripts",
-            "ReadDatabase" => "Query mod library and profile data",
-            "WriteConfiguration" => "Modify application settings",
-            "FileSystemAccess" => "Read and write files outside plugin directory",
-            "RegistryAccess" => "Read and modify Windows registry",
+            "ReadModFiles" => "读取模组元数据和文件信息",
+            "WriteModFiles" => "修改模组文件和元数据",
+            "AccessNetwork" => "向外部服务发起网络请求",
+            "ExecuteProcesses" => "运行外部程序和脚本",
+            "ReadDatabase" => "查询模组库和配置文件数据",
+            "WriteConfiguration" => "修改应用设置",
+            "FileSystemAccess" => "读写插件目录之外的文件",
+            "RegistryAccess" => "读取和修改 Windows 注册表",
             "mods.read" => "读取模组元数据和文件信息",
             "mods.write" => "修改模组文件和元数据",
             "storage.read" => "读取插件专用存储",
             "storage.write" => "写入插件专用存储",
             "config.write" => "修改插件配置",
             "network" => "向外部服务发起网络请求",
-            _ => "Custom permission"
+            _ => "自定义权限"
         };
     }
 
@@ -208,21 +208,15 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     {
         return permission switch
         {
-            "ReadModFiles" => "📖",
-            "WriteModFiles" => "✏️",
-            "AccessNetwork" => "🌐",
-            "ExecuteProcesses" => "⚙️",
-            "ReadDatabase" => "💾",
-            "WriteConfiguration" => "🔧",
-            "FileSystemAccess" => "📁",
-            "RegistryAccess" => "🔑",
-            "mods.read" => "📖",
-            "mods.write" => "✏️",
-            "storage.read" => "📁",
-            "storage.write" => "📁",
-            "config.write" => "🔧",
-            "network" => "🌐",
-            _ => "🔒"
+            "ReadModFiles" or "mods.read" => "读",
+            "WriteModFiles" or "mods.write" => "写",
+            "AccessNetwork" or "network" => "网",
+            "ExecuteProcesses" => "程",
+            "ReadDatabase" => "库",
+            "WriteConfiguration" or "config.write" => "配",
+            "FileSystemAccess" or "storage.read" or "storage.write" => "文",
+            "RegistryAccess" => "表",
+            _ => "权"
         };
     }
 

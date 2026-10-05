@@ -196,6 +196,7 @@ All core systems are functional. The application is in early alpha with ongoing 
 
 ## Codex 工作注意事项
 
+- 调整顶部导航顺序时必须同步 `MainWindowViewModel.SelectedTabIndex`、快捷导航命令和隐藏 `TabControl` 的页面顺序；只修改 XAML 标签会导致按钮与页面错位。
 - UI 只通过 Application 服务访问模组、配置文件和部署数据；不要在 View 或 ViewModel 中直接访问 SQLite、部署实现或复制文件。
 - Avalonia 的 `ObservableCollection` 和控件状态只能在 UI 上下文更新。后台筛选/排序先计算普通 `List`，回到 UI 上下文后再替换集合。
 - 导入、部署、清理等耗时操作必须可取消并保持 UI 可响应；临时解压目录和测试目录必须在流程结束后清理。

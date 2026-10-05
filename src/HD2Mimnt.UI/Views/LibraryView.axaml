@@ -27,7 +27,7 @@
                         <Button Content="部署当前 Profile" Command="{Binding DeployCommand}" Classes="primary" IsEnabled="{Binding !IsDeploying}" ToolTip.Tip="部署当前 Profile 中全部已启用的 Mod"/>
                         <Button Content="清理最近部署" Command="{Binding CleanupCommand}" Classes="secondary" IsEnabled="{Binding !IsDeploying}" ToolTip.Tip="清理最近一次部署会话记录的文件"/>
                         <Button Content="取消" Command="{Binding CancelDeploymentCommand}" Classes="secondary" IsVisible="{Binding IsDeploying}"/>
-                        <Button Content="⋮" Classes="icon-button" FontSize="20" ToolTip.Tip="更多操作">
+                        <Button Classes="icon-button" ToolTip.Tip="更多操作"><controls:UtilityIcon Kind="More" Width="18" Height="18"/>
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                                     <MenuItem Header="刷新模组库" Command="{Binding RefreshCommand}"/>
@@ -45,13 +45,13 @@
                 <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="当前 Profile" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CurrentProfileName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" ToolTip.Tip="仅表示当前操作上下文，Library 仍显示全部 Mod"/>
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Library 全部 Mod" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="全部模组" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding TotalModCount, StringFormat='共 {0:N0} 个'}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1" CornerRadius="4" Padding="10,4">
                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                            <TextBlock Grid.Column="0" Text="🔍" FontSize="14" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <controls:UtilityIcon Grid.Column="0" Kind="Search" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBox Grid.Column="1" x:Name="SearchBox" Text="{Binding SearchText}" PlaceholderText="搜索名称、作者或描述..." Background="Transparent" BorderThickness="0" Padding="0" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
-                            <Button Grid.Column="2" Content="✕" Command="{Binding ClearSearchCommand}" Classes="icon-button" Width="24" Height="24" FontSize="12" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}" ToolTip.Tip="清除搜索"/>
+                            <Button Grid.Column="2" Command="{Binding ClearSearchCommand}" Classes="icon-button" Width="24" Height="24" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}" ToolTip.Tip="清除搜索"><controls:UtilityIcon Kind="Close" Width="12" Height="12"/></Button>
                             <Button Grid.Column="3" Content="搜索" Command="{Binding ExecuteSearchCommand}" Classes="secondary" Margin="6,0,0,0" ToolTip.Tip="执行搜索"/>
                         </Grid>
                     </Border>
@@ -84,7 +84,7 @@
                         </Border>
 
                     <StackPanel IsVisible="{Binding IsLibraryEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" ZIndex="3">
-                        <TextBlock Text="Library 为空" FontSize="18" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="模组库为空" FontSize="18" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                         <TextBlock Text="还没有导入 Mod" FontSize="14" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
                         <Button Content="添加模组" Click="OnImportClicked" Classes="primary" HorizontalAlignment="Center"/>
                     </StackPanel>
@@ -120,7 +120,7 @@
                                         <Border Grid.Column="1" Width="48" Height="48" CornerRadius="4" Background="{DynamicResource Surface3Brush}" ClipToBounds="True" VerticalAlignment="Center">
                                             <Panel>
                                                 <Image Source="{Binding Icon}" Stretch="UniformToFill" IsVisible="{Binding Icon, Converter={StaticResource NotNullConverter}}"/>
-                                                <TextBlock Text="📦" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.3" IsVisible="{Binding !Icon, Converter={StaticResource NotNullConverter}}"/>
+                                                <controls:UtilityIcon Kind="Package" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsVisible="{Binding !Icon, Converter={StaticResource NotNullConverter}}"/>
                                             </Panel>
                                         </Border>
                                         <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
@@ -134,7 +134,7 @@
                                         </StackPanel>
                                         <Grid Grid.Column="4" ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
                                             <TextBlock Grid.Column="0" Text="{Binding SizeFormatted}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="⋮" Classes="icon-button" FontSize="18" ToolTip.Tip="Mod 操作">
+                                            <Button Grid.Column="1" Classes="icon-button" ToolTip.Tip="Mod 操作"><controls:UtilityIcon Kind="More" Width="16" Height="16"/>
                                                 <Button.Flyout>
                                                     <MenuFlyout Placement="BottomEdgeAlignedRight">
                                                         <MenuItem Header="启用/禁用当前 Profile Mod" Command="{Binding $parent[UserControl].DataContext.ToggleModEnabledCommand}" CommandParameter="{Binding}"/>

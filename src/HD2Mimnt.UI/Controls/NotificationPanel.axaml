@@ -11,18 +11,18 @@
              MinWidth="320"
              MaxWidth="400">
 
-    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
         <Grid RowDefinitions="Auto,*,Auto">
             <!-- Header -->
-            <Border Grid.Row="0" Background="{DynamicResource Surface3Brush}" Padding="16,12" CornerRadius="6,6,0,0">
+            <Border Grid.Row="0" Background="{DynamicResource Surface3Brush}" Padding="16,12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderBrush}">
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0"
-                              Text="Notifications"
+                              Text="通知"
                               FontSize="16"
                               FontWeight="SemiBold"
                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <Button Grid.Column="1"
-                           Content="✕"
+                           Content="关闭"
                            Classes="icon-button"
                            Command="{Binding CloseCommand}"
                            Width="24" Height="24"
@@ -102,11 +102,11 @@
                                VerticalAlignment="Center"
                                Margin="0,60,0,0"
                                IsVisible="{Binding !Notifications.Count}">
-                        <TextBlock Text="🔔"
-                                  FontSize="48"
+                        <TextBlock Text="暂无通知"
+                                  FontSize="14"
                                   HorizontalAlignment="Center"
                                   Opacity="0.3"/>
-                        <TextBlock Text="No notifications"
+                        <TextBlock Text="后台任务、部署和系统消息会显示在这里"
                                   FontSize="14"
                                   Foreground="{DynamicResource TextMutedBrush}"
                                   HorizontalAlignment="Center"/>
@@ -118,9 +118,9 @@
             <Border Grid.Row="2"
                    Background="{DynamicResource Surface3Brush}"
                    Padding="12,8"
-                   CornerRadius="0,0,6,6"
+                   BorderThickness="0,1,0,0"
                    IsVisible="{Binding Notifications.Count}">
-                <Button Content="Clear All"
+                <Button Content="清空通知"
                        Command="{Binding ClearAllCommand}"
                        Classes="secondary"
                        HorizontalAlignment="Stretch"

@@ -1,93 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:views="using:HD2Mimnt.UI.Views" x:Class="HD2Mimnt.UI.Views.MoreView" x:DataType="vm:MainWindowViewModel">
-  <ScrollViewer>
-    <StackPanel Margin="24" Spacing="16" MaxWidth="860">
-      <TextBlock Text="更多" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <StackPanel Spacing="10">
-          <TextBlock Text="开发工具" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
-          <TextBlock Text="生成测试模组数据、设置启用状态并清理测试数据。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-          <Button Content="打开开发工具" Command="{Binding OpenDevToolsCommand}" Classes="primary" HorizontalAlignment="Left"/>
-        </StackPanel>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <views:PluginManagementView DataContext="{Binding PluginManagementViewModel}"/>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <views:BackupView DataContext="{Binding BackupViewModel}"/>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <views:LogView DataContext="{Binding LogViewModel}"/>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <StackPanel Spacing="10">
-          <TextBlock Text="性能基线" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
-          <TextBlock Text="10,000 条 SQLite 模组读取基线：平均 98.665 ms，托管分配 11.72 MB。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-          <TextBlock Text="完整窗口滚动、高 DPI 和长时间运行仍需人工验收。" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <StackPanel Spacing="10">
-          <Grid ColumnDefinitions="*,Auto">
-            <StackPanel Grid.Column="0" Spacing="4">
-              <TextBlock Text="外部工具" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
-              <TextBlock Text="管理可打开模组文件的本地工具。路径必须指向已存在的可执行文件。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-            </StackPanel>
-            <Button Grid.Column="1" Content="添加工具" Command="{Binding ExternalToolsViewModel.AddToolCommand}" Classes="primary" VerticalAlignment="Top"/>
-          </Grid>
-          <TextBlock Text="{Binding ExternalToolsViewModel.StatusMessage}" Foreground="#FBBF24" TextWrapping="Wrap"/>
-          <ItemsControl ItemsSource="{Binding ExternalToolsViewModel.Tools}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:ExternalToolItemViewModel">
-                <Border Background="#151B26" Padding="10" Margin="0,4,0,0">
-                  <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
-                    <StackPanel Grid.Column="0" Grid.Row="0" Spacing="2">
-                      <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-                      <TextBlock Text="{Binding ExecutablePath}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                    </StackPanel>
-                    <CheckBox Grid.Column="1" Grid.Row="0" Content="启用" IsChecked="{Binding IsEnabled, Mode=OneWay}" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).ToggleToolEnabledCommand}" CommandParameter="{Binding}" VerticalAlignment="Top" Margin="12,0,0,0"/>
-                    <Button Grid.Column="2" Grid.Row="0" Content="编辑" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).EditToolCommand}" CommandParameter="{Binding}" Classes="secondary" Margin="8,0,0,0"/>
-                    <Button Grid.Column="3" Grid.Row="0" Content="删除" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).DeleteToolCommand}" CommandParameter="{Binding}" Classes="danger" Margin="8,0,0,0"/>
-                    <Button Grid.Column="4" Grid.Row="0" Content="启动" Click="OnLaunchToolClicked" Classes="primary" Margin="8,0,0,0"/>
-                    <TextBlock Grid.Column="0" Grid.Row="1" Text="{Binding SupportedExtensions, StringFormat='支持：{0}'}" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"/>
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <TextBlock IsVisible="{Binding ExternalToolsViewModel.IsLoading}" Text="正在加载外部工具..." Foreground="{DynamicResource TextSecondaryBrush}"/>
-          <TextBlock IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen, Converter={StaticResource InverseBoolConverter}}" Text="尚未登记外部工具" Foreground="{DynamicResource TextMutedBrush}"/>
-          <Border IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen}" Background="#0B1018" Padding="12" Margin="0,8,0,0">
-            <StackPanel Spacing="8">
-              <TextBlock Text="{Binding ExternalToolsViewModel.IsEditing, StringFormat='编辑外部工具'}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold"/>
-              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                <TextBlock Grid.Row="0" Text="名称" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditName}"/>
-                <TextBlock Grid.Row="1" Text="可执行文件" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,8,10,0"/>
-                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditExecutablePath}" Margin="0,8,0,0"/>
-                <TextBlock Grid.Row="2" Text="参数模板" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,8,10,0"/>
-                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditArguments}" PlaceholderText="可使用文件路径参数" Margin="0,8,0,0"/>
-                <TextBlock Grid.Row="3" Text="工作目录" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,8,10,0"/>
-                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditWorkingDirectory}" Margin="0,8,0,0"/>
-                <TextBlock Grid.Row="4" Text="扩展名" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,8,10,0"/>
-                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditSupportedExtensions}" PlaceholderText=".txt,.log" Margin="0,8,0,0"/>
-              </Grid>
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="保存" Command="{Binding ExternalToolsViewModel.SaveToolCommand}" Classes="primary"/>
-                <Button Content="取消" Command="{Binding ExternalToolsViewModel.CancelEditCommand}" Classes="secondary"/>
-              </StackPanel>
-            </StackPanel>
-          </Border>
-        </StackPanel>
-      </Border>
-      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="16">
-        <StackPanel Spacing="8">
-          <TextBlock Text="关于 HD2Mimnt" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/>
-          <TextBlock Text="Helldivers 2 模组管理器" Foreground="{DynamicResource TextSecondaryBrush}"/>
-          <TextBlock Text="版本 0.1.0-alpha · Avalonia 12 · .NET 10" Foreground="{DynamicResource TextMutedBrush}"/>
-          <TextBlock Text="项目地址：https://github.com/TYHH100/HD2Mimnt" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
-          <TextBlock Text="许可证：以仓库根目录 LICENSE 文件为准；第三方组件：Avalonia、CommunityToolkit.Mvvm、Microsoft.Data.Sqlite。" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
+  <ScrollViewer><StackPanel Margin="24,16,24,20" MaxWidth="980" Spacing="0">
+    <TextBlock Text="更多" Classes="page-title" /><TextBlock Text="低频工具、数据维护和运行记录。" Classes="page-subtitle" Margin="0,4,0,18" />
+    <StackPanel Classes="section" Spacing="8"><TextBlock Text="工具入口" Classes="section-title" /><Button Classes="tool-row" Command="{Binding OpenDevToolsCommand}"><Grid ColumnDefinitions="Auto,*,Auto"><TextBlock Text="开发工具" /><TextBlock Grid.Column="1" Text="生成或清理测试模组数据" Classes="muted" Margin="16,0,0,0" /><TextBlock Grid.Column="2" Text="打开" Classes="accent-text" /></Grid></Button></StackPanel>
+    <StackPanel Classes="section" Spacing="8"><TextBlock Text="插件" Classes="section-title" /><views:PluginManagementView DataContext="{Binding PluginManagementViewModel}" /></StackPanel>
+    <StackPanel Classes="section" Spacing="8"><TextBlock Text="备份与恢复" Classes="section-title" /><views:BackupView DataContext="{Binding BackupViewModel}" /></StackPanel>
+    <StackPanel Classes="section" Spacing="8"><TextBlock Text="日志" Classes="section-title" /><views:LogView DataContext="{Binding LogViewModel}" /></StackPanel>
+    <StackPanel Classes="section" Spacing="10"><TextBlock Text="外部工具" Classes="section-title" /><TextBlock Text="登记本地可执行文件，用于打开模组资源。" Classes="muted" /><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding ExternalToolsViewModel.StatusMessage}" Classes="muted" VerticalAlignment="Center" /><Button Grid.Column="1" Content="添加工具" Classes="accent" Command="{Binding ExternalToolsViewModel.AddToolCommand}" /></Grid>
+      <ItemsControl ItemsSource="{Binding ExternalToolsViewModel.Tools}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:ExternalToolItemViewModel"><Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,8"><StackPanel Spacing="2"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding ExecutablePath}" Classes="muted" TextWrapping="Wrap" /></StackPanel><CheckBox Grid.Column="1" Content="启用" IsChecked="{Binding IsEnabled, Mode=OneWay}" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).ToggleToolEnabledCommand}" CommandParameter="{Binding}" Margin="12,0" /><Button Grid.Column="2" Content="编辑" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).EditToolCommand}" CommandParameter="{Binding}" /><Button Grid.Column="3" Content="启动" Classes="accent" Click="OnLaunchToolClicked" Margin="8,0,0,0" /></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+      <TextBlock IsVisible="{Binding ExternalToolsViewModel.IsLoading}" Text="正在加载外部工具..." Classes="muted" /><TextBlock IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen, Converter={StaticResource InverseBoolConverter}}" Text="尚未登记外部工具" Classes="muted" />
+      <StackPanel IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen}" Spacing="8"><Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12"><TextBlock Text="名称" Classes="muted" /><TextBox Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditName}" /><TextBlock Grid.Row="1" Text="可执行文件" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditExecutablePath}" Margin="0,8,0,0" /><TextBlock Grid.Row="2" Text="参数模板" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditArguments}" Margin="0,8,0,0" /><TextBlock Grid.Row="3" Text="工作目录" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditWorkingDirectory}" Margin="0,8,0,0" /><TextBlock Grid.Row="4" Text="扩展名" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditSupportedExtensions}" Margin="0,8,0,0" /></Grid><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="保存" Classes="accent" Command="{Binding ExternalToolsViewModel.SaveToolCommand}" /><Button Content="取消" Command="{Binding ExternalToolsViewModel.CancelEditCommand}" /></StackPanel></StackPanel>
     </StackPanel>
-  </ScrollViewer>
+    <StackPanel Classes="section" Spacing="4"><TextBlock Text="关于 HD2Mimnt" Classes="section-title" /><TextBlock Text="Helldivers 2 模组管理器 · 版本 0.1.0-alpha" Classes="muted" /><TextBlock Text="项目地址：https://github.com/TYHH100/HD2Mimnt" Classes="muted" TextWrapping="Wrap" /></StackPanel>
+  </StackPanel></ScrollViewer>
 </UserControl>
