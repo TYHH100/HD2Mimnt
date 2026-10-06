@@ -182,6 +182,17 @@ public partial class LibraryView : UserControl
         }
     }
 
+    /// <summary>点击模组卡片图标：在主窗口顶层的覆盖层预览原图（无图标时无操作）。</summary>
+    private void PreviewImage_Tapped(object? sender, TappedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is Border { DataContext: ModItemViewModel { IconBitmap: { } icon } mod }
+            && DataContext is LibraryViewModel vm)
+        {
+            vm.ShowImagePreview(icon, mod.Name);
+        }
+    }
+
     /// <summary>
     /// 全页拖拽导入：悬停显示提示层，松开批量导入压缩包（旧版全窗口拖拽导入的等价实现）
     /// </summary>

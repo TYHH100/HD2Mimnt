@@ -283,6 +283,30 @@ public partial class ProfileView : UserControl
         }
     }
 
+    /// <summary>
+    /// 点击图片（模组图标/选项图/子选项图）：在主窗口顶层的覆盖层预览原图。
+    /// 标记 Handled，子选项图上的点击只预览、不改变选中变体。
+    /// </summary>
+    private void PreviewImage_Tapped(object? sender, TappedEventArgs e)
+    {
+        e.Handled = true;
+        if (DataContext is not ProfileViewModel vm) return;
+        if (sender is not Border { DataContext: { } data }) return;
+
+        switch (data)
+        {
+            case ProfileModOptionCardViewModel card:
+                vm.ShowImagePreview(card.Image, card.Name);
+                break;
+            case ProfileModSubOptionChoiceViewModel sub:
+                vm.ShowImagePreview(sub.Image, sub.Name);
+                break;
+            case ProfileModViewModel mod:
+                vm.ShowImagePreview(mod.Icon, mod.ModName);
+                break;
+        }
+    }
+
     /// <summary>判断按下起点是否落在卡片内的交互控件（开关/按钮/复选框/下拉）上。</summary>
     private static bool IsInteractiveSource(Visual? source, Visual card)
     {

@@ -264,6 +264,7 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();
+        services.AddSingleton<ImagePreviewService>();
 
         // UI 层 ViewModels
         services.AddTransient(sp => new LibraryViewModel(
@@ -273,14 +274,16 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<GameDetectionService>(),
-            sp.GetRequiredService<ConfirmationService>()));
+            sp.GetRequiredService<ConfirmationService>(),
+            sp.GetRequiredService<ImagePreviewService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
             sp.GetRequiredService<ModService>(),
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<ConfirmationService>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ImagePreviewService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -326,6 +329,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<PluginManagementViewModel>(),
             sp.GetRequiredService<BackupViewModel>(),
             sp.GetRequiredService<LogViewModel>(),
-            sp.GetRequiredService<ConfirmationService>()));
+            sp.GetRequiredService<ConfirmationService>(),
+            sp.GetRequiredService<ImagePreviewService>()));
     }
 }

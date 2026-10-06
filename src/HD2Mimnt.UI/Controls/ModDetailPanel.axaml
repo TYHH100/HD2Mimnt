@@ -58,7 +58,10 @@
                     CornerRadius="6"
                     ClipToBounds="True"
                     HorizontalAlignment="Center"
-                    Margin="0,0,0,16">
+                    Margin="0,0,0,16"
+                    Tapped="Icon_Tapped"
+                    Cursor="Hand"
+                    ToolTip.Tip="点击预览原图">
               <Image Source="{Binding IconBitmap}"
                      Stretch="UniformToFill"/>
             </Border>

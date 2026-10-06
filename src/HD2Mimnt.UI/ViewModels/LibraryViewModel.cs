@@ -6,6 +6,7 @@ using HD2Mimnt.Core.Enums;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using HD2Mimnt.UI.Services;
 
@@ -24,6 +25,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly DeploymentService _deploymentService;
     private readonly GameDetectionService _gameDetectionService;
     private readonly IConfirmationService _confirmationService;
+    private readonly ImagePreviewService? _imagePreview;
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
@@ -201,7 +203,8 @@ public partial class LibraryViewModel : ObservableObject
         NotificationService notificationService,
         DeploymentService deploymentService,
         GameDetectionService gameDetectionService,
-        IConfirmationService confirmationService)
+        IConfirmationService confirmationService,
+        ImagePreviewService? imagePreview = null)
     {
         _modService = modService;
         _searchService = searchService;
@@ -210,6 +213,7 @@ public partial class LibraryViewModel : ObservableObject
         _deploymentService = deploymentService;
         _gameDetectionService = gameDetectionService;
         _confirmationService = confirmationService;
+        _imagePreview = imagePreview;
 
         // 监听选择变化
         SelectedMods.CollectionChanged += OnSelectedModsChanged;
@@ -1165,6 +1169,9 @@ public partial class LibraryViewModel : ObservableObject
         _deploymentCts?.Cancel();
         DeploymentMessage = "正在取消操作...";
     }
+
+    /// <summary>点击图片（模组卡片图标/详情面板图标）：在主窗口顶层的覆盖层预览原图。</summary>
+    public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
 
     /// <summary>
     /// 显示模组详情

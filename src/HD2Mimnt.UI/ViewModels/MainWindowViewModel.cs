@@ -32,6 +32,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly LogViewModel _logViewModel;
     private readonly ConfirmationService _confirmationService;
     private readonly ConflictsViewModel _conflictsViewModel;
+    private readonly ImagePreviewService _imagePreview;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
@@ -108,6 +109,7 @@ public partial class MainWindowViewModel : ObservableObject
     public NotificationPanelViewModel NotificationPanelViewModel { get; }
     public MoreViewModel MoreViewModel { get; } = new();
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
+    public ImagePreviewService ImagePreview => _imagePreview;
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -126,7 +128,8 @@ public partial class MainWindowViewModel : ObservableObject
         PluginManagementViewModel pluginManagementViewModel,
         BackupViewModel backupViewModel,
         LogViewModel logViewModel,
-        ConfirmationService confirmationService)
+        ConfirmationService confirmationService,
+        ImagePreviewService imagePreviewService)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -145,6 +148,7 @@ public partial class MainWindowViewModel : ObservableObject
         _logViewModel = logViewModel;
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
+        _imagePreview = imagePreviewService;
 
         NavigateToProfiles();
         SubscribeToEvents();
@@ -419,6 +423,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (_imagePreview.IsOpen)
+        {
+            _imagePreview.Close();
+            return;
+        }
+
         IsTaskCenterOpen = false;
         IsNotificationPanelOpen = false;
         _taskCenterViewModel.StopAutoRefresh();

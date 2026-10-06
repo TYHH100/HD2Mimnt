@@ -17,6 +17,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly NotificationService _notificationService;
     private readonly IConfirmationService _confirmationService;
     private readonly SettingsService _settingsService;
+    private readonly ImagePreviewService? _imagePreview;
 
     public event EventHandler? ActiveProfileChanged;
 
@@ -107,13 +108,14 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null)
     {
         _profileService = profileService;
         _modService = modService;
         _notificationService = notificationService;
         _confirmationService = confirmationService;
         _settingsService = settingsService;
+        _imagePreview = imagePreview;
     }
 
     [RelayCommand]
@@ -782,6 +784,9 @@ public partial class ProfileViewModel : ObservableObject
         IsModOptionsDialogOpen = false;
         ModOptionsDialog = null;
     }
+
+    /// <summary>点击图片（模组图标/选项图/子选项图）：在主窗口顶层的覆盖层预览原图。</summary>
+    public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
 
     /// <summary>
     /// 把模组卡片的当前选项选择持久化到当前 Profile。

@@ -181,7 +181,8 @@
                                 PointerPressed="ModCard_PointerPressed">
                             <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="12">
                                 <!-- 图标槽：无缩略图时显示 Package 图标 -->
-                                <Border Width="56" Height="56" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True">
+                                <Border Width="56" Height="56" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True"
+                                        Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="点击预览原图">
                                     <Panel>
                                         <Image Source="{Binding Icon}" Stretch="UniformToFill" IsVisible="{Binding Icon, Converter={StaticResource NotNullConverter}}"/>
                                         <controls:UtilityIcon Kind="Package" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsVisible="{Binding !Icon, Converter={StaticResource NotNullConverter}}"/>

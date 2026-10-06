@@ -176,7 +176,8 @@
                       PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved">
                 <Grid ColumnDefinitions="52,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                   <!-- 图标槽：无缩略图时显示部署序号 -->
-                  <Border Grid.RowSpan="2" Width="52" Height="52" CornerRadius="6" Background="{DynamicResource Surface3Brush}">
+                  <Border Grid.RowSpan="2" Width="52" Height="52" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                          Tapped="PreviewImage_Tapped" Cursor="Hand">
                     <Panel>
                       <TextBlock Text="{Binding PositionText}" FontSize="16" FontWeight="SemiBold"
                                  Foreground="{DynamicResource TextMutedBrush}"
@@ -335,7 +336,8 @@
                     <Border Classes="option-card" Margin="0,6">
                       <StackPanel>
                         <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
-                          <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}">
+                          <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                                  Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="点击预览原图">
                             <Panel>
                               <TextBlock Text="无预览" Classes="caption-text" HorizontalAlignment="Center"
                                          VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
@@ -363,7 +365,8 @@
                               <Border Classes="sub-choice" Classes.selected="{Binding IsSelected}" Margin="0,4"
                                       Tapped="SubChoice_Tapped">
                                 <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
-                                  <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}">
+                                  <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
+                                          Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="点击预览原图">
                                     <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
                                   </Border>
                                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
