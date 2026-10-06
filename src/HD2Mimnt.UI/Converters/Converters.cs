@@ -17,10 +17,10 @@ public class BoolToColorConverter : IValueConverter
         if (value is bool isTrue)
         {
             return isTrue
-                ? new SolidColorBrush(Color.Parse("#10B981")) // Green
-                : new SolidColorBrush(Color.Parse("#6B7280")); // Gray
+                ? new SolidColorBrush(Color.Parse("#34D399")) // Green
+                : new SolidColorBrush(Color.Parse("#64748B")); // Gray
         }
-        return new SolidColorBrush(Color.Parse("#6B7280"));
+        return new SolidColorBrush(Color.Parse("#64748B"));
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -149,14 +149,14 @@ public class LevelToColorConverter : IValueConverter
         {
             return level switch
             {
-                Application.Services.NotificationLevel.Success => new SolidColorBrush(Color.Parse("#10B981")),
-                Application.Services.NotificationLevel.Info => new SolidColorBrush(Color.Parse("#38BDF8")),
-                Application.Services.NotificationLevel.Warning => new SolidColorBrush(Color.Parse("#F59E0B")),
-                Application.Services.NotificationLevel.Error => new SolidColorBrush(Color.Parse("#EF4444")),
-                _ => new SolidColorBrush(Color.Parse("#6B7280"))
+                Application.Services.NotificationLevel.Success => new SolidColorBrush(Color.Parse("#34D399")),
+                Application.Services.NotificationLevel.Info => new SolidColorBrush(Color.Parse("#3B82F6")),
+                Application.Services.NotificationLevel.Warning => new SolidColorBrush(Color.Parse("#FBBF24")),
+                Application.Services.NotificationLevel.Error => new SolidColorBrush(Color.Parse("#F87171")),
+                _ => new SolidColorBrush(Color.Parse("#64748B"))
             };
         }
-        return new SolidColorBrush(Color.Parse("#6B7280"));
+        return new SolidColorBrush(Color.Parse("#64748B"));
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

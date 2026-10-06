@@ -3,9 +3,31 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace HD2Mimnt.UI.ViewModels;
+
+/// <summary>
+/// 分类枚举的中文显示名（列表胶囊、分类下拉、详情面板共用，避免直接显示英文名）。
+/// </summary>
+public static class ModCategoryText
+{
+    public static string ToDisplay(ModCategory category) => category switch
+    {
+        ModCategory.Armor => "护甲",
+        ModCategory.Weapon => "武器",
+        ModCategory.Character => "角色",
+        ModCategory.Audio => "音频",
+        ModCategory.UI => "界面",
+        ModCategory.Gameplay => "玩法",
+        ModCategory.Visual => "视觉",
+        ModCategory.Script => "脚本",
+        ModCategory.Mixed => "混合",
+        ModCategory.Other => "其他",
+        _ => "未分类"
+    };
+}
 
 /// <summary>
 /// 模组列表项 ViewModel
@@ -31,10 +53,11 @@ public partial class ModItemViewModel : ObservableObject
     public string ThumbnailPath => _mod.ThumbnailPath;
 
     // 显示属性
-    public string CategoryDisplay => Category.ToString();
+    public string CategoryDisplay => ModCategoryText.ToDisplay(Category);
     public string SizeFormatted => FormatSize(Size);
     public string StatusDisplay => Status.ToString();
     public bool HasTags => Tags != null && Tags.Count > 0;
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
     public string Hash => _mod.Hash;
     public DateTime ModifiedAt => _mod.ModifiedAt;
     public Bitmap? IconBitmap => Icon;
@@ -48,7 +71,6 @@ public partial class ModItemViewModel : ObservableObject
         ? "已启用"
         : IsProfileMemberDisabled ? "已加入" : "未加入当前 Profile";
     public string ProfileStateDetailText => IsProfileMemberDisabled ? "未启用" : string.Empty;
-    public string DeploymentStateText => IsDeployed ? "部署状态：已部署" : "部署状态：未部署";
     public string MetadataLine => $"{Version} · {CategoryDisplay} · {Author}";
 
     // 状态属性（从外部设置）
@@ -109,8 +131,6 @@ public partial class ModItemViewModel : ObservableObject
         OnPropertyChanged(nameof(ProfileStateDetailText));
     }
 
-    partial void OnIsDeployedChanged(bool value) => OnPropertyChanged(nameof(DeploymentStateText));
-
 
     /// <summary>
     /// 在文件管理器中打开模组文件夹
@@ -135,6 +155,12 @@ public partial class ModItemViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 缩略图解码缓存：同一文件在库刷新/筛选切换间只解码一次（缩略图本身由 ThumbnailService 生成，
+    /// 尺寸固定，解码到 256px 宽足够列表与详情面板显示）。
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, Bitmap?> IconDecodeCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 异步加载图标
     /// </summary>
     public async Task LoadIconAsync(CancellationToken cancellationToken = default)
@@ -146,14 +172,20 @@ public partial class ModItemViewModel : ObservableObject
         try
         {
             var bitmap = await Task.Run(() =>
-            {
-                if (File.Exists(ThumbnailPath))
+                IconDecodeCache.GetOrAdd(ThumbnailPath, static path =>
                 {
-                    return new Bitmap(ThumbnailPath);
-                }
-
-                return null;
-            }, cancellationToken);
+                    try
+                    {
+                        if (!File.Exists(path)) return null;
+                        using var stream = File.OpenRead(path);
+                        return Bitmap.DecodeToWidth(stream, 256);
+                    }
+                    catch
+                    {
+                        // 解码失败缓存 null，避免每次刷新重复读盘
+                        return null;
+                    }
+                }), cancellationToken);
 
             if (bitmap != null)
             {

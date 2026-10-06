@@ -16,6 +16,9 @@ public partial class NotificationPanelViewModel : ObservableObject
 
     public event EventHandler<NotificationNavigationTarget>? NavigationRequested;
 
+    /// <summary>请求关闭通知面板（由承载面板的窗口处理）。</summary>
+    public event EventHandler? CloseRequested;
+
     public NotificationPanelViewModel(NotificationService notificationService)
     {
         _notificationService = notificationService;
@@ -78,7 +81,7 @@ public partial class NotificationPanelViewModel : ObservableObject
     [RelayCommand]
     private void Close()
     {
-        // This will be handled by the parent window/popup
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
 

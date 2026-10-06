@@ -3,9 +3,12 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
+using System.IO;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 
@@ -20,6 +23,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly TaskService _taskService;
     private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
+    private readonly ModService _modService;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly TaskCenterViewModel _taskCenterViewModel;
     private readonly ExternalToolsViewModel _externalToolsViewModel;
@@ -27,6 +31,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly BackupViewModel _backupViewModel;
     private readonly LogViewModel _logViewModel;
     private readonly ConfirmationService _confirmationService;
+    private readonly ConflictsViewModel _conflictsViewModel;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
@@ -78,6 +83,19 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isNotificationPanelOpen;
 
+    // 外观：自定义背景图片与卡片透明度（设置页“外观”驱动）
+    [ObservableProperty]
+    private Bitmap? _backgroundImage;
+
+    [ObservableProperty]
+    private bool _hasBackgroundImage;
+
+    [ObservableProperty]
+    private double _backgroundImageOpacity = 0.25;
+
+    [ObservableProperty]
+    private double _backgroundBlurRadius;
+
     // Expose ViewModels for binding
     public LibraryViewModel LibraryViewModel => _libraryViewModel;
     public ProfileViewModel ProfileViewModel => _profileViewModel;
@@ -88,15 +106,19 @@ public partial class MainWindowViewModel : ObservableObject
     public BackupViewModel BackupViewModel => _backupViewModel;
     public LogViewModel LogViewModel => _logViewModel;
     public NotificationPanelViewModel NotificationPanelViewModel { get; }
+    public MoreViewModel MoreViewModel { get; } = new();
+    public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
         ProfileViewModel profileViewModel,
+        ConflictsViewModel conflictsViewModel,
         GameDetectionService gameDetectionService,
         NotificationService notificationService,
         TaskService taskService,
         TestDataService testDataService,
         ProfileService profileService,
+        ModService modService,
         SettingsViewModel settingsViewModel,
         TaskCenterViewModel taskCenterViewModel,
         NotificationPanelViewModel notificationPanelViewModel,
@@ -108,11 +130,13 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
+        _conflictsViewModel = conflictsViewModel;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _taskService = taskService;
         _testDataService = testDataService;
         _profileService = profileService;
+        _modService = modService;
         _settingsViewModel = settingsViewModel;
         _taskCenterViewModel = taskCenterViewModel;
         _externalToolsViewModel = externalToolsViewModel;
@@ -122,14 +146,18 @@ public partial class MainWindowViewModel : ObservableObject
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
 
-        NavigateToLibrary();
+        NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
         _settingsViewModel.ThemeChanged += OnThemeChanged;
         _settingsViewModel.ListDensityChanged += OnListDensityChanged;
         _settingsViewModel.LibraryDefaultsChanged += OnLibraryDefaultsChanged;
+        _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
         _backupViewModel.RestoreCompleted += OnBackupRestored;
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
+        NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
+        _modService.ModsChanged += OnModsChanged;
+        _profileService.ProfilesChanged += OnProfilesChanged;
     }
 
     private void SubscribeToEvents()
@@ -220,7 +248,7 @@ public partial class MainWindowViewModel : ObservableObject
                 NavigateToSettings();
                 break;
             case NotificationNavigationTarget.More:
-                NavigateToMore();
+                NavigateToTools();
                 break;
             case NotificationNavigationTarget.Tasks:
                 NavigateToTasks();
@@ -232,6 +260,25 @@ public partial class MainWindowViewModel : ObservableObject
     {
         await _libraryViewModel.RefreshProfileStateAsync();
         UpdateCurrentProfile();
+    }
+
+    private void OnModsChanged(object? sender, EventArgs e)
+    {
+        // 模组增删后联动刷新配置文件页（库页自行重载）
+        ApplyOnUiThread(async () =>
+        {
+            await _profileViewModel.RefreshAfterProfilesChangedAsync();
+        });
+    }
+
+    private void OnProfilesChanged(object? sender, EventArgs e)
+    {
+        // 配置文件数据变更（含模组成员/启用状态）联动刷新配置文件页与库页统计、归属状态
+        ApplyOnUiThread(async () =>
+        {
+            await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            await _libraryViewModel.RefreshProfileStateAsync();
+        });
     }
 
     private async void OnBackupRestored(object? sender, EventArgs e)
@@ -251,8 +298,10 @@ public partial class MainWindowViewModel : ObservableObject
         await _profileViewModel.LoadProfilesAsync();
         await _settingsViewModel.LoadAsync();
         ApplyTheme(_settingsViewModel.Theme);
+        ApplyTransparencyBrushes();
         _libraryViewModel.ApplyListDensity(_settingsViewModel.ListDensity);
-        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultSortMode, _settingsViewModel.DefaultFilterType);
+        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultFilterType);
+        await ApplyAppearanceAsync();
         await _taskCenterViewModel.LoadAsync();
         await _externalToolsViewModel.InitializeAsync();
         await _pluginManagementViewModel.InitializeAsync();
@@ -286,19 +335,35 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NavigateToLibrary()
-    {
-        SelectedTabIndex = 1;
-        CurrentView = _libraryViewModel;
-        StatusBarText = "Library";
-    }
-
-    [RelayCommand]
     private void NavigateToProfiles()
     {
         SelectedTabIndex = 0;
         CurrentView = _profileViewModel;
-        StatusBarText = "Profiles";
+        StatusBarText = "配置文件";
+    }
+
+    [RelayCommand]
+    private void NavigateToLibrary()
+    {
+        SelectedTabIndex = 1;
+        CurrentView = _libraryViewModel;
+        StatusBarText = "模组库";
+    }
+
+    [RelayCommand]
+    private void NavigateToConflicts()
+    {
+        SelectedTabIndex = 2;
+        CurrentView = _conflictsViewModel;
+        StatusBarText = "冲突";
+    }
+
+    /// <summary>配置文件页“检查冲突”入口：跳转冲突页并立即启动扫描。</summary>
+    [RelayCommand]
+    private void OpenConflictsAndScan()
+    {
+        NavigateToConflicts();
+        _ = _conflictsViewModel.ScanAsync();
     }
 
     [RelayCommand]
@@ -313,15 +378,15 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToSettings()
     {
-        SelectedTabIndex = 2;
-        StatusBarText = "Settings";
+        SelectedTabIndex = 4;
+        StatusBarText = "设置";
     }
 
     [RelayCommand]
-    private void NavigateToMore()
+    private void NavigateToTools()
     {
         SelectedTabIndex = 3;
-        StatusBarText = "More";
+        StatusBarText = "工具";
     }
 
     [RelayCommand]
@@ -381,12 +446,74 @@ public partial class MainWindowViewModel : ObservableObject
         return canClose;
     }
 
-    private void OnThemeChanged(object? sender, string theme) => ApplyTheme(theme);
+    private void OnThemeChanged(object? sender, string theme)
+    {
+        ApplyTheme(theme);
+        ApplyTransparencyBrushes();
+    }
+
+    private void OnAppearanceChanged(object? sender, EventArgs e) => _ = ApplyAppearanceAsync();
+
+    /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
+    public async Task ApplyAppearanceAsync()
+    {
+        BackgroundImageOpacity = Math.Clamp(_settingsViewModel.BackgroundImageOpacity, 0, 100) / 100.0;
+        BackgroundBlurRadius = Math.Clamp(_settingsViewModel.BackgroundBlur, 0, 40);
+
+        var path = _settingsViewModel.BackgroundImagePath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            BackgroundImage = null;
+            HasBackgroundImage = false;
+        }
+        else
+        {
+            try
+            {
+                var bitmap = await Task.Run(() => new Bitmap(path));
+                BackgroundImage = bitmap;
+                HasBackgroundImage = true;
+            }
+            catch
+            {
+                BackgroundImage = null;
+                HasBackgroundImage = false;
+                _notificationService.ShowWarning("背景图片加载失败，已回退为纯色背景", "外观");
+            }
+        }
+
+        ApplyTransparencyBrushes();
+    }
+
+    /// <summary>按当前主题色 + 透明度设置重建表面画刷。卡片半透明透出背景图；
+    /// 有背景图时顶栏/底栏跟随卡片透明度、内容区全透明露出背景图；无背景图时全部恢复不透明（默认观感）。</summary>
+    private void ApplyTransparencyBrushes()
+    {
+        var app = global::Avalonia.Application.Current;
+        if (app == null) return;
+
+        var percent = Math.Clamp(_settingsViewModel.CardOpacity, 5, 100);
+        var cardAlpha = (byte)Math.Round(percent / 100.0 * 255);
+        var hasImage = HasBackgroundImage;
+
+        SetRuntimeBrush(app, "CardFillBrush", "Surface2Brush", cardAlpha);
+        SetRuntimeBrush(app, "ChromeFillBrush", "Surface1Brush", hasImage ? cardAlpha : (byte)255);
+        SetRuntimeBrush(app, "ContentFillBrush", "Surface0Brush", hasImage ? (byte)0 : (byte)255);
+    }
+
+    private static void SetRuntimeBrush(global::Avalonia.Application app, string targetKey, string baseKey, byte alpha)
+    {
+        if (app.TryGetResource(baseKey, app.RequestedThemeVariant, out var value) && value is ISolidColorBrush solid)
+        {
+            var baseColor = solid.Color;
+            app.Resources[targetKey] = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+        }
+    }
 
     private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);
 
     private void OnLibraryDefaultsChanged(object? sender, EventArgs e) =>
-        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultSortMode, _settingsViewModel.DefaultFilterType);
+        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultFilterType);
 
     private static void ApplyTheme(string theme)
     {

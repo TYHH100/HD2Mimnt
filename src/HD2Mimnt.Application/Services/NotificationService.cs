@@ -16,9 +16,9 @@ public class NotificationService
     public event EventHandler<Guid>? NotificationRemoved;
 
     /// <summary>
-    /// 显示成功通知
+    /// 显示成功通知（不自动过期，由用户在通知面板手动删除）
     /// </summary>
-    public void ShowSuccess(string message, string? title = null, int durationMs = 3000)
+    public void ShowSuccess(string message, string? title = null, int durationMs = 0)
     {
         AddNotification(NotificationLevel.Success, message, title, durationMs);
     }
@@ -26,7 +26,7 @@ public class NotificationService
     /// <summary>
     /// 显示信息通知
     /// </summary>
-    public void ShowInfo(string message, string? title = null, int durationMs = 3000)
+    public void ShowInfo(string message, string? title = null, int durationMs = 0)
     {
         AddNotification(NotificationLevel.Info, message, title, durationMs);
     }
@@ -34,7 +34,7 @@ public class NotificationService
     /// <summary>
     /// 显示警告通知
     /// </summary>
-    public void ShowWarning(string message, string? title = null, int durationMs = 5000)
+    public void ShowWarning(string message, string? title = null, int durationMs = 0)
     {
         AddNotification(NotificationLevel.Warning, message, title, durationMs);
     }

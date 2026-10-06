@@ -18,27 +18,32 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private DeploymentMethod _defaultDeploymentMethod = DeploymentMethod.Copy;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
     [ObservableProperty] private bool _showThumbnails = true;
-    [ObservableProperty] private ModSortMode _defaultSortMode = ModSortMode.NameAscending;
     [ObservableProperty] private ModFilterType _defaultFilterType = ModFilterType.All;
     [ObservableProperty] private string _theme = "Dark";
     [ObservableProperty] private string _listDensity = "Comfortable";
+    [ObservableProperty] private string _backgroundImagePath = string.Empty;
+    [ObservableProperty] private double _backgroundImageOpacity = 25;
+    [ObservableProperty] private double _backgroundBlur = 0;
+    [ObservableProperty] private double _cardOpacity = 100;
     [ObservableProperty] private bool _enableAnimations = true;
+    [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private string _cacheStatus = "缓存信息未加载";
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
-    public IEnumerable<ModSortMode> SortModes => Enum.GetValues<ModSortMode>();
     public IEnumerable<ModFilterType> FilterTypes => Enum.GetValues<ModFilterType>();
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
-    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "部署", "模组库", "外观", "缓存" };
+    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "外观", "缓存" };
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? LibraryDefaultsChanged;
+    public event EventHandler? AppearanceChanged;
 
     public bool IsGameCategoryVisible => SelectedCategory == "游戏";
+    public bool IsProfileCategoryVisible => SelectedCategory == "配置文件";
     public bool IsDeploymentCategoryVisible => SelectedCategory == "部署";
     public bool IsLibraryCategoryVisible => SelectedCategory == "模组库";
     public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
@@ -55,6 +60,7 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnSelectedCategoryChanged(string value)
     {
         OnPropertyChanged(nameof(IsGameCategoryVisible));
+        OnPropertyChanged(nameof(IsProfileCategoryVisible));
         OnPropertyChanged(nameof(IsDeploymentCategoryVisible));
         OnPropertyChanged(nameof(IsLibraryCategoryVisible));
         OnPropertyChanged(nameof(IsAppearanceCategoryVisible));
@@ -64,8 +70,6 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
 
     partial void OnListDensityChanged(string value) => ListDensityChanged?.Invoke(this, value);
-
-    partial void OnDefaultSortModeChanged(ModSortMode value) => LibraryDefaultsChanged?.Invoke(this, EventArgs.Empty);
 
     partial void OnDefaultFilterTypeChanged(ModFilterType value) => LibraryDefaultsChanged?.Invoke(this, EventArgs.Empty);
 
@@ -77,16 +81,19 @@ public partial class SettingsViewModel : ObservableObject
         {
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
+            AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, false);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
             CheckBeforeDeploy = await _settingsService.GetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
-            var sort = await _settingsService.GetSettingAsync(SettingKeys.DefaultSortMode, ModSortMode.NameAscending.ToString());
-            DefaultSortMode = Enum.TryParse<ModSortMode>(sort, out var parsedSort) ? parsedSort : ModSortMode.NameAscending;
             var filter = await _settingsService.GetSettingAsync(SettingKeys.DefaultFilterCategory, ModFilterType.All.ToString());
             DefaultFilterType = Enum.TryParse<ModFilterType>(filter, out var parsedFilter) ? parsedFilter : ModFilterType.All;
             Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark");
             ListDensity = await _settingsService.GetSettingAsync(SettingKeys.ListDensity, "Comfortable");
+            BackgroundImagePath = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
+            BackgroundImageOpacity = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImageOpacity, 25.0);
+            BackgroundBlur = await _settingsService.GetSettingAsync(SettingKeys.BackgroundBlur, 0.0);
+            CardOpacity = await _settingsService.GetSettingAsync(SettingKeys.CardOpacity, 100.0);
             EnableAnimations = await _settingsService.GetSettingAsync(SettingKeys.EnableAnimations, true);
             RefreshCacheStatus();
             StatusMessage = "设置已加载";
@@ -119,14 +126,19 @@ public partial class SettingsViewModel : ObservableObject
                 GamePath = gamePath;
             }
             await _settingsService.SetSettingAsync(SettingKeys.GameAutoDetect, AutoDetectGame);
+            await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentMethod, DefaultDeploymentMethod.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, CheckBeforeDeploy);
             await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
-            await _settingsService.SetSettingAsync(SettingKeys.DefaultSortMode, DefaultSortMode.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DefaultFilterCategory, DefaultFilterType.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.Theme, Theme);
             await _settingsService.SetSettingAsync(SettingKeys.ListDensity, ListDensity);
+            await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, BackgroundImagePath);
+            await _settingsService.SetSettingAsync(SettingKeys.BackgroundImageOpacity, BackgroundImageOpacity);
+            await _settingsService.SetSettingAsync(SettingKeys.BackgroundBlur, BackgroundBlur);
+            await _settingsService.SetSettingAsync(SettingKeys.CardOpacity, CardOpacity);
             await _settingsService.SetSettingAsync(SettingKeys.EnableAnimations, EnableAnimations);
+            AppearanceChanged?.Invoke(this, EventArgs.Empty);
             StatusMessage = "设置已保存";
             _notificationService.ShowSuccess("设置已保存", "设置");
         }
@@ -140,7 +152,8 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task DetectGameAsync()
     {
-        await _gameDetectionService.AutoDetectAsync();
+        // "自动识别"是显式触发，即使已配置路径也重新扫描
+        await _gameDetectionService.AutoDetectAsync(scanEvenIfConfigured: true);
         GamePath = _gameDetectionService.CurrentGameInfo?.Path ?? string.Empty;
         StatusMessage = _gameDetectionService.CurrentGameInfo?.Status.ToString() ?? "未检测到游戏";
     }
@@ -167,6 +180,23 @@ public partial class SettingsViewModel : ObservableObject
         await _settingsService.ResetToDefaultAsync();
         await LoadAsync();
         _notificationService.ShowInfo("设置已恢复默认值", "设置");
+    }
+
+    /// <summary>外观选图（View 代码后置用系统文件选择器拿到路径后调用）；立即持久化并通知应用。</summary>
+    public async Task SetBackgroundImagePathAsync(string path)
+    {
+        BackgroundImagePath = path;
+        await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, path);
+        AppearanceChanged?.Invoke(this, EventArgs.Empty);
+        StatusMessage = "背景图片已更新";
+    }
+
+    [RelayCommand]
+    private async Task ClearBackgroundImageAsync()
+    {
+        BackgroundImagePath = string.Empty;
+        await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
+        AppearanceChanged?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

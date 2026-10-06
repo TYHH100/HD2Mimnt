@@ -1,30 +1,34 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Services;
+using HD2Mimnt.Infrastructure.Archive;
 using Microsoft.Extensions.Logging;
-using System.IO.Compression;
-using System.Text.Json;
 
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>
 /// Mod Import Service
-/// 负责导入 Mod（从文件夹或 ZIP 文件）
+/// 负责导入 Mod（从文件夹或压缩包文件，压缩包格式由 IArchiveExtractor 决定）
 /// </summary>
 public class ModImportService
 {
     private readonly IModRepository _modRepository;
     private readonly string _modsStoragePath;
     private readonly ILogger<ModImportService>? _logger;
+    private readonly IArchiveExtractor _archiveExtractor;
+    private readonly ManifestParser _manifestParser = new();
 
     public ModImportService(
         IModRepository modRepository,
         string modsStoragePath,
-        ILogger<ModImportService>? logger = null)
+        ILogger<ModImportService>? logger = null,
+        IArchiveExtractor? archiveExtractor = null)
     {
         _modRepository = modRepository;
         _modsStoragePath = modsStoragePath;
         _logger = logger;
+        _archiveExtractor = archiveExtractor ?? new SharpCompressArchiveExtractor();
 
         Directory.CreateDirectory(_modsStoragePath);
     }
@@ -43,26 +47,42 @@ public class ModImportService
 
         string tempExtractPath = Path.Combine(Path.GetTempPath(), $"hd2mimnt_import_{Guid.NewGuid()}");
         string? modRootPath = null;
-        bool isZipFile = false;
+        string fallbackName;
+        bool isArchiveFile = false;
 
         try
         {
-            // 如果是 ZIP 文件，先解压到临时目录
-            if (File.Exists(sourcePath) && Path.GetExtension(sourcePath).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            // 如果是压缩包文件（zip/7z/rar 等），先解压到临时目录
+            if (File.Exists(sourcePath) && _archiveExtractor.IsArchiveFile(sourcePath))
             {
-                _logger?.LogInformation("检测到 ZIP 文件，开始解压...");
-                isZipFile = true;
-                Directory.CreateDirectory(tempExtractPath);
-                ZipFile.ExtractToDirectory(sourcePath, tempExtractPath);
+                _logger?.LogInformation("检测到压缩包文件，开始解压: {SourcePath}", sourcePath);
+                isArchiveFile = true;
+                await _archiveExtractor.ExtractToDirectoryAsync(sourcePath, tempExtractPath, cancellationToken);
                 modRootPath = tempExtractPath;
+                // manifest 缺失时的回退名：压缩包文件名，而不是临时解压目录的 GUID
+                fallbackName = Path.GetFileNameWithoutExtension(sourcePath);
             }
             else
             {
                 modRootPath = sourcePath;
+                fallbackName = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             }
 
-            // 读取 manifest
+            // 读取 manifest：真实模组压缩包常带一层同名子文件夹，根目录没有时向下查找
             var manifest = await ReadManifestAsync(modRootPath, cancellationToken);
+            if (manifest == null)
+            {
+                var nestedRoot = FindManifestRoot(modRootPath);
+                if (nestedRoot != null)
+                {
+                    _logger?.LogInformation("manifest.json 位于子目录，使用其所在目录作为 Mod 根目录: {ModRoot}", nestedRoot);
+                    modRootPath = nestedRoot;
+                    manifest = await ReadManifestAsync(modRootPath, cancellationToken);
+                }
+            }
+
+            // 无 manifest 时按旧版管理器语义推断：有子目录时把子目录名作为互斥选项（下拉选择）
+            manifest ??= InferManifestFromDirectory(modRootPath, fallbackName);
 
             // 分析 Mod 内容
             var modInfo = AnalyzeModContent(modRootPath);
@@ -71,7 +91,7 @@ public class ModImportService
             var mod = new Mod
             {
                 Id = Guid.NewGuid(),
-                Name = manifest?.Name ?? Path.GetFileName(modRootPath),
+                Name = !string.IsNullOrWhiteSpace(manifest?.Name) ? manifest.Name : fallbackName,
                 Version = manifest?.Version ?? "1.0.0",
                 Author = manifest?.Author ?? "Unknown",
                 Description = manifest?.Description ?? "",
@@ -79,10 +99,12 @@ public class ModImportService
                 Status = ModStatus.Ready,
                 Tags = manifest?.Tags ?? new List<string>(),
                 Size = modInfo.TotalSize,
-                Source = isZipFile ? ModSource.LocalZip : ModSource.LocalFolder,
+                Source = isArchiveFile ? ModSource.LocalZip : ModSource.LocalFolder,
                 ContainsScripts = modInfo.ContainsScripts,
                 CreatedAt = DateTime.UtcNow,
-                ModifiedAt = DateTime.UtcNow
+                ModifiedAt = DateTime.UtcNow,
+                // manifest（含 v0/v1 选项定义）必须落库，配置文件的模组选项功能依赖它
+                Manifest = manifest
             };
 
             // 复制 Mod 到存储目录
@@ -100,7 +122,7 @@ public class ModImportService
         finally
         {
             // 清理临时目录
-            if (isZipFile && Directory.Exists(tempExtractPath))
+            if (isArchiveFile && Directory.Exists(tempExtractPath))
             {
                 try
                 {
@@ -138,7 +160,9 @@ public class ModImportService
     }
 
     /// <summary>
-    /// 读取 Mod manifest 文件
+    /// 读取 Mod manifest 文件。
+    /// 旧版格式的 manifest（v1 的 "Version" 是数字、v0 的 Options 是字符串数组）无法直接
+    /// 反序列化为 ModManifest，会抛异常导致整个清单被丢弃；改用 ManifestParser 按版本语义解析。
     /// </summary>
     private async Task<ModManifest?> ReadManifestAsync(string modPath, CancellationToken cancellationToken)
     {
@@ -152,16 +176,81 @@ public class ModImportService
         try
         {
             var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-            return JsonSerializer.Deserialize<ModManifest>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            return _manifestParser.ParseFromJson(json);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "读取 manifest.json 失败: {ManifestPath}", manifestPath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// 从模组目录读取 manifest（含嵌套子目录）。
+    /// 与导入使用相同的解析规则，供历史数据回填复用。
+    /// </summary>
+    public async Task<ModManifest?> ReadManifestFromDirectoryAsync(string modPath, CancellationToken cancellationToken = default)
+    {
+        var manifest = await ReadManifestAsync(modPath, cancellationToken);
+        if (manifest == null)
+        {
+            var nestedRoot = FindManifestRoot(modPath);
+            if (nestedRoot != null)
+            {
+                manifest = await ReadManifestAsync(nestedRoot, cancellationToken);
+            }
+        }
+
+        return manifest;
+    }
+
+    /// <summary>
+    /// 向下查找 manifest.json 所在目录（浅层优先）：真实模组压缩包常套一层同名子文件夹，
+    /// 旧管理器同样按嵌套目录解析。返回 null 表示根目录已有 manifest 或不存在。
+    /// </summary>
+    private static string? FindManifestRoot(string modPath)
+    {
+        if (File.Exists(Path.Combine(modPath, "manifest.json")))
+        {
+            return null;
+        }
+
+        if (!Directory.Exists(modPath))
+        {
+            return null;
+        }
+
+        return Directory
+            .EnumerateDirectories(modPath, "*", SearchOption.AllDirectories)
+            .OrderBy(dir => dir.Count(c => c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar))
+            .FirstOrDefault(dir => File.Exists(Path.Combine(dir, "manifest.json")));
+    }
+
+    /// <summary>
+    /// 无 manifest 时的推断（与旧版管理器 InferFromDirectory 语义一致）：
+    /// 有子目录时把子目录名作为互斥的 Legacy 选项，部署时只使用选中的那个子目录；
+    /// 没有子目录时返回 null（模组按整体部署）。导入与历史数据回填共用。
+    /// </summary>
+    public static ModManifest? InferManifestFromDirectory(string modRootPath, string fallbackName)
+    {
+        if (!Directory.Exists(modRootPath))
+        {
+            return null;
+        }
+
+        var subDirectories = Directory.GetDirectories(modRootPath);
+        if (subDirectories.Length == 0)
+        {
+            return null;
+        }
+
+        return new ModManifest
+        {
+            Name = fallbackName,
+            Description = "A locally imported mod.",
+            ManifestVersion = ManifestVersion.Legacy,
+            LegacyOptions = subDirectories.Select(Path.GetFileName).ToList()
+        };
     }
 
     /// <summary>

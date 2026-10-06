@@ -9,7 +9,7 @@
 
   <UserControl.Styles>
     <Style Selector="TextBlock.detail-label">
-      <Setter Property="Foreground" Value="#A0A0A0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Margin" Value="0,0,0,4"/>
     </Style>
@@ -20,15 +20,15 @@
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
     <Style Selector="Border.section">
-      <Setter Property="Background" Value="#1A1A1A"/>
+      <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
       <Setter Property="CornerRadius" Value="8"/>
       <Setter Property="Padding" Value="16"/>
       <Setter Property="Margin" Value="0,0,0,12"/>
     </Style>
   </UserControl.Styles>
 
-  <Border Background="#0F0F0F"
-          BorderBrush="#2A2A2A"
+  <Border Background="{DynamicResource Surface1Brush}"
+          BorderBrush="{DynamicResource BorderBrush}"
           BorderThickness="1,0,0,0"
           Padding="24">
 
@@ -75,7 +75,7 @@
             <!-- Version -->
             <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
                        FontSize="14"
-                       Foreground="#A0A0A0"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
                        TextAlignment="Center"/>
           </StackPanel>
         </Border>
@@ -85,7 +85,7 @@
           <StackPanel>
             <TextBlock Text="状态" Classes="detail-label"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Border Background="#22C55E"
+              <Border Background="{DynamicResource SuccessBrush}"
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsProfileEnabled}">
@@ -94,7 +94,7 @@
                            Foreground="White"/>
               </Border>
 
-              <Border Background="#64748B"
+              <Border Background="{DynamicResource DisabledBrush}"
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsProfileMemberDisabled}">
@@ -103,7 +103,7 @@
                            Foreground="White"/>
               </Border>
 
-              <Border Background="#3B82F6"
+              <Border Background="{DynamicResource AccentBrush}"
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsDeployed}">
@@ -154,13 +154,13 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Background="#2A2A2A"
+                  <Border Background="{DynamicResource Surface3Brush}"
                           CornerRadius="4"
                           Padding="8,4"
                           Margin="0,0,8,8">
                     <TextBlock Text="{Binding}"
                                FontSize="12"
-                               Foreground="#A0A0A0"/>
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                   </Border>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
@@ -220,28 +220,26 @@
 
             <Button Content="{Binding EnableButtonText}"
                     Command="{Binding ToggleEnabledCommand}"
+                    Classes="primary"
                     HorizontalAlignment="Stretch"
-                    Height="36"
-                    Background="#3B82F6"
-                    Foreground="White"/>
+                    Height="36"/>
 
             <Button Content="从当前 Profile 移除"
                     Command="{Binding RemoveFromProfileCommand}"
+                    Classes="secondary"
                     HorizontalAlignment="Stretch"
                     Height="36"
-                    IsVisible="{Binding IsInCurrentProfile}"
-                    Background="{DynamicResource BorderBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    IsVisible="{Binding IsInCurrentProfile}"/>
 
             <Button Content="从 Library 删除 Mod"
                     Command="{Binding DeleteCommand}"
+                    Classes="danger"
                     HorizontalAlignment="Stretch"
-                    Height="36"
-                    Background="#EF4444"
-                    Foreground="White"/>
+                    Height="36"/>
 
             <Button Content="在文件夹中打开"
                     Command="{Binding OpenFolderCommand}"
+                    Classes="secondary"
                     HorizontalAlignment="Stretch"
                     Height="36"/>
           </StackPanel>

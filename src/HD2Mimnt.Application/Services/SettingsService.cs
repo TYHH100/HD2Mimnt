@@ -22,8 +22,10 @@ public class SettingsService
         _logger = logger;
         _settings = new Dictionary<string, object>();
 
-        // 加载设置
-        LoadSettingsAsync().Wait();
+        // 必须同步加载。绝不能写 LoadSettingsAsync().Wait()：App 启动时本服务在 UI 线程的
+        // DI 解析阶段构造，此时 Avalonia 调度器尚未开始泵消息，异步续体会被投递到调度器
+        // 并永久等待，造成启动死锁（转储中表现为 ctor → Task.Wait → AvaloniaSynchronizationContext.Wait）。
+        LoadSettings();
     }
 
     /// <summary>
@@ -183,13 +185,13 @@ public class SettingsService
     /// <summary>
     /// 从文件加载设置
     /// </summary>
-    private async Task LoadSettingsAsync()
+    private void LoadSettings()
     {
         try
         {
             if (File.Exists(_settingsFilePath))
             {
-                var json = await File.ReadAllTextAsync(_settingsFilePath);
+                var json = File.ReadAllText(_settingsFilePath);
                 var loaded = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
 
                 if (loaded != null)
@@ -214,6 +216,12 @@ public class SettingsService
             _logger?.LogError(ex, "加载设置文件失败");
             _settings = new Dictionary<string, object>();
         }
+    }
+
+    private Task LoadSettingsAsync()
+    {
+        LoadSettings();
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -272,19 +280,25 @@ public static class SettingKeys
     public const string GamePath = "Game.Path";
     public const string GameAutoDetect = "Game.AutoDetect";
 
+    // 配置文件相关
+    public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
+
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
     public const string DeploymentCheckBeforeDeploy = "Deployment.CheckBefore";
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
 
     // 模组库相关
-    public const string DefaultSortMode = "Library.DefaultSortMode";
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";
 
     // UI 相关
     public const string Theme = "UI.Theme";
     public const string ListDensity = "UI.ListDensity";
+    public const string BackgroundImagePath = "UI.BackgroundImagePath";
+    public const string BackgroundImageOpacity = "UI.BackgroundOpacity";
+    public const string BackgroundBlur = "UI.BackgroundBlur";
+    public const string CardOpacity = "UI.CardOpacity";
     public const string WindowWidth = "UI.WindowWidth";
     public const string WindowHeight = "UI.WindowHeight";
     public const string WindowMaximized = "UI.WindowMaximized";

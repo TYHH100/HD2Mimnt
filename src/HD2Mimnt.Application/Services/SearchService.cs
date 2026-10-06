@@ -34,6 +34,10 @@ public class SearchService
     /// </summary>
     public async Task BuildIndexAsync(CancellationToken cancellationToken = default)
     {
+        // 取数必须在锁外并真正 await：若在 UI 线程上以 .Result 阻塞等待，
+        // 异步续体被投递到 Avalonia 调度器后会形成启动死锁
+        var mods = (await _modRepository.GetAllAsync(cancellationToken)).ToList();
+
         lock (_indexLock)
         {
             _logger?.LogInformation("Building search index...");
@@ -44,11 +48,7 @@ public class SearchService
             _prefixIndex.Clear();
             _tagIndex.Clear();
             _normalizedIndex.Clear();
-            _allMods.Clear();
-
-            // 获取所有 Mods
-            var mods = _modRepository.GetAllAsync(cancellationToken).Result;
-            _allMods = mods.ToList();
+            _allMods = mods;
 
             foreach (var mod in _allMods)
             {

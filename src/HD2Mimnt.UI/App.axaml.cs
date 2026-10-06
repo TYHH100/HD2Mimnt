@@ -1,6 +1,10 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Platform;
+using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
@@ -15,7 +19,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace HD2Mimnt.UI;
 
@@ -23,6 +30,8 @@ public partial class App : Avalonia.Application
 {
     public static IServiceProvider? ServiceProvider { get; private set; }
     private RuntimeMetricsWriter? _runtimeMetricsWriter;
+    private static WindowIcon? _appIcon;
+    private static int _splashClosed;
 
     public override void Initialize()
     {
@@ -44,11 +53,25 @@ public partial class App : Avalonia.Application
             // 设置 Program.AppHost
             Program.SetAppHost(host);
 
-            // 初始化数据库
+            // 开屏窗口：纯展示，关闭由 Opened 事件与兜底计时器异步触发，
+            // 不参与启动流程、没有任何等待关系，结构上不可能与启动互相死锁
+            SplashWindow? splash = null;
+            long splashShownAt = Stopwatch.GetTimestamp();
+            try
+            {
+                splash = new SplashWindow();
+                splash.Show();
+                desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Splash screen failed to show: {ex}");
+            }
+
+            // 初始化数据库与 Worker：与历史启动行为一致的全同步序列
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             dbContext.InitializeDatabaseAsync().Wait();
 
-            // 初始化 Task Center 并注册 Workers
             var taskService = ServiceProvider.GetRequiredService<TaskService>();
             var workers = ServiceProvider.GetServices<IWorker>();
             foreach (var worker in workers)
@@ -56,21 +79,85 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
-            // 创建主窗口
+            // 创建主窗口，交给框架展示（与历史行为一致）
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
             var mainWindow = new MainWindow
             {
-                DataContext = mainViewModel
+                DataContext = mainViewModel,
+                Icon = TryGetAppIcon()
             };
             mainViewModel.AttachOwner(mainWindow);
-
             desktop.MainWindow = mainWindow;
+
+            if (splash != null)
+            {
+                // 主窗口展示后关闭开屏（最短展示 1.5s）；另有 6s 兜底强制关闭，
+                // 两条路径都只是"往队列里塞一个关窗动作"，先到者生效、互不等待
+                mainWindow.Opened += (_, _) =>
+                    _ = CloseSplashAsync(desktop, splash, splashShownAt, minDisplay: true);
+                _ = CloseSplashAsync(desktop, splash, splashShownAt, forcedDelay: TimeSpan.FromSeconds(6));
+            }
 
             // 初始化 ViewModel - 使用异步启动避免死锁
             _ = mainViewModel.InitializeAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>关闭开屏；两个触发路径（Opened / 兜底计时器）先到者生效，保证幂等。</summary>
+    private static async Task CloseSplashAsync(
+        IClassicDesktopStyleApplicationLifetime desktop, SplashWindow splash,
+        long splashShownAt, bool minDisplay = false, TimeSpan forcedDelay = default)
+    {
+        if (minDisplay)
+        {
+            // 最短展示 1.5s，数据库初始化太快时避免一闪而过看不到 logo
+            var elapsed = Stopwatch.GetElapsedTime(splashShownAt);
+            var minimum = TimeSpan.FromMilliseconds(1500);
+            if (elapsed < minimum)
+            {
+                await Task.Delay(minimum - elapsed);
+            }
+        }
+        else if (forcedDelay > TimeSpan.Zero)
+        {
+            await Task.Delay(forcedDelay);
+        }
+
+        if (Interlocked.Exchange(ref _splashClosed, 1) != 0)
+        {
+            return;
+        }
+
+        // Background 优先级晚于首帧渲染，无黑闪；即使启动期 UI 繁忙也只会延后、不会丢失
+        await Dispatcher.UIThread.InvokeAsync(
+            () =>
+            {
+                splash.Close();
+                // 调试器启动的进程拿不到前台激活权限，显式把主窗口提到最前
+                desktop.MainWindow?.Activate();
+                desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
+            },
+            DispatcherPriority.Background);
+    }
+
+    internal static WindowIcon? TryGetAppIcon()
+    {
+        if (_appIcon == null)
+        {
+            try
+            {
+                using var stream = AssetLoader.Open(new Uri("avares://HD2Mimnt.UI/Assets/logo.png"));
+                _appIcon = new WindowIcon(stream);
+            }
+            catch
+            {
+                // 资产缺失时不阻塞启动
+            }
+        }
+
+        return _appIcon;
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -125,6 +212,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>()));
+
+        services.AddSingleton<ConflictDetectionService>();
 
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
@@ -190,7 +279,13 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ProfileService>(),
             sp.GetRequiredService<ModService>(),
             sp.GetRequiredService<NotificationService>(),
-            sp.GetRequiredService<ConfirmationService>()));
+            sp.GetRequiredService<ConfirmationService>(),
+            sp.GetRequiredService<SettingsService>()));
+
+        services.AddTransient(sp => new ConflictsViewModel(
+            sp.GetRequiredService<ConflictDetectionService>(),
+            sp.GetRequiredService<ProfileService>(),
+            sp.GetRequiredService<NotificationService>()));
 
         services.AddTransient(sp => new SettingsViewModel(
             sp.GetRequiredService<SettingsService>(),
@@ -217,11 +312,13 @@ public partial class App : Avalonia.Application
         services.AddTransient(sp => new MainWindowViewModel(
             sp.GetRequiredService<LibraryViewModel>(),
             sp.GetRequiredService<ProfileViewModel>(),
+            sp.GetRequiredService<ConflictsViewModel>(),
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<TaskService>(),
             sp.GetRequiredService<TestDataService>(),
             sp.GetRequiredService<ProfileService>(),
+            sp.GetRequiredService<ModService>(),
             sp.GetRequiredService<SettingsViewModel>(),
             sp.GetRequiredService<TaskCenterViewModel>(),
             sp.GetRequiredService<NotificationPanelViewModel>(),

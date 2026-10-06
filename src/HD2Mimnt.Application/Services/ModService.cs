@@ -31,25 +31,80 @@ public class ModService
         _importService = new ModImportService(_modRepository, storageDirectory, null);
         _thumbnailService = new ThumbnailService(thumbnailsPath, null);
 
-        // 确保存储目录存在
-        Directory.CreateDirectory(_storageDirectory);
+    // 确保存储目录存在
+    Directory.CreateDirectory(_storageDirectory);
     }
+
+    /// <summary>模组库发生增删后触发，供 UI 层联动刷新各页面。</summary>
+    public event EventHandler? ModsChanged;
+
+    private void RaiseModsChanged() => ModsChanged?.Invoke(this, EventArgs.Empty);
 
     #region Mod CRUD Operations
 
     public async Task<Mod?> GetModByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _modRepository.GetByIdAsync(id, cancellationToken);
+        var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
+        if (mod != null)
+        {
+            await BackfillMissingManifestAsync(mod, cancellationToken);
+        }
+
+        return mod;
     }
 
     public async Task<IEnumerable<Mod>> GetAllModsAsync(CancellationToken cancellationToken = default)
     {
-        return await _modRepository.GetAllAsync(cancellationToken);
+        var mods = (await _modRepository.GetAllAsync(cancellationToken)).ToList();
+        await BackfillMissingManifestsAsync(mods, cancellationToken);
+        return mods;
     }
 
     public async Task<IEnumerable<Mod>> GetModsByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
     {
-        return await _modRepository.GetByIdsAsync(ids, cancellationToken);
+        var mods = (await _modRepository.GetByIdsAsync(ids, cancellationToken)).ToList();
+        await BackfillMissingManifestsAsync(mods, cancellationToken);
+        return mods;
+    }
+
+    /// <summary>
+    /// 回填历史导入遗漏的 manifest：旧版本导入时没有把 manifest 写进库（Mod.Manifest 为 null），
+    /// 但模组目录里的 manifest.json 还在。按导入相同的解析规则读取并回填一次，此后不再触发。
+    /// 没有它，配置文件页的模组选项功能对这些模组不可见。
+    /// </summary>
+    private async Task BackfillMissingManifestsAsync(IReadOnlyList<Mod> mods, CancellationToken cancellationToken)
+    {
+        foreach (var mod in mods)
+        {
+            await BackfillMissingManifestAsync(mod, cancellationToken);
+        }
+    }
+
+    private async Task BackfillMissingManifestAsync(Mod mod, CancellationToken cancellationToken)
+    {
+        if (mod.Manifest != null || string.IsNullOrEmpty(mod.Path) || !Directory.Exists(mod.Path))
+        {
+            return;
+        }
+
+        try
+        {
+            // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义，保证历史模组也能用选项
+            var manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
+                ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
+            if (manifest == null)
+            {
+                return;
+            }
+
+            mod.Manifest = manifest;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            _logger?.LogInformation("已回填历史遗漏的 manifest: {ModName}", mod.Name);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "回填 manifest 失败: {ModPath}", mod.Path);
+        }
     }
 
     public async Task<bool> DeleteModAsync(Guid id, CancellationToken cancellationToken = default)
@@ -80,6 +135,7 @@ public class ModService
         await _modRepository.DeleteAsync(id, cancellationToken);
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
+        RaiseModsChanged();
         return true;
     }
 
@@ -106,6 +162,7 @@ public class ModService
             }
         }
 
+        RaiseModsChanged();
         return modId;
     }
 
@@ -114,7 +171,13 @@ public class ModService
     /// </summary>
     public async Task<IEnumerable<Guid>> ImportModsAsync(IEnumerable<string> sourcePaths, CancellationToken cancellationToken = default)
     {
-        return await _importService.ImportModsAsync(sourcePaths, cancellationToken);
+        var importedIds = await _importService.ImportModsAsync(sourcePaths, cancellationToken);
+        if (importedIds.Any())
+        {
+            RaiseModsChanged();
+        }
+
+        return importedIds;
     }
 
     #endregion

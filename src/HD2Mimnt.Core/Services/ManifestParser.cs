@@ -47,7 +47,13 @@ public class ManifestParser
     {
         try
         {
-            using var doc = JsonDocument.Parse(json);
+            // 与旧版管理器一致：容忍尾逗号与注释（真实模组清单常见手写错误）
+            var options = new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            };
+            using var doc = JsonDocument.Parse(json, options);
             var root = doc.RootElement;
 
             return ParseFromJsonElement(root);
@@ -74,11 +80,17 @@ public class ManifestParser
         var author = GetStringProperty(root, "Author") ?? "Unknown";
         var iconPath = GetStringProperty(root, "IconPath");
 
-        // 检测清单版本
+        // 检测清单版本：与旧版管理器规则一致——只要存在 Version 字段就按 V1 宽容处理
+        // （部分作者把模组自身版本号如 2、5、"1.0" 写进该字段），缺失时才是 Legacy 格式
         var manifestVersion = ManifestVersion.Legacy;
-        if (root.TryGetProperty("Version", out var versionProp) && versionProp.ValueKind == JsonValueKind.Number)
+        if (TryGetPropertyIgnoreCase(root, "Version", out var versionProp))
         {
-            manifestVersion = (ManifestVersion)versionProp.GetInt32();
+            if (!(versionProp.ValueKind == JsonValueKind.Number && versionProp.TryGetInt32(out var v) && v == 1))
+            {
+                _logger?.LogWarning("Manifest \"Version\" is not 1, automatically treating the manifest as V1.");
+            }
+
+            manifestVersion = ManifestVersion.V1;
         }
 
         var manifest = new ModManifest
@@ -101,6 +113,9 @@ public class ManifestParser
         {
             manifest.Options = ParseV1Options(root);
         }
+
+        manifest.Tags = ParseStringArray(root, "Tags");
+        manifest.Category = GetStringProperty(root, "Category");
 
         // 解析 Nexus 数据
         manifest.NexusData = ParseNexusData(root);
@@ -221,17 +236,33 @@ public class ManifestParser
         writer.WriteStartObject();
         writer.WriteString("Name", option.Name);
         writer.WriteString("Description", option.Description);
-        writer.WriteBoolean("DefaultEnabled", option.DefaultEnabled);
+
+        if (option.DefaultEnabled.HasValue)
+        {
+            writer.WriteBoolean("DefaultEnabled", option.DefaultEnabled.Value);
+        }
+
+        if (option.Include is { Count: > 0 })
+        {
+            writer.WriteStartArray("Include");
+            foreach (var include in option.Include)
+            {
+                writer.WriteStringValue(include);
+            }
+            writer.WriteEndArray();
+        }
+
+        if (!string.IsNullOrEmpty(option.Image))
+        {
+            writer.WriteString("Image", option.Image);
+        }
 
         if (option.SubOptions?.Count > 0)
         {
             writer.WriteStartArray("SubOptions");
             foreach (var subOption in option.SubOptions)
             {
-                writer.WriteStartObject();
-                writer.WriteString("Name", subOption.Name);
-                writer.WriteString("Description", subOption.Description);
-                writer.WriteEndObject();
+                WriteModSubOption(writer, subOption);
             }
             writer.WriteEndArray();
         }
@@ -239,9 +270,33 @@ public class ManifestParser
         writer.WriteEndObject();
     }
 
+    private static void WriteModSubOption(Utf8JsonWriter writer, ModSubOption subOption)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("Name", subOption.Name);
+        writer.WriteString("Description", subOption.Description);
+
+        if (subOption.Include is { Count: > 0 })
+        {
+            writer.WriteStartArray("Include");
+            foreach (var include in subOption.Include)
+            {
+                writer.WriteStringValue(include);
+            }
+            writer.WriteEndArray();
+        }
+
+        if (!string.IsNullOrEmpty(subOption.Image))
+        {
+            writer.WriteString("Image", subOption.Image);
+        }
+
+        writer.WriteEndObject();
+    }
+
     private Guid ParseGuid(JsonElement root)
     {
-        if (root.TryGetProperty("Guid", out var guidProp))
+        if (TryGetPropertyIgnoreCase(root, "Guid", out var guidProp))
         {
             var guidStr = guidProp.GetString();
             if (Guid.TryParse(guidStr, out var guid))
@@ -254,9 +309,36 @@ public class ManifestParser
         return Guid.NewGuid();
     }
 
+    /// <summary>
+    /// 大小写不敏感的属性查找：真实模组清单的字段名大小写混用
+    /// （旧版格式用 PascalCase，也有作者全小写），先精确匹配再回退忽略大小写。
+    /// </summary>
+    private static bool TryGetPropertyIgnoreCase(JsonElement root, string propertyName, out JsonElement value)
+    {
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            if (root.TryGetProperty(propertyName, out value))
+            {
+                return true;
+            }
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = property.Value;
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
     private string? GetStringProperty(JsonElement root, string propertyName)
     {
-        if (root.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+        if (TryGetPropertyIgnoreCase(root, propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
         {
             return prop.GetString();
         }
@@ -265,7 +347,7 @@ public class ManifestParser
 
     private List<string>? ParseLegacyOptions(JsonElement root)
     {
-        if (!root.TryGetProperty("Options", out var optionsProp) || optionsProp.ValueKind != JsonValueKind.Array)
+        if (!TryGetPropertyIgnoreCase(root, "Options", out var optionsProp) || optionsProp.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
@@ -288,7 +370,7 @@ public class ManifestParser
 
     private List<ModOption>? ParseV1Options(JsonElement root)
     {
-        if (!root.TryGetProperty("Options", out var optionsProp) || optionsProp.ValueKind != JsonValueKind.Array)
+        if (!TryGetPropertyIgnoreCase(root, "Options", out var optionsProp) || optionsProp.ValueKind != JsonValueKind.Array)
         {
             return null;
         }
@@ -310,29 +392,39 @@ public class ManifestParser
     {
         var name = GetStringProperty(element, "Name") ?? "Unnamed Option";
         var description = GetStringProperty(element, "Description") ?? string.Empty;
-        var defaultEnabled = element.TryGetProperty("DefaultEnabled", out var prop) && prop.GetBoolean();
+
+        // 旧版清单没有 DefaultEnabled 字段，缺省保持 null（按“默认启用”处理）
+        bool? defaultEnabled = null;
+        if (TryGetPropertyIgnoreCase(element, "DefaultEnabled", out var defaultEnabledProp)
+            && defaultEnabledProp.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            defaultEnabled = defaultEnabledProp.GetBoolean();
+        }
 
         var option = new ModOption
         {
             Name = name,
             Description = description,
-            DefaultEnabled = defaultEnabled
+            DefaultEnabled = defaultEnabled,
+            Include = ParseStringArray(element, "Include"),
+            Image = GetStringProperty(element, "Image")
         };
 
         // 解析子选项
-        if (element.TryGetProperty("SubOptions", out var subOptionsProp) && subOptionsProp.ValueKind == JsonValueKind.Array)
+        if (TryGetPropertyIgnoreCase(element, "SubOptions", out var subOptionsProp) && subOptionsProp.ValueKind == JsonValueKind.Array)
         {
             var subOptions = new List<ModSubOption>();
             foreach (var subElement in subOptionsProp.EnumerateArray())
             {
                 if (subElement.ValueKind == JsonValueKind.Object)
                 {
-                    var subOption = new ModSubOption
+                    subOptions.Add(new ModSubOption
                     {
                         Name = GetStringProperty(subElement, "Name") ?? "Unnamed SubOption",
-                        Description = GetStringProperty(subElement, "Description") ?? string.Empty
-                    };
-                    subOptions.Add(subOption);
+                        Description = GetStringProperty(subElement, "Description") ?? string.Empty,
+                        Include = ParseStringArray(subElement, "Include"),
+                        Image = GetStringProperty(subElement, "Image")
+                    });
                 }
             }
             option.SubOptions = subOptions.Count > 0 ? subOptions : null;
@@ -341,14 +433,31 @@ public class ManifestParser
         return option;
     }
 
+    private static List<string> ParseStringArray(JsonElement root, string propertyName)
+    {
+        var values = new List<string>();
+        if (TryGetPropertyIgnoreCase(root, propertyName, out var prop) && prop.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in prop.EnumerateArray())
+            {
+                if (element.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(element.GetString()))
+                {
+                    values.Add(element.GetString()!);
+                }
+            }
+        }
+
+        return values;
+    }
+
     private NexusData? ParseNexusData(JsonElement root)
     {
-        if (!root.TryGetProperty("NexusData", out var nexusProp) || nexusProp.ValueKind != JsonValueKind.Object)
+        if (!TryGetPropertyIgnoreCase(root, "NexusData", out var nexusProp) || nexusProp.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        var modId = nexusProp.TryGetProperty("ModId", out var idProp) ? idProp.GetInt32() : 0;
+        var modId = TryGetPropertyIgnoreCase(nexusProp, "ModId", out var idProp) ? idProp.GetInt32() : 0;
         var version = GetStringProperty(nexusProp, "Version") ?? string.Empty;
 
         if (modId > 0)

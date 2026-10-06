@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             x:Class="HD2Mimnt.UI.Views.ConflictsView"
+             x:DataType="vm:ConflictsViewModel">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="24,16,24,20">
+
+    <StackPanel Grid.Row="0" Spacing="4">
+      <TextBlock Text="冲突" Classes="page-title"/>
+      <TextBlock Text="检测当前 Profile 中启用模组之间的同名文件覆盖关系，部署顺序靠后的模组生效。"
+                 Classes="page-subtitle" Margin="0,4,0,0"/>
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,12">
+      <TextBlock Text="{Binding SummaryText}" Classes="secondary-text" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"/>
+      <Button Grid.Column="1" Classes="secondary" Command="{Binding CancelScanCommand}"
+              IsVisible="{Binding IsScanning}" Margin="0,0,8,0" Content="取消"/>
+      <Button Grid.Column="2" Classes="primary" Command="{Binding ScanCommand}" IsEnabled="{Binding !IsScanning}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="检查冲突" IsVisible="{Binding !HasScanned}"/>
+          <TextBlock Text="重新检查" IsVisible="{Binding HasScanned}"/>
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <Grid Grid.Row="2">
+      <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsVisible="{Binding IsNoProfileStateVisible}">
+        <TextBlock Text="没有激活的配置文件" FontSize="16" HorizontalAlignment="Center"/>
+        <TextBlock Text="先创建并激活一个配置文件，再执行冲突检测。" Classes="muted" HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsVisible="{Binding IsNotScannedStateVisible}">
+        <TextBlock Text="尚未执行冲突检测" FontSize="16" HorizontalAlignment="Center"/>
+        <TextBlock Text="点击右上角「检查冲突」开始扫描当前 Profile 的启用模组。" Classes="muted" HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsVisible="{Binding IsErrorStateVisible}">
+        <TextBlock Text="检测失败" FontSize="16" HorizontalAlignment="Center"
+                   Foreground="{DynamicResource ErrorBrush}"/>
+        <TextBlock Text="{Binding ErrorMessage}" Classes="muted" MaxWidth="420" TextWrapping="Wrap"
+                   HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <TextBlock Text="正在扫描模组文件..." Classes="muted" HorizontalAlignment="Center"
+                 VerticalAlignment="Center" IsVisible="{Binding IsLoading}"/>
+
+      <ScrollViewer IsVisible="{Binding IsResultsVisible}">
+        <StackPanel Spacing="12">
+          <StackPanel Spacing="8" HorizontalAlignment="Center" IsVisible="{Binding IsNoConflictsVisible}">
+            <TextBlock Text="✓ 未检测到文件冲突" FontSize="16"
+                       Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center"/>
+            <TextBlock Text="当前启用模组之间没有同名文件，可以放心部署。" Classes="muted" HorizontalAlignment="Center"/>
+          </StackPanel>
+
+          <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding IsConflictsVisible}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ConflictGroupViewModel">
+                <Border Classes="card" Margin="0,0,0,10">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding RelativePath}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                 FontFamily="Consolas"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Owners.Count, StringFormat='{}{0} 个模组'}"
+                                 Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Owners}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ConflictOwnerViewModel">
+                          <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="10" Margin="0,4">
+                            <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                     IsVisible="{Binding IsWinner}"
+                                     Fill="{DynamicResource SuccessBrush}"/>
+                            <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                     IsVisible="{Binding !IsWinner}"
+                                     Fill="{DynamicResource WarningBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ModName}" FontWeight="Medium"/>
+                            <TextBlock Grid.Column="2" Text="生效" FontSize="11"
+                                       Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsWinner}"/>
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10"
+                                        HorizontalAlignment="Right">
+                              <TextBlock Text="{Binding OrderText}" Classes="muted" FontSize="12"/>
+                              <TextBlock Text="{Binding SizeText}" Classes="muted" FontSize="12"/>
+                              <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="11"
+                                         TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+                            </StackPanel>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</UserControl>

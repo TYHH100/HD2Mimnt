@@ -6,6 +6,7 @@ using HD2Mimnt.Core.Enums;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Avalonia.Threading;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -27,6 +28,7 @@ public partial class LibraryViewModel : ObservableObject
     // 数据源
     private List<ModItemViewModel> _allMods = new();
     private bool _selectionSyncInProgress;
+    private ModItemViewModel? _selectionAnchor;
 
     [ObservableProperty]
     private ObservableCollection<ModItemViewModel> _filteredMods = new();
@@ -42,6 +44,7 @@ public partial class LibraryViewModel : ObservableObject
     private bool _isSearching;
 
     private CancellationTokenSource? _searchCts;
+    private DispatcherTimer? _searchDebounceTimer;
     private int _filterGeneration;
     private int _searchGeneration;
 
@@ -52,8 +55,20 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private ModCategory? _selectedCategory;
 
+    // 加入配置文件弹窗：目标 Mod 为空表示对整个选中集合操作
     [ObservableProperty]
-    private ObservableCollection<ModCategory> _availableCategories = new();
+    private bool _isAddToProfileDialogOpen;
+
+    [ObservableProperty]
+    private ModItemViewModel? _addToProfileTarget;
+
+    private List<Profile>? _profilesForAdd;
+
+    public ObservableCollection<ProfileChoiceViewModel> AddToProfileChoices { get; } = new();
+
+    public string AddToProfileDialogTitle => AddToProfileTarget != null
+        ? $"将“{AddToProfileTarget.Name}”加入配置文件"
+        : $"将选中的 {SelectedCount} 个 Mod 加入配置文件";
 
     // 排序
     [ObservableProperty]
@@ -137,8 +152,25 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _deploymentCts;
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
-    public IEnumerable<ModSortMode> SortModes => Enum.GetValues<ModSortMode>();
+
+    /// <summary>排序下拉的本地化选项（直接绑定枚举会显示英文名）。</summary>
+    public IReadOnlyList<SortModeOption> SortModes { get; } = new[]
+    {
+        new SortModeOption("名称升序", ModSortMode.NameAscending),
+        new SortModeOption("名称降序", ModSortMode.NameDescending),
+        new SortModeOption("最新导入", ModSortMode.DateAddedNewest),
+        new SortModeOption("最早导入", ModSortMode.DateAddedOldest),
+        new SortModeOption("按分类", ModSortMode.Category),
+    };
+
+    /// <summary>分类下拉的本地化选项。</summary>
+    public IReadOnlyList<CategoryOption> CategoryOptions { get; } =
+        Enum.GetValues<ModCategory>()
+            .Select(c => new CategoryOption(ModCategoryText.ToDisplay(c), c))
+            .ToArray();
+
     public string ModItemPadding => ListDensity == "Compact" ? "16,6" : "16,12";
+    public string FilterSummaryText => $"显示 {FilteredModCount:N0} / {TotalModCount:N0} 个 Mod";
     public bool IsLibraryEmptyStateVisible => !IsLoading && !HasError && IsEmpty;
     public bool IsSearchEmptyStateVisible => !IsLoading && !HasError && HasNoResults && !string.IsNullOrWhiteSpace(SearchText);
     public bool IsFilterEmptyStateVisible => !IsLoading && !HasError && HasNoResults && string.IsNullOrWhiteSpace(SearchText) && (CurrentFilter != ModFilterType.All || SelectedCategory.HasValue);
@@ -148,14 +180,17 @@ public partial class LibraryViewModel : ObservableObject
 
     partial void OnListDensityChanged(string value) => OnPropertyChanged(nameof(ModItemPadding));
 
+    partial void OnFilteredModCountChanged(int value) => OnPropertyChanged(nameof(FilterSummaryText));
+
+    partial void OnTotalModCountChanged(int value) => OnPropertyChanged(nameof(FilterSummaryText));
+
     public void ApplyListDensity(string value)
     {
         ListDensity = value is "Compact" or "Comfortable" ? value : "Comfortable";
     }
 
-    public void ApplyLibraryDefaults(ModSortMode sortMode, ModFilterType filterType)
+    public void ApplyLibraryDefaults(ModFilterType filterType)
     {
-        CurrentSortMode = sortMode;
         CurrentFilter = filterType;
     }
 
@@ -178,10 +213,6 @@ public partial class LibraryViewModel : ObservableObject
 
         // 监听选择变化
         SelectedMods.CollectionChanged += OnSelectedModsChanged;
-
-        // 初始化可用分类
-        AvailableCategories = new ObservableCollection<ModCategory>(
-            Enum.GetValues<ModCategory>());
     }
 
     public async Task InitializeAsync()
@@ -380,6 +411,21 @@ public partial class LibraryViewModel : ObservableObject
     private void ClearSearch()
     {
         SearchText = string.Empty;
+    }
+
+    /// <summary>
+    /// 搜索输入防抖（沿用旧版 WPF 的做法）：停顿后自动执行搜索，回车仍可立即触发。
+    /// </summary>
+    partial void OnSearchTextChanged(string value)
+    {
+        _searchDebounceTimer?.Stop();
+        _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _searchDebounceTimer.Tick += async (_, _) =>
+        {
+            _searchDebounceTimer?.Stop();
+            await ExecuteSearchAsync();
+        };
+        _searchDebounceTimer.Start();
     }
 
     /// <summary>
@@ -616,11 +662,43 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Ctrl+点击切换多选标记，并记录范围选择锚点（列表为单选聚焦模式，多选由这里管理，
+    /// 单击卡片不会弹出批量操作条）。
+    /// </summary>
+    public void ToggleSelected(ModItemViewModel mod)
+    {
+        mod.IsSelected = !mod.IsSelected;
+        if (mod.IsSelected)
+        {
+            _selectionAnchor = mod;
+        }
+    }
+
+    /// <summary>Shift+点击范围选择（替换当前选择）。</summary>
+    public void SelectRange(ModItemViewModel mod)
+    {
+        var targetIndex = FilteredMods.IndexOf(mod);
+        if (targetIndex < 0) return;
+
+        var anchorIndex = _selectionAnchor != null ? FilteredMods.IndexOf(_selectionAnchor) : targetIndex;
+        if (anchorIndex < 0) anchorIndex = targetIndex;
+
+        ClearSelection();
+        var start = Math.Min(anchorIndex, targetIndex);
+        var end = Math.Max(anchorIndex, targetIndex);
+        for (var index = start; index <= end; index++)
+        {
+            FilteredMods[index].IsSelected = true;
+        }
+    }
+
+    /// <summary>
     /// 清空选择
     /// </summary>
     [RelayCommand]
     private void ClearSelection()
     {
+        _selectionAnchor = null;
         _selectionSyncInProgress = true;
         try
         {
@@ -639,34 +717,91 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 批量启用
+    /// 打开"加入配置文件"弹窗：目标 Mod 为空表示对整个选中集合操作，可勾选多个配置文件。
     /// </summary>
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private async Task BatchEnableAsync()
+    [RelayCommand]
+    private async Task OpenAddToProfileDialogAsync(ModItemViewModel? mod)
     {
-        if (_currentProfile == null)
+        var targetMods = mod != null ? new List<ModItemViewModel> { mod } : SelectedMods.ToList();
+        if (targetMods.Count == 0)
         {
-            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择一个配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "无配置文件");
+            _notificationService.ShowInfo("请先选择要加入的 Mod", "加入配置文件");
             return;
         }
+
+        var profiles = (await _profileService.GetAllProfilesAsync()).ToList();
+        if (profiles.Count == 0)
+        {
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先创建一个配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "加入配置文件");
+            return;
+        }
+
+        _profilesForAdd = profiles;
+        AddToProfileTarget = mod;
+        AddToProfileChoices.Clear();
+        foreach (var profile in profiles)
+        {
+            AddToProfileChoices.Add(new ProfileChoiceViewModel(
+                profile.Id, profile.Name, profile.Mods.Count,
+                profile.Id == _currentProfile?.Id));
+        }
+        OnPropertyChanged(nameof(AddToProfileDialogTitle));
+        IsAddToProfileDialogOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelAddToProfile()
+    {
+        IsAddToProfileDialogOpen = false;
+        AddToProfileTarget = null;
+        _profilesForAdd = null;
+        AddToProfileChoices.Clear();
+    }
+
+    /// <summary>
+    /// 确认加入：每个勾选的配置文件调用一次批量接口（服务端一次读取一次更新，
+    /// 未在 ProfileMods 中的模组补录并分配稳定顺序，加入即启用）。
+    /// </summary>
+    [RelayCommand]
+    private async Task ConfirmAddToProfileAsync()
+    {
+        var targets = AddToProfileChoices.Where(choice => choice.IsSelected).ToList();
+        if (targets.Count == 0)
+        {
+            _notificationService.ShowInfo("请至少勾选一个配置文件", "加入配置文件");
+            return;
+        }
+
+        var targetMods = AddToProfileTarget != null
+            ? new List<ModItemViewModel> { AddToProfileTarget }
+            : SelectedMods.ToList();
+        var modIds = targetMods.Select(m => m.Id).ToArray();
 
         IsLoading = true;
         try
         {
-            var selected = SelectedMods.ToList();
-            await _profileService.SetModsEnabledAsync(_currentProfile.Id, selected.Select(mod => mod.Id).ToArray(), true);
-            foreach (var mod in selected)
+            foreach (var choice in targets)
             {
-                mod.IsInCurrentProfile = true;
-                mod.IsEnabled = true;
+                await _profileService.SetModsEnabledAsync(choice.Id, modIds, true);
+            }
+
+            var activeProfileId = _currentProfile?.Id;
+            if (targets.Any(choice => choice.Id == activeProfileId))
+            {
+                foreach (var mod in targetMods)
+                {
+                    mod.IsInCurrentProfile = true;
+                    mod.IsEnabled = true;
+                }
             }
 
             await UpdateStatisticsAsync();
-            _notificationService.ShowSuccess($"已启用 {SelectedCount} 个模组", "批量启用");
+            CancelAddToProfile();
+            _notificationService.ShowSuccess($"已将 {targetMods.Count} 个 Mod 加入 {targets.Count} 个配置文件", "加入配置文件");
         }
         catch (Exception ex)
         {
-            _notificationService.ShowError($"批量启用失败: {ex.Message}", "操作失败");
+            _notificationService.ShowError($"加入配置文件失败: {ex.Message}", "加入配置文件");
         }
         finally
         {
@@ -764,6 +899,7 @@ public partial class LibraryViewModel : ObservableObject
     private async Task BatchDeleteAsync()
     {
         var selectedCount = SelectedMods.Count;
+        if (selectedCount == 0) return;
         if (!await _confirmationService.ConfirmAsync("删除模组", $"确定删除选中的 {selectedCount} 个模组吗？此操作会删除模组文件。"))
         {
             return;
@@ -856,14 +992,35 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 导入模组
+    /// 将单个模组加入当前 Profile（服务端批量接口会补录 ProfileMods 并分配稳定顺序，加入即启用）
     /// </summary>
     [RelayCommand]
-    private async Task ImportModAsync()
+    private async Task AddModToProfileAsync(ModItemViewModel mod)
     {
-        _notificationService.ShowInfo("请使用文件选择器选择模组文件", "导入模组");
+        if (_currentProfile == null)
+        {
+            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择一个配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "加入 Profile");
+            return;
+        }
+        if (mod.IsInCurrentProfile) return;
+
+        try
+        {
+            await _profileService.SetModEnabledAsync(_currentProfile.Id, mod.Id, true);
+            mod.IsInCurrentProfile = true;
+            mod.IsEnabled = true;
+            await UpdateStatisticsAsync();
+            _notificationService.ShowSuccess($"已将“{mod.Name}”加入当前 Profile", "加入 Profile");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"加入 Profile 失败: {ex.Message}", "加入 Profile");
+        }
     }
 
+    /// <summary>
+    /// 导入模组
+    /// </summary>
     public async Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
     {
         var sourcePaths = paths.Where(p => !string.IsNullOrWhiteSpace(p))
@@ -1214,7 +1371,6 @@ public partial class LibraryViewModel : ObservableObject
     {
         SelectedCount = SelectedMods.Count;
         IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
-        BatchEnableCommand.NotifyCanExecuteChanged();
         BatchDisableCommand.NotifyCanExecuteChanged();
         RemoveSelectedFromProfileCommand.NotifyCanExecuteChanged();
         BatchDeleteCommand.NotifyCanExecuteChanged();
@@ -1287,4 +1443,30 @@ public enum ModSortMode
     DateAddedNewest,
     DateAddedOldest,
     Category
+}
+
+/// <summary>排序/分类下拉的本地化选项（直接绑定枚举会显示英文名）。</summary>
+public sealed record SortModeOption(string Display, ModSortMode Value);
+
+public sealed record CategoryOption(string Display, ModCategory Value);
+
+/// <summary>加入配置文件弹窗中的配置文件选项。</summary>
+public partial class ProfileChoiceViewModel : ObservableObject
+{
+    public Guid Id { get; }
+    public string Name { get; }
+    public int ModCount { get; }
+    public bool IsActive { get; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public ProfileChoiceViewModel(Guid id, string name, int modCount, bool isActive)
+    {
+        Id = id;
+        Name = name;
+        ModCount = modCount;
+        IsActive = isActive;
+        IsSelected = isActive;
+    }
 }

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.Controls"
              xmlns:services="using:HD2Mimnt.Application.Services"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
              x:Class="HD2Mimnt.UI.Controls.NotificationPanel"
              x:DataType="vm:NotificationPanelViewModel"
@@ -22,12 +23,13 @@
                               FontWeight="SemiBold"
                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <Button Grid.Column="1"
-                           Content="关闭"
                            Classes="icon-button"
                            Command="{Binding CloseCommand}"
                            Width="24" Height="24"
                            Padding="0"
-                           FontSize="14"/>
+                           ToolTip.Tip="关闭">
+                        <controls:UtilityIcon Kind="Close" Width="14" Height="14"/>
+                    </Button>
                 </Grid>
             </Border>
 

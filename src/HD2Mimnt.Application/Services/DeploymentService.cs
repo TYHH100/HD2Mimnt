@@ -399,10 +399,43 @@ public class DeploymentService
                         continue;
                     }
 
-                    // 遍历 Mod 目录中的所有文件
-                    var files = await Task.Run(
-                        () => Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories),
-                        cancellationToken);
+                    // 按该配置保存的选项选择确定要部署的文件：
+                    // v0 只部署选中互斥项的子目录，v1 只部署启用选项（及选中子选项）Include 的目录；
+                    // 模组没有选项或清单缺少映射时保持原有全量部署
+                    var deployPlan = ProfileModOptionResolver.ResolveDeployPlan(
+                        mod.Manifest,
+                        ProfileModOptionResolver.ResolveEffective(mod.Manifest, profileMod.OptionsJson));
+
+                    if (deployPlan.Scope == OptionDeployScope.InvalidSelection)
+                    {
+                        _logger?.LogError(
+                            "模组 {ModName} 的选项选择与当前清单不匹配，跳过部署（重新选择选项后重试）",
+                            mod.Name);
+                        result.SkippedMods++;
+                        await UpdateDeploymentStatusAsync(
+                            deploymentRecord.Id,
+                            DeploymentStatus.Failed,
+                            DateTime.UtcNow,
+                            cancellationToken);
+                        continue;
+                    }
+
+                    List<string> files;
+                    if (deployPlan.Scope == OptionDeployScope.DirectoryList)
+                    {
+                        files = await Task.Run(
+                            () => CollectFilesFromDirectories(modDirectory, deployPlan.Directories),
+                            cancellationToken);
+                    }
+                    else
+                    {
+                        files = (await Task.Run(
+                            () => Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories),
+                            cancellationToken)).ToList();
+                    }
+                    // 遍历部署文件；选项过滤时目标拍平到游戏目录根（旧版语义：
+                    // 选项目录里的补丁文件必须落在 data/ 根才会被游戏加载）
+                    var flattenToGameRoot = deployPlan.Scope == OptionDeployScope.DirectoryList;
                     var deployedFiles = new List<(string SourcePath, string TargetPath)>();
                     int fileIndex = 0;
                     bool hasFailure = false;
@@ -414,7 +447,9 @@ public class DeploymentService
 
                         // 计算相对路径
                         var relativePath = Path.GetRelativePath(modDirectory, sourceFile);
-                        var targetPath = Path.Combine(gameDirectory, relativePath);
+                        var targetPath = flattenToGameRoot
+                            ? Path.Combine(gameDirectory, Path.GetFileName(sourceFile))
+                            : Path.Combine(gameDirectory, relativePath);
 
                         progress?.Report(new DeploymentProgress
                         {
@@ -424,7 +459,7 @@ public class DeploymentService
                             TotalMods = orderedMods.Count,
                             CompletedMods = result.CompletedMods,
                             CurrentModFiles = fileIndex,
-                            CurrentModTotalFiles = files.Length
+                            CurrentModTotalFiles = files.Count
                         });
 
                         // 部署单个文件
@@ -528,6 +563,38 @@ public class DeploymentService
             result.ErrorMessage = ex.Message;
             return result;
         }
+    }
+
+    /// <summary>
+    /// 按选项 Include 的相对目录列表收集模组内要部署的文件。
+    /// 目录缺失或越出模组目录时跳过（与旧版管理器一致：缺失的 Include 目录不阻断部署）。
+    /// </summary>
+    private List<string> CollectFilesFromDirectories(string modDirectory, IReadOnlyList<string> relativeDirectories)
+    {
+        var fullRoot = Path.GetFullPath(modDirectory);
+        var files = new List<string>();
+
+        foreach (var relative in relativeDirectories)
+        {
+            var fullDir = Path.GetFullPath(Path.Combine(fullRoot, relative));
+            if (!fullDir.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)
+                && !fullDir.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger?.LogWarning("选项 Include 越出模组目录，已跳过: {Directory}", relative);
+                continue;
+            }
+
+            if (!Directory.Exists(fullDir))
+            {
+                _logger?.LogWarning("选项 Include 目录不存在，已跳过: {Directory}", fullDir);
+                continue;
+            }
+
+            files.AddRange(Directory.GetFiles(fullDir, "*.*", SearchOption.AllDirectories));
+        }
+
+        // Include 目录可能重叠，去重避免同一文件重复部署/重复记录
+        return files.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>

@@ -107,13 +107,13 @@
                 <!-- Warning Banner -->
                 <Border IsVisible="{Binding ShowWarning}"
                        Background="#1E1506"
-                       BorderBrush="#E9A568"
+                       BorderBrush="{DynamicResource WarningBrush}"
                        BorderThickness="1"
                        CornerRadius="6"
                        Padding="16">
                     <TextBlock Text="{Binding WarningMessage}"
                               FontSize="13"
-                              Foreground="#E9A568"
+                              Foreground="{DynamicResource WarningBrush}"
                               TextWrapping="Wrap"/>
                 </Border>
 
@@ -157,14 +157,14 @@
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <Border IsVisible="{Binding IsHighRisk}"
                                                    Background="#1E0F0F"
-                                                   BorderBrush="#E94560"
+                                                   BorderBrush="{DynamicResource ErrorBrush}"
                                                    BorderThickness="1"
                                                    CornerRadius="999"
                                                    Padding="8,4">
                                                 <TextBlock Text="高风险"
                                                          FontSize="11"
                                                          FontWeight="Medium"
-                                                         Foreground="#E94560"/>
+                                                         Foreground="{DynamicResource ErrorBrush}"/>
                                             </Border>
                                             <CheckBox IsVisible="{Binding CanEdit}"
                                                      IsChecked="{Binding IsGranted}"
@@ -220,13 +220,13 @@
                            CornerRadius="4"
                            Background="{DynamicResource BorderBrush}"
                            Foreground="{DynamicResource TextPrimaryBrush}"
-                           BorderBrush="#38BDF8"
+                           BorderBrush="{DynamicResource AccentBrush}"
                            BorderThickness="1"
                            MinWidth="120">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#2A3644"/>
-                                <Setter Property="BorderBrush" Value="#60D5FF"/>
+                                <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
@@ -237,14 +237,14 @@
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
                            CornerRadius="4"
-                           Background="#38BDF8"
+                           Background="{DynamicResource AccentBrush}"
                            Foreground="{DynamicResource Surface0Brush}"
                            BorderThickness="0"
                            FontWeight="Medium"
                            MinWidth="120">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#60D5FF"/>
+                                <Setter Property="Background" Value="{DynamicResource AccentStrongBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>

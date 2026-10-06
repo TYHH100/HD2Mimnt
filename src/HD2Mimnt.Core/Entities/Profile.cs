@@ -14,6 +14,11 @@ public class Profile
     public bool IsActive { get; set; }
 
     /// <summary>
+    /// 配置文件在左侧列表中的显示顺序（0 起，最早创建的默认配置固定为 0）
+    /// </summary>
+    public int SortOrder { get; set; }
+
+    /// <summary>
     /// 传统 Mod 引用列表
     /// </summary>
     public List<ProfileMod> Mods { get; set; } = new();
@@ -34,4 +39,9 @@ public class ProfileMod
     public Guid ModId { get; set; }
     public bool Enabled { get; set; }
     public int Order { get; set; }
+
+    /// <summary>
+    /// 该配置中此模组的选项选择状态（ProfileModOptionsState 的 JSON；空串表示未做过选择，按默认值处理）
+    /// </summary>
+    public string OptionsJson { get; set; } = string.Empty;
 }

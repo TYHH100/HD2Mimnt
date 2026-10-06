@@ -45,7 +45,21 @@ public class ModOption
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public bool DefaultEnabled { get; set; }
+
+    /// <summary>
+    /// 清单未声明时的默认启用值；null（旧版清单没有该字段）表示默认启用
+    /// </summary>
+    public bool? DefaultEnabled { get; set; }
+
+    /// <summary>
+    /// 选项启用时参与部署的相对目录列表；空列表是合法的“无文件占位”选项。
+    /// null 表示清单未声明映射，部署时无法按选项过滤，需回退全量部署
+    /// </summary>
+    public List<string>? Include { get; set; }
+
+    /// <summary>选项预览图相对路径（仅展示用）</summary>
+    public string? Image { get; set; }
+
     public List<ModSubOption>? SubOptions { get; set; }
 }
 
@@ -56,6 +70,14 @@ public class ModSubOption
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 子选项被选中时参与部署的相对目录列表
+    /// </summary>
+    public List<string>? Include { get; set; }
+
+    /// <summary>子选项预览图相对路径（仅展示用）</summary>
+    public string? Image { get; set; }
 }
 
 /// <summary>

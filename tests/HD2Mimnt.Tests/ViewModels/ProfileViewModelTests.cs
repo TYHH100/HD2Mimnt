@@ -53,7 +53,7 @@ public sealed class ProfileViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SetActiveProfileCommand_ShouldRefreshSelectedProfileDetails()
+    public async Task SetActiveProfileAsync_ShouldRefreshSelectedProfileDetails()
     {
         var firstMod = await AddModAsync("First Mod");
         var secondMod = await AddModAsync("Second Mod");
@@ -67,12 +67,72 @@ public sealed class ProfileViewModelTests : IDisposable
         await viewModel.LoadProfilesCommand.ExecuteAsync(null);
         var secondProfile = Assert.Single(viewModel.Profiles, profile => profile.Id == secondProfileId);
 
-        await viewModel.SetActiveProfileCommand.ExecuteAsync(secondProfile);
+        // 旧版 SetActiveProfileCommand 已由"选中即切换"语义替代，入口为公共方法 SetActiveProfileAsync
+        await viewModel.SetActiveProfileAsync(secondProfile);
 
         Assert.Same(secondProfile, viewModel.SelectedProfile);
+        Assert.True(secondProfile.IsActive);
         var selectedMod = Assert.Single(viewModel.ProfileMods);
         Assert.Equal(secondMod.Id, selectedMod.ModId);
         Assert.Equal(secondProfileId, (await _profileService.GetActiveProfileAsync())!.Id);
+    }
+
+    [Fact]
+    public async Task OpenModOptions_WithSubOptions_ShouldBuildChoicesAndPersistSelection()
+    {
+        // Arrange：带 v1 选项与子选项（多选一变体）的模组
+        var mod = await AddModAsync("Sub Option Mod");
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new()
+                {
+                    Name = "上身",
+                    Description = "替换上身",
+                    Include = new List<string> { "上身" },
+                    SubOptions = new List<ModSubOption>
+                    {
+                        new() { Name = "内衣", Include = new List<string> { "上身/内衣" } },
+                        new() { Name = "空", Include = new List<string>() }
+                    }
+                },
+                new() { Name = "本体", Include = new List<string> { "本体" } }
+            }
+        };
+        await _modRepository.UpdateAsync(mod);
+
+        var profileId = await _profileService.CreateProfileAsync("P");
+        await _profileService.SetActiveProfileAsync(profileId);
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var viewModel = CreateViewModel();
+        await viewModel.LoadProfilesCommand.ExecuteAsync(null);
+
+        // Assert：卡片带选项入口，覆盖层构建出选项与子选项
+        var card = Assert.Single(viewModel.ProfileMods);
+        Assert.True(card.HasOptions);
+
+        viewModel.OpenModOptionsCommand.Execute(card);
+        var dialog = viewModel.ModOptionsDialog;
+        Assert.NotNull(dialog);
+        Assert.False(dialog!.IsLegacyMode);
+        Assert.Equal(2, dialog.OptionCards.Count);
+
+        var cardWithSub = dialog.OptionCards[0];
+        Assert.True(cardWithSub.HasSubOptions);
+        Assert.Equal(new[] { "内衣", "空" }, cardWithSub.SubOptions.Select(sub => sub.Name));
+        Assert.True(cardWithSub.SubOptions[0].IsSelected);
+        Assert.False(dialog.OptionCards[1].HasSubOptions);
+
+        // Act：点选第二个变体（多选一），应立即持久化
+        dialog.SelectSubOption(cardWithSub.SubOptions[1]);
+
+        var persisted = await _profileService.GetProfileByIdAsync(profileId);
+        var state = ProfileModOptionsState.FromJson(Assert.Single(persisted!.Mods).OptionsJson);
+        Assert.Equal(new List<int> { 1, 0 }, state.OptionSelections);
     }
 
     private ProfileViewModel CreateViewModel()
@@ -84,7 +144,8 @@ public sealed class ProfileViewModelTests : IDisposable
             _profileService,
             _modService,
             new NotificationService(),
-            confirmation.Object);
+            confirmation.Object,
+            new SettingsService(_storageDirectory));
     }
 
     private async Task<Mod> AddModAsync(string name)

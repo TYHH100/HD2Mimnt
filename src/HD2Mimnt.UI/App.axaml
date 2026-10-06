@@ -19,32 +19,32 @@
                     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#555A60"/>
                     <SolidColorBrush x:Key="TextMutedBrush" Color="#697586"/>
                     <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#E5EAF1"/>
-                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#DDEDEA"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#087EA4"/>
-                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#05627F"/>
+                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#DCE9FB"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#1A6FCE"/>
+                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#125BB0"/>
                     <SolidColorBrush x:Key="SuccessBrush" Color="#16794A"/>
                     <SolidColorBrush x:Key="WarningBrush" Color="#A15C00"/>
                     <SolidColorBrush x:Key="ErrorBrush" Color="#B42318"/>
                     <SolidColorBrush x:Key="DisabledBrush" Color="#8A94A3"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="Surface0Brush" Color="#151618"/>
-                    <SolidColorBrush x:Key="Surface1Brush" Color="#1C1D20"/>
-                    <SolidColorBrush x:Key="Surface2Brush" Color="#222326"/>
-                    <SolidColorBrush x:Key="Surface3Brush" Color="#292B2F"/>
-                    <SolidColorBrush x:Key="BorderBrush" Color="#35373B"/>
-                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#55585F"/>
-                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E0E0E0"/>
-                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
-                    <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280"/>
-                    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#303236"/>
-                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#263D40"/>
-                    <SolidColorBrush x:Key="AccentBrush" Color="#54B8B0"/>
-                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#359B94"/>
-                    <SolidColorBrush x:Key="SuccessBrush" Color="#6EE7B7"/>
+                    <SolidColorBrush x:Key="Surface0Brush" Color="#0D131D"/>
+                    <SolidColorBrush x:Key="Surface1Brush" Color="#111A2A"/>
+                    <SolidColorBrush x:Key="Surface2Brush" Color="#152033"/>
+                    <SolidColorBrush x:Key="Surface3Brush" Color="#1B2841"/>
+                    <SolidColorBrush x:Key="BorderBrush" Color="#223049"/>
+                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#3A4D6E"/>
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E8EEF8"/>
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9AAAC6"/>
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7E9E"/>
+                    <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#1A2740"/>
+                    <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#16305E"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6"/>
+                    <SolidColorBrush x:Key="AccentStrongBrush" Color="#2563EB"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#34D399"/>
                     <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24"/>
                     <SolidColorBrush x:Key="ErrorBrush" Color="#F87171"/>
-                    <SolidColorBrush x:Key="DisabledBrush" Color="#6B7280"/>
+                    <SolidColorBrush x:Key="DisabledBrush" Color="#64748B"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -61,6 +61,11 @@
         <CornerRadius x:Key="SubtleCornerRadius">2</CornerRadius>
         <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
         <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
+        <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+        <!-- 卡片/框架填充：默认不透明；启用背景图或调整透明度时由 MainWindowViewModel 运行时重建（随主题换色） -->
+        <SolidColorBrush x:Key="CardFillBrush" Color="#FF152033"/>
+        <SolidColorBrush x:Key="ChromeFillBrush" Color="#FF111A2A"/>
+        <SolidColorBrush x:Key="ContentFillBrush" Color="#FF0D131D"/>
         <x:Double x:Key="Space4">4</x:Double>
         <x:Double x:Key="Space8">8</x:Double>
         <x:Double x:Key="Space12">12</x:Double>
@@ -86,6 +91,19 @@
         <Style Selector="TextBox, ComboBox, NumericUpDown"><Setter Property="MinHeight" Value="32"/><Setter Property="FontSize" Value="13"/></Style>
         <Style Selector="ListBox"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/></Style>
         <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/><Setter Property="MinHeight" Value="32"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+
+        <Style Selector="TextBlock.page-subtitle">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+
         <Style Selector="Border.section"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="Padding" Value="0,12"/><Setter Property="CornerRadius" Value="0"/></Style>
         <Style Selector="Button.tool-row"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0,0,0,1"/><Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="CornerRadius" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="12,12"/></Style>
         <Style Selector="Button.tool-row:pointerover"><Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/></Style>
@@ -224,7 +242,7 @@
         </Style>
 
         <Style Selector="TextBox:focus">
-            <Setter Property="BorderBrush" Value="#54B8B0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!-- Icon Button Style -->
@@ -251,7 +269,7 @@
 
         <!-- Badge Style -->
         <Style Selector="Border.badge">
-            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
             <Setter Property="CornerRadius" Value="2"/>
             <Setter Property="Padding" Value="6,2"/>
             <Setter Property="MinWidth" Value="20"/>
@@ -394,7 +412,7 @@
         </Style>
 
         <Style Selector="ComboBox:focus">
-            <Setter Property="BorderBrush" Value="#54B8B0"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="ComboBox:pointerover">

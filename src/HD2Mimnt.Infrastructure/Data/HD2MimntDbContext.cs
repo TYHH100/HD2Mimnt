@@ -76,7 +76,8 @@ public class HD2MimntDbContext : IDisposable
                 Description TEXT,
                 CreatedAt TEXT NOT NULL,
                 ModifiedAt TEXT NOT NULL,
-                IsActive INTEGER NOT NULL
+                IsActive INTEGER NOT NULL,
+                SortOrder INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS ProfileMods (
@@ -84,6 +85,7 @@ public class HD2MimntDbContext : IDisposable
                 ModId TEXT NOT NULL,
                 Enabled INTEGER NOT NULL,
                 [Order] INTEGER NOT NULL,
+                OptionsJson TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (ProfileId, ModId),
                 FOREIGN KEY (ProfileId) REFERENCES Profiles(Id) ON DELETE CASCADE,
                 FOREIGN KEY (ModId) REFERENCES Mods(Id) ON DELETE CASCADE
@@ -429,6 +431,43 @@ public class HD2MimntDbContext : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // 轻量列迁移：老库的 Profiles 没有 SortOrder 列时补列，并按创建时间回填顺序
+        using (var checkCommand = connection.CreateCommand())
+        {
+            checkCommand.CommandText =
+                "SELECT COUNT(*) FROM pragma_table_info('Profiles') WHERE name = 'SortOrder';";
+            var hasSortOrder = Convert.ToInt64(await checkCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+            if (!hasSortOrder)
+            {
+                using var alterCommand = connection.CreateCommand();
+                alterCommand.CommandText = "ALTER TABLE Profiles ADD COLUMN SortOrder INTEGER NOT NULL DEFAULT 0;";
+                await alterCommand.ExecuteNonQueryAsync(cancellationToken);
+
+                using var backfillCommand = connection.CreateCommand();
+                backfillCommand.CommandText = @"
+                    UPDATE Profiles SET SortOrder = (
+                        SELECT COUNT(*) FROM Profiles p2
+                        WHERE p2.CreatedAt < Profiles.CreatedAt
+                           OR (p2.CreatedAt = Profiles.CreatedAt AND p2.Id < Profiles.Id));";
+                await backfillCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        // 轻量列迁移：老库的 ProfileMods 没有 OptionsJson 列时补列。
+        // 只加列、不重建表，模组行与 [Order] 保持原值，软件升级不能打乱配置文件里的模组顺序。
+        using (var checkCommand = connection.CreateCommand())
+        {
+            checkCommand.CommandText =
+                "SELECT COUNT(*) FROM pragma_table_info('ProfileMods') WHERE name = 'OptionsJson';";
+            var hasOptionsJson = Convert.ToInt64(await checkCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+            if (!hasOptionsJson)
+            {
+                using var alterCommand = connection.CreateCommand();
+                alterCommand.CommandText = "ALTER TABLE ProfileMods ADD COLUMN OptionsJson TEXT NOT NULL DEFAULT '';";
+                await alterCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
     }
 
     public void Dispose()

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -24,26 +25,26 @@ public class GameDetectionService
     }
 
     /// <summary>
-    /// 自动检测游戏（仅在启动时或用户触发时调用）
+    /// 自动检测游戏（仅在启动时或用户触发时调用）。
+    /// 已配置路径时只校验并应用该路径、不再扫描；scanEvenIfConfigured 为 true（如设置页"自动识别"按钮）才强制重新扫描。
     /// </summary>
-    public async Task AutoDetectAsync(CancellationToken cancellationToken = default)
+    public async Task AutoDetectAsync(CancellationToken cancellationToken = default, bool scanEvenIfConfigured = false)
     {
         _logger?.LogInformation("开始自动检测游戏...");
 
         // 1. 尝试从设置中读取用户指定的路径
         var customPath = await _settingsService.GetSettingAsync<string?>("Game.Path", null);
-        if (!string.IsNullOrWhiteSpace(customPath))
+        if (!string.IsNullOrWhiteSpace(customPath) && !scanEvenIfConfigured)
         {
-            _logger?.LogInformation("检查用户设置的路径: {Path}", customPath);
-            if (await ValidateGameDirectoryAsync(customPath, cancellationToken))
-            {
-                await UpdateGameInfoAsync(customPath, GameStatus.Found, cancellationToken);
-                return;
-            }
+            _logger?.LogInformation("使用用户设置的路径: {Path}", customPath);
+            var configuredValid = await ValidateGameDirectoryAsync(customPath, cancellationToken);
+            await UpdateGameInfoAsync(customPath, configuredValid ? GameStatus.Found : GameStatus.Invalid, cancellationToken);
+            return;
         }
 
-        // 2. 检测常见安装位置
-        var detectedPath = await DetectFromCommonLocationsAsync(cancellationToken);
+        // 2. 未配置（或显式要求重扫）时检测常见安装位置；文件系统探测放后台线程，避免阻塞 UI
+        var detectedPath = await Task.Run(
+            async () => await DetectFromCommonLocationsAsync(cancellationToken), cancellationToken);
         if (detectedPath != null)
         {
             _logger?.LogInformation("在常见位置找到游戏: {Path}", detectedPath);
@@ -60,44 +61,42 @@ public class GameDetectionService
     }
 
     /// <summary>
-    /// 验证游戏目录是否有效
+    /// 验证游戏目录是否有效。
+    /// 校验语义移植自旧版管理器：目录名为 Helldivers 2，且同时包含
+    /// data、tools、bin 子目录与 bin\helldivers2.exe 主程序。
     /// </summary>
     public async Task<bool> ValidateGameDirectoryAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var valid = ValidateGameDirectory(path);
+        if (!valid)
+        {
+            _logger?.LogInformation("游戏目录校验未通过: {Path}", path);
+        }
+
+        return await Task.FromResult(valid);
+    }
+
+    private bool ValidateGameDirectory(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
         {
             return false;
         }
 
-        // 检查关键文件是否存在
-        var requiredFiles = new[]
+        var directory = new DirectoryInfo(path);
+        if (!string.Equals(directory.Name, "Helldivers 2", StringComparison.OrdinalIgnoreCase))
         {
-            "helldivers2.exe",
-            "Helldivers2.exe",
-            "game.exe"
-        };
-
-        foreach (var file in requiredFiles)
-        {
-            var fullPath = Path.Combine(path, file);
-            if (File.Exists(fullPath))
-            {
-                _logger?.LogInformation("找到游戏可执行文件: {File}", file);
-                return true;
-            }
+            return false;
         }
 
-        // 检查常见的游戏目录结构
-        var commonSubdirs = new[] { "data", "bin", "content" };
-        var foundCount = commonSubdirs.Count(subdir => Directory.Exists(Path.Combine(path, subdir)));
-
-        if (foundCount >= 2)
+        if (!Directory.Exists(Path.Combine(path, "data"))
+            || !Directory.Exists(Path.Combine(path, "tools"))
+            || !Directory.Exists(Path.Combine(path, "bin")))
         {
-            _logger?.LogInformation("检测到游戏目录结构");
-            return true;
+            return false;
         }
 
-        return false;
+        return Directory.GetFiles(Path.Combine(path, "bin"), "helldivers2.exe").Any();
     }
 
     /// <summary>
@@ -147,11 +146,10 @@ public class GameDetectionService
 
     private async Task<string?> DetectFromCommonLocationsAsync(CancellationToken cancellationToken)
     {
-        var commonPaths = GetCommonGamePaths();
-
-        foreach (var path in commonPaths)
+        foreach (var path in GetCandidateGamePaths())
         {
-            if (await ValidateGameDirectoryAsync(path, cancellationToken))
+            cancellationToken.ThrowIfCancellationRequested();
+            if (ValidateGameDirectory(path))
             {
                 return path;
             }
@@ -160,49 +158,54 @@ public class GameDetectionService
         return null;
     }
 
-    private IEnumerable<string> GetCommonGamePaths()
+    /// <summary>
+    /// 候选安装路径，按优先级排列：Steam 注册表与库文件夹扫描 → 常见静态路径 → 全盘符兜底。
+    /// 检测语义移植自旧版管理器 SettingsPageViewModel.DetectGame。
+    /// </summary>
+    private IEnumerable<string> GetCandidateGamePaths()
     {
-        var paths = new List<string>();
-
-        // Steam 默认路径
-        var steamPaths = new[]
+        var candidates = new List<string>();
+        void Add(string? path)
         {
-            @"C:\Program Files (x86)\Steam\steamapps\common\Helldivers 2",
-            @"C:\Program Files\Steam\steamapps\common\Helldivers 2",
-            @"D:\Steam\steamapps\common\Helldivers 2",
-            @"E:\Steam\steamapps\common\Helldivers 2",
-        };
-        paths.AddRange(steamPaths);
-
-        // Epic Games 默认路径
-        var epicPaths = new[]
-        {
-            @"C:\Program Files\Epic Games\Helldivers2",
-            @"D:\Epic Games\Helldivers2",
-        };
-        paths.AddRange(epicPaths);
-
-        // 尝试从 Steam 注册表读取
-        try
-        {
-            var steamPath = GetSteamInstallPathFromRegistry();
-            if (!string.IsNullOrEmpty(steamPath))
+            if (!string.IsNullOrWhiteSpace(path) && !candidates.Contains(path, StringComparer.OrdinalIgnoreCase))
             {
-                var steamLibraryPath = Path.Combine(steamPath, "steamapps", "common", "Helldivers 2");
-                if (!paths.Contains(steamLibraryPath))
-                {
-                    paths.Add(steamLibraryPath);
-                }
+                candidates.Add(path);
             }
         }
-        catch (Exception ex)
+
+        // 1. Steam 注册表定位安装目录，再扫描所有 Steam 库
+        var steamPath = GetSteamInstallPathFromRegistry();
+        if (!string.IsNullOrWhiteSpace(steamPath))
         {
-            _logger?.LogWarning(ex, "读取 Steam 注册表失败");
+            foreach (var library in GetSteamLibraryFolders(steamPath))
+            {
+                Add(Path.Combine(library, "steamapps", "common", "Helldivers 2"));
+            }
         }
 
-        return paths;
+        // 2. 常见静态安装路径
+        Add(@"C:\Program Files (x86)\Steam\steamapps\common\Helldivers 2");
+        Add(@"C:\Program Files\Steam\steamapps\common\Helldivers 2");
+        Add(@"C:\Program Files\Epic Games\Helldivers2");
+
+        // 3. 全盘符兜底扫描
+        foreach (var drive in Environment.GetLogicalDrives())
+        {
+            var root = drive.TrimEnd(Path.DirectorySeparatorChar);
+            if (string.Equals(root, "C:", StringComparison.OrdinalIgnoreCase))
+            {
+                Add(@"C:\Program Files (x86)\Steam\steamapps\common\Helldivers 2");
+            }
+            Add(Path.Combine(root, "Steam", "steamapps", "common", "Helldivers 2"));
+            Add(Path.Combine(root, "SteamLibrary", "steamapps", "common", "Helldivers 2"));
+        }
+
+        return candidates;
     }
 
+    /// <summary>
+    /// Steam 安装目录：HKCU SteamPath → HKLM InstallPath → HKLM Wow6432Node InstallPath。
+    /// </summary>
     private string? GetSteamInstallPathFromRegistry()
     {
         if (!OperatingSystem.IsWindows())
@@ -212,13 +215,66 @@ public class GameDetectionService
 
         try
         {
-            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam");
-            return key?.GetValue("SteamPath") as string;
+            using (var currentUserKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"))
+            {
+                if (currentUserKey?.GetValue("SteamPath") is string steamPath && Directory.Exists(steamPath))
+                {
+                    return steamPath;
+                }
+            }
+
+            foreach (var subKey in new[] { @"Software\Valve\Steam", @"Software\Wow6432Node\Valve\Steam" })
+            {
+                using var localMachineKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(subKey);
+                if (localMachineKey?.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
+                {
+                    return installPath;
+                }
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            _logger?.LogWarning(ex, "读取 Steam 注册表失败");
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 枚举 Steam 库：Steam 根目录本身是库，其余来自 steamapps\libraryfolders.vdf。
+    /// </summary>
+    private IEnumerable<string> GetSteamLibraryFolders(string steamPath)
+    {
+        var libraries = new List<string>();
+        void AddLibrary(string? path)
+        {
+            if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
+                && !libraries.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                libraries.Add(path);
+            }
+        }
+
+        AddLibrary(steamPath);
+
+        try
+        {
+            var vdfPath = Path.Combine(steamPath, "steamapps", "libraryfolders.vdf");
+            if (File.Exists(vdfPath))
+            {
+                var content = File.ReadAllText(vdfPath);
+                foreach (Match match in Regex.Matches(content, @"""path""\s*""([^""]+)"""))
+                {
+                    AddLibrary(match.Groups[1].Value.Replace(@"\\", @"\"));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "解析 libraryfolders.vdf 失败");
+        }
+
+        return libraries;
     }
 
     private async Task UpdateGameInfoAsync(string path, GameStatus status, CancellationToken cancellationToken)
