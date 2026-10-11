@@ -1,0 +1,64 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- IsSelected 由 ViewModel 驱动；基于 FluentAvalonia 原生主题统一复用选择外观。 -->
+  <ControlTheme x:Key="ViewModelSelectableListBoxItemTheme" TargetType="ListBoxItem"
+                BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="IsSelected" Value="{ReflectionBinding IsSelected, Mode=OneWay}"/>
+  </ControlTheme>
+
+  <!-- 页面语义资源引用 FluentAvalonia 色板，不维护第二套深浅色。 -->
+  <SolidColorBrush x:Key="Surface0Brush" Color="{DynamicResource SolidBackgroundFillColorBase}"/>
+  <SolidColorBrush x:Key="Surface1Brush" Color="{DynamicResource SolidBackgroundFillColorSecondary}"/>
+  <SolidColorBrush x:Key="Surface2Brush" Color="{DynamicResource SolidBackgroundFillColorTertiary}"/>
+  <SolidColorBrush x:Key="Surface3Brush" Color="{DynamicResource SolidBackgroundFillColorQuarternary}"/>
+  <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource CardStrokeColorDefault}"/>
+  <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource ControlStrongStrokeColorDefault}"/>
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextFillColorPrimary}"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextFillColorSecondary}"/>
+  <SolidColorBrush x:Key="TextMutedBrush" Color="{DynamicResource TextFillColorTertiary}"/>
+  <SolidColorBrush x:Key="HoverSurfaceBrush" Color="{DynamicResource SubtleFillColorSecondary}"/>
+  <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="{DynamicResource SubtleFillColorTertiary}"/>
+  <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource SystemAccentColor}"/>
+  <SolidColorBrush x:Key="AccentStrongBrush" Color="{DynamicResource SystemAccentColorDark1}"/>
+  <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource SystemFillColorSuccess}"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource SystemFillColorCaution}"/>
+  <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource SystemFillColorCritical}"/>
+  <SolidColorBrush x:Key="DisabledBrush" Color="{DynamicResource TextFillColorDisabled}"/>
+  <SolidColorBrush x:Key="WarningBackgroundBrush" Color="{DynamicResource SystemFillColorCautionBackground}"/>
+  <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="{DynamicResource SystemFillColorCriticalBackground}"/>
+  <SolidColorBrush x:Key="OverlayScrimBrush" Color="{DynamicResource SmokeFillColorDefault}"/>
+  <!-- 图片查看器使用固定遮光背景，保证两种主题下图片和关闭入口均可辨认。 -->
+  <SolidColorBrush x:Key="ImagePreviewBackgroundBrush" Color="#E6000000"/>
+  <SolidColorBrush x:Key="ImagePreviewForegroundBrush" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TutorialHighlightBrush" Color="#408CFF"/>
+  <SolidColorBrush x:Key="TutorialScrimBrush" Color="#66000000"/>
+  <x:Double x:Key="TutorialBlurRadius">5</x:Double>
+
+  <!-- 仅更新透明度，颜色始终动态跟随实际主题（包括系统主题变化）。 -->
+  <x:Double x:Key="CardSurfaceOpacity">1</x:Double>
+  <x:Double x:Key="ChromeSurfaceOpacity">1</x:Double>
+  <x:Double x:Key="ContentSurfaceOpacity">1</x:Double>
+  <SolidColorBrush x:Key="CardFillBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="ChromeFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="ContentFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
+  <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="SubtleCornerRadius">2</CornerRadius>
+  <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+  <CornerRadius x:Key="CardCornerRadius">8</CornerRadius>
+  <CornerRadius x:Key="NotificationCornerRadius">18</CornerRadius>
+  <SolidColorBrush x:Key="NotificationSurfaceBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" Opacity="0.97"/>
+  <x:Double x:Key="Space4">4</x:Double>
+  <x:Double x:Key="Space8">8</x:Double>
+  <x:Double x:Key="Space12">12</x:Double>
+  <x:Double x:Key="Space16">16</x:Double>
+  <x:Double x:Key="Space20">20</x:Double>
+  <x:Double x:Key="Space24">24</x:Double>
+  <x:Double x:Key="Space32">32</x:Double>
+  <x:Double x:Key="PageTitleFontSize">24</x:Double>
+  <x:Double x:Key="SectionTitleFontSize">18</x:Double>
+  <x:Double x:Key="BodyFontSize">14</x:Double>
+  <x:Double x:Key="SecondaryFontSize">12</x:Double>
+  <x:Double x:Key="CaptionFontSize">12</x:Double>
+</ResourceDictionary>

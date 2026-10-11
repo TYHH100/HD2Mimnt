@@ -22,7 +22,6 @@ class Program
 #if DEBUG
             .WithDeveloperTools()
 #endif
-            .WithInterFont()
             .LogToTrace();
 
     public static void SetAppHost(IHost host)

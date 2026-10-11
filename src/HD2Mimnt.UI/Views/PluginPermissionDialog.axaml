@@ -3,6 +3,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        xmlns:controls="using:HD2Mimnt.UI.Controls"
+        xmlns:fa="using:FluentAvalonia.UI.Controls"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
         x:Class="HD2Mimnt.UI.Views.PluginPermissionDialog"
         x:DataType="vm:PluginPermissionDialogViewModel"
@@ -50,8 +52,7 @@
                                Background="{DynamicResource Surface3Brush}"
                                VerticalAlignment="Top"
                                Margin="0,0,12,0">
-                            <TextBlock Text="插件"
-                                     FontSize="32"
+                            <controls:UtilityIcon Kind="Plugin" Width="32" Height="32"
                                      HorizontalAlignment="Center"
                                      VerticalAlignment="Center"/>
                         </Border>
@@ -92,8 +93,7 @@
                                Padding="10,4"
                                HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding PermissionModeIcon}"
-                                         FontSize="12"
+                                <controls:UtilityIcon Kind="{Binding PermissionModeIcon}" Width="16" Height="16"
                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock Text="{Binding PermissionMode}"
                                          FontSize="12"
@@ -105,17 +105,7 @@
                 </Border>
 
                 <!-- Warning Banner -->
-                <Border IsVisible="{Binding ShowWarning}"
-                       Background="#1E1506"
-                       BorderBrush="{DynamicResource WarningBrush}"
-                       BorderThickness="1"
-                       CornerRadius="6"
-                       Padding="16">
-                    <TextBlock Text="{Binding WarningMessage}"
-                              FontSize="13"
-                              Foreground="{DynamicResource WarningBrush}"
-                              TextWrapping="Wrap"/>
-                </Border>
+                <fa:FAInfoBar IsOpen="{Binding ShowWarning}" Severity="Warning" IsClosable="False" Message="{Binding WarningMessage}"/>
 
                 <!-- Requested Permissions Section -->
                 <StackPanel Spacing="12">
@@ -135,9 +125,8 @@
                                        Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <!-- Icon -->
-                                        <TextBlock Grid.Column="0"
-                                                 Text="{Binding Icon}"
-                                                 FontSize="20"
+                                        <controls:UtilityIcon Grid.Column="0"
+                                                 Kind="{Binding Icon}" Width="20" Height="20"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,12,0"/>
 
@@ -156,13 +145,13 @@
                                         <!-- Risk and management state -->
                                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <Border IsVisible="{Binding IsHighRisk}"
-                                                   Background="#1E0F0F"
+                                                   Background="{DynamicResource ErrorBackgroundBrush}"
                                                    BorderBrush="{DynamicResource ErrorBrush}"
                                                    BorderThickness="1"
                                                    CornerRadius="999"
                                                    Padding="8,4">
                                                 <TextBlock Text="高风险"
-                                                         FontSize="11"
+                                                         FontSize="12"
                                                          FontWeight="Medium"
                                                          Foreground="{DynamicResource ErrorBrush}"/>
                                             </Border>
@@ -188,10 +177,10 @@
         </ScrollViewer>
 
         <!-- Action Buttons -->
-        <Border Grid.Row="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="24,16">
+        <Border Grid.Row="2" Padding="24,16">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsManagementMode}">
-                    <TextBlock Text="勾选需要授予的权限" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="勾选需要授予的权限" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
                     <Button Content="拒绝"
@@ -199,17 +188,7 @@
                            Command="{Binding DenyCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
-                           CornerRadius="4"
-                           Background="{DynamicResource Surface3Brush}"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           BorderBrush="{DynamicResource BorderBrush}"
-                           BorderThickness="1"
                            MinWidth="100">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
-                            </Style>
-                        </Button.Styles>
                     </Button>
 
                     <Button Content="仅本次允许"
@@ -217,36 +196,15 @@
                            Command="{Binding AllowOnceCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
-                           CornerRadius="4"
-                           Background="{DynamicResource BorderBrush}"
-                           Foreground="{DynamicResource TextPrimaryBrush}"
-                           BorderBrush="{DynamicResource AccentBrush}"
-                           BorderThickness="1"
                            MinWidth="120">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Style>
-                        </Button.Styles>
                     </Button>
 
-                    <Button Content="始终允许"
+                    <Button Classes="accent" Content="始终允许"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowAlwaysCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
-                           CornerRadius="4"
-                           Background="{DynamicResource AccentBrush}"
-                           Foreground="{DynamicResource Surface0Brush}"
-                           BorderThickness="0"
-                           FontWeight="Medium"
                            MinWidth="120">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource AccentStrongBrush}"/>
-                            </Style>
-                        </Button.Styles>
                     </Button>
                     <Button Content="取消"
                            IsVisible="{Binding IsManagementMode}"
@@ -257,7 +215,7 @@
                            IsVisible="{Binding IsManagementMode}"
                            Command="{Binding SavePermissionsCommand}"
                            CommandParameter="{Binding $parent[Window]}"
-                           Classes="primary"/>
+                           Classes="accent"/>
                 </StackPanel>
             </Grid>
         </Border>

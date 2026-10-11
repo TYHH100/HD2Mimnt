@@ -27,6 +27,7 @@ public class ProfileModOptionsTests : IDisposable
 
     public ProfileModOptionsTests()
     {
+        Directory.CreateDirectory(_gameDirRoot);
         _dbContext = new HD2MimntDbContext(_testDbPath);
         _dbContext.InitializeDatabaseAsync().Wait();
 
@@ -79,6 +80,52 @@ public class ProfileModOptionsTests : IDisposable
         };
         await _modRepository.AddAsync(mod);
         return mod;
+    }
+
+    [Fact]
+    public async Task Conflicts_ShouldFollowSelectedVariantsFlattenedTargetsAndEnabledState()
+    {
+        var first = await CreateModAsync("First", new ModManifest
+        {
+            ManifestVersion = ManifestVersion.Legacy, LegacyOptions = new() { "A", "B" }
+        });
+        var second = await CreateModAsync("Second", new ModManifest
+        {
+            ManifestVersion = ManifestVersion.V1,
+            Options = new() { new ModOption { Name = "Body", Include = new() { "Selected", "Selected" } } }
+        });
+        Directory.CreateDirectory(Path.Combine(first.Path, "A"));
+        Directory.CreateDirectory(Path.Combine(first.Path, "B"));
+        Directory.CreateDirectory(Path.Combine(second.Path, "Selected"));
+        Services.ConflictDetectionServiceTests.WritePatch(Path.Combine(first.Path, "A", "0123456789abcdef.patch_0"), 1);
+        Services.ConflictDetectionServiceTests.WritePatch(Path.Combine(first.Path, "B", "fedcba9876543210.patch_0"), 2);
+        Services.ConflictDetectionServiceTests.WritePatch(Path.Combine(second.Path, "Selected", "9999999999999999.patch_7"), 1);
+        File.WriteAllText(Path.Combine(first.Path, "preview.png"), "image");
+        File.WriteAllText(Path.Combine(second.Path, "preview.png"), "image");
+        var profileId = await _profileService.CreateProfileAsync("检测配置");
+        await _profileService.AddModToProfileAsync(profileId, first.Id);
+        await _profileService.AddModToProfileAsync(profileId, second.Id);
+        var scanner = new ConflictDetectionService(_profileRepository, _modRepository);
+        var result = await scanner.ScanProfileAsync(profileId);
+        var group = Assert.Single(result.Groups);
+        Assert.Equal(1UL, group.ResourceId);
+        Assert.Equal(new[] { first.Id, second.Id }, group.Owners.Select(owner => owner.ModId));
+        await _profileService.ReorderModsAsync(profileId, new() { second.Id, first.Id });
+        Assert.Equal(first.Id, Assert.Single((await scanner.ScanProfileAsync(profileId)).Groups).Owners.Last().ModId);
+        await _profileService.SetModOptionsAsync(profileId, first.Id, new() { LegacySelectedIndex = 1 });
+        Assert.Empty((await scanner.ScanProfileAsync(profileId)).Groups);
+        await _profileService.SetModOptionsAsync(profileId, first.Id, new() { LegacySelectedIndex = 0 });
+        await _profileService.SetModOptionsAsync(profileId, second.Id, new() { OptionToggles = new() { false } });
+        Assert.Empty((await scanner.ScanProfileAsync(profileId)).Groups);
+        await _profileService.SetModOptionsAsync(profileId, second.Id, new() { OptionToggles = new() { true } });
+        await _profileService.SetModEnabledAsync(profileId, second.Id, false);
+        Assert.Empty((await scanner.ScanProfileAsync(profileId)).Groups);
+        await _profileService.SetModEnabledAsync(profileId, second.Id, true);
+        await _profileService.SetModOptionsAsync(profileId, first.Id, new() { LegacySelectedIndex = 99 });
+        // 与部署共用 ResolveEffective：旧索引越界时回到默认选项 0。
+        var fallback = await scanner.ScanProfileAsync(profileId);
+        Assert.Single(fallback.Groups);
+        Assert.Equal(0, fallback.SkippedModCount);
     }
 
     // ── ProfileService 持久化 ──
@@ -363,8 +410,8 @@ public class ProfileModOptionsTests : IDisposable
         Directory.CreateDirectory(Path.Combine(modDir, "OptionA"));
         Directory.CreateDirectory(Path.Combine(modDir, "OptionB"));
         await File.WriteAllTextAsync(Path.Combine(modDir, "readme.txt"), "root");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "OptionA", "a.patch_0"), "a");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "OptionB", "b.patch_0"), "b");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "OptionA", "aaaaaaaaaaaaaaaa.patch_0"), "a");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "OptionB", "bbbbbbbbbbbbbbbb.patch_0"), "b");
 
         var mod = await CreateModAsync("legacy_mod", new ModManifest
         {
@@ -384,14 +431,14 @@ public class ProfileModOptionsTests : IDisposable
         var result = await CreateDeploymentService().DeployProfileAsync(
             profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
 
-        // Assert：只部署选中的 OptionB 子目录，且文件拍平到游戏目录根（旧版语义）；
+        // Assert：只部署选中的 OptionB 子目录，且文件拍平到游戏 data 目录（旧版语义）；
         // 根目录杂项与 OptionA 的文件不部署
         Assert.Equal(DeploymentStatus.Completed, result.Status);
         Assert.Equal(1, result.CompletedMods);
-        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "b.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "OptionB", "b.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "a.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "readme.txt")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "bbbbbbbbbbbbbbbb.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "OptionB", "bbbbbbbbbbbbbbbb.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "aaaaaaaaaaaaaaaa.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "readme.txt")));
     }
 
     [Fact]
@@ -401,8 +448,8 @@ public class ProfileModOptionsTests : IDisposable
         var modDir = Path.Combine(_modDirRoot, "v1_mod");
         Directory.CreateDirectory(Path.Combine(modDir, "ArmorA"));
         Directory.CreateDirectory(Path.Combine(modDir, "ArmorB"));
-        await File.WriteAllTextAsync(Path.Combine(modDir, "ArmorA", "a1.patch_0"), "a");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "ArmorB", "b1.patch_0"), "b");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "ArmorA", "1111111111111111.patch_0"), "a");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "ArmorB", "2222222222222222.patch_0"), "b");
 
         var mod = await CreateModAsync("v1_mod", new ModManifest
         {
@@ -427,20 +474,20 @@ public class ProfileModOptionsTests : IDisposable
         var result = await CreateDeploymentService().DeployProfileAsync(
             profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
 
-        // Assert：启用的选项文件拍平部署到游戏目录根
+        // Assert：启用的选项文件拍平部署到游戏 data 目录
         Assert.Equal(DeploymentStatus.Completed, result.Status);
-        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "b1.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "a1.patch_0")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "2222222222222222.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "1111111111111111.patch_0")));
     }
 
     [Fact]
     public async Task DeployProfileAsync_NoManifest_NoSubDirs_ShouldDeployFullDirectory()
     {
-        // Arrange：无清单且没有子目录的模组（目录推断不适用）保持原有全量部署
+        // Arrange：无清单且没有子目录的模组（目录推断不适用）部署根目录合法补丁
         var modDir = Path.Combine(_modDirRoot, "plain_mod");
         Directory.CreateDirectory(modDir);
-        await File.WriteAllTextAsync(Path.Combine(modDir, "root.patch_0"), "r");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "loose.patch_0"), "l");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "3333333333333333.patch_0"), "r");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "4444444444444444.patch_0"), "l");
 
         var mod = await CreateModAsync("plain_mod", null);
         mod.Path = modDir;
@@ -455,8 +502,8 @@ public class ProfileModOptionsTests : IDisposable
 
         // Assert
         Assert.Equal(DeploymentStatus.Completed, result.Status);
-        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "root.patch_0")));
-        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "loose.patch_0")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "3333333333333333.patch_0")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "4444444444444444.patch_0")));
     }
 
     [Fact]
@@ -468,8 +515,8 @@ public class ProfileModOptionsTests : IDisposable
         Directory.CreateDirectory(Path.Combine(modDir, "VariantA"));
         Directory.CreateDirectory(Path.Combine(modDir, "VariantB"));
         await File.WriteAllTextAsync(Path.Combine(modDir, "readme.txt"), "root");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "VariantA", "a.patch_0"), "a");
-        await File.WriteAllTextAsync(Path.Combine(modDir, "VariantB", "b.patch_0"), "b");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "VariantA", "aaaaaaaaaaaaaaaa.patch_0"), "a");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "VariantB", "bbbbbbbbbbbbbbbb.patch_0"), "b");
 
         var mod = await CreateModAsync("inferred_mod", null);
         mod.Path = modDir;
@@ -491,9 +538,9 @@ public class ProfileModOptionsTests : IDisposable
 
         // Assert
         Assert.Equal(DeploymentStatus.Completed, result.Status);
-        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "a.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "b.patch_0")));
-        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "readme.txt")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "aaaaaaaaaaaaaaaa.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "bbbbbbbbbbbbbbbb.patch_0")));
+        Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "readme.txt")));
     }
 
     private DeploymentService CreateDeploymentService()

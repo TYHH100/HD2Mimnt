@@ -7,7 +7,6 @@ using System.IO;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
-using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -33,6 +32,10 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ConfirmationService _confirmationService;
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
+    private readonly NexusModsTestService _nexusModsTestService;
+    private int _tutorialOriginPage;
+    private string? _tutorialOriginSettingsCategory;
+    private string? _tutorialOriginToolsCategory;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
@@ -110,6 +113,7 @@ public partial class MainWindowViewModel : ObservableObject
     public MoreViewModel MoreViewModel { get; } = new();
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
+    public TutorialViewModel Tutorial { get; } = new();
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -129,7 +133,8 @@ public partial class MainWindowViewModel : ObservableObject
         BackupViewModel backupViewModel,
         LogViewModel logViewModel,
         ConfirmationService confirmationService,
-        ImagePreviewService imagePreviewService)
+        ImagePreviewService imagePreviewService,
+        NexusModsTestService nexusModsTestService)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -149,19 +154,71 @@ public partial class MainWindowViewModel : ObservableObject
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
         _imagePreview = imagePreviewService;
+        _nexusModsTestService = nexusModsTestService;
+        Tutorial.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
+            {
+                if (Tutorial.IsOpen)
+                {
+                    _tutorialOriginPage = SelectedTabIndex;
+                    _tutorialOriginSettingsCategory = SettingsViewModel.SelectedCategory;
+                    _tutorialOriginToolsCategory = MoreViewModel.SelectedCategory;
+                }
+                else
+                {
+                    SettingsViewModel.SelectedCategory = _tutorialOriginSettingsCategory ?? "游戏";
+                    MoreViewModel.SelectedCategory = _tutorialOriginToolsCategory ?? "插件";
+                    NavigateToPage(_tutorialOriginPage);
+                    return;
+                }
+            }
+            if (Tutorial.IsOpen && (args.PropertyName == nameof(TutorialViewModel.CurrentStep)
+                || args.PropertyName == nameof(TutorialViewModel.IsOpen)))
+            {
+                CloseTaskCenter();
+                CloseNotifications();
+                NavigateForTutorialStep();
+            }
+        };
 
         NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
+        _profileViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ProfileViewModel.SelectedProfile)) SyncConflictProfile();
+        };
         _settingsViewModel.ThemeChanged += OnThemeChanged;
         _settingsViewModel.ListDensityChanged += OnListDensityChanged;
-        _settingsViewModel.LibraryDefaultsChanged += OnLibraryDefaultsChanged;
         _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
         _backupViewModel.RestoreCompleted += OnBackupRestored;
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
         _modService.ModsChanged += OnModsChanged;
         _profileService.ProfilesChanged += OnProfilesChanged;
+        _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
+    }
+
+    private void NavigateForTutorialStep()
+    {
+        if (Tutorial.CurrentStep.PageIndex == 3)
+            MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
+        if (Tutorial.CurrentStep.PageIndex == 4)
+            SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
+        NavigateToPage(Tutorial.CurrentStep.PageIndex);
+    }
+
+    private void NavigateToPage(int pageIndex)
+    {
+        switch (pageIndex)
+        {
+            case 0: NavigateToProfiles(); break;
+            case 1: NavigateToLibrary(); break;
+            case 2: NavigateToConflicts(); break;
+            case 3: NavigateToTools(); break;
+            case 4: NavigateToSettings(); break;
+        }
     }
 
     private void SubscribeToEvents()
@@ -271,6 +328,7 @@ public partial class MainWindowViewModel : ObservableObject
         // 模组增删后联动刷新配置文件页（库页自行重载）
         ApplyOnUiThread(async () =>
         {
+            _conflictsViewModel.InvalidateResults();
             await _profileViewModel.RefreshAfterProfilesChangedAsync();
         });
     }
@@ -280,13 +338,17 @@ public partial class MainWindowViewModel : ObservableObject
         // 配置文件数据变更（含模组成员/启用状态）联动刷新配置文件页与库页统计、归属状态
         ApplyOnUiThread(async () =>
         {
+            _conflictsViewModel.InvalidateResults();
             await _profileViewModel.RefreshAfterProfilesChangedAsync();
             await _libraryViewModel.RefreshProfileStateAsync();
+            SyncConflictProfile();
+            UpdateCurrentProfile();
         });
     }
 
     private async void OnBackupRestored(object? sender, EventArgs e)
     {
+        await _profileService.InitializeAsync();
         await _settingsViewModel.LoadAsync();
         await _libraryViewModel.InitializeAsync();
         await _profileViewModel.LoadProfilesAsync();
@@ -298,13 +360,14 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        await _profileService.InitializeAsync();
         await _libraryViewModel.InitializeAsync();
         await _profileViewModel.LoadProfilesAsync();
+        SyncConflictProfile();
         await _settingsViewModel.LoadAsync();
         ApplyTheme(_settingsViewModel.Theme);
         ApplyTransparencyBrushes();
         _libraryViewModel.ApplyListDensity(_settingsViewModel.ListDensity);
-        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultFilterType);
         await ApplyAppearanceAsync();
         await _taskCenterViewModel.LoadAsync();
         await _externalToolsViewModel.InitializeAsync();
@@ -357,10 +420,14 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void NavigateToConflicts()
     {
+        SyncConflictProfile();
         SelectedTabIndex = 2;
         CurrentView = _conflictsViewModel;
         StatusBarText = "冲突";
     }
+
+    private void SyncConflictProfile() => _conflictsViewModel.SetProfile(
+        _profileViewModel.SelectedProfile?.Id, _profileViewModel.SelectedProfile?.Name);
 
     /// <summary>配置文件页“检查冲突”入口：跳转冲突页并立即启动扫描。</summary>
     [RelayCommand]
@@ -420,13 +487,50 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void CloseNotifications() => IsNotificationPanelOpen = false;
 
+    partial void OnIsNotificationPanelOpenChanged(bool value)
+    {
+        NotificationPanelViewModel.IsHistoryOpen = value;
+        if (value) NotificationPanelViewModel.DismissAllToasts();
+    }
+
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (Tutorial.IsOpen)
+        {
+            Tutorial.CloseCommand.Execute(null);
+            return;
+        }
+        if (_libraryViewModel.Import.IsOpen)
+        {
+            _libraryViewModel.Import.CloseCommand.Execute(null);
+            return;
+        }
         if (_imagePreview.IsOpen)
         {
             _imagePreview.Close();
             return;
+        }
+
+        if (SelectedTabIndex == 0 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+        {
+            if (_profileViewModel.IsMoveToPositionDialogOpen)
+                _profileViewModel.CancelMoveToPositionCommand.Execute(null);
+            else if (_profileViewModel.IsModOptionsDialogOpen)
+                _profileViewModel.CloseModOptionsCommand.Execute(null);
+            else if (_profileViewModel.IsAddModOpen)
+                _profileViewModel.CloseAddModCommand.Execute(null);
+            else if (!_libraryViewModel.IsDeploying)
+                _profileViewModel.ClearModSelectionCommand.Execute(null);
+        }
+        if (SelectedTabIndex == 1 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+        {
+            if (_libraryViewModel.IsAddToProfileDialogOpen)
+                _libraryViewModel.CancelAddToProfileCommand.Execute(null);
+            else if (_libraryViewModel.IsDetailPanelOpen)
+                _libraryViewModel.CloseDetailPanelCommand.Execute(null);
+            else
+                _libraryViewModel.ClearSelectionCommand.Execute(null);
         }
 
         IsTaskCenterOpen = false;
@@ -438,6 +542,13 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        if (!_libraryViewModel.ImportCompletion.IsCompleted)
+        {
+            if (!await _confirmationService.ConfirmAsync("退出应用", "模组仍在添加中。是否取消添加并在清理完成后退出？"))
+                return false;
+            _libraryViewModel.Import.CancelCommand.Execute(null);
+            await _libraryViewModel.ImportCompletion;
+        }
         var runningTasks = await _taskService.GetRunningTasksAsync();
         if (!runningTasks.Any())
         {
@@ -495,7 +606,7 @@ public partial class MainWindowViewModel : ObservableObject
         ApplyTransparencyBrushes();
     }
 
-    /// <summary>按当前主题色 + 透明度设置重建表面画刷。卡片半透明透出背景图；
+    /// <summary>只更新表面透明度，颜色由 FluentAvalonia 动态资源随主题更新。卡片半透明透出背景图；
     /// 有背景图时顶栏/底栏跟随卡片透明度、内容区全透明露出背景图；无背景图时全部恢复不透明（默认观感）。</summary>
     private void ApplyTransparencyBrushes()
     {
@@ -503,27 +614,13 @@ public partial class MainWindowViewModel : ObservableObject
         if (app == null) return;
 
         var percent = Math.Clamp(_settingsViewModel.CardOpacity, 5, 100);
-        var cardAlpha = (byte)Math.Round(percent / 100.0 * 255);
-        var hasImage = HasBackgroundImage;
-
-        SetRuntimeBrush(app, "CardFillBrush", "Surface2Brush", cardAlpha);
-        SetRuntimeBrush(app, "ChromeFillBrush", "Surface1Brush", hasImage ? cardAlpha : (byte)255);
-        SetRuntimeBrush(app, "ContentFillBrush", "Surface0Brush", hasImage ? (byte)0 : (byte)255);
-    }
-
-    private static void SetRuntimeBrush(global::Avalonia.Application app, string targetKey, string baseKey, byte alpha)
-    {
-        if (app.TryGetResource(baseKey, app.RequestedThemeVariant, out var value) && value is ISolidColorBrush solid)
-        {
-            var baseColor = solid.Color;
-            app.Resources[targetKey] = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
-        }
+        app.Resources["CardSurfaceOpacity"] = percent / 100.0;
+        app.Resources["ChromeSurfaceOpacity"] = HasBackgroundImage ? percent / 100.0 : 1.0;
+        app.Resources["ContentSurfaceOpacity"] = HasBackgroundImage ? 0.0 : 1.0;
     }
 
     private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);
 
-    private void OnLibraryDefaultsChanged(object? sender, EventArgs e) =>
-        _libraryViewModel.ApplyLibraryDefaults(_settingsViewModel.DefaultFilterType);
 
     private static void ApplyTheme(string theme)
     {
@@ -554,7 +651,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void OpenDevTools()
     {
-        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService);
+        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService, _nexusModsTestService);
         var devToolsWindow = new DevToolsWindow
         {
             DataContext = devToolsViewModel

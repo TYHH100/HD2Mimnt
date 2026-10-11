@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -12,13 +13,14 @@ public partial class SettingsViewModel : ObservableObject
     private readonly GameDetectionService _gameDetectionService;
     private readonly NotificationService _notificationService;
     private readonly IImageCacheService _imageCacheService;
+    private readonly DownloadSettingsService _downloadSettingsService;
 
     [ObservableProperty] private string _gamePath = string.Empty;
     [ObservableProperty] private bool _autoDetectGame = true;
     [ObservableProperty] private DeploymentMethod _defaultDeploymentMethod = DeploymentMethod.Copy;
+    [ObservableProperty] private bool _deployBottomToTop;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
     [ObservableProperty] private bool _showThumbnails = true;
-    [ObservableProperty] private ModFilterType _defaultFilterType = ModFilterType.All;
     [ObservableProperty] private string _theme = "Dark";
     [ObservableProperty] private string _listDensity = "Comfortable";
     [ObservableProperty] private string _backgroundImagePath = string.Empty;
@@ -31,15 +33,18 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private string _cacheStatus = "缓存信息未加载";
+    [ObservableProperty] private int _downloadParallelSegments = 4;
+    [ObservableProperty] private int _downloadSegmentSizeMiB = 4;
+    [ObservableProperty] private int _downloadMaxRetries = 2;
+    [ObservableProperty] private int _downloadRetryDelayMs = 500;
+    [ObservableProperty] private bool _downloadEnableResume = true;
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
-    public IEnumerable<ModFilterType> FilterTypes => Enum.GetValues<ModFilterType>();
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
-    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "外观", "缓存" };
+    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "外观", "缓存" };
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
-    public event EventHandler? LibraryDefaultsChanged;
     public event EventHandler? AppearanceChanged;
 
     public bool IsGameCategoryVisible => SelectedCategory == "游戏";
@@ -48,6 +53,7 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsLibraryCategoryVisible => SelectedCategory == "模组库";
     public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
+    public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService)
     {
@@ -55,6 +61,7 @@ public partial class SettingsViewModel : ObservableObject
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _imageCacheService = imageCacheService;
+        _downloadSettingsService = new DownloadSettingsService(settingsService);
     }
 
     partial void OnSelectedCategoryChanged(string value)
@@ -65,13 +72,13 @@ public partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsLibraryCategoryVisible));
         OnPropertyChanged(nameof(IsAppearanceCategoryVisible));
         OnPropertyChanged(nameof(IsCacheCategoryVisible));
+        OnPropertyChanged(nameof(IsDownloadCategoryVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
 
     partial void OnListDensityChanged(string value) => ListDensityChanged?.Invoke(this, value);
 
-    partial void OnDefaultFilterTypeChanged(ModFilterType value) => LibraryDefaultsChanged?.Invoke(this, EventArgs.Empty);
 
     [RelayCommand]
     public async Task LoadAsync()
@@ -81,13 +88,13 @@ public partial class SettingsViewModel : ObservableObject
         {
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
-            AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, false);
+            AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
+            DeployBottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
+                == DeploymentOrder.BottomToTop.ToString();
             CheckBeforeDeploy = await _settingsService.GetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
-            var filter = await _settingsService.GetSettingAsync(SettingKeys.DefaultFilterCategory, ModFilterType.All.ToString());
-            DefaultFilterType = Enum.TryParse<ModFilterType>(filter, out var parsedFilter) ? parsedFilter : ModFilterType.All;
             Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark");
             ListDensity = await _settingsService.GetSettingAsync(SettingKeys.ListDensity, "Comfortable");
             BackgroundImagePath = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
@@ -95,6 +102,12 @@ public partial class SettingsViewModel : ObservableObject
             BackgroundBlur = await _settingsService.GetSettingAsync(SettingKeys.BackgroundBlur, 0.0);
             CardOpacity = await _settingsService.GetSettingAsync(SettingKeys.CardOpacity, 100.0);
             EnableAnimations = await _settingsService.GetSettingAsync(SettingKeys.EnableAnimations, true);
+            var downloads = await _downloadSettingsService.GetOptionsAsync();
+            DownloadParallelSegments = downloads.MaxParallelSegments;
+            DownloadSegmentSizeMiB = (int)(downloads.MinimumSegmentSize / (1024 * 1024));
+            DownloadMaxRetries = downloads.MaxRetries;
+            DownloadRetryDelayMs = (int)downloads.RetryDelay.TotalMilliseconds;
+            DownloadEnableResume = downloads.EnableResume;
             RefreshCacheStatus();
             StatusMessage = "设置已加载";
         }
@@ -106,6 +119,25 @@ public partial class SettingsViewModel : ObservableObject
     {
         try
         {
+            var downloads = new DownloadOptions
+            {
+                MaxParallelSegments = DownloadParallelSegments,
+                MinimumSegmentSize = DownloadSegmentSizeMiB * 1024L * 1024,
+                MaxRetries = DownloadMaxRetries,
+                RetryDelay = TimeSpan.FromMilliseconds(DownloadRetryDelayMs),
+                EnableResume = DownloadEnableResume
+            };
+            downloads.Validate();
+            if (DownloadSegmentSizeMiB is < 1 or > 256)
+                throw new ArgumentOutOfRangeException(nameof(DownloadSegmentSizeMiB), "分段大小应为 1–256 MiB。");
+            // Download settings can be saved independently of game path validation.
+            if (IsDownloadCategoryVisible)
+            {
+                await _downloadSettingsService.SaveAsync(downloads);
+                StatusMessage = "下载设置已保存，下次下载生效";
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             var gamePath = GamePath.Trim();
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -128,9 +160,10 @@ public partial class SettingsViewModel : ObservableObject
             await _settingsService.SetSettingAsync(SettingKeys.GameAutoDetect, AutoDetectGame);
             await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentMethod, DefaultDeploymentMethod.ToString());
+            await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
+                (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, CheckBeforeDeploy);
             await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
-            await _settingsService.SetSettingAsync(SettingKeys.DefaultFilterCategory, DefaultFilterType.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.Theme, Theme);
             await _settingsService.SetSettingAsync(SettingKeys.ListDensity, ListDensity);
             await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, BackgroundImagePath);
@@ -138,6 +171,7 @@ public partial class SettingsViewModel : ObservableObject
             await _settingsService.SetSettingAsync(SettingKeys.BackgroundBlur, BackgroundBlur);
             await _settingsService.SetSettingAsync(SettingKeys.CardOpacity, CardOpacity);
             await _settingsService.SetSettingAsync(SettingKeys.EnableAnimations, EnableAnimations);
+            await _downloadSettingsService.SaveAsync(downloads);
             AppearanceChanged?.Invoke(this, EventArgs.Empty);
             StatusMessage = "设置已保存";
             _notificationService.ShowSuccess("设置已保存", "设置");
@@ -177,6 +211,14 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task ResetAsync()
     {
+        if (IsDownloadCategoryVisible)
+        {
+            await _settingsService.ResetCategoryAsync("Download");
+            await LoadAsync();
+            StatusMessage = "下载设置已恢复默认值";
+            _notificationService.ShowInfo(StatusMessage, "设置");
+            return;
+        }
         await _settingsService.ResetToDefaultAsync();
         await LoadAsync();
         _notificationService.ShowInfo("设置已恢复默认值", "设置");

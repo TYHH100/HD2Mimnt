@@ -1,6 +1,6 @@
 using System.Windows.Input;
 using Avalonia.Controls;
-using Avalonia.Media;
+using FluentAvalonia.UI.Controls;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.Controls;
@@ -35,7 +35,7 @@ public sealed class ContextMenuItem
 }
 
 /// <summary>
-/// 统一的右键菜单模块：负责把条目定义渲染成 ContextMenu 并在指针处打开，
+/// 统一的右键菜单模块：负责把条目定义渲染成 FluentAvalonia 菜单并在指针处打开，
 /// 命令直接引用实例而非弹层内绑定，保证任何页面都能稳定弹出。
 /// 用法：AppContextMenu.Show(new List&lt;object&gt; { new ContextMenuItem(...), AppContextMenu.Separator, ... }, placementTarget);
 /// </summary>
@@ -44,44 +44,34 @@ public static class AppContextMenu
     /// <summary>占位分隔线，传入条目列表即可。</summary>
     public static readonly object Separator = new();
 
-    private static readonly IBrush DangerBrushInstance =
-        (global::Avalonia.Application.Current?.TryGetResource("ErrorBrush", null, out var brush) == true && brush is IBrush b)
-            ? b
-            : Brushes.IndianRed;
-
     /// <summary>构建并在 placementTarget 的指针位置显示右键菜单。</summary>
     public static void Show(IReadOnlyList<object> entries, Control placementTarget)
     {
-        var menu = new ContextMenu();
-        var items = new List<object>(entries.Count);
+        var menu = new FAMenuFlyout();
         foreach (var entry in entries)
         {
             if (ReferenceEquals(entry, Separator))
             {
-                items.Add(new Separator());
+                menu.Items.Add(new FAMenuFlyoutSeparator());
                 continue;
             }
 
             if (entry is not ContextMenuItem definition) continue;
 
-            var menuItem = new MenuItem { Header = definition.Header, Command = definition.Command, CommandParameter = definition.CommandParameter };
+            var menuItem = new FAMenuFlyoutItem { Text = definition.Header, Command = definition.Command, CommandParameter = definition.CommandParameter };
             if (definition.IconKind is { } iconKind)
             {
-                var icon = new UtilityIcon { Kind = iconKind, Width = 16, Height = 16 };
-                if (definition.IsDanger)
-                {
-                    icon.Foreground = DangerBrushInstance;
-                }
-                menuItem.Icon = icon;
+                menuItem.IconSource = new FASymbolIconSource { Symbol = new UtilityIcon { Kind = iconKind }.Symbol };
             }
             if (definition.IsDanger)
             {
-                menuItem.Foreground = DangerBrushInstance;
+                menuItem.Bind(FAMenuFlyoutItem.ForegroundProperty, menuItem.GetResourceObservable("ErrorBrush"));
             }
-            items.Add(menuItem);
+            menu.Items.Add(menuItem);
         }
 
-        menu.ItemsSource = items;
-        menu.Open(placementTarget);
+        placementTarget.ContextFlyout?.Hide();
+        placementTarget.ContextFlyout = menu;
+        menu.ShowAt(placementTarget, showAtPointer: true);
     }
 }

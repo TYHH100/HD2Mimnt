@@ -1,5 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Infrastructure.Downloads;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -12,6 +14,7 @@ public class GitHubPlatformAdapter : BasePlatformAdapter
 {
     private const string ApiBaseUrl = "https://api.github.com";
     private const string SearchQuery = "helldivers 2 mod";
+    private readonly IHttpDownloadService _downloader;
 
     /// <inheritdoc/>
     public override string Name => "GitHub";
@@ -30,8 +33,9 @@ public class GitHubPlatformAdapter : BasePlatformAdapter
     /// <summary>
     /// Initializes a new instance of the <see cref="GitHubPlatformAdapter"/> class.
     /// </summary>
-    public GitHubPlatformAdapter(HttpClient httpClient) : base(httpClient)
+    public GitHubPlatformAdapter(HttpClient httpClient, IHttpDownloadService? downloader = null) : base(httpClient)
     {
+        _downloader = downloader ?? new HttpDownloadService(httpClient);
         // GitHub API requires User-Agent header
         if (!HttpClient.DefaultRequestHeaders.Contains("User-Agent"))
         {
@@ -199,32 +203,8 @@ public class GitHubPlatformAdapter : BasePlatformAdapter
         // Use the first asset (usually the main file)
         var file = files[0];
 
-        var response = await HttpClient.GetAsync(file.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? 0;
-        var memoryStream = new MemoryStream();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var buffer = new byte[8192];
-        long downloadedBytes = 0;
-        int bytesRead;
-
-        while ((bytesRead = await stream.ReadAsync(buffer, cancellationToken)) > 0)
-        {
-            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-            downloadedBytes += bytesRead;
-
-            progress?.Report(new DownloadProgress
-            {
-                TotalBytes = totalBytes,
-                DownloadedBytes = downloadedBytes,
-                StatusMessage = $"Downloading {file.Name}"
-            });
-        }
-
-        memoryStream.Position = 0;
-        return memoryStream;
+        return await _downloader.DownloadAsync(new Uri(file.DownloadUrl), progress: progress,
+            cancellationToken: cancellationToken, resumeKey: $"github:{modId}:asset:{file.Id}");
     }
 
     /// <inheritdoc/>

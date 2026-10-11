@@ -192,9 +192,16 @@ public class SymbolicLinkDeploymentMethod : IDeploymentMethod
         CancellationToken cancellationToken = default)
     {
         await Task.Yield(); // 确保异步执行
+        cancellationToken.ThrowIfCancellationRequested();
 
         try
         {
+            // 源文件已缺失时 File.Exists 可能为 false，仍须删除悬空链接本身。
+            if (new FileInfo(targetPath).LinkTarget != null)
+            {
+                File.Delete(targetPath);
+                return true;
+            }
             if (File.Exists(targetPath))
             {
                 // 检查是否是符号链接

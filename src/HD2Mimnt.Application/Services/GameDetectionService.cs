@@ -9,6 +9,16 @@ namespace HD2Mimnt.Application.Services;
 /// </summary>
 public class GameDetectionService
 {
+    /// <summary>通过 Steam 启动 HD2，保留 Steam 的启动选项和启动流程。</summary>
+    public void LaunchGame()
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "steam://rungameid/553850",
+            UseShellExecute = true
+        });
+    }
+
     private readonly SettingsService _settingsService;
     private readonly ILogger<GameDetectionService>? _logger;
 

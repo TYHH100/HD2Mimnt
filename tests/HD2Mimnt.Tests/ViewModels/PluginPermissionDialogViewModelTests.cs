@@ -40,7 +40,7 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         Assert.False(viewModel.IsFullAccess);
-        Assert.Equal("🔒", viewModel.PermissionModeIcon);
+        Assert.Equal("Lock", viewModel.PermissionModeIcon);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         Assert.True(viewModel.IsFullAccess);
-        Assert.Equal("🔓", viewModel.PermissionModeIcon);
+        Assert.Equal("Warning", viewModel.PermissionModeIcon);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         Assert.True(viewModel.ShowWarning);
-        Assert.Contains("Full Access", viewModel.WarningMessage);
+        Assert.Contains("完全访问模式", viewModel.WarningMessage);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         Assert.True(viewModel.ShowWarning);
-        Assert.Contains("dangerous permissions", viewModel.WarningMessage);
+        Assert.Contains("潜在危险权限", viewModel.WarningMessage);
     }
 
     [Fact]
@@ -126,8 +126,8 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         var permission = viewModel.RequestedPermissions.First();
-        Assert.Equal("Read Mod Files", permission.DisplayName);
-        Assert.Equal("📖", permission.Icon);
+        Assert.Equal("读取模组文件", permission.DisplayName);
+        Assert.Equal("Logs", permission.Icon);
         Assert.False(permission.IsHighRisk);
     }
 
@@ -156,9 +156,9 @@ public class PluginPermissionDialogViewModelTests
 
         // Assert
         var permission = viewModel.RequestedPermissions.First();
-        Assert.Equal("Network Access", permission.DisplayName);
-        Assert.Equal("Make network requests to external services", permission.Description);
-        Assert.Equal("🌐", permission.Icon);
+        Assert.Equal("网络访问", permission.DisplayName);
+        Assert.Equal("向外部服务发起网络请求", permission.Description);
+        Assert.Equal("Globe", permission.Icon);
     }
 
     [Fact]
@@ -222,20 +222,20 @@ public class PluginPermissionDialogViewModelTests
         // Assert
         var permission = viewModel.RequestedPermissions.First();
         Assert.Equal("CustomPermission", permission.DisplayName);
-        Assert.Equal("Custom permission", permission.Description);
-        Assert.Equal("🔒", permission.Icon);
+        Assert.Equal("自定义权限", permission.Description);
+        Assert.Equal("Lock", permission.Icon);
         Assert.False(permission.IsHighRisk);
     }
 
     [Theory]
-    [InlineData("ReadModFiles", "📖", false)]
-    [InlineData("WriteModFiles", "✏️", true)]
-    [InlineData("AccessNetwork", "🌐", false)]
-    [InlineData("ExecuteProcesses", "⚙️", true)]
-    [InlineData("ReadDatabase", "💾", false)]
-    [InlineData("WriteConfiguration", "🔧", false)]
-    [InlineData("FileSystemAccess", "📁", true)]
-    [InlineData("RegistryAccess", "🔑", true)]
+    [InlineData("ReadModFiles", "Logs", false)]
+    [InlineData("WriteModFiles", "Edit", true)]
+    [InlineData("AccessNetwork", "Globe", false)]
+    [InlineData("ExecuteProcesses", "Code", true)]
+    [InlineData("ReadDatabase", "Database", false)]
+    [InlineData("WriteConfiguration", "Wrench", false)]
+    [InlineData("FileSystemAccess", "Folder", true)]
+    [InlineData("RegistryAccess", "Settings", true)]
     public void Initialize_KnownPermissions_CorrectIconAndRisk(string permission, string expectedIcon, bool expectedHighRisk)
     {
         // Arrange

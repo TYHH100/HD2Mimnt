@@ -8,6 +8,12 @@
     </StackPanel>
     <ScrollViewer Grid.Column="1">
       <StackPanel MaxWidth="880" Spacing="0">
+        <StackPanel IsVisible="{Binding MoreViewModel.IsTutorialVisible}" Classes="section" Spacing="12">
+          <TextBlock Text="功能教程" Classes="section-title"/>
+          <TextBlock Text="跟着引导认识游戏目录、模组库、配置文件、冲突检查和部署。教程会自动切换页面，用蓝色边框标记当前功能。" Classes="muted" TextWrapping="Wrap"/>
+          <TextBlock Text="使用上一步或下一步浏览，随时按 Esc 或点击退出结束；教程不会执行导入、部署或启动游戏。" Classes="muted" TextWrapping="Wrap"/>
+          <Button Content="开始教程" Classes="accent" Command="{Binding Tutorial.StartCommand}" HorizontalAlignment="Left"/>
+        </StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsPluginsVisible}">
           <views:PluginManagementView DataContext="{Binding PluginManagementViewModel}" />

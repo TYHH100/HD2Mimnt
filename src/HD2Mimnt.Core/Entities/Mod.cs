@@ -16,6 +16,11 @@ public class Mod
     public string Path { get; set; } = string.Empty;
     public ModCategory Category { get; set; }
     public List<string> Tags { get; set; } = new();
+    /// <summary>TOC 中的资源 Type ID。null 表示尚未扫描；空列表表示未识别出资源。</summary>
+    public List<ulong>? ResourceTypeIds { get; set; }
+    /// <summary>null 表示尚未识别；只依据清单声明和 Lua 资源契约识别 BSL。</summary>
+    public BslModRole? BslRole { get; set; }
+    public int BslDetectionVersion { get; set; }
     public string WorkflowType { get; set; } = string.Empty;
     public DateTime ImportedAt { get; set; }
     public DateTime ModifiedAt { get; set; }

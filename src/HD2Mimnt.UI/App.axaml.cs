@@ -12,6 +12,8 @@ using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
+using HD2Mimnt.Infrastructure.Downloads;
+using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
@@ -201,11 +203,40 @@ public partial class App : Avalonia.Application
             new ImageCacheService(imageCachePath, memoryCacheSize: 100));
         services.AddSingleton<IImageLoaderService, ImageLoaderService>();
 
+        // Dedicated archive client: do not share platform API authentication headers.
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("downloads", (_, _) =>
+        {
+            var client = new System.Net.Http.HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("HD2Mimnt-ModManager");
+            return client;
+        });
+        services.AddSingleton<IHttpDownloadService>(sp => new HttpDownloadService(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("downloads"),
+            sp.GetRequiredService<IDownloadOptionsProvider>(), Path.Combine(appDataPath, "Downloads")));
+        services.AddSingleton<DownloadSettingsService>();
+        services.AddSingleton<IDownloadOptionsProvider>(sp => sp.GetRequiredService<DownloadSettingsService>());
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-api", (_, _) => new System.Net.Http.HttpClient());
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("github-api", (_, _) => new System.Net.Http.HttpClient());
+        services.AddSingleton(sp => new NexusModsPlatformAdapter(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-api"), sp.GetRequiredService<IHttpDownloadService>()));
+        services.AddSingleton(sp => new GitHubPlatformAdapter(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("github-api"), sp.GetRequiredService<IHttpDownloadService>()));
+        services.AddSingleton<IPlatformRegistry>(sp =>
+        {
+            var registry = new PlatformRegistry();
+            registry.RegisterPlatform(sp.GetRequiredService<NexusModsPlatformAdapter>());
+            registry.RegisterPlatform(sp.GetRequiredService<GitHubPlatformAdapter>());
+            return registry;
+        });
+        services.AddSingleton<DownloadManagerService>();
+        services.AddSingleton<NexusModsTestService>();
+
         // 应用层
         services.AddSingleton(sp => new ModService(
             sp.GetRequiredService<IModRepository>(),
             modsStoragePath,
-            sp.GetService<ILogger<ModService>>()));
+            sp.GetService<ILogger<ModService>>(),
+            sp.GetRequiredService<DeploymentService>()));
         services.AddSingleton(sp => new TestDataService(
             sp.GetRequiredService<ModService>()));
 
@@ -264,6 +295,7 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();
+        services.AddSingleton<IConfirmationService>(sp => sp.GetRequiredService<ConfirmationService>());
         services.AddSingleton<ImagePreviewService>();
 
         // UI 层 ViewModels
@@ -274,8 +306,9 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<GameDetectionService>(),
-            sp.GetRequiredService<ConfirmationService>(),
-            sp.GetRequiredService<ImagePreviewService>()));
+            sp.GetRequiredService<IConfirmationService>(),
+            sp.GetRequiredService<ImagePreviewService>(),
+            sp.GetRequiredService<SettingsService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -330,6 +363,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<BackupViewModel>(),
             sp.GetRequiredService<LogViewModel>(),
             sp.GetRequiredService<ConfirmationService>(),
-            sp.GetRequiredService<ImagePreviewService>()));
+            sp.GetRequiredService<ImagePreviewService>(),
+            sp.GetRequiredService<NexusModsTestService>()));
     }
 }

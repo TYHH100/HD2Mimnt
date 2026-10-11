@@ -140,7 +140,7 @@
             <TextBlock Text="{Binding Author}" Classes="detail-value"/>
 
             <TextBlock Text="分类" Classes="detail-label"/>
-            <TextBlock Text="{Binding CategoryDisplay}" Classes="detail-value"/>
+            <TextBlock Text="{Binding CategoryDisplay}" Classes="detail-value" TextWrapping="Wrap" ToolTip.Tip="{Binding ResourceTypeDetails}"/>
 
             <TextBlock Text="描述" Classes="detail-label"/>
             <TextBlock Text="{Binding Description}" Classes="detail-value"/>
@@ -187,9 +187,10 @@
             <TextBlock Text="{Binding SizeFormatted}" Classes="detail-value"/>
 
             <TextBlock Text="哈希" Classes="detail-label"/>
-            <TextBlock Text="{Binding Hash}"
+            <TextBlock x:Name="ModHashValue" Text="{Binding HashDisplay}"
                        Classes="detail-value"
-                       FontFamily="Consolas"/>
+                       TextWrapping="Wrap" FontFamily="Consolas"/>
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsCalculatingHash}" Margin="0,4,0,8"/>
           </StackPanel>
         </Border>
 
@@ -203,11 +204,11 @@
                        Margin="0,0,0,12"/>
 
             <TextBlock Text="导入时间" Classes="detail-label"/>
-            <TextBlock Text="{Binding ImportedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+            <TextBlock Text="{Binding ImportedAtDisplay}"
                        Classes="detail-value"/>
 
             <TextBlock Text="修改时间" Classes="detail-label"/>
-            <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+            <TextBlock Text="{Binding ModifiedAtDisplay}"
                        Classes="detail-value"/>
           </StackPanel>
         </Border>
@@ -223,7 +224,7 @@
 
             <Button Content="{Binding EnableButtonText}"
                     Command="{Binding ToggleEnabledCommand}"
-                    Classes="primary"
+                    Classes="accent"
                     HorizontalAlignment="Stretch"
                     Height="36"/>
 

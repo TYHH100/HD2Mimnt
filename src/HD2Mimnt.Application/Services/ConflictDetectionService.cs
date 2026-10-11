@@ -1,33 +1,41 @@
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Resources;
+using HD2Mimnt.Infrastructure.Analysis;
 
 namespace HD2Mimnt.Application.Services;
 
-/// <summary>
-/// 冲突文件的持有者（模组）信息
-/// </summary>
 public class ConflictFileOwner
 {
     public Guid ModId { get; init; }
     public string ModName { get; init; } = string.Empty;
-
-    /// <summary>该模组在 Profile 中的部署顺序（Order），值越大部署越晚、实际生效。</summary>
+    /// <summary>实际部署位置，0-based；已应用部署方向与固定区域规则。</summary>
     public int ModOrder { get; init; }
     public string FullPath { get; init; } = string.Empty;
+    public string TargetFileName { get; init; } = string.Empty;
     public long Size { get; init; }
+    public uint StreamSize { get; init; }
+    public uint GpuSize { get; init; }
+    public uint? UnitVersion { get; init; }
 }
 
-/// <summary>
-/// 一组文件冲突：同一相对路径被多个启用模组提供
-/// </summary>
+/// <summary>相同 Type ID + Resource ID 被多个启用模组提供。</summary>
 public class ConflictGroup
 {
-    public string RelativePath { get; init; } = string.Empty;
+    public ulong ResourceId { get; init; }
+    public ulong TypeId { get; init; }
+    public string RelativePath => $"0x{ResourceId:X16}";
+    public string ResourceTypeName => ResourceTypeCatalog.GetDisplayName(TypeId);
     public IReadOnlyList<ConflictFileOwner> Owners { get; init; } = Array.Empty<ConflictFileOwner>();
+    public int ModCount => Owners.Select(owner => owner.ModId).Distinct().Count();
+    // 保留同一模组的所有补丁供展示，差异判断使用该模组最终提供的资源。
+    public bool IsDefiniteConflict => Owners.GroupBy(owner => owner.ModId).Select(group => group.Last())
+        .Select(owner => (owner.UnitVersion, owner.Size, owner.StreamSize, owner.GpuSize)).Distinct().Count() > 1;
 }
 
-/// <summary>
-/// 一次冲突扫描的完整结果
-/// </summary>
+public sealed record ConflictScanWarning(string ModName, string FilePath, string Message);
+
 public class ConflictScanResult
 {
     public Guid ProfileId { get; init; }
@@ -35,106 +43,107 @@ public class ConflictScanResult
     public DateTime ScannedAt { get; init; }
     public int ScannedModCount { get; set; }
     public int SkippedModCount { get; set; }
+    public int ScannedPatchCount { get; set; }
+    public int ScannedResourceCount { get; set; }
     public List<ConflictGroup> Groups { get; set; } = new();
+    public List<ConflictScanWarning> Warnings { get; } = new();
+    public int DefiniteConflictCount => Groups.Count(group => group.IsDefiniteConflict);
 }
 
-/// <summary>
-/// 冲突检测服务：对指定 Profile 内启用模组做文件路径重叠检测。
-/// 相对路径相同即视为冲突（后部署的模组覆盖先部署的），与 Helldivers 2 的补丁覆盖机制一致。
-/// </summary>
+/// <summary>移植旧版资源覆盖检测；按真实部署文件集分析所有资源类型，不按文件名猜测冲突。</summary>
 public class ConflictDetectionService
 {
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
+    private readonly SettingsService? _settingsService;
 
-    public ConflictDetectionService(IProfileRepository profileRepository, IModRepository modRepository)
+    public ConflictDetectionService(IProfileRepository profileRepository, IModRepository modRepository, SettingsService? settingsService = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
+        _settingsService = settingsService;
     }
 
     public async Task<ConflictScanResult> ScanProfileAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
         var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
-            ?? throw new InvalidOperationException($"Profile {profileId} not found");
-
-        var result = new ConflictScanResult
-        {
-            ProfileId = profileId,
-            ProfileName = profile.Name,
-            ScannedAt = DateTime.UtcNow
-        };
-
-        var enabledMods = profile.Mods.Where(m => m.Enabled).ToList();
-        var orderById = enabledMods.ToDictionary(m => m.ModId, m => m.Order);
-        var modsById = (await _modRepository.GetByIdsAsync(enabledMods.Select(m => m.ModId), cancellationToken))
+            ?? throw new InvalidOperationException($"配置 {profileId} 不存在");
+        var result = new ConflictScanResult { ProfileId = profileId, ProfileName = profile.Name, ScannedAt = DateTime.UtcNow };
+        var modsById = (await _modRepository.GetByIdsAsync(profile.Mods.Where(item => item.Enabled).Select(item => item.ModId), cancellationToken))
             .ToDictionary(mod => mod.Id);
+        foreach (var mod in modsById.Values)
+            await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
+        var savedDirection = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
+            : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
+        var sequence = BslProfilePolicy.DeploymentSequence(profile, modsById,
+            savedDirection == DeploymentOrder.BottomToTop.ToString() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom);
 
-        // 相对路径（不区分大小写）→ 持有该文件的模组列表
-        var pathOwners = new Dictionary<string, List<ConflictFileOwner>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var profileMod in enabledMods)
+        return await Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!modsById.TryGetValue(profileMod.ModId, out var mod)
-                || string.IsNullOrWhiteSpace(mod.Path)
-                || !Directory.Exists(mod.Path))
+            var resources = new Dictionary<(ulong Type, ulong Id), List<ConflictFileOwner>>();
+            var nextIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (var position = 0; position < sequence.Count; position++)
             {
-                result.SkippedModCount++;
-                continue;
-            }
-
-            try
-            {
-                foreach (var file in Directory.EnumerateFiles(mod.Path, "*", SearchOption.AllDirectories))
+                cancellationToken.ThrowIfCancellationRequested();
+                var profileMod = sequence[position];
+                if (!modsById.TryGetValue(profileMod.ModId, out var mod) || !Directory.Exists(mod.Path))
+                {
+                    result.SkippedModCount++;
+                    result.Warnings.Add(new(mod?.Name ?? profileMod.ModId.ToString(), mod?.Path ?? "", "模组目录不可访问"));
+                    continue;
+                }
+                List<PatchDeploymentPlanner.FileEntry> files;
+                try
+                {
+                    var selection = ProfileModOptionResolver.ResolveDeployPlan(mod.Manifest,
+                        ProfileModOptionResolver.ResolveEffective(mod.Manifest, profileMod.OptionsJson));
+                    if (selection.Scope == OptionDeployScope.InvalidSelection)
+                        throw new InvalidDataException("模组选项无效");
+                    files = PatchDeploymentPlanner.BuildFiles(
+                        PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken), nextIndexes);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+                {
+                    result.SkippedModCount++;
+                    result.Warnings.Add(new(mod.Name, mod.Path, ex.Message));
+                    continue;
+                }
+                result.ScannedModCount++;
+                // BuildFiles 数值排序与部署一致；伴随文件和占位文件不重复扫描。
+                foreach (var file in files.Where(file => file.SourcePath != null
+                             && PatchDeploymentPlanner.TryParseTarget(file.FileName, out _, out _, out var suffix) && suffix.Length == 0))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(mod.Path, file).Replace('\\', '/');
-                    if (!pathOwners.TryGetValue(relativePath, out var owners))
-                    {
-                        owners = new List<ConflictFileOwner>();
-                        pathOwners[relativePath] = owners;
-                    }
-
-                    long size = 0;
                     try
                     {
-                        size = new FileInfo(file).Length;
+                        var entries = PatchResourceIndexReader.Read(file.SourcePath!, cancellationToken);
+                        result.ScannedPatchCount++;
+                        result.ScannedResourceCount += entries.Count;
+                        foreach (var entry in entries)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            var key = (entry.TypeId, entry.ResourceId);
+                            if (!resources.TryGetValue(key, out var owners)) resources[key] = owners = new();
+                            owners.Add(new ConflictFileOwner
+                            {
+                                ModId = mod.Id, ModName = mod.Name, ModOrder = position,
+                                FullPath = file.SourcePath!, TargetFileName = file.FileName,
+                                Size = entry.DataSize, StreamSize = entry.StreamSize, GpuSize = entry.GpuSize,
+                                UnitVersion = entry.UnitVersion
+                            });
+                        }
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                     {
+                        result.Warnings.Add(new(mod.Name, file.SourcePath!, ex.Message));
                     }
-
-                    owners.Add(new ConflictFileOwner
-                    {
-                        ModId = mod.Id,
-                        ModName = mod.Name,
-                        ModOrder = profileMod.Order,
-                        FullPath = file,
-                        Size = size
-                    });
                 }
-
-                result.ScannedModCount++;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                result.SkippedModCount++;
-            }
-        }
-
-        result.Groups = pathOwners
-            .Where(kv => kv.Value.Count > 1)
-            .Select(kv => new ConflictGroup
-            {
-                RelativePath = kv.Key,
-                Owners = kv.Value.OrderBy(owner => owner.ModOrder).ToList()
-            })
-            .OrderBy(group => group.RelativePath, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return result;
+            cancellationToken.ThrowIfCancellationRequested();
+            result.Groups = resources.Where(pair => pair.Value.Select(owner => owner.ModId).Distinct().Count() > 1)
+                .OrderBy(pair => pair.Key.Type).ThenBy(pair => pair.Key.Id)
+                .Select(pair => new ConflictGroup { TypeId = pair.Key.Type, ResourceId = pair.Key.Id, Owners = pair.Value }).ToList();
+            return result;
+        }, cancellationToken);
     }
 }

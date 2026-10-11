@@ -12,6 +12,7 @@ public class Profile
     public DateTime CreatedAt { get; set; }
     public DateTime ModifiedAt { get; set; }
     public bool IsActive { get; set; }
+    public bool IsDefault { get; set; }
 
     /// <summary>
     /// 配置文件在左侧列表中的显示顺序（0 起，最早创建的默认配置固定为 0）

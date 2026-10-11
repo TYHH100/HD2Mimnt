@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Resources;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -18,6 +19,19 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class LibraryViewModel : ObservableObject
 {
+    [RelayCommand]
+    private void LaunchGame()
+    {
+        try
+        {
+            _gameDetectionService.LaunchGame();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"无法启动 HD2，请确认已安装 Steam：{ex.Message}", "启动失败");
+        }
+    }
+
     private readonly ModService _modService;
     private readonly SearchService _searchService;
     private readonly ProfileService _profileService;
@@ -26,11 +40,13 @@ public partial class LibraryViewModel : ObservableObject
     private readonly GameDetectionService _gameDetectionService;
     private readonly IConfirmationService _confirmationService;
     private readonly ImagePreviewService? _imagePreview;
+    private readonly SettingsService? _settingsService;
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
     private bool _selectionSyncInProgress;
     private ModItemViewModel? _selectionAnchor;
+    private CancellationTokenSource? _detailHashCts;
 
     [ObservableProperty]
     private ObservableCollection<ModItemViewModel> _filteredMods = new();
@@ -55,7 +71,7 @@ public partial class LibraryViewModel : ObservableObject
     private ModFilterType _currentFilter = ModFilterType.All;
 
     [ObservableProperty]
-    private ModCategory? _selectedCategory;
+    private ulong? _selectedCategory;
 
     // 加入配置文件弹窗：目标 Mod 为空表示对整个选中集合操作
     [ObservableProperty]
@@ -153,6 +169,12 @@ public partial class LibraryViewModel : ObservableObject
 
     private CancellationTokenSource? _deploymentCts;
 
+    public ModImportViewModel Import { get; }
+    public Task ImportCompletion { get; private set; } = Task.CompletedTask;
+
+    [RelayCommand]
+    private void OpenImport() => Import.Open();
+
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
 
     /// <summary>排序下拉的本地化选项（直接绑定枚举会显示英文名）。</summary>
@@ -166,12 +188,16 @@ public partial class LibraryViewModel : ObservableObject
     };
 
     /// <summary>分类下拉的本地化选项。</summary>
-    public IReadOnlyList<CategoryOption> CategoryOptions { get; } =
-        Enum.GetValues<ModCategory>()
-            .Select(c => new CategoryOption(ModCategoryText.ToDisplay(c), c))
+    public IReadOnlyList<CategoryOption> CategoryOptions { get; private set; } = CreateCategoryOptions(Array.Empty<ulong>());
+
+    private static IReadOnlyList<CategoryOption> CreateCategoryOptions(IEnumerable<ulong> detectedIds)
+        => new[] { new CategoryOption("全部分类", null) }
+            .Concat(ResourceTypeCatalog.All.Select(type => new CategoryOption(type.Label, type.Id)))
+            .Concat(detectedIds.Distinct().Where(id => !ResourceTypeCatalog.IsKnown(id)).Order()
+                .Select(id => new CategoryOption(ResourceTypeCatalog.GetDisplayName(id), id)))
             .ToArray();
 
-    public string ModItemPadding => ListDensity == "Compact" ? "16,6" : "16,12";
+    public bool IsCompactList => ListDensity == "Compact";
     public string FilterSummaryText => $"显示 {FilteredModCount:N0} / {TotalModCount:N0} 个 Mod";
     public bool IsLibraryEmptyStateVisible => !IsLoading && !HasError && IsEmpty;
     public bool IsSearchEmptyStateVisible => !IsLoading && !HasError && HasNoResults && !string.IsNullOrWhiteSpace(SearchText);
@@ -180,7 +206,7 @@ public partial class LibraryViewModel : ObservableObject
     public bool IsLoadingStateVisible => IsLoading;
     public bool IsErrorStateVisible => HasError && !IsLoading;
 
-    partial void OnListDensityChanged(string value) => OnPropertyChanged(nameof(ModItemPadding));
+    partial void OnListDensityChanged(string value) => OnPropertyChanged(nameof(IsCompactList));
 
     partial void OnFilteredModCountChanged(int value) => OnPropertyChanged(nameof(FilterSummaryText));
 
@@ -191,11 +217,6 @@ public partial class LibraryViewModel : ObservableObject
         ListDensity = value is "Compact" or "Comfortable" ? value : "Comfortable";
     }
 
-    public void ApplyLibraryDefaults(ModFilterType filterType)
-    {
-        CurrentFilter = filterType;
-    }
-
     public LibraryViewModel(
         ModService modService,
         SearchService searchService,
@@ -204,9 +225,11 @@ public partial class LibraryViewModel : ObservableObject
         DeploymentService deploymentService,
         GameDetectionService gameDetectionService,
         IConfirmationService confirmationService,
-        ImagePreviewService? imagePreview = null)
+        ImagePreviewService? imagePreview = null,
+        SettingsService? settingsService = null)
     {
         _modService = modService;
+        Import = new ModImportViewModel(modService);
         _searchService = searchService;
         _profileService = profileService;
         _notificationService = notificationService;
@@ -214,6 +237,7 @@ public partial class LibraryViewModel : ObservableObject
         _gameDetectionService = gameDetectionService;
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
+        _settingsService = settingsService;
 
         // 监听选择变化
         SelectedMods.CollectionChanged += OnSelectedModsChanged;
@@ -273,6 +297,8 @@ public partial class LibraryViewModel : ObservableObject
             ClearSelection();
             DetachModSelectionHandlers();
             _allMods = await Task.Run(() => modsList.Select(m => new ModItemViewModel(m)).ToList());
+            CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
+            OnPropertyChanged(nameof(CategoryOptions));
             AttachModSelectionHandlers();
 
             // 如果有配置文件，设置启用状态
@@ -446,7 +472,7 @@ public partial class LibraryViewModel : ObservableObject
     /// 按分类筛选
     /// </summary>
     [RelayCommand]
-    private async Task FilterByCategoryAsync(ModCategory? category)
+    private async Task FilterByCategoryAsync(ulong? category)
     {
         SelectedCategory = category;
         await ApplyFiltersAsync();
@@ -510,7 +536,7 @@ public partial class LibraryViewModel : ObservableObject
     private static IEnumerable<ModItemViewModel> ApplyFilter(
         IEnumerable<ModItemViewModel> mods,
         ModFilterType filter,
-        ModCategory? category)
+        ulong? category)
     {
         // 状态筛选
         mods = filter switch
@@ -524,9 +550,9 @@ public partial class LibraryViewModel : ObservableObject
         };
 
         // 分类筛选
-        if (category.HasValue && category.Value != ModCategory.Unknown)
+        if (category.HasValue)
         {
-            mods = mods.Where(m => m.Category == category.Value);
+            mods = mods.Where(m => m.ResourceTypeIds.Contains(category.Value));
         }
 
         return mods;
@@ -558,7 +584,7 @@ public partial class LibraryViewModel : ObservableObject
             ModSortMode.NameDescending => mods.OrderByDescending(m => m.Name),
             ModSortMode.DateAddedNewest => mods.OrderByDescending(m => m.ImportedAt),
             ModSortMode.DateAddedOldest => mods.OrderBy(m => m.ImportedAt),
-            ModSortMode.Category => mods.OrderBy(m => m.Category).ThenBy(m => m.Name),
+            ModSortMode.Category => mods.OrderBy(m => m.CategoryDisplay).ThenBy(m => m.Name),
             _ => mods
         };
     }
@@ -611,6 +637,14 @@ public partial class LibraryViewModel : ObservableObject
         }
 
         UpdateSelectionState();
+    }
+
+    /// <summary>Ctrl+A 始终选择当前结果，重复按下不反转。</summary>
+    [RelayCommand]
+    private void SelectAllVisible()
+    {
+        SyncListSelection(FilteredMods, Array.Empty<ModItemViewModel>());
+        _selectionAnchor ??= FocusedMod ?? FilteredMods.FirstOrDefault();
     }
 
     /// <summary>
@@ -666,34 +700,41 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Ctrl+点击切换多选标记，并记录范围选择锚点（列表为单选聚焦模式，多选由这里管理，
-    /// 单击卡片不会弹出批量操作条）。
+    /// 普通单击只聚焦并设置范围锚点，保持单击不进入批量选择的设计。
     /// </summary>
-    public void ToggleSelected(ModItemViewModel mod)
+    public void FocusMod(ModItemViewModel mod)
     {
-        mod.IsSelected = !mod.IsSelected;
-        if (mod.IsSelected)
-        {
-            _selectionAnchor = mod;
-        }
+        if (!FilteredMods.Contains(mod)) return;
+        ClearSelection();
+        FocusedMod = _selectionAnchor = mod;
     }
 
-    /// <summary>Shift+点击范围选择（替换当前选择）。</summary>
-    public void SelectRange(ModItemViewModel mod)
+    /// <summary>Ctrl+点击切换多选，并把本次点击作为新的范围锚点。</summary>
+    public void ToggleSelected(ModItemViewModel mod)
+    {
+        if (!FilteredMods.Contains(mod)) return;
+        var selected = mod.IsSelected;
+        SyncListSelection(selected ? Array.Empty<ModItemViewModel>() : new[] { mod },
+            selected ? new[] { mod } : Array.Empty<ModItemViewModel>());
+        FocusedMod = _selectionAnchor = mod;
+    }
+
+    /// <summary>Shift 替换范围，Ctrl+Shift 追加范围；连续操作保持最初锚点。</summary>
+    public void SelectRange(ModItemViewModel mod, bool additive = false)
     {
         var targetIndex = FilteredMods.IndexOf(mod);
         if (targetIndex < 0) return;
 
-        var anchorIndex = _selectionAnchor != null ? FilteredMods.IndexOf(_selectionAnchor) : targetIndex;
+        var anchor = _selectionAnchor ?? FocusedMod ?? mod;
+        var anchorIndex = FilteredMods.IndexOf(anchor);
         if (anchorIndex < 0) anchorIndex = targetIndex;
 
-        ClearSelection();
+        if (!additive) ClearSelection();
+        _selectionAnchor = FilteredMods[anchorIndex];
         var start = Math.Min(anchorIndex, targetIndex);
         var end = Math.Max(anchorIndex, targetIndex);
-        for (var index = start; index <= end; index++)
-        {
-            FilteredMods[index].IsSelected = true;
-        }
+        SyncListSelection(FilteredMods.Skip(start).Take(end - start + 1), Array.Empty<ModItemViewModel>());
+        FocusedMod = mod;
     }
 
     /// <summary>
@@ -914,7 +955,6 @@ public partial class LibraryViewModel : ObservableObject
             var modsToDelete = SelectedMods.ToList();
             foreach (var mod in modsToDelete)
             {
-                await _deploymentService.DeleteModDeploymentRecordsAsync(mod.Id);
                 await _modService.DeleteModAsync(mod.Id);
                 SyncListSelection(Array.Empty<ModItemViewModel>(), new[] { mod });
                 mod.PropertyChanged -= OnModPropertyChanged;
@@ -974,7 +1014,6 @@ public partial class LibraryViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            await _deploymentService.DeleteModDeploymentRecordsAsync(mod.Id);
             await _modService.DeleteModAsync(mod.Id);
             SyncListSelection(Array.Empty<ModItemViewModel>(), new[] { mod });
             mod.PropertyChanged -= OnModPropertyChanged;
@@ -1025,7 +1064,14 @@ public partial class LibraryViewModel : ObservableObject
     /// <summary>
     /// 导入模组
     /// </summary>
-    public async Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    public Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    {
+        if (!ImportCompletion.IsCompleted) return Task.CompletedTask;
+        ImportCompletion = ImportAndRefreshAsync(paths, cancellationToken);
+        return ImportCompletion;
+    }
+
+    private async Task ImportAndRefreshAsync(IEnumerable<string> paths, CancellationToken cancellationToken)
     {
         var sourcePaths = paths.Where(p => !string.IsNullOrWhiteSpace(p))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -1034,14 +1080,12 @@ public partial class LibraryViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            foreach (var path in sourcePaths)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await _modService.ImportModAsync(path, cancellationToken);
-            }
-
+            await Import.ImportAsync(sourcePaths, cancellationToken);
             await LoadModsAsync();
-            _notificationService.ShowSuccess($"已导入 {sourcePaths.Count} 个模组", "导入完成");
+            if (Import.FailedCount > 0 || Import.RemainingCount > 0)
+                _notificationService.ShowWarning($"{Import.ResultText}，未完成 {Import.RemainingCount} 个", Import.Step);
+            else
+                _notificationService.ShowSuccess($"已导入 {Import.SuccessCount} 个模组", "导入完成");
         }
         catch (OperationCanceledException)
         {
@@ -1067,45 +1111,57 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task DeployAsync()
+    private async Task DeployAsync(Guid? profileId)
     {
         if (IsDeploying) return;
-        if (_currentProfile == null)
-        {
-            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "部署模组");
-            return;
-        }
-
-        var gamePath = _gameDetectionService.CurrentGameInfo?.Path;
-        if (string.IsNullOrWhiteSpace(gamePath))
-        {
-            _notificationService.ShowWithNavigation(NotificationLevel.Warning, "未检测到有效的游戏目录", "打开设置", NotificationNavigationTarget.Settings, "部署模组");
-            return;
-        }
-
-        if (!await _confirmationService.ConfirmAsync(
-                "部署模组",
-                $"将清理之前的部署并部署当前配置中的启用模组。部署方式：{CurrentDeploymentMethod}。是否继续？"))
-        {
-            return;
-        }
-
         IsDeploying = true;
         _deploymentCts = new CancellationTokenSource();
-        DeploymentMessage = "正在准备部署...";
+        var deploymentCts = _deploymentCts;
         try
         {
-            var progress = new Progress<DeploymentProgress>(p => DeploymentMessage = p.Message);
-            var result = await _deploymentService.DeployProfileAsync(
-                _currentProfile.Id, CurrentDeploymentMethod, DeploymentOrder.TopToBottom, gamePath, progress, _deploymentCts.Token);
+            var profile = profileId.HasValue
+                ? await _profileService.GetProfileByIdAsync(profileId.Value, deploymentCts.Token)
+                : await _profileService.GetActiveProfileAsync(deploymentCts.Token);
+            if (profile == null)
+            {
+                _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "部署模组");
+                return;
+            }
+            var gamePath = _gameDetectionService.CurrentGameInfo?.Path;
+            if (string.IsNullOrWhiteSpace(gamePath))
+            {
+                _notificationService.ShowWithNavigation(NotificationLevel.Warning, "未检测到有效的游戏目录", "打开设置", NotificationNavigationTarget.Settings, "部署模组");
+                return;
+            }
+            var savedMethod = _settingsService == null ? DeploymentMethod.Copy.ToString()
+                : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
+            CurrentDeploymentMethod = Enum.TryParse<DeploymentMethod>(savedMethod, out var method) && Enum.IsDefined(method)
+                ? method : DeploymentMethod.Copy;
+            var methodName = CurrentDeploymentMethod switch
+            {
+                DeploymentMethod.HardLink => "硬链接", DeploymentMethod.SymbolicLink => "符号链接", _ => "文件复制"
+            };
+            DeploymentMessage = "等待确认部署...";
+            if (!await _confirmationService.ConfirmAsync("部署模组",
+                    $"配置：{profile.Name}\n启用模组：{profile.Mods.Count(mod => mod.Enabled)} 个\n部署方式：{methodName}\n部署位置：{Path.Combine(gamePath, "data")}\n将清理之前的部署并按配置顺序部署，是否继续？"))
+                return;
+
+            DeploymentMessage = "正在准备部署...";
+            var progress = new Progress<DeploymentProgress>(p =>
+            {
+                if (ReferenceEquals(_deploymentCts, deploymentCts) && !deploymentCts.IsCancellationRequested)
+                    DeploymentMessage = p.Message;
+            });
+            var savedOrder = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
+                : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
+            var deploymentOrder = savedOrder == DeploymentOrder.BottomToTop.ToString()
+                ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom;
+            var result = await Task.Run(() => _deploymentService.DeployProfileAsync(
+                profile.Id, CurrentDeploymentMethod, deploymentOrder, gamePath, progress, deploymentCts.Token));
             if (result.Status == DeploymentStatus.Completed)
-            {
-                _notificationService.ShowSuccess($"已部署 {result.CompletedMods} 个模组", "部署完成");
-            }
+                _notificationService.ShowSuccess(result.Message ?? $"已部署 {result.CompletedMods} 个模组", "部署完成");
             else
-            {
                 _notificationService.ShowWarning(result.ErrorMessage ?? result.Message ?? "部署未完全成功", "部署结果");
-            }
             await LoadModsAsync();
         }
         catch (OperationCanceledException)
@@ -1118,13 +1174,12 @@ public partial class LibraryViewModel : ObservableObject
         }
         finally
         {
+            _deploymentCts = null;
+            deploymentCts.Dispose();
             IsDeploying = false;
             DeploymentMessage = string.Empty;
-            _deploymentCts.Dispose();
-            _deploymentCts = null;
         }
     }
-
     [RelayCommand]
     private async Task CleanupAsync()
     {
@@ -1179,6 +1234,8 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void ShowModDetail(ModItemViewModel mod)
     {
+        _detailHashCts?.Cancel();
+        if (SelectedModDetail != null) SelectedModDetail.IsCalculatingHash = false;
         SelectedModDetail = mod;
         IsDetailPanelOpen = true;
 
@@ -1187,6 +1244,38 @@ public partial class LibraryViewModel : ObservableObject
         mod.RemoveFromProfileCommand = new RelayCommand(async () => await RemoveModFromProfileAsync(mod));
         mod.DeleteCommand = new RelayCommand(async () => await DeleteModDetailAsync(mod));
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
+        if (string.IsNullOrWhiteSpace(mod.Hash))
+        {
+            var cancellation = new CancellationTokenSource();
+            _detailHashCts = cancellation;
+            _ = LoadDetailHashAsync(mod, cancellation);
+        }
+    }
+
+    private async Task LoadDetailHashAsync(ModItemViewModel mod, CancellationTokenSource cancellation)
+    {
+        mod.HashError = null;
+        mod.IsCalculatingHash = true;
+        try
+        {
+            var hash = await _modService.EnsureModHashAsync(mod.Id, cancellation.Token);
+            if (!cancellation.IsCancellationRequested) mod.SetHash(hash);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            if (!cancellation.IsCancellationRequested) mod.HashError = $"计算失败：{ex.Message}";
+        }
+        finally
+        {
+            // 再次打开同一模组时，旧任务不能覆盖新任务的加载状态。
+            if (ReferenceEquals(_detailHashCts, cancellation))
+            {
+                mod.IsCalculatingHash = false;
+                _detailHashCts = null;
+            }
+            cancellation.Dispose();
+        }
     }
 
     /// <summary>
@@ -1195,6 +1284,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void CloseDetailPanel()
     {
+        _detailHashCts?.Cancel();
         IsDetailPanelOpen = false;
         SelectedModDetail = null;
     }
@@ -1415,7 +1505,7 @@ public partial class LibraryViewModel : ObservableObject
     partial void OnHasNoResultsChanged(bool value) => RefreshStateVisibilityProperties();
     partial void OnCurrentFilterChanged(ModFilterType value) => RefreshStateVisibilityProperties();
 
-    partial void OnSelectedCategoryChanged(ModCategory? value)
+    partial void OnSelectedCategoryChanged(ulong? value)
     {
         RefreshStateVisibilityProperties();
         _ = ApplyFiltersAsync();
@@ -1455,7 +1545,7 @@ public enum ModSortMode
 /// <summary>排序/分类下拉的本地化选项（直接绑定枚举会显示英文名）。</summary>
 public sealed record SortModeOption(string Display, ModSortMode Value);
 
-public sealed record CategoryOption(string Display, ModCategory Value);
+public sealed record CategoryOption(string Display, ulong? Value);
 
 /// <summary>加入配置文件弹窗中的配置文件选项。</summary>
 public partial class ProfileChoiceViewModel : ObservableObject

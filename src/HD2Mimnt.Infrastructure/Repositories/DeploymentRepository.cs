@@ -331,4 +331,30 @@ public class DeploymentRepository : IDeploymentRepository
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    public async Task CommitModDeploymentRemovalAsync(IReadOnlyCollection<Guid> deploymentIds,
+        IReadOnlyList<(Guid FileId, string TargetPath)> renamedFiles, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        foreach (var file in renamedFiles)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "UPDATE DeploymentFiles SET TargetPath = @TargetPath WHERE Id = @Id";
+            command.Parameters.AddWithValue("@TargetPath", file.TargetPath);
+            command.Parameters.AddWithValue("@Id", file.FileId.ToString());
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+                throw new InvalidOperationException($"部署文件记录已变更: {file.FileId}");
+        }
+        foreach (var id in deploymentIds)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM DeploymentRecords WHERE Id = @Id";
+            command.Parameters.AddWithValue("@Id", id.ToString());
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        await transaction.CommitAsync(cancellationToken);
+    }
 }

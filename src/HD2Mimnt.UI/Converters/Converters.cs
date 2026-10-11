@@ -1,33 +1,9 @@
 using Avalonia.Data;
 using Avalonia.Data.Converters;
-using Avalonia.Media;
 using System;
 using System.Globalization;
 
 namespace HD2Mimnt.UI.Converters;
-
-/// <summary>
-/// Bool 转颜色转换器
-/// true → Green, false → Gray
-/// </summary>
-public class BoolToColorConverter : IValueConverter
-{
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is bool isTrue)
-        {
-            return isTrue
-                ? new SolidColorBrush(Color.Parse("#34D399")) // Green
-                : new SolidColorBrush(Color.Parse("#64748B")); // Gray
-        }
-        return new SolidColorBrush(Color.Parse("#64748B"));
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return BindingOperations.DoNothing;
-    }
-}
 
 public class InverseBoolConverter : IValueConverter
 {
@@ -138,56 +114,29 @@ public class TimeAgoConverter : IValueConverter
     }
 }
 
-/// <summary>
-/// 通知级别转颜色
-/// </summary>
-public class LevelToColorConverter : IValueConverter
+/// <summary>通知级别映射到 FluentAvalonia 的语义状态，颜色与图标由主题控制。</summary>
+public class LevelToSeverityConverter : IValueConverter
 {
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
-        if (value is Application.Services.NotificationLevel level)
-        {
-            return level switch
-            {
-                Application.Services.NotificationLevel.Success => new SolidColorBrush(Color.Parse("#34D399")),
-                Application.Services.NotificationLevel.Info => new SolidColorBrush(Color.Parse("#3B82F6")),
-                Application.Services.NotificationLevel.Warning => new SolidColorBrush(Color.Parse("#FBBF24")),
-                Application.Services.NotificationLevel.Error => new SolidColorBrush(Color.Parse("#F87171")),
-                _ => new SolidColorBrush(Color.Parse("#64748B"))
-            };
-        }
-        return new SolidColorBrush(Color.Parse("#64748B"));
-    }
+        Application.Services.NotificationLevel.Success => FluentAvalonia.UI.Controls.FAInfoBarSeverity.Success,
+        Application.Services.NotificationLevel.Warning => FluentAvalonia.UI.Controls.FAInfoBarSeverity.Warning,
+        Application.Services.NotificationLevel.Error => FluentAvalonia.UI.Controls.FAInfoBarSeverity.Error,
+        _ => FluentAvalonia.UI.Controls.FAInfoBarSeverity.Informational
+    };
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return BindingOperations.DoNothing;
-    }
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
 }
 
-/// <summary>
-/// 通知级别转图标
-/// </summary>
-public class LevelToIconConverter : IValueConverter
+public class NotificationLevelLabelConverter : IValueConverter
 {
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
-        if (value is Application.Services.NotificationLevel level)
-        {
-            return level switch
-            {
-                Application.Services.NotificationLevel.Success => "✓",
-                Application.Services.NotificationLevel.Info => "ℹ",
-                Application.Services.NotificationLevel.Warning => "⚠",
-                Application.Services.NotificationLevel.Error => "✕",
-                _ => "•"
-            };
-        }
-        return "•";
-    }
+        Application.Services.NotificationLevel.Success => "成功",
+        Application.Services.NotificationLevel.Warning => "提醒",
+        Application.Services.NotificationLevel.Error => "错误",
+        _ => "通知"
+    };
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        return BindingOperations.DoNothing;
-    }
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => BindingOperations.DoNothing;
 }

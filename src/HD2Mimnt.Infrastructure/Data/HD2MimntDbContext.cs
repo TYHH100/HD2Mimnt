@@ -54,6 +54,9 @@ public class HD2MimntDbContext : IDisposable
                 Path TEXT NOT NULL,
                 Category INTEGER NOT NULL DEFAULT 0,
                 Tags TEXT,
+                ResourceTypeIds TEXT,
+                BslRole INTEGER,
+                BslDetectionVersion INTEGER NOT NULL DEFAULT 0,
                 WorkflowType TEXT,
                 ImportedAt TEXT NOT NULL,
                 ModifiedAt TEXT NOT NULL,
@@ -77,6 +80,7 @@ public class HD2MimntDbContext : IDisposable
                 CreatedAt TEXT NOT NULL,
                 ModifiedAt TEXT NOT NULL,
                 IsActive INTEGER NOT NULL,
+                IsDefault INTEGER NOT NULL DEFAULT 0,
                 SortOrder INTEGER NOT NULL DEFAULT 0
             );
 
@@ -431,6 +435,51 @@ public class HD2MimntDbContext : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        using (var checkDefault = connection.CreateCommand())
+        {
+            checkDefault.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Profiles') WHERE name = 'IsDefault';";
+            if (Convert.ToInt64(await checkDefault.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterDefault = connection.CreateCommand();
+                alterDefault.CommandText = "ALTER TABLE Profiles ADD COLUMN IsDefault INTEGER NOT NULL DEFAULT 0;";
+                await alterDefault.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        // 十六进制字符串 JSON 避免 SQLite 有符号整数无法容纳完整的 64 位 Type ID。
+        using (var checkTypes = connection.CreateCommand())
+        {
+            checkTypes.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = 'ResourceTypeIds';";
+            if (Convert.ToInt64(await checkTypes.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterTypes = connection.CreateCommand();
+                alterTypes.CommandText = "ALTER TABLE Mods ADD COLUMN ResourceTypeIds TEXT;";
+                await alterTypes.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        using (var checkBsl = connection.CreateCommand())
+        {
+            checkBsl.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = 'BslRole';";
+            if (Convert.ToInt64(await checkBsl.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterBsl = connection.CreateCommand();
+                alterBsl.CommandText = "ALTER TABLE Mods ADD COLUMN BslRole INTEGER;";
+                await alterBsl.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        using (var checkBslVersion = connection.CreateCommand())
+        {
+            checkBslVersion.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = 'BslDetectionVersion';";
+            if (Convert.ToInt64(await checkBslVersion.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterBslVersion = connection.CreateCommand();
+                alterBslVersion.CommandText = "ALTER TABLE Mods ADD COLUMN BslDetectionVersion INTEGER NOT NULL DEFAULT 0;";
+                await alterBslVersion.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
 
         // 轻量列迁移：老库的 Profiles 没有 SortOrder 列时补列，并按创建时间回填顺序
         using (var checkCommand = connection.CreateCommand())

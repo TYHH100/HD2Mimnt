@@ -15,16 +15,42 @@ public class ModService
     private readonly ModImportService _importService;
     private readonly ThumbnailService _thumbnailService;
     private readonly ILogger<ModService>? _logger;
+    private readonly DeploymentService? _deploymentService;
     private readonly string _storageDirectory;
+    private readonly SemaphoreSlim _hashGate = new(1, 1);
+
+    /// <summary>仅在查看缺失哈希的模组时补算，读取列表不扫描全部文件。</summary>
+    public async Task<string> EnsureModHashAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await _hashGate.WaitAsync(cancellationToken);
+        try
+        {
+            var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new KeyNotFoundException("模组已不存在");
+            if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
+            var hash = await Task.Run(() => ModHashService.CalculateAsync(mod.Path, cancellationToken), cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            // 计算期间可能更新了其它模组信息，重新读取避免旧快照覆盖变更。
+            mod = await _modRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new KeyNotFoundException("模组已不存在");
+            if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
+            mod.Hash = hash;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            return hash;
+        }
+        finally { _hashGate.Release(); }
+    }
 
     public ModService(
         IModRepository modRepository,
         string storageDirectory,
-        ILogger<ModService>? logger = null)
+        ILogger<ModService>? logger = null,
+        DeploymentService? deploymentService = null)
     {
         _modRepository = modRepository;
         _storageDirectory = storageDirectory;
         _logger = logger;
+        _deploymentService = deploymentService;
 
         // 初始化子服务
         var thumbnailsPath = Path.Combine(storageDirectory, "thumbnails");
@@ -82,6 +108,12 @@ public class ModService
 
     private async Task BackfillMissingManifestAsync(Mod mod, CancellationToken cancellationToken)
     {
+        if (mod.ResourceTypeIds == null)
+        {
+            await _importService.PopulateResourceTypesAsync(mod, cancellationToken);
+            if (mod.ResourceTypeIds != null) await _modRepository.UpdateAsync(mod, cancellationToken);
+        }
+
         if (mod.Manifest != null || string.IsNullOrEmpty(mod.Path) || !Directory.Exists(mod.Path))
         {
             return;
@@ -115,6 +147,11 @@ public class ModService
             return false;
         }
 
+        // 先解除游戏中的部署，再删除库内源文件；失败时保留模组供用户重试。
+        if (_deploymentService != null)
+            await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
         // 删除物理文件
         if (Directory.Exists(mod.Path))
         {
@@ -146,22 +183,30 @@ public class ModService
     /// <summary>
     /// 从文件夹或 ZIP 导入 Mod
     /// </summary>
-    public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default)
+    public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null)
     {
-        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken);
+        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress);
 
-        // 生成缩略图
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod != null)
+        // 已落库即视为导入成功；缩略图失败或此时取消不能把成功项统计为失败。
+        progress?.Report(new(95, "生成缩略图", "准备模组预览", true));
+        try
         {
-            var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken);
-            if (thumbnailPath != null)
+            var mod = await _modRepository.GetByIdAsync(modId, CancellationToken.None);
+            if (mod != null)
             {
-                mod.ThumbnailPath = thumbnailPath;
-                await _modRepository.UpdateAsync(mod, cancellationToken);
+                var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken);
+                if (thumbnailPath != null)
+                {
+                    mod.ThumbnailPath = thumbnailPath;
+                    await _modRepository.UpdateAsync(mod, CancellationToken.None);
+                }
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception ex) { _logger?.LogWarning(ex, "模组已导入，但缩略图生成失败: {ModId}", modId); }
 
+        progress?.Report(new(100, "添加完成", Path.GetFileName(sourcePath)));
         RaiseModsChanged();
         return modId;
     }

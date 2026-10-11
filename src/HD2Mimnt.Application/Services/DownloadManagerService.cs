@@ -22,6 +22,7 @@ public class DownloadManagerService
     /// </summary>
     public Guid EnqueueDownload(string platformId, string modId, string targetPath)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
         var platform = _platformRegistry.GetPlatform(platformId);
         if (platform == null)
         {
@@ -42,7 +43,7 @@ public class DownloadManagerService
         _downloadTasks[taskId] = downloadTask;
 
         // Start download in background
-        _ = Task.Run(async () => await ExecuteDownloadAsync(taskId, platform));
+        _ = Task.Run(async () => await ExecuteDownloadAsync(downloadTask, platform));
 
         return taskId;
     }
@@ -53,6 +54,14 @@ public class DownloadManagerService
     public DownloadTask? GetDownloadTask(Guid taskId)
     {
         return _downloadTasks.TryGetValue(taskId, out var task) ? task : null;
+    }
+
+    /// <summary>Waits for execution and temporary-file cleanup, including after cancellation.</summary>
+    public Task WaitForDownloadAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        if (!_downloadTasks.TryGetValue(taskId, out var task))
+            throw new KeyNotFoundException($"Download task not found: {taskId}");
+        return task.ExecutionCompleted.Task.WaitAsync(cancellationToken);
     }
 
     /// <summary>
@@ -113,13 +122,9 @@ public class DownloadManagerService
         }
     }
 
-    private async Task ExecuteDownloadAsync(Guid taskId, IModPlatform platform)
+    private async Task ExecuteDownloadAsync(DownloadTask task, IModPlatform platform)
     {
-        if (!_downloadTasks.TryGetValue(taskId, out var task))
-        {
-            return;
-        }
-
+        string? temporaryPath = null;
         try
         {
             lock (task)
@@ -141,50 +146,87 @@ public class DownloadManagerService
             task.ModName = modInfo.Name;
 
             // Create progress reporter
-            var progress = new Progress<DownloadProgress>(p =>
+            var progress = new DownloadProgressReporter(p =>
             {
-                task.Progress = p.Percentage;
-                task.DownloadedBytes = p.DownloadedBytes;
-                task.TotalBytes = p.TotalBytes;
-                task.StatusMessage = p.StatusMessage;
+                lock (task)
+                {
+                    if (task.Status != DownloadStatus.Downloading) return;
+                    task.Progress = p.Percentage;
+                    task.DownloadedBytes = p.DownloadedBytes;
+                    task.TotalBytes = p.TotalBytes;
+                    task.StatusMessage = p.StatusMessage;
+                }
             });
 
             // Download the mod
             using var stream = await platform.DownloadModAsync(task.ModId, progress, task.CancellationTokenSource.Token);
+            task.CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             // Save to file
-            var directory = Path.GetDirectoryName(task.TargetPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            var target = Path.GetFullPath(task.TargetPath);
+            var directory = Path.GetDirectoryName(target)!;
+            Directory.CreateDirectory(directory);
+            temporaryPath = Path.Combine(directory, $".{Path.GetFileName(target)}.{task.Id:N}.download");
+            await using (var fileStream = new FileStream(temporaryPath, FileMode.CreateNew,
+                FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous))
             {
-                Directory.CreateDirectory(directory);
+                await stream.CopyToAsync(fileStream, task.CancellationTokenSource.Token);
+                await fileStream.FlushAsync(task.CancellationTokenSource.Token);
             }
 
-            await using var fileStream = File.Create(task.TargetPath);
-            await stream.CopyToAsync(fileStream, task.CancellationTokenSource.Token);
-
-            task.Status = DownloadStatus.Completed;
-            task.Progress = 100;
-            task.CompletedAt = DateTime.UtcNow;
-            task.StatusMessage = "Download completed";
+            lock (task)
+            {
+                task.CancellationTokenSource.Token.ThrowIfCancellationRequested();
+                File.Move(temporaryPath, target, overwrite: true);
+                task.Status = DownloadStatus.Completed;
+                task.Progress = 100;
+                task.CompletedAt = DateTime.UtcNow;
+                task.StatusMessage = "Download completed";
+            }
         }
         catch (OperationCanceledException)
         {
-            task.Status = DownloadStatus.Cancelled;
-            task.CompletedAt = DateTime.UtcNow;
-            task.StatusMessage = "Download cancelled";
+            lock (task)
+            {
+                task.Status = DownloadStatus.Cancelled;
+                task.CompletedAt = DateTime.UtcNow;
+                task.StatusMessage = "Download cancelled";
+            }
         }
         catch (Exception ex)
         {
-            task.Status = DownloadStatus.Failed;
-            task.CompletedAt = DateTime.UtcNow;
-            task.ErrorMessage = ex.Message;
-            task.StatusMessage = "Download failed";
+            lock (task)
+            {
+                if (task.Status != DownloadStatus.Cancelled)
+                {
+                    task.Status = DownloadStatus.Failed;
+                    task.CompletedAt = DateTime.UtcNow;
+                    task.ErrorMessage = ex.Message;
+                    task.StatusMessage = "Download failed";
+                }
+            }
         }
         finally
         {
-            task.CancellationTokenSource?.Dispose();
-            task.CancellationTokenSource = null;
+            try
+            {
+                if (temporaryPath is not null) File.Delete(temporaryPath);
+            }
+            finally
+            {
+                lock (task)
+                {
+                    task.CancellationTokenSource?.Dispose();
+                    task.CancellationTokenSource = null;
+                    task.ExecutionCompleted.TrySetResult();
+                }
+            }
         }
+    }
+
+    private sealed class DownloadProgressReporter(Action<DownloadProgress> report) : IProgress<DownloadProgress>
+    {
+        public void Report(DownloadProgress value) => report(value);
     }
 }
 
@@ -209,6 +251,7 @@ public class DownloadTask
     public DateTime? CompletedAt { get; set; }
 
     internal CancellationTokenSource? CancellationTokenSource { get; set; }
+    internal TaskCompletionSource ExecutionCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
 
 /// <summary>

@@ -5,6 +5,9 @@ namespace HD2Mimnt.Core.Entities;
 /// </summary>
 public class PlatformSearchResult
 {
+    /// <summary>Describes a limited search source, or empty for an unrestricted search.</summary>
+    public string ScopeDescription { get; set; } = string.Empty;
+
     /// <summary>
     /// Gets or sets the list of Mod information from the search.
     /// </summary>

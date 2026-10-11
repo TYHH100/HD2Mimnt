@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             x:Class="HD2Mimnt.UI.Controls.TutorialOverlay" x:DataType="vm:TutorialViewModel"
+             IsVisible="{Binding IsOpen}" Focusable="True">
+  <Panel Background="Transparent">
+    <Border x:Name="BlurredPage" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top">
+      <Border.Effect><BlurEffect Radius="{DynamicResource TutorialBlurRadius}"/></Border.Effect>
+    </Border>
+    <Border Background="{DynamicResource TutorialScrimBrush}" IsHitTestVisible="False"/>
+    <Canvas>
+      <Border x:Name="TargetFrame" BorderBrush="{DynamicResource TutorialHighlightBrush}" BorderThickness="3"
+              CornerRadius="5" Padding="3" IsHitTestVisible="False">
+        <Border x:Name="TargetPreview" Background="{DynamicResource Surface2Brush}"/>
+      </Border>
+      <Border x:Name="ExplanationCard" Width="350" Classes="card" Background="{DynamicResource Surface2Brush}"
+              Padding="18" BorderBrush="{DynamicResource TutorialHighlightBrush}" BorderThickness="1"
+              BoxShadow="0 8 28 0 #55000000">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="功能教程" Classes="caption-text"/>
+            <Button Grid.Column="1" Content="退出" Command="{Binding CloseCommand}" ToolTip.Tip="退出教程（Esc）"/>
+          </Grid>
+          <TextBlock Text="{Binding CurrentStep.Title}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding CurrentStep.Description}" TextWrapping="Wrap" LineHeight="21"/>
+          <TextBlock x:Name="TargetUnavailable" Text="当前功能暂未显示，可继续阅读或进入下一步。"
+                     Classes="caption-text" TextWrapping="Wrap" IsVisible="False"/>
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock Text="{Binding StepCounter}" Classes="caption-text" VerticalAlignment="Center"/>
+            <Button x:Name="PreviousButton" Grid.Column="1" Content="上一步" Command="{Binding PreviousCommand}" IsEnabled="{Binding HasPrevious}"/>
+            <Button x:Name="NextButton" Grid.Column="2" Content="{Binding NextLabel}" Classes="accent" Command="{Binding NextCommand}"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Canvas>
+  </Panel>
+</UserControl>

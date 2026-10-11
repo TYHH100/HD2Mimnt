@@ -4,6 +4,7 @@ using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Repositories;
+using Moq;
 using Xunit;
 
 namespace HD2Mimnt.Tests.Deployment;
@@ -618,6 +619,287 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.False(recordDeleted);
         Assert.NotEmpty(await failingService.GetDeploymentsBySessionIdAsync(sessionId));
         Assert.Single(await failingService.GetDeploymentFilesAsync(record.Id));
+    }
+
+    [Theory]
+    [InlineData(DeploymentOrder.TopToBottom, "first", "second")]
+    [InlineData(DeploymentOrder.BottomToTop, "second", "first")]
+    public async Task DeployProfile_ShouldRenumberTripletsInDataAndTrackPlaceholders(
+        DeploymentOrder order, string firstContent, string secondContent)
+    {
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        File.WriteAllText(Path.Combine(first.Path, "preview.png"), "preview");
+        File.WriteAllText(Path.Combine(first.Path, "manifest.json"), "{}");
+        Directory.CreateDirectory(Path.Combine(first.Path, "unused"));
+        File.WriteAllText(Path.Combine(first.Path, "unused", "aaaaaaaaaaaaaaaa.patch_0"), "unused");
+        var profile = await AddPatchProfileAsync(first, second);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, order, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(2, result.TotalMods);
+        Assert.Equal(2, result.CompletedMods);
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(firstContent, File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+        Assert.Equal(secondContent, File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_1")));
+        Assert.Equal(6, Directory.GetFiles(data).Length);
+        Assert.Empty(Directory.GetFiles(_testTargetDir));
+        Assert.Equal(0, new FileInfo(Path.Combine(data, "0123456789abcdef.patch_0.stream")).Length);
+        var records = (await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId)).ToList();
+        foreach (var record in records)
+            Assert.Equal(3, (await _deploymentService.GetDeploymentFilesAsync(record.Id)).Count());
+        var cleanup = await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.Equal(6, cleanup.FilesDeleted);
+        Assert.Empty(Directory.GetFiles(data));
+        Assert.Equal("first", File.ReadAllText(Path.Combine(first.Path, "0123456789abcdef.patch_7")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_ShouldPreserveDirectoryIndexUnionPlaceholders()
+    {
+        var mod = await AddPatchModAsync("union", "aaaaaaaaaaaaaaaa.patch_8");
+        File.WriteAllText(Path.Combine(mod.Path, "bbbbbbbbbbbbbbbb.patch_2.stream"), "stream");
+        var profile = await AddPatchProfileAsync(mod);
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(12, Directory.GetFiles(data).Length);
+        Assert.Equal(0, new FileInfo(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")).Length);
+        Assert.Equal("union", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_1")));
+        Assert.Equal("stream", File.ReadAllText(Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_0.stream")));
+        Assert.Equal(0, new FileInfo(Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_1.stream")).Length);
+    }
+
+    [Fact]
+    public async Task DeployProfile_ShouldReportSkippedAndDisabledModsAccurately()
+    {
+        var valid = await AddPatchModAsync("valid", "aaaaaaaaaaaaaaaa.patch_0");
+        var empty = await AddPatchModAsync("empty", "readme.txt");
+        var disabled = await AddPatchModAsync("disabled", "bbbbbbbbbbbbbbbb.patch_0");
+        var profile = await AddPatchProfileAsync(valid, empty, disabled);
+        await new ProfileService(_profileRepository, _modRepository).SetModEnabledAsync(profile.Id, disabled.Id, false);
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
+        Assert.Equal(2, result.TotalMods);
+        Assert.Equal(1, result.CompletedMods);
+        Assert.Equal(1, result.SkippedMods);
+        Assert.Contains("empty", result.Message);
+        Assert.Equal(3, Directory.GetFiles(Path.Combine(_testTargetDir, "data")).Length);
+    }
+
+    [Fact]
+    public async Task DeployProfile_IncompatibleMethod_ShouldKeepPreviousDeployment()
+    {
+        var mod = await AddPatchModAsync("previous", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(mod);
+        var previous = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        var method = new Moq.Mock<HD2Mimnt.Core.Interfaces.IDeploymentMethod>();
+        method.SetupGet(m => m.Name).Returns("HardLink");
+        method.Setup(m => m.CheckCompatibilityAsync(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync((false, "different volumes"));
+        var service = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository, new[] { method.Object });
+
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.HardLink,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("different volumes", result.ErrorMessage);
+        Assert.NotEmpty(await service.GetDeploymentsBySessionIdAsync(previous.SessionId));
+        Assert.Equal("previous", File.ReadAllText(Path.Combine(_testTargetDir, "data", "aaaaaaaaaaaaaaaa.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_CancelDuringFileWrite_ShouldTrackPartialTargetForCleanup()
+    {
+        var mod = await AddPatchModAsync("cancel", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(mod);
+        using var cts = new CancellationTokenSource();
+        var method = new Moq.Mock<HD2Mimnt.Core.Interfaces.IDeploymentMethod>();
+        method.SetupGet(m => m.Name).Returns("Copy");
+        method.Setup(m => m.CheckCompatibilityAsync(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, (string?)null));
+        method.Setup(m => m.DeployFileAsync(Moq.It.IsAny<string>(), Moq.It.IsAny<string>(), null, Moq.It.IsAny<CancellationToken>()))
+            .Returns((string source, string target, IProgress<string>? progress, CancellationToken token) =>
+            {
+                File.WriteAllText(target, "partial");
+                cts.Cancel();
+                return Task.FromCanceled<bool>(token);
+            });
+        var service = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository, new[] { method.Object });
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir, cancellationToken: cts.Token);
+
+        Assert.Equal(DeploymentStatus.Cancelled, result.Status);
+        Assert.Equal(0, result.CompletedMods);
+        var record = Assert.Single(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+        Assert.Equal(DeploymentStatus.Cancelled.ToString(), record.Status);
+        var file = Assert.Single(await service.GetDeploymentFilesAsync(record.Id));
+        Assert.Equal("partial", File.ReadAllText(file.TargetPath));
+        await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.False(File.Exists(file.TargetPath));
+    }
+
+    [Theory]
+    [InlineData(0, DeploymentOrder.TopToBottom, DeploymentMethod.Copy)]
+    [InlineData(1, DeploymentOrder.TopToBottom, DeploymentMethod.Copy)]
+    [InlineData(2, DeploymentOrder.TopToBottom, DeploymentMethod.Copy)]
+    [InlineData(1, DeploymentOrder.BottomToTop, DeploymentMethod.Copy)]
+    [InlineData(1, DeploymentOrder.TopToBottom, DeploymentMethod.HardLink)]
+    public async Task DeleteMod_ShouldRemoveTargetsCompactTripletsAndUpdateTracking(
+        int removedIndex, DeploymentOrder order, DeploymentMethod method)
+    {
+        var mods = new List<Mod>();
+        for (var i = 0; i < 3; i++)
+        {
+            var mod = await AddPatchModAsync($"mod{i}", "aaaaaaaaaaaaaaaa.patch_7");
+            File.WriteAllText(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_7.stream"), $"stream{i}");
+            File.WriteAllText(Path.Combine(mod.Path, "bbbbbbbbbbbbbbbb.patch_7"), $"other{i}");
+            mods.Add(mod);
+        }
+        var profile = await AddPatchProfileAsync(mods.ToArray());
+        var service = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository,
+            new HD2Mimnt.Core.Interfaces.IDeploymentMethod[] { new CopyDeploymentMethod(), new HardLinkDeploymentMethod() });
+        var result = await service.DeployProfileAsync(profile.Id, method, order, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        var removed = mods[removedIndex];
+        var modService = new ModService(_modRepository, _testSourceDir, deploymentService: service);
+
+        Assert.True(await modService.DeleteModAsync(removed.Id));
+
+        Assert.Null(await _modRepository.GetByIdAsync(removed.Id));
+        Assert.False(Directory.Exists(removed.Path));
+        Assert.Empty(await service.GetModDeploymentHistoryAsync(removed.Id));
+        var expected = (order == DeploymentOrder.TopToBottom ? mods : mods.AsEnumerable().Reverse())
+            .Where(mod => mod.Id != removed.Id).ToList();
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(12, Directory.GetFiles(data).Length);
+        for (var i = 0; i < expected.Count; i++)
+        {
+            var mod = expected[i];
+            Assert.Equal(mod.Name, File.ReadAllText(Path.Combine(data, $"aaaaaaaaaaaaaaaa.patch_{i}")));
+            Assert.Equal($"stream{mods.IndexOf(mod)}", File.ReadAllText(Path.Combine(data, $"aaaaaaaaaaaaaaaa.patch_{i}.stream")));
+            Assert.Equal($"other{mods.IndexOf(mod)}", File.ReadAllText(Path.Combine(data, $"bbbbbbbbbbbbbbbb.patch_{i}")));
+            Assert.Equal(0, new FileInfo(Path.Combine(data, $"aaaaaaaaaaaaaaaa.patch_{i}.gpu_resources")).Length);
+            var record = Assert.Single(await service.GetModDeploymentHistoryAsync(mod.Id));
+            Assert.All(record.Files, file => Assert.Contains($".patch_{i}", file.TargetPath));
+            Assert.Equal(mod.Name, File.ReadAllText(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_7")));
+        }
+        await service.PreDeploymentCleanupAsync();
+        Assert.Empty(Directory.GetFiles(data));
+        Assert.Empty(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+    }
+
+    [Fact]
+    public async Task DeleteMod_CleanupFailure_ShouldKeepModFilesAndRecordsForRetry()
+    {
+        var mod = await AddPatchModAsync("keep", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(mod);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        var record = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(mod.Id));
+        var failing = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository,
+            new[] { new FailingCleanupDeploymentMethod() });
+        var modService = new ModService(_modRepository, _testSourceDir, deploymentService: failing);
+
+        await Assert.ThrowsAsync<IOException>(() => modService.DeleteModAsync(mod.Id));
+
+        Assert.NotNull(await _modRepository.GetByIdAsync(mod.Id));
+        Assert.True(Directory.Exists(mod.Path));
+        Assert.All((await _deploymentRepository.GetByIdAsync(record.Id))!.Files, file => Assert.True(File.Exists(file.TargetPath)));
+        Assert.True(await new ModService(_modRepository, _testSourceDir, deploymentService: _deploymentService).DeleteModAsync(mod.Id));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
+    }
+
+    [Fact]
+    public async Task DeleteMod_RenameCollision_ShouldRestoreTrackingAndAllowRetry()
+    {
+        var first = await AddPatchModAsync("first", "aaaaaaaaaaaaaaaa.patch_0");
+        var second = await AddPatchModAsync("second", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(first, second);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        var remainingRecord = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        var blocked = remainingRecord.Files.Single(file => file.TargetPath.EndsWith(".stream", StringComparison.Ordinal));
+        // 移动时锁定后一个 sidecar，确保前面的移动也被回滚。
+        using (var locked = new FileStream(blocked.TargetPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            await Assert.ThrowsAsync<IOException>(() => _deploymentService.DeleteModDeploymentRecordsAsync(first.Id));
+        }
+        Assert.NotNull(await _modRepository.GetByIdAsync(first.Id));
+        Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(first.Id));
+        var unchanged = (await _deploymentRepository.GetByIdAsync(remainingRecord.Id))!;
+        Assert.All(unchanged.Files, file =>
+        {
+            Assert.Contains(".patch_1", file.TargetPath);
+            Assert.True(File.Exists(file.TargetPath));
+        });
+        await _deploymentService.DeleteModDeploymentRecordsAsync(first.Id);
+        var compacted = (await _deploymentRepository.GetByIdAsync(remainingRecord.Id))!;
+        Assert.All(compacted.Files, file => Assert.Contains(".patch_0", file.TargetPath));
+        await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
+    }
+
+    [Fact]
+    public async Task DeleteMod_Canceled_ShouldKeepTargetsAndRecords()
+    {
+        var mod = await AddPatchModAsync("cancelDelete", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(mod);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new ModService(_modRepository,
+            _testSourceDir, deploymentService: _deploymentService).DeleteModAsync(mod.Id, cancellation.Token));
+        Assert.NotNull(await _modRepository.GetByIdAsync(mod.Id));
+        var record = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(mod.Id));
+        Assert.All(record.Files, file => Assert.True(File.Exists(file.TargetPath)));
+    }
+
+    [Fact]
+    public async Task DeleteMod_CommitFailure_ShouldRollbackFileRenamesAndDatabaseChanges()
+    {
+        var first = await AddPatchModAsync("commitFirst", "aaaaaaaaaaaaaaaa.patch_0");
+        var second = await AddPatchModAsync("commitSecond", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(first, second);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        var secondRecord = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        var connection = await _dbContext.GetConnectionAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "CREATE TRIGGER FailTargetUpdate BEFORE UPDATE OF TargetPath ON DeploymentFiles BEGIN SELECT RAISE(ABORT, 'test commit failure'); END";
+        await command.ExecuteNonQueryAsync();
+        await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => _deploymentService.DeleteModDeploymentRecordsAsync(first.Id));
+        Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(first.Id));
+        Assert.All((await _deploymentRepository.GetByIdAsync(secondRecord.Id))!.Files, file =>
+        {
+            Assert.Contains(".patch_1", file.TargetPath);
+            Assert.True(File.Exists(file.TargetPath));
+        });
+        command.CommandText = "DROP TRIGGER FailTargetUpdate";
+        await command.ExecuteNonQueryAsync();
+        await _deploymentService.DeleteModDeploymentRecordsAsync(first.Id);
+        await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
+    }
+
+    private async Task<Mod> AddPatchModAsync(string name, string fileName)
+    {
+        var path = Path.Combine(_testSourceDir, name);
+        Directory.CreateDirectory(path);
+        File.WriteAllText(Path.Combine(path, fileName), name);
+        var mod = new Mod { Id = Guid.NewGuid(), Name = name, Path = path };
+        await _modRepository.AddAsync(mod);
+        return mod;
+    }
+
+    private async Task<Profile> AddPatchProfileAsync(params Mod[] mods)
+    {
+        var profile = new Profile { Id = Guid.NewGuid(), Name = "Patch profile" };
+        await _profileRepository.AddAsync(profile);
+        foreach (var mod in mods)
+            await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, mod.Id);
+        return profile;
     }
 
     private sealed class FailingCleanupDeploymentMethod : HD2Mimnt.Core.Interfaces.IDeploymentMethod

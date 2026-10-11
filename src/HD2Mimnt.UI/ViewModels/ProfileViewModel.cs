@@ -2,9 +2,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
+using Avalonia.Threading;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using Avalonia.Media.Imaging;
 using HD2Mimnt.UI.Services;
 
@@ -43,12 +48,167 @@ public partial class ProfileViewModel : ObservableObject
     /// <summary>本页自身发起的 ProfileService 变更不需要经 ProfilesChanged 事件重载（本地状态已同步）。</summary>
     private bool _suppressProfilesChangedRefresh;
 
+    private ProfileModViewModel? _modSelectionAnchor;
+    private readonly HashSet<ProfileModViewModel> _selectionTrackedMods = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMods))]
+    private int _selectedModCount;
+
+    public bool HasSelectedMods => SelectedModCount > 0;
+
+    [ObservableProperty]
+    private bool _isBatchModOperationRunning;
+
+    private bool CanRunSelectedModAction() => HasSelectedProfile && HasSelectedMods
+        && !IsProfileModsLoading && !IsBatchModOperationRunning;
+
+    partial void OnIsBatchModOperationRunningChanged(bool value) => UpdateModSelectionState();
+
+    partial void OnProfileModsChanged(ObservableCollection<ProfileModViewModel>? oldValue,
+        ObservableCollection<ProfileModViewModel> newValue)
+    {
+        if (oldValue != null) oldValue.CollectionChanged -= OnProfileModsCollectionChanged;
+        newValue.CollectionChanged += OnProfileModsCollectionChanged;
+        RefreshModSelectionSubscriptions();
+    }
+
+    private void OnProfileModsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        => RefreshModSelectionSubscriptions();
+
+    private void RefreshModSelectionSubscriptions()
+    {
+        foreach (var mod in _selectionTrackedMods.Except(ProfileMods).ToArray())
+        {
+            mod.PropertyChanged -= OnModSelectionChanged;
+            _selectionTrackedMods.Remove(mod);
+        }
+        foreach (var mod in ProfileMods.Except(_selectionTrackedMods))
+        {
+            mod.PropertyChanged += OnModSelectionChanged;
+            _selectionTrackedMods.Add(mod);
+        }
+        if (_modSelectionAnchor != null && !ProfileMods.Contains(_modSelectionAnchor)) _modSelectionAnchor = null;
+        UpdateModSelectionState();
+    }
+
+    private void OnModSelectionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ProfileModViewModel.IsSelected)) UpdateModSelectionState();
+    }
+
+    private void UpdateModSelectionState()
+    {
+        SelectedModCount = ProfileMods.Count(mod => mod.CanSelect && mod.IsSelected);
+        BatchEnableModsCommand.NotifyCanExecuteChanged();
+        BatchDisableModsCommand.NotifyCanExecuteChanged();
+        RemoveSelectedModsCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    private void ClearModSelection()
+    {
+        foreach (var mod in ProfileMods) mod.IsSelected = false;
+        _modSelectionAnchor = null;
+    }
+
+    [RelayCommand]
+    private void ToggleSelectAllMods()
+    {
+        var visible = VisibleProfileMods.Where(mod => mod.CanSelect).ToArray();
+        var select = !visible.All(mod => mod.IsSelected);
+        foreach (var mod in visible) mod.IsSelected = select;
+    }
+
+    [RelayCommand]
+    private void InvertModSelection()
+    {
+        foreach (var mod in VisibleProfileMods.Where(mod => mod.CanSelect)) mod.IsSelected = !mod.IsSelected;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRunSelectedModAction))]
+    private Task BatchEnableModsAsync() => SetSelectedModsEnabledAsync(true);
+
+    [RelayCommand(CanExecute = nameof(CanRunSelectedModAction))]
+    private Task BatchDisableModsAsync() => SetSelectedModsEnabledAsync(false);
+
+    private async Task SetSelectedModsEnabledAsync(bool enabled)
+    {
+        if (!CanRunSelectedModAction() || SelectedProfile is not { } profile) return;
+        var selected = ProfileMods.Where(mod => mod.CanSelect && mod.IsSelected).ToArray();
+        IsBatchModOperationRunning = true;
+        try
+        {
+            await SuppressLocalChangeAsync(() => _profileService.SetModsEnabledAsync(profile.Id,
+                selected.Select(mod => mod.ModId).ToArray(), enabled));
+            if (ReferenceEquals(SelectedProfile, profile))
+                foreach (var mod in selected) mod.Enabled = enabled;
+        }
+        catch (Exception ex) { _notificationService.ShowError($"批量更新模组状态失败: {ex.Message}", "配置文件"); }
+        finally { IsBatchModOperationRunning = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRunSelectedModAction))]
+    private async Task RemoveSelectedModsAsync()
+    {
+        if (!CanRunSelectedModAction() || SelectedProfile is not { } profile) return;
+        var selected = ProfileMods.Where(mod => mod.CanSelect && mod.IsSelected).ToArray();
+        IsBatchModOperationRunning = true;
+        try
+        {
+            await SuppressLocalChangeAsync(() => _profileService.RemoveModsFromProfileAsync(profile.Id,
+                selected.Select(mod => mod.ModId).ToArray()));
+            profile.ModCount = Math.Max(0, profile.ModCount - selected.Length);
+            if (ReferenceEquals(SelectedProfile, profile))
+            {
+                foreach (var mod in selected) ProfileMods.Remove(mod);
+                RenumberProfileMods();
+                ApplyModFilter();
+                IsProfileModsEmpty = ProfileMods.Count == 0;
+            }
+        }
+        catch (Exception ex) { _notificationService.ShowError($"批量移除模组失败: {ex.Message}", "配置文件"); }
+        finally { IsBatchModOperationRunning = false; }
+    }
+
+    public void SetModSelectionAnchor(ProfileModViewModel mod)
+    {
+        if (mod.CanSelect) _modSelectionAnchor = mod;
+    }
+
+    public void SelectAllVisibleMods()
+    {
+        foreach (var mod in VisibleProfileMods.Where(mod => mod.CanSelect)) mod.IsSelected = true;
+    }
+
+    public void SelectModRange(ProfileModViewModel mod, bool additive = false)
+    {
+        if (!mod.CanSelect) return;
+        var targetIndex = VisibleProfileMods.IndexOf(mod);
+        if (targetIndex < 0) return;
+        var anchorIndex = _modSelectionAnchor == null ? targetIndex : VisibleProfileMods.IndexOf(_modSelectionAnchor);
+        if (anchorIndex < 0) anchorIndex = targetIndex;
+        _modSelectionAnchor = VisibleProfileMods[anchorIndex];
+        if (!additive)
+            foreach (var item in ProfileMods) item.IsSelected = false;
+        var start = Math.Min(anchorIndex, targetIndex);
+        var end = Math.Max(anchorIndex, targetIndex);
+        for (var index = start; index <= end; index++)
+            if (VisibleProfileMods[index].CanSelect) VisibleProfileMods[index].IsSelected = true;
+    }
+
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _profileMods = new();
 
     /// <summary>搜索过滤后的模组卡片列表，与 ProfileMods 共享同一组实例。</summary>
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _visibleProfileMods = new();
+
+    [ObservableProperty]
+    private ObservableCollection<ProfileModViewModel> _profileRows = new();
+
+    private bool _bottomToTop;
+    public event EventHandler? DeploymentDirectionChanged;
 
     [ObservableProperty]
     private bool _hasNoModResults;
@@ -102,7 +262,7 @@ public partial class ProfileViewModel : ObservableObject
 
     public bool HasSelectedProfile => SelectedProfile != null;
     public bool HasNoSelectedProfile => SelectedProfile == null;
-    public bool IsProfileModsContentVisible => HasSelectedProfile && !IsProfileModsLoading && !IsProfileModsEmpty && !HasProfileModsError && !HasNoModResults;
+    public bool IsProfileModsContentVisible => HasSelectedProfile && !IsProfileModsLoading && !HasProfileModsError && !HasNoModResults;
     public bool IsProfileModsEmptyStateVisible => HasSelectedProfile && !IsProfileModsLoading && IsProfileModsEmpty && !HasProfileModsError;
     public bool IsProfileModsLoadingStateVisible => HasSelectedProfile && IsProfileModsLoading;
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
@@ -116,6 +276,34 @@ public partial class ProfileViewModel : ObservableObject
         _confirmationService = confirmationService;
         _settingsService = settingsService;
         _imagePreview = imagePreview;
+        _profileMods.CollectionChanged += OnProfileModsCollectionChanged;
+        _settingsService.SettingChanged += OnDeploymentDirectionChanged;
+    }
+
+    private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
+    {
+        if (e.Key != SettingKeys.DefaultDeploymentOrder) return;
+        void Apply()
+        {
+            _bottomToTop = e.NewValue?.ToString() == DeploymentOrder.BottomToTop.ToString();
+            ArrangeBslDisplay();
+            RenumberProfileMods();
+            ApplyModFilter();
+            DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+        }
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
+    }
+
+    private void ArrangeBslDisplay()
+    {
+        var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        var dependencies = ProfileMods.Where(mod => mod.BslRole == BslModRole.Dependency).OrderBy(mod => mod.Order).ToList();
+        var loaders = ProfileMods.Where(mod => mod.IsBslLoader).OrderBy(mod => mod.Order).ToList();
+        var smoothBoot = ProfileMods.Where(mod => mod.BslRole == BslModRole.SmoothBoot).OrderBy(mod => mod.Order).ToList();
+        ProfileMods = new ObservableCollection<ProfileModViewModel>(_bottomToTop
+            ? smoothBoot.AsEnumerable().Reverse().Concat(loaders.AsEnumerable().Reverse()).Concat(dependencies.AsEnumerable().Reverse()).Concat(normal)
+            : normal.Concat(dependencies).Concat(loaders).Concat(smoothBoot));
     }
 
     [RelayCommand]
@@ -247,7 +435,11 @@ public partial class ProfileViewModel : ObservableObject
         _ = SetActiveProfileAsync(value);
     }
 
-    partial void OnIsProfileModsLoadingChanged(bool value) => RefreshProfileModStateProperties();
+    partial void OnIsProfileModsLoadingChanged(bool value)
+    {
+        RefreshProfileModStateProperties();
+        UpdateModSelectionState();
+    }
 
     partial void OnIsProfileModsEmptyChanged(bool value) => RefreshProfileModStateProperties();
 
@@ -283,11 +475,25 @@ public partial class ProfileViewModel : ObservableObject
                 mod.ModVersion.Contains(query, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(items);
+        var separator = new ProfileModViewModel
+        {
+            IsSeparator = true,
+            ModName = "依赖加载器的模组与 BSL / MDL",
+            ModVersion = "依赖加载器的模组 → BSL / MDL（二选一）→ SmoothBoot（最高优先级）· 按部署方向排列",
+        };
+        var rows = items.ToList();
+        var boundary = GetLuaGroupBoundary(rows);
+        rows.Insert(boundary, separator);
+        ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
         HasNoModResults = ProfileMods.Count > 0 && VisibleProfileMods.Count == 0;
     }
 
+    private int GetLuaGroupBoundary(IEnumerable<ProfileModViewModel> mods)
+        => mods.TakeWhile(mod => mod.IsBslMember == _bottomToTop).Count();
+
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
+        ClearModSelection();
         IsAddModOpen = false;
         AvailableLibraryMods.Clear();
         if (value == null && IsCompareOpen)
@@ -342,6 +548,8 @@ public partial class ProfileViewModel : ObservableObject
         ProfileModsErrorMessage = string.Empty;
         try
         {
+            _bottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
+                == DeploymentOrder.BottomToTop.ToString();
             var profile = await _profileService.GetProfileByIdAsync(profileId, cancellationToken);
             if (profile == null)
             {
@@ -366,6 +574,8 @@ public partial class ProfileViewModel : ObservableObject
                         ModVersion = mod.Version,
                         Enabled = profileMod.Enabled,
                         Order = profileMod.Order,
+                        BslRole = BslProfilePolicy.Role(mod),
+                        HasLuaResources = mod.ResourceTypeIds?.Contains(0xa14e8dfa2cd117e2UL) == true,
                         ModPath = mod.Path,
                         ThumbnailPath = mod.ThumbnailPath
                     };
@@ -379,6 +589,7 @@ public partial class ProfileViewModel : ObservableObject
 
             cancellationToken.ThrowIfCancellationRequested();
             ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
+            ArrangeBslDisplay();
             RenumberProfileMods();
             ApplyModFilter();
             IsProfileModsEmpty = ProfileMods.Count == 0;
@@ -643,6 +854,12 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (profile == null) return;
 
+        if (profile.IsDefault)
+        {
+            _notificationService.ShowWarning("默认配置文件不能删除", "删除配置文件");
+            return;
+        }
+
         if (profile.IsActive)
         {
             _notificationService.ShowWarning("请先切换到其他配置文件，再删除当前配置", "删除配置文件");
@@ -753,6 +970,16 @@ public partial class ProfileViewModel : ObservableObject
             await SuppressLocalChangeAsync(() =>
                 _profileService.SetModEnabledAsync(SelectedProfile.Id, profileMod.ModId, enabled));
             profileMod.Enabled = enabled;
+            if (profileMod.IsBslLoader && enabled)
+            {
+                var saved = await _profileService.GetProfileByIdAsync(SelectedProfile.Id);
+                if (saved != null)
+                {
+                    var states = saved.Mods.ToDictionary(item => item.ModId, item => item.Enabled);
+                    foreach (var card in ProfileMods)
+                        if (states.TryGetValue(card.ModId, out var value)) card.Enabled = value;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -767,6 +994,85 @@ public partial class ProfileViewModel : ObservableObject
 
     [ObservableProperty]
     private ProfileModOptionsDialogViewModel? _modOptionsDialog;
+
+    /// <summary>右键“移动到指定位置”输入面板。</summary>
+    [ObservableProperty]
+    private bool _isMoveToPositionDialogOpen;
+
+    [ObservableProperty]
+    private string _moveToPositionText = string.Empty;
+
+    [ObservableProperty]
+    private string _moveToPositionError = string.Empty;
+
+    public bool HasMoveToPositionError => !string.IsNullOrWhiteSpace(MoveToPositionError);
+
+    partial void OnMoveToPositionErrorChanged(string value) => OnPropertyChanged(nameof(HasMoveToPositionError));
+
+    [RelayCommand]
+    private void OpenMoveToPosition(ProfileModViewModel? target)
+    {
+        if (target == null || !target.CanDrag || ProfileMods.Count == 0) return;
+        if (!target.IsSelected)
+        {
+            foreach (var mod in ProfileMods) mod.IsSelected = false;
+            target.IsSelected = true;
+        }
+
+        SetModSelectionAnchor(target);
+        MoveToPositionText = target.Position.ToString(CultureInfo.InvariantCulture);
+        MoveToPositionError = string.Empty;
+        IsMoveToPositionDialogOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelMoveToPosition()
+    {
+        IsMoveToPositionDialogOpen = false;
+        MoveToPositionError = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmMoveToPositionAsync()
+    {
+        MoveToPositionError = string.Empty;
+        if (!int.TryParse(MoveToPositionText.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var targetPosition))
+        {
+            MoveToPositionError = "请输入有效的整数位置。";
+            return;
+        }
+
+        if (targetPosition < 1 || targetPosition > ProfileMods.Count)
+        {
+            MoveToPositionError = $"位置必须在 1 到 {ProfileMods.Count} 之间。";
+            return;
+        }
+
+        var moving = ProfileMods.Where(mod => mod.IsSelected).ToList();
+        if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag))
+        {
+            MoveToPositionError = "当前选择中包含不能调整位置的模组。";
+            return;
+        }
+
+        var movingIds = moving.Select(mod => mod.ModId).ToList();
+        var others = ProfileMods.Where(mod => !movingIds.Contains(mod.ModId)).ToList();
+        var insertIndex = Math.Clamp(targetPosition - 1, 0, others.Count);
+        Guid? anchor = insertIndex < others.Count ? others[insertIndex].ModId : null;
+        // 分隔符前一组的末尾使用分隔符锚点，不能借用另一组首项的 ID。
+        if (moving.All(mod => mod.IsBslMember == _bottomToTop)
+            && insertIndex == GetLuaGroupBoundary(others))
+            anchor = Guid.Empty;
+
+        if (!CanMoveMods(movingIds, anchor))
+        {
+            MoveToPositionError = "该位置会破坏 Lua 模组或加载器的固定顺序。";
+            return;
+        }
+
+        await MoveModsAsync(movingIds, anchor);
+        CancelMoveToPosition();
+    }
 
     [RelayCommand]
     private void OpenModOptions(ProfileModViewModel? profileMod)
@@ -865,6 +1171,7 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (SelectedProfile == null || IsProfileModsLoading) return;
         if (ProfileMods.Count == 0) return;
+        if (!CanMoveMods(movingModIds, anchorModId)) return;
 
         var movingSet = movingModIds.Distinct().ToHashSet();
         if (movingSet.Count == 0 || movingSet.Count == ProfileMods.Count) return;
@@ -875,6 +1182,8 @@ public partial class ProfileViewModel : ObservableObject
 
         // 落点换算为"anchor 之前的非拖动项数量"，anchor 本身也在拖动集中时视为放到末尾
         var insertIndex = others.Count;
+        if (anchorModId == Guid.Empty)
+            insertIndex = GetLuaGroupBoundary(others);
         if (anchorModId is { } anchorId)
         {
             var anchorPos = -1;
@@ -907,13 +1216,45 @@ public partial class ProfileViewModel : ObservableObject
         {
             await SuppressLocalChangeAsync(() =>
                 _profileService.ReorderModsAsync(
-                    SelectedProfile.Id, ProfileMods.Select(mod => mod.ModId).ToList()));
+                    SelectedProfile.Id, CanonicalModIds()));
+            // 更新卡片的持久化位次，切换方向时仍保持依赖模组之间的实际覆盖顺序。
+            var canonicalIds = CanonicalModIds();
+            for (var i = 0; i < canonicalIds.Count; i++) ProfileMods.First(mod => mod.ModId == canonicalIds[i]).Order = i;
         }
         catch (Exception ex)
         {
             _notificationService.ShowError($"保存部署顺序失败: {ex.Message}", "配置文件");
             await LoadProfileModsAsync(SelectedProfile.Id);
         }
+    }
+
+    private List<Guid> CanonicalModIds()
+    {
+        var dependencies = ProfileMods.Where(mod => mod.BslRole == BslModRole.Dependency);
+        if (_bottomToTop) dependencies = dependencies.Reverse();
+        return ProfileMods.Where(mod => !mod.IsBslMember).Concat(dependencies)
+            .Concat(ProfileMods.Where(mod => mod.IsBslLoader).OrderBy(mod => mod.Order))
+            .Concat(ProfileMods.Where(mod => mod.BslRole == BslModRole.SmoothBoot).OrderBy(mod => mod.Order))
+            .Select(mod => mod.ModId).ToList();
+    }
+
+    public bool CanMoveMods(IReadOnlyList<Guid> ids, Guid? anchor)
+    {
+        var moving = ProfileMods.Where(mod => ids.Contains(mod.ModId)).ToList();
+        if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag) || moving.Select(mod => mod.IsBslMember).Distinct().Count() != 1)
+            return false;
+        var beforeSeparator = moving[0].IsBslMember == _bottomToTop;
+        if (beforeSeparator && anchor == null || !beforeSeparator && anchor == Guid.Empty) return false;
+        // 两种部署方向都以分隔符为边界，不能借另一组的卡片越过分隔符。
+        if (beforeSeparator && anchor is { } id
+            && ProfileMods.Any(mod => mod.ModId == id && mod.IsBslMember != moving[0].IsBslMember)) return false;
+        var others = ProfileMods.Where(mod => !ids.Contains(mod.ModId)).ToList();
+        var index = anchor == Guid.Empty ? GetLuaGroupBoundary(others)
+            : anchor is { } anchorId ? others.FindIndex(mod => mod.ModId == anchorId) : others.Count;
+        if (index < 0) index = others.Count;
+        others.InsertRange(index, moving);
+        var ranks = others.Select(mod => BslProfilePolicy.PriorityRank(mod.BslRole)).ToList();
+        return ranks.SequenceEqual(_bottomToTop ? ranks.OrderDescending() : ranks.Order());
     }
 
     private void RenumberProfileMods()
@@ -930,6 +1271,7 @@ public partial class ProfileItemViewModel : ObservableObject
     private readonly Profile _profile;
 
     public Guid Id => _profile.Id;
+    public bool IsDefault => _profile.IsDefault;
     public DateTime ModifiedAt => _profile.ModifiedAt;
     public DateTime CreatedAt => _profile.CreatedAt;
 
@@ -974,6 +1316,18 @@ public partial class ProfileItemViewModel : ObservableObject
 
 public partial class ProfileModViewModel : ObservableObject
 {
+    public bool IsSeparator { get; init; }
+    public BslModRole BslRole { get; init; }
+    public bool IsBslMember => BslRole != BslModRole.None;
+    public bool IsBslLoader => BslProfilePolicy.IsLoader(BslRole);
+    public bool IsSmoothBoot => BslRole == BslModRole.SmoothBoot;
+    public bool IsLuaDependency => BslRole == BslModRole.Dependency;
+    public bool HasLuaResources { get; init; }
+    public bool IsLuaMod => HasLuaResources || IsBslMember;
+    public string PriorityLabel => IsSmoothBoot ? "SmoothBoot · 最高优先级" : IsBslLoader ? "BSL / MDL · 固定在依赖之后" : "依赖加载器";
+    public bool CanSelect => !IsSeparator && !IsBslLoader && !IsSmoothBoot;
+    public bool CanDrag => CanSelect;
+
     [ObservableProperty]
     private Guid _profileId;
 

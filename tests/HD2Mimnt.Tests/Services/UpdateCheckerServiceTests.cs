@@ -362,6 +362,62 @@ public class UpdateCheckerServiceTests
         Assert.Null(changelog);
     }
 
+    [Theory]
+    [InlineData("2.0.0", true)]
+    [InlineData("1.0.0", false)]
+    public async Task CheckUpdateAsync_Missing_Metadata_Version_Should_Use_Preferred_File_Version(string fileVersion, bool hasUpdate)
+    {
+        var mod = new Core.Entities.Mod
+        {
+            Id = Guid.NewGuid(), Name = "Nexus Mod", Version = "1.0.0",
+            PlatformId = "nexusmods", PlatformModId = "123"
+        };
+        SetupMocks(mod, new PlatformModInfo { Id = "123", Name = "Nexus Mod" });
+        var released = new DateTime(2026, 10, 9, 0, 0, 0, DateTimeKind.Utc);
+        _mockPlatform.Setup(p => p.GetVersionsAsync("123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PlatformModVersion>
+            {
+                new() { Version = fileVersion, ReleasedAt = released },
+                new() { Version = "optional", ReleasedAt = released.AddDays(1) }
+            });
+
+        var result = await _service.CheckUpdateAsync(mod.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(fileVersion, result.LatestVersion);
+        Assert.Equal(hasUpdate, result.HasUpdate);
+        Assert.Equal(released, result.UpdatedAt);
+        _mockRepository.Verify(r => r.UpdateAsync(mod, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckUpdateAsync_No_Metadata_Or_File_Version_Should_Not_Report_Update()
+    {
+        var mod = new Core.Entities.Mod
+        {
+            Id = Guid.NewGuid(), Version = "1.0.0", PlatformId = "nexusmods", PlatformModId = "123"
+        };
+        SetupMocks(mod, new PlatformModInfo { Id = "123" });
+        _mockPlatform.Setup(p => p.GetVersionsAsync("123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PlatformModVersion>());
+
+        Assert.Null(await _service.CheckUpdateAsync(mod.Id));
+        _mockRepository.Verify(r => r.UpdateAsync(It.IsAny<Core.Entities.Mod>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CheckUpdateAsync_Cancelled_File_Version_Request_Should_Propagate_Cancellation()
+    {
+        var mod = new Core.Entities.Mod
+        {
+            Id = Guid.NewGuid(), PlatformId = "nexusmods", PlatformModId = "123"
+        };
+        SetupMocks(mod, new PlatformModInfo { Id = "123" });
+        _mockPlatform.Setup(p => p.GetVersionsAsync("123", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _service.CheckUpdateAsync(mod.Id));
+    }
+
     private void SetupMocks(Core.Entities.Mod mod, PlatformModInfo platformModInfo)
     {
         _mockRepository.Setup(r => r.GetByIdAsync(mod.Id, It.IsAny<CancellationToken>()))

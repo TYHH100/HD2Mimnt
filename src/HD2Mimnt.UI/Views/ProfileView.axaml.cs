@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
@@ -19,10 +20,21 @@ public partial class ProfileView : UserControl
     private ProfileModViewModel? _pressedMod;
     private PointerPressedEventArgs? _modPressedArgs;
     private Point _modDragStartPoint;
+    private readonly List<(Control Control, double Opacity)> _dimmedDragSources = new();
 
     public ProfileView()
     {
         InitializeComponent();
+        // 右键事件在列表容器统一捕获，并包含已被子控件处理过的事件。
+        ModItemsControl.AddHandler(InputElement.PointerPressedEvent, ModList_PointerPressed,
+            RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(KeyDownEvent, ModList_KeyDown, RoutingStrategies.Tunnel);
+        ModItemsControl.AddHandler(PointerReleasedEvent, ModList_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
+        DetachedFromVisualTree += (_, _) =>
+        {
+            ClearSortPreview();
+        };
+        DataContextChanged += (_, _) => ClearSortPreview();
     }
 
     /// <summary>右键配置文件行：经统一的 AppContextMenu 模块弹出操作菜单。</summary>
@@ -47,10 +59,32 @@ public partial class ProfileView : UserControl
         entries.Add(new ContextMenuItem("复制配置文件", profile.DuplicateCommand, "Copy"));
         entries.Add(new ContextMenuItem("重命名", profile.RenameCommand, "Edit"));
         entries.Add(AppContextMenu.Separator);
-        entries.Add(new ContextMenuItem("删除配置文件", profile.DeleteCommand, "Clean") { IsDanger = true });
+        if (!profile.IsDefault)
+            entries.Add(new ContextMenuItem("删除配置文件", profile.DeleteCommand, "Clean") { IsDanger = true });
 
         AppContextMenu.Show(entries, ProfileList);
         e.Handled = true;
+    }
+
+    /// <summary>右键模组卡片：保留当前多选集，或将未选中的目标切换为单选后打开定位菜单。</summary>
+    private void ModCard_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not Border { DataContext: ProfileModViewModel mod } card
+            || DataContext is not ProfileViewModel vm || !mod.CanDrag) return;
+
+        ShowModContextMenu(card, mod, vm);
+        e.Handled = true;
+    }
+
+    private static void ShowModContextMenu(Border card, ProfileModViewModel mod, ProfileViewModel vm)
+    {
+        AppContextMenu.Show(new List<object>
+        {
+            new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
+            {
+                CommandParameter = mod
+            }
+        }, card);
     }
 
     private void ProfileList_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -63,6 +97,7 @@ public partial class ProfileView : UserControl
         // 命中的是哪个配置文件行
         var item = source.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
         if (item?.DataContext is not ProfileItemViewModel profile) return;
+        if (DataContext is ProfileViewModel vm && ReferenceEquals(profile, vm.Profiles.FirstOrDefault())) return;
 
         _dragProfile = profile;
         _pressedArgs = e;
@@ -95,49 +130,43 @@ public partial class ProfileView : UserControl
         // Avalonia 12 拖放 API：DataTransfer + DoDragDropAsync
         var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText(profile.Id.ToString()));
-        await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move);
+        BeginProfileDragPreview(profile.Id);
+        try { await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move); }
+        finally { ClearSortPreview(); }
     }
 
     private void ProfileList_DragOver(object? sender, DragEventArgs e)
     {
-        if (e.DataTransfer.TryGetText() is null || !Guid.TryParse(e.DataTransfer.TryGetText(), out _))
+        if (!TryGetMovingProfileId(e, out var profileId))
         {
             e.DragEffects = DragDropEffects.None;
+            HideSortPreview();
             return;
         }
 
         e.DragEffects = DragDropEffects.Move;
+        UpdateProfileDragPreview(profileId, e.GetPosition(ProfileList).Y);
+        e.Handled = true;
     }
 
     private void ProfileList_Drop(object? sender, DragEventArgs e)
     {
-        var idText = e.DataTransfer.TryGetText();
-        if (idText is null
-            || !Guid.TryParse(idText, out var profileId)
-            || DataContext is not ProfileViewModel viewModel)
+        if (!TryGetMovingProfileId(e, out var profileId) || DataContext is not ProfileViewModel viewModel)
         {
+            ClearSortPreview();
             return;
         }
 
+        var (_, targetIndex) = GetProfileDropTarget(profileId, e.GetPosition(ProfileList).Y);
+        ClearSortPreview();
         e.DragEffects = DragDropEffects.Move;
-        _ = viewModel.MoveProfileAsync(profileId, ComputeInsertIndex(e.GetPosition(ProfileList).Y));
+        e.Handled = true;
+        _ = viewModel.MoveProfileAsync(profileId, targetIndex);
     }
 
     /// <summary>根据落点 Y 坐标换算插入位置（行中点之前算插入到该行前）。</summary>
     private int ComputeInsertIndex(double y)
-    {
-        for (var index = 0; index < ProfileList.ItemCount; index++)
-        {
-            if (ProfileList.ContainerFromIndex(index) is not Control container) continue;
-            var topLeft = container.TranslatePoint(new Point(0, 0), ProfileList);
-            if (topLeft is { } point && y < point.Y + container.Bounds.Height / 2)
-            {
-                return index;
-            }
-        }
-
-        return ProfileList.ItemCount;
-    }
+        => ComputeInsertionSlot(ProfileList, y);
 
     /// <summary>
     /// 模组卡片按下：Ctrl+点击切换多选标记；普通按下时若未选中则清空其他选中（准备单卡拖动）。
@@ -148,10 +177,20 @@ public partial class ProfileView : UserControl
         _modPressedArgs = null;
         if (sender is not Border card || card.DataContext is not ProfileModViewModel mod) return;
         if (DataContext is not ProfileViewModel vm) return;
+        if (!mod.CanSelect) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         // 命中开关/按钮等交互控件时不进入选择与拖拽逻辑
         if (IsInteractiveSource(e.Source as Visual, card)) return;
+        ModItemsControl.Focus();
 
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            vm.SelectModRange(mod, additive: e.KeyModifiers.HasFlag(KeyModifiers.Control));
+            e.Handled = true;
+            return;
+        }
+
+        vm.SetModSelectionAnchor(mod);
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             mod.IsSelected = !mod.IsSelected;
@@ -168,9 +207,70 @@ public partial class ProfileView : UserControl
             mod.IsSelected = true;
         }
 
+        if (!mod.CanDrag) return;
         _pressedMod = mod;
         _modPressedArgs = e;
         _modDragStartPoint = e.GetPosition(this);
+        e.Handled = true;
+    }
+
+    private void ModList_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
+            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen) return;
+        if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
+            && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
+        if (e.Key == Key.Escape)
+        {
+            vm.ClearModSelectionCommand.Execute(null);
+            _pressedMod = null;
+            _modPressedArgs = null;
+            ClearSortPreview();
+            e.Handled = true;
+            return;
+        }
+        if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source)
+            .Any(control => control is TextBox or ComboBox)) return;
+        if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            vm.SelectAllVisibleMods();
+            e.Handled = true;
+        }
+    }
+
+    private void ModList_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        // 按下时保留多选以支持整组拖动；未开始拖动的普通点击在松开时收起为单选。
+        if (e.InitialPressMouseButton == MouseButton.Left && _pressedMod is { } clicked
+            && _modPressedArgs != null && DataContext is ProfileViewModel vm)
+        {
+            foreach (var mod in vm.ProfileMods) mod.IsSelected = ReferenceEquals(mod, clicked);
+        }
+        _pressedMod = null;
+        _modPressedArgs = null;
+    }
+
+    private void ModBackground_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || DataContext is not ProfileViewModel vm) return;
+        if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source)
+            .Any(control => control is ListBoxItem or Avalonia.Controls.Primitives.ScrollBar)) return;
+        vm.ClearModSelectionCommand.Execute(null);
+    }
+
+    private void ModList_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed)
+            return;
+
+        if (e.Source is not Visual source) return;
+        var card = new[] { source }.Concat(source.GetVisualAncestors()).OfType<Border>()
+            .FirstOrDefault(border => border.Classes.Contains("mod-card"));
+        if (card?.DataContext is not ProfileModViewModel mod
+            || DataContext is not ProfileViewModel vm || !mod.CanDrag) return;
+
+        ShowModContextMenu(card, mod, vm);
+        e.Handled = true;
     }
 
     /// <summary>模组卡片拖动启动：把拖动集（选中集或单卡）以 "id;id;…" 文本放入 DataTransfer。</summary>
@@ -196,6 +296,7 @@ public partial class ProfileView : UserControl
         var movingIds = _pressedMod.IsSelected
             ? vm.ProfileMods.Where(m => m.IsSelected).Select(m => m.ModId).ToList()
             : new List<Guid> { _pressedMod.ModId };
+        if (vm.ProfileMods.Any(mod => movingIds.Contains(mod.ModId) && !mod.CanDrag)) return;
 
         var pressedArgs = _modPressedArgs;
         _pressedMod = null;
@@ -203,50 +304,78 @@ public partial class ProfileView : UserControl
 
         var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText(string.Join(';', movingIds)));
-        await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move);
+        BeginModDragPreview(movingIds);
+        try { await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move); }
+        finally { ClearSortPreview(); }
     }
 
     private void ModList_DragOver(object? sender, DragEventArgs e)
     {
-        if (!TryGetMovingModIds(e, out _))
+        if (!TryGetMovingModIds(e, out var movingIds))
         {
             e.DragEffects = DragDropEffects.None;
+            HideSortPreview();
             return;
         }
 
+        var (_, anchor) = GetModDropTarget(movingIds, e.GetPosition(ModItemsControl).Y);
+        if (DataContext is not ProfileViewModel vm || !vm.CanMoveMods(movingIds, anchor))
+        {
+            e.DragEffects = DragDropEffects.None;
+            HideSortPreview();
+            e.Handled = true;
+            return;
+        }
         e.DragEffects = DragDropEffects.Move;
+        UpdateModDragPreview(movingIds, e.GetPosition(ModItemsControl).Y);
+        e.Handled = true;
     }
 
     private void ModList_Drop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not ProfileViewModel vm || !TryGetMovingModIds(e, out var movingIds)) return;
+        if (DataContext is not ProfileViewModel vm || !TryGetMovingModIds(e, out var movingIds))
+        {
+            ClearSortPreview();
+            return;
+        }
+        var (_, anchor) = GetModDropTarget(movingIds, e.GetPosition(ModItemsControl).Y);
+        ClearSortPreview();
 
-        var insertIndex = ComputeModInsertIndex(e.GetPosition(ModItemsControl).Y);
-        var anchor = insertIndex < ModItemsControl.ItemCount && ModItemsControl.ContainerFromIndex(insertIndex) is Control { DataContext: ProfileModViewModel target }
-            ? target.ModId
-            : (Guid?)null;
+        if (!vm.CanMoveMods(movingIds, anchor))
+        {
+            e.DragEffects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
 
         e.DragEffects = DragDropEffects.Move;
+        e.Handled = true;
         _ = vm.MoveModsAsync(movingIds, anchor);
     }
 
-    /// <summary>根据落点 Y 坐标换算卡片列表的插入位置（未虚拟化到的区域视为末尾）。</summary>
+    /// <summary>根据落点 Y 坐标换算卡片列表的插入位置，使用当前已实现容器的边界。</summary>
     private int ComputeModInsertIndex(double y)
+        => ComputeInsertionSlot(ModItemsControl, y);
+
+    private static int ComputeInsertionSlot(ItemsControl list, double y)
     {
-        for (var index = 0; index < ModItemsControl.ItemCount; index++)
+        var lastRealizedIndex = -1;
+        for (var index = 0; index < list.ItemCount; index++)
         {
-            if (ModItemsControl.ContainerFromIndex(index) is not Control container) continue;
-            var topLeft = container.TranslatePoint(new Point(0, 0), ModItemsControl);
+            if (list.ContainerFromIndex(index) is not Control container) continue;
+            lastRealizedIndex = index;
+            var topLeft = container.TranslatePoint(new Point(0, 0), list);
             if (topLeft is { } point && y < point.Y + container.Bounds.Height / 2)
             {
                 return index;
             }
         }
 
-        return ModItemsControl.ItemCount;
+        // 滚动后只实现部分容器，视口底部对应最后一个可见项之后，而不是全列表末尾。
+        return lastRealizedIndex >= 0 ? lastRealizedIndex + 1 : list.ItemCount;
     }
 
-    private static bool TryGetMovingModIds(DragEventArgs e, out List<Guid> movingIds)
+    private bool TryGetMovingModIds(DragEventArgs e, out List<Guid> movingIds)
     {
         movingIds = new List<Guid>();
         var text = e.DataTransfer.TryGetText();
@@ -260,13 +389,152 @@ public partial class ProfileView : UserControl
             }
         }
 
-        return movingIds.Count > 0;
+        return movingIds.Count > 0 && DataContext is ProfileViewModel vm
+            && !vm.IsProfileModsLoading && movingIds.All(id => vm.ProfileMods.Any(mod => mod.ModId == id && mod.CanDrag));
+    }
+
+    private bool TryGetMovingProfileId(DragEventArgs e, out Guid profileId)
+    {
+        profileId = default;
+        if (!Guid.TryParse(e.DataTransfer.TryGetText(), out var parsedId)) return false;
+        profileId = parsedId;
+        return DataContext is ProfileViewModel vm
+            && vm.Profiles.Skip(1).Any(profile => profile.Id == parsedId);
+    }
+
+    private (int Slot, int TargetIndex) GetProfileDropTarget(Guid profileId, double y)
+    {
+        var vm = (ProfileViewModel)DataContext!;
+        var current = vm.Profiles.ToList().FindIndex(profile => profile.Id == profileId);
+        var slot = Math.Clamp(ComputeInsertIndex(y), 1, ProfileList.ItemCount);
+        // MoveProfileAsync 接受移除源项后的最终索引，预览与提交共用此换算。
+        var target = Math.Clamp(slot > current ? slot - 1 : slot, 1, vm.Profiles.Count - 1);
+        return (slot, target);
+    }
+
+    private (int Slot, Guid? Anchor) GetModDropTarget(IReadOnlyList<Guid> movingIds, double y)
+    {
+        var vm = (ProfileViewModel)DataContext!;
+        var slot = ComputeModInsertIndex(y);
+        // 自身或多选中的卡片不是插入锚点，继续寻找下一个非拖动项。
+        while (slot < vm.ProfileRows.Count && movingIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
+        return (slot, slot < vm.ProfileRows.Count ? vm.ProfileRows[slot].ModId : null);
+    }
+
+    private void BeginProfileDragPreview(Guid profileId)
+    {
+        ClearSortPreview();
+        DimDragSources(ProfileList, data => data is ProfileItemViewModel profile && profile.Id == profileId);
+    }
+
+    private void BeginModDragPreview(IReadOnlyList<Guid> movingIds)
+    {
+        ClearSortPreview();
+        DimDragSources(ModItemsControl, data => data is ProfileModViewModel mod && movingIds.Contains(mod.ModId));
+    }
+
+    private void DimDragSources(ItemsControl list, Func<object?, bool> isMoving)
+    {
+        for (var index = 0; index < list.ItemCount; index++)
+        {
+            if (list.ContainerFromIndex(index) is not Control container || !isMoving(container.DataContext)) continue;
+            _dimmedDragSources.Add((container, container.Opacity));
+            container.Opacity *= 0.35;
+        }
+    }
+
+    private void UpdateProfileDragPreview(Guid profileId, double y)
+    {
+        if (DataContext is not ProfileViewModel vm) return;
+        var profile = vm.Profiles.FirstOrDefault(item => item.Id == profileId);
+        if (profile == null || ReferenceEquals(profile, vm.Profiles.FirstOrDefault())) { HideSortPreview(); return; }
+        var (slot, target) = GetProfileDropTarget(profileId, y);
+        var destination = target == vm.Profiles.IndexOf(profile) ? "位置不变"
+            : slot < vm.Profiles.Count ? $"松开放到「{vm.Profiles[slot].Name}」之前" : "松开放到列表末尾";
+        ShowSortPreview(ProfileList, ProfileList, slot, profile.Name, destination);
+    }
+
+    private void UpdateModDragPreview(IReadOnlyList<Guid> movingIds, double y)
+    {
+        if (DataContext is not ProfileViewModel vm) return;
+        var moving = vm.ProfileMods.Where(mod => movingIds.Contains(mod.ModId)).ToArray();
+        if (moving.Length == 0) { HideSortPreview(); return; }
+        var (slot, anchor) = GetModDropTarget(movingIds, y);
+        if (!vm.CanMoveMods(movingIds, anchor)) { HideSortPreview(); return; }
+        var title = moving.Length == 1 ? moving[0].ModName : $"{moving[0].ModName} 等 {moving.Length} 个模组";
+        var destination = anchor == Guid.Empty ? "松开放到 BSL 分隔符之前"
+            : anchor is { } id ? $"松开放到「{vm.ProfileMods.First(mod => mod.ModId == id).ModName}」之前"
+            : "松开放到列表末尾";
+        ShowSortPreview(ModItemsControl, ModScrollViewer, slot, title, destination);
+    }
+
+    private void ShowSortPreview(ItemsControl list, Control viewport, int slot, string title, string destination)
+    {
+        if (viewport.TranslatePoint(default, SortPreviewLayer) is not { } viewportOrigin) return;
+        Control? boundary = null;
+        var after = false;
+        for (var index = 0; index < list.ItemCount; index++)
+        {
+            if (list.ContainerFromIndex(index) is not Control container) continue;
+            boundary = container;
+            after = index < slot;
+            if (!after) break;
+        }
+        if (boundary?.TranslatePoint(new Point(0, after ? boundary.Bounds.Height : 0), SortPreviewLayer) is not { } edge)
+        {
+            HideSortPreview();
+            return;
+        }
+        var width = Math.Max(20, Math.Min(list.Bounds.Width - 8, viewport.Bounds.Width - 8));
+        var top = viewportOrigin.Y + 2;
+        var bottom = viewportOrigin.Y + viewport.Bounds.Height - 3;
+        var markerY = Math.Clamp(edge.Y, top, Math.Max(top, bottom));
+        SortInsertionMarker.Width = width;
+        Canvas.SetLeft(SortInsertionMarker, viewportOrigin.X + 4);
+        Canvas.SetTop(SortInsertionMarker, markerY);
+        SortDragTitle.Text = title;
+        SortDragDestination.Text = destination;
+        SortDragGhost.Width = Math.Min(width, 360);
+        SortInsertionMarker.IsVisible = true;
+        SortDragGhost.IsVisible = true;
+        SortDragGhost.Measure(new Size(SortDragGhost.Width, double.PositiveInfinity));
+        var ghostHeight = SortDragGhost.DesiredSize.Height;
+        var ghostY = markerY + 8;
+        if (ghostY + ghostHeight > bottom) ghostY = markerY - ghostHeight - 8;
+        Canvas.SetLeft(SortDragGhost, viewportOrigin.X + 4);
+        Canvas.SetTop(SortDragGhost, Math.Clamp(ghostY, top, Math.Max(top, bottom - ghostHeight)));
+    }
+
+    private void SortList_DragLeave(object? sender, DragEventArgs e)
+    {
+        // DragLeave 会从卡片内的文字/图片/按钮冒泡。仍在列表视口内时保留虚影，
+        // 否则随后到来的 DragOver 会反复隐藏/显示预览，造成闪烁。
+        var viewport = ReferenceEquals(sender, ProfileList) ? (Control)ProfileList : ModScrollViewer;
+        if (new Rect(viewport.Bounds.Size).Contains(e.GetPosition(viewport))) return;
+        HideSortPreview();
+    }
+
+    private void HideSortPreview()
+    {
+        SortInsertionMarker.IsVisible = false;
+        SortDragGhost.IsVisible = false;
+    }
+
+    private void ClearSortPreview()
+    {
+        HideSortPreview();
+        foreach (var (control, opacity) in _dimmedDragSources) control.Opacity = opacity;
+        _dimmedDragSources.Clear();
+        _dragProfile = null;
+        _pressedArgs = null;
+        _pressedMod = null;
+        _modPressedArgs = null;
     }
 
     /// <summary>子选项行点击：同卡片内互斥多选一，选中后立即持久化。</summary>
     private void SubChoice_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Border { DataContext: ProfileModSubOptionChoiceViewModel choice }
+        if (sender is Control { DataContext: ProfileModSubOptionChoiceViewModel choice }
             && DataContext is ProfileViewModel { ModOptionsDialog: { } dialog })
         {
             dialog.SelectSubOption(choice);
@@ -276,7 +544,7 @@ public partial class ProfileView : UserControl
     /// <summary>v0 互斥选项行点击：列表内单选，选中后立即持久化。</summary>
     private void LegacyChoice_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Border { DataContext: ProfileModLegacyChoiceViewModel choice }
+        if (sender is Control { DataContext: ProfileModLegacyChoiceViewModel choice }
             && DataContext is ProfileViewModel { ModOptionsDialog: { } dialog })
         {
             dialog.SelectLegacyChoice(choice);
@@ -312,7 +580,7 @@ public partial class ProfileView : UserControl
     {
         for (Visual? current = source; current != null && !ReferenceEquals(current, card); current = current.GetVisualParent())
         {
-            if (current is ToggleSwitch or Button or CheckBox or ComboBox)
+            if (current is ToggleSwitch or Button or CheckBox or ComboBox or TextBox)
             {
                 return true;
             }

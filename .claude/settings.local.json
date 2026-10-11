@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new *)",
+      "Bash(mv src/HD2Mimnt.UI/HD2Mimnt.UI/* src/HD2Mimnt.UI/)",
+      "Bash(rmdir src/HD2Mimnt.UI/HD2Mimnt.UI)",
+      "Bash(mv src/HD2Mimnt.Application/HD2Mimnt.Application/* src/HD2Mimnt.Application/)",
+      "Bash(rmdir src/HD2Mimnt.Application/HD2Mimnt.Application)",
+      "Bash(mv src/HD2Mimnt.Core/HD2Mimnt.Core/* src/HD2Mimnt.Core/)",
+      "Bash(rmdir src/HD2Mimnt.Core/HD2Mimnt.Core)",
+      "Bash(mv src/HD2Mimnt.Infrastructure/HD2Mimnt.Infrastructure/* src/HD2Mimnt.Infrastructure/)",
+      "Bash(rmdir src/HD2Mimnt.Infrastructure/HD2Mimnt.Infrastructure)",
+      "Bash(dotnet sln *)",
+      "Bash(dotnet add *)",
+      "Bash(dotnet build *)",
+      "Bash(timeout 10 dotnet run)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet restore *)",
+      "Bash(taskkill //F //PID 14700)",
+      "Bash(dotnet clean *)",
+      "Bash(xargs grep -l \"ExternalTool\\\\|OpenWith\\\\|Launch.*Tool\")",
+      "Bash(dotnet run *)",
+      "Bash(nohup dotnet run -c Release)",
+      "Bash(echo \"Benchmark started in background, PID: $!\")",
+      "Bash(tee benchmark_short_all.log)",
+      "Bash(pkill -f \"dotnet test\")"
+    ]
+  }
+}

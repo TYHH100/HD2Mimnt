@@ -6,15 +6,15 @@
              x:Class="HD2Mimnt.UI.Controls.ImagePreviewOverlay">
   <!-- 应用内图片预览覆盖层：DataContext 为 ImagePreviewService。
        图片按原始像素显示（超过窗口时等比缩小，小图不放大），点击背景或关闭按钮关闭。 -->
-  <Border x:Name="Root" IsVisible="{Binding IsOpen}" Background="#E6000000" Tapped="Root_Tapped">
+  <Border x:Name="Root" IsVisible="{Binding IsOpen}" Background="{DynamicResource ImagePreviewBackgroundBrush}" Tapped="Root_Tapped">
     <Panel>
       <Image x:Name="PreviewImage" Source="{Binding Image}" Stretch="Uniform"
              HorizontalAlignment="Center" VerticalAlignment="Center" Margin="56,64"/>
       <Button Classes="icon-button" Command="{Binding CloseCommand}" HorizontalAlignment="Right" VerticalAlignment="Top"
-              Margin="0,16,16,0" ToolTip.Tip="关闭预览 (Esc)">
+              Margin="0,16,16,0" ToolTip.Tip="关闭预览 (Esc)" Foreground="{DynamicResource ImagePreviewForegroundBrush}">
         <controls:UtilityIcon Kind="Close"/>
       </Button>
-      <TextBlock Text="{Binding Title}" Classes="caption-text" Foreground="#CCFFFFFF"
+      <TextBlock Text="{Binding Title}" Classes="caption-text" Foreground="{DynamicResource ImagePreviewForegroundBrush}"
                  HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,18"
                  MaxWidth="640" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
     </Panel>

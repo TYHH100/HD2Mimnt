@@ -36,8 +36,11 @@ public class ModImportService
     /// <summary>
     /// 从文件夹或 ZIP 文件导入 Mod
     /// </summary>
-    public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default)
+    public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new(0, "检查源文件", Path.GetFileName(sourcePath)));
         _logger?.LogInformation("开始导入 Mod: {SourcePath}", sourcePath);
 
         if (!File.Exists(sourcePath) && !Directory.Exists(sourcePath))
@@ -49,6 +52,8 @@ public class ModImportService
         string? modRootPath = null;
         string fallbackName;
         bool isArchiveFile = false;
+        string? targetPath = null;
+        bool saved = false;
 
         try
         {
@@ -57,6 +62,7 @@ public class ModImportService
             {
                 _logger?.LogInformation("检测到压缩包文件，开始解压: {SourcePath}", sourcePath);
                 isArchiveFile = true;
+                progress?.Report(new(5, "解压模组", Path.GetFileName(sourcePath), true));
                 await _archiveExtractor.ExtractToDirectoryAsync(sourcePath, tempExtractPath, cancellationToken);
                 modRootPath = tempExtractPath;
                 // manifest 缺失时的回退名：压缩包文件名，而不是临时解压目录的 GUID
@@ -69,6 +75,8 @@ public class ModImportService
             }
 
             // 读取 manifest：真实模组压缩包常带一层同名子文件夹，根目录没有时向下查找
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new(20, "读取模组清单", "识别模组信息和选项", true));
             var manifest = await ReadManifestAsync(modRootPath, cancellationToken);
             if (manifest == null)
             {
@@ -85,9 +93,11 @@ public class ModImportService
             manifest ??= InferManifestFromDirectory(modRootPath, fallbackName);
 
             // 分析 Mod 内容
-            var modInfo = AnalyzeModContent(modRootPath);
+            progress?.Report(new(30, "分析模组文件", "统计文件大小和内容", true));
+            var modInfo = AnalyzeModContent(modRootPath, cancellationToken);
 
             // 创建 Mod 实体
+            var importedAt = DateTime.UtcNow;
             var mod = new Mod
             {
                 Id = Guid.NewGuid(),
@@ -101,26 +111,48 @@ public class ModImportService
                 Size = modInfo.TotalSize,
                 Source = isArchiveFile ? ModSource.LocalZip : ModSource.LocalFolder,
                 ContainsScripts = modInfo.ContainsScripts,
-                CreatedAt = DateTime.UtcNow,
-                ModifiedAt = DateTime.UtcNow,
+                ImportedAt = importedAt,
+                CreatedAt = importedAt,
+                ModifiedAt = importedAt,
                 // manifest（含 v0/v1 选项定义）必须落库，配置文件的模组选项功能依赖它
                 Manifest = manifest
             };
 
             // 复制 Mod 到存储目录
-            var targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
+            targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
             Directory.CreateDirectory(targetPath);
-            CopyDirectory(modRootPath, targetPath);
+            await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
             mod.Path = targetPath;
+            progress?.Report(new(80, "识别资源类型", "扫描模组资源索引", true));
+            await PopulateResourceTypesAsync(mod, cancellationToken);
+            try
+            {
+                mod.BslRole = await HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectAsync(mod, cancellationToken);
+                if (mod.BslRole != null)
+                    mod.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            { _logger?.LogWarning(ex, "BSL 依赖识别失败: {ModPath}", mod.Path); }
+            mod.Hash = await ModHashService.CalculateAsync(targetPath, cancellationToken, progress);
 
             // 保存到数据库
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new(90, "保存模组", mod.Name, true));
             await _modRepository.AddAsync(mod, cancellationToken);
+            saved = true;
+            progress?.Report(new(95, "模组已保存", mod.Name));
 
             _logger?.LogInformation("Mod 导入成功: {ModName} ({ModId})", mod.Name, mod.Id);
             return mod.Id;
         }
         finally
         {
+            // 取消或失败时移除尚未落库的副本，保留已成功导入的模组。
+            if (!saved && targetPath != null && Directory.Exists(targetPath))
+            {
+                try { Directory.Delete(targetPath, true); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "清理未完成的导入失败: {TargetPath}", targetPath); }
+            }
             // 清理临时目录
             if (isArchiveFile && Directory.Exists(tempExtractPath))
             {
@@ -136,6 +168,20 @@ public class ModImportService
         }
     }
 
+    internal async Task PopulateResourceTypesAsync(Mod mod, CancellationToken cancellationToken)
+    {
+        if (mod.ResourceTypeIds != null) return;
+        try
+        {
+            mod.ResourceTypeIds = await HD2Mimnt.Infrastructure.Analysis.ResourceTypeScanner.ScanAsync(mod.Path, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 单个模组索引失败不能阻断库加载/导入；保持 null，后续刷新可重试。
+            _logger?.LogWarning(ex, "资源 Type ID 识别失败: {ModPath}", mod.Path);
+        }
+    }
+
     /// <summary>
     /// 批量导入 Mod
     /// </summary>
@@ -145,12 +191,13 @@ public class ModImportService
 
         foreach (var path in sourcePaths)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var modId = await ImportModAsync(path, cancellationToken);
                 importedIds.Add(modId);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger?.LogError(ex, "导入 Mod 失败: {Path}", path);
             }
@@ -178,7 +225,7 @@ public class ModImportService
             var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             return _manifestParser.ParseFromJson(json);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "读取 manifest.json 失败: {ManifestPath}", manifestPath);
             return null;
@@ -256,7 +303,7 @@ public class ModImportService
     /// <summary>
     /// 分析 Mod 内容
     /// </summary>
-    private ModContentInfo AnalyzeModContent(string modPath)
+    private ModContentInfo AnalyzeModContent(string modPath, CancellationToken cancellationToken)
     {
         var info = new ModContentInfo();
 
@@ -266,7 +313,11 @@ public class ModImportService
         }
 
         var files = Directory.GetFiles(modPath, "*", SearchOption.AllDirectories);
-        info.TotalSize = files.Sum(f => new FileInfo(f).Length);
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            info.TotalSize += new FileInfo(file).Length;
+        }
 
         // 检测是否包含脚本文件
         info.ContainsScripts = files.Any(f =>
@@ -315,21 +366,40 @@ public class ModImportService
     /// <summary>
     /// 递归复制目录
     /// </summary>
-    private void CopyDirectory(string sourceDir, string targetDir)
+    private static async Task CopyDirectoryAsync(string sourceDir, string targetDir, long totalSize,
+        IProgress<ModImportProgress>? progress, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(targetDir);
-
-        foreach (var file in Directory.GetFiles(sourceDir))
+        progress?.Report(new(35, "复制模组文件", "准备复制到模组库"));
+        long copied = 0;
+        var buffer = new byte[81920];
+        var lastReport = Environment.TickCount64;
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
-            var targetFile = Path.Combine(targetDir, Path.GetFileName(file));
-            File.Copy(file, targetFile, true);
+            cancellationToken.ThrowIfCancellationRequested();
+            var relativePath = Path.GetRelativePath(sourceDir, file);
+            var targetFile = Path.Combine(targetDir, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
+            await using var input = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, buffer.Length, true);
+            await using var output = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None, buffer.Length, true);
+            int read;
+            while ((read = await input.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                copied += read;
+                if (Environment.TickCount64 - lastReport >= 100)
+                {
+                    progress?.Report(new(35 + (totalSize > 0 ? 45d * copied / totalSize : 45), "复制模组文件", relativePath));
+                    lastReport = Environment.TickCount64;
+                }
+            }
         }
-
-        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        // 保留空目录：无 manifest 的旧格式可能将目录名作为选项。
+        foreach (var directory in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
         {
-            var targetSubDir = Path.Combine(targetDir, Path.GetFileName(subDir));
-            CopyDirectory(subDir, targetSubDir);
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(Path.Combine(targetDir, Path.GetRelativePath(sourceDir, directory)));
         }
+        progress?.Report(new(80, "复制模组文件", "文件复制完成"));
     }
 
     private class ModContentInfo

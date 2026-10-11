@@ -161,24 +161,15 @@ public class DeploymentService
         Guid deploymentId,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
+        => await CleanupDeploymentFilesAsync(deploymentId, true, progress, cancellationToken);
+
+    private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesAsync(
+        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var deployment = await _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
         if (deployment == null)
         {
             _logger?.LogWarning("部署记录 {DeploymentId} 不存在", deploymentId);
-            return (0, false);
-        }
-
-        // 获取部署方法
-        if (!Enum.TryParse<DeploymentMethod>(deployment.DeploymentMethod, out var method))
-        {
-            _logger?.LogError("无效的部署方法: {Method}", deployment.DeploymentMethod);
-            return (0, false);
-        }
-
-        if (!_deploymentMethods.TryGetValue(method, out var deploymentMethod))
-        {
-            _logger?.LogError("部署方法 {Method} 未注册", method);
             return (0, false);
         }
 
@@ -196,6 +187,16 @@ public class DeploymentService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // 链接部署中的空占位文件使用 Copy；旧记录未保存文件方法时才沿用会话方法。
+            var methodName = string.IsNullOrWhiteSpace(file.Method) ? deployment.DeploymentMethod : file.Method;
+            if (!Enum.TryParse<DeploymentMethod>(methodName, out var method)
+                || !_deploymentMethods.TryGetValue(method, out var deploymentMethod))
+            {
+                allFilesCleaned = false;
+                _logger?.LogError("文件部署方法无效或未注册: {Method}, {TargetPath}", methodName, file.TargetPath);
+                continue;
+            }
+
             try
             {
                 bool success = await deploymentMethod.CleanupFileAsync(file.TargetPath, cancellationToken);
@@ -209,6 +210,10 @@ public class DeploymentService
                     _logger?.LogWarning("清理文件失败: {TargetPath}", file.TargetPath);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 allFilesCleaned = false;
@@ -216,7 +221,8 @@ public class DeploymentService
             }
         }
 
-        if (allFilesCleaned)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (allFilesCleaned && deleteRecord)
         {
             // 只有所有目标文件都已清理，才删除记录；失败记录保留以便重试。
             await _deploymentRepository.DeleteDeploymentFilesByDeploymentIdAsync(deploymentId, cancellationToken);
@@ -240,15 +246,82 @@ public class DeploymentService
     }
 
     /// <summary>
-    /// 删除指定 Mod 的所有部署记录
-    /// 用于 Delete Mod 生命周期
+    /// 清理指定 Mod 的已部署文件，成功后删除对应记录。
+    /// 清理失败抛出异常，阻止 Delete Mod 生命周期继续删除模组和丢失重试记录。
     /// </summary>
     public async Task DeleteModDeploymentRecordsAsync(
         Guid modId,
         CancellationToken cancellationToken = default)
     {
-        await _deploymentRepository.DeleteByModIdAsync(modId, cancellationToken);
-        _logger?.LogInformation("已删除 Mod 部署记录: {ModId}", modId);
+        var records = (await _deploymentRepository.GetByModIdAsync(modId, cancellationToken)).ToList();
+        if (records.Count == 0) return;
+        var filesDeleted = 0;
+        foreach (var record in records)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // 编号调整与数据库提交前保留记录，失败时可以重试缺失文件的清理。
+            var result = await CleanupDeploymentFilesAsync(record.Id, false, null, cancellationToken);
+            if (!result.RecordDeleted)
+                throw new IOException($"模组部署文件未完全清理，已保留模组及部署记录，请重试（会话 {record.SessionId}）");
+            filesDeleted += result.FilesDeleted;
+        }
+        await CompactPatchIndexesAsync(records, cancellationToken);
+        _logger?.LogInformation("已清理 Mod 部署文件及记录: {ModId}，{FilesDeleted} 个文件，{RecordsDeleted} 个记录",
+            modId, filesDeleted, records.Count);
+    }
+
+    private async Task CompactPatchIndexesAsync(IReadOnlyList<DeploymentRecord> removed, CancellationToken cancellationToken)
+    {
+        var removedIds = removed.Select(record => record.Id).ToHashSet();
+        var remaining = new List<DeploymentFile>();
+        foreach (var sessionId in removed.Select(record => record.SessionId).Distinct())
+            remaining.AddRange((await _deploymentRepository.GetBySessionIdAsync(sessionId, cancellationToken))
+                .Where(record => !removedIds.Contains(record.Id)).SelectMany(record => record.Files));
+
+        // 当前目标编号已经体现实际部署方向及固定加载器排序，不能按配置页的显示顺序重排。
+        var patches = remaining.Where(file => PatchDeploymentPlanner.TryParseTarget(file.TargetPath, out _, out _, out _))
+            .Select(file =>
+            {
+                PatchDeploymentPlanner.TryParseTarget(file.TargetPath, out var prefix, out var index, out var suffix);
+                return (File: file, Prefix: prefix, Index: index, Suffix: suffix);
+            });
+        var renames = new List<(DeploymentFile File, string TargetPath)>();
+        foreach (var group in patches.GroupBy(item => Path.Combine(Path.GetDirectoryName(item.File.TargetPath)!, item.Prefix),
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            var next = 0;
+            foreach (var triplet in group.GroupBy(item => item.Index).OrderBy(items => items.Key))
+            {
+                foreach (var item in triplet)
+                {
+                    var target = Path.Combine(Path.GetDirectoryName(item.File.TargetPath)!, $"{item.Prefix}.patch_{next}{item.Suffix}");
+                    if (!target.Equals(item.File.TargetPath, StringComparison.OrdinalIgnoreCase))
+                        renames.Add((item.File, target));
+                }
+                next++;
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var moved = new List<(string Original, string Target)>();
+        try
+        {
+            // 移动阶段不接受半途取消；按升序填补空位，不覆盖未追踪文件，链接移动不触碰源文件。
+            foreach (var rename in renames)
+            {
+                File.Move(rename.File.TargetPath, rename.TargetPath);
+                moved.Add((rename.File.TargetPath, rename.TargetPath));
+            }
+            await _deploymentRepository.CommitModDeploymentRemovalAsync(removedIds,
+                renames.Select(item => (item.File.Id, item.TargetPath)).ToList(), CancellationToken.None);
+        }
+        catch
+        {
+            // 未提交时恢复旧编号；删除记录仍保留，避免重试清理到其它模组改名后的文件。
+            foreach (var move in moved.AsEnumerable().Reverse())
+                File.Move(move.Target, move.Original);
+            throw;
+        }
     }
 
     /// <summary>
@@ -265,338 +338,163 @@ public class DeploymentService
     {
         var result = new DeploymentResult
         {
-            SessionId = Guid.NewGuid(),
-            ProfileId = profileId,
-            Method = method,
-            Order = order,
-            StartTime = DateTime.UtcNow
+            SessionId = Guid.NewGuid(), ProfileId = profileId, Method = method,
+            Order = order, StartTime = DateTime.UtcNow
         };
-
         try
         {
-            // 1. 获取 Profile
-            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
-            if (profile == null)
-            {
-                result.Status = DeploymentStatus.Failed;
-                result.ErrorMessage = $"Profile {profileId} not found";
-                return result;
-            }
-
-            // 2. 检查部署方法兼容性
-            progress?.Report(new DeploymentProgress
-            {
-                Stage = "Preparing",
-                Message = "检查部署兼容性..."
-            });
-
-            // 暂时跳过兼容性检查，因为 modLibraryPath 未配置
-            // 在实际部署时会针对每个 Mod 的路径进行检查
-
-            // 3. Pre-Deployment Cleanup
-            progress?.Report(new DeploymentProgress
-            {
-                Stage = "Cleaning",
-                Message = "清理之前的部署..."
-            });
-
-            var (filesDeleted, _) = await PreDeploymentCleanupAsync(
-                new Progress<string>(msg => progress?.Report(new DeploymentProgress
-                {
-                    Stage = "Cleaning",
-                    Message = msg
-                })),
-                cancellationToken);
-
-            result.FilesDeleted = filesDeleted;
-
-            // 4. 获取启用的 Mods 并排序
-            var enabledMods = profile.Mods.Where(m => m.Enabled).ToList();
-
-            if (enabledMods.Count == 0)
-            {
-                result.Status = DeploymentStatus.Completed;
-                result.Message = "没有启用的 Mod 需要部署";
-                result.EndTime = DateTime.UtcNow;
-                return result;
-            }
-
-            // 按 Order 排序
-            var orderedMods = order == DeploymentOrder.TopToBottom
-                ? enabledMods.OrderBy(m => m.Order).ToList()
-                : enabledMods.OrderByDescending(m => m.Order).ToList();
-
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            if (!_deploymentMethods.TryGetValue(method, out var deploymentMethod))
+                throw new InvalidOperationException($"未注册部署方式：{method}");
+            if (string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
+                throw new DirectoryNotFoundException("游戏安装目录不存在");
+            var targetDirectory = Path.Combine(Path.GetFullPath(gameDirectory), "data");
+            var modsById = (await _modRepository.GetByIdsAsync(profile.Mods.Where(item => item.Enabled)
+                .Select(item => item.ModId), cancellationToken)).ToDictionary(mod => mod.Id);
+            foreach (var mod in modsById.Values)
+                await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
+            var orderedMods = BslProfilePolicy.DeploymentSequence(profile, modsById, order);
             result.TotalMods = orderedMods.Count;
+            var plans = new List<(Mod Mod, List<PatchDeploymentPlanner.FileEntry> Files)>();
+            var nextIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var skippedNames = new List<string>();
 
-            progress?.Report(new DeploymentProgress
-            {
-                Stage = "Deploying",
-                Message = $"开始部署 {orderedMods.Count} 个 Mods...",
-                TotalMods = orderedMods.Count,
-                CompletedMods = 0
-            });
-
-            // 5. 遍历部署每个 Mod
-            result.Status = DeploymentStatus.Deploying;
-
+            // 在清理旧部署前按配置快照展开选项并检查方法，错误设置不能破坏现有部署。
             foreach (var profileMod in orderedMods)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                var mod = await _modRepository.GetByIdAsync(profileMod.ModId, cancellationToken);
-                if (mod == null)
+                modsById.TryGetValue(profileMod.ModId, out var mod);
+                var files = mod != null && Directory.Exists(mod.Path)
+                    ? await Task.Run(() => PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken), cancellationToken)
+                    : new List<string>();
+                if (mod == null || files.Count == 0)
                 {
-                    _logger?.LogWarning("Mod {ModId} 不存在，跳过", profileMod.ModId);
                     result.SkippedMods++;
+                    skippedNames.Add(mod?.Name ?? profileMod.ModId.ToString());
                     continue;
                 }
-
                 progress?.Report(new DeploymentProgress
                 {
-                    Stage = "Deploying",
-                    Message = $"正在部署: {mod.Name}",
-                    CurrentMod = mod.Name,
-                    TotalMods = orderedMods.Count,
-                    CompletedMods = result.CompletedMods
+                    Stage = "Preparing", Message = $"检查部署兼容性：{mod.Name}", TotalMods = result.TotalMods
                 });
+                foreach (var sourceDirectory in files.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var compatibility = await deploymentMethod.CheckCompatibilityAsync(sourceDirectory!, targetDirectory, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!compatibility.CanDeploy)
+                        throw new InvalidOperationException($"{mod.Name} 无法使用 {method} 部署：{compatibility.ErrorMessage}");
+                }
+                plans.Add((mod, PatchDeploymentPlanner.BuildFiles(files, nextIndexes)));
+            }
 
-                // 创建部署记录
-                var deploymentRecord = await CreateDeploymentRecordAsync(
-                    result.SessionId,
-                    profileId,
-                    mod.Id,
-                    method,
-                    null,
-                    cancellationToken);
+            var enabledLoaders = orderedMods.Count(item => modsById.TryGetValue(item.ModId, out var mod)
+                && BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod)));
+            if (enabledLoaders > 1)
+                throw new InvalidOperationException("BSL 与 MDL 互斥，同一配置只能启用一个加载器，请停用另一份或重复副本");
+            var loaderCount = plans.Count(plan => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(plan.Mod)));
+            if (loaderCount > 1)
+                throw new InvalidOperationException("同一配置只能部署一个 BSL / MDL 加载器，请停用重复副本");
+            if (loaderCount == 0 && plans.Any(plan => BslProfilePolicy.Role(plan.Mod) is BslModRole.Dependency or BslModRole.SmoothBoot))
+                throw new InvalidOperationException("此配置包含依赖加载器模组或 SmoothBoot，请先添加并启用 Bingus Shared Loader 或 MDL 及其补丁选项");
 
+            if (plans.Count == 0 && result.SkippedMods > 0)
+                throw new InvalidOperationException($"当前配置没有可部署的补丁，跳过 {result.SkippedMods} 个模组：{string.Join("、", skippedNames)}");
+
+            progress?.Report(new DeploymentProgress { Stage = "Cleaning", Message = "清理之前的部署...", TotalMods = result.TotalMods });
+            var previousSession = await GetLatestDeploymentSessionIdAsync(cancellationToken);
+            var (filesDeleted, _) = await PreDeploymentCleanupAsync(
+                new InlineProgress<string>(message => progress?.Report(new DeploymentProgress
+                {
+                    Stage = "Cleaning", Message = message, TotalMods = result.TotalMods
+                })), cancellationToken);
+            result.FilesDeleted = filesDeleted;
+            if (previousSession.HasValue && (await GetDeploymentsBySessionIdAsync(previousSession.Value, cancellationToken)).Any())
+                throw new IOException("之前的部署未完全清理，请重试清理后再部署");
+
+            result.Status = DeploymentStatus.Deploying;
+            Directory.CreateDirectory(targetDirectory);
+            foreach (var (mod, files) in plans)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var record = await CreateDeploymentRecordAsync(result.SessionId, profileId, mod.Id, method, cancellationToken: cancellationToken);
                 try
                 {
-                    // 部署 Mod 的所有文件
-                    // 获取 Mod 目录中的所有文件
-                    var modDirectory = mod.Path;
-                    if (!Directory.Exists(modDirectory))
+                    var hasFailure = false;
+                    var done = 0;
+                    foreach (var file in files)
                     {
-                        _logger?.LogWarning("Mod 目录不存在: {ModDirectory}", modDirectory);
-                        result.SkippedMods++;
-                        await UpdateDeploymentStatusAsync(
-                            deploymentRecord.Id,
-                            DeploymentStatus.Failed,
-                            DateTime.UtcNow,
-                            cancellationToken);
-                        continue;
-                    }
-
-                    // 获取部署方法
-                    if (!_deploymentMethods.TryGetValue(method, out var deploymentMethod))
-                    {
-                        _logger?.LogError("未找到部署方法: {Method}", method);
-                        result.FailedMods++;
-                        await UpdateDeploymentStatusAsync(
-                            deploymentRecord.Id,
-                            DeploymentStatus.Failed,
-                            DateTime.UtcNow,
-                            cancellationToken);
-                        continue;
-                    }
-
-                    // 按该配置保存的选项选择确定要部署的文件：
-                    // v0 只部署选中互斥项的子目录，v1 只部署启用选项（及选中子选项）Include 的目录；
-                    // 模组没有选项或清单缺少映射时保持原有全量部署
-                    var deployPlan = ProfileModOptionResolver.ResolveDeployPlan(
-                        mod.Manifest,
-                        ProfileModOptionResolver.ResolveEffective(mod.Manifest, profileMod.OptionsJson));
-
-                    if (deployPlan.Scope == OptionDeployScope.InvalidSelection)
-                    {
-                        _logger?.LogError(
-                            "模组 {ModName} 的选项选择与当前清单不匹配，跳过部署（重新选择选项后重试）",
-                            mod.Name);
-                        result.SkippedMods++;
-                        await UpdateDeploymentStatusAsync(
-                            deploymentRecord.Id,
-                            DeploymentStatus.Failed,
-                            DateTime.UtcNow,
-                            cancellationToken);
-                        continue;
-                    }
-
-                    List<string> files;
-                    if (deployPlan.Scope == OptionDeployScope.DirectoryList)
-                    {
-                        files = await Task.Run(
-                            () => CollectFilesFromDirectories(modDirectory, deployPlan.Directories),
-                            cancellationToken);
-                    }
-                    else
-                    {
-                        files = (await Task.Run(
-                            () => Directory.GetFiles(modDirectory, "*.*", SearchOption.AllDirectories),
-                            cancellationToken)).ToList();
-                    }
-                    // 遍历部署文件；选项过滤时目标拍平到游戏目录根（旧版语义：
-                    // 选项目录里的补丁文件必须落在 data/ 根才会被游戏加载）
-                    var flattenToGameRoot = deployPlan.Scope == OptionDeployScope.DirectoryList;
-                    var deployedFiles = new List<(string SourcePath, string TargetPath)>();
-                    int fileIndex = 0;
-                    bool hasFailure = false;
-
-                    foreach (var sourceFile in files)
-                    {
-                        fileIndex++;
                         cancellationToken.ThrowIfCancellationRequested();
-
-                        // 计算相对路径
-                        var relativePath = Path.GetRelativePath(modDirectory, sourceFile);
-                        var targetPath = flattenToGameRoot
-                            ? Path.Combine(gameDirectory, Path.GetFileName(sourceFile))
-                            : Path.Combine(gameDirectory, relativePath);
-
+                        var target = Path.Combine(targetDirectory, file.FileName);
                         progress?.Report(new DeploymentProgress
                         {
-                            Stage = "Deploying",
-                            Message = $"部署文件: {relativePath}",
-                            CurrentMod = mod.Name,
-                            TotalMods = orderedMods.Count,
-                            CompletedMods = result.CompletedMods,
-                            CurrentModFiles = fileIndex,
-                            CurrentModTotalFiles = files.Count
+                            Stage = "Deploying", Message = $"正在部署 {mod.Name}：{done}/{files.Count}，{file.FileName}",
+                            CurrentMod = mod.Name, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods,
+                            CurrentModFiles = done, CurrentModTotalFiles = files.Count
                         });
-
-                        // 部署单个文件
-                        var success = await deploymentMethod.DeployFileAsync(
-                            sourceFile,
-                            targetPath,
-                            null,
-                            cancellationToken);
-
-                        if (success)
+                        // 先登记目标，确保部分复制和取消后仍能清理；占位文件使用普通文件。
+                        await AddDeploymentFileAsync(record.Id, mod.Id, file.SourcePath ?? string.Empty, target,
+                            file.SourcePath == null ? DeploymentMethod.Copy : method, cancellationToken);
+                        if (file.SourcePath == null)
                         {
-                            deployedFiles.Add((sourceFile, targetPath));
+                            // 先解除可能存在的链接，不能截断链接指向的源文件。
+                            File.Delete(target);
+                            using var placeholder = new FileStream(target, FileMode.CreateNew, FileAccess.Write);
                         }
                         else
                         {
-                            _logger?.LogWarning("文件部署失败: {SourceFile} -> {TargetPath}", sourceFile, targetPath);
-                            hasFailure = true;
+                            var success = await deploymentMethod.DeployFileAsync(file.SourcePath, target, null, cancellationToken);
+                            cancellationToken.ThrowIfCancellationRequested();
+                            hasFailure |= !success;
                         }
+                        done++;
                     }
-
-                    // 批量添加部署文件记录
-                    if (deployedFiles.Count > 0)
-                    {
-                        await AddDeploymentFilesAsync(
-                            deploymentRecord.Id,
-                            mod.Id,
-                            deployedFiles,
-                            method,
-                            cancellationToken);
-                    }
-
-                    // 更新部署状态
-                    var deploymentStatus = hasFailure
-                        ? DeploymentStatus.PartiallyFailed
-                        : DeploymentStatus.Completed;
-
-                    await UpdateDeploymentStatusAsync(
-                        deploymentRecord.Id,
-                        deploymentStatus,
-                        DateTime.UtcNow,
-                        cancellationToken);
-
-                    if (hasFailure)
-                    {
-                        result.FailedMods++;
-                    }
-                    else
-                    {
-                        result.CompletedMods++;
-                    }
+                    await UpdateDeploymentStatusAsync(record.Id,
+                        hasFailure ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed, DateTime.UtcNow, CancellationToken.None);
+                    if (hasFailure) result.FailedMods++;
+                    else result.CompletedMods++;
+                }
+                catch (OperationCanceledException)
+                {
+                    await UpdateDeploymentStatusAsync(record.Id, DeploymentStatus.Cancelled, DateTime.UtcNow, CancellationToken.None);
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, "部署 Mod {ModName} 失败", mod.Name);
+                    _logger?.LogError(ex, "部署模组 {ModName} 失败", mod.Name);
                     result.FailedMods++;
-                    await UpdateDeploymentStatusAsync(
-                        deploymentRecord.Id,
-                        DeploymentStatus.Failed,
-                        DateTime.UtcNow,
-                        cancellationToken);
+                    result.ErrorMessage = $"{mod.Name}：{ex.Message}";
+                    await UpdateDeploymentStatusAsync(record.Id, DeploymentStatus.Failed, DateTime.UtcNow, CancellationToken.None);
                 }
-
-                progress?.Report(new DeploymentProgress
-                {
-                    Stage = "Deploying",
-                    Message = $"已完成: {mod.Name}",
-                    CurrentMod = mod.Name,
-                    TotalMods = orderedMods.Count,
-                    CompletedMods = result.CompletedMods
-                });
             }
 
-            // 6. 完成
-            result.Status = result.FailedMods > 0
-                ? DeploymentStatus.PartiallyFailed
-                : DeploymentStatus.Completed;
-            result.EndTime = DateTime.UtcNow;
-
+            result.Status = result.FailedMods > 0 || result.SkippedMods > 0 ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed;
+            result.Message = $"配置“{profile.Name}”：已部署 {result.CompletedMods}/{result.TotalMods} 个模组，失败 {result.FailedMods} 个，跳过 {result.SkippedMods} 个。位置：{targetDirectory}";
+            if (skippedNames.Count > 0) result.Message += $"；无可部署补丁：{string.Join("、", skippedNames)}";
             progress?.Report(new DeploymentProgress
             {
-                Stage = "Completed",
-                Message = $"部署完成: {result.CompletedMods}/{result.TotalMods} 个 Mods",
-                TotalMods = result.TotalMods,
-                CompletedMods = result.CompletedMods
+                Stage = "Completed", Message = result.Message, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods
             });
-
-            return result;
         }
         catch (OperationCanceledException)
         {
             result.Status = DeploymentStatus.Cancelled;
-            result.EndTime = DateTime.UtcNow;
-            result.ErrorMessage = "部署已取消";
-            return result;
+            result.ErrorMessage = "部署已取消，已写入的文件可通过清理部署移除";
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "部署 Profile 失败");
+            _logger?.LogError(ex, "部署配置失败");
             result.Status = DeploymentStatus.Failed;
-            result.EndTime = DateTime.UtcNow;
             result.ErrorMessage = ex.Message;
-            return result;
         }
+        finally { result.EndTime = DateTime.UtcNow; }
+        return result;
     }
 
-    /// <summary>
-    /// 按选项 Include 的相对目录列表收集模组内要部署的文件。
-    /// 目录缺失或越出模组目录时跳过（与旧版管理器一致：缺失的 Include 目录不阻断部署）。
-    /// </summary>
-    private List<string> CollectFilesFromDirectories(string modDirectory, IReadOnlyList<string> relativeDirectories)
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {
-        var fullRoot = Path.GetFullPath(modDirectory);
-        var files = new List<string>();
-
-        foreach (var relative in relativeDirectories)
-        {
-            var fullDir = Path.GetFullPath(Path.Combine(fullRoot, relative));
-            if (!fullDir.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)
-                && !fullDir.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger?.LogWarning("选项 Include 越出模组目录，已跳过: {Directory}", relative);
-                continue;
-            }
-
-            if (!Directory.Exists(fullDir))
-            {
-                _logger?.LogWarning("选项 Include 目录不存在，已跳过: {Directory}", fullDir);
-                continue;
-            }
-
-            files.AddRange(Directory.GetFiles(fullDir, "*.*", SearchOption.AllDirectories));
-        }
-
-        // Include 目录可能重叠，去重避免同一文件重复部署/重复记录
-        return files.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        public void Report(T value) => report(value);
     }
-
     /// <summary>
     /// 创建部署记录
     /// </summary>

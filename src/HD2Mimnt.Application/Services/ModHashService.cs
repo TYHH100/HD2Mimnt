@@ -1,0 +1,62 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
+using HD2Mimnt.Core.Entities;
+
+namespace HD2Mimnt.Application.Services;
+
+/// <summary>模组目录指纹：对有序相对路径及每个文件的完整 SHA-256 摘要再次计算 SHA-256。</summary>
+public static class ModHashService
+{
+    public static async Task<string> CalculateAsync(string directory, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!Directory.Exists(directory)) throw new DirectoryNotFoundException($"模组目录不存在: {directory}");
+        progress?.Report(new(84, "计算哈希", "准备计算模组内容 SHA-256", true));
+        var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Select(path => (Path: path, Relative: Path.GetRelativePath(directory, path).Replace('\\', '/')))
+            .OrderBy(file => file.Relative, StringComparer.Ordinal).ToArray();
+        long totalBytes = 0;
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            totalBytes += new FileInfo(file.Path).Length;
+        }
+
+        using var directoryHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        // 固定格式标识及长度前缀避免路径/内容拼接歧义；根目录和压缩包元数据不参与。
+        directoryHash.AppendData("HD2Mimnt.Directory.SHA256.v1\0"u8);
+        var lengthBuffer = new byte[4];
+        var buffer = new byte[81920];
+        long processedBytes = 0;
+        var lastReport = Environment.TickCount64;
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var pathBytes = Encoding.UTF8.GetBytes(file.Relative);
+            BinaryPrimitives.WriteInt32BigEndian(lengthBuffer, pathBytes.Length);
+            directoryHash.AppendData(lengthBuffer);
+            directoryHash.AppendData(pathBytes);
+            using var fileHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            await using var stream = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                buffer.Length, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                fileHash.AppendData(buffer, 0, read);
+                processedBytes += read;
+                if (Environment.TickCount64 - lastReport >= 100)
+                {
+                    var ratio = totalBytes == 0 ? 1 : Math.Clamp((double)processedBytes / totalBytes, 0, 1);
+                    progress?.Report(new(84 + 5 * ratio, "计算哈希", file.Relative));
+                    lastReport = Environment.TickCount64;
+                }
+            }
+            directoryHash.AppendData(fileHash.GetHashAndReset());
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new(89, "计算哈希", "SHA-256 计算完成"));
+        return Convert.ToHexStringLower(directoryHash.GetHashAndReset());
+    }
+}

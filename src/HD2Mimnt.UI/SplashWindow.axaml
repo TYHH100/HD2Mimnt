@@ -4,11 +4,11 @@
         Title="HD2Mimnt"
         Width="520" Height="620"
         CanResize="False"
-        SystemDecorations="None"
+        WindowDecorations="None"
         ShowInTaskbar="False"
         Topmost="True"
         WindowStartupLocation="CenterScreen"
-        Background="#0D131D">
+        Background="{DynamicResource Surface0Brush}">
   <Panel>
     <Image Source="avares://HD2Mimnt.UI/Assets/logo.png" Width="380" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     <TextBlock Text="v0.1.0" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>

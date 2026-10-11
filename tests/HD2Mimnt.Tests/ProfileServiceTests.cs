@@ -42,6 +42,49 @@ public class ProfileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Initialize_ShouldCreateOneProtectedDefaultAndRestorePersistedActiveProfile()
+    {
+        await _profileService.InitializeAsync();
+        await _profileService.InitializeAsync();
+        var defaultProfile = Assert.Single(await _profileService.GetAllProfilesAsync());
+        Assert.True(defaultProfile.IsDefault);
+        Assert.True(defaultProfile.IsActive);
+        var otherId = await _profileService.CreateProfileAsync("我的配置");
+        await _profileService.SetActiveProfileAsync(otherId);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _profileService.DeleteProfileAsync(defaultProfile.Id));
+        var duplicate = await _profileService.DuplicateProfileAsync(defaultProfile.Id, "默认副本");
+        Assert.False(duplicate.IsDefault);
+        using var reopened = new HD2MimntDbContext(_testDbPath);
+        await reopened.InitializeDatabaseAsync();
+        var restored = new ProfileService(new ProfileRepository(reopened), new ModRepository(reopened));
+        await restored.InitializeAsync();
+        Assert.Equal(otherId, (await restored.GetActiveProfileAsync())!.Id);
+        Assert.Single((await restored.GetAllProfilesAsync()).Where(profile => profile.IsDefault));
+        Assert.Equal(defaultProfile.Id, (await restored.GetAllProfilesAsync()).First().Id);
+        await restored.ReorderProfilesAsync(new[] { otherId, defaultProfile.Id, duplicate.Id });
+        Assert.Equal(defaultProfile.Id, (await restored.GetAllProfilesAsync()).First().Id);
+    }
+
+    [Fact]
+    public async Task Initialize_ShouldMigrateLegacyDefaultWithoutReplacingActiveConfiguration()
+    {
+        var originalId = await _profileService.CreateProfileAsync("旧默认");
+        var activeId = await _profileService.CreateProfileAsync("上次使用");
+        await _profileService.SetActiveProfileAsync(activeId);
+        using (var command = (await _dbContext.GetConnectionAsync()).CreateCommand())
+        {
+            command.CommandText = "ALTER TABLE Profiles DROP COLUMN IsDefault;";
+            await command.ExecuteNonQueryAsync();
+        }
+        await _dbContext.InitializeDatabaseAsync();
+        await _profileService.InitializeAsync();
+        Assert.True((await _profileService.GetProfileByIdAsync(originalId))!.IsDefault);
+        Assert.Equal(activeId, (await _profileService.GetActiveProfileAsync())!.Id);
+        Assert.Equal(2, (await _profileService.GetAllProfilesAsync()).Count());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _profileService.DeleteProfileAsync(originalId));
+    }
+
+    [Fact]
     public async Task SetActiveProfile_ShouldActivateProfile()
     {
         // Arrange

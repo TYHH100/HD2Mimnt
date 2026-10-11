@@ -5,7 +5,7 @@ using Moq;
 
 namespace HD2Mimnt.Tests.Services;
 
-public class DownloadManagerServiceTests
+public class DownloadManagerServiceTests : IAsyncLifetime
 {
     private readonly Mock<IPlatformRegistry> _mockRegistry;
     private readonly Mock<IModPlatform> _mockPlatform;
@@ -143,7 +143,7 @@ public class DownloadManagerServiceTests
     }
 
     [Fact]
-    public void ClearCompleted_Should_Remove_Completed_Tasks()
+    public async Task ClearCompleted_Should_Remove_Completed_Tasks()
     {
         // Arrange
         SetupMockPlatform();
@@ -151,6 +151,7 @@ public class DownloadManagerServiceTests
         var taskId2 = _service.EnqueueDownload("test", "mod2", Path.Combine(_tempDir, "test2.zip"));
 
         _service.CancelDownload(taskId1); // This makes it completed
+        await _service.WaitForDownloadAsync(taskId1).WaitAsync(TimeSpan.FromSeconds(5));
 
         // Act
         _service.ClearCompleted();
@@ -206,6 +207,84 @@ public class DownloadManagerServiceTests
         var task = _service.GetDownloadTask(taskId);
         Assert.NotNull(task);
         Assert.NotNull(task.ModName);
+    }
+
+    [Fact]
+    public async Task Download_Task_Copy_Failure_Should_Preserve_Existing_Target_And_Remove_Partial()
+    {
+        SetupMockPlatform();
+        _mockPlatform.Setup(p => p.DownloadModAsync(It.IsAny<string>(),
+                It.IsAny<IProgress<DownloadProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PartialCopyStream(fail: true));
+        var target = Path.Combine(_tempDir, "existing.zip");
+        await File.WriteAllTextAsync(target, "original");
+        var id = _service.EnqueueDownload("test", "mod1", target);
+        await WaitUntilAsync(() => _service.GetDownloadTask(id)?.Status == DownloadStatus.Failed &&
+            Directory.GetFiles(_tempDir).Length == 1);
+        Assert.Equal("original", await File.ReadAllTextAsync(target));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    [Fact]
+    public async Task Download_Task_Copy_Cancellation_Should_Preserve_Target_And_Ignore_Late_Progress()
+    {
+        SetupMockPlatform();
+        var stream = new PartialCopyStream(fail: false);
+        IProgress<DownloadProgress>? reporter = null;
+        _mockPlatform.Setup(p => p.DownloadModAsync(It.IsAny<string>(),
+                It.IsAny<IProgress<DownloadProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, IProgress<DownloadProgress>? progress, CancellationToken _) =>
+            {
+                reporter = progress;
+                return stream;
+            });
+        var target = Path.Combine(_tempDir, "existing.zip");
+        await File.WriteAllTextAsync(target, "original");
+        var id = _service.EnqueueDownload("test", "mod1", target);
+        await stream.CopyStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(_service.CancelDownload(id));
+        reporter!.Report(new DownloadProgress { TotalBytes = 10, DownloadedBytes = 9 });
+        await _service.WaitForDownloadAsync(id).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(DownloadStatus.Cancelled, _service.GetDownloadTask(id)!.Status);
+        Assert.Equal(0, _service.GetDownloadTask(id)!.Progress);
+        Assert.Equal("original", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
+    public async Task Download_Task_Completion_Should_Ignore_Late_Progress()
+    {
+        SetupMockPlatform();
+        IProgress<DownloadProgress>? reporter = null;
+        _mockPlatform.Setup(p => p.DownloadModAsync(It.IsAny<string>(),
+                It.IsAny<IProgress<DownloadProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, IProgress<DownloadProgress>? progress, CancellationToken _) =>
+            {
+                reporter = progress;
+                return new MemoryStream([1, 2, 3]);
+            });
+        var id = _service.EnqueueDownload("test", "mod1", Path.Combine(_tempDir, "complete.zip"));
+        await WaitUntilAsync(() => _service.GetDownloadTask(id)?.Status == DownloadStatus.Completed);
+        reporter!.Report(new DownloadProgress { TotalBytes = 10, DownloadedBytes = 1 });
+        Assert.Equal(100, _service.GetDownloadTask(id)!.Progress);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!predicate()) await Task.Delay(10, timeout.Token);
+    }
+
+    private sealed class PartialCopyStream(bool fail) : MemoryStream
+    {
+        public TaskCompletionSource CopyStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            await destination.WriteAsync(new byte[] { 1, 2 }, cancellationToken);
+            CopyStarted.TrySetResult();
+            if (fail) throw new IOException("test copy failure");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
     }
 
     private void SetupMockPlatform()
@@ -279,11 +358,14 @@ public class DownloadManagerServiceTests
         _mockRegistry.Setup(r => r.GetPlatform("test")).Returns(_mockPlatform.Object);
     }
 
-    public void Dispose()
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
     {
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, true);
-        }
+        var downloads = _service.GetAllDownloads();
+        foreach (var task in downloads) _service.CancelDownload(task.Id);
+        await Task.WhenAll(downloads.Select(task => _service.WaitForDownloadAsync(task.Id)))
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true);
     }
 }

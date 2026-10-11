@@ -1,6 +1,8 @@
 using Avalonia.Controls;
+using Avalonia;
 using Avalonia.Input;
-using Avalonia.Platform.Storage;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
 
@@ -11,13 +13,17 @@ public partial class LibraryView : UserControl
     public LibraryView()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnModListKeyDown, RoutingStrategies.Tunnel);
+        ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
     }
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not LibraryViewModel vm) return;
 
-        var isTextInput = e.Source is TextBox;
+        if (vm.IsAddToProfileDialogOpen || vm.Import.IsOpen) return;
+        var isTextInput = e.Source is Visual source &&
+            (source is TextBox || source.GetVisualAncestors().Any(ancestor => ancestor is TextBox));
         var controlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
 
         if (controlPressed && e.Key == Key.F)
@@ -32,7 +38,7 @@ public partial class LibraryView : UserControl
 
         if (controlPressed && e.Key == Key.A)
         {
-            vm.SelectAllCommand.Execute(null);
+            vm.SelectAllVisibleCommand.Execute(null);
             e.Handled = true;
         }
         else if (e.Key == Key.Delete)
@@ -72,12 +78,13 @@ public partial class LibraryView : UserControl
 
     /// <summary>
     /// 卡片点击：双击打开详情；Ctrl+点击切换多选；Shift+点击范围选择；
-    /// 普通单击只聚焦（ListBox 单选模式处理）并清空多选，不会弹出批量操作条。
+    /// 普通单击只聚焦并清空多选；在隧道路由中处理，避免原生列表再次改写选择。
     /// </summary>
-    private void ModCard_PointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnModListPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not Border card
-            || card.DataContext is not ModItemViewModel mod
+        if (e.Source is not Visual source
+            || source.GetVisualAncestors().Prepend(source).OfType<ListBoxItem>().FirstOrDefault() is not { } container
+            || container.DataContext is not ModItemViewModel mod
             || DataContext is not LibraryViewModel vm)
         {
             return;
@@ -85,26 +92,82 @@ public partial class LibraryView : UserControl
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
-        if (e.ClickCount >= 2)
+        if (IsActionSource(source, container)) return;
+
+        ModList.Focus();
+
+        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        if (e.ClickCount >= 2 && !control && !shift)
         {
             vm.ShowModDetailCommand.Execute(mod);
             e.Handled = true;
             return;
         }
 
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (shift)
+        {
+            vm.SelectRange(mod, additive: control);
+            e.Handled = true;
+        }
+        else if (control)
         {
             vm.ToggleSelected(mod);
             e.Handled = true;
         }
-        else if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-        {
-            vm.SelectRange(mod);
-            e.Handled = true;
-        }
         else
         {
-            vm.ClearSelectionCommand.Execute(null);
+            vm.FocusMod(mod);
+            e.Handled = true;
+        }
+    }
+
+    private static bool IsActionSource(Visual? source, Visual card)
+    {
+        for (var current = source; current != null && current != card; current = current.GetVisualParent())
+            if (current is Button or TextBox or ToggleSwitch or CheckBox or ComboBox) return true;
+        return false;
+    }
+
+    private void OnModListBackgroundPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || DataContext is not LibraryViewModel vm) return;
+        if (e.Source is Visual source && (source is ListBoxItem ||
+            source.GetVisualAncestors().Any(ancestor => ancestor is ListBoxItem or Avalonia.Controls.Primitives.ScrollBar))) return;
+        vm.ClearSelectionCommand.Execute(null);
+    }
+
+    private void OnModListKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Source is not Visual eventSource ||
+            !eventSource.GetVisualAncestors().Prepend(eventSource).Contains(ModList)) return;
+        if (DataContext is not LibraryViewModel vm || vm.FilteredMods.Count == 0 ||
+            vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen) return;
+        if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source).Any(visual => visual is Button or TextBox)) return;
+        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        var index = vm.FocusedMod == null ? -1 : vm.FilteredMods.IndexOf(vm.FocusedMod);
+        var targetIndex = e.Key switch
+        {
+            Key.Down => Math.Min(index + 1, vm.FilteredMods.Count - 1),
+            Key.Up => Math.Max(index - 1, 0),
+            Key.Home => 0,
+            Key.End => vm.FilteredMods.Count - 1,
+            _ => -1
+        };
+        if (targetIndex >= 0)
+        {
+            var target = vm.FilteredMods[targetIndex];
+            if (shift) vm.SelectRange(target, additive: control);
+            else if (control) vm.FocusedMod = target;
+            else vm.FocusMod(target);
+            ModList.ScrollIntoView(target);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Space && vm.FocusedMod is { } focused)
+        {
+            vm.ToggleSelected(focused);
+            e.Handled = true;
         }
     }
 
@@ -193,61 +256,8 @@ public partial class LibraryView : UserControl
         }
     }
 
-    /// <summary>
-    /// 全页拖拽导入：悬停显示提示层，松开批量导入压缩包（旧版全窗口拖拽导入的等价实现）
-    /// </summary>
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private void OnImportClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (e.DataTransfer.TryGetFiles() is { Length: > 0 })
-        {
-            e.DragEffects = DragDropEffects.Copy;
-            DragHintBorder.IsVisible = true;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
-    }
-
-    private void OnDragLeave(object? sender, DragEventArgs e)
-    {
-        DragHintBorder.IsVisible = false;
-    }
-
-    private async void OnDrop(object? sender, DragEventArgs e)
-    {
-        DragHintBorder.IsVisible = false;
-        if (DataContext is not LibraryViewModel vm) return;
-
-        var paths = e.DataTransfer.TryGetFiles()
-            ?.Select(file => file.TryGetLocalPath())
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Cast<string>()
-            .ToList();
-        if (paths is not { Count: > 0 }) return;
-
-        await vm.ImportPathsAsync(paths);
-    }
-
-    private async void OnImportClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (DataContext is not LibraryViewModel vm) return;
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel?.StorageProvider is null) return;
-
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "选择模组文件",
-            AllowMultiple = true,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("模组压缩包") { Patterns = new[] { "*.zip", "*.rar", "*.7z", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.xz" } },
-                new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
-            }
-        });
-
-        var paths = files.Select(file => file.TryGetLocalPath())
-            .Where(path => !string.IsNullOrWhiteSpace(path)).Cast<string>();
-        await vm.ImportPathsAsync(paths);
+        if (DataContext is LibraryViewModel vm) vm.OpenImportCommand.Execute(null);
     }
 }

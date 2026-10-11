@@ -82,4 +82,8 @@ public interface IDeploymentRepository
     /// 删除指定部署记录的所有文件记录
     /// </summary>
     Task DeleteDeploymentFilesByDeploymentIdAsync(Guid deploymentId, CancellationToken cancellationToken = default);
+
+    /// <summary>原子提交删除模组部署记录与剩余补丁的新目标路径。</summary>
+    Task CommitModDeploymentRemovalAsync(IReadOnlyCollection<Guid> deploymentIds,
+        IReadOnlyList<(Guid FileId, string TargetPath)> renamedFiles, CancellationToken cancellationToken = default);
 }

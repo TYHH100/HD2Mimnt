@@ -3,12 +3,14 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:HD2Mimnt.UI.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="720"
         x:Class="HD2Mimnt.UI.Views.DevToolsWindow"
         x:DataType="vm:DevToolsViewModel"
-        Title="开发工具 - 测试数据生成"
+        Title="开发工具"
         Width="600"
-        Height="500"
+        Height="720"
+        MinWidth="480"
+        MinHeight="400"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource Surface1Brush}">
 
@@ -16,18 +18,39 @@
         <vm:DevToolsViewModel />
     </Design.DataContext>
 
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
 
         <!-- Title -->
         <TextBlock Grid.Row="0"
-                  Text="测试数据生成工具"
+                  Text="开发工具"
                   FontSize="24"
                   FontWeight="SemiBold"
                   Foreground="{DynamicResource TextPrimaryBrush}"
                   Margin="0,0,0,24"/>
 
+        <Border Grid.Row="1" Classes="card" Margin="0,0,0,16">
+            <StackPanel Spacing="12">
+                <TextBlock Text="N 网 API 密钥（测试）" Classes="section-title" />
+                <TextBlock Text="应用后供 N 网功能测试使用，仅本次运行有效。"
+                           Classes="muted" TextWrapping="Wrap" />
+                <TextBox x:Name="NexusApiKeyInput"
+                         Text="{Binding NexusApiKey, Mode=TwoWay}"
+                         PasswordChar="●"
+                         PlaceholderText="粘贴 Nexus Mods API 密钥" />
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="ApplyNexusApiKeyButton" Content="应用密钥"
+                            Classes="accent" Command="{Binding ApplyNexusApiKeyCommand}" />
+                    <Button x:Name="ClearNexusApiKeyButton" Content="清除密钥"
+                            Command="{Binding ClearNexusApiKeyCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding NexusStatusMessage}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+            </StackPanel>
+        </Border>
+
         <!-- Mod Count Input -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
                Background="Transparent"
                Padding="16"
                CornerRadius="0"
@@ -49,11 +72,11 @@
         </Border>
 
         <!-- Action Buttons -->
-        <StackPanel Grid.Row="2" Spacing="12">
+        <StackPanel Grid.Row="3" Spacing="12">
             <Button Content="生成测试模组"
                    Command="{Binding GenerateTestModsCommand}"
                    IsEnabled="{Binding !IsGenerating}"
-                   Classes="primary"
+                   Classes="accent"
                    HorizontalAlignment="Stretch"
                    Padding="16,12"/>
 
@@ -80,7 +103,7 @@
         </StackPanel>
 
         <!-- Progress Bar -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                IsVisible="{Binding IsGenerating}"
                Background="Transparent"
                Padding="16"
@@ -99,7 +122,7 @@
         </Border>
 
         <!-- Status Message -->
-        <Border Grid.Row="4"
+        <Border Grid.Row="5"
                Background="Transparent"
                Padding="16"
                CornerRadius="0"
@@ -111,4 +134,5 @@
         </Border>
 
     </Grid>
+    </ScrollViewer>
 </Window>

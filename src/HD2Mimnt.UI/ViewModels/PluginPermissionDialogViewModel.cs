@@ -26,7 +26,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     private string _permissionMode = "Sandbox";
 
     [ObservableProperty]
-    private string _permissionModeIcon = "沙";
+    private string _permissionModeIcon = "Lock";
 
     [ObservableProperty]
     private ObservableCollection<PermissionItemViewModel> _requestedPermissions = new();
@@ -58,7 +58,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         PluginDescription = description;
         PermissionMode = permissionMode;
         IsFullAccess = permissionMode == "FullAccess";
-        PermissionModeIcon = IsFullAccess ? "全" : "沙";
+        PermissionModeIcon = IsFullAccess ? "Warning" : "Lock";
 
         RequestedPermissions.Clear();
         foreach (var permission in requestedPermissions)
@@ -93,7 +93,7 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         PluginDescription = plugin.Description;
         PermissionMode = plugin.PermissionMode;
         IsFullAccess = plugin.PermissionMode == "FullAccess";
-        PermissionModeIcon = IsFullAccess ? "全" : "沙";
+        PermissionModeIcon = IsFullAccess ? "Warning" : "Lock";
         IsManagementMode = true;
         RequestedPermissions.Clear();
 
@@ -208,15 +208,15 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
     {
         return permission switch
         {
-            "ReadModFiles" or "mods.read" => "读",
-            "WriteModFiles" or "mods.write" => "写",
-            "AccessNetwork" or "network" => "网",
-            "ExecuteProcesses" => "程",
-            "ReadDatabase" => "库",
-            "WriteConfiguration" or "config.write" => "配",
-            "FileSystemAccess" or "storage.read" or "storage.write" => "文",
-            "RegistryAccess" => "表",
-            _ => "权"
+            "ReadModFiles" or "mods.read" => "Logs",
+            "WriteModFiles" or "mods.write" => "Edit",
+            "AccessNetwork" or "network" => "Globe",
+            "ExecuteProcesses" => "Code",
+            "ReadDatabase" => "Database",
+            "WriteConfiguration" or "config.write" => "Wrench",
+            "FileSystemAccess" or "storage.read" or "storage.write" => "Folder",
+            "RegistryAccess" => "Settings",
+            _ => "Lock"
         };
     }
 

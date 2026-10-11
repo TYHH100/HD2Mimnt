@@ -2,7 +2,7 @@
   <Grid RowDefinitions="Auto,*,Auto" MinHeight="300">
     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
       <StackPanel Spacing="3"><TextBlock Text="数据备份与恢复" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Text="备份包含模组库数据库和应用设置，恢复前会要求确认。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
-      <Button Grid.Column="1" Content="刷新" Command="{Binding RefreshCommand}" Classes="secondary" Margin="8,0,0,0"/><Button Grid.Column="2" Content="创建备份" Command="{Binding CreateCommand}" Classes="primary" Margin="8,0,0,0"/>
+      <Button Grid.Column="1" Content="刷新" Command="{Binding RefreshCommand}" Classes="secondary" Margin="8,0,0,0"/><Button x:Name="CreateBackupButton" Grid.Column="2" Content="创建备份" Command="{Binding CreateCommand}" Classes="accent" Margin="8,0,0,0"/>
     </Grid>
     <ListBox Grid.Row="1" ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}" MaxHeight="380">
       <ListBox.ItemTemplate><DataTemplate>

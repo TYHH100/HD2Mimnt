@@ -279,6 +279,22 @@ public class SymbolicLinkDeploymentMethodTests : IDisposable
     }
 
     [Fact]
+    public async Task CleanupFile_ShouldDeleteDanglingSymbolicLink()
+    {
+        if (!_canCreateSymlinks) return;
+        var source = Path.Combine(_testSourceDir, "missing.txt");
+        var target = Path.Combine(_testTargetDir, "dangling.txt");
+        File.WriteAllText(source, "content");
+        File.CreateSymbolicLink(target, source);
+        File.Delete(source);
+        Assert.NotNull(new FileInfo(target).LinkTarget);
+
+        Assert.True(await _symlinkMethod.CleanupFileAsync(target));
+
+        Assert.DoesNotContain(target, Directory.GetFiles(_testTargetDir));
+    }
+
+    [Fact]
     public async Task CleanupFile_Should_Not_Delete_Regular_File()
     {
         // Arrange

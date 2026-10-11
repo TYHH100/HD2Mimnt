@@ -123,6 +123,29 @@ public class SettingsService
         }
     }
 
+    /// <summary>Publishes a related group of settings together, with one write and rollback on failure.</summary>
+    public async Task SetSettingsAsync(IReadOnlyDictionary<string, object> values)
+    {
+        var changes = new List<SettingChangedEventArgs>();
+        await _lock.WaitAsync();
+        try
+        {
+            var previous = new Dictionary<string, object>(_settings);
+            foreach (var (key, value) in values)
+            {
+                changes.Add(new SettingChangedEventArgs
+                {
+                    Key = key, OldValue = _settings.GetValueOrDefault(key), NewValue = value
+                });
+                _settings[key] = value;
+            }
+            try { await SaveSettingsAsync(); }
+            catch { _settings = previous; throw; }
+        }
+        finally { _lock.Release(); }
+        foreach (var change in changes) SettingChanged?.Invoke(this, change);
+    }
+
     /// <summary>
     /// 重置所有设置为默认值
     /// </summary>
@@ -285,12 +308,20 @@ public static class SettingKeys
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
+    public const string DefaultDeploymentOrder = "Deployment.DefaultOrder";
     public const string DeploymentCheckBeforeDeploy = "Deployment.CheckBefore";
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
 
     // 模组库相关
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";
+
+    // 下载相关
+    public const string DownloadParallelSegments = "Download.ParallelSegments";
+    public const string DownloadSegmentSizeMiB = "Download.SegmentSizeMiB";
+    public const string DownloadMaxRetries = "Download.MaxRetries";
+    public const string DownloadRetryDelayMs = "Download.RetryDelayMs";
+    public const string DownloadEnableResume = "Download.EnableResume";
 
     // UI 相关
     public const string Theme = "UI.Theme";

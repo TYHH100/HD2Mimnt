@@ -189,10 +189,10 @@ public class ModRepository : IModRepository
         command.CommandText = @"
             INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags,
                             WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ThumbnailPath, Source, Status,
-                            ManifestJson, ContainsScripts, NexusModId)
+                            ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion)
             VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags,
                     @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ThumbnailPath, @Source, @Status,
-                    @ManifestJson, @ContainsScripts, @NexusModId)";
+                    @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion)";
 
         AddModParameters(command, mod);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -209,7 +209,8 @@ public class ModRepository : IModRepository
                 Path = @Path, Category = @Category, Tags = @Tags, WorkflowType = @WorkflowType,
                 ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ThumbnailPath = @ThumbnailPath,
                 Source = @Source, Status = @Status, ManifestJson = @ManifestJson,
-                ContainsScripts = @ContainsScripts, NexusModId = @NexusModId
+                ContainsScripts = @ContainsScripts, NexusModId = @NexusModId, ResourceTypeIds = @ResourceTypeIds,
+                BslRole = @BslRole, BslDetectionVersion = @BslDetectionVersion
             WHERE Id = @Id";
 
         AddModParameters(command, mod);
@@ -262,6 +263,11 @@ public class ModRepository : IModRepository
             Description = reader.IsDBNull(reader.GetOrdinal("Description")) ? string.Empty : reader.GetString(reader.GetOrdinal("Description")),
             Path = reader.GetString(reader.GetOrdinal("Path")),
             Category = (ModCategory)reader.GetInt32(reader.GetOrdinal("Category")),
+            BslRole = reader.IsDBNull(reader.GetOrdinal("BslRole")) ? null : (BslModRole)reader.GetInt32(reader.GetOrdinal("BslRole")),
+            BslDetectionVersion = reader.GetInt32(reader.GetOrdinal("BslDetectionVersion")),
+            ResourceTypeIds = reader.IsDBNull(reader.GetOrdinal("ResourceTypeIds")) ? null
+                : (JsonSerializer.Deserialize<List<string>>(reader.GetString(reader.GetOrdinal("ResourceTypeIds"))) ?? new())
+                    .Select(id => Convert.ToUInt64(id, 16)).Distinct().Order().ToList(),
             Tags = tags,
             WorkflowType = reader.IsDBNull(reader.GetOrdinal("WorkflowType")) ? string.Empty : reader.GetString(reader.GetOrdinal("WorkflowType")),
             ImportedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ImportedAt"))),
@@ -286,7 +292,11 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@Description", mod.Description);
         command.Parameters.AddWithValue("@Path", mod.Path);
         command.Parameters.AddWithValue("@Category", (int)mod.Category);
+        command.Parameters.AddWithValue("@BslRole", mod.BslRole.HasValue ? (int)mod.BslRole.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@BslDetectionVersion", mod.BslDetectionVersion);
         command.Parameters.AddWithValue("@Tags", JsonSerializer.Serialize(mod.Tags));
+        command.Parameters.AddWithValue("@ResourceTypeIds", mod.ResourceTypeIds is null ? DBNull.Value
+            : JsonSerializer.Serialize(mod.ResourceTypeIds.Distinct().Order().Select(id => id.ToString("X16"))));
         command.Parameters.AddWithValue("@WorkflowType", mod.WorkflowType);
         command.Parameters.AddWithValue("@ImportedAt", mod.ImportedAt.ToString("O"));
         command.Parameters.AddWithValue("@ModifiedAt", mod.ModifiedAt.ToString("O"));

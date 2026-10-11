@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Resources;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
@@ -50,15 +51,46 @@ public partial class ModItemViewModel : ObservableObject
     public long Size => _mod.Size;
     public DateTime CreatedAt => _mod.CreatedAt;
     public DateTime ImportedAt => _mod.ImportedAt;
+    public string ImportedAtDisplay => FormatLocalTime(ImportedAt, "未记录（旧记录缺失导入时间）");
+    public string ModifiedAtDisplay => FormatLocalTime(ModifiedAt, "未记录");
+
+    private static string FormatLocalTime(DateTime value, string missingText)
+    {
+        if (value == DateTime.MinValue) return missingText;
+        var timestamp = value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value;
+        return timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    }
     public string ThumbnailPath => _mod.ThumbnailPath;
 
     // 显示属性
-    public string CategoryDisplay => ModCategoryText.ToDisplay(Category);
+    public IReadOnlyList<ulong> ResourceTypeIds => _mod.ResourceTypeIds ?? (IReadOnlyList<ulong>)Array.Empty<ulong>();
+    public string CategoryDisplay => ResourceTypeIds.Count == 0 ? "未识别资源"
+        : string.Join("、", ResourceTypeIds.Select(ResourceTypeCatalog.GetDisplayName));
+    public string ResourceTypeDetails => ResourceTypeIds.Count == 0 ? "未识别出游戏资源 Type ID"
+        : string.Join(Environment.NewLine, ResourceTypeIds.Select(id => $"{ResourceTypeCatalog.GetDisplayName(id)} · 0x{id:X16}"));
     public string SizeFormatted => FormatSize(Size);
     public string StatusDisplay => Status.ToString();
     public bool HasTags => Tags != null && Tags.Count > 0;
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
     public string Hash => _mod.Hash;
+    public string HashDisplay => !string.IsNullOrWhiteSpace(Hash) ? Hash
+        : IsCalculatingHash ? "正在计算 SHA-256…" : HashError ?? "未计算";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HashDisplay))]
+    private bool _isCalculatingHash;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HashDisplay))]
+    private string? _hashError;
+
+    public void SetHash(string hash)
+    {
+        _mod.Hash = hash;
+        HashError = null;
+        OnPropertyChanged(nameof(Hash));
+        OnPropertyChanged(nameof(HashDisplay));
+    }
     public DateTime ModifiedAt => _mod.ModifiedAt;
     public Bitmap? IconBitmap => Icon;
     public string EnableButtonText => !IsInCurrentProfile

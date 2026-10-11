@@ -15,6 +15,7 @@ public partial class DevToolsViewModel : ObservableObject
 {
     private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
+    private readonly NexusModsTestService _nexusModsTestService;
     private CancellationTokenSource? _operationCts;
 
     [ObservableProperty]
@@ -32,10 +33,46 @@ public partial class DevToolsViewModel : ObservableObject
     [ObservableProperty]
     private int _progress;
 
-    public DevToolsViewModel(TestDataService testDataService, ProfileService profileService)
+    [ObservableProperty]
+    private string _nexusApiKey = string.Empty;
+
+    [ObservableProperty]
+    private string _nexusStatusMessage = string.Empty;
+
+    public DevToolsViewModel(TestDataService testDataService, ProfileService profileService,
+        NexusModsTestService nexusModsTestService)
     {
         _testDataService = testDataService;
         _profileService = profileService;
+        _nexusModsTestService = nexusModsTestService;
+        RefreshNexusStatus();
+    }
+
+    private void RefreshNexusStatus() => NexusStatusMessage = _nexusModsTestService.IsAuthenticated
+        ? "本次运行已配置 N 网认证（尚未验证密钥）。"
+        : "尚未配置 N 网 API 密钥。";
+
+    [RelayCommand]
+    private void ApplyNexusApiKey()
+    {
+        try
+        {
+            _nexusModsTestService.ApplyApiKey(NexusApiKey);
+            NexusApiKey = string.Empty;
+            RefreshNexusStatus();
+        }
+        catch (ArgumentException)
+        {
+            NexusStatusMessage = "请输入有效的 API 密钥，不能包含换行或控制字符。";
+        }
+    }
+
+    [RelayCommand]
+    private void ClearNexusApiKey()
+    {
+        _nexusModsTestService.ClearApiKey();
+        NexusApiKey = string.Empty;
+        RefreshNexusStatus();
     }
 
     partial void OnIsGeneratingChanged(bool value) => CanCancel = value;

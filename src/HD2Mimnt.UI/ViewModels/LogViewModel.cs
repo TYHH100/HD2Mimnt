@@ -1,4 +1,3 @@
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.UI.Services;
@@ -98,30 +97,22 @@ public partial class LogViewModel : ObservableObject
         {
             TimestampText = match.Groups["timestamp"].Value,
             LevelText = level,
-            LevelBrush = LevelToBrush(level),
             Logger = shortLogger,
             Message = match.Groups["message"].Value,
             Raw = line
         };
     }
 
-    private static IBrush LevelToBrush(string level) => level.ToLowerInvariant() switch
-    {
-        "warning" => Solid("#FBBF24"),
-        "error" or "fatal" or "critical" => Solid("#F87171"),
-        "debug" or "trace" => Solid("#64748B"),
-        "information" or "info" => Solid("#3B82F6"),
-        _ => Solid("#9AAAC6")
-    };
-
-    private static IBrush Solid(string hex) => new SolidColorBrush(Color.Parse(hex));
 }
 
 public sealed class LogEntryViewModel
 {
     public string TimestampText { get; init; } = string.Empty;
     public string LevelText { get; init; } = string.Empty;
-    public IBrush LevelBrush { get; init; } = Brushes.Gray;
+    public bool IsWarning => LevelText.Equals("warning", StringComparison.OrdinalIgnoreCase);
+    public bool IsError => LevelText.ToLowerInvariant() is "error" or "fatal" or "critical";
+    public bool IsInformation => LevelText.ToLowerInvariant() is "information" or "info";
+    public bool IsDiagnostic => LevelText.ToLowerInvariant() is "debug" or "trace";
     public string Logger { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public string Raw { get; init; } = string.Empty;

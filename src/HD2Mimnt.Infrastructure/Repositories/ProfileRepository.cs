@@ -41,7 +41,7 @@ public class ProfileRepository : IProfileRepository
         var connection = await _dbContext.GetConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Profiles ORDER BY SortOrder, CreatedAt";
+        command.CommandText = "SELECT * FROM Profiles ORDER BY IsDefault DESC, SortOrder, CreatedAt";
 
         var profiles = new List<Profile>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -87,8 +87,8 @@ public class ProfileRepository : IProfileRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder)
-                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder)";
+                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder, IsDefault)
+                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder, @IsDefault)";
 
             AddProfileParameters(command, profile);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -115,7 +115,7 @@ public class ProfileRepository : IProfileRepository
             command.Transaction = transaction;
             command.CommandText = @"
                 UPDATE Profiles
-                SET Name = @Name, Description = @Description, ModifiedAt = @ModifiedAt, IsActive = @IsActive, SortOrder = @SortOrder
+                SET Name = @Name, Description = @Description, ModifiedAt = @ModifiedAt, IsActive = @IsActive, SortOrder = @SortOrder, IsDefault = @IsDefault
                 WHERE Id = @Id";
 
             AddProfileParameters(command, profile);
@@ -274,6 +274,7 @@ public class ProfileRepository : IProfileRepository
             CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
             ModifiedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ModifiedAt"))),
             IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+            IsDefault = reader.GetBoolean(reader.GetOrdinal("IsDefault")),
             SortOrder = reader.GetInt32(reader.GetOrdinal("SortOrder"))
         };
     }
@@ -296,6 +297,7 @@ public class ProfileRepository : IProfileRepository
         command.Parameters.AddWithValue("@CreatedAt", profile.CreatedAt.ToString("O"));
         command.Parameters.AddWithValue("@ModifiedAt", profile.ModifiedAt.ToString("O"));
         command.Parameters.AddWithValue("@IsActive", profile.IsActive ? 1 : 0);
+        command.Parameters.AddWithValue("@IsDefault", profile.IsDefault ? 1 : 0);
         command.Parameters.AddWithValue("@SortOrder", profile.SortOrder);
     }
 }

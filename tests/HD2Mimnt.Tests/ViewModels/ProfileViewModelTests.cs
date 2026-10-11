@@ -11,6 +11,56 @@ namespace HD2Mimnt.Tests.ViewModels;
 
 public sealed class ProfileViewModelTests : IDisposable
 {
+    [Fact]
+    public void SelectModRange_ShouldRetainAnchorAndAppendToSelection()
+    {
+        var vm = CreateViewModel();
+        var mods = Enumerable.Range(0, 5).Select(index => new ProfileModViewModel
+            { ModId = Guid.NewGuid(), ModName = $"Mod {index}" }).ToArray();
+        foreach (var mod in mods)
+        {
+            vm.ProfileMods.Add(mod);
+            vm.VisibleProfileMods.Add(mod);
+        }
+        vm.SetModSelectionAnchor(mods[1]);
+        vm.SelectModRange(mods[3]);
+        Assert.Equal(mods.Skip(1).Take(3), mods.Where(mod => mod.IsSelected));
+        vm.SelectModRange(mods[2]);
+        Assert.Equal(mods.Skip(1).Take(2), mods.Where(mod => mod.IsSelected));
+        mods[4].IsSelected = true;
+        vm.SelectModRange(mods[0], additive: true);
+        Assert.Equal(new[] { mods[0], mods[1], mods[2], mods[4] }, mods.Where(mod => mod.IsSelected));
+    }
+
+    [Fact]
+    public void ModSelection_ShouldSkipFixedCardsAndKeepSelectableAnchor()
+    {
+        var vm = CreateViewModel();
+        var mods = new[]
+        {
+            new ProfileModViewModel(),
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.MdlLoader },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.SmoothBoot },
+            new ProfileModViewModel { IsSeparator = true },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency }
+        };
+        foreach (var mod in mods)
+        {
+            vm.ProfileMods.Add(mod);
+            vm.VisibleProfileMods.Add(mod);
+        }
+        vm.SetModSelectionAnchor(mods[1]);
+        vm.SetModSelectionAnchor(mods[2]);
+        vm.SelectModRange(mods[^1]);
+        Assert.Equal(new[] { mods[1], mods[^1] }, mods.Where(mod => mod.IsSelected));
+        vm.SelectModRange(mods[4]);
+        Assert.Equal(new[] { mods[1], mods[^1] }, mods.Where(mod => mod.IsSelected));
+        vm.SelectAllVisibleMods();
+        Assert.All(mods, mod => Assert.Equal(mod.CanSelect, mod.IsSelected));
+    }
+
     private readonly HD2MimntDbContext _dbContext;
     private readonly IModRepository _modRepository;
     private readonly IProfileRepository _profileRepository;
@@ -53,6 +103,33 @@ public sealed class ProfileViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task MoveToPosition_ShouldMoveSelectedModToRequestedOneBasedSlot()
+    {
+        var mods = new[]
+        {
+            await AddModAsync("Position 1"), await AddModAsync("Position 2"),
+            await AddModAsync("Position 3"), await AddModAsync("Position 4")
+        };
+        var profileId = await _profileService.CreateProfileAsync("Position Profile");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var viewModel = CreateViewModel();
+        await viewModel.LoadProfilesCommand.ExecuteAsync(null);
+        var selected = viewModel.ProfileMods.Single(mod => mod.ModId == mods[1].Id);
+        selected.IsSelected = true;
+        viewModel.OpenMoveToPositionCommand.Execute(selected);
+        viewModel.MoveToPositionText = "4";
+
+        await viewModel.ConfirmMoveToPositionCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { mods[0].Id, mods[2].Id, mods[3].Id, mods[1].Id },
+            viewModel.ProfileMods.Select(mod => mod.ModId));
+        Assert.False(viewModel.IsMoveToPositionDialogOpen);
+        Assert.Equal(4, viewModel.ProfileMods.Single(mod => mod.ModId == mods[1].Id).Position);
+    }
+
+    [Fact]
     public async Task SetActiveProfileAsync_ShouldRefreshSelectedProfileDetails()
     {
         var firstMod = await AddModAsync("First Mod");
@@ -75,6 +152,125 @@ public sealed class ProfileViewModelTests : IDisposable
         var selectedMod = Assert.Single(viewModel.ProfileMods);
         Assert.Equal(secondMod.Id, selectedMod.ModId);
         Assert.Equal(secondProfileId, (await _profileService.GetActiveProfileAsync())!.Id);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LuaSeparator_ShouldFollowDirectionAndKeepMovesWithinEachGroup(bool bottomToTop)
+    {
+        var normal = await AddModAsync("Normal");
+        var first = await AddModAsync("Dependency First");
+        var second = await AddModAsync("Dependency Second");
+        var loader = await AddModAsync("Loader");
+        var smoothBoot = await AddModAsync("SmoothBoot");
+        foreach (var (mod, role) in new[]
+                 {
+                     (first, HD2Mimnt.Core.Enums.BslModRole.Dependency),
+                     (second, HD2Mimnt.Core.Enums.BslModRole.Dependency),
+                     (loader, HD2Mimnt.Core.Enums.BslModRole.Loader),
+                     (smoothBoot, HD2Mimnt.Core.Enums.BslModRole.SmoothBoot)
+                 })
+        {
+            mod.BslRole = role;
+            mod.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+            await _modRepository.UpdateAsync(mod);
+        }
+        var profileId = await _profileService.CreateProfileAsync("Separator Profile");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in new[] { normal, first, second, loader, smoothBoot })
+            await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var settings = new SettingsService(_storageDirectory);
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, bottomToTop ? "BottomToTop" : "TopToBottom");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        Assert.Equal(bottomToTop
+                ? new[] { smoothBoot.Id, loader.Id, second.Id, first.Id, Guid.Empty, normal.Id }
+                : new[] { normal.Id, Guid.Empty, first.Id, second.Id, loader.Id, smoothBoot.Id },
+            vm.ProfileRows.Select(row => row.ModId));
+        Assert.Equal(!bottomToTop, vm.CanMoveMods(new[] { normal.Id }, Guid.Empty));
+        Assert.Equal(bottomToTop, vm.CanMoveMods(new[] { second.Id }, Guid.Empty));
+        Assert.False(vm.CanMoveMods(new[] { normal.Id }, first.Id));
+        Assert.False(vm.CanMoveMods(new[] { first.Id }, normal.Id));
+
+        // 反向依赖区域的末尾既能拖到分隔符，也能通过数字定位抵达。
+        if (bottomToTop)
+        {
+            await vm.MoveModsAsync(new[] { second.Id }, Guid.Empty);
+            Assert.Equal(new[] { smoothBoot.Id, loader.Id, first.Id, second.Id, Guid.Empty, normal.Id },
+                vm.ProfileRows.Select(row => row.ModId));
+            var moving = vm.ProfileMods.Single(mod => mod.ModId == first.Id);
+            vm.OpenMoveToPositionCommand.Execute(moving);
+            vm.MoveToPositionText = "4";
+            await vm.ConfirmMoveToPositionCommand.ExecuteAsync(null);
+            Assert.False(vm.IsMoveToPositionDialogOpen);
+            Assert.Equal(new[] { smoothBoot.Id, loader.Id, second.Id, first.Id, Guid.Empty, normal.Id },
+                vm.ProfileRows.Select(row => row.ModId));
+            var persisted = await _profileService.GetProfileByIdAsync(profileId);
+            Assert.Equal(new[] { normal.Id, first.Id, second.Id, loader.Id, smoothBoot.Id },
+                persisted!.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
+        }
+
+        vm.ModSearchText = "Dependency";
+        Assert.Equal(bottomToTop ? new[] { second.Id, first.Id, Guid.Empty } : new[] { Guid.Empty, first.Id, second.Id },
+            vm.ProfileRows.Select(row => row.ModId));
+        vm.ModSearchText = "Normal";
+        Assert.Equal(bottomToTop ? new[] { Guid.Empty, normal.Id } : new[] { normal.Id, Guid.Empty },
+            vm.ProfileRows.Select(row => row.ModId));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MoveToPosition_WithLuaGroup_ShouldAllowOrdinaryBoundaryAndRejectCrossing(bool bottomToTop)
+    {
+        var normal = new List<Mod>();
+        for (var index = 0; index < 4; index++) normal.Add(await AddModAsync($"Normal {index}"));
+        var dependency = await AddModAsync("Dependency");
+        dependency.BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency;
+        dependency.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+        await _modRepository.UpdateAsync(dependency);
+        var loader = await AddModAsync("Loader");
+        loader.BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader;
+        loader.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+        await _modRepository.UpdateAsync(loader);
+        var profileId = await _profileService.CreateProfileAsync("Lua Boundary");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in normal.Concat(new[] { dependency, loader }))
+            await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var settings = new SettingsService(_storageDirectory);
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, bottomToTop ? "BottomToTop" : "TopToBottom");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        var selected = vm.ProfileMods.Single(mod => mod.ModId == normal[2].Id);
+        vm.OpenMoveToPositionCommand.Execute(selected);
+        vm.MoveToPositionText = bottomToTop ? "1" : "5";
+        await vm.ConfirmMoveToPositionCommand.ExecuteAsync(null);
+        Assert.True(vm.IsMoveToPositionDialogOpen);
+        Assert.NotEmpty(vm.MoveToPositionError);
+        vm.MoveToPositionText = bottomToTop ? "6" : "4";
+        await vm.ConfirmMoveToPositionCommand.ExecuteAsync(null);
+        Assert.False(vm.IsMoveToPositionDialogOpen);
+        Assert.Empty(vm.MoveToPositionError);
+        Assert.Equal(bottomToTop ? 6 : 4, selected.Position);
+        var normalOrder = new[] { normal[0].Id, normal[1].Id, normal[3].Id, normal[2].Id };
+        Assert.Equal(normalOrder, vm.ProfileMods.Where(mod => !mod.IsBslMember).Select(mod => mod.ModId));
+        var persisted = await _profileService.GetProfileByIdAsync(profileId);
+        Assert.Equal(normalOrder.Concat(new[] { dependency.Id, loader.Id }),
+            persisted!.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
+
+        // 多选也允许整体移动到普通模组区域末尾，并保留相对顺序。
+        foreach (var mod in vm.ProfileMods) mod.IsSelected = normal.Take(2).Any(item => item.Id == mod.ModId);
+        vm.OpenMoveToPositionCommand.Execute(vm.ProfileMods.Single(mod => mod.ModId == normal[0].Id));
+        vm.MoveToPositionText = bottomToTop ? "5" : "3";
+        await vm.ConfirmMoveToPositionCommand.ExecuteAsync(null);
+        Assert.False(vm.IsMoveToPositionDialogOpen);
+        normalOrder = new[] { normal[3].Id, normal[2].Id, normal[0].Id, normal[1].Id };
+        Assert.Equal(normalOrder, vm.ProfileMods.Where(mod => !mod.IsBslMember).Select(mod => mod.ModId));
+        persisted = await _profileService.GetProfileByIdAsync(profileId);
+        Assert.Equal(normalOrder.Concat(new[] { dependency.Id, loader.Id }),
+            persisted!.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
     }
 
     [Fact]

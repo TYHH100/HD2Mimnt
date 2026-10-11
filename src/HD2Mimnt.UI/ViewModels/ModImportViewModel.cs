@@ -1,0 +1,162 @@
+using System.Collections.ObjectModel;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
+
+namespace HD2Mimnt.UI.ViewModels;
+
+public partial class ModImportViewModel(ModService modService) : ObservableObject
+{
+    private CancellationTokenSource? _cancellation;
+    private int _fileGeneration;
+
+    [ObservableProperty] private bool _isOpen;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSelect), nameof(CanClose), nameof(CanCancel))]
+    [NotifyCanExecuteChangedFor(nameof(CloseCommand), nameof(CancelCommand))]
+    private bool _isImporting;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCancel))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
+    private bool _isCancelling;
+    [ObservableProperty] private bool _hasResult;
+    [ObservableProperty] private string _currentFile = string.Empty;
+    [ObservableProperty] private string _step = "选择要添加的模组";
+    [ObservableProperty] private string _detail = "支持批量选择压缩包，也可以添加模组文件夹。";
+    [ObservableProperty] private double _fileProgress;
+    [ObservableProperty] private double _overallProgress;
+    [ObservableProperty] private bool _isIndeterminate;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(RemainingCount))]
+    private int _totalCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CountText), nameof(RemainingCount))]
+    private int _processedCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResultText))]
+    private int _successCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResultText))]
+    private int _failedCount;
+
+    public ObservableCollection<string> Errors { get; } = new();
+    public bool CanSelect => !IsImporting;
+    public bool CanClose => !IsImporting;
+    public bool CanCancel => IsImporting && !IsCancelling;
+    public int RemainingCount => Math.Max(0, TotalCount - ProcessedCount);
+    public string CountText => $"已处理 {ProcessedCount} / {TotalCount} · 剩余 {RemainingCount} 个";
+    public string ResultText => $"成功 {SuccessCount} 个 · 失败 {FailedCount} 个";
+    public Task Completion { get; private set; } = Task.CompletedTask;
+
+    public void Open()
+    {
+        if (!IsOpen && !IsImporting) Reset();
+        IsOpen = true;
+    }
+
+    private void Reset()
+    {
+        HasResult = false;
+        Errors.Clear();
+        TotalCount = ProcessedCount = SuccessCount = FailedCount = 0;
+        FileProgress = OverallProgress = 0;
+        CurrentFile = string.Empty;
+        Step = "选择要添加的模组";
+        Detail = "支持批量选择压缩包，也可以添加模组文件夹。";
+        IsIndeterminate = IsCancelling = false;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClose))]
+    private void Close() => IsOpen = false;
+
+    [RelayCommand(CanExecute = nameof(CanCancel))]
+    private void Cancel()
+    {
+        IsCancelling = true;
+        Step = "正在取消";
+        Detail = "正在停止当前操作并清理临时文件，已添加的模组会保留。";
+        _cancellation?.Cancel();
+    }
+
+    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    {
+        if (IsImporting) return Task.CompletedTask;
+        var sources = paths.Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (sources.Count == 0) return Task.CompletedTask;
+        Reset();
+        TotalCount = sources.Count;
+        IsOpen = IsImporting = true;
+        _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Completion = RunAsync(sources, _cancellation.Token);
+        return Completion;
+    }
+
+    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token)
+    {
+        var cancelled = false;
+        try
+        {
+            foreach (var source in sources)
+            {
+                token.ThrowIfCancellationRequested();
+                CurrentFile = Path.GetFileName(source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                FileProgress = 0;
+                Step = "准备添加";
+                Detail = source;
+                var generation = ++_fileGeneration;
+                var progress = new ImportProgress(value =>
+                {
+                    void Apply()
+                    {
+                        // 旧文件或已结束批次的排队回调不能覆盖新状态。
+                        if (!IsImporting || IsCancelling || generation != _fileGeneration) return;
+                        Step = value.Step;
+                        Detail = value.Detail;
+                        IsIndeterminate = value.IsIndeterminate;
+                        FileProgress = Math.Clamp(value.Percentage, 0, 100);
+                        OverallProgress = (ProcessedCount * 100d + FileProgress) / TotalCount;
+                    }
+                    if (Dispatcher.UIThread.CheckAccess()) Apply();
+                    // 后台阶段完成前交付 UI，避免小文件所有阶段排队到批次结束才被丢弃。
+                    else Dispatcher.UIThread.Invoke(Apply);
+                });
+                try
+                {
+                    await Task.Run(() => modService.ImportModAsync(source, token, progress), token);
+                    SuccessCount++;
+                    FileProgress = 100;
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (Exception ex)
+                {
+                    FailedCount++;
+                    Errors.Add($"{CurrentFile}：{ex.Message}");
+                }
+                ++_fileGeneration;
+                IsIndeterminate = false;
+                ProcessedCount++;
+                OverallProgress = ProcessedCount * 100d / TotalCount;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { cancelled = true; }
+        finally
+        {
+            ++_fileGeneration;
+            IsIndeterminate = false;
+            HasResult = true;
+            Step = cancelled ? "添加已取消" : FailedCount > 0 ? "添加结束，部分模组失败" : "添加完成";
+            Detail = cancelled ? $"还有 {RemainingCount} 个未完成；已添加的模组会保留。" : "可关闭浮窗查看模组库，或继续添加。";
+            IsImporting = IsCancelling = false;
+            _cancellation?.Dispose();
+            _cancellation = null;
+        }
+    }
+
+    private sealed class ImportProgress(Action<ModImportProgress> report) : IProgress<ModImportProgress>
+    {
+        public void Report(ModImportProgress value) => report(value);
+    }
+}

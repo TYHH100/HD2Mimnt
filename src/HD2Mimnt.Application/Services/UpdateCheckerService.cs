@@ -37,6 +37,7 @@ public class UpdateCheckerService
                     updates.Add(updateInfo);
                 }
             }
+            catch (OperationCanceledException) { throw; }
             catch
             {
                 // Skip mods that fail update check
@@ -74,6 +75,18 @@ public class UpdateCheckerService
             // Get latest mod info from platform
             var platformModInfo = await platform.GetModInfoAsync(mod.PlatformModId, cancellationToken);
 
+            // Some APIs (Nexus v3) expose version information only through file versions.
+            if (string.IsNullOrWhiteSpace(platformModInfo.Version))
+            {
+                var versions = await platform.GetVersionsAsync(mod.PlatformModId, cancellationToken);
+                var latest = versions.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v.Version));
+                if (latest == null)
+                    return null; // Unknown is not an available update.
+                platformModInfo.Version = latest.Version;
+                platformModInfo.UpdatedAt = latest.ReleasedAt;
+                platformModInfo.DownloadUrl = latest.DownloadUrl;
+            }
+
             var updateInfo = new ModUpdateInfo
             {
                 ModId = mod.Id,
@@ -95,6 +108,7 @@ public class UpdateCheckerService
 
             return updateInfo;
         }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             // Update check failed
@@ -140,6 +154,7 @@ public class UpdateCheckerService
             var versionInfo = versions.FirstOrDefault(v => v.Version == version);
             return versionInfo?.ChangeLog;
         }
+        catch (OperationCanceledException) { throw; }
         catch
         {
             return null;

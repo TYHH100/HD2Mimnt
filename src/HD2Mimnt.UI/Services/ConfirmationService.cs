@@ -1,6 +1,6 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Layout;
+using Avalonia.Media;
+using FluentAvalonia.UI.Controls;
 
 namespace HD2Mimnt.UI.Services;
 
@@ -19,35 +19,14 @@ public sealed class ConfirmationService : IConfirmationService
     {
         if (_owner == null) return false;
 
-        var cancel = new Button { Content = "取消", MinWidth = 80 };
-        var confirm = new Button { Content = "确认", MinWidth = 80 };
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-            Children = { cancel, confirm }
-        };
-        var dialog = new Window
+        var dialog = new FAContentDialog
         {
             Title = title,
-            Width = 440,
-            Height = 190,
-            CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(24),
-                Spacing = 18,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                    actions
-                }
-            }
+            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = "确认",
+            CloseButtonText = "取消",
+            DefaultButton = FAContentDialogButton.Close
         };
-        cancel.Click += (_, _) => dialog.Close(false);
-        confirm.Click += (_, _) => dialog.Close(true);
-        return await dialog.ShowDialog<bool>(_owner);
+        return await dialog.ShowAsync(_owner) == FAContentDialogResult.Primary;
     }
 }

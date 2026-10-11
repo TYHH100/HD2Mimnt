@@ -14,6 +14,41 @@ public class ProfileService
 
     /// <summary>选项保存的写入闸门：快速连续切换选项时串行化读改写，避免并发 UpdateAsync 互相覆盖。</summary>
     private readonly SemaphoreSlim _optionsWriteGate = new(1, 1);
+    private readonly SemaphoreSlim _initializationGate = new(1, 1);
+
+    /// <summary>启动/恢复时保证默认配置存在；激活状态已随每次切换落库，无需退出时再写。</summary>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await _initializationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profiles = (await _profileRepository.GetAllAsync(cancellationToken)).ToList();
+            var defaultProfile = profiles.FirstOrDefault(profile => profile.IsDefault);
+            if (defaultProfile == null)
+            {
+                // 升级时沿用旧版本固定在第一位的最早配置，保留其模组与选项。
+                defaultProfile = profiles.OrderBy(profile => profile.CreatedAt).ThenBy(profile => profile.Id).FirstOrDefault();
+                if (defaultProfile == null)
+                {
+                    defaultProfile = new Profile
+                    {
+                        Id = Guid.NewGuid(), Name = "默认配置", IsDefault = true, SortOrder = 0,
+                        CreatedAt = DateTime.UtcNow, ModifiedAt = DateTime.UtcNow
+                    };
+                    await _profileRepository.AddAsync(defaultProfile, cancellationToken);
+                }
+                else
+                {
+                    defaultProfile.IsDefault = true;
+                    defaultProfile.SortOrder = 0;
+                    await _profileRepository.UpdateAsync(defaultProfile, cancellationToken);
+                }
+            }
+            if (profiles.All(profile => !profile.IsActive))
+                await _profileRepository.SetActiveProfileAsync(defaultProfile.Id, cancellationToken);
+        }
+        finally { _initializationGate.Release(); }
+    }
 
     /// <summary>
     /// 配置文件数据变更事件（新建/删除/改名/切换/排序/模组成员与启用状态变化）。
@@ -31,7 +66,20 @@ public class ProfileService
 
     public async Task<Profile?> GetProfileByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _profileRepository.GetByIdAsync(id, cancellationToken);
+        var profile = await _profileRepository.GetByIdAsync(id, cancellationToken);
+        if (profile != null && await NormalizeBslAsync(profile, cancellationToken))
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+        return profile;
+    }
+
+    private async Task<bool> NormalizeBslAsync(Profile profile, CancellationToken cancellationToken,
+        IReadOnlyCollection<Guid>? enabledIds = null)
+    {
+        var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToList();
+        foreach (var mod in mods) await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
+        var byId = mods.ToDictionary(mod => mod.Id);
+        var changed = enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
+        return BslProfilePolicy.Normalize(profile, byId) || changed;
     }
 
     public async Task<IEnumerable<Profile>> GetAllProfilesAsync(CancellationToken cancellationToken = default)
@@ -78,7 +126,7 @@ public class ProfileService
         var profiles = (await _profileRepository.GetAllAsync(cancellationToken)).ToList();
         if (profiles.Count == 0) return;
 
-        var anchor = profiles
+        var anchor = profiles.FirstOrDefault(profile => profile.IsDefault) ?? profiles
             .OrderBy(p => p.CreatedAt)
             .ThenBy(p => p.Id)
             .First();
@@ -114,6 +162,7 @@ public class ProfileService
     {
         var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new InvalidOperationException($"Profile {id} not found");
+        if (profile.IsDefault) throw new InvalidOperationException("默认配置文件不能删除");
         if (profile.IsActive)
         {
             throw new InvalidOperationException("不能删除当前激活的配置文件，请先切换到其他配置文件");
@@ -140,6 +189,7 @@ public class ProfileService
 
     public async Task<Profile> DuplicateProfileAsync(Guid id, string newName, CancellationToken cancellationToken = default)
     {
+        await GetProfileByIdAsync(id, cancellationToken);
         var duplicated = await _profileRepository.DuplicateAsync(id, newName, cancellationToken);
         RaiseProfilesChanged();
         return duplicated;
@@ -156,55 +206,70 @@ public class ProfileService
 
     public async Task AddModToProfileAsync(Guid profileId, Guid modId, CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
-        if (profile == null)
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException($"Profile {profileId} not found");
-        }
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null)
+            {
+                throw new InvalidOperationException($"Profile {profileId} not found");
+            }
 
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null)
-        {
-            throw new InvalidOperationException($"Mod {modId} not found");
-        }
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+            if (mod == null)
+            {
+                throw new InvalidOperationException($"Mod {modId} not found");
+            }
 
-        // 检查是否已存在
-        if (profile.Mods.Any(m => m.ModId == modId))
-        {
-            return;
-        }
+            // 检查是否已存在
+            if (profile.Mods.Any(m => m.ModId == modId))
+            {
+                return;
+            }
 
-        var newOrder = profile.Mods.Any() ? profile.Mods.Max(m => m.Order) + 1 : 0;
+            var newOrder = profile.Mods.Any() ? profile.Mods.Max(m => m.Order) + 1 : 0;
 
-        profile.Mods.Add(new ProfileMod
-        {
-            ProfileId = profileId,
-            ModId = modId,
-            Enabled = true,
-            Order = newOrder
-        });
+            profile.Mods.Add(new ProfileMod
+            {
+                ProfileId = profileId,
+                ModId = modId,
+                Enabled = true,
+                Order = newOrder
+            });
 
-        profile.ModifiedAt = DateTime.UtcNow;
-        await _profileRepository.UpdateAsync(profile, cancellationToken);
-        RaiseProfilesChanged();
-    }
-
-    public async Task RemoveModFromProfileAsync(Guid profileId, Guid modId, CancellationToken cancellationToken = default)
-    {
-        var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
-        if (profile == null)
-        {
-            throw new InvalidOperationException($"Profile {profileId} not found");
-        }
-
-        var modToRemove = profile.Mods.FirstOrDefault(m => m.ModId == modId);
-        if (modToRemove != null)
-        {
-            profile.Mods.Remove(modToRemove);
+            await NormalizeBslAsync(profile, cancellationToken, new[] { modId });
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged();
         }
+        finally { _optionsWriteGate.Release(); }
+    }
+
+    public async Task RemoveModFromProfileAsync(Guid profileId, Guid modId, CancellationToken cancellationToken = default)
+        => await RemoveModsFromProfileAsync(profileId, new[] { modId }, cancellationToken);
+
+    public async Task RemoveModsFromProfileAsync(Guid profileId, IReadOnlyCollection<Guid> modIds,
+        CancellationToken cancellationToken = default)
+    {
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null)
+            {
+                throw new InvalidOperationException($"Profile {profileId} not found");
+            }
+
+            var ids = modIds.ToHashSet();
+            if (profile.Mods.RemoveAll(mod => ids.Contains(mod.ModId)) > 0)
+            {
+                await NormalizeBslAsync(profile, cancellationToken);
+                profile.ModifiedAt = DateTime.UtcNow;
+                await _profileRepository.UpdateAsync(profile, cancellationToken);
+                RaiseProfilesChanged();
+            }
+        }
+        finally { _optionsWriteGate.Release(); }
     }
 
     public async Task SetModEnabledAsync(Guid profileId, Guid modId, bool enabled, CancellationToken cancellationToken = default)
@@ -218,66 +283,73 @@ public class ProfileService
         bool enabled,
         CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
-        if (profile == null)
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException($"Profile {profileId} not found");
-        }
-
-        var distinctModIds = modIds.Distinct().ToArray();
-        var nextOrder = profile.Mods.Any() ? profile.Mods.Max(m => m.Order) + 1 : 0;
-        var changed = false;
-
-        // Validate all newly added mods in one repository call so bulk selection does not become N+1 queries.
-        var missingModIds = enabled
-            ? distinctModIds.Where(modId => profile.Mods.All(m => m.ModId != modId)).ToArray()
-            : Array.Empty<Guid>();
-        if (missingModIds.Length > 0)
-        {
-            var existingMods = (await _modRepository.GetByIdsAsync(missingModIds, cancellationToken))
-                .Select(mod => mod.Id)
-                .ToHashSet();
-            var missingModId = missingModIds.FirstOrDefault(modId => !existingMods.Contains(modId));
-            if (missingModId != Guid.Empty)
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null)
             {
-                throw new InvalidOperationException($"Mod {missingModId} not found");
+                throw new InvalidOperationException($"Profile {profileId} not found");
             }
-        }
 
-        foreach (var modId in distinctModIds)
-        {
-            var profileMod = profile.Mods.FirstOrDefault(m => m.ModId == modId);
-            if (profileMod == null)
+            var distinctModIds = modIds.Distinct().ToArray();
+            var nextOrder = profile.Mods.Any() ? profile.Mods.Max(m => m.Order) + 1 : 0;
+            var changed = false;
+
+            // Validate all newly added mods in one repository call so bulk selection does not become N+1 queries.
+            var missingModIds = enabled
+                ? distinctModIds.Where(modId => profile.Mods.All(m => m.ModId != modId)).ToArray()
+                : Array.Empty<Guid>();
+            if (missingModIds.Length > 0)
             {
-                if (!enabled)
+                var existingMods = (await _modRepository.GetByIdsAsync(missingModIds, cancellationToken))
+                    .Select(mod => mod.Id)
+                    .ToHashSet();
+                var missingModId = missingModIds.FirstOrDefault(modId => !existingMods.Contains(modId));
+                if (missingModId != Guid.Empty)
                 {
+                    throw new InvalidOperationException($"Mod {missingModId} not found");
+                }
+            }
+
+            foreach (var modId in distinctModIds)
+            {
+                var profileMod = profile.Mods.FirstOrDefault(m => m.ModId == modId);
+                if (profileMod == null)
+                {
+                    if (!enabled)
+                    {
+                        continue;
+                    }
+
+                    profile.Mods.Add(new ProfileMod
+                    {
+                        ProfileId = profileId,
+                        ModId = modId,
+                        Enabled = true,
+                        Order = nextOrder++
+                    });
+                    changed = true;
                     continue;
                 }
 
-                profile.Mods.Add(new ProfileMod
+                if (profileMod.Enabled != enabled)
                 {
-                    ProfileId = profileId,
-                    ModId = modId,
-                    Enabled = true,
-                    Order = nextOrder++
-                });
-                changed = true;
-                continue;
+                    profileMod.Enabled = enabled;
+                    changed = true;
+                }
             }
 
-            if (profileMod.Enabled != enabled)
+            // 即使成员已经启用，也要修复旧配置的多个加载器同时启用状态。
+            changed |= await NormalizeBslAsync(profile, cancellationToken, enabled ? distinctModIds : null);
+            if (changed)
             {
-                profileMod.Enabled = enabled;
-                changed = true;
+                profile.ModifiedAt = DateTime.UtcNow;
+                await _profileRepository.UpdateAsync(profile, cancellationToken);
+                RaiseProfilesChanged();
             }
         }
-
-        if (changed)
-        {
-            profile.ModifiedAt = DateTime.UtcNow;
-            await _profileRepository.UpdateAsync(profile, cancellationToken);
-            RaiseProfilesChanged();
-        }
+        finally { _optionsWriteGate.Release(); }
     }
 
     /// <summary>
@@ -325,15 +397,18 @@ public class ProfileService
             throw new InvalidOperationException($"Profile {profileId} not found");
         }
 
-        for (int i = 0; i < modIds.Count; i++)
+        var finalIds = modIds.Distinct().Concat(profile.Mods.OrderBy(item => item.Order)
+            .Select(item => item.ModId).Where(id => !modIds.Contains(id))).ToList();
+        for (int i = 0; i < finalIds.Count; i++)
         {
-            var mod = profile.Mods.FirstOrDefault(m => m.ModId == modIds[i]);
+            var mod = profile.Mods.FirstOrDefault(m => m.ModId == finalIds[i]);
             if (mod != null)
             {
                 mod.Order = i;
             }
         }
 
+        await NormalizeBslAsync(profile, cancellationToken);
         profile.ModifiedAt = DateTime.UtcNow;
         await _profileRepository.UpdateAsync(profile, cancellationToken);
         RaiseProfilesChanged();

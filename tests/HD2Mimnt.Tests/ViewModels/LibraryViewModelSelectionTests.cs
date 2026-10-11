@@ -5,6 +5,68 @@ namespace HD2Mimnt.Tests.ViewModels;
 public sealed class LibraryViewModelSelectionTests
 {
     [Fact]
+    public void FocusMod_ShouldOnlyFocusAndAnchorSubsequentShiftRanges()
+    {
+        var vm = CreateViewModelWithMods(out var first, out var second, out var third);
+        foreach (var mod in new[] { first, second, third }) vm.FilteredMods.Add(mod);
+        vm.ToggleSelected(third);
+        vm.FocusMod(first);
+        Assert.Same(first, vm.FocusedMod);
+        Assert.Empty(vm.SelectedMods);
+        Assert.False(first.IsSelected);
+        vm.SelectRange(third);
+        Assert.Equal(new[] { first, second, third }, vm.SelectedMods);
+        vm.SelectRange(second);
+        Assert.Equal(new[] { first, second }, vm.SelectedMods);
+        vm.SelectRange(third);
+        Assert.Equal(new[] { first, second, third }, vm.SelectedMods);
+    }
+
+    [Fact]
+    public void CtrlShift_ShouldAppendRangeAndCtrlDeselect_ShouldMoveAnchor()
+    {
+        var vm = CreateViewModelWithMods(out var first, out var second, out var third);
+        foreach (var mod in new[] { first, second, third }) vm.FilteredMods.Add(mod);
+        vm.ToggleSelected(first);
+        vm.ToggleSelected(third);
+        vm.SelectRange(second, additive: true);
+        Assert.Equal(3, vm.SelectedCount);
+        vm.ToggleSelected(third);
+        Assert.False(third.IsSelected);
+        vm.SelectRange(second);
+        Assert.Equal(new[] { second, third }, vm.SelectedMods);
+        Assert.Same(second, vm.FocusedMod);
+    }
+
+    [Fact]
+    public void SelectAllVisible_ShouldRemainSelectedOnRepeatedShortcutAndClearShouldResetAnchor()
+    {
+        var vm = CreateViewModelWithMods(out var first, out var second, out var third);
+        foreach (var mod in new[] { first, second, third }) vm.FilteredMods.Add(mod);
+        vm.FocusMod(first);
+        vm.SelectAllVisibleCommand.Execute(null);
+        vm.SelectAllVisibleCommand.Execute(null);
+        Assert.Equal(3, vm.SelectedCount);
+        vm.ClearSelectionCommand.Execute(null);
+        vm.FocusedMod = null;
+        vm.SelectRange(third);
+        Assert.Equal(third, Assert.Single(vm.SelectedMods));
+    }
+
+    [Fact]
+    public void SelectRange_ShouldUseCurrentVisibleOrderAndRecoverWhenAnchorIsFilteredOut()
+    {
+        var vm = CreateViewModelWithMods(out var first, out var second, out var third);
+        foreach (var mod in new[] { third, first, second }) vm.FilteredMods.Add(mod);
+        vm.FocusMod(third);
+        vm.SelectRange(first);
+        Assert.Equal(new[] { third, first }, vm.SelectedMods);
+        vm.FilteredMods.Remove(third);
+        vm.SelectRange(second);
+        Assert.Equal(second, Assert.Single(vm.SelectedMods));
+    }
+
+    [Fact]
     public void SyncListSelection_ShouldKeepCheckboxAndBatchSelectionInSync()
     {
         var viewModel = new LibraryViewModel(

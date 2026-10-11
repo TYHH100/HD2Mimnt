@@ -1,39 +1,121 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:views="using:HD2Mimnt.UI.Views" xmlns:controls="using:HD2Mimnt.UI.Controls" mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800" x:Class="HD2Mimnt.UI.MainWindow" Closing="OnClosing" x:DataType="vm:MainWindowViewModel" Title="{Binding Title}" Width="1280" Height="800" MinWidth="960" MinHeight="600" Background="{DynamicResource Surface0Brush}">
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        xmlns:views="using:HD2Mimnt.UI.Views"
+        xmlns:controls="using:HD2Mimnt.UI.Controls"
+        xmlns:fa="using:FluentAvalonia.UI.Controls"
+        x:Class="HD2Mimnt.UI.MainWindow" x:DataType="vm:MainWindowViewModel"
+        Closing="OnClosing" Title="{Binding Title}"
+        Width="1280" Height="800" MinWidth="960" MinHeight="600">
   <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+1" Command="{Binding NavigateToProfilesCommand}"/><KeyBinding Gesture="Ctrl+2" Command="{Binding NavigateToLibraryCommand}"/><KeyBinding Gesture="Ctrl+3" Command="{Binding NavigateToConflictsCommand}"/><KeyBinding Gesture="Ctrl+4" Command="{Binding NavigateToToolsCommand}"/><KeyBinding Gesture="Ctrl+5" Command="{Binding NavigateToSettingsCommand}"/><KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
+    <KeyBinding Gesture="Ctrl+1" Command="{Binding NavigateToProfilesCommand}"/>
+    <KeyBinding Gesture="Ctrl+2" Command="{Binding NavigateToLibraryCommand}"/>
+    <KeyBinding Gesture="Ctrl+3" Command="{Binding NavigateToConflictsCommand}"/>
+    <KeyBinding Gesture="Ctrl+4" Command="{Binding NavigateToToolsCommand}"/>
+    <KeyBinding Gesture="Ctrl+5" Command="{Binding NavigateToSettingsCommand}"/>
+    <KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
   </Window.KeyBindings>
-  <Design.DataContext><vm:MainWindowViewModel/></Design.DataContext>
-  <Grid RowDefinitions="Auto,*,Auto">
-    <!-- 自定义背景图片层：位于所有界面之下，透明度/模糊度由外观设置控制（旧版 WPF 同款） -->
-    <Image Grid.RowSpan="3" Source="{Binding BackgroundImage}" Stretch="UniformToFill"
-           Opacity="{Binding BackgroundImageOpacity}" IsHitTestVisible="False"
-           IsVisible="{Binding HasBackgroundImage}">
-      <Image.Effect>
-        <BlurEffect Radius="{Binding BackgroundBlurRadius}"/>
-      </Image.Effect>
+  <Grid>
+  <Grid x:Name="ApplicationSurface" RowDefinitions="*,Auto" Background="Transparent" IsHitTestVisible="{Binding !Tutorial.IsOpen}">
+    <Image Grid.RowSpan="2" Source="{Binding BackgroundImage}" Stretch="UniformToFill"
+           Opacity="{Binding BackgroundImageOpacity}" IsHitTestVisible="False" IsVisible="{Binding HasBackgroundImage}">
+      <Image.Effect><BlurEffect Radius="{Binding BackgroundBlurRadius}"/></Image.Effect>
     </Image>
-    <Border Grid.Row="0" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,0">
-      <Grid ColumnDefinitions="Auto,*,Auto" Height="52">
-        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"><Image Source="avares://HD2Mimnt.UI/Assets/logo.png" Width="26" Height="26"/><TextBlock Text="HD2Mimnt" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/></StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="32,0,0,0" VerticalAlignment="Stretch">
-          <RadioButton Command="{Binding NavigateToProfilesCommand}" GroupName="Navigation" Classes="nav-button" IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=0}"><StackPanel Orientation="Horizontal" Spacing="7"><controls:UtilityIcon Kind="Folder" Width="15" Height="15"/><TextBlock Text="配置文件"/></StackPanel></RadioButton>
-          <RadioButton Command="{Binding NavigateToLibraryCommand}" GroupName="Navigation" Classes="nav-button" IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=1}"><StackPanel Orientation="Horizontal" Spacing="7"><controls:UtilityIcon Kind="Package" Width="15" Height="15"/><TextBlock Text="模组库"/></StackPanel></RadioButton>
-          <RadioButton Command="{Binding NavigateToConflictsCommand}" GroupName="Navigation" Classes="nav-button" IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=2}"><StackPanel Orientation="Horizontal" Spacing="7"><controls:UtilityIcon Kind="Warning" Width="15" Height="15"/><TextBlock Text="冲突"/></StackPanel></RadioButton>
-          <RadioButton Command="{Binding NavigateToToolsCommand}" GroupName="Navigation" Classes="nav-button" IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=3}"><StackPanel Orientation="Horizontal" Spacing="7"><controls:UtilityIcon Kind="Wrench" Width="15" Height="15"/><TextBlock Text="工具"/></StackPanel></RadioButton>
-          <RadioButton Command="{Binding NavigateToSettingsCommand}" GroupName="Navigation" Classes="nav-button" IsChecked="{Binding SelectedTabIndex, Converter={StaticResource EqualConverter}, ConverterParameter=4}"><StackPanel Orientation="Horizontal" Spacing="7"><controls:UtilityIcon Kind="Settings" Width="15" Height="15"/><TextBlock Text="设置"/></StackPanel></RadioButton>
+    <fa:FANavigationView x:Name="NavigationView" PaneDisplayMode="Top" PaneTitle="HD2Mimnt"
+                         IsBackButtonVisible="False" IsPaneToggleButtonVisible="False"
+                         IsSettingsVisible="False" AlwaysShowHeader="False"
+                         Background="Transparent"
+                         SelectionChanged="OnNavigationSelectionChanged">
+      <fa:FANavigationView.Resources>
+        <!-- 复用可调透明度的画刷，避免导航容器在背景图上额外铺一层不透明底色。 -->
+        <StaticResource x:Key="NavigationViewTopPaneBackground" ResourceKey="ChromeFillBrush"/>
+        <StaticResource x:Key="NavigationViewContentBackground" ResourceKey="ContentFillBrush"/>
+      </fa:FANavigationView.Resources>
+      <fa:FANavigationView.MenuItems>
+        <fa:FANavigationViewItem Content="配置文件" IconSource="Folder" Tag="0"/>
+        <fa:FANavigationViewItem Content="模组库" IconSource="Library" Tag="1"/>
+        <fa:FANavigationViewItem Content="冲突" IconSource="Important" Tag="2"/>
+        <fa:FANavigationViewItem Content="工具" IconSource="Repair" Tag="3"/>
+        <fa:FANavigationViewItem Content="设置" IconSource="Settings" Tag="4"/>
+      </fa:FANavigationView.MenuItems>
+      <fa:FANavigationView.PaneFooter>
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,16,0">
+          <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding GameStatus}">
+            <Ellipse Width="7" Height="7" Fill="{DynamicResource DisabledBrush}" Classes.detected="{Binding GameDetected}" VerticalAlignment="Center">
+              <Ellipse.Styles><Style Selector="Ellipse.detected"><Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/></Style></Ellipse.Styles>
+            </Ellipse>
+            <TextBlock Text="{Binding GameStatus}" Classes="caption-text" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+          <Grid>
+            <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="打开任务中心"><controls:UtilityIcon Kind="Tasks"/></Button>
+            <fa:FAInfoBadge Value="{Binding RunningTaskCount}" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0" IsHitTestVisible="False"/>
+          </Grid>
+          <Grid>
+            <Button x:Name="NotificationsButton" Command="{Binding OpenNotificationsCommand}" Classes="icon-button" ToolTip.Tip="打开通知"><controls:UtilityIcon Kind="Bell"/></Button>
+            <fa:FAInfoBadge Value="{Binding UnreadNotificationCount}" IsVisible="{Binding UnreadNotificationCount, Converter={StaticResource GreaterThanZeroConverter}}"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0" IsHitTestVisible="False"/>
+          </Grid>
+          <Button x:Name="StartTutorialButton" Command="{Binding Tutorial.StartCommand}" Content="教程" ToolTip.Tip="打开功能教程"/>
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="7" Height="7" Fill="{Binding GameDetected, Converter={StaticResource BoolToColorConverter}}" VerticalAlignment="Center"/><TextBlock Text="{Binding GameStatus}" Classes="caption-text" VerticalAlignment="Center"/></StackPanel>
-          <Grid><Button Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="打开任务中心"><controls:UtilityIcon Kind="Tasks"/></Button><Border Classes="badge" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0"><TextBlock Text="{Binding RunningTaskCount}"/></Border></Grid>
-          <Grid><Button Command="{Binding OpenNotificationsCommand}" Classes="icon-button" ToolTip.Tip="打开通知"><controls:UtilityIcon Kind="Bell"/></Button><Border Classes="badge" IsVisible="{Binding UnreadNotificationCount, Converter={StaticResource GreaterThanZeroConverter}}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0"><TextBlock Text="{Binding UnreadNotificationCount}"/></Border></Grid>
+      </fa:FANavigationView.PaneFooter>
+      <Border Background="{DynamicResource ContentFillBrush}">
+        <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
+        <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
+          <TabControl.Styles><Style Selector="TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
+          <TabItem><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
+          <TabItem><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
+          <TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
+          <TabItem><views:MoreView/></TabItem>
+          <TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
+        </TabControl>
+      </Border>
+    </fa:FANavigationView>
+    <Border Grid.Row="1" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
+      <Grid Height="32" ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusBarText}" Classes="caption-text"/>
+          <TextBlock Text="·" Classes="caption-text"/>
+          <TextBlock Text="{Binding CurrentProfileName}" Classes="caption-text"/>
+          <TextBlock Text="{Binding DeploymentStatus}" Classes="caption-text"/>
         </StackPanel>
+        <TextBlock Grid.Column="1" Text="v0.1.0" Classes="caption-text" VerticalAlignment="Center"/>
       </Grid>
     </Border>
-    <Border Grid.Row="1" Background="{DynamicResource ContentFillBrush}"><TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0"><TabControl.Styles><Style Selector="TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles><TabItem><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem><TabItem><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem><TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem><TabItem><views:MoreView/></TabItem><TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem></TabControl></Border>
-    <Border Grid.Row="2" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0"><Grid Height="28" ColumnDefinitions="*,Auto"><StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"><TextBlock Text="{Binding StatusBarText}" Classes="caption-text"/><TextBlock Text="·" Classes="caption-text"/><TextBlock Text="{Binding CurrentProfileName}" Classes="caption-text"/><TextBlock Text="{Binding DeploymentStatus}" Classes="caption-text"/></StackPanel><TextBlock Grid.Column="1" Text="v0.1.0" Classes="caption-text" VerticalAlignment="Center"/></Grid></Border>
-    <Border Grid.Row="1" Background="#66000000" IsVisible="{Binding IsNotificationPanelOpen}" ZIndex="210"><Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1" Width="400" Height="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,12,16,0"><controls:NotificationPanel DataContext="{Binding NotificationPanelViewModel}"/></Border></Border>
-    <Border Grid.Row="1" Background="#66000000" IsVisible="{Binding IsTaskCenterOpen}" ZIndex="200"><Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1" Width="680" Height="560" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16"><Grid RowDefinitions="Auto,*"><Button Command="{Binding CloseTaskCenterCommand}" Classes="icon-button" HorizontalAlignment="Right" ToolTip.Tip="关闭"><controls:UtilityIcon Kind="Close"/></Button><views:TaskCenterView Grid.Row="1" DataContext="{Binding TaskCenterViewModel}"/></Grid></Border></Border>
-    <!-- 图片预览覆盖层：全窗口置顶，各页面图片点击后经 ImagePreviewService 打开，Esc/点击空白/关闭按钮关闭 -->
-    <controls:ImagePreviewOverlay Grid.RowSpan="3" DataContext="{Binding ImagePreview}" ZIndex="300"/>
+    <controls:NotificationToastHost x:Name="ToastHost" DataContext="{Binding NotificationPanelViewModel}"
+                                    IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).IsNotificationPanelOpen}"
+                                    Width="380" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,20,16" ZIndex="220"/>
+    <Panel IsVisible="{Binding IsNotificationPanelOpen}" ZIndex="210">
+      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="{DynamicResource NotificationCornerRadius}" BoxShadow="0 6 22 0 #26000000" ClipToBounds="True"
+              Width="400" MaxHeight="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,16,16">
+        <controls:NotificationPanel DataContext="{Binding NotificationPanelViewModel}"/>
+      </Border>
+    </Panel>
+    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsTaskCenterOpen}" ZIndex="200">
+      <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="{DynamicResource OverlayCornerRadius}"
+              MaxWidth="680" MaxHeight="560" Margin="24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="16">
+        <Grid RowDefinitions="Auto,*">
+          <Button Command="{Binding CloseTaskCenterCommand}" Classes="icon-button" HorizontalAlignment="Right" ToolTip.Tip="关闭"><controls:UtilityIcon Kind="Close"/></Button>
+          <views:TaskCenterView Grid.Row="1" DataContext="{Binding TaskCenterViewModel}"/>
+        </Grid>
+      </Border>
+    </Border>
+    <controls:ImagePreviewOverlay Grid.RowSpan="2" DataContext="{Binding ImagePreview}" ZIndex="300"/>
+    <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
+    <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"
+            IsHitTestVisible="False" IsVisible="False" ZIndex="400">
+      <Border Classes="card" Padding="32,24" HorizontalAlignment="Center" VerticalAlignment="Center"
+              BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2">
+        <StackPanel Spacing="8">
+          <controls:UtilityIcon Kind="Add" Width="28" Height="28" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+          <TextBlock Text="松开鼠标导入模组" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+          <TextBlock Text="拖到窗口任意位置即可导入，支持批量添加" Classes="caption-text" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Border>
+  </Grid>
+    <controls:TutorialOverlay x:Name="TutorialGuide" DataContext="{Binding Tutorial}" Source="{Binding #ApplicationSurface}" ZIndex="500"/>
   </Grid>
 </Window>

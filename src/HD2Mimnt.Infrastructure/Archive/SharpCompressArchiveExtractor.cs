@@ -3,6 +3,8 @@ using HD2Mimnt.Core.Interfaces;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Common;
 using SharpCompress.Readers;
+using SharpCompress.Archives;
+using SharpCompress.Archives.SevenZip;
 
 namespace HD2Mimnt.Infrastructure.Archive;
 
@@ -50,7 +52,11 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
             () =>
             {
                 using var stream = File.OpenRead(archivePath);
-                using var reader = ReaderFactory.OpenReader(stream, ReaderOptions);
+                // 7z 需要可定位的 Archive API，ReaderFactory 的流式格式列表不包含它。
+                var isSevenZip = SevenZipArchive.IsSevenZipFile(stream);
+                stream.Position = 0;
+                using var archive = isSevenZip ? ArchiveFactory.OpenArchive(stream, ReaderOptions) : null;
+                using var reader = archive != null ? archive.ExtractAllEntries() : OpenReader(stream, archivePath);
                 while (reader.MoveToNextEntry())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -65,6 +71,18 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
                 }
             },
             cancellationToken);
+    }
+
+    private static IReader OpenReader(Stream stream, string archivePath)
+    {
+        try
+        {
+            return ReaderFactory.OpenReader(stream, ReaderOptions);
+        }
+        catch (InvalidFormatException ex)
+        {
+            throw new InvalidDataException($"无法识别压缩包“{Path.GetFileName(archivePath)}”的实际格式，请确认文件完整、不是分卷片段，并且内容是受支持的压缩包。", ex);
+        }
     }
 
     private static ReaderOptions CreateReaderOptions()

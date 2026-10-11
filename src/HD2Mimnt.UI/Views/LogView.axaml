@@ -15,9 +15,16 @@
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:LogEntryViewModel">
             <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="150,78,*,Auto" Margin="14,7">
-              <TextBlock Text="{Binding TimestampText}" FontSize="11" FontFamily="Consolas" Classes="muted" VerticalAlignment="Top"/>
-              <TextBlock Grid.Column="1" Text="{Binding LevelText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding LevelBrush}" VerticalAlignment="Top"/>
-              <TextBlock Grid.Column="2" Text="{Binding Logger}" FontSize="11" FontFamily="Consolas" Classes="muted" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding TimestampText}" FontSize="12" FontFamily="Consolas" Classes="muted" VerticalAlignment="Top"/>
+              <TextBlock Grid.Column="1" Text="{Binding LevelText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Top"
+                         Classes.warning="{Binding IsWarning}" Classes.error="{Binding IsError}"
+                         Classes.accent-text="{Binding IsInformation}" Classes.muted="{Binding IsDiagnostic}">
+                <TextBlock.Styles>
+                  <Style Selector="TextBlock.warning"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/></Style>
+                  <Style Selector="TextBlock.error"><Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/></Style>
+                </TextBlock.Styles>
+              </TextBlock>
+              <TextBlock Grid.Column="2" Text="{Binding Logger}" FontSize="12" FontFamily="Consolas" Classes="muted" TextTrimming="CharacterEllipsis"/>
               <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0"/>
             </Grid>
           </DataTemplate>

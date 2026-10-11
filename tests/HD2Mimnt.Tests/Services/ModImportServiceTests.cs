@@ -90,7 +90,7 @@ public sealed class ModImportServiceTests : IDisposable
 
     /// <summary>
     /// 非 ZIP 格式（tar.gz）也应走压缩包解压路径导入，
-    /// 验证 IArchiveExtractor 接入后 rar/7z 等格式共用同一链路。
+    /// 验证复合压缩格式仍使用流式读取链路。
     /// </summary>
     [Fact]
     public async Task ImportModAsync_WithTarGzArchive_ShouldExtractAndImport()
@@ -114,6 +114,39 @@ public sealed class ModImportServiceTests : IDisposable
         var mod = (await _modRepository.GetByIdAsync(importedId))!;
         Assert.Equal("Tgz 模组", mod.Name);
         Assert.True(File.Exists(Path.Combine(mod.Path, "armor.patch")));
+    }
+
+    [Theory]
+    [InlineData(".7z")]
+    [InlineData(".zip")]
+    public async Task ImportModAsync_WithSevenZipContent_ShouldDetectByContent(string extension)
+    {
+        var sourceRoot = Path.Combine(_tempDirectory, "sevenzip-source");
+        Directory.CreateDirectory(sourceRoot);
+        File.WriteAllText(Path.Combine(sourceRoot, "manifest.json"), """{"name":"7z 模组","version":"1.0.0"}""", Encoding.UTF8);
+        File.WriteAllText(Path.Combine(sourceRoot, "armor.patch"), "sevenzip content");
+        var archivePath = Path.Combine(_tempDirectory, "mod" + extension);
+        using (var output = File.Create(archivePath))
+        using (var writer = WriterFactory.OpenWriter(output, ArchiveType.SevenZip, new WriterOptions(CompressionType.LZMA)))
+            writer.WriteAll(sourceRoot, "*", SearchOption.AllDirectories);
+
+        var importedId = await CreateService().ImportModAsync(archivePath);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+        Assert.Equal("7z 模组", mod.Name);
+        Assert.Equal("sevenzip content", await File.ReadAllTextAsync(Path.Combine(mod.Path, "armor.patch")));
+    }
+
+    [Fact]
+    public async Task ExtractToDirectoryAsync_WithUnrecognizedContent_ShouldExplainFailure()
+    {
+        var archivePath = Path.Combine(_tempDirectory, "broken.zip");
+        await File.WriteAllTextAsync(archivePath, "this is not an archive");
+        var extractor = new SharpCompressArchiveExtractor();
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => extractor.ExtractToDirectoryAsync(
+            archivePath, Path.Combine(_tempDirectory, "invalid-extract")));
+        Assert.Contains("broken.zip", error.Message);
+        Assert.Contains("无法识别压缩包", error.Message);
+        Assert.IsType<SharpCompress.Common.InvalidFormatException>(error.InnerException);
     }
 
     [Fact]
@@ -182,6 +215,130 @@ public sealed class ModImportServiceTests : IDisposable
 
     private ModImportService CreateService()
         => new(_modRepository, _storageDirectory);
+
+    [Fact]
+    public async Task ImportModAsync_ShouldPersistActualImportTime()
+    {
+        var source = Path.Combine(_tempDirectory, "TimedMod");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "body.patch"), "content");
+        var before = DateTime.UtcNow;
+        var id = await CreateService().ImportModAsync(source);
+        var after = DateTime.UtcNow;
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+        Assert.InRange(mod.ImportedAt.ToUniversalTime(), before, after);
+        Assert.Equal(mod.ImportedAt, mod.ModifiedAt);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_ShouldReportRealSteps()
+    {
+        var zip = await CreateZipAsync(root =>
+        {
+            File.WriteAllText(Path.Combine(root, "body.patch"), "content");
+        });
+        var reports = new List<ModImportProgress>();
+        var id = await CreateService().ImportModAsync(zip, progress: new InlineProgress(reports.Add));
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+        Assert.Equal(new[] { "检查源文件", "解压模组", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
+            reports.Select(p => p.Step).Distinct());
+        Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
+        Assert.Contains(reports, p => p.Step == "解压模组" && p.IsIndeterminate);
+        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(mod.Path, "body.patch")));
+        Assert.Matches("^[0-9a-f]{64}$", mod.Hash);
+        Assert.Equal(await ModHashService.CalculateAsync(mod.Path), mod.Hash);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_FromFolderAndArchive_ShouldPersistSameContentHash()
+    {
+        var zip = await CreateZipAsync(root => File.WriteAllText(Path.Combine(root, "body.patch"), "content"));
+        var folder = Path.Combine(_tempDirectory, "same-folder");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "body.patch"), "content");
+        var archiveId = await CreateService().ImportModAsync(zip);
+        var folderId = await CreateService().ImportModAsync(folder);
+        var archiveMod = (await _modRepository.GetByIdAsync(archiveId))!;
+        var folderMod = (await _modRepository.GetByIdAsync(folderId))!;
+        Assert.Equal(archiveMod.Hash, folderMod.Hash);
+    }
+
+    [Fact]
+    public async Task EnsureModHashAsync_ShouldBackfillMissingHashAndReusePersistedValue()
+    {
+        var folder = Path.Combine(_tempDirectory, "legacy");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "body.patch"), "content");
+        var legacy = new Mod { Id = Guid.NewGuid(), Name = "Legacy", Path = folder, Hash = string.Empty };
+        await _modRepository.AddAsync(legacy);
+        var service = new ModService(_modRepository, _storageDirectory);
+        var hash = await service.EnsureModHashAsync(legacy.Id);
+        Assert.Equal(await ModHashService.CalculateAsync(folder), hash);
+        var saved = (await _modRepository.GetByIdAsync(legacy.Id))!;
+        Assert.Equal(hash, saved.Hash);
+        Assert.Equal(legacy.ImportedAt, saved.ImportedAt);
+        Assert.Equal(legacy.ModifiedAt, saved.ModifiedAt);
+        Directory.Delete(folder, true);
+        Assert.Equal(hash, await service.EnsureModHashAsync(legacy.Id));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_CancelDuringHash_ShouldNotPersistPartialHashOrMod()
+    {
+        var zip = await CreateZipAsync(root => File.WriteAllText(Path.Combine(root, "body.patch"), "content"));
+        using var cancellation = new CancellationTokenSource();
+        var extractor = new TrackingExtractor();
+        var service = new ModImportService(_modRepository, _storageDirectory, archiveExtractor: extractor);
+        var progress = new InlineProgress(value => { if (value.Step == "计算哈希") cancellation.Cancel(); });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.ImportModAsync(zip, cancellation.Token, progress));
+        Assert.Empty(await _modRepository.GetAllAsync());
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_storageDirectory));
+        Assert.False(Directory.Exists(extractor.Destination));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_FromFolder_ShouldPreserveEmptyOptionDirectories()
+    {
+        var source = Path.Combine(_tempDirectory, "folder-source");
+        Directory.CreateDirectory(Path.Combine(source, "empty-option"));
+        await File.WriteAllTextAsync(Path.Combine(source, "body.patch"), "content");
+        var id = await CreateService().ImportModAsync(source);
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+        Assert.True(Directory.Exists(Path.Combine(mod.Path, "empty-option")));
+        Assert.Equal("content", await File.ReadAllTextAsync(Path.Combine(mod.Path, "body.patch")));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_CancelDuringCopy_ShouldRemovePartialModAndExtractedFiles()
+    {
+        var zip = await CreateZipAsync(root => File.WriteAllText(Path.Combine(root, "body.patch"), "content"));
+        using var cancellation = new CancellationTokenSource();
+        var extractor = new TrackingExtractor();
+        var service = new ModImportService(_modRepository, _storageDirectory, archiveExtractor: extractor);
+        var progress = new InlineProgress(p => { if (p.Step == "复制模组文件") cancellation.Cancel(); });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.ImportModAsync(zip, cancellation.Token, progress));
+        Assert.Empty(await _modRepository.GetAllAsync());
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_storageDirectory));
+        Assert.NotNull(extractor.Destination);
+        Assert.False(Directory.Exists(extractor.Destination));
+        Assert.True(File.Exists(zip));
+    }
+
+    private sealed class InlineProgress(Action<ModImportProgress> report) : IProgress<ModImportProgress>
+    {
+        public void Report(ModImportProgress value) => report(value);
+    }
+
+    private sealed class TrackingExtractor : IArchiveExtractor
+    {
+        public string? Destination { get; private set; }
+        public bool IsArchiveFile(string path) => true;
+        public Task ExtractToDirectoryAsync(string archivePath, string destinationDirectory, CancellationToken cancellationToken = default)
+        {
+            Destination = destinationDirectory;
+            return new SharpCompressArchiveExtractor().ExtractToDirectoryAsync(archivePath, destinationDirectory, cancellationToken);
+        }
+    }
 
     /// <summary>在回调中准备解压根目录内容后打包为 ZIP。</summary>
     private async Task<string> CreateZipAsync(Action<string> buildContent)

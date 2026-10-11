@@ -4,92 +4,26 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:avConverters="using:Avalonia.Data.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="HD2Mimnt.UI.Views.LibraryView"
              x:DataType="vm:LibraryViewModel"
-             KeyDown="OnKeyDown"
-             DragDrop.AllowDrop="True"
-             DragDrop.DragOver="OnDragOver"
-             DragDrop.DragLeave="OnDragLeave"
-             DragDrop.Drop="OnDrop">
+             KeyDown="OnKeyDown">
 
     <Design.DataContext>
         <vm:LibraryViewModel />
     </Design.DataContext>
 
-    <UserControl.Styles>
-        <!-- FluentModCard：旧版模组卡片造型（CardFillBrush 随外观设置的卡片透明度变化），选中态主题色描边 -->
-        <Style Selector="Border.mod-card">
-            <Setter Property="Background" Value="{DynamicResource CardFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Margin" Value="0,4"/>
-        </Style>
-        <Style Selector="Border.mod-card:pointerover">
-            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
-        </Style>
-        <Style Selector="Border.mod-card.selected">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
-        </Style>
-        <!-- 旧版标签胶囊造型 -->
-        <Style Selector="Border.chip">
-            <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="8,2"/>
-        </Style>
-        <!-- FluentNavigationButton：左对齐、图标+文字、透明底悬停填充；筛选页用 RadioButton 承载选中态 -->
-        <Style Selector="Button.side-nav, RadioButton.side-nav">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="Padding" Value="10,7"/>
-            <Setter Property="Margin" Value="0,1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.side-nav:pointerover, RadioButton.side-nav:pointerover">
-            <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
-        </Style>
-        <Style Selector="RadioButton.side-nav:checked">
-            <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-        <Style Selector="Button.side-nav:disabled, RadioButton.side-nav:disabled">
-            <Setter Property="Opacity" Value="0.5"/>
-        </Style>
-        <!-- 卡片自带选中视觉，去掉 ListBox 默认选中底色 -->
-        <Style Selector="ListBoxItem">
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <ContentPresenter Name="PART_ContentPresenter"
-                                      Background="Transparent"
-                                      Padding="{TemplateBinding Padding}"
-                                      Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"/>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-    </UserControl.Styles>
 
-    <!-- 照旧版 WPF DashboardPageView 造型：左侧操作/筛选面板 + 顶部搜索/批量条 + 模组卡片流 + 底部状态栏
-         （部署控件按 UI 重设计计划收敛到配置文件页） -->
     <Panel>
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="240,*" Margin="16">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="240,*" Margin="24,16,24,20">
 
         <!-- ══ 左侧操作面板（旧版 FluentElevatedCard + FluentNavigationButton 结构）══ -->
         <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Classes="card" Padding="12" Margin="0,0,16,0">
             <DockPanel>
                 <!-- 顶部：导入 / 刷新 -->
                 <StackPanel DockPanel.Dock="Top" Spacing="2">
-                    <Button Classes="side-nav" Click="OnImportClicked" ToolTip.Tip="导入 Mod 压缩包到 Library，也可直接拖拽压缩包到页面">
+                    <Button x:Name="ImportModButton" Classes="side-nav" Click="OnImportClicked" ToolTip.Tip="导入 Mod 压缩包到 Library，也可直接拖拽压缩包到页面">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <controls:UtilityIcon Kind="Add" Width="16" Height="16" VerticalAlignment="Center"/>
                             <TextBlock Text="添加模组" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -102,7 +36,6 @@
                         </StackPanel>
                     </Button>
                     <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
-                    <TextBlock Text="筛选" Classes="secondary-text" FontWeight="SemiBold" Margin="10,0,0,6"/>
                 </StackPanel>
 
                 <!-- 底部：统计 + 操作提示（旧版底部工具区） -->
@@ -115,20 +48,12 @@
                     <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{Binding TotalModCount, StringFormat='模组总数 {0:N0}'}"/>
                     <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{Binding DeployedCount, StringFormat='已部署 {0:N0} · 未部署 {0:N0}'}"/>
                     <TextBlock Classes="caption-text" TextWrapping="Wrap" Margin="10,6,4,2"
-                               Text="支持 Ctrl/Shift 多选后批量操作；右键卡片可查看详情、加入 Profile、打开文件位置；搜索支持 tag:标签 前缀按标签筛选。"/>
+                               Text="单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 tag:标签。"/>
                 </StackPanel>
 
-                <!-- 中部：筛选导航 + 分类/排序 -->
+                <!-- 中部：分类/排序 -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="2">
-                        <RadioButton Content="{Binding TotalModCount, StringFormat='全部模组 ({0})'}" Command="{Binding FilterCommand}" CommandParameter="All" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=All}"/>
-                        <RadioButton Content="{Binding CurrentProfileCount, StringFormat='已加入 Profile ({0})'}" Command="{Binding FilterCommand}" CommandParameter="CurrentProfile" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=CurrentProfile}"/>
-                        <RadioButton Content="{Binding EnabledCount, StringFormat='Profile 已启用 ({0})'}" Command="{Binding FilterCommand}" CommandParameter="Enabled" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=Enabled}"/>
-                        <RadioButton Content="{Binding DisabledCount, StringFormat='Profile 未启用 ({0})'}" Command="{Binding FilterCommand}" CommandParameter="Disabled" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=Disabled}"/>
-                        <RadioButton Content="{Binding DeployedCount, StringFormat='已部署 ({0})'}" Command="{Binding FilterCommand}" CommandParameter="Deployed" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=Deployed}"/>
-                        <RadioButton Content="{Binding NotDeployedCount, StringFormat='未部署 ({0})'}" Command="{Binding FilterCommand}" CommandParameter="NotDeployed" GroupName="LibraryFilter" Classes="side-nav" IsChecked="{Binding CurrentFilter, Converter={StaticResource EqualConverter}, ConverterParameter=NotDeployed}"/>
-
-                        <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
                         <TextBlock Text="分类" Classes="secondary-text" FontWeight="SemiBold" Margin="10,0,0,6"/>
                         <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedValue="{Binding SelectedCategory}" DisplayMemberBinding="{Binding Display}" SelectedValueBinding="{Binding Value}" PlaceholderText="全部分类" MinWidth="200" HorizontalAlignment="Stretch" Margin="0,1"/>
                         <TextBlock Text="排序" Classes="secondary-text" FontWeight="SemiBold" Margin="10,8,0,6"/>
@@ -143,7 +68,7 @@
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                     <Grid>
-                        <controls:UtilityIcon Kind="Search" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
+                        <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
                         <TextBox x:Name="SearchBox" PlaceholderText="搜索名称、作者或描述，支持 tag:标签 前缀…" Text="{Binding SearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
                     </Grid>
                     <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearSearchCommand}" ToolTip.Tip="清除搜索" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}">
@@ -158,7 +83,7 @@
                     </Border>
                     <Button Content="全选 / 取消全选" Command="{Binding SelectAllCommand}" Classes="secondary" Margin="0,0,8,4"/>
                     <Button Content="反选" Command="{Binding InvertSelectionCommand}" Classes="secondary" Margin="0,0,8,4"/>
-                    <Button Content="加入 Profile…" Command="{Binding OpenAddToProfileDialogCommand}" Classes="primary" Margin="0,0,8,4" ToolTip.Tip="将选中的 Mod 加入配置文件（可多选多个配置文件）"/>
+                    <Button Content="加入 Profile…" Command="{Binding OpenAddToProfileDialogCommand}" Classes="accent" Margin="0,0,8,4" ToolTip.Tip="将选中的 Mod 加入配置文件（可多选多个配置文件）"/>
                     <Button Content="禁用" Command="{Binding BatchDisableCommand}" Classes="secondary" Margin="0,0,8,4"/>
                     <Button Content="移出 Profile" Command="{Binding RemoveSelectedFromProfileCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="从当前 Profile 移除选中的 Mod，Library 文件保留"/>
                     <Button Content="清空选择" Command="{Binding ClearSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
@@ -169,65 +94,65 @@
 
         <!-- ══ 模组卡片列表 + 状态 ══ -->
         <Grid Grid.Row="1" Grid.Column="1">
-            <ListBox x:Name="ModList" ItemsSource="{Binding FilteredMods}" SelectedItem="{Binding FocusedMod}" SelectionMode="Single" Background="Transparent" BorderThickness="0" IsVisible="{Binding IsResultsVisible}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,-4,14,0">
-                <ListBox.ItemsPanel>
+        <ScrollViewer IsVisible="{Binding IsResultsVisible}" HorizontalScrollBarVisibility="Disabled"
+                      Background="Transparent" PointerPressed="OnModListBackgroundPressed">
+            <ItemsControl x:Name="ModList" Focusable="True" ItemsSource="{Binding FilteredMods}"
+                          Margin="0,-4,4,0">
+                <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-                <ListBox.ItemTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ModItemViewModel">
-                        <Border Classes="mod-card" Classes.selected="{Binding IsSelected}"
-                                Padding="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).ModItemPadding}"
-                                ContextRequested="ModCard_ContextRequested"
-                                PointerPressed="ModCard_PointerPressed">
-                            <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="12">
+                        <!-- 与配置页共用原生选择容器；ItemsControl 不接管 ViewModel 的选中状态。 -->
+                        <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}">
+                        <Border Classes="mod-card"
+                                Classes.compact="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).IsCompactList}"
+                                ContextRequested="ModCard_ContextRequested">
+                                <Grid ColumnDefinitions="52,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                                 <!-- 图标槽：无缩略图时显示 Package 图标 -->
-                                <Border Width="56" Height="56" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True"
+                                <Border Classes="mod-thumbnail" Grid.RowSpan="2" Width="52" Height="52" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True"
                                         Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="点击预览原图">
                                     <Panel>
-                                        <Image Source="{Binding Icon}" Stretch="UniformToFill" IsVisible="{Binding Icon, Converter={StaticResource NotNullConverter}}"/>
-                                        <controls:UtilityIcon Kind="Package" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsVisible="{Binding !Icon, Converter={StaticResource NotNullConverter}}"/>
+                                        <Image Source="{Binding Icon}" Width="52" Height="52" Stretch="Uniform" IsVisible="{Binding Icon, Converter={StaticResource NotNullConverter}}"/>
+                                        <controls:UtilityIcon Kind="Package" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsVisible="{Binding Icon, Converter={x:Static avConverters:ObjectConverters.IsNull}}"/>
                                     </Panel>
                                 </Border>
 
-                                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Border Classes="chip"><TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="11" Classes="muted"/></Border>
-                                        <Border Classes="chip"><TextBlock Text="{Binding CategoryDisplay}" FontSize="11" Classes="muted"/></Border>
-                                        <Border Classes="chip" IsVisible="{Binding IsDeployed}"><TextBlock Text="已部署" FontSize="11" Foreground="{DynamicResource AccentBrush}"/></Border>
-                                        <TextBlock Text="{Binding Author}" FontSize="11" Classes="muted" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding SizeFormatted}" FontSize="11" Classes="caption-text" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <ItemsControl ItemsSource="{Binding Tags}" IsVisible="{Binding HasTags}">
-                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Classes="chip" Margin="0,0,6,0"><TextBlock Text="{Binding}" FontSize="11" Classes="muted"/></Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    <TextBlock Text="{Binding Description}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Description}" IsVisible="{Binding HasDescription}"/>
-                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="17" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
+                                      VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
+                                    <Border Classes="chip"><TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="12" Classes="muted"/></Border>
+                                    <Border Grid.Column="1" Classes="chip" MaxWidth="200" HorizontalAlignment="Left" ToolTip.Tip="{Binding ResourceTypeDetails}">
+                                        <TextBlock Text="{Binding CategoryDisplay}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="已部署" FontSize="12" Classes="accent-text" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding Author}" MaxWidth="100" FontSize="12" Classes="muted" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Author}"/>
+                                    <TextBlock Grid.Column="4" Text="{Binding SizeFormatted}" FontSize="12" Classes="caption-text"
+                                               VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
 
                                 <!-- 右侧操作：加入 Profile + 删除（删除按钮造型同配置文件页的移除按钮） -->
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <Button Classes="primary" Content="加入 Profile…" Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).OpenAddToProfileDialogCommand}" CommandParameter="{Binding}" ToolTip.Tip="选择要加入的配置文件（可多选）"/>
-                                    <Button Classes="icon-button" Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).DeleteModCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" ToolTip.Tip="从 Library 删除 Mod">
-                                        <controls:UtilityIcon Kind="Close" Foreground="{DynamicResource ErrorBrush}"/>
-                                    </Button>
-                                </StackPanel>
+                                <Button Grid.Column="2" Grid.RowSpan="2" Classes="accent" Content="加入 Profile…" VerticalAlignment="Center"
+                                        Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).OpenAddToProfileDialogCommand}" CommandParameter="{Binding}" ToolTip.Tip="选择要加入的配置文件（可多选）"/>
+                                <Button Grid.Column="3" Grid.RowSpan="2" Classes="icon-button" Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).DeleteModCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" ToolTip.Tip="从 Library 删除 Mod">
+                                    <controls:UtilityIcon Kind="Close" Foreground="{DynamicResource ErrorBrush}"/>
+                                </Button>
                             </Grid>
                         </Border>
+                        </ListBoxItem>
                     </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
 
             <!-- 空库 -->
             <StackPanel IsVisible="{Binding IsLibraryEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <controls:UtilityIcon Kind="Package" Width="40" Height="40" Opacity="0.4" HorizontalAlignment="Center"/>
                 <TextBlock Text="模组库为空" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
                 <TextBlock Text="还没有导入 Mod，点击“添加模组”或将压缩包拖拽到页面" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
-                <Button Content="添加模组" Click="OnImportClicked" Classes="primary" HorizontalAlignment="Center"/>
+                <Button Content="添加模组" Click="OnImportClicked" Classes="accent" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 搜索无结果 -->
             <StackPanel IsVisible="{Binding IsSearchEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
@@ -245,7 +170,7 @@
             <StackPanel IsVisible="{Binding IsErrorStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <TextBlock Text="加载失败" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
                 <TextBlock Text="{Binding ErrorMessage}" FontSize="13" Classes="caption-text" TextWrapping="Wrap" MaxWidth="400" HorizontalAlignment="Center"/>
-                <Button Content="重试" Command="{Binding RefreshCommand}" Classes="primary" HorizontalAlignment="Center"/>
+                <Button Content="重试" Command="{Binding RefreshCommand}" Classes="accent" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 加载中 -->
             <StackPanel IsVisible="{Binding IsLoadingStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
@@ -269,12 +194,12 @@
 
     <!-- 模组详情抽屉 -->
     <Grid IsVisible="{Binding IsDetailPanelOpen}" ZIndex="100">
-        <Border Background="#66000000" PointerPressed="OnDetailBackgroundPressed"/>
+        <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnDetailBackgroundPressed"/>
         <controls:ModDetailPanel DataContext="{Binding SelectedModDetail}" HorizontalAlignment="Right" Width="400"/>
     </Grid>
 
     <!-- 部署遮罩（部署由配置文件页触发，仅在其进行中切到本页时展示） -->
-    <Border Background="#AA05070C" IsVisible="{Binding IsDeploying}" ZIndex="90">
+    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsDeploying}" ZIndex="90">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
             <ProgressBar IsIndeterminate="True" Width="260"/>
             <TextBlock Text="{Binding DeploymentMessage}" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
@@ -283,8 +208,8 @@
 
     <!-- 加入配置文件弹窗：勾选目标配置文件，可多选批量加入 -->
     <Grid IsVisible="{Binding IsAddToProfileDialogOpen}" ZIndex="110">
-        <Border Background="#66000000" PointerPressed="OnAddToProfileBackgroundPressed"/>
-        <Border Classes="card" Width="400" MaxHeight="480" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
+        <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnAddToProfileBackgroundPressed"/>
+        <Border Name="AddToProfileDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}" Width="400" MaxHeight="480" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
             <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
                 <TextBlock Text="{Binding AddToProfileDialogTitle}" Classes="section-title" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Grid.Row="1" Text="勾选要加入的配置文件（可多选），加入后模组在该配置文件中默认启用。" Classes="caption-text" TextWrapping="Wrap"/>
@@ -296,7 +221,7 @@
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                                     <TextBlock Text="{Binding ModCount, StringFormat='{}{0} 个模组'}" Classes="caption-text" VerticalAlignment="Center"/>
                                     <Border Classes="chip" IsVisible="{Binding IsActive}">
-                                        <TextBlock Text="当前" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock Text="当前" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
                                     </Border>
                                 </StackPanel>
                             </CheckBox>
@@ -305,21 +230,11 @@
                 </ListBox>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                     <Button Content="取消" Command="{Binding CancelAddToProfileCommand}" Classes="secondary"/>
-                    <Button Content="加入" Command="{Binding ConfirmAddToProfileCommand}" Classes="primary"/>
+                    <Button Content="加入" Command="{Binding ConfirmAddToProfileCommand}" Classes="accent"/>
                 </StackPanel>
             </Grid>
         </Border>
     </Grid>
 
-    <!-- 拖拽导入提示层（旧版全屏提示造型，不参与命中测试避免打断拖拽） -->
-    <Border x:Name="DragHintBorder" Background="#8805070C" IsHitTestVisible="False" IsVisible="False" ZIndex="200">
-        <Border Classes="card" Padding="32,24" HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2">
-            <StackPanel Spacing="8">
-                <controls:UtilityIcon Kind="Add" Width="28" Height="28" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock Text="松开鼠标导入 Mod 压缩包" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Text="支持 zip 压缩包，可多选批量导入" FontSize="12" Classes="caption-text" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-    </Border>
     </Panel>
 </UserControl>
