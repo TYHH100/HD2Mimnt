@@ -160,6 +160,69 @@ public class ProfileServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfileSeparator_ShouldPersistRenameCollapseAndReload()
+    {
+        var profileId = await _profileService.CreateProfileAsync("分组配置");
+        var separator = await _profileService.AddSeparatorAsync(profileId, "武器", 0);
+        await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
+        await _profileService.RenameSeparatorAsync(profileId, separator.Id, "武器与护甲");
+        await _profileService.UpdateSeparatorAsync(profileId, separator.Id, "武器与护甲", "#aa33ee");
+        await _profileService.UpdateSeparatorAsync(profileId, Guid.Empty, "", "#12ab56");
+        await _profileService.SetSeparatorCollapsedAsync(profileId, Guid.Empty, true);
+
+        using var reopened = new HD2MimntDbContext(_testDbPath);
+        await reopened.InitializeDatabaseAsync();
+        var loaded = await new ProfileRepository(reopened).GetByIdAsync(profileId);
+        var saved = Assert.Single(loaded!.Separators);
+        Assert.Equal(separator.Id, saved.Id);
+        Assert.Equal("武器与护甲", saved.Name);
+        Assert.True(saved.IsCollapsed);
+        Assert.Equal("#AA33EE", saved.Color);
+        Assert.Equal("#12AB56", loaded.LuaSeparatorColor);
+        Assert.True(loaded.IsLuaGroupCollapsed);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _profileService.UpdateSeparatorAsync(profileId, separator.Id, "错误", "#00GG11"));
+        Assert.Equal("武器与护甲", (await _profileService.GetProfileByIdAsync(profileId))!.Separators[0].Name);
+        await _profileService.UpdateSeparatorAsync(profileId, Guid.Empty, "", "");
+        Assert.Empty((await _profileService.GetProfileByIdAsync(profileId))!.LuaSeparatorColor);
+    }
+
+    [Fact]
+    public async Task ProfileSeparators_ShouldUpgradeLegacyTableDuplicateAndDeleteWithoutRemovingMods()
+    {
+        var profileId = await _profileService.CreateProfileAsync("原配置");
+        var mod = new Mod { Id = Guid.NewGuid(), Name = "Mod", Version = "1", Path = @"C:\TestMods\Mod" };
+        await _modRepository.AddAsync(mod);
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        using (var command = (await _dbContext.GetConnectionAsync()).CreateCommand())
+        {
+            command.CommandText = "ALTER TABLE ProfileSeparators DROP COLUMN Color; ALTER TABLE Profiles DROP COLUMN LuaSeparatorColor; ALTER TABLE Profiles DROP COLUMN IsLuaGroupCollapsed";
+            await command.ExecuteNonQueryAsync();
+        }
+        await _dbContext.InitializeDatabaseAsync();
+        var separator = await _profileService.AddSeparatorAsync(profileId, "武器", 0, "#FF2255");
+        await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
+        await _profileService.UpdateSeparatorAsync(profileId, Guid.Empty, "", "#44AA77");
+        await _profileService.SetSeparatorCollapsedAsync(profileId, Guid.Empty, true);
+        var duplicate = await _profileService.DuplicateProfileAsync(profileId, "副本");
+        var copied = Assert.Single(duplicate.Separators);
+        Assert.NotEqual(separator.Id, copied.Id);
+        Assert.Equal(duplicate.Id, copied.ProfileId);
+        Assert.True(copied.IsCollapsed);
+        Assert.Equal("#FF2255", copied.Color);
+        Assert.Equal("#44AA77", duplicate.LuaSeparatorColor);
+        Assert.True(duplicate.IsLuaGroupCollapsed);
+        await _profileService.RemoveSeparatorAsync(duplicate.Id, copied.Id);
+        Assert.Single((await _profileService.GetProfileByIdAsync(duplicate.Id))!.Mods);
+        await _profileService.DeleteProfileAsync(profileId);
+        using var check = (await _dbContext.GetConnectionAsync()).CreateCommand();
+        check.CommandText = "SELECT COUNT(*) FROM ProfileSeparators WHERE ProfileId = @Id";
+        check.Parameters.AddWithValue("@Id", profileId.ToString());
+        Assert.Equal(0L, await check.ExecuteScalarAsync());
+        Assert.NotNull(await _modRepository.GetByIdAsync(mod.Id));
+    }
+
+    [Fact]
     public async Task RemoveModFromProfile_ShouldRemoveMod()
     {
         // Arrange

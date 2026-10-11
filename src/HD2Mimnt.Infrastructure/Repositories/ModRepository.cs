@@ -189,10 +189,12 @@ public class ModRepository : IModRepository
         command.CommandText = @"
             INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags,
                             WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ThumbnailPath, Source, Status,
-                            ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion)
+                            ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion,
+                            PlatformId, PlatformModId, PlatformVersion, LastUpdateCheck, PlatformLinkJson)
             VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags,
                     @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ThumbnailPath, @Source, @Status,
-                    @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion)";
+                    @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion,
+                    @PlatformId, @PlatformModId, @PlatformVersion, @LastUpdateCheck, @PlatformLinkJson)";
 
         AddModParameters(command, mod);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -210,7 +212,9 @@ public class ModRepository : IModRepository
                 ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ThumbnailPath = @ThumbnailPath,
                 Source = @Source, Status = @Status, ManifestJson = @ManifestJson,
                 ContainsScripts = @ContainsScripts, NexusModId = @NexusModId, ResourceTypeIds = @ResourceTypeIds,
-                BslRole = @BslRole, BslDetectionVersion = @BslDetectionVersion
+                BslRole = @BslRole, BslDetectionVersion = @BslDetectionVersion,
+                PlatformId = @PlatformId, PlatformModId = @PlatformModId, PlatformVersion = @PlatformVersion,
+                LastUpdateCheck = @LastUpdateCheck, PlatformLinkJson = @PlatformLinkJson
             WHERE Id = @Id";
 
         AddModParameters(command, mod);
@@ -279,13 +283,29 @@ public class ModRepository : IModRepository
             Status = (ModStatus)reader.GetInt32(reader.GetOrdinal("Status")),
             Manifest = manifest,
             ContainsScripts = reader.GetInt32(reader.GetOrdinal("ContainsScripts")) == 1,
-            NexusModId = reader.IsDBNull(reader.GetOrdinal("NexusModId")) ? null : reader.GetInt32(reader.GetOrdinal("NexusModId"))
+            NexusModId = reader.IsDBNull(reader.GetOrdinal("NexusModId")) ? null : reader.GetInt32(reader.GetOrdinal("NexusModId")),
+            PlatformId = ReadNullableString(reader, "PlatformId"),
+            PlatformModId = ReadNullableString(reader, "PlatformModId"),
+            PlatformVersion = ReadNullableString(reader, "PlatformVersion"),
+            LastUpdateCheck = ReadNullableString(reader, "LastUpdateCheck") is { } time
+                ? DateTime.Parse(time, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
+            PlatformLink = ReadNullableString(reader, "PlatformLinkJson") is { } link
+                ? JsonSerializer.Deserialize<ModPlatformLink>(link) : null
         };
     }
+
+    private static string? ReadNullableString(SqliteDataReader reader, string column)
+        => reader.IsDBNull(reader.GetOrdinal(column)) ? null : reader.GetString(reader.GetOrdinal(column));
 
     private static void AddModParameters(SqliteCommand command, Mod mod)
     {
         command.Parameters.AddWithValue("@Id", mod.Id.ToString());
+        command.Parameters.AddWithValue("@PlatformId", (object?)mod.PlatformId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PlatformModId", (object?)mod.PlatformModId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PlatformVersion", (object?)mod.PlatformVersion ?? DBNull.Value);
+        command.Parameters.AddWithValue("@LastUpdateCheck", (object?)mod.LastUpdateCheck?.ToString("O") ?? DBNull.Value);
+        command.Parameters.AddWithValue("@PlatformLinkJson", mod.PlatformLink is { } link
+            ? JsonSerializer.Serialize(link) : DBNull.Value);
         command.Parameters.AddWithValue("@Name", mod.Name);
         command.Parameters.AddWithValue("@Version", mod.Version);
         command.Parameters.AddWithValue("@Author", mod.Author);

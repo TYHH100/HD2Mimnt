@@ -1,4 +1,4 @@
-using HD2Mimnt.Core.Entities;
+﻿using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -18,6 +18,7 @@ public class ModService
     private readonly DeploymentService? _deploymentService;
     private readonly string _storageDirectory;
     private readonly SemaphoreSlim _hashGate = new(1, 1);
+    private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
     /// <summary>仅在查看缺失哈希的模组时补算，读取列表不扫描全部文件。</summary>
     public async Task<string> EnsureModHashAsync(Guid id, CancellationToken cancellationToken = default)
@@ -67,6 +68,141 @@ public class ModService
     private void RaiseModsChanged() => ModsChanged?.Invoke(this, EventArgs.Empty);
 
     #region Mod CRUD Operations
+
+    public async Task<Mod> SetPlatformLinkAsync(Guid id, ModPlatformLink link,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new KeyNotFoundException("模组已不存在，无法保存链接。");
+            mod.PlatformLink = link;
+            mod.PlatformId = link.PlatformId;
+            mod.PlatformModId = link.ModId;
+            mod.PlatformVersion = link.LatestVersion;
+            mod.NexusModId = link.PlatformId == "nexusmods" ? int.Parse(link.ModId) : null;
+            mod.LastUpdateCheck = null;
+            mod.ModifiedAt = DateTime.UtcNow;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            return mod;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    /// <summary>新内容在独立目录准备；数据库提交成功后才删除旧内容，保留原 ID 和配置关联。</summary>
+    public async Task<ModReplacementResult> ReplaceFromArchiveAsync(Guid id, string archivePath,
+        ModPlatformLink expectedLink, PlatformModFile file, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(file.Version);
+        var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
+        var committed = false;
+        string? newThumbnail = null;
+        try
+        {
+            if (!Directory.EnumerateFiles(prepared.Path, "*", SearchOption.AllDirectories).Any(path =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return PatchDeploymentPlanner.TryParseTarget(path, out _, out _, out var suffix) && suffix.Length == 0;
+                }))
+                throw new InvalidDataException("下载包中没有可用的游戏补丁，已保留原模组。");
+
+            newThumbnail = await _thumbnailService.GenerateThumbnailAsync(prepared.Id, prepared.Path, cancellationToken);
+            await _mutationGate.WaitAsync(cancellationToken);
+            try
+            {
+                var original = await _modRepository.GetByIdAsync(id, cancellationToken)
+                    ?? throw new KeyNotFoundException("模组已删除，无法更新。");
+                if (original.PlatformId != expectedLink.PlatformId || original.PlatformModId != expectedLink.ModId)
+                    throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
+
+                var oldPath = original.Path;
+                var oldThumbnail = original.ThumbnailPath;
+                var wasDeployed = _deploymentService != null &&
+                    (await _deploymentService.GetModDeploymentHistoryAsync(id, cancellationToken)).Any();
+                prepared.Id = id;
+                var bslRole = await HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectAsync(prepared, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                progress?.Report(new(97, "清理旧部署", original.Name, true));
+                if (_deploymentService != null)
+                    await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                original.Path = prepared.Path;
+                original.Version = file.Version;
+                original.Manifest = prepared.Manifest;
+                original.Size = prepared.Size;
+                original.Hash = prepared.Hash;
+                original.Category = prepared.Category;
+                original.ResourceTypeIds = prepared.ResourceTypeIds;
+                original.ContainsScripts = prepared.ContainsScripts;
+                original.BslRole = bslRole;
+                original.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+                original.ThumbnailPath = newThumbnail ?? oldThumbnail;
+                original.ModifiedAt = DateTime.UtcNow;
+                original.Source = ModSource.NexusMods;
+                original.PlatformLink = (original.PlatformLink ?? expectedLink) with
+                {
+                    InstalledFileVersionId = installedWebsiteFileId == null ? file.Id : null,
+                    InstalledWebsiteFileId = installedWebsiteFileId
+                };
+                original.Status = ModStatus.Ready;
+                progress?.Report(new(99, "保存更新", original.Name, true));
+                // 提交阶段不接受半途取消；此处失败时旧目录仍然完整。
+                cancellationToken.ThrowIfCancellationRequested();
+                await _modRepository.UpdateAsync(original, CancellationToken.None);
+                committed = true;
+
+                string? cleanupWarning = null;
+                try
+                {
+                    if (IsManagedModDirectory(oldPath) && Directory.Exists(oldPath)) Directory.Delete(oldPath, true);
+                    if (newThumbnail != null && oldThumbnail != newThumbnail)
+                        await _thumbnailService.DeleteThumbnailFileAsync(oldThumbnail, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    cleanupWarning = "旧文件清理失败，请查看日志。";
+                    _logger?.LogWarning(ex, "模组更新已提交，但旧副本未完全清理: {ModId}", id);
+                }
+                RaiseModsChanged();
+                return new(original, wasDeployed, cleanupWarning);
+            }
+            finally { _mutationGate.Release(); }
+        }
+        finally
+        {
+            if (!committed)
+            {
+                if (Directory.Exists(prepared.Path)) Directory.Delete(prepared.Path, true);
+                if (newThumbnail != null) await _thumbnailService.DeleteThumbnailFileAsync(newThumbnail, CancellationToken.None);
+            }
+        }
+    }
+
+    private bool IsManagedModDirectory(string path)
+        => Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(_storageDirectory))
+            + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    public async Task<Mod> RecordUpdateCheckAsync(Guid id, ModPlatformLink expectedLink, string? latestVersion,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new KeyNotFoundException("模组已删除。");
+            if (mod.PlatformId != expectedLink.PlatformId || mod.PlatformModId != expectedLink.ModId)
+                throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
+            mod.LastUpdateCheck = DateTime.UtcNow;
+            mod.PlatformVersion = latestVersion;
+            mod.PlatformLink = (mod.PlatformLink ?? expectedLink) with { LatestVersion = latestVersion, RetrievedAt = mod.LastUpdateCheck };
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            return mod;
+        }
+        finally { _mutationGate.Release(); }
+    }
 
     public async Task<Mod?> GetModByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -141,6 +277,13 @@ public class ModService
 
     public async Task<bool> DeleteModAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try { return await DeleteModCoreAsync(id, cancellationToken); }
+        finally { _mutationGate.Release(); }
+    }
+
+    private async Task<bool> DeleteModCoreAsync(Guid id, CancellationToken cancellationToken)
+    {
         var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
         if (mod == null)
         {
@@ -167,6 +310,7 @@ public class ModService
 
         // 删除缩略图
         await _thumbnailService.DeleteThumbnailAsync(id, cancellationToken);
+        await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, cancellationToken);
 
         // 从数据库删除
         await _modRepository.DeleteAsync(id, cancellationToken);

@@ -1,8 +1,9 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:core="using:HD2Mimnt.Core.Entities"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
              xmlns:avConverters="using:Avalonia.Data.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -72,12 +73,12 @@
                         <TextBox x:Name="SearchBox" PlaceholderText="搜索名称、作者或描述，支持 tag:标签 前缀…" Text="{Binding SearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
                     </Grid>
                     <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearSearchCommand}" ToolTip.Tip="清除搜索" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}">
-                        <controls:UtilityIcon Kind="Close"/>
+                        <controls:UtilityIcon Kind="BackspaceQWERTY"/>
                     </Button>
                 </Grid>
 
                 <!-- 批量操作条：有选中项时出现（旧版 HasSelection WrapPanel，窄窗口可换行） -->
-                <WrapPanel Grid.Row="1" IsVisible="{Binding SelectedCount, Converter={StaticResource GreaterThanZeroConverter}}">
+                <WrapPanel x:Name="LibrarySelectionToolbar" Grid.Row="1" IsVisible="{Binding SelectedCount, Converter={StaticResource GreaterThanZeroConverter}}">
                     <Border Background="{DynamicResource SelectedSurfaceBrush}" CornerRadius="4" Padding="10,5" VerticalAlignment="Center" Margin="0,0,8,4">
                         <TextBlock Text="{Binding SelectedCount, StringFormat='已选择 {0} 个 Mod'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
@@ -104,7 +105,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ModItemViewModel">
                         <!-- 与配置页共用原生选择容器；ItemsControl 不接管 ViewModel 的选中状态。 -->
-                        <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}">
+                        <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}">
                         <Border Classes="mod-card"
                                 Classes.compact="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).IsCompactList}"
                                 ContextRequested="ModCard_ContextRequested">
@@ -196,6 +197,77 @@
     <Grid IsVisible="{Binding IsDetailPanelOpen}" ZIndex="100">
         <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnDetailBackgroundPressed"/>
         <controls:ModDetailPanel DataContext="{Binding SelectedModDetail}" HorizontalAlignment="Right" Width="400"/>
+    </Grid>
+    <Grid IsVisible="{Binding ModLink.IsOpen}" ZIndex="120">
+      <Border Background="{DynamicResource OverlayScrimBrush}" />
+      <Border x:Name="ModLinkDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
+              DataContext="{Binding ModLink}" x:DataType="vm:ModLinkViewModel"
+              MaxWidth="520" MaxHeight="560" Margin="20" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <ScrollViewer>
+          <StackPanel Spacing="12">
+            <TextBlock Text="模组链接" Classes="section-title" />
+            <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="粘贴 N 网模组页面链接，获取信息后保存关联。" Classes="muted" TextWrapping="Wrap" />
+            <TextBox x:Name="ModLinkUrlInput" Text="{Binding Url, Mode=TwoWay}" IsEnabled="{Binding !IsSaving}"
+                     PlaceholderText="https://www.nexusmods.com/helldivers2/mods/16633" />
+            <Button x:Name="FetchModLinkButton" Content="获取信息" Command="{Binding FetchCommand}" IsEnabled="{Binding !IsSaving}" />
+            <ProgressBar IsVisible="{Binding IsFetching}" IsIndeterminate="True" />
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes="muted" />
+            <TextBlock Text="{Binding PreviewText}" IsVisible="{Binding HasPreview}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+              <Button x:Name="CloseModLinkButton" Content="取消" Command="{Binding CloseCommand}" />
+              <Button x:Name="SaveModLinkButton" Content="保存关联" Classes="accent" Command="{Binding SaveCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <Grid IsVisible="{Binding ModOnline.IsOpen}" ZIndex="125">
+      <Border Background="{DynamicResource OverlayScrimBrush}" />
+      <Border x:Name="ModOnlineDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
+              DataContext="{Binding ModOnline}" x:DataType="vm:ModOnlineViewModel"
+              Width="560" MaxHeight="650" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <ScrollViewer>
+          <StackPanel Spacing="12">
+            <TextBlock Text="模组更新与下载" Classes="section-title" />
+            <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding LocalVersion, StringFormat='本地版本：{0}'}" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="网页授权下载（免费账户）" VerticalAlignment="Center" />
+              <ToggleSwitch x:Name="WebsiteAuthorizationToggle" OnContent="开" OffContent="关"
+                            IsChecked="{Binding UseWebsiteAuthorization}" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+            <ComboBox x:Name="OnlineFileSelector" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
+                      IsEnabled="{Binding !IsBusy}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="core:PlatformModFile">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Version, StringFormat='版本：{0}'}" Classes="muted" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Text="{Binding VersionMessage}" TextWrapping="Wrap" />
+            <TextBlock Text="点击下载或更新后会打开所选文件网页。在网页完成下载确认，选择 HD2Mimnt 打开链接，应用会自动继续。网页需登录 API 密钥对应的账户。"
+                       IsVisible="{Binding UseWebsiteAuthorization}" TextWrapping="Wrap" Classes="muted" />
+            <TextBlock Text="已关闭网页授权：通过 API 直接获取下载链接，需要相应的账户权限。" IsVisible="{Binding !UseWebsiteAuthorization}"
+                       TextWrapping="Wrap" Classes="muted" />
+            <TextBlock Text="更新将直接替换模组库中的原模组，保留名称、标签和配置关联。旧部署会清理，更新后请检查选项并重新部署。"
+                       Classes="muted" TextWrapping="Wrap" />
+            <ProgressBar IsVisible="{Binding IsBusy}" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" />
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+            <WrapPanel HorizontalAlignment="Right">
+              <Button x:Name="CheckOnlineModButton" Content="检查更新" Command="{Binding CheckCommand}" Margin="4" />
+              <Button x:Name="DownloadOnlineModButton" Content="下载压缩包…" IsEnabled="{Binding CanDownload}" Click="OnDownloadOnlineClicked" Margin="4" />
+              <Button x:Name="UpdateOnlineModButton" Content="下载并更新" Classes="accent" Command="{Binding UpdateCommand}" Margin="4" />
+              <Button Content="取消操作" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}" Margin="4" />
+              <Button Content="关闭" Command="{Binding CloseCommand}" Margin="4" />
+            </WrapPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
     </Grid>
 
     <!-- 部署遮罩（部署由配置文件页触发，仅在其进行中切到本页时展示） -->

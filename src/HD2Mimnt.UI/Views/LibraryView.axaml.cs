@@ -1,8 +1,9 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
 
@@ -15,13 +16,22 @@ public partial class LibraryView : UserControl
         InitializeComponent();
         AddHandler(KeyDownEvent, OnModListKeyDown, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
+        ModList.AddHandler(PointerReleasedEvent, OnModListContextReleased, RoutingStrategies.Bubble, handledEventsToo: true);
+        DetachedFromVisualTree += async (_, _) =>
+        {
+            if (DataContext is LibraryViewModel vm)
+            {
+                vm.ModLink?.CloseCommand.Execute(null);
+                if (vm.ModOnline is { } online) await online.CloseCommand.ExecuteAsync(null);
+            }
+        };
     }
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not LibraryViewModel vm) return;
 
-        if (vm.IsAddToProfileDialogOpen || vm.Import.IsOpen) return;
+        if (vm.IsAddToProfileDialogOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var isTextInput = e.Source is Visual source &&
             (source is TextBox || source.GetVisualAncestors().Any(ancestor => ancestor is TextBox));
         var controlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
@@ -142,7 +152,7 @@ public partial class LibraryView : UserControl
         if (e.Source is not Visual eventSource ||
             !eventSource.GetVisualAncestors().Prepend(eventSource).Contains(ModList)) return;
         if (DataContext is not LibraryViewModel vm || vm.FilteredMods.Count == 0 ||
-            vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen) return;
+            vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source).Any(visual => visual is Button or TextBox)) return;
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -183,10 +193,34 @@ public partial class LibraryView : UserControl
             return;
         }
 
+        ShowModContextMenu(card, mod, vm);
+        e.Handled = true;
+    }
+
+    private void OnModListContextReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Right || e.Source is not Visual source ||
+            DataContext is not LibraryViewModel vm || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+        var card = source.GetVisualAncestors().Prepend(source).OfType<Border>()
+            .FirstOrDefault(b => b.Classes.Contains("mod-card") && b.DataContext is ModItemViewModel);
+        if (card?.DataContext is not ModItemViewModel mod) return;
+        ShowModContextMenu(card, mod, vm);
+        e.Handled = true;
+    }
+
+    private static void ShowModContextMenu(Control card, ModItemViewModel mod, LibraryViewModel vm)
+    {
+        if (vm.ModOnline?.IsOpen == true) return;
         var entries = new List<object>
         {
             new ContextMenuItem("查看详情", vm.ShowModDetailCommand, "Info") { CommandParameter = mod },
+            new ContextMenuItem("模组链接…", vm.OpenModLinkCommand, "Globe") { CommandParameter = mod },
         };
+
+        if (mod.PlatformLink != null && vm.ModOnline != null)
+        {
+            entries.Add(new ContextMenuItem("检查和更新模组…", vm.OpenModOnlineCommand, "Refresh") { CommandParameter = mod });
+        }
 
         if (mod.IsInCurrentProfile)
         {
@@ -220,7 +254,6 @@ public partial class LibraryView : UserControl
         });
 
         AppContextMenu.Show(entries, card);
-        e.Handled = true;
     }
 
     /// <summary>
@@ -259,5 +292,24 @@ public partial class LibraryView : UserControl
     private void OnImportClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (DataContext is LibraryViewModel vm) vm.OpenImportCommand.Execute(null);
+    }
+
+    private async void OnDownloadOnlineClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not LibraryViewModel { ModOnline: { CanDownload: true } online } ||
+            TopLevel.GetTopLevel(this) is not { } owner) return;
+        var selected = online.SelectedFile;
+        var suggestedName = online.SuggestedDownloadFileName;
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "保存模组压缩包", SuggestedFileName = suggestedName, DefaultExtension = Path.GetExtension(suggestedName).TrimStart('.'),
+            FileTypeChoices = new[]
+            {
+                new FilePickerFileType("模组压缩包") { Patterns = new[] { "*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.bz2", "*.xz" } },
+                FilePickerFileTypes.All
+            }
+        });
+        if (online.IsOpen && ReferenceEquals(selected, online.SelectedFile) && file?.TryGetLocalPath() is { } path)
+            await online.DownloadAsync(path);
     }
 }

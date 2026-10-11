@@ -24,6 +24,13 @@ public class Profile
     /// </summary>
     public List<ProfileMod> Mods { get; set; } = new();
 
+    /// <summary>用户创建的显示分组分隔符，不参与部署。</summary>
+    public List<ProfileSeparator> Separators { get; set; } = new();
+
+    /// <summary>固定 Lua 分组的显示状态，不影响部署。</summary>
+    public bool IsLuaGroupCollapsed { get; set; }
+    public string LuaSeparatorColor { get; set; } = string.Empty;
+
     /// <summary>
     /// LogicalMod 引用列表
     /// 根据执行文档第 1208-1243 节，配置文件应保存 LogicalModId

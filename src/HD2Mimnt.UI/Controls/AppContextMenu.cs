@@ -47,6 +47,10 @@ public static class AppContextMenu
     /// <summary>构建并在 placementTarget 的指针位置显示右键菜单。</summary>
     public static void Show(IReadOnlyList<object> entries, Control placementTarget)
     {
+        // ContextRequested 与列表的右键松开兜底可能处理同一次手势。
+        // 已打开的菜单不再关闭重建，避免弹层和焦点在一帧内反复切换。
+        if (placementTarget.ContextFlyout is FAMenuFlyout { IsOpen: true }) return;
+
         var menu = new FAMenuFlyout();
         foreach (var entry in entries)
         {

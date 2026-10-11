@@ -30,6 +30,7 @@ public class ProfileRepository : IProfileRepository
         {
             var profile = MapToProfile(reader);
             await LoadProfileModsAsync(profile, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, cancellationToken);
             return profile;
         }
 
@@ -54,6 +55,7 @@ public class ProfileRepository : IProfileRepository
         foreach (var profile in profiles)
         {
             await LoadProfileModsAsync(profile, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, cancellationToken);
         }
 
         return profiles;
@@ -71,6 +73,7 @@ public class ProfileRepository : IProfileRepository
         {
             var profile = MapToProfile(reader);
             await LoadProfileModsAsync(profile, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, cancellationToken);
             return profile;
         }
 
@@ -87,13 +90,14 @@ public class ProfileRepository : IProfileRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder, IsDefault)
-                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder, @IsDefault)";
+                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder, IsDefault, IsLuaGroupCollapsed, LuaSeparatorColor)
+                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder, @IsDefault, @IsLuaGroupCollapsed, @LuaSeparatorColor)";
 
             AddProfileParameters(command, profile);
             await command.ExecuteNonQueryAsync(cancellationToken);
 
             await SaveProfileModsAsync(profile, connection, transaction, cancellationToken);
+            await SaveProfileSeparatorsAsync(profile, connection, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
         }
@@ -115,7 +119,8 @@ public class ProfileRepository : IProfileRepository
             command.Transaction = transaction;
             command.CommandText = @"
                 UPDATE Profiles
-                SET Name = @Name, Description = @Description, ModifiedAt = @ModifiedAt, IsActive = @IsActive, SortOrder = @SortOrder, IsDefault = @IsDefault
+                SET Name = @Name, Description = @Description, ModifiedAt = @ModifiedAt, IsActive = @IsActive, SortOrder = @SortOrder, IsDefault = @IsDefault,
+                    IsLuaGroupCollapsed = @IsLuaGroupCollapsed, LuaSeparatorColor = @LuaSeparatorColor
                 WHERE Id = @Id";
 
             AddProfileParameters(command, profile);
@@ -129,6 +134,7 @@ public class ProfileRepository : IProfileRepository
             await deleteCommand.ExecuteNonQueryAsync(cancellationToken);
 
             await SaveProfileModsAsync(profile, connection, transaction, cancellationToken);
+            await SaveProfileSeparatorsAsync(profile, connection, transaction, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
         }
@@ -143,10 +149,13 @@ public class ProfileRepository : IProfileRepository
     {
         var connection = await _dbContext.GetConnectionAsync(cancellationToken);
 
+        using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Profiles WHERE Id = @Id";
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM ProfileSeparators WHERE ProfileId = @Id; DELETE FROM Profiles WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<Profile> DuplicateAsync(Guid id, string newName, CancellationToken cancellationToken = default)
@@ -162,6 +171,8 @@ public class ProfileRepository : IProfileRepository
             Id = Guid.NewGuid(),
             Name = newName,
             Description = original.Description,
+            IsLuaGroupCollapsed = original.IsLuaGroupCollapsed,
+            LuaSeparatorColor = original.LuaSeparatorColor,
             CreatedAt = DateTime.UtcNow,
             ModifiedAt = DateTime.UtcNow,
             IsActive = false,
@@ -173,6 +184,15 @@ public class ProfileRepository : IProfileRepository
                 Enabled = m.Enabled,
                 Order = m.Order,
                 OptionsJson = m.OptionsJson
+            }).ToList(),
+            Separators = original.Separators.Select(separator => new ProfileSeparator
+            {
+                Id = Guid.NewGuid(),
+                ProfileId = Guid.Empty,
+                Name = separator.Name,
+                Order = separator.Order,
+                IsCollapsed = separator.IsCollapsed,
+                Color = separator.Color
             }).ToList()
         };
 
@@ -180,6 +200,10 @@ public class ProfileRepository : IProfileRepository
         foreach (var mod in duplicate.Mods)
         {
             mod.ProfileId = duplicate.Id;
+        }
+        foreach (var separator in duplicate.Separators)
+        {
+            separator.ProfileId = duplicate.Id;
         }
 
         await AddAsync(duplicate, cancellationToken);
@@ -242,6 +266,33 @@ public class ProfileRepository : IProfileRepository
         }
     }
 
+    private async Task LoadProfileSeparatorsAsync(Profile profile, CancellationToken cancellationToken)
+    {
+        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT Id, ProfileId, Name, [Order], IsCollapsed, Color
+            FROM ProfileSeparators
+            WHERE ProfileId = @ProfileId
+            ORDER BY [Order], rowid";
+        command.Parameters.AddWithValue("@ProfileId", profile.Id.ToString());
+
+        profile.Separators.Clear();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            profile.Separators.Add(new ProfileSeparator
+            {
+                Id = Guid.Parse(reader.GetString(0)),
+                ProfileId = Guid.Parse(reader.GetString(1)),
+                Name = reader.GetString(2),
+                Order = reader.GetInt32(3),
+                IsCollapsed = reader.GetBoolean(4),
+                Color = reader.GetString(5)
+            });
+        }
+    }
+
     private async Task SaveProfileModsAsync(Profile profile, SqliteConnection connection,
         SqliteTransaction transaction, CancellationToken cancellationToken)
     {
@@ -262,6 +313,32 @@ public class ProfileRepository : IProfileRepository
         }
     }
 
+    private static async Task SaveProfileSeparatorsAsync(Profile profile, SqliteConnection connection,
+        SqliteTransaction transaction, CancellationToken cancellationToken)
+    {
+        using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = "DELETE FROM ProfileSeparators WHERE ProfileId = @ProfileId";
+        delete.Parameters.AddWithValue("@ProfileId", profile.Id.ToString());
+        await delete.ExecuteNonQueryAsync(cancellationToken);
+
+        foreach (var separator in profile.Separators)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = @"
+                INSERT INTO ProfileSeparators (Id, ProfileId, Name, [Order], IsCollapsed, Color)
+                VALUES (@Id, @ProfileId, @Name, @Order, @IsCollapsed, @Color)";
+            command.Parameters.AddWithValue("@Id", separator.Id.ToString());
+            command.Parameters.AddWithValue("@ProfileId", profile.Id.ToString());
+            command.Parameters.AddWithValue("@Name", separator.Name);
+            command.Parameters.AddWithValue("@Order", separator.Order);
+            command.Parameters.AddWithValue("@IsCollapsed", separator.IsCollapsed);
+            command.Parameters.AddWithValue("@Color", separator.Color);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
     private static Profile MapToProfile(SqliteDataReader reader)
     {
         return new Profile
@@ -275,6 +352,8 @@ public class ProfileRepository : IProfileRepository
             ModifiedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ModifiedAt"))),
             IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
             IsDefault = reader.GetBoolean(reader.GetOrdinal("IsDefault")),
+            IsLuaGroupCollapsed = reader.GetBoolean(reader.GetOrdinal("IsLuaGroupCollapsed")),
+            LuaSeparatorColor = reader.GetString(reader.GetOrdinal("LuaSeparatorColor")),
             SortOrder = reader.GetInt32(reader.GetOrdinal("SortOrder"))
         };
     }
@@ -299,5 +378,7 @@ public class ProfileRepository : IProfileRepository
         command.Parameters.AddWithValue("@IsActive", profile.IsActive ? 1 : 0);
         command.Parameters.AddWithValue("@IsDefault", profile.IsDefault ? 1 : 0);
         command.Parameters.AddWithValue("@SortOrder", profile.SortOrder);
+        command.Parameters.AddWithValue("@IsLuaGroupCollapsed", profile.IsLuaGroupCollapsed);
+        command.Parameters.AddWithValue("@LuaSeparatorColor", profile.LuaSeparatorColor);
     }
 }

@@ -39,6 +39,11 @@ public partial class DevToolsViewModel : ObservableObject
     [ObservableProperty]
     private string _nexusStatusMessage = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyNexusApiKeyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearNexusApiKeyCommand))]
+    private bool _isSavingNexusKey;
+
     public DevToolsViewModel(TestDataService testDataService, ProfileService profileService,
         NexusModsTestService nexusModsTestService)
     {
@@ -49,15 +54,18 @@ public partial class DevToolsViewModel : ObservableObject
     }
 
     private void RefreshNexusStatus() => NexusStatusMessage = _nexusModsTestService.IsAuthenticated
-        ? "本次运行已配置 N 网认证（尚未验证密钥）。"
+        ? _nexusModsTestService.IsApiKeySaved ? "已配置 N 网认证，密钥已加密保存（尚未验证密钥）。"
+            : "已配置 N 网认证（尚未验证密钥）。"
         : "尚未配置 N 网 API 密钥。";
 
-    [RelayCommand]
-    private void ApplyNexusApiKey()
+    private bool CanChangeNexusKey() => !IsSavingNexusKey;
+    [RelayCommand(CanExecute = nameof(CanChangeNexusKey))]
+    private async Task ApplyNexusApiKeyAsync()
     {
+        IsSavingNexusKey = true;
         try
         {
-            _nexusModsTestService.ApplyApiKey(NexusApiKey);
+            await _nexusModsTestService.ApplyApiKeyAsync(NexusApiKey);
             NexusApiKey = string.Empty;
             RefreshNexusStatus();
         }
@@ -65,14 +73,22 @@ public partial class DevToolsViewModel : ObservableObject
         {
             NexusStatusMessage = "请输入有效的 API 密钥，不能包含换行或控制字符。";
         }
+        catch { NexusStatusMessage = "密钥保存失败，未更改原密钥，请重试。"; }
+        finally { IsSavingNexusKey = false; }
     }
 
-    [RelayCommand]
-    private void ClearNexusApiKey()
+    [RelayCommand(CanExecute = nameof(CanChangeNexusKey))]
+    private async Task ClearNexusApiKeyAsync()
     {
-        _nexusModsTestService.ClearApiKey();
-        NexusApiKey = string.Empty;
-        RefreshNexusStatus();
+        IsSavingNexusKey = true;
+        try
+        {
+            await _nexusModsTestService.ClearApiKeyAsync();
+            NexusApiKey = string.Empty;
+            RefreshNexusStatus();
+        }
+        catch { NexusStatusMessage = "密钥清除失败，保存的数据仍保留，请重试。"; }
+        finally { IsSavingNexusKey = false; }
     }
 
     partial void OnIsGeneratingChanged(bool value) => CanCancel = value;

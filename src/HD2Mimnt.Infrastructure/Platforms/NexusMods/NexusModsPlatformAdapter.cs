@@ -9,10 +9,11 @@ using System.Text.Json;
 namespace HD2Mimnt.Infrastructure.Platforms;
 
 /// <summary>Nexus module entry point implementing the shared platform contract.</summary>
-public class NexusModsPlatformAdapter : BasePlatformAdapter
+public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPlatform, IModProtocolDownloadPlatform
 {
     private readonly NexusModsApiClient _api;
     private readonly NexusModsFileService _files;
+    private readonly NexusModsNxmService _nxm;
 
     public override string Name => "NexusMods";
     public override string Id => "nexusmods";
@@ -22,10 +23,16 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter
         PlatformCapabilities.Files | PlatformCapabilities.Authentication |
         PlatformCapabilities.RateLimit;
 
-    public NexusModsPlatformAdapter(HttpClient httpClient, IHttpDownloadService? downloader = null) : base(httpClient)
+    public NexusModsPlatformAdapter(HttpClient httpClient, IHttpDownloadService? downloader = null,
+        string? applicationVersion = null) : base(httpClient)
     {
-        _api = new NexusModsApiClient(httpClient);
-        _files = new NexusModsFileService(_api, downloader ?? new HttpDownloadService(httpClient));
+        var version = applicationVersion ??
+            (System.Reflection.Assembly.GetEntryAssembly() ?? typeof(NexusModsPlatformAdapter).Assembly)
+            .GetName().Version!.ToString();
+        _api = new NexusModsApiClient(httpClient, version);
+        var downloadService = downloader ?? new HttpDownloadService(httpClient);
+        _files = new NexusModsFileService(_api, downloadService);
+        _nxm = new NexusModsNxmService(_api, downloadService);
     }
 
     public void SetApiKey(string apiKey) => _api.SetApiKey(apiKey);
@@ -74,4 +81,28 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter
 
     public override Task<Stream> DownloadModAsync(string modId, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) =>
         _files.DownloadModAsync(modId, progress, cancellationToken);
+
+    public Task<Stream> DownloadFileAsync(string modId, string fileVersionId,
+        IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) =>
+        _files.DownloadFileAsync(modId, fileVersionId, progress, cancellationToken);
+
+    public Task<List<PlatformModFile>> GetProtocolFilesAsync(string modId, CancellationToken cancellationToken = default)
+        => _nxm.GetFilesAsync(modId, cancellationToken);
+    public string GetWebsiteDownloadUrl(string modId, PlatformModFile file)
+    {
+        if (!NexusModsNxmLink.TryPositiveId(modId, out var mod) ||
+            !NexusModsNxmLink.TryPositiveId(file.WebsiteFileId ?? "", out var id) || file.Id != "nexus-v1-file:" + id)
+            throw new ArgumentException("所选文件缺少有效的网页编号，请重新检查更新。");
+        return $"https://www.nexusmods.com/helldivers2/mods/{mod}?tab=files&file_id={id}&nmm=1";
+    }
+    public ModProtocolTarget ReadProtocolTarget(string protocolLink)
+    {
+        var link = NexusModsNxmLink.Parse(protocolLink);
+        return new(Id, "helldivers2", link.ModId, link.FileId);
+    }
+    public Task<PlatformModFile> ResolveProtocolFileAsync(string modId, string protocolLink, CancellationToken cancellationToken = default)
+        => _nxm.ResolveAsync(modId, protocolLink, cancellationToken);
+    public Task<Stream> DownloadProtocolFileAsync(string modId, string fileId, string protocolLink,
+        IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
+        => _nxm.DownloadAsync(modId, fileId, protocolLink, progress, cancellationToken);
 }

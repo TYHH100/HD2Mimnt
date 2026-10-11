@@ -61,7 +61,9 @@ internal static class NexusModsMapper
 
     public static List<PlatformModFile> ToFiles(List<FileVersion> versions, string? version)
     {
-        return versions.Where(v => string.IsNullOrWhiteSpace(version) || v.Version == version)
+        var preferred = SelectDownloadVersion(versions);
+        return versions.Where(IsDownloadable).Where(v => string.IsNullOrWhiteSpace(version) || v.Version == version)
+            .OrderByDescending(v => v.Id == preferred?.Id).ThenByDescending(v => v.UploadedAt)
             .Select(v => new PlatformModFile
             {
                 // Downloads address the global version ID, not ModFile.id or game_scoped_id.

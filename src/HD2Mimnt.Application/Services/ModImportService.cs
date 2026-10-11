@@ -39,6 +39,27 @@ public class ModImportService
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
         IProgress<ModImportProgress>? progress = null)
     {
+        var mod = await PrepareModAsync(sourcePath, cancellationToken, progress);
+        var saved = false;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new(90, "保存模组", mod.Name, true));
+            await _modRepository.AddAsync(mod, cancellationToken);
+            saved = true;
+            progress?.Report(new(95, "模组已保存", mod.Name));
+            return mod.Id;
+        }
+        finally
+        {
+            if (!saved && Directory.Exists(mod.Path)) Directory.Delete(mod.Path, true);
+        }
+    }
+
+    /// <summary>准备独立副本，不落库；调用方取得成功结果后负责保留或清理。</summary>
+    internal async Task<Mod> PrepareModAsync(string sourcePath, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new(0, "检查源文件", Path.GetFileName(sourcePath)));
         _logger?.LogInformation("开始导入 Mod: {SourcePath}", sourcePath);
@@ -135,15 +156,12 @@ public class ModImportService
             { _logger?.LogWarning(ex, "BSL 依赖识别失败: {ModPath}", mod.Path); }
             mod.Hash = await ModHashService.CalculateAsync(targetPath, cancellationToken, progress);
 
-            // 保存到数据库
+            // 将准备好的副本交给调用方；更新不创建临时 Mod 行。
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(new(90, "保存模组", mod.Name, true));
-            await _modRepository.AddAsync(mod, cancellationToken);
             saved = true;
-            progress?.Report(new(95, "模组已保存", mod.Name));
 
             _logger?.LogInformation("Mod 导入成功: {ModName} ({ModId})", mod.Name, mod.Id);
-            return mod.Id;
+            return mod;
         }
         finally
         {

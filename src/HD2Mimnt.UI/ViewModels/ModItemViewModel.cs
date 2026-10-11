@@ -44,6 +44,27 @@ public partial class ModItemViewModel : ObservableObject
     public string Version => _mod.Version;
     public string Author => _mod.Author;
     public string Description => _mod.Description;
+    public ModPlatformLink? PlatformLink => _mod.PlatformLink;
+    public bool HasPlatformLink => PlatformLink != null;
+    public string PlatformLinkSummary => PlatformLink is { } link
+        ? $"Nexus Mods · {link.GameDomain} · {link.ModId}\n{link.Name ?? "API 未提供名称"}\n最新可用版本：{link.LatestVersion ?? "未知"}" : string.Empty;
+    public string PlatformLinkUrl => PlatformLink?.Url ?? string.Empty;
+
+    public void ApplyPlatformLink(Mod saved)
+    {
+        _mod.PlatformLink = saved.PlatformLink;
+        _mod.PlatformId = saved.PlatformId;
+        _mod.PlatformModId = saved.PlatformModId;
+        _mod.PlatformVersion = saved.PlatformVersion;
+        _mod.NexusModId = saved.NexusModId;
+        _mod.LastUpdateCheck = saved.LastUpdateCheck;
+        _mod.ModifiedAt = saved.ModifiedAt;
+        OnPropertyChanged(nameof(PlatformLink));
+        OnPropertyChanged(nameof(HasPlatformLink));
+        OnPropertyChanged(nameof(PlatformLinkSummary));
+        OnPropertyChanged(nameof(PlatformLinkUrl));
+        OnPropertyChanged(nameof(ModifiedAtDisplay));
+    }
     public string Path => _mod.Path;
     public ModCategory Category => _mod.Category;
     public ModStatus Status => _mod.Status;
@@ -116,7 +137,14 @@ public partial class ModItemViewModel : ObservableObject
     private bool _isDeployed;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHighlighted))]
     private bool _isSelected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHighlighted))]
+    private bool _isFocused;
+
+    public bool IsHighlighted => IsSelected || IsFocused;
 
 
     [ObservableProperty]

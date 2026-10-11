@@ -56,7 +56,6 @@
             <fa:FAInfoBadge Value="{Binding UnreadNotificationCount}" IsVisible="{Binding UnreadNotificationCount, Converter={StaticResource GreaterThanZeroConverter}}"
                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0" IsHitTestVisible="False"/>
           </Grid>
-          <Button x:Name="StartTutorialButton" Command="{Binding Tutorial.StartCommand}" Content="教程" ToolTip.Tip="打开功能教程"/>
         </StackPanel>
       </fa:FANavigationView.PaneFooter>
       <Border Background="{DynamicResource ContentFillBrush}">

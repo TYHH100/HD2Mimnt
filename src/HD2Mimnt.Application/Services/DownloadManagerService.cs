@@ -20,7 +20,8 @@ public class DownloadManagerService
     /// <summary>
     /// Starts a download task for a mod.
     /// </summary>
-    public Guid EnqueueDownload(string platformId, string modId, string targetPath)
+    public Guid EnqueueDownload(string platformId, string modId, string targetPath,
+        string? fileVersionId = null, IProgress<DownloadProgress>? progress = null, string? protocolLink = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
         var platform = _platformRegistry.GetPlatform(platformId);
@@ -28,6 +29,10 @@ public class DownloadManagerService
         {
             throw new InvalidOperationException($"Platform not found: {platformId}");
         }
+        if (protocolLink != null && (platform is not IModProtocolDownloadPlatform || string.IsNullOrWhiteSpace(fileVersionId)))
+            throw new NotSupportedException("此平台不支持网页协议授权下载。");
+        if (protocolLink == null && fileVersionId != null && platform is not IModFileDownloadPlatform)
+            throw new NotSupportedException("此平台不支持指定文件版本下载。");
 
         var taskId = Guid.NewGuid();
         var downloadTask = new DownloadTask
@@ -36,6 +41,7 @@ public class DownloadManagerService
             PlatformId = platformId,
             ModId = modId,
             TargetPath = targetPath,
+            FileVersionId = fileVersionId,
             Status = DownloadStatus.Queued,
             EnqueuedAt = DateTime.UtcNow
         };
@@ -43,7 +49,8 @@ public class DownloadManagerService
         _downloadTasks[taskId] = downloadTask;
 
         // Start download in background
-        _ = Task.Run(async () => await ExecuteDownloadAsync(downloadTask, platform));
+        // 临时授权只保存在执行闭包中，不写入任务历史或数据库。
+        _ = Task.Run(async () => await ExecuteDownloadAsync(downloadTask, platform, progress, protocolLink));
 
         return taskId;
     }
@@ -110,9 +117,9 @@ public class DownloadManagerService
     public void ClearCompleted()
     {
         var completedKeys = _downloadTasks
-            .Where(kvp => kvp.Value.Status == DownloadStatus.Completed ||
+            .Where(kvp => kvp.Value.ExecutionCompleted.Task.IsCompleted && (kvp.Value.Status == DownloadStatus.Completed ||
                          kvp.Value.Status == DownloadStatus.Failed ||
-                         kvp.Value.Status == DownloadStatus.Cancelled)
+                         kvp.Value.Status == DownloadStatus.Cancelled))
             .Select(kvp => kvp.Key)
             .ToList();
 
@@ -122,7 +129,8 @@ public class DownloadManagerService
         }
     }
 
-    private async Task ExecuteDownloadAsync(DownloadTask task, IModPlatform platform)
+    private async Task ExecuteDownloadAsync(DownloadTask task, IModPlatform platform, IProgress<DownloadProgress>? observer,
+        string? protocolLink)
     {
         string? temporaryPath = null;
         try
@@ -142,8 +150,8 @@ public class DownloadManagerService
             }
 
             // Get mod info first
-            var modInfo = await platform.GetModInfoAsync(task.ModId, task.CancellationTokenSource.Token);
-            task.ModName = modInfo.Name;
+            task.ModName = protocolLink != null ? task.ModId :
+                (await platform.GetModInfoAsync(task.ModId, task.CancellationTokenSource.Token)).Name;
 
             // Create progress reporter
             var progress = new DownloadProgressReporter(p =>
@@ -156,10 +164,15 @@ public class DownloadManagerService
                     task.TotalBytes = p.TotalBytes;
                     task.StatusMessage = p.StatusMessage;
                 }
+                observer?.Report(p);
             });
 
             // Download the mod
-            using var stream = await platform.DownloadModAsync(task.ModId, progress, task.CancellationTokenSource.Token);
+            using var stream = protocolLink != null
+                ? await ((IModProtocolDownloadPlatform)platform).DownloadProtocolFileAsync(task.ModId, task.FileVersionId!, protocolLink, progress, task.CancellationTokenSource.Token)
+                : task.FileVersionId is { } versionId
+                ? await ((IModFileDownloadPlatform)platform).DownloadFileAsync(task.ModId, versionId, progress, task.CancellationTokenSource.Token)
+                : await platform.DownloadModAsync(task.ModId, progress, task.CancellationTokenSource.Token);
             task.CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             // Save to file
@@ -202,6 +215,7 @@ public class DownloadManagerService
                     task.Status = DownloadStatus.Failed;
                     task.CompletedAt = DateTime.UtcNow;
                     task.ErrorMessage = ex.Message;
+                    task.Failure = ex;
                     task.StatusMessage = "Download failed";
                 }
             }
@@ -240,6 +254,7 @@ public class DownloadTask
     public string ModId { get; set; } = string.Empty;
     public string ModName { get; set; } = string.Empty;
     public string TargetPath { get; set; } = string.Empty;
+    public string? FileVersionId { get; set; }
     public DownloadStatus Status { get; set; }
     public double Progress { get; set; }
     public long DownloadedBytes { get; set; }
@@ -252,6 +267,7 @@ public class DownloadTask
 
     internal CancellationTokenSource? CancellationTokenSource { get; set; }
     internal TaskCompletionSource ExecutionCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal Exception? Failure { get; set; }
 }
 
 /// <summary>

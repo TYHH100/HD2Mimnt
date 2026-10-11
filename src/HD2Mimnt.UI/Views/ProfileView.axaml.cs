@@ -26,7 +26,7 @@ public partial class ProfileView : UserControl
     {
         InitializeComponent();
         // 右键事件在列表容器统一捕获，并包含已被子控件处理过的事件。
-        ModItemsControl.AddHandler(InputElement.PointerPressedEvent, ModList_PointerPressed,
+        ModItemsControl.AddHandler(InputElement.PointerReleasedEvent, ModList_ContextReleased,
             RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(KeyDownEvent, ModList_KeyDown, RoutingStrategies.Tunnel);
         ModItemsControl.AddHandler(PointerReleasedEvent, ModList_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -70,7 +70,7 @@ public partial class ProfileView : UserControl
     private void ModCard_ContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is not Border { DataContext: ProfileModViewModel mod } card
-            || DataContext is not ProfileViewModel vm || !mod.CanDrag) return;
+            || DataContext is not ProfileViewModel vm || (!mod.CanDrag && !mod.IsSeparator)) return;
 
         ShowModContextMenu(card, mod, vm);
         e.Handled = true;
@@ -78,8 +78,25 @@ public partial class ProfileView : UserControl
 
     private static void ShowModContextMenu(Border card, ProfileModViewModel mod, ProfileViewModel vm)
     {
+        if (mod.IsSeparator)
+        {
+            var entries = new List<object>
+            {
+                new ContextMenuItem(mod.IsUserSeparator ? "编辑分组名称与颜色" : "编辑分组颜色", vm.OpenRenameSeparatorCommand, "Edit") { CommandParameter = mod }
+            };
+            if (mod.IsUserSeparator)
+                entries.Add(new ContextMenuItem("删除分组", vm.RemoveSeparatorCommand, "Clean", isDanger: true) { CommandParameter = mod });
+            AppContextMenu.Show(entries, card);
+            return;
+        }
+
         AppContextMenu.Show(new List<object>
         {
+            new ContextMenuItem("在此处添加分组分隔符", vm.OpenAddSeparatorCommand, "Add")
+            {
+                CommandParameter = mod
+            },
+            AppContextMenu.Separator,
             new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
             {
                 CommandParameter = mod
@@ -169,7 +186,7 @@ public partial class ProfileView : UserControl
         => ComputeInsertionSlot(ProfileList, y);
 
     /// <summary>
-    /// 模组卡片按下：Ctrl+点击切换多选标记；普通按下时若未选中则清空其他选中（准备单卡拖动）。
+    /// Ctrl/Shift 共用模组库的选择规则；普通单击只聚焦，已选卡片延迟至松开清空以支持整组拖动。
     /// </summary>
     private void ModCard_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -177,11 +194,20 @@ public partial class ProfileView : UserControl
         _modPressedArgs = null;
         if (sender is not Border card || card.DataContext is not ProfileModViewModel mod) return;
         if (DataContext is not ProfileViewModel vm) return;
-        if (!mod.CanSelect) return;
+        if (!mod.CanDrag) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         // 命中开关/按钮等交互控件时不进入选择与拖拽逻辑
         if (IsInteractiveSource(e.Source as Visual, card)) return;
         ModItemsControl.Focus();
+
+        if (mod.IsUserSeparator)
+        {
+            _pressedMod = mod;
+            _modPressedArgs = e;
+            _modDragStartPoint = e.GetPosition(this);
+            e.Handled = true;
+            return;
+        }
 
         if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
@@ -190,22 +216,19 @@ public partial class ProfileView : UserControl
             return;
         }
 
-        vm.SetModSelectionAnchor(mod);
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            mod.IsSelected = !mod.IsSelected;
+            vm.ToggleModSelected(mod);
             e.Handled = true;
             return;
         }
 
-        if (!mod.IsSelected)
+        if (mod.IsSelected)
         {
-            foreach (var selected in vm.ProfileMods.Where(m => m.IsSelected))
-            {
-                selected.IsSelected = false;
-            }
-            mod.IsSelected = true;
+            vm.SetModSelectionAnchor(mod);
+            vm.FocusedMod = mod;
         }
+        else vm.FocusMod(mod);
 
         if (!mod.CanDrag) return;
         _pressedMod = mod;
@@ -217,7 +240,7 @@ public partial class ProfileView : UserControl
     private void ModList_KeyDown(object? sender, KeyEventArgs e)
     {
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen) return;
+            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
         if (e.Key == Key.Escape)
@@ -240,11 +263,11 @@ public partial class ProfileView : UserControl
 
     private void ModList_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        // 按下时保留多选以支持整组拖动；未开始拖动的普通点击在松开时收起为单选。
+        // 按下时保留多选以支持整组拖动；未开始拖动的普通点击只聚焦并退出批量选择。
         if (e.InitialPressMouseButton == MouseButton.Left && _pressedMod is { } clicked
             && _modPressedArgs != null && DataContext is ProfileViewModel vm)
         {
-            foreach (var mod in vm.ProfileMods) mod.IsSelected = ReferenceEquals(mod, clicked);
+            vm.FocusMod(clicked);
         }
         _pressedMod = null;
         _modPressedArgs = null;
@@ -258,16 +281,16 @@ public partial class ProfileView : UserControl
         vm.ClearModSelectionCommand.Execute(null);
     }
 
-    private void ModList_PointerPressed(object? sender, PointerPressedEventArgs e)
+    private void ModList_ContextReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.PointerUpdateKind != PointerUpdateKind.RightButtonPressed)
+        if (e.InitialPressMouseButton != MouseButton.Right)
             return;
 
         if (e.Source is not Visual source) return;
         var card = new[] { source }.Concat(source.GetVisualAncestors()).OfType<Border>()
-            .FirstOrDefault(border => border.Classes.Contains("mod-card"));
+            .FirstOrDefault(border => border.Classes.Contains("mod-card") || border.Classes.Contains("profile-separator"));
         if (card?.DataContext is not ProfileModViewModel mod
-            || DataContext is not ProfileViewModel vm || !mod.CanDrag) return;
+            || DataContext is not ProfileViewModel vm || (!mod.CanDrag && !mod.IsSeparator)) return;
 
         ShowModContextMenu(card, mod, vm);
         e.Handled = true;
@@ -390,7 +413,8 @@ public partial class ProfileView : UserControl
         }
 
         return movingIds.Count > 0 && DataContext is ProfileViewModel vm
-            && !vm.IsProfileModsLoading && movingIds.All(id => vm.ProfileMods.Any(mod => mod.ModId == id && mod.CanDrag));
+            && !vm.IsProfileModsLoading && movingIds.All(id => vm.ProfileMods.Concat(vm.ProfileSeparators)
+                .Any(mod => mod.ModId == id && mod.CanDrag));
     }
 
     private bool TryGetMovingProfileId(DragEventArgs e, out Guid profileId)
@@ -416,8 +440,9 @@ public partial class ProfileView : UserControl
     {
         var vm = (ProfileViewModel)DataContext!;
         var slot = ComputeModInsertIndex(y);
+        var expandedIds = vm.ExpandMovingRows(movingIds);
         // 自身或多选中的卡片不是插入锚点，继续寻找下一个非拖动项。
-        while (slot < vm.ProfileRows.Count && movingIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
+        while (slot < vm.ProfileRows.Count && expandedIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
         return (slot, slot < vm.ProfileRows.Count ? vm.ProfileRows[slot].ModId : null);
     }
 
@@ -430,7 +455,8 @@ public partial class ProfileView : UserControl
     private void BeginModDragPreview(IReadOnlyList<Guid> movingIds)
     {
         ClearSortPreview();
-        DimDragSources(ModItemsControl, data => data is ProfileModViewModel mod && movingIds.Contains(mod.ModId));
+        var expandedIds = ((ProfileViewModel)DataContext!).ExpandMovingRows(movingIds);
+        DimDragSources(ModItemsControl, data => data is ProfileModViewModel mod && expandedIds.Contains(mod.ModId));
     }
 
     private void DimDragSources(ItemsControl list, Func<object?, bool> isMoving)
@@ -457,15 +483,27 @@ public partial class ProfileView : UserControl
     private void UpdateModDragPreview(IReadOnlyList<Guid> movingIds, double y)
     {
         if (DataContext is not ProfileViewModel vm) return;
-        var moving = vm.ProfileMods.Where(mod => movingIds.Contains(mod.ModId)).ToArray();
+        var moving = vm.ProfileMods.Concat(vm.ProfileSeparators).Where(mod => movingIds.Contains(mod.ModId)).ToArray();
         if (moving.Length == 0) { HideSortPreview(); return; }
         var (slot, anchor) = GetModDropTarget(movingIds, y);
         if (!vm.CanMoveMods(movingIds, anchor)) { HideSortPreview(); return; }
-        var title = moving.Length == 1 ? moving[0].ModName : $"{moving[0].ModName} 等 {moving.Length} 个模组";
+        var title = moving.Length == 1 ? moving[0].IsUserSeparator
+            ? $"{moving[0].ModName} · 整组 {moving[0].GroupModCount} 个模组" : moving[0].ModName
+            : $"{moving[0].ModName} 等 {moving.Length} 个模组";
         var destination = anchor == Guid.Empty ? "松开放到 BSL 分隔符之前"
-            : anchor is { } id ? $"松开放到「{vm.ProfileMods.First(mod => mod.ModId == id).ModName}」之前"
+            : anchor is { } id ? $"松开放到「{vm.ProfileMods.Concat(vm.ProfileSeparators).First(mod => mod.ModId == id).ModName}」之前"
             : "松开放到列表末尾";
         ShowSortPreview(ModItemsControl, ModScrollViewer, slot, title, destination);
+    }
+
+    private void SeparatorMenu_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: ProfileModViewModel mod } button
+            || DataContext is not ProfileViewModel vm) return;
+        var card = button.GetVisualAncestors().OfType<Border>()
+            .FirstOrDefault(border => border.Classes.Contains("profile-separator"));
+        if (card != null) ShowModContextMenu(card, mod, vm);
+        e.Handled = true;
     }
 
     private void ShowSortPreview(ItemsControl list, Control viewport, int slot, string title, string destination)

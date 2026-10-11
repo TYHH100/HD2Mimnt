@@ -19,11 +19,23 @@ public class NexusModsPlatformAdapterTests : IDisposable
     public NexusModsPlatformAdapterTests()
     {
         _client = new HttpClient(_handler);
-        _platform = new NexusModsPlatformAdapter(_client);
+        _platform = new NexusModsPlatformAdapter(_client, applicationVersion: "0.1.0");
         _platform.SetApiKey("test-key");
     }
 
     public void Dispose() => _client.Dispose();
+
+    [Fact]
+    public void WebsiteDownload_ShouldUseWebsiteFileIdAndExposeOnlyPublicProtocolTarget()
+    {
+        var file = new PlatformModFile { Id = "nexus-v1-file:68239", WebsiteFileId = "68239" };
+        Assert.Equal("https://www.nexusmods.com/helldivers2/mods/16633?tab=files&file_id=68239&nmm=1",
+            _platform.GetWebsiteDownloadUrl("16633", file));
+        Assert.Throws<ArgumentException>(() => _platform.GetWebsiteDownloadUrl("16633", new PlatformModFile { Id = "global-version-id" }));
+        var target = _platform.ReadProtocolTarget(NxmLink);
+        Assert.Equal(new ModProtocolTarget("nexusmods", "helldivers2", "123", "456"), target);
+        Assert.DoesNotContain("test-free-key", JsonSerializer.Serialize(target));
+    }
 
     [Fact]
     public async Task DeveloperCredentials_Should_ApplyToRegisteredPlatformAndRejectInvalidReplacement()
@@ -33,15 +45,15 @@ public class NexusModsPlatformAdapterTests : IDisposable
         registry.RegisterPlatform(_platform);
         var service = new NexusModsTestService(registry);
         Assert.False(service.IsAuthenticated);
-        service.ApplyApiKey("  developer-test-key  ");
+        await service.ApplyApiKeyAsync("  developer-test-key  ");
         Assert.True(service.IsAuthenticated);
-        Assert.Throws<ArgumentException>(() => service.ApplyApiKey(" "));
-        Assert.Throws<ArgumentException>(() => service.ApplyApiKey("invalid\r\nkey"));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ApplyApiKeyAsync(" "));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ApplyApiKeyAsync("invalid\r\nkey"));
         SetupMod();
         await registry.GetPlatform("nexusmods")!.GetModInfoAsync("123");
         Assert.Equal("developer-test-key", _handler.Requests.Single().ApiKey);
         Assert.False(_client.DefaultRequestHeaders.Contains("apikey"));
-        service.ClearApiKey();
+        await service.ClearApiKeyAsync();
         Assert.False(service.IsAuthenticated);
         await Assert.ThrowsAsync<InvalidOperationException>(() => _platform.GetModInfoAsync("123"));
         Assert.Single(_handler.Requests);
@@ -260,16 +272,28 @@ public class NexusModsPlatformAdapterTests : IDisposable
     }
 
     [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.NotFound)]
     public async Task Api_Error_Should_Preserve_Status_And_Problem_Details(HttpStatusCode status)
     {
         _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
             """{"type":"about:blank","title":"Access denied","status":403,"detail":"This file is unavailable.","instance":"/mods/123"}""", status, "application/problem+json");
-        var error = await Assert.ThrowsAsync<HttpRequestException>(() => _platform.GetModInfoAsync("123"));
+        var error = await Assert.ThrowsAsync<PlatformRequestException>(() => _platform.GetModInfoAsync("123"));
         Assert.Equal(status, error.StatusCode);
+        Assert.Equal("获取模组信息", error.Operation);
         Assert.Contains("Access denied", error.Message);
         Assert.Contains("This file is unavailable.", error.Message);
+    }
+
+    [Fact]
+    public async Task Api_Error_ShouldHideCredentialEchoInServerReason()
+    {
+        _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
+            """{"title":"Invalid credential","detail":"Rejected test-key"}""", HttpStatusCode.Unauthorized);
+        var error = await Assert.ThrowsAsync<PlatformRequestException>(() => _platform.GetModInfoAsync("123"));
+        Assert.DoesNotContain("test-key", error.Message);
+        Assert.Contains("Rejected [已隐藏]", error.ServerReason);
     }
 
     [Fact]
@@ -304,6 +328,114 @@ public class NexusModsPlatformAdapterTests : IDisposable
     private void SetupMod() => _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
         """{"data":{"id":"global-mod","game_scoped_id":"123","game_id":"1","name":"Test Mod"}}""");
 
+    private const string NxmLink = "nxm://helldivers2/mods/123/files/456?key=test-free-key&expires=4102444800&user_id=789";
+    private void LegacyJson(string path, string json, HttpStatusCode status = HttpStatusCode.OK)
+        => _handler.Routes[(HttpMethod.Get, "https://api.nexusmods.com/v1" + path)] =
+            () => new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+    private void SetupNxm()
+    {
+        LegacyJson("/users/validate.json", """{"user_id":789,"is_premium":false}""");
+        LegacyJson("/games/helldivers2/mods/123/files/456.json", """{"file_id":456,"category_id":1,"name":"Free main file","file_name":"free-main.7z","version":"2.0","size_kb":10}""");
+        LegacyJson("/games/helldivers2/mods/123/files/456/download_link.json?key=test-free-key&expires=4102444800",
+            """[{"URI":"https://cdn.example.com/free?signature=test","name":"CDN","short_name":"CDN"}]""");
+        _handler.Routes[(HttpMethod.Get, "https://cdn.example.com/free?signature=test")] =
+            () => new(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[] { 1, 2, 3 }) };
+    }
+
+    [Fact]
+    public async Task FreeUpdateCheck_ShouldReadWebsiteFilesWithoutRequestingDownload()
+    {
+        LegacyJson("/games/helldivers2/mods/123/files.json", """{"files":[{"file_id":111,"category_id":3,"name":"Optional","version":"9.0","uploaded_timestamp":200},{"file_id":456,"category_id":1,"name":"Main","version":"2.0","uploaded_timestamp":100},{"file_id":222,"category_id":4,"name":"Old","version":"1.0"}]}""");
+        var files = await _platform.GetProtocolFilesAsync("123");
+        Assert.Equal(new[] { "456", "111" }, files.Select(file => file.WebsiteFileId));
+        Assert.Equal("nexus-v1-file:456", files[0].Id);
+        Assert.Single(_handler.Requests);
+    }
+
+    [Fact]
+    public async Task NxmDownload_ShouldVerifyAccountAndExactFileAndUseWebsiteAuthorization()
+    {
+        SetupNxm();
+        var file = await _platform.ResolveProtocolFileAsync("123", NxmLink);
+        Assert.Equal("nexus-v1-file:456", file.Id);
+        Assert.Equal("456", file.WebsiteFileId);
+        Assert.Equal("free-main.7z", file.FileName);
+        Assert.Equal("2.0", file.Version);
+        using var stream = await _platform.DownloadProtocolFileAsync("123", file.Id, NxmLink);
+        using var copy = new MemoryStream();
+        await stream.CopyToAsync(copy);
+        Assert.Equal(new byte[] { 1, 2, 3 }, copy.ToArray());
+        Assert.Contains(_handler.Requests, r => r.Url.EndsWith("download_link.json?key=test-free-key&expires=4102444800"));
+        Assert.DoesNotContain(_handler.Requests, r => r.Method == HttpMethod.Post || r.Url.Contains("/v3/"));
+        Assert.Null(_handler.Requests[^1].ApiKey);
+        Assert.Null(_handler.Requests[^1].Authorization);
+    }
+
+    [Theory]
+    [InlineData("nxm://skyrim/mods/123/files/456?key=key&expires=4102444800&user_id=789")]
+    [InlineData("nxm://helldivers2/mods/999/files/456?key=key&expires=4102444800&user_id=789")]
+    [InlineData("nxm://helldivers2/mods/123/files/0?key=key&expires=4102444800&user_id=789")]
+    [InlineData("nxm://helldivers2/mods/123/files/456?key=key&expires=4102444800")]
+    [InlineData("nxm://helldivers2/mods/123/files/456?key=key&key=second&expires=4102444800&user_id=789")]
+    [InlineData("https://helldivers2/mods/123/files/456?key=key&expires=4102444800&user_id=789")]
+    public async Task NxmResolve_ShouldRejectInvalidLinkBeforeRequest(string input)
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _platform.ResolveProtocolFileAsync("123", input));
+        Assert.Empty(_handler.Requests);
+    }
+
+    [Fact]
+    public async Task NxmResolve_ShouldRejectExpiredOrOtherAccountAndDownloadMismatch()
+    {
+        SetupNxm();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _platform.ResolveProtocolFileAsync("123", NxmLink.Replace("4102444800", "1")));
+        Assert.Empty(_handler.Requests);
+        await Assert.ThrowsAsync<ArgumentException>(() => _platform.DownloadProtocolFileAsync("123", "nexus-v1-file:999", NxmLink));
+        Assert.Empty(_handler.Requests);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => _platform.ResolveProtocolFileAsync("123", NxmLink.Replace("user_id=789", "user_id=790")));
+        Assert.Contains("同一账户", error.Message);
+        Assert.Single(_handler.Requests);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Gone)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    public async Task NxmDownload_ShouldPreserveFailureReasonAndHideTemporaryKey(HttpStatusCode status)
+    {
+        SetupNxm();
+        LegacyJson("/games/helldivers2/mods/123/files/456/download_link.json?key=test-free-key&expires=4102444800",
+            """{"message":"Rejected temporary key test-free-key"}""", status);
+        var error = await Assert.ThrowsAsync<PlatformRequestException>(() => _platform.DownloadProtocolFileAsync("123", "nexus-v1-file:456", NxmLink));
+        Assert.Equal(status, error.StatusCode);
+        Assert.Equal("获取网页授权下载链接", error.Operation);
+        Assert.Contains("Rejected temporary key [已隐藏]", error.ServerReason);
+        Assert.DoesNotContain("test-free-key", error.Message);
+    }
+
+    [Fact]
+    public async Task DownloadFileAsync_ShouldUseSelectedOptionalVersionInsteadOfPrimary()
+    {
+        SetupFiles();
+        _handler.Json(HttpMethod.Post, "/mod-file-versions/version-optional/download-repacked",
+            """{"download_url":"https://cdn.example.com/optional"}""");
+        _handler.Routes[(HttpMethod.Get, "https://cdn.example.com/optional")] =
+            () => new(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[] { 1, 2 }) };
+        using var stream = await _platform.DownloadFileAsync("123", "version-optional");
+        Assert.Contains(_handler.Requests, r => r.Method == HttpMethod.Post && r.Url.EndsWith("version-optional/download-repacked"));
+        Assert.DoesNotContain(_handler.Requests, r => r.Url.EndsWith("version-primary/download-repacked"));
+        Assert.Null(_handler.Requests[^1].ApiKey);
+    }
+
+    [Theory]
+    [InlineData("version-archived")]
+    [InlineData("removed-version")]
+    public async Task DownloadFileAsync_ShouldRejectUnavailableSelectedVersion(string versionId)
+    {
+        SetupFiles();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _platform.DownloadFileAsync("123", versionId));
+        Assert.DoesNotContain(_handler.Requests, r => r.Method == HttpMethod.Post);
+    }
+
     private void SetupTrending() => _handler.Json(HttpMethod.Get, "/games/helldivers2/trending-mods",
         """{"data":{"mods":[{"name":"Weapon","author":"Author","summary":null,"picture_url":null,"mod_page_url":"https://www.nexusmods.com/helldivers2/mods/456"},{"name":"Armor","author":null,"summary":"Armor description","picture_url":null,"mod_page_url":"https://www.nexusmods.com/helldivers2/mods/123"}]}}""");
 
@@ -321,7 +453,8 @@ public class NexusModsPlatformAdapterTests : IDisposable
         public void Report(DownloadProgress value) => Last = value;
     }
 
-    private sealed record Request(HttpMethod Method, string Url, string? ApiKey, string? Authorization, string? ApplicationName);
+    private sealed record Request(HttpMethod Method, string Url, string? ApiKey, string? Authorization,
+        string? ApplicationName, string? ApplicationVersion);
 
     private sealed class ContractHandler : HttpMessageHandler
     {
@@ -338,7 +471,13 @@ public class NexusModsPlatformAdapterTests : IDisposable
             Requests.Add(new(request.Method, url,
                 request.Headers.TryGetValues("apikey", out var keys) ? keys.Single() : null,
                 request.Headers.Authorization?.ToString(),
-                request.Headers.TryGetValues("Application-Name", out var names) ? names.Single() : null));
+                request.Headers.TryGetValues("Application-Name", out var names) ? names.Single() : null,
+                request.Headers.TryGetValues("Application-Version", out var versions) ? versions.Single() : null));
+            if (url.StartsWith(Api + "/", StringComparison.Ordinal))
+            {
+                Assert.Equal("HD2Mimnt", Requests[^1].ApplicationName);
+                Assert.Equal("0.1.0", Requests[^1].ApplicationVersion);
+            }
             Assert.True(Routes.TryGetValue((request.Method, url), out var response), $"Unexpected request: {request.Method} {url}");
             return Task.FromResult(response!());
         }

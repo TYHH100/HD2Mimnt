@@ -101,10 +101,24 @@ public partial class App : Avalonia.Application
             }
 
             // 初始化 ViewModel - 使用异步启动避免死锁
-            _ = mainViewModel.InitializeAsync();
+            _ = InitializeMainWindowAsync(mainViewModel, mainWindow);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
+    {
+        await main.InitializeAsync();
+        if (Program.ProtocolRegistrationError is { } error)
+            ServiceProvider?.GetRequiredService<NotificationService>().ShowError(error, "N 网链接接收");
+        Program.ProtocolHost?.SetReceiver(value => Dispatcher.UIThread.Post(() =>
+        {
+            if (!window.IsVisible) return;
+            if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+            window.Activate();
+            main.ReceiveBrowserProtocolLink(value);
+        }));
     }
 
     /// <summary>关闭开屏；两个触发路径（Opened / 兜底计时器）先到者生效，保证幂等。</summary>
@@ -196,6 +210,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginRepository, PluginRepository>();
         services.AddSingleton<IPluginPermissionRepository, PluginPermissionRepository>();
         services.AddSingleton<IPluginExecutionRepository, PluginExecutionRepository>();
+        services.AddSingleton<IPlatformCredentialStore, PlatformCredentialStore>();
         services.AddSingleton<IPluginHostManager, PluginHostManager>();
 
         // 图片服务
@@ -218,7 +233,8 @@ public partial class App : Avalonia.Application
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("github-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddSingleton(sp => new NexusModsPlatformAdapter(
-            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-api"), sp.GetRequiredService<IHttpDownloadService>()));
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-api"),
+            sp.GetRequiredService<IHttpDownloadService>(), typeof(App).Assembly.GetName().Version!.ToString(3)));
         services.AddSingleton(sp => new GitHubPlatformAdapter(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("github-api"), sp.GetRequiredService<IHttpDownloadService>()));
         services.AddSingleton<IPlatformRegistry>(sp =>
@@ -230,6 +246,9 @@ public partial class App : Avalonia.Application
         });
         services.AddSingleton<DownloadManagerService>();
         services.AddSingleton<NexusModsTestService>();
+        services.AddSingleton<ModLinkService>();
+        services.AddSingleton<ModOnlineService>();
+        services.AddSingleton<IWebsiteDownloadLauncher, WebsiteDownloadLauncher>();
 
         // 应用层
         services.AddSingleton(sp => new ModService(
@@ -308,7 +327,10 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<IConfirmationService>(),
             sp.GetRequiredService<ImagePreviewService>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ModLinkService>(),
+            sp.GetRequiredService<ModOnlineService>(),
+            sp.GetRequiredService<IWebsiteDownloadLauncher>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),

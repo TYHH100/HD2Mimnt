@@ -28,7 +28,629 @@ namespace HD2Mimnt.Tests.UI;
 public sealed class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
-    public async Task DevTools_ShouldApplyAndClearSessionApiKeyThroughActualButtons()
+    public async Task ProfileSeparators_ShouldAddCollapseExpandAndDropGroupsThroughActualView()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        await profiles.AddSeparatorAsync(profileId, "武器", 0);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var vm = main.ProfileViewModel;
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            void Click(Control control)
+            {
+                Layout();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            Click(view.FindControl<Button>("AddProfileSeparatorButton")!);
+            Assert.True(vm.IsSeparatorDialogOpen);
+            view.FindControl<TextBox>("SeparatorNameInput")!.Text = "护甲";
+            Click(view.FindControl<CheckBox>("UseThemeSeparatorColor")!);
+            var picker = view.FindControl<ColorPicker>("SeparatorColorPicker")!;
+            Assert.True(picker.IsEffectivelyEnabled);
+            Assert.True(picker.Bounds.Width > 0);
+            picker.Color = Color.Parse("#E07020");
+            Click(view.FindControl<Button>("SaveProfileSeparatorButton")!);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (vm.ConfirmSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+            Assert.False(vm.IsSeparatorDialogOpen);
+            Assert.Equal(2, vm.ProfileSeparators.Count);
+            var armor = vm.ProfileSeparators.Single(row => row.ModName == "护甲");
+            Assert.Equal("#E07020", armor.SeparatorColor);
+            Assert.Equal("#E07020", (await profiles.GetProfileByIdAsync(profileId))!.Separators.Single(row => row.Id == armor.ModId).Color);
+            var last = vm.ProfileMods.Last();
+            await vm.MoveModsAsync(new[] { last.ModId }, Guid.Empty);
+            var weapons = vm.ProfileSeparators.Single(row => row.ModName == "武器");
+            Assert.Equal(2, weapons.GroupModCount);
+            Layout();
+            Button Toggle(ProfileModViewModel group) => view.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Classes.Contains("group-toggle") && button.DataContext == group);
+            Click(Toggle(weapons));
+            while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+            Layout();
+            Assert.True(weapons.IsCollapsed);
+            Assert.Single(vm.VisibleProfileMods);
+            Assert.Equal(last.ModId, vm.VisibleProfileMods[0].ModId);
+            Click(Toggle(weapons));
+            while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+            Layout();
+            Assert.False(weapons.IsCollapsed);
+            Assert.Equal(3, vm.VisibleProfileMods.Count);
+
+            var list = view.FindControl<ItemsControl>("ModItemsControl")!;
+            var firstContainer = (Control)list.ContainerFromIndex(0)!;
+            var data = new DataTransfer();
+            data.Add(DataTransferItem.CreateText(armor.ModId.ToString()));
+            list.RaiseEvent(new DragEventArgs(DragDrop.DropEvent, data, list,
+                new Point(5, firstContainer.TranslatePoint(default, list)!.Value.Y), KeyModifiers.None));
+            // Drop 启动异步保存，等持久化的分隔符位置反映这次移动。
+            while ((await profiles.GetProfileByIdAsync(profileId))!.Separators.First().Id != armor.ModId)
+                await Task.Delay(10, timeout.Token);
+            Assert.Equal(new[] { armor.ModId, weapons.ModId }, vm.ProfileSeparators.Select(row => row.ModId));
+            Assert.Equal(last.ModId, vm.ProfileMods[0].ModId);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task LuaSeparator_ShouldEditColorAndCollapseThroughActualViewInBothDirections()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var repository = scope.Services.GetRequiredService<HD2Mimnt.Core.Interfaces.IModRepository>();
+        var profileId = await profiles.CreateProfileAsync("固定分组颜色");
+        await profiles.SetActiveProfileAsync(profileId);
+        var ordinary = (await repository.GetAllAsync()).First();
+        await profiles.AddModToProfileAsync(profileId, ordinary.Id);
+        foreach (var role in new[] { HD2Mimnt.Core.Enums.BslModRole.Dependency,
+                     HD2Mimnt.Core.Enums.BslModRole.Loader, HD2Mimnt.Core.Enums.BslModRole.SmoothBoot })
+        {
+            var mod = new Mod
+            {
+                Id = Guid.NewGuid(), Name = $"Color {role}", Version = "1.0",
+                Path = Path.Combine(scope.Root, Guid.NewGuid().ToString()), BslRole = role,
+                BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion
+            };
+            await repository.AddAsync(mod);
+            await profiles.AddModToProfileAsync(profileId, mod.Id);
+        }
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var vm = main.ProfileViewModel;
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        var window = new MainWindow { DataContext = main, Width = 1200, Height = 1000 };
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            void Click(Control control)
+            {
+                Layout();
+                var root = TopLevel.GetTopLevel(control)!;
+                root.UpdateLayout();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), root)!.Value;
+                root.MouseMove(point);
+                root.MouseDown(point, MouseButton.Left);
+                root.MouseUp(point, MouseButton.Left);
+                Layout();
+            }
+            foreach (var bottomToTop in new[] { false, true })
+            {
+                await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, bottomToTop ? "BottomToTop" : "TopToBottom");
+                await vm.LoadProfilesCommand.ExecuteAsync(null);
+                Layout();
+                var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+                var group = vm.ProfileRows.Single(row => row.IsSeparator);
+                var card = view.GetVisualDescendants().OfType<Border>()
+                    .Single(border => border.Classes.Contains("profile-separator") && border.DataContext == group);
+                Click(card.GetVisualDescendants().OfType<Button>().Single(button => !button.Classes.Contains("group-toggle")));
+                var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+                Click(Assert.IsType<FAMenuFlyoutItem>(Assert.Single(menu.Items)));
+                Assert.True(vm.IsSeparatorDialogOpen);
+                Assert.True(view.FindControl<TextBox>("SeparatorNameInput")!.IsReadOnly);
+                if (vm.UseDefaultSeparatorColor) Click(view.FindControl<CheckBox>("UseThemeSeparatorColor")!);
+                view.FindControl<ColorPicker>("SeparatorColorPicker")!.Color = Color.Parse("#A050D0");
+                Click(view.FindControl<Button>("SaveProfileSeparatorButton")!);
+                while (vm.ConfirmSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+                Assert.False(vm.IsSeparatorDialogOpen);
+                Assert.Equal("#A050D0", group.SeparatorColor);
+                Layout();
+                card = view.GetVisualDescendants().OfType<Border>()
+                    .Single(border => border.Classes.Contains("profile-separator") && border.DataContext == group);
+                var marker = card.GetVisualDescendants().OfType<Border>()
+                    .Single(border => border.Background is SolidColorBrush brush && brush.Color == Color.Parse("#A050D0"));
+                Assert.True(marker.IsEffectivelyVisible);
+                Assert.True(marker.Bounds.Height > 0);
+                var before = (await profiles.GetProfileByIdAsync(profileId))!.Mods
+                    .Select(mod => (mod.ModId, mod.Enabled, mod.Order)).ToArray();
+                var toggle = card.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("group-toggle"));
+                Click(toggle);
+                while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+                Assert.True(group.IsCollapsed);
+                Assert.Equal(ordinary.Id, Assert.Single(vm.VisibleProfileMods).ModId);
+                Assert.Equal(before, (await profiles.GetProfileByIdAsync(profileId))!.Mods.Select(mod => (mod.ModId, mod.Enabled, mod.Order)));
+                await vm.LoadProfilesCommand.ExecuteAsync(null);
+                Layout();
+                group = vm.ProfileRows.Single(row => row.IsSeparator);
+                Assert.True(group.IsCollapsed);
+                Assert.Equal("#A050D0", group.SeparatorColor);
+                Click(view.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("group-toggle") && button.DataContext == group));
+                while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
+                Assert.False(group.IsCollapsed);
+                Assert.Equal(4, vm.VisibleProfileMods.Count);
+            }
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task FreeAccountUpdate_ShouldRequireWebsiteAuthorizationAndReplaceOriginalWithoutRepackedApi()
+    {
+        using var handler = new ModLinkApiHandler();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, nexusHandler: handler);
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        var target = library.FilteredMods[0];
+        var link = new ModPlatformLink("nexusmods", "helldivers2", "16633", "https://www.nexusmods.com/helldivers2/mods/16633");
+        var original = await scope.Services.GetRequiredService<ModLinkService>().SaveAsync(target.Id, link);
+        target.ApplyPlatformLink(original);
+        main.SelectedTabIndex = 1;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            await library.OpenModOnlineCommand.ExecuteAsync(target);
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            var online = library.ModOnline!;
+            Assert.True(online.UseWebsiteAuthorization);
+            Assert.Equal("456", online.SelectedFile!.WebsiteFileId);
+            Assert.Contains("自动打开", online.Message);
+            Assert.Null(view.FindControl<TextBox>("NxmDownloadLinkInput"));
+            view.FindControl<ComboBox>("OnlineFileSelector")!.SelectedItem = online.Files[1];
+            Layout();
+            var update = view.FindControl<Button>("UpdateOnlineModButton")!;
+            Assert.True(update.IsEffectivelyEnabled);
+            var p = update.TranslatePoint(new Point(20, 12), window)!.Value;
+            window.MouseDown(p, MouseButton.Left);
+            window.MouseUp(p, MouseButton.Left);
+            Assert.True(online.IsWaitingForWebsite);
+            Assert.False(online.CanDownload);
+            Assert.Equal("https://www.nexusmods.com/helldivers2/mods/16633?tab=files&file_id=457&nmm=1",
+                scope.WebsiteLauncher.Urls.Single());
+            const string authorization = "nxm://helldivers2/mods/16633/files/457?key=test-ui-free-key&expires=4102444800&user_id=789";
+            main.ReceiveBrowserProtocolLink(authorization.Replace("/mods/16633/", "/mods/999/"));
+            Assert.Contains("另一个模组", online.Message);
+            Assert.True(online.IsWaitingForWebsite);
+            main.ReceiveBrowserProtocolLink(authorization.Replace("/files/457", "/files/456"));
+            Assert.Contains("另一个文件", online.Message);
+            main.ReceiveBrowserProtocolLink(authorization.Replace("4102444800", "1"));
+            Assert.Contains("已过期", online.Message);
+            Assert.Empty(scope.Services.GetRequiredService<DownloadManagerService>().GetAllDownloads());
+            // 浏览器启动第二个进程时，经真实管道转发到持有密钥和待处理动作的原窗口。
+            var instanceScope = "ui-protocol-" + Guid.NewGuid();
+            using var primary = new BrowserProtocolHost(instanceScope);
+            using var secondary = new BrowserProtocolHost(instanceScope);
+            primary.SetReceiver(value => Dispatcher.UIThread.Post(() => main.ReceiveBrowserProtocolLink(value)));
+            Assert.True(await secondary.ForwardAsync(BrowserProtocolHost.GetProtocolArgument(new[] { authorization })));
+            Layout();
+            await online.UpdateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            Layout();
+            Assert.Equal(1, main.SelectedTabIndex);
+            Assert.False(online.TryReceiveProtocolLink(authorization));
+            Assert.Single(scope.Services.GetRequiredService<DownloadManagerService>().GetAllDownloads());
+            Assert.Contains("已替换", online.Message);
+            Assert.Equal("3.0", library.FilteredMods.Single(mod => mod.Id == target.Id).Version);
+            Assert.False(Directory.Exists(original.Path));
+            var saved = (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!;
+            Assert.Equal("457", saved.PlatformLink!.InstalledWebsiteFileId);
+            Assert.Null(saved.PlatformLink.InstalledFileVersionId);
+            Assert.DoesNotContain("test-ui-free-key", System.Text.Json.JsonSerializer.Serialize(saved));
+            Assert.DoesNotContain("test-ui-free-key", System.Text.Json.JsonSerializer.Serialize(scope.Services.GetRequiredService<DownloadManagerService>().GetAllDownloads()));
+            Assert.DoesNotContain(handler.Requests, path => path.Contains("/v3/") || path.Contains("download-repacked"));
+            await online.CloseCommand.ExecuteAsync(null);
+            Assert.False(online.IsWaitingForWebsite);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task WebsiteAuthorization_ShouldCancelIgnoreLateCallbackAndContinueArchiveDownloadOnly()
+    {
+        using var handler = new ModLinkApiHandler();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, nexusHandler: handler);
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        var target = library.FilteredMods[0];
+        var link = new ModPlatformLink("nexusmods", "helldivers2", "16633", "https://www.nexusmods.com/helldivers2/mods/16633");
+        target.ApplyPlatformLink(await scope.Services.GetRequiredService<ModLinkService>().SaveAsync(target.Id, link));
+        const string authorization = "nxm://helldivers2/mods/16633/files/457?key=test-ui-free-key&expires=4102444800&user_id=789";
+        var online = library.ModOnline!;
+        // 冷启动/无待处理动作时只提示，不修改库或创建下载。
+        main.ReceiveBrowserProtocolLink(authorization);
+        Assert.Contains(scope.Services.GetRequiredService<NotificationService>().GetRecentNotifications(), n => n.Message.Contains("没有等待"));
+        await online.OpenAsync(target);
+        online.SelectedFile = online.Files[1];
+        var update = online.UpdateCommand.ExecuteAsync(null);
+        Assert.True(online.IsWaitingForWebsite);
+        online.CancelCommand.Execute(null);
+        Assert.False(online.TryReceiveProtocolLink(authorization));
+        await update;
+        Assert.False(online.IsBusy);
+        Assert.Equal("1.0.0", (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.Version);
+        Assert.Empty(scope.Services.GetRequiredService<DownloadManagerService>().GetAllDownloads());
+        var path = Path.Combine(scope.Root, "download.zip");
+        var wrongAccount = online.DownloadAsync(path);
+        Assert.True(online.TryReceiveProtocolLink(authorization.Replace("user_id=789", "user_id=790")));
+        await wrongAccount;
+        Assert.Contains("账户不同", online.Message);
+        Assert.False(File.Exists(path));
+        scope.WebsiteLauncher.FailNext = true;
+        await online.DownloadAsync(path);
+        Assert.Contains("浏览器无法打开", online.Message);
+        Assert.False(online.IsWaitingForWebsite);
+        var staleSelection = online.DownloadAsync(path);
+        var requestedFile = online.SelectedFile;
+        online.SelectedFile = online.Files[0];
+        Assert.False(online.TryReceiveProtocolLink(authorization));
+        await staleSelection;
+        Assert.False(File.Exists(path));
+        online.SelectedFile = requestedFile;
+        var download = online.DownloadAsync(path);
+        Assert.True(online.TryReceiveProtocolLink(authorization));
+        Assert.False(online.TryReceiveProtocolLink(authorization));
+        await download;
+        using (var archive = ZipFile.OpenRead(path))
+            Assert.NotNull(archive.GetEntry("0123456789abcdef.patch_0"));
+        Assert.Equal("1.0.0", (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.Version);
+        var waiting = online.UpdateCommand.ExecuteAsync(null);
+        await online.CloseCommand.ExecuteAsync(null);
+        await waiting;
+        Assert.False(online.IsOpen);
+        Assert.False(online.TryReceiveProtocolLink(authorization));
+    }
+
+    [AvaloniaFact]
+    public async Task ModPlatformErrors_ShouldShowStatusFailedStepAndServerReason()
+    {
+        using var handler = new ModLinkApiHandler();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, nexusHandler: handler);
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
+        var library = scope.Services.GetRequiredService<LibraryViewModel>();
+        library.ModOnline!.UseWebsiteAuthorization = false;
+        await library.InitializeAsync();
+        var target = library.FilteredMods[0];
+        var link = new ModPlatformLink("nexusmods", "helldivers2", "16633", "https://www.nexusmods.com/helldivers2/mods/16633");
+        target.ApplyPlatformLink(await scope.Services.GetRequiredService<ModLinkService>().SaveAsync(target.Id, link));
+        var window = new Window { Content = new LibraryView { DataContext = library }, Width = 1000, Height = 800 };
+        try
+        {
+            window.Show();
+            handler.FailurePath = "/v3/games/helldivers2/mods/16633";
+            handler.FailureStatus = System.Net.HttpStatusCode.Unauthorized;
+            handler.FailureReason = "API key has been revoked.";
+            library.ModLink!.Open(target);
+            await library.ModLink.FetchCommand.ExecuteAsync(null);
+            Assert.Contains("获取模组信息失败（HTTP 401）", library.ModLink.Message);
+            Assert.Contains("更多 → 开发工具", library.ModLink.Message);
+            Assert.Contains(handler.FailureReason, library.ModLink.Message);
+            library.ModLink.CloseCommand.Execute(null);
+
+            handler.FailurePath = "/v3/mods/nexus_global_16633/files";
+            handler.FailureStatus = System.Net.HttpStatusCode.Forbidden;
+            handler.FailureReason = "This mod is not accessible to this account.";
+            await library.OpenModOnlineCommand.ExecuteAsync(target);
+            var online = library.ModOnline!;
+            Assert.Contains("获取模组文件列表失败（HTTP 403）", online.Message);
+            Assert.Contains(handler.FailureReason, online.Message);
+            Assert.DoesNotContain("下载权限", online.Message);
+
+            handler.FailurePath = null;
+            await online.CheckCommand.ExecuteAsync(null);
+            online.SelectedFile = online.Files[1];
+            handler.FailurePath = "/v3/mod-file-versions/version-optional/download-repacked";
+            handler.FailureReason = "Premium membership is required for this download.";
+            await online.UpdateCommand.ExecuteAsync(null);
+            Assert.Contains("获取下载链接失败（HTTP 403）", online.Message);
+            Assert.Contains("网页授权下载", online.Message);
+            Assert.Contains(handler.FailureReason, online.Message);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text == online.Message);
+
+            handler.FailureReason = null;
+            await online.UpdateCommand.ExecuteAsync(null);
+            Assert.Contains("服务器未提供具体原因", online.Message);
+            Assert.Equal("1.0.0", (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.Version);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task LibraryOnlineUpdate_ShouldUseRightClickAndReplaceOriginalThroughActualButton()
+    {
+        using var handler = new ModLinkApiHandler();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, nexusHandler: handler);
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        library.ModOnline!.UseWebsiteAuthorization = false;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var target = library.FilteredMods[0];
+        var linkService = scope.Services.GetRequiredService<ModLinkService>();
+        var link = await linkService.FetchAsync("https://www.nexusmods.com/helldivers2/mods/16633");
+        var saved = await linkService.SaveAsync(target.Id, link);
+        target.ApplyPlatformLink(saved);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileBefore = (await profiles.GetActiveProfileAsync())!;
+        var before = profileBefore.Mods.Single(m => m.ModId == target.Id);
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            var card = view.GetVisualDescendants().OfType<Border>()
+                .Single(b => b.Classes.Contains("mod-card") && ReferenceEquals(b.DataContext, target));
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == target.Name);
+            var point = title.TranslatePoint(new Point(15, 8), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Layout();
+            var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            var entry = menu.Items.OfType<FAMenuFlyoutItem>().Single(i => i.Text == "检查和更新模组…");
+            var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(entry));
+            popup.UpdateLayout();
+            point = entry.TranslatePoint(new Point(20, 12), popup)!.Value;
+            popup.MouseDown(point, MouseButton.Left);
+            popup.MouseUp(point, MouseButton.Left);
+            await library.OpenModOnlineCommand.ExecutionTask!;
+            Layout();
+            var online = library.ModOnline!;
+            Assert.True(view.FindControl<Border>("ModOnlineDialogSurface")!.IsEffectivelyVisible);
+            Assert.Equal("version-1", online.SelectedFile!.Id);
+            Assert.Equal(2, online.Files.Count);
+            // 通过真实 ComboBox 绑定选择可选文件，验证不会下载默认主版本。
+            view.FindControl<ComboBox>("OnlineFileSelector")!.SelectedItem = online.Files[1];
+            Assert.Equal("version-optional", online.SelectedFile!.Id);
+            var button = view.FindControl<Button>("UpdateOnlineModButton")!;
+            Assert.True(button.IsEffectivelyEnabled);
+            point = button.TranslatePoint(new Point(20, 12), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            await online.UpdateCommand.ExecutionTask!;
+            Layout();
+            Assert.Contains("已替换", online.Message);
+            Assert.Contains("/v3/mod-file-versions/version-optional/download-repacked", handler.Requests);
+            Assert.DoesNotContain("/v3/mod-file-versions/version-1/download-repacked", handler.Requests);
+            Assert.False(Directory.Exists(saved.Path));
+            var updated = library.FilteredMods.Single(m => m.Id == target.Id);
+            Assert.Equal(target.Name, updated.Name);
+            Assert.Equal("3.0", updated.Version);
+            var persisted = (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!;
+            Assert.Equal("version-optional", persisted.PlatformLink!.InstalledFileVersionId);
+            Assert.Equal("ui downloaded patch", await File.ReadAllTextAsync(Path.Combine(persisted.Path, "0123456789abcdef.patch_0")));
+            var after = (await profiles.GetActiveProfileAsync())!.Mods.Single(m => m.ModId == target.Id);
+            Assert.Equal(before.Enabled, after.Enabled);
+            Assert.Equal(before.Order, after.Order);
+            // 关闭期间取消检查，等待执行退出后关闭，晚到响应不能覆盖状态。
+            handler.DelayNext = true;
+            var check = online.CheckCommand.ExecuteAsync(null);
+            await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(view.FindControl<Button>("UpdateOnlineModButton")!.IsEffectivelyEnabled);
+            main.CloseOverlaysCommand.Execute(null);
+            handler.Release.TrySetResult();
+            await check;
+            await online.CloseCommand.ExecutionTask!;
+            Layout();
+            Assert.False(online.IsOpen);
+            Assert.False(online.IsBusy);
+        }
+        finally { handler.Release.TrySetResult(); window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task LibraryModLink_ShouldOpenFromRightClickFetchSaveAndRejectStaleResults()
+    {
+        using var handler = new ModLinkApiHandler();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, nexusHandler: handler);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var target = library.FilteredMods[0];
+        var other = library.FilteredMods[1];
+        other.IsSelected = true;
+        var window = new MainWindow { DataContext = main };
+        var originalTheme = Avalonia.Application.Current!.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            var card = view.GetVisualDescendants().OfType<Border>()
+                .Single(b => b.Classes.Contains("mod-card") && ReferenceEquals(b.DataContext, target));
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text == target.Name);
+            var point = title.TranslatePoint(new Point(15, 8), window)!.Value;
+            var menuAssignments = 0;
+            var menuOpened = 0;
+            var menuClosed = 0;
+            card.PropertyChanged += (_, change) =>
+            {
+                if (change.Property != Control.ContextFlyoutProperty || card.ContextFlyout is not FAMenuFlyout flyout) return;
+                menuAssignments++;
+                flyout.Opened += (_, _) => menuOpened++;
+                flyout.Closed += (_, _) => menuClosed++;
+            };
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            Assert.Null(card.ContextFlyout);
+            window.MouseUp(point, MouseButton.Right);
+            Layout();
+            var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            Assert.Equal(1, menuAssignments);
+            Assert.Equal(1, menuOpened);
+            Assert.Equal(0, menuClosed);
+            var entry = menu.Items.OfType<FAMenuFlyoutItem>().Single(i => i.Text == "模组链接…");
+            Assert.True(entry.IsEffectivelyVisible);
+            var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(entry));
+            popup.UpdateLayout();
+            var menuPoint = entry.TranslatePoint(new Point(20, 12), popup)!.Value;
+            popup.MouseDown(menuPoint, MouseButton.Left);
+            popup.MouseUp(menuPoint, MouseButton.Left);
+            Layout();
+            var dialog = library.ModLink!;
+            Assert.True(dialog.IsOpen);
+            var surface = view.FindControl<Border>("ModLinkDialogSurface")!;
+            Assert.True(surface.IsEffectivelyVisible);
+            Assert.True(other.IsSelected);
+            var input = view.FindControl<TextBox>("ModLinkUrlInput")!;
+            void Click(string name)
+            {
+                Layout();
+                var button = view.FindControl<Button>(name)!;
+                Assert.True(button.IsEffectivelyEnabled);
+                var p = button.TranslatePoint(new Point(20, 12), window)!.Value;
+                window.MouseDown(p, MouseButton.Left);
+                window.MouseUp(p, MouseButton.Left);
+                Layout();
+            }
+            input.Text = "https://www.nexusmods.com/helldivers2/mods/16633?tab=files";
+            Assert.Contains("16633", dialog.Message);
+            Assert.False(view.FindControl<Button>("SaveModLinkButton")!.IsEffectivelyEnabled);
+            Click("FetchModLinkButton");
+            await dialog.FetchCommand.ExecutionTask!;
+            Assert.Contains("API 密钥", dialog.Message);
+            Assert.Empty(handler.Requests);
+            await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
+            Click("FetchModLinkButton");
+            await dialog.FetchCommand.ExecutionTask!;
+            Layout();
+            Assert.Equal("API mod title", dialog.Preview!.Name);
+            Assert.Equal("2.0", dialog.Preview.LatestVersion);
+            Assert.Contains("nexus_global_16633", dialog.Preview.GlobalModId);
+            foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+            {
+                Avalonia.Application.Current!.RequestedThemeVariant = theme;
+                Layout();
+                Assert.Equal(byte.MaxValue, Assert.IsAssignableFrom<ISolidColorBrush>(surface.Background).Color.A);
+                Assert.True(view.FindControl<Button>("SaveModLinkButton")!.IsEffectivelyVisible);
+            }
+            Click("SaveModLinkButton");
+            await dialog.SaveCommand.ExecutionTask!;
+            Assert.False(dialog.IsOpen);
+            Assert.True(target.HasPlatformLink);
+            var saved = (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!;
+            Assert.Equal("16633", saved.PlatformModId);
+            Assert.Equal("nexusmods", saved.PlatformId);
+            Assert.Equal("https://www.nexusmods.com/helldivers2/mods/16633", saved.PlatformLink!.Url);
+            Assert.Null((await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(other.Id))!.PlatformLink);
+            Assert.Equal(target.Name, saved.Name);
+            Assert.Equal("1.0.0", saved.Version);
+            library.OpenModLinkCommand.Execute(target);
+            Assert.Equal(saved.PlatformLink, dialog.Preview);
+            handler.DelayNext = true;
+            var fetch = dialog.FetchCommand.ExecuteAsync(null);
+            await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            input.Text = "https://www.nexusmods.com/helldivers2/mods/9999";
+            Assert.Null(dialog.Preview);
+            handler.Release.TrySetResult();
+            await fetch;
+            Assert.Null(dialog.Preview);
+            Assert.Contains("9999", dialog.Message);
+            Assert.False(dialog.SaveCommand.CanExecute(null));
+            Assert.Equal(saved.PlatformLink, (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.PlatformLink);
+            main.CloseOverlaysCommand.Execute(null);
+            Assert.False(dialog.IsOpen);
+            Assert.True(other.IsSelected);
+            // 子控件吞掉右键事件时，列表仍须提供模组链接入口。
+            var image = card.GetVisualDescendants().OfType<Image>().Single();
+            image.AddHandler(InputElement.PointerPressedEvent, (_, args) => args.Handled = true);
+            point = image.TranslatePoint(new Point(15, 15), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Layout();
+            menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            Assert.True(menu.IsOpen);
+            Assert.Contains(menu.Items.OfType<FAMenuFlyoutItem>(), i => i.Text == "模组链接…");
+            menu.Hide();
+        }
+        finally { handler.Release.TrySetResult(); window.Close(); Avalonia.Application.Current!.RequestedThemeVariant = originalTheme; }
+    }
+
+    private sealed class ModLinkApiHandler : HttpMessageHandler
+    {
+        public List<string> Requests { get; } = new();
+        public bool DelayNext { get; set; }
+        public string? FailurePath { get; set; }
+        public System.Net.HttpStatusCode FailureStatus { get; set; }
+        public string? FailureReason { get; set; }
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.Host == "cdn.example.com")
+            {
+                Assert.False(request.Headers.Contains("apikey"));
+                Assert.Null(request.Headers.Authorization);
+                using var stream = new MemoryStream();
+                using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, true))
+                using (var writer = new StreamWriter(zip.CreateEntry("0123456789abcdef.patch_0").Open()))
+                    writer.Write("ui downloaded patch");
+                return new(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(stream.ToArray()) };
+            }
+            Assert.Equal("ui-mod-link-key", request.Headers.GetValues("apikey").Single());
+            var path = request.RequestUri!.AbsolutePath;
+            Requests.Add(path);
+            if (path == FailurePath)
+                return new(FailureStatus)
+                {
+                    Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new { detail = FailureReason }),
+                        System.Text.Encoding.UTF8, "application/problem+json")
+                };
+            if (DelayNext)
+            {
+                DelayNext = false;
+                Started.TrySetResult();
+                await Release.Task;
+            }
+            var json = path switch
+            {
+                "/v1/games/helldivers2/mods/16633/files.json" => """{"files":[{"file_id":456,"category_id":1,"name":"Main","version":"2.0","uploaded_timestamp":1},{"file_id":457,"category_id":3,"name":"Optional","version":"3.0","uploaded_timestamp":2}]}""",
+                "/v1/users/validate.json" => """{"user_id":789,"is_premium":false}""",
+                "/v1/games/helldivers2/mods/16633/files/457.json" => """{"file_id":457,"category_id":3,"name":"Optional","version":"3.0","size_kb":1}""",
+                "/v1/games/helldivers2/mods/16633/files/457/download_link.json" => """[{"URI":"https://cdn.example.com/free.zip"}]""",
+                "/v3/games/helldivers2/mods/16633" => """{"data":{"id":"nexus_global_16633","game_id":"553850","game_scoped_id":"16633","name":"API mod title"}}""",
+                "/v3/mods/nexus_global_16633/files" => """{"data":{"mod_files":[{"id":"file-1","name":"Main","is_active":true,"versions_count":1,"archived_count":0,"removed_count":0}]}}""",
+                "/v3/mod-files/file-1/versions" => """{"data":{"versions":[{"id":"version-1","file":{"id":"file-1","name":"Main"},"position":"0","game_scoped_id":"1","name":"Main","version":"2.0","category":"main","uploaded_at":"2026-10-11T00:00:00Z","is_primary":true},{"id":"version-optional","file":{"id":"file-1","name":"Main"},"position":"1","game_scoped_id":"2","name":"Optional","version":"3.0","category":"optional","uploaded_at":"2026-10-11T01:00:00Z"}]}}""",
+                "/v3/mod-file-versions/version-optional/download-repacked" => """{"download_url":"https://cdn.example.com/mod.zip"}""",
+                _ => throw new InvalidOperationException($"Unexpected API path: {path}")
+            };
+            return new(System.Net.HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task DevTools_ShouldSaveRestoreAndClearEncryptedApiKeyThroughActualButtons()
     {
         await using var scope = await UiScope.CreateAsync();
         var main = scope.Services.GetRequiredService<MainWindowViewModel>();
@@ -62,6 +684,13 @@ public sealed class FluentAvaloniaUiTests
             Assert.Equal('●', input.PasswordChar);
             input.Text = "  ui-test-key  ";
             Click("ApplyNexusApiKeyButton");
+            await ((DevToolsViewModel)window.DataContext!).ApplyNexusApiKeyCommand.ExecutionTask!;
+            Assert.True(auth.IsAuthenticated);
+            Assert.True(auth.IsApiKeySaved);
+            // 模拟新启动的认证状态，通过真实 MainWindow 初始化恢复持久化密钥。
+            scope.Services.GetRequiredService<HD2Mimnt.Infrastructure.Platforms.NexusModsPlatformAdapter>().ClearAuthentication();
+            Assert.False(auth.IsAuthenticated);
+            await main.InitializeAsync();
             Assert.True(auth.IsAuthenticated);
             Assert.Equal(string.Empty, input.Text);
             Assert.DoesNotContain("ui-test-key", ((DevToolsViewModel)window.DataContext!).NexusStatusMessage);
@@ -72,8 +701,13 @@ public sealed class FluentAvaloniaUiTests
             window = Assert.IsType<DevToolsWindow>(openedWindow);
             Assert.Contains("已配置", ((DevToolsViewModel)window.DataContext!).NexusStatusMessage);
             Click("ClearNexusApiKeyButton");
+            await ((DevToolsViewModel)window.DataContext!).ClearNexusApiKeyCommand.ExecutionTask!;
             Assert.False(auth.IsAuthenticated);
+            await auth.RestoreApiKeyAsync();
+            Assert.False(auth.IsAuthenticated);
+            Assert.Null(await scope.Services.GetRequiredService<HD2Mimnt.Core.Interfaces.IPlatformCredentialStore>().ReadApiKeyAsync("nexusmods"));
             Click("ApplyNexusApiKeyButton");
+            await ((DevToolsViewModel)window.DataContext!).ApplyNexusApiKeyCommand.ExecutionTask!;
             Assert.False(auth.IsAuthenticated);
             Assert.Contains("请输入", ((DevToolsViewModel)window.DataContext!).NexusStatusMessage);
         }
@@ -207,7 +841,7 @@ public sealed class FluentAvaloniaUiTests
             main.ProfileViewModel.SelectedProfile = main.ProfileViewModel.Profiles.Single(p => p.Id == emptyId);
             using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
                 while (main.ProfileViewModel.IsProfileModsLoading) await Task.Delay(10, timeout.Token);
-            Click(window.FindControl<Button>("StartTutorialButton")!);
+            Click(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "开始教程"));
             while (main.Tutorial.CurrentStep.TargetKey != "ProfileTutorialCard") Click(next);
             Assert.False(frame.IsVisible);
             Assert.True(guide.FindControl<TextBlock>("TargetUnavailable")!.IsVisible);
@@ -345,11 +979,25 @@ public sealed class FluentAvaloniaUiTests
             // 真实鼠标事件右键标题，并实际点击弹出菜单。
             var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == mods[0].ModName);
             var point = title.TranslatePoint(new Point(15, 8), window)!.Value;
+            var menuAssignments = 0;
+            var menuOpened = 0;
+            var menuClosed = 0;
+            card.PropertyChanged += (_, change) =>
+            {
+                if (change.Property != Control.ContextFlyoutProperty || card.ContextFlyout is not FAMenuFlyout flyout) return;
+                menuAssignments++;
+                flyout.Opened += (_, _) => menuOpened++;
+                flyout.Closed += (_, _) => menuClosed++;
+            };
             window.MouseMove(point);
             window.MouseDown(point, MouseButton.Right);
+            Assert.Null(card.ContextFlyout);
             window.MouseUp(point, MouseButton.Right);
             Dispatcher.UIThread.RunJobs();
             var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            Assert.Equal(1, menuAssignments);
+            Assert.Equal(1, menuOpened);
+            Assert.Equal(0, menuClosed);
             Assert.True(menu.IsOpen);
             await Task.Delay(50);
             Dispatcher.UIThread.RunJobs();
@@ -891,13 +1539,15 @@ public sealed class FluentAvaloniaUiTests
             window.UpdateLayout();
             var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
             var list = view.FindControl<ItemsControl>("ModList")!;
+            var toolbar = view.FindControl<WrapPanel>("LibrarySelectionToolbar")!;
             void AssertSelectionView()
             {
+                Assert.Equal(vm.SelectedCount > 0, toolbar.IsVisible);
                 foreach (var item in vm.FilteredMods)
                 {
                     var container = list.GetVisualDescendants().OfType<ListBoxItem>()
                         .Single(control => ReferenceEquals(control.DataContext, item));
-                    Assert.Equal(item.IsSelected, container.IsSelected);
+                    Assert.Equal(item.IsHighlighted, container.IsSelected);
                 }
             }
             void Click(int index, RawInputModifiers modifiers = RawInputModifiers.None)
@@ -922,6 +1572,20 @@ public sealed class FluentAvaloniaUiTests
             Click(0);
             Assert.Same(mods[0], vm.FocusedMod);
             Assert.Empty(vm.SelectedMods);
+            Assert.False(toolbar.IsVisible);
+            Assert.True(mods[0].IsHighlighted);
+            Click(1);
+            Assert.False(mods[0].IsHighlighted);
+            Assert.True(mods[1].IsHighlighted);
+            Assert.False(toolbar.IsVisible);
+            Click(0);
+            CaptureSingleClickMarker(window, "library-single-click");
+            Click(0, RawInputModifiers.Control);
+            Assert.Equal(mods[0], Assert.Single(vm.SelectedMods));
+            Assert.True(toolbar.IsVisible);
+            Click(0);
+            Assert.Empty(vm.SelectedMods);
+            Assert.False(toolbar.IsVisible);
             Click(2, RawInputModifiers.Shift);
             Assert.Equal(mods, vm.SelectedMods);
             Click(1, RawInputModifiers.Shift);
@@ -940,6 +1604,7 @@ public sealed class FluentAvaloniaUiTests
             Assert.Equal(3, vm.SelectedCount);
             Keys(Key.Escape);
             Assert.Empty(vm.SelectedMods);
+            Assert.All(mods, mod => Assert.False(mod.IsHighlighted));
             vm.FocusMod(mods[0]);
             Keys(Key.Down, RawInputModifiers.Shift);
             Assert.Equal(mods.Take(2), vm.SelectedMods);
@@ -1177,7 +1842,7 @@ public sealed class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
-    public async Task ProfileMultiSelection_ShouldKeepShiftAnchorAndSupportAdditiveRange()
+    public async Task ProfileMultiSelection_ShouldPreserveFocusOnlyClicksAndSupportModifiersKeyboardAndBlankSpace()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
         var main = scope.Services.GetRequiredService<MainWindowViewModel>();
@@ -1198,7 +1863,7 @@ public sealed class FluentAvaloniaUiTests
                 Assert.Equal(mods.Count(mod => mod.IsSelected), vm.SelectedModCount);
                 Assert.Equal(vm.HasSelectedMods, toolbar.IsVisible);
                 foreach (var mod in vm.VisibleProfileMods)
-                    Assert.Equal(mod.IsSelected, view.GetVisualDescendants().OfType<ListBoxItem>()
+                    Assert.Equal(mod.IsHighlighted, view.GetVisualDescendants().OfType<ListBoxItem>()
                         .Single(item => ReferenceEquals(item.DataContext, mod)).IsSelected);
             }
             void Keys(Key key, RawInputModifiers modifiers = RawInputModifiers.None)
@@ -1231,21 +1896,48 @@ public sealed class FluentAvaloniaUiTests
                 AssertSelection();
             }
             Click(1);
+            Assert.Same(mods[1], vm.FocusedMod);
+            Assert.False(vm.HasSelectedMods);
+            Assert.False(toolbar.IsVisible);
+            Assert.True(mods[1].IsHighlighted);
+            Click(0);
+            Assert.False(mods[1].IsHighlighted);
+            Assert.True(mods[0].IsHighlighted);
+            Assert.False(toolbar.IsVisible);
+            Click(1);
+            CaptureSingleClickMarker(window, "profile-single-click");
+            Click(1, RawInputModifiers.Control);
+            Assert.Equal(mods.Skip(1).Take(1), mods.Where(mod => mod.IsSelected));
+            Assert.True(toolbar.IsVisible);
+            Click(1);
+            Assert.False(vm.HasSelectedMods);
+            Assert.False(toolbar.IsVisible);
             Click(2, RawInputModifiers.Shift);
             Assert.Equal(mods.Skip(1), mods.Where(mod => mod.IsSelected));
             Click(0, RawInputModifiers.Shift);
             Assert.Equal(mods.Take(2), mods.Where(mod => mod.IsSelected));
             Click(2, RawInputModifiers.Control | RawInputModifiers.Shift);
             Assert.All(mods, mod => Assert.True(mod.IsSelected));
-            Click(0);
-            Assert.Equal(mods.Take(1), mods.Where(mod => mod.IsSelected));
+            // 按住已选卡片时保留整组，供拖动使用；未拖动松开时才只聚焦并清空选择。
+            window.UpdateLayout();
+            var selectedCard = view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, mods[0]));
+            var selectedPoint = selectedCard.TranslatePoint(new Point(100, 15), window)!.Value;
+            window.MouseDown(selectedPoint, MouseButton.Left);
+            Assert.All(mods, mod => Assert.True(mod.IsSelected));
+            window.MouseUp(selectedPoint, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            AssertSelection();
+            Assert.Same(mods[0], vm.FocusedMod);
+            Assert.False(vm.HasSelectedMods);
             Click(2, RawInputModifiers.Control);
-            Assert.Equal(new[] { mods[0], mods[2] }, mods.Where(mod => mod.IsSelected));
+            Assert.Equal(mods.Skip(2), mods.Where(mod => mod.IsSelected));
             Assert.True(list.IsFocused, $"Focus: {window.FocusManager?.GetFocusedElement()?.GetType().Name}");
             Assert.False(vm.IsModOptionsDialogOpen || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || main.Tutorial.IsOpen,
                 $"Options={vm.IsModOptionsDialogOpen}, Move={vm.IsMoveToPositionDialogOpen}, Add={vm.IsAddModOpen}, Tutorial={main.Tutorial.IsOpen}");
             Keys(Key.Escape);
             Assert.False(vm.HasSelectedMods);
+            Assert.All(mods, mod => Assert.False(mod.IsHighlighted));
             Keys(Key.A, RawInputModifiers.Control);
             Keys(Key.A, RawInputModifiers.Control);
             Assert.Equal(3, vm.SelectedModCount);
@@ -1256,7 +1948,7 @@ public sealed class FluentAvaloniaUiTests
             ToolbarClick("启用");
             Keys(Key.Escape);
             Assert.False(vm.HasSelectedMods);
-            Click(0);
+            Click(0, RawInputModifiers.Control);
             ToolbarClick("全选 / 取消全选");
             Assert.Equal(3, vm.SelectedModCount);
             ToolbarClick("全选 / 取消全选");
@@ -2087,6 +2779,23 @@ public sealed class FluentAvaloniaUiTests
         finally { dialog.Close(); app.RequestedThemeVariant = originalTheme; }
     }
 
+    private static void CaptureSingleClickMarker(Window window, string name)
+    {
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
+            {
+                app.RequestedThemeVariant = theme;
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Capture(window, theme.ToString(), name);
+            }
+        }
+        finally { app.RequestedThemeVariant = originalTheme; }
+    }
+
     private static void Capture(Window window, string theme, string name)
     {
         var output = Environment.GetEnvironmentVariable("HD2MIMNT_UI_PREVIEW_PATH");
@@ -2097,13 +2806,26 @@ public sealed class FluentAvaloniaUiTests
         bitmap.Save(Path.Combine(output, $"{theme}-{name}.png"));
     }
 
+    private sealed class RecordingWebsiteLauncher : IWebsiteDownloadLauncher
+    {
+        public List<string> Urls { get; } = new();
+        public bool FailNext { get; set; }
+        public void Open(string url)
+        {
+            if (FailNext) { FailNext = false; throw new InvalidOperationException("测试浏览器无法打开"); }
+            Urls.Add(url);
+        }
+    }
+
     private sealed class UiScope : IAsyncDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), $"HD2Mimnt-FluentUi-{Guid.NewGuid():N}");
         public string Root => _root;
+        public RecordingWebsiteLauncher WebsiteLauncher { get; } = new();
         public ServiceProvider Services { get; private set; } = null!;
 
-        public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null)
+        public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
+            HttpMessageHandler? nexusHandler = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -2113,7 +2835,13 @@ public sealed class FluentAvaloniaUiTests
                 var services = new ServiceCollection();
                 typeof(App).GetMethod("ConfigureServices", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(Avalonia.Application.Current, new object[] { services });
+                services.AddSingleton<IWebsiteDownloadLauncher>(scope.WebsiteLauncher);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
+                if (nexusHandler != null)
+                {
+                    services.AddKeyedSingleton<HttpClient>("nexus-api", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
+                    services.AddKeyedSingleton<HttpClient>("downloads", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
+                }
                 scope.Services = services.BuildServiceProvider();
             }
             finally { Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", originalPath); }

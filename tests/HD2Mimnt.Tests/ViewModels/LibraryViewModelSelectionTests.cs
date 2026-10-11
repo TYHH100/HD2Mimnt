@@ -14,7 +14,11 @@ public sealed class LibraryViewModelSelectionTests
         Assert.Same(first, vm.FocusedMod);
         Assert.Empty(vm.SelectedMods);
         Assert.False(first.IsSelected);
+        Assert.True(first.IsFocused);
+        Assert.True(first.IsHighlighted);
+        Assert.False(third.IsHighlighted);
         vm.SelectRange(third);
+        Assert.False(first.IsFocused);
         Assert.Equal(new[] { first, second, third }, vm.SelectedMods);
         vm.SelectRange(second);
         Assert.Equal(new[] { first, second }, vm.SelectedMods);
@@ -33,6 +37,7 @@ public sealed class LibraryViewModelSelectionTests
         Assert.Equal(3, vm.SelectedCount);
         vm.ToggleSelected(third);
         Assert.False(third.IsSelected);
+        Assert.False(third.IsHighlighted);
         vm.SelectRange(second);
         Assert.Equal(new[] { second, third }, vm.SelectedMods);
         Assert.Same(second, vm.FocusedMod);

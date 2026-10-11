@@ -12,6 +12,42 @@ namespace HD2Mimnt.Tests.ViewModels;
 public sealed class ProfileViewModelTests : IDisposable
 {
     [Fact]
+    public void FocusMod_ShouldOnlyFocusAndAnchorVisibleRangesWithoutSelectingFixedCards()
+    {
+        var vm = CreateViewModel();
+        var mods = Enumerable.Range(0, 3).Select(index => new ProfileModViewModel
+            { ModId = Guid.NewGuid(), ModName = $"Mod {index}" }).ToArray();
+        var loader = new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader };
+        foreach (var mod in mods.Append(loader))
+        {
+            vm.ProfileMods.Add(mod);
+            vm.VisibleProfileMods.Add(mod);
+        }
+        vm.ToggleModSelected(mods[2]);
+        vm.FocusMod(mods[0]);
+        Assert.Same(mods[0], vm.FocusedMod);
+        Assert.False(vm.HasSelectedMods);
+        Assert.True(mods[0].IsFocused);
+        Assert.True(mods[0].IsHighlighted);
+        vm.FocusMod(loader);
+        vm.ToggleModSelected(loader);
+        Assert.Same(mods[0], vm.FocusedMod);
+        Assert.False(loader.IsSelected);
+        Assert.False(loader.IsHighlighted);
+        vm.SelectModRange(mods[2]);
+        Assert.False(mods[0].IsFocused);
+        Assert.Equal(mods, vm.ProfileMods.Where(mod => mod.IsSelected));
+        vm.SelectModRange(mods[1]);
+        Assert.Equal(mods.Take(2), vm.ProfileMods.Where(mod => mod.IsSelected));
+        vm.VisibleProfileMods.Remove(mods[0]);
+        vm.SelectModRange(mods[2]);
+        Assert.Equal(mods[2], Assert.Single(vm.ProfileMods, mod => mod.IsSelected));
+        vm.ClearModSelectionCommand.Execute(null);
+        vm.SelectModRange(mods[1]);
+        Assert.Equal(mods[1], Assert.Single(vm.ProfileMods, mod => mod.IsSelected));
+    }
+
+    [Fact]
     public void SelectModRange_ShouldRetainAnchorAndAppendToSelection()
     {
         var vm = CreateViewModel();
@@ -218,6 +254,36 @@ public sealed class ProfileViewModelTests : IDisposable
         vm.ModSearchText = "Normal";
         Assert.Equal(bottomToTop ? new[] { Guid.Empty, normal.Id } : new[] { normal.Id, Guid.Empty },
             vm.ProfileRows.Select(row => row.ModId));
+        vm.ModSearchText = "";
+        var systemGroup = vm.ProfileRows.Single(row => row.IsSeparator);
+        Assert.Equal(4, systemGroup.GroupModCount);
+        Assert.False(systemGroup.CanDrag);
+        var before = (await _profileService.GetProfileByIdAsync(profileId))!.Mods
+            .Select(item => (item.ModId, item.Enabled, item.Order, item.OptionsJson)).ToArray();
+        vm.OpenRenameSeparatorCommand.Execute(systemGroup);
+        Assert.False(vm.IsSeparatorNameEditable);
+        vm.UseDefaultSeparatorColor = false;
+        vm.SeparatorSelectedColor = Avalonia.Media.Color.Parse("#44AA77");
+        await vm.ConfirmSeparatorCommand.ExecuteAsync(null);
+        Assert.Equal("#44AA77", systemGroup.SeparatorColor);
+        vm.SelectAllVisibleMods();
+        await vm.ToggleSeparatorCommand.ExecuteAsync(systemGroup);
+        Assert.True(systemGroup.IsCollapsed);
+        Assert.Equal(normal.Id, Assert.Single(vm.VisibleProfileMods).ModId);
+        Assert.All(vm.ProfileMods.Where(row => row.IsBslMember), row => Assert.False(row.IsSelected));
+        Assert.Equal(!bottomToTop, vm.CanMoveMods(new[] { normal.Id }, Guid.Empty));
+        Assert.Equal(before, (await _profileService.GetProfileByIdAsync(profileId))!.Mods
+            .Select(item => (item.ModId, item.Enabled, item.Order, item.OptionsJson)));
+        vm.ModSearchText = "Dependency";
+        Assert.Equal(2, vm.VisibleProfileMods.Count);
+        Assert.True(systemGroup.IsCollapsed);
+        vm.ModSearchText = "";
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        systemGroup = vm.ProfileRows.Single(row => row.IsSeparator);
+        Assert.True(systemGroup.IsCollapsed);
+        Assert.Equal("#44AA77", systemGroup.SeparatorColor);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(systemGroup);
+        Assert.Equal(5, vm.VisibleProfileMods.Count);
     }
 
     [Theory]
@@ -329,6 +395,65 @@ public sealed class ProfileViewModelTests : IDisposable
         var persisted = await _profileService.GetProfileByIdAsync(profileId);
         var state = ProfileModOptionsState.FromJson(Assert.Single(persisted!.Mods).OptionsJson);
         Assert.Equal(new List<int> { 1, 0 }, state.OptionSelections);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UserSeparators_ShouldCollapseSearchMoveGroupsAndRestoreWithoutChangingDeployment(bool bottomToTop)
+    {
+        var mods = new List<Mod>();
+        for (var i = 0; i < 4; i++) mods.Add(await AddModAsync($"Normal {i}"));
+        var loader = await AddModAsync("Loader");
+        loader.BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader;
+        loader.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+        await _modRepository.UpdateAsync(loader);
+        var profileId = await _profileService.CreateProfileAsync("用户分组");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods.Append(loader)) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "武器", 0, "#F08020");
+        var second = await _profileService.AddSeparatorAsync(profileId, "护甲", 2);
+        var settings = new SettingsService(_storageDirectory);
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, bottomToTop ? "BottomToTop" : "TopToBottom");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        var firstRow = vm.ProfileSeparators.First(row => row.ModId == first.Id);
+        Assert.Equal("#F08020", firstRow.SeparatorColor);
+        Assert.Equal(2, firstRow.GroupModCount);
+        Assert.False(firstRow.CanSelect);
+        var before = (await _profileService.GetProfileByIdAsync(profileId))!.Mods
+            .Select(item => (item.ModId, item.Enabled, item.Order)).ToArray();
+        vm.SelectAllVisibleMods();
+        await vm.ToggleSeparatorCommand.ExecuteAsync(firstRow);
+        Assert.True(firstRow.IsCollapsed);
+        Assert.DoesNotContain(vm.VisibleProfileMods, row => row.ModId == mods[0].Id || row.ModId == mods[1].Id);
+        Assert.False(vm.ProfileMods.First(row => row.ModId == mods[0].Id).IsSelected);
+        Assert.Contains(vm.VisibleProfileMods, row => row.ModId == loader.Id);
+        Assert.Equal(before, (await _profileService.GetProfileByIdAsync(profileId))!.Mods
+            .Select(item => (item.ModId, item.Enabled, item.Order)));
+        vm.ModSearchText = "Normal 1";
+        Assert.Equal(mods[1].Id, Assert.Single(vm.VisibleProfileMods).ModId);
+        Assert.Contains(firstRow, vm.ProfileRows);
+        Assert.True(firstRow.IsCollapsed);
+        vm.ModSearchText = "";
+        Assert.False(vm.CanMoveMods(new[] { first.Id }, loader.Id));
+        await vm.MoveModsAsync(new[] { second.Id }, first.Id);
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id, mods[0].Id, mods[1].Id },
+            vm.ProfileMods.Where(row => !row.IsBslMember).Select(row => row.ModId));
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        Assert.Equal(new[] { second.Id, first.Id }, vm.ProfileSeparators.Select(row => row.ModId));
+        firstRow = vm.ProfileSeparators.Single(row => row.ModId == first.Id);
+        Assert.True(firstRow.IsCollapsed);
+        Assert.Equal(new[] { mods[0].Id, mods[1].Id }, vm.GetSeparatorMembers(firstRow).Select(row => row.ModId));
+        var last = vm.ProfileMods.Single(row => row.ModId == mods[1].Id);
+        await vm.MoveModsAsync(new[] { last.ModId }, first.Id);
+        Assert.Equal(3, vm.ProfileSeparators.Single(row => row.ModId == first.Id).Order);
+        await vm.RemoveModFromProfileCommand.ExecuteAsync(vm.ProfileMods.Single(row => row.ModId == mods[2].Id));
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        Assert.Equal(2, vm.ProfileSeparators.Single(row => row.ModId == first.Id).Order);
+        await vm.RemoveSeparatorCommand.ExecuteAsync(vm.ProfileSeparators.Single(row => row.ModId == first.Id));
+        Assert.Equal(4, vm.ProfileMods.Count);
+        Assert.Single(vm.ProfileSeparators);
     }
 
     private ProfileViewModel CreateViewModel()

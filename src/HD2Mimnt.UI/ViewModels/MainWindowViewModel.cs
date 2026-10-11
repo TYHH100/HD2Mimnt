@@ -348,6 +348,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private async void OnBackupRestored(object? sender, EventArgs e)
     {
+        await RestoreNexusCredentialsAsync();
         await _profileService.InitializeAsync();
         await _settingsViewModel.LoadAsync();
         await _libraryViewModel.InitializeAsync();
@@ -360,6 +361,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        await RestoreNexusCredentialsAsync();
         await _profileService.InitializeAsync();
         await _libraryViewModel.InitializeAsync();
         await _profileViewModel.LoadProfilesAsync();
@@ -393,6 +395,15 @@ public partial class MainWindowViewModel : ObservableObject
         _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
         StatusBarText = "Application initialized";
+    }
+
+    private async Task RestoreNexusCredentialsAsync()
+    {
+        try { await _nexusModsTestService.RestoreApiKeyAsync(); }
+        catch
+        {
+            _notificationService.ShowWarning("无法读取已保存的 N 网密钥，请在开发工具重新填写并保存。", "N 网认证");
+        }
     }
 
     private void UpdateCurrentProfile()
@@ -496,6 +507,11 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (_libraryViewModel.ModOnline?.IsOpen == true)
+        {
+            _libraryViewModel.ModOnline.CloseCommand.Execute(null);
+            return;
+        }
         if (Tutorial.IsOpen)
         {
             Tutorial.CloseCommand.Execute(null);
@@ -525,7 +541,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
         if (SelectedTabIndex == 1 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
         {
-            if (_libraryViewModel.IsAddToProfileDialogOpen)
+            if (_libraryViewModel.ModLink?.IsOpen == true)
+                _libraryViewModel.ModLink.CloseCommand.Execute(null);
+            else if (_libraryViewModel.IsAddToProfileDialogOpen)
                 _libraryViewModel.CancelAddToProfileCommand.Execute(null);
             else if (_libraryViewModel.IsDetailPanelOpen)
                 _libraryViewModel.CloseDetailPanelCommand.Execute(null);
@@ -540,8 +558,23 @@ public partial class MainWindowViewModel : ObservableObject
 
     public void AttachOwner(Avalonia.Controls.Window owner) => _confirmationService.SetOwner(owner);
 
+    public void ReceiveBrowserProtocolLink(string value)
+    {
+        if (value.Length == 0) return;
+        if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } online)
+        {
+            SelectedTabIndex = 1;
+            online.TryReceiveProtocolLink(value);
+        }
+        else if (_libraryViewModel.ModOnline?.IsBusy != true)
+            _notificationService.ShowWarning(
+                "已收到 N 网下载链接，但当前没有等待网页授权的任务。请先在开发工具应用 API 密钥，再从模组库选择文件并点击下载或更新。", "N 网下载");
+    }
+
     public async Task<bool> CanCloseAsync()
     {
+        if (_libraryViewModel.ModOnline is { } online)
+            await online.CloseCommand.ExecuteAsync(null);
         if (!_libraryViewModel.ImportCompletion.IsCompleted)
         {
             if (!await _confirmationService.ConfirmAsync("退出应用", "模组仍在添加中。是否取消添加并在清理完成后退出？"))

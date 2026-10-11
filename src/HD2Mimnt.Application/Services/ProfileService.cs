@@ -261,6 +261,15 @@ public class ProfileService
             }
 
             var ids = modIds.ToHashSet();
+            if (profile.Separators.Count > 0)
+            {
+                var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                    .ToDictionary(mod => mod.Id);
+                var normal = profile.Mods.OrderBy(item => item.Order).Where(item => !mods.TryGetValue(item.ModId, out var mod)
+                    || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
+                foreach (var separator in profile.Separators)
+                    separator.Order -= normal.Take(separator.Order).Count(item => ids.Contains(item.ModId));
+            }
             if (profile.Mods.RemoveAll(mod => ids.Contains(mod.ModId)) > 0)
             {
                 await NormalizeBslAsync(profile, cancellationToken);
@@ -412,5 +421,170 @@ public class ProfileService
         profile.ModifiedAt = DateTime.UtcNow;
         await _profileRepository.UpdateAsync(profile, cancellationToken);
         RaiseProfilesChanged();
+    }
+
+    public async Task ReorderProfileRowsAsync(Guid profileId, IReadOnlyList<Guid> modIds,
+        IReadOnlyList<Guid> ordinaryRowIds, CancellationToken cancellationToken = default)
+    {
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            var normalIds = profile.Mods.Where(item => !mods.TryGetValue(item.ModId, out var mod)
+                || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).Select(item => item.ModId).ToHashSet();
+            var separatorMap = profile.Separators.ToDictionary(item => item.Id);
+            if (modIds.Count != profile.Mods.Count || modIds.Distinct().Count() != modIds.Count
+                || !modIds.ToHashSet().SetEquals(profile.Mods.Select(item => item.ModId))
+                || ordinaryRowIds.Count != normalIds.Count + separatorMap.Count
+                || ordinaryRowIds.Distinct().Count() != ordinaryRowIds.Count
+                || !ordinaryRowIds.ToHashSet().SetEquals(normalIds.Concat(separatorMap.Keys))
+                || !ordinaryRowIds.Where(normalIds.Contains).SequenceEqual(modIds.Where(normalIds.Contains)))
+                throw new InvalidOperationException("配置已发生变化，请刷新后重新排序。");
+
+            var modMap = profile.Mods.ToDictionary(item => item.ModId);
+            for (var i = 0; i < modIds.Count; i++) modMap[modIds[i]].Order = i;
+            BslProfilePolicy.Normalize(profile, mods);
+            if (!profile.Mods.Select(item => item.ModId).SequenceEqual(modIds))
+                throw new InvalidOperationException("该顺序会破坏 Lua 模组或加载器的固定顺序。");
+
+            var separators = new List<ProfileSeparator>();
+            var precedingMods = 0;
+            foreach (var id in ordinaryRowIds)
+            {
+                if (separatorMap.TryGetValue(id, out var separator))
+                {
+                    separator.Order = precedingMods;
+                    separators.Add(separator);
+                }
+                else precedingMods++;
+            }
+            profile.Separators = separators;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _optionsWriteGate.Release(); }
+    }
+
+    public Task<ProfileSeparator> AddSeparatorAsync(Guid profileId, string name, int order,
+        CancellationToken cancellationToken = default)
+        => AddSeparatorAsync(profileId, name, order, string.Empty, cancellationToken);
+
+    public async Task<ProfileSeparator> AddSeparatorAsync(Guid profileId, string name, int order, string color,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("分隔符名称不能为空", nameof(name));
+        color = NormalizeSeparatorColor(color);
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
+                || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+            var separator = new ProfileSeparator
+            {
+                Id = Guid.NewGuid(), ProfileId = profileId, Name = name.Trim(),
+                Color = color,
+                Order = Math.Clamp(order, 0, normalCount)
+            };
+            profile.Separators.Add(separator);
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+            return separator;
+        }
+        finally { _optionsWriteGate.Release(); }
+    }
+
+    public Task RenameSeparatorAsync(Guid profileId, Guid separatorId, string name,
+        CancellationToken cancellationToken = default)
+        => UpdateSeparatorAsync(profileId, separatorId, name, null, cancellationToken);
+
+    /// <summary>同一次写入更新名称与颜色；Guid.Empty 仅更新固定 Lua 分隔符颜色。</summary>
+    public async Task UpdateSeparatorAsync(Guid profileId, Guid separatorId, string name, string? color,
+        CancellationToken cancellationToken = default)
+    {
+        if (separatorId != Guid.Empty && string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("分隔符名称不能为空", nameof(name));
+        if (color != null) color = NormalizeSeparatorColor(color);
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            if (separatorId == Guid.Empty)
+            {
+                if (color != null) profile.LuaSeparatorColor = color;
+            }
+            else
+            {
+                var separator = profile.Separators.FirstOrDefault(item => item.Id == separatorId)
+                    ?? throw new InvalidOperationException("分隔符不存在");
+                separator.Name = name.Trim();
+                if (color != null) separator.Color = color;
+            }
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _optionsWriteGate.Release(); }
+    }
+
+    public async Task SetSeparatorCollapsedAsync(Guid profileId, Guid separatorId, bool collapsed,
+        CancellationToken cancellationToken = default)
+    {
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            if (separatorId == Guid.Empty)
+            {
+                if (profile.IsLuaGroupCollapsed == collapsed) return;
+                profile.IsLuaGroupCollapsed = collapsed;
+            }
+            else
+            {
+                var separator = profile.Separators.FirstOrDefault(item => item.Id == separatorId)
+                    ?? throw new InvalidOperationException("分隔符不存在");
+                if (separator.IsCollapsed == collapsed) return;
+                separator.IsCollapsed = collapsed;
+            }
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _optionsWriteGate.Release(); }
+    }
+
+    private static string NormalizeSeparatorColor(string color)
+    {
+        color = color.Trim();
+        if (color.Length == 0) return string.Empty;
+        if (color.Length != 7 || color[0] != '#' || !color.Skip(1).All(Uri.IsHexDigit))
+            throw new ArgumentException("颜色须为 #RRGGBB 格式", nameof(color));
+        return color.ToUpperInvariant();
+    }
+
+    public async Task RemoveSeparatorAsync(Guid profileId, Guid separatorId,
+        CancellationToken cancellationToken = default)
+    {
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            if (profile.Separators.RemoveAll(item => item.Id == separatorId) == 0) return;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _optionsWriteGate.Release(); }
     }
 }

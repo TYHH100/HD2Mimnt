@@ -81,7 +81,9 @@ public class HD2MimntDbContext : IDisposable
                 ModifiedAt TEXT NOT NULL,
                 IsActive INTEGER NOT NULL,
                 IsDefault INTEGER NOT NULL DEFAULT 0,
-                SortOrder INTEGER NOT NULL DEFAULT 0
+                SortOrder INTEGER NOT NULL DEFAULT 0,
+                IsLuaGroupCollapsed INTEGER NOT NULL DEFAULT 0,
+                LuaSeparatorColor TEXT NOT NULL DEFAULT ''
             );
 
             CREATE TABLE IF NOT EXISTS ProfileMods (
@@ -96,6 +98,18 @@ public class HD2MimntDbContext : IDisposable
             );
 
             CREATE INDEX IF NOT EXISTS idx_profilemods_order ON ProfileMods([Order]);
+
+            CREATE TABLE IF NOT EXISTS ProfileSeparators (
+                Id TEXT PRIMARY KEY,
+                ProfileId TEXT NOT NULL,
+                Name TEXT NOT NULL,
+                [Order] INTEGER NOT NULL,
+                IsCollapsed INTEGER NOT NULL DEFAULT 0,
+                Color TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY (ProfileId) REFERENCES Profiles(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_profile_separators_profile_order ON ProfileSeparators(ProfileId, [Order]);
 
             CREATE TABLE IF NOT EXISTS ProfileLogicalMods (
                 ProfileId TEXT NOT NULL,
@@ -161,6 +175,11 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_deploymentfiles_deployment ON DeploymentFiles(DeploymentId);
             CREATE INDEX IF NOT EXISTS idx_deploymentfiles_mod ON DeploymentFiles(ModId);
             CREATE INDEX IF NOT EXISTS idx_deploymentfiles_target ON DeploymentFiles(TargetPath);
+
+            CREATE TABLE IF NOT EXISTS PlatformCredentials (
+                PlatformId TEXT PRIMARY KEY,
+                ProtectedApiKey BLOB NOT NULL
+            );
 
             CREATE TABLE IF NOT EXISTS Settings (
                 Key TEXT PRIMARY KEY,
@@ -435,6 +454,53 @@ public class HD2MimntDbContext : IDisposable
         using var command = connection.CreateCommand();
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        // 平台信息与模组保存在同一行，删除模组无需额外清理关联表。
+        foreach (var (column, type) in new[]
+        {
+            ("PlatformId", "TEXT"), ("PlatformModId", "TEXT"), ("PlatformVersion", "TEXT"),
+            ("LastUpdateCheck", "TEXT"), ("PlatformLinkJson", "TEXT")
+        })
+        {
+            using var check = connection.CreateCommand();
+            check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = @Column";
+            check.Parameters.AddWithValue("@Column", column);
+            if (Convert.ToInt64(await check.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alter = connection.CreateCommand();
+                alter.CommandText = $"ALTER TABLE Mods ADD COLUMN {column} {type}";
+                await alter.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        using (var separatorColumnCheck = connection.CreateCommand())
+        {
+            separatorColumnCheck.CommandText = "SELECT COUNT(*) FROM pragma_table_info('ProfileSeparators') WHERE name = 'IsCollapsed'";
+            if (Convert.ToInt64(await separatorColumnCheck.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterSeparator = connection.CreateCommand();
+                alterSeparator.CommandText = "ALTER TABLE ProfileSeparators ADD COLUMN IsCollapsed INTEGER NOT NULL DEFAULT 0";
+                await alterSeparator.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        foreach (var (table, column, type) in new[]
+        {
+            ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
+            ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
+            ("Profiles", "LuaSeparatorColor", "TEXT NOT NULL DEFAULT ''")
+        })
+        {
+            using var check = connection.CreateCommand();
+            check.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @Column";
+            check.Parameters.AddWithValue("@Column", column);
+            if (Convert.ToInt64(await check.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alter = connection.CreateCommand();
+                alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
+                await alter.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
 
         using (var checkDefault = connection.CreateCommand())
         {

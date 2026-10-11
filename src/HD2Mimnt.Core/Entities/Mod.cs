@@ -61,6 +61,8 @@ public class Mod
     /// </summary>
     public string? PlatformVersion { get; set; }
 
+    public ModPlatformLink? PlatformLink { get; set; }
+
     /// <summary>
     /// Last time update was checked
     /// </summary>

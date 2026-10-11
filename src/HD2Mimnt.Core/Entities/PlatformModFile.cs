@@ -9,11 +9,15 @@ public class PlatformModFile
     /// Gets or sets the file ID.
     /// </summary>
     public string Id { get; set; } = string.Empty;
+    /// <summary>网站文件编号，与平台全局文件版本 ID 分开保存。</summary>
+    public string? WebsiteFileId { get; set; }
 
     /// <summary>
     /// Gets or sets the file name.
     /// </summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>平台提供的原始压缩包文件名；不存在时由 UI 给出默认名称。</summary>
+    public string? FileName { get; set; }
 
     /// <summary>
     /// Gets or sets the file size in bytes.

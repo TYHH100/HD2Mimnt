@@ -104,6 +104,17 @@ public class ThumbnailService
         return File.Exists(thumbnailPath) ? thumbnailPath : null;
     }
 
+    /// <summary>仅清理本服务目录内的缩略图，支持更新后使用独立文件名。</summary>
+    public Task DeleteThumbnailFileAsync(string path, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(path)) return Task.CompletedTask;
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_thumbnailsPath)) + Path.DirectorySeparatorChar;
+        if (fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)) File.Delete(fullPath);
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// 删除缩略图
     /// </summary>

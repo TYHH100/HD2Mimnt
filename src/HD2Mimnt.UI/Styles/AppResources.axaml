@@ -8,6 +8,12 @@
     <Setter Property="IsSelected" Value="{ReflectionBinding IsSelected, Mode=OneWay}"/>
   </ControlTheme>
 
+  <!-- 单击聚焦和批量选中共用原生蓝色标记；批量操作仍只统计 ViewModel.IsSelected。 -->
+  <ControlTheme x:Key="ModCardListBoxItemTheme" TargetType="ListBoxItem"
+                BasedOn="{StaticResource ViewModelSelectableListBoxItemTheme}">
+    <Setter Property="IsSelected" Value="{ReflectionBinding IsHighlighted, Mode=OneWay}"/>
+  </ControlTheme>
+
   <!-- 页面语义资源引用 FluentAvalonia 色板，不维护第二套深浅色。 -->
   <SolidColorBrush x:Key="Surface0Brush" Color="{DynamicResource SolidBackgroundFillColorBase}"/>
   <SolidColorBrush x:Key="Surface1Brush" Color="{DynamicResource SolidBackgroundFillColorSecondary}"/>

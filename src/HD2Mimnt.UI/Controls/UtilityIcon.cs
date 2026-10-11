@@ -12,6 +12,8 @@ public sealed class UtilityIcon : FASymbolIcon
     private static readonly IReadOnlyDictionary<string, FASymbol> Symbols = new Dictionary<string, FASymbol>
     {
         ["Search"] = FASymbol.Find, ["Add"] = FASymbol.Add, ["Close"] = FASymbol.Cancel,
+        // Fluent System Icons 中的专用字形，当前 FluentAvalonia 版本未提供命名枚举。
+        ["BackspaceQWERTY"] = (FASymbol)0xE750, ["MultiSelect"] = (FASymbol)0xE762,
         ["More"] = FASymbol.More, ["Package"] = FASymbol.Library, ["Bell"] = FASymbol.Alert,
         ["Tasks"] = FASymbol.List, ["Chevron"] = FASymbol.ChevronRight, ["Back"] = FASymbol.Back,
         ["Folder"] = FASymbol.Folder, ["Settings"] = FASymbol.Settings, ["Sliders"] = FASymbol.Filter,

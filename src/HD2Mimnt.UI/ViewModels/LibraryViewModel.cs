@@ -45,7 +45,7 @@ public partial class LibraryViewModel : ObservableObject
     // 数据源
     private List<ModItemViewModel> _allMods = new();
     private bool _selectionSyncInProgress;
-    private ModItemViewModel? _selectionAnchor;
+    private readonly ModSelection<ModItemViewModel> _modSelection;
     private CancellationTokenSource? _detailHashCts;
 
     [ObservableProperty]
@@ -170,6 +170,14 @@ public partial class LibraryViewModel : ObservableObject
     private CancellationTokenSource? _deploymentCts;
 
     public ModImportViewModel Import { get; }
+    public ModLinkViewModel? ModLink { get; }
+    public ModOnlineViewModel? ModOnline { get; }
+
+    [RelayCommand]
+    private Task OpenModOnlineAsync(ModItemViewModel mod) => ModOnline?.OpenAsync(mod) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private void OpenModLink(ModItemViewModel mod) => ModLink?.Open(mod);
     public Task ImportCompletion { get; private set; } = Task.CompletedTask;
 
     [RelayCommand]
@@ -226,10 +234,19 @@ public partial class LibraryViewModel : ObservableObject
         GameDetectionService gameDetectionService,
         IConfirmationService confirmationService,
         ImagePreviewService? imagePreview = null,
-        SettingsService? settingsService = null)
+        SettingsService? settingsService = null,
+        ModLinkService? modLinkService = null,
+        ModOnlineService? modOnlineService = null,
+        IWebsiteDownloadLauncher? websiteLauncher = null)
     {
         _modService = modService;
         Import = new ModImportViewModel(modService);
+        ModLink = modLinkService == null ? null : new ModLinkViewModel(modLinkService);
+        ModOnline = modOnlineService == null ? null : new ModOnlineViewModel(modOnlineService, async () =>
+        {
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+        }, websiteLauncher);
         _searchService = searchService;
         _profileService = profileService;
         _notificationService = notificationService;
@@ -238,6 +255,8 @@ public partial class LibraryViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
         _settingsService = settingsService;
+        _modSelection = new(() => FilteredMods, () => SelectedMods, SyncListSelection,
+            (mod, focused) => mod.IsFocused = focused);
 
         // 监听选择变化
         SelectedMods.CollectionChanged += OnSelectedModsChanged;
@@ -593,95 +612,17 @@ public partial class LibraryViewModel : ObservableObject
     /// 切换当前筛选结果的全选状态。
     /// </summary>
     [RelayCommand]
-    private void SelectAll()
-    {
-        if (IsAllSelected)
-        {
-            _selectionSyncInProgress = true;
-            try
-            {
-                foreach (var mod in FilteredMods)
-                {
-                    mod.IsSelected = false;
-                }
-
-                foreach (var mod in FilteredMods)
-                {
-                    SelectedMods.Remove(mod);
-                }
-            }
-            finally
-            {
-                _selectionSyncInProgress = false;
-            }
-
-            UpdateSelectionState();
-            return;
-        }
-
-        _selectionSyncInProgress = true;
-        try
-        {
-            foreach (var mod in FilteredMods)
-            {
-                mod.IsSelected = true;
-                if (!SelectedMods.Contains(mod))
-                {
-                    SelectedMods.Add(mod);
-                }
-            }
-        }
-        finally
-        {
-            _selectionSyncInProgress = false;
-        }
-
-        UpdateSelectionState();
-    }
+    private void SelectAll() => _modSelection.ToggleAll();
 
     /// <summary>Ctrl+A 始终选择当前结果，重复按下不反转。</summary>
     [RelayCommand]
-    private void SelectAllVisible()
-    {
-        SyncListSelection(FilteredMods, Array.Empty<ModItemViewModel>());
-        _selectionAnchor ??= FocusedMod ?? FilteredMods.FirstOrDefault();
-    }
+    private void SelectAllVisible() => _modSelection.SelectAll(FocusedMod);
 
     /// <summary>
     /// 反选当前筛选结果，筛选之外的模组保持原状态。
     /// </summary>
     [RelayCommand]
-    private void InvertSelection()
-    {
-        _selectionSyncInProgress = true;
-        try
-        {
-            foreach (var mod in FilteredMods)
-            {
-                mod.IsSelected = !mod.IsSelected;
-            }
-
-            var filteredSet = FilteredMods.ToHashSet();
-            foreach (var selected in SelectedMods.Where(filteredSet.Contains).ToArray())
-            {
-                SelectedMods.Remove(selected);
-            }
-
-            foreach (var mod in FilteredMods.Where(static mod => mod.IsSelected))
-            {
-                if (!SelectedMods.Contains(mod))
-                {
-                    SelectedMods.Add(mod);
-                }
-            }
-        }
-        finally
-        {
-            _selectionSyncInProgress = false;
-        }
-
-        UpdateSelectionState();
-    }
+    private void InvertSelection() => _modSelection.Invert();
 
     [RelayCommand]
     private void FocusSearch()
@@ -704,62 +645,26 @@ public partial class LibraryViewModel : ObservableObject
     /// </summary>
     public void FocusMod(ModItemViewModel mod)
     {
-        if (!FilteredMods.Contains(mod)) return;
-        ClearSelection();
-        FocusedMod = _selectionAnchor = mod;
+        if (_modSelection.Focus(mod)) FocusedMod = mod;
     }
 
     /// <summary>Ctrl+点击切换多选，并把本次点击作为新的范围锚点。</summary>
     public void ToggleSelected(ModItemViewModel mod)
     {
-        if (!FilteredMods.Contains(mod)) return;
-        var selected = mod.IsSelected;
-        SyncListSelection(selected ? Array.Empty<ModItemViewModel>() : new[] { mod },
-            selected ? new[] { mod } : Array.Empty<ModItemViewModel>());
-        FocusedMod = _selectionAnchor = mod;
+        if (_modSelection.Toggle(mod)) FocusedMod = mod;
     }
 
     /// <summary>Shift 替换范围，Ctrl+Shift 追加范围；连续操作保持最初锚点。</summary>
     public void SelectRange(ModItemViewModel mod, bool additive = false)
     {
-        var targetIndex = FilteredMods.IndexOf(mod);
-        if (targetIndex < 0) return;
-
-        var anchor = _selectionAnchor ?? FocusedMod ?? mod;
-        var anchorIndex = FilteredMods.IndexOf(anchor);
-        if (anchorIndex < 0) anchorIndex = targetIndex;
-
-        if (!additive) ClearSelection();
-        _selectionAnchor = FilteredMods[anchorIndex];
-        var start = Math.Min(anchorIndex, targetIndex);
-        var end = Math.Max(anchorIndex, targetIndex);
-        SyncListSelection(FilteredMods.Skip(start).Take(end - start + 1), Array.Empty<ModItemViewModel>());
-        FocusedMod = mod;
+        if (_modSelection.SelectRange(mod, additive)) FocusedMod = mod;
     }
 
     /// <summary>
     /// 清空选择
     /// </summary>
     [RelayCommand]
-    private void ClearSelection()
-    {
-        _selectionAnchor = null;
-        _selectionSyncInProgress = true;
-        try
-        {
-            foreach (var mod in SelectedMods.ToArray())
-            {
-                mod.IsSelected = false;
-            }
-            SelectedMods.Clear();
-        }
-        finally
-        {
-            _selectionSyncInProgress = false;
-        }
-
-        UpdateSelectionState();
-    }
+    private void ClearSelection() => _modSelection.Clear();
 
     /// <summary>
     /// 打开"加入配置文件"弹窗：目标 Mod 为空表示对整个选中集合操作，可勾选多个配置文件。

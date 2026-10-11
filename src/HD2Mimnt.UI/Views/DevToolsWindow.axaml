@@ -32,14 +32,15 @@
         <Border Grid.Row="1" Classes="card" Margin="0,0,0,16">
             <StackPanel Spacing="12">
                 <TextBlock Text="N 网 API 密钥（测试）" Classes="section-title" />
-                <TextBlock Text="应用后供 N 网功能测试使用，仅本次运行有效。"
+                <TextBlock Text="密钥加密保存到本地数据库，启动时自动恢复。清除密钥会同时删除保存的数据。"
                            Classes="muted" TextWrapping="Wrap" />
                 <TextBox x:Name="NexusApiKeyInput"
                          Text="{Binding NexusApiKey, Mode=TwoWay}"
+                         IsEnabled="{Binding !IsSavingNexusKey}"
                          PasswordChar="●"
                          PlaceholderText="粘贴 Nexus Mods API 密钥" />
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="ApplyNexusApiKeyButton" Content="应用密钥"
+                    <Button x:Name="ApplyNexusApiKeyButton" Content="保存并应用密钥"
                             Classes="accent" Command="{Binding ApplyNexusApiKeyCommand}" />
                     <Button x:Name="ClearNexusApiKeyButton" Content="清除密钥"
                             Command="{Binding ClearNexusApiKeyCommand}" />
