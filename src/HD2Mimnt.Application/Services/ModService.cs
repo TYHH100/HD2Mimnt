@@ -46,7 +46,8 @@ public class ModService
         IModRepository modRepository,
         string storageDirectory,
         ILogger<ModService>? logger = null,
-        DeploymentService? deploymentService = null)
+        DeploymentService? deploymentService = null,
+        string? tempDirectory = null)
     {
         _modRepository = modRepository;
         _storageDirectory = storageDirectory;
@@ -55,7 +56,7 @@ public class ModService
 
         // 初始化子服务
         var thumbnailsPath = Path.Combine(storageDirectory, "thumbnails");
-        _importService = new ModImportService(_modRepository, storageDirectory, null);
+        _importService = new ModImportService(_modRepository, storageDirectory, tempDirectory: tempDirectory);
         _thumbnailService = new ThumbnailService(thumbnailsPath, null);
 
     // 确保存储目录存在

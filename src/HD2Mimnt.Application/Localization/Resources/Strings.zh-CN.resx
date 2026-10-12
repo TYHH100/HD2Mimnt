@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -2575,7 +2575,7 @@
     <value>布娃娃配置</value>
   </data>
   <data name="ResourceType.ah_bin" xml:space="preserve">
-    <value>AH 二进制</value>
+    <value>AH Bin</value>
   </data>
   <data name="ResourceType.ik_skeleton" xml:space="preserve">
     <value>IK 骨架</value>
@@ -2608,7 +2608,7 @@
     <value>镜头震动</value>
   </data>
   <data name="ResourceType.bik2" xml:space="preserve">
-    <value>视频 BIK2</value>
+    <value>Bik2</value>
   </data>
   <data name="ResourceType.unknown" xml:space="preserve">
     <value>未知类型（XAML）</value>
@@ -2669,5 +2669,61 @@
   </data>
   <data name="Deployment.CancelledCleanup" xml:space="preserve">
     <value>部署已取消，已写入的文件可通过清理部署移除</value>
+  </data>
+  <data name="Settings.Storage.Title" xml:space="preserve">
+    <value>存储位置</value>
+  </data>
+  <data name="Settings.Storage.RestartHelp" xml:space="preserve">
+    <value>修改将在重启应用后生效，应用会先安全迁移现有文件。</value>
+  </data>
+  <data name="Settings.Storage.AppData" xml:space="preserve">
+    <value>应用数据</value>
+  </data>
+  <data name="Settings.Storage.Mods" xml:space="preserve">
+    <value>模组库</value>
+  </data>
+  <data name="Settings.Storage.Cache" xml:space="preserve">
+    <value>临时与缓存文件</value>
+  </data>
+  <data name="Settings.Storage.Active" xml:space="preserve">
+    <value>当前生效位置</value>
+  </data>
+  <data name="Settings.Storage.ActivePaths" xml:space="preserve">
+    <value>应用数据：{0}
+模组库：{1}
+缓存：{2}</value>
+  </data>
+  <data name="Settings.Storage.Saved" xml:space="preserve">
+    <value>存储位置已保存，重启应用后迁移并生效。</value>
+  </data>
+  <data name="Settings.Storage.Unchanged" xml:space="preserve">
+    <value>存储位置未更改。</value>
+  </data>
+  <data name="Settings.Storage.Defaults" xml:space="preserve">
+    <value>已在编辑器中恢复默认位置。</value>
+  </data>
+  <data name="UI.Choose" xml:space="preserve">
+    <value>选择</value>
+  </data>
+  <data name="Settings.Storage.Starting" xml:space="preserve">
+    <value>正在准备存储目录</value>
+  </data>
+  <data name="Settings.Storage.Migrating" xml:space="preserve">
+    <value>如有位置变更，正在迁移现有文件。请等待完成；取消会保留原位置。</value>
+  </data>
+  <data name="Settings.Storage.StartupFailed" xml:space="preserve">
+    <value>存储目录初始化失败：{0}</value>
+  </data>
+  <data name="Settings.Storage.EmptyTarget" xml:space="preserve">
+    <value>新位置必须是空目录，以免覆盖已有文件。</value>
+  </data>
+  <data name="Settings.Storage.LinkedDeployment" xml:space="preserve">
+    <value>模组仍有符号链接部署，请先在配置文件页清理部署，再修改模组库位置。</value>
+  </data>
+  <data name="Settings.Storage.Failed" xml:space="preserve">
+    <value>存储位置迁移失败，仍使用原位置：{0}</value>
+  </data>
+  <data name="Settings.Storage.CleanupPending" xml:space="preserve">
+    <value>存储位置已切换，部分旧文件未能删除，下次启动将重试清理。</value>
   </data>
 </root>

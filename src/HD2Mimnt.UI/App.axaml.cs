@@ -16,10 +16,12 @@ using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
+using HD2Mimnt.Infrastructure.Storage;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Localization;
+using HD2Mimnt.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -37,6 +39,7 @@ public partial class App : Avalonia.Application
     private RuntimeMetricsWriter? _runtimeMetricsWriter;
     private static WindowIcon? _appIcon;
     private static int _splashClosed;
+    private StorageSettingsService? _startupStorage;
 
     public override void Initialize()
     {
@@ -47,6 +50,52 @@ public partial class App : Avalonia.Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            _ = InitializeDesktopAsync(desktop);
+        }
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task InitializeDesktopAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var running = true;
+        StorageStartupWindow? startup = null;
+
+        void ShowStorageStartupWindow()
+        {
+            startup = new StorageStartupWindow();
+            desktop.MainWindow = startup;
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            startup.CancelRequested += (_, _) =>
+            {
+                if (running) cancellation.Cancel();
+                else { startup.Close(); desktop.Shutdown(1); }
+            };
+            startup.Closing += (_, e) =>
+            {
+                if (!running) return;
+                e.Cancel = true;
+                cancellation.Cancel();
+            };
+            desktop.ShutdownRequested += (_, e) =>
+            {
+                if (!running) return;
+                e.Cancel = true;
+                cancellation.Cancel();
+            };
+            startup.Closed += (_, _) =>
+            {
+                if (!running && desktop.MainWindow == startup) desktop.Shutdown(1);
+            };
+            startup.Show();
+        }
+
+        try
+        {
+            _startupStorage = new StorageSettingsService(new StorageLocationStore());
+            if (_startupStorage.HasPendingMigration) ShowStorageStartupWindow();
+            await _startupStorage.InitializeAsync(cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
             // 设置依赖注入
             var hostBuilder = Host.CreateDefaultBuilder();
             hostBuilder.ConfigureServices((context, services) => ConfigureServices(services));
@@ -79,9 +128,9 @@ public partial class App : Avalonia.Application
                 Console.Error.WriteLine($"Splash screen failed to show: {ex}");
             }
 
-            // 初始化数据库与 Worker：与历史启动行为一致的全同步序列
+            // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
-            dbContext.InitializeDatabaseAsync().Wait();
+            await dbContext.InitializeDatabaseAsync(cancellation.Token);
 
             var taskService = ServiceProvider.GetRequiredService<TaskService>();
             var workers = ServiceProvider.GetServices<IWorker>();
@@ -90,7 +139,7 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
-            // 创建主窗口，交给框架展示（与历史行为一致）
+            // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
             var mainWindow = new MainWindow
             {
@@ -99,6 +148,9 @@ public partial class App : Avalonia.Application
             };
             mainViewModel.AttachOwner(mainWindow);
             desktop.MainWindow = mainWindow;
+            running = false;
+            startup?.Close();
+            if (splash == null) desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
 
             if (splash != null)
             {
@@ -108,17 +160,30 @@ public partial class App : Avalonia.Application
                     _ = CloseSplashAsync(desktop, splash, splashShownAt, minDisplay: true);
                 _ = CloseSplashAsync(desktop, splash, splashShownAt, forcedDelay: TimeSpan.FromSeconds(6));
             }
+            mainWindow.Show();
 
             // 初始化 ViewModel - 使用异步启动避免死锁
             _ = InitializeMainWindowAsync(mainViewModel, mainWindow);
         }
-
-        base.OnFrameworkInitializationCompleted();
+        catch (OperationCanceledException)
+        {
+            running = false;
+            startup?.Close();
+            desktop.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            running = false;
+            if (startup == null) ShowStorageStartupWindow();
+            startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", ex.Message));
+        }
     }
 
     private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
     {
         await main.InitializeAsync();
+        if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
+            ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(storageMessage, UiLocalization.Current["Settings.Storage.Title"]);
         if (Program.ProtocolRegistrationError is { } error)
             ServiceProvider?.GetRequiredService<NotificationService>().ShowError(error, "N 网链接接收");
         Program.ProtocolHost?.SetReceiver(value => Dispatcher.UIThread.Post(() =>
@@ -187,20 +252,20 @@ public partial class App : Avalonia.Application
 
     private void ConfigureServices(IServiceCollection services)
     {
-        // 获取应用程序数据目录
-        var configuredDataPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
-        var appDataPath = string.IsNullOrWhiteSpace(configuredDataPath)
-            ? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "HD2Mimnt")
-            : Path.GetFullPath(configuredDataPath);
+        // 先完成上次启动留下的搬迁，再按已提交的目录创建服务。
+        var storageSettings = _startupStorage ?? new StorageSettingsService(new StorageLocationStore());
+        var storageLocations = storageSettings.Current;
+        var appDataPath = storageLocations.AppDataPath;
         Directory.CreateDirectory(appDataPath);
 
-        var dbPath = Path.Combine(appDataPath, "hd2mimnt.db");
-        var modsStoragePath = Path.Combine(appDataPath, "mods");
-        var imageCachePath = Path.Combine(appDataPath, "ImageCache");
+        var dbPath = storageLocations.DatabasePath;
+        var modsStoragePath = storageLocations.ModsPath;
+        var imageCachePath = storageLocations.ImageCachePath;
         Directory.CreateDirectory(modsStoragePath);
         Directory.CreateDirectory(imageCachePath);
+        Directory.CreateDirectory(storageLocations.DownloadsPath);
+        Directory.CreateDirectory(storageLocations.TempPath);
+        services.AddSingleton(storageSettings);
 
         // 日志（可选）
         services.AddLogging(builder =>
@@ -212,6 +277,7 @@ public partial class App : Avalonia.Application
 
         // 基础设施层
         services.AddSingleton(sp => new HD2MimntDbContext(dbPath));
+        services.AddSingleton<ISettingsRepository>(_ => new SettingsRepository(dbPath));
         services.AddSingleton<IModRepository, ModRepository>();
         services.AddSingleton<IProfileRepository, ProfileRepository>();
         services.AddSingleton<ITaskRepository, TaskRepository>();
@@ -236,7 +302,7 @@ public partial class App : Avalonia.Application
         });
         services.AddSingleton<IHttpDownloadService>(sp => new HttpDownloadService(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("downloads"),
-            sp.GetRequiredService<IDownloadOptionsProvider>(), Path.Combine(appDataPath, "Downloads")));
+            sp.GetRequiredService<IDownloadOptionsProvider>(), storageLocations.DownloadsPath, storageLocations.TempPath));
         services.AddSingleton<DownloadSettingsService>();
         services.AddSingleton<IDownloadOptionsProvider>(sp => sp.GetRequiredService<DownloadSettingsService>());
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-api", (_, _) => new System.Net.Http.HttpClient());
@@ -264,7 +330,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IModRepository>(),
             modsStoragePath,
             sp.GetService<ILogger<ModService>>(),
-            sp.GetRequiredService<DeploymentService>()));
+            sp.GetRequiredService<DeploymentService>(), storageLocations.TempPath));
         services.AddSingleton(sp => new TestDataService(
             sp.GetRequiredService<ModService>()));
 
@@ -308,6 +374,7 @@ public partial class App : Avalonia.Application
 
         // 新增核心服务
         services.AddSingleton(sp => new SettingsService(
+            sp.GetRequiredService<ISettingsRepository>(),
             appDataPath,
             sp.GetService<ILogger<SettingsService>>()));
 
@@ -370,7 +437,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<IImageCacheService>(),
-            sp.GetRequiredService<UiLocalization>()));
+            sp.GetRequiredService<UiLocalization>(),
+            sp.GetRequiredService<StorageSettingsService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(

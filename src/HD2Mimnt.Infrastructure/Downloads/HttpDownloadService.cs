@@ -15,15 +15,17 @@ public sealed class HttpDownloadService : IHttpDownloadService
     private readonly HttpClient _httpClient;
     private readonly IDownloadOptionsProvider? _optionsProvider;
     private readonly string _resumeDirectory;
+    private readonly string _tempDirectory;
 
     // The caller owns HttpClient; credentials must be attached to API requests, not its default headers.
     public HttpDownloadService(HttpClient httpClient, IDownloadOptionsProvider? optionsProvider = null,
-        string? resumeDirectory = null)
+        string? resumeDirectory = null, string? tempDirectory = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _optionsProvider = optionsProvider;
         _resumeDirectory = resumeDirectory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt", "Downloads");
+        _tempDirectory = tempDirectory ?? Path.GetTempPath();
     }
 
     public async Task<Stream> DownloadAsync(Uri uri, DownloadOptions? options = null,
@@ -34,7 +36,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
         Validate(uri, options);
         cancellationToken.ThrowIfCancellationRequested();
         var identity = GetIdentity(uri, resumeKey);
-        var directory = options.EnableResume ? _resumeDirectory : Path.GetTempPath();
+        var directory = options.EnableResume ? _resumeDirectory : _tempDirectory;
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, options.EnableResume ? identity + ".part" : $"HD2Mimnt-download-{Guid.NewGuid():N}.tmp");
         await using var lease = AcquireLease(path);

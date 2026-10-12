@@ -16,6 +16,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly NotificationService _notificationService;
     private readonly IImageCacheService _imageCacheService;
     private readonly DownloadSettingsService _downloadSettingsService;
+    private readonly StorageSettingsService? _storageSettings;
     private readonly UiLocalization? _localization;
     private bool _syncingLanguage;
     private readonly SemaphoreSlim _languageGate = new(1, 1);
@@ -59,11 +60,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _downloadMaxRetries = 2;
     [ObservableProperty] private int _downloadRetryDelayMs = 500;
     [ObservableProperty] private bool _downloadEnableResume = true;
+    [ObservableProperty] private string _appDataPath = string.Empty;
+    [ObservableProperty] private string _modsStoragePath = string.Empty;
+    [ObservableProperty] private string _tempCachePath = string.Empty;
+    [ObservableProperty] private bool _storageRestartRequired;
+    public string ActiveStoragePaths => _storageSettings == null ? string.Empty :
+        (_localization ?? UiLocalization.Current).Format("Settings.Storage.ActivePaths",
+            _storageSettings.Current.AppDataPath, _storageSettings.Current.ModsPath, _storageSettings.Current.CachePath);
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
-    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "外观", "缓存" };
+    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "存储位置", "外观", "缓存" };
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? AppearanceChanged;
@@ -76,15 +84,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
     public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
+    public bool IsStorageCategoryVisible => SelectedCategory == "存储位置";
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
-        UiLocalization? localization = null)
+        UiLocalization? localization = null, StorageSettingsService? storageSettings = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _imageCacheService = imageCacheService;
         _downloadSettingsService = new DownloadSettingsService(settingsService);
+        _storageSettings = storageSettings;
         _localization = localization;
         LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
             .Concat(localization?.Service?.SupportedLanguages ?? new HD2Mimnt.Application.Localization.TranslationCatalog().SupportedLanguages)
@@ -129,6 +139,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (args.PropertyName != nameof(UiLocalization.Revision)) return;
         if (!IsChangingLanguage) SynchronizeLanguage();
         OnPropertyChanged(nameof(CurrentLanguageText));
+        OnPropertyChanged(nameof(ActiveStoragePaths));
     }
 
     private void SynchronizeLanguage()
@@ -153,6 +164,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsAppearanceCategoryVisible));
         OnPropertyChanged(nameof(IsCacheCategoryVisible));
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
+        OnPropertyChanged(nameof(IsStorageCategoryVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
@@ -167,6 +179,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             SynchronizeLanguage();
+            LoadStoragePaths();
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
@@ -202,6 +215,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
+            if (IsStorageCategoryVisible)
+            {
+                if (_storageSettings == null) throw new InvalidOperationException("存储设置服务未初始化。");
+                IsLoading = true;
+                await _storageSettings.SaveAsync(new(AppDataPath, ModsStoragePath, TempCachePath));
+                LoadStoragePaths();
+                StatusMessage = (_localization ?? UiLocalization.Current)[StorageRestartRequired
+                    ? "Settings.Storage.Saved" : "Settings.Storage.Unchanged"];
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             var downloads = new DownloadOptions
             {
                 MaxParallelSegments = DownloadParallelSegments,
@@ -272,6 +296,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             StatusMessage = $"保存设置失败：{ex.Message}";
             _notificationService.ShowError($"保存设置失败: {ex.Message}", "设置");
         }
+        finally { IsLoading = false; }
     }
 
     private async Task SaveProfilePreferencesAsync()
@@ -309,6 +334,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ResetAsync()
     {
+        if (IsStorageCategoryVisible && _storageSettings != null)
+        {
+            AppDataPath = _storageSettings.Defaults.AppDataPath;
+            ModsStoragePath = _storageSettings.Defaults.ModsPath;
+            TempCachePath = _storageSettings.Defaults.CachePath;
+            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Storage.Defaults"];
+            return;
+        }
         if (IsDownloadCategoryVisible)
         {
             await _settingsService.ResetCategoryAsync("Download");
@@ -363,6 +396,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var stats = _imageCacheService.GetStats();
         CacheStatus = $"内存 {stats.MemoryCacheCount} 项，磁盘 {stats.DiskCacheCount} 项，磁盘占用 {FormatBytes(stats.DiskCacheSizeBytes)}";
+    }
+
+    private void LoadStoragePaths()
+    {
+        if (_storageSettings == null) return;
+        AppDataPath = _storageSettings.Selected.AppDataPath;
+        ModsStoragePath = _storageSettings.Selected.ModsPath;
+        TempCachePath = _storageSettings.Selected.CachePath;
+        StorageRestartRequired = _storageSettings.RestartRequired;
+        OnPropertyChanged(nameof(ActiveStoragePaths));
     }
 
     private static string FormatBytes(long bytes)

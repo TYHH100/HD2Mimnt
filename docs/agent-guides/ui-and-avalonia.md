@@ -12,6 +12,8 @@
 
 - 依赖加载器分隔符使用 `ChevronAngle` 表达部署方向：常规部署展开箭头向下（90°），从下到上部署向上（-90°）；不要只改固定图标，否则方向切换后 UI 与列表顺序不一致。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
+- 收起的用户分组需要保存 `MemberCount` 结束边界，拖入其下方或移动整组时只保留原有成员，组外模组正常显示；仅保存起点会让后续模组自动归组。旧数据的 null 沿用原范围，操作时补齐边界；展开、搜索、重新加载、复制配置和组内移出/删除都要保持边界一致，排序与边界通过同一次服务写入保存。回归覆盖正反部署方向、末尾分组及实际 DragOver/Drop。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://www.sqlite.org/lang_altertable.html
+
 - 外部文件导入拖放统一在 MainWindow 冒泡路由处理并启用 handledEventsToo（DragDrop 事件不走隧道路由），先识别本地文件再标记 Handled，避免页面子控件吞掉事件或内部排序覆盖 Copy；根容器使用透明背景覆盖空白区域。提示层不参与命中测试，DragLeave 只有窗口坐标越界才隐藏，不能因子控件之间移动反复显隐；无文件数据继续交给内部排序。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
 - 弹出通知的计时器随视图挂载/卸载启动和停止，横幅收起不能删除通知历史；后台通知事件先派发到 UI 线程。Avalonia 位移动画使用已创建的 `TranslateTransform` 和 `TranslateTransform.X`，不要直接对 `RenderTransform` 写关键帧，否则可能编译通过但运行时报无 Animator；必须用 Headless 实际显示通知验证。来源：https://docs.avaloniaui.net/docs/guides/graphics-and-animation/keyframe-animations

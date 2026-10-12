@@ -181,6 +181,7 @@ public class ProfileServiceTests : IDisposable
         Assert.Equal(separator.Id, saved.Id);
         Assert.Equal("武器与护甲", saved.Name);
         Assert.True(saved.IsCollapsed);
+        Assert.Equal(0, saved.MemberCount);
         Assert.Equal("#AA33EE", saved.Color);
         Assert.Equal("#12AB56", loaded.LuaSeparatorColor);
         Assert.True(loaded.IsLuaGroupCollapsed);
@@ -200,7 +201,7 @@ public class ProfileServiceTests : IDisposable
         await _profileService.AddModToProfileAsync(profileId, mod.Id);
         using (var command = (await _dbContext.GetConnectionAsync()).CreateCommand())
         {
-            command.CommandText = "ALTER TABLE ProfileSeparators DROP COLUMN Color; ALTER TABLE Profiles DROP COLUMN LuaSeparatorColor; ALTER TABLE Profiles DROP COLUMN IsLuaGroupCollapsed";
+            command.CommandText = "ALTER TABLE ProfileSeparators DROP COLUMN Color; ALTER TABLE ProfileSeparators DROP COLUMN MemberCount; ALTER TABLE Profiles DROP COLUMN LuaSeparatorColor; ALTER TABLE Profiles DROP COLUMN IsLuaGroupCollapsed";
             await command.ExecuteNonQueryAsync();
         }
         await _dbContext.InitializeDatabaseAsync();
@@ -213,6 +214,7 @@ public class ProfileServiceTests : IDisposable
         Assert.NotEqual(separator.Id, copied.Id);
         Assert.Equal(duplicate.Id, copied.ProfileId);
         Assert.True(copied.IsCollapsed);
+        Assert.Equal(1, copied.MemberCount);
         Assert.Equal("#FF2255", copied.Color);
         Assert.Equal("#44AA77", duplicate.LuaSeparatorColor);
         Assert.True(duplicate.IsLuaGroupCollapsed);

@@ -480,6 +480,60 @@ public sealed class ProfileViewModelTests : IDisposable
         Assert.Single(vm.ProfileSeparators);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task CollapsedSeparator_ShouldKeepOriginalMembersWhenMovedOrDroppedBelow(bool bottomToTop, bool legacy)
+    {
+        var mods = new List<Mod>();
+        for (var i = 0; i < 4; i++) mods.Add(await AddModAsync($"Bounded {i}"));
+        var profileId = await _profileService.CreateProfileAsync("收起分组边界");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var separator = await _profileService.AddSeparatorAsync(profileId, "原有成员", 2);
+        await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
+        if (legacy)
+        {
+            using var command = (await _dbContext.GetConnectionAsync()).CreateCommand();
+            command.CommandText = "UPDATE ProfileSeparators SET MemberCount = NULL WHERE Id = @Id";
+            command.Parameters.AddWithValue("@Id", separator.Id.ToString());
+            await command.ExecuteNonQueryAsync();
+        }
+        await new SettingsService(_storageDirectory).SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
+            bottomToTop ? "BottomToTop" : "TopToBottom");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        // 将收起的末尾分组搬到组外模组上方，不能顺带吸收原落点之后的模组。
+        await vm.MoveModsAsync(new[] { separator.Id }, mods[0].Id);
+        var group = Assert.Single(vm.ProfileSeparators);
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id }, vm.GetSeparatorMembers(group).Select(row => row.ModId));
+        Assert.Equal(new[] { mods[0].Id, mods[1].Id }, vm.VisibleProfileMods.Select(row => row.ModId));
+        // 下方的插入点保持组外，且不改变既有隐藏成员和它们的相对顺序。
+        await vm.MoveModsAsync(new[] { mods[1].Id }, mods[0].Id);
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        group = Assert.Single(vm.ProfileSeparators);
+        Assert.True(group.IsCollapsed);
+        Assert.Equal(2, group.MemberCount);
+        Assert.Equal(new[] { mods[1].Id, mods[0].Id }, vm.VisibleProfileMods.Select(row => row.ModId));
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id, mods[1].Id, mods[0].Id },
+            (await _profileService.GetProfileByIdAsync(profileId))!.Mods.OrderBy(row => row.Order).Select(row => row.ModId));
+        // 展开后可以将模组拖入成员范围；再移出和删除时同步缩短边界。
+        await vm.ToggleSeparatorCommand.ExecuteAsync(group);
+        Assert.Equal(2, vm.GetSeparatorMembers(group).Count);
+        await vm.MoveModsAsync(new[] { mods[1].Id }, mods[3].Id);
+        Assert.Equal(3, vm.GetSeparatorMembers(group).Count);
+        await vm.MoveModsAsync(new[] { mods[1].Id }, separator.Id);
+        Assert.Equal(2, vm.GetSeparatorMembers(group).Count);
+        await vm.RemoveModFromProfileCommand.ExecuteAsync(vm.ProfileMods.Single(row => row.ModId == mods[3].Id));
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        group = Assert.Single(vm.ProfileSeparators);
+        Assert.Equal(mods[2].Id, Assert.Single(vm.GetSeparatorMembers(group)).ModId);
+        vm.ModSearchText = group.ModName;
+        Assert.Equal(mods[2].Id, Assert.Single(vm.VisibleProfileMods).ModId);
+    }
+
     private ProfileViewModel CreateViewModel()
     {
         var confirmation = new Mock<IConfirmationService>();

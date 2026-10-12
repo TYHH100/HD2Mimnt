@@ -32,4 +32,21 @@ public partial class SettingsView : UserControl
         var path = files.Count > 0 ? files[0].Path.LocalPath : null;
         if (!string.IsNullOrWhiteSpace(path)) await viewModel.SetBackgroundImagePathAsync(path);
     }
+
+    private async Task PickFolderAsync(Action<string> apply)
+    {
+        if (DataContext is not SettingsViewModel || TopLevel.GetTopLevel(this) is not Window owner) return;
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = UiLocalization.Current.Translate("选择文件夹"), AllowMultiple = false
+        });
+        if (folders.Count > 0 && !string.IsNullOrWhiteSpace(folders[0].Path.LocalPath)) apply(folders[0].Path.LocalPath);
+    }
+
+    private async void OnPickAppDataClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).AppDataPath = path);
+    private async void OnPickModsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).ModsStoragePath = path);
+    private async void OnPickCacheClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).TempCachePath = path);
 }

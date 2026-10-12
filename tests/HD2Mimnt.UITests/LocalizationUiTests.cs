@@ -174,14 +174,21 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.False(vm.IsChangingLanguage);
         Assert.Equal("zh-CN", service.SelectedLanguage);
         Assert.Equal("zh-CN", new SettingsService(scope.Root).GetSetting(SettingKeys.Language, "auto"));
-        using (var lockedFile = new FileStream(Path.Combine(scope.Root, "settings.json"), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(scope.Root, "hd2mimnt.db"), Pooling = false }.ToString()))
         {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "CREATE TRIGGER fail_settings BEFORE UPDATE ON Settings BEGIN SELECT RAISE(ABORT, 'test failure'); END";
+            command.ExecuteNonQuery();
             vm.SelectedLanguageCode = "en-US";
             await vm.LanguageChangeTask.WaitAsync(TimeSpan.FromSeconds(10));
             Assert.False(vm.IsChangingLanguage);
             Assert.Equal("zh-CN", vm.SelectedLanguageCode);
             Assert.Equal("zh-CN", service.CurrentLanguage);
             Assert.StartsWith("切换语言失败：", vm.StatusMessage);
+            command.CommandText = "DROP TRIGGER fail_settings";
+            command.ExecuteNonQuery();
         }
         vm.SelectedLanguageCode = "en-US";
         await vm.LanguageChangeTask;

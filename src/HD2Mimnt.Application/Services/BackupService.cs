@@ -1,11 +1,12 @@
 using System.IO.Compression;
 using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Repositories;
 
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>
 /// Creates and restores self-contained application backups.
-/// A backup contains the SQLite database and the JSON settings file.
+/// Application settings are included in the SQLite snapshot; legacy JSON backups remain readable.
 /// </summary>
 public sealed class BackupService
 {
@@ -14,7 +15,6 @@ public sealed class BackupService
 
     private readonly string _appDataPath;
     private readonly string _databasePath;
-    private readonly string _settingsPath;
     private readonly string _backupDirectory;
     private readonly HD2MimntDbContext _dbContext;
     private readonly SettingsService _settingsService;
@@ -27,7 +27,6 @@ public sealed class BackupService
     {
         _appDataPath = appDataPath;
         _databasePath = dbContext.DatabasePath;
-        _settingsPath = Path.Combine(appDataPath, "settings.json");
         _backupDirectory = Path.Combine(appDataPath, "Backups");
         _dbContext = dbContext;
         _settingsService = settingsService;
@@ -76,10 +75,6 @@ public sealed class BackupService
             using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: false))
             {
                 await AddFileAsync(archive, temporaryDatabasePath, DatabaseEntryName, cancellationToken);
-                if (File.Exists(_settingsPath))
-                {
-                    await AddFileAsync(archive, _settingsPath, SettingsEntryName, cancellationToken);
-                }
             }
 
             File.Move(temporaryBackupPath, backupPath);
@@ -116,19 +111,18 @@ public sealed class BackupService
                 settingsEntry?.ExtractToFile(temporarySettingsPath, overwrite: true);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            _dbContext.Dispose();
-            File.Copy(temporaryDatabasePath, _databasePath, overwrite: true);
-            DeleteIfExists(_databasePath + "-wal");
-            DeleteIfExists(_databasePath + "-shm");
-
-            if (File.Exists(temporarySettingsPath))
+            // 在覆盖当前数据前完成旧备份设置的迁移及 JSON 校验。
+            // 恢复无 JSON 的新备份时，不得导入当前目录里残留的旧设置。
+            _ = new SettingsService(new SettingsRepository(temporaryDatabasePath), temporaryDirectory);
+            await _settingsService.ReloadAfterRestoreAsync(async () =>
             {
-                File.Copy(temporarySettingsPath, _settingsPath, overwrite: true);
-            }
-
-            await _dbContext.InitializeDatabaseAsync(cancellationToken);
-            await _settingsService.ReloadAsync();
+                cancellationToken.ThrowIfCancellationRequested();
+                _dbContext.Dispose();
+                File.Copy(temporaryDatabasePath, _databasePath, overwrite: true);
+                DeleteIfExists(_databasePath + "-wal");
+                DeleteIfExists(_databasePath + "-shm");
+                await _dbContext.InitializeDatabaseAsync(cancellationToken);
+            });
         }
         finally
         {

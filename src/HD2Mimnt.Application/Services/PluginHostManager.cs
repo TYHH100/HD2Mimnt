@@ -150,6 +150,8 @@ internal class PluginHostProcess
 /// </summary>
 public class PluginHostManager : IPluginHostManager
 {
+    private readonly StorageSettingsService? _storage;
+    public PluginHostManager(StorageSettingsService? storage = null) => _storage = storage;
     private readonly ConcurrentDictionary<string, PluginHostProcess> _runningHosts = new();
 
     public async Task<PluginOperationResult> StartPluginAsync(string pluginId, string assemblyPath, string manifestPath, CancellationToken cancellationToken = default)
@@ -177,6 +179,7 @@ public class PluginHostManager : IPluginHostManager
             RedirectStandardError = true
         };
 
+        if (_storage != null) processStartInfo.Environment["HD2MIMNT_RUNTIME_DATA_PATH"] = _storage.Current.AppDataPath;
         var process = Process.Start(processStartInfo);
         if (process == null)
         {

@@ -17,9 +17,10 @@ public sealed class GameDetectionServiceTests : IDisposable
     [Fact]
     public async Task ApplyConfiguredPathAsync_WithValidPath_ShouldUseOnlyConfiguredPath()
     {
-        var gameDirectory = Path.Combine(_rootDirectory, "game");
-        Directory.CreateDirectory(gameDirectory);
-        await File.WriteAllTextAsync(Path.Combine(gameDirectory, "helldivers2.exe"), string.Empty);
+        var gameDirectory = Path.Combine(_rootDirectory, "Helldivers 2");
+        foreach (var name in new[] { "data", "tools", "bin" })
+            Directory.CreateDirectory(Path.Combine(gameDirectory, name));
+        await File.WriteAllTextAsync(Path.Combine(gameDirectory, "bin", "helldivers2.exe"), string.Empty);
         var service = new GameDetectionService(_settingsService);
 
         var result = await service.ApplyConfiguredPathAsync(gameDirectory);

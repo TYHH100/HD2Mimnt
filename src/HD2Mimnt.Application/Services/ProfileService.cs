@@ -274,6 +274,14 @@ public class ProfileService
                 var normal = profile.Mods.OrderBy(item => item.Order).Where(item => !mods.TryGetValue(item.ModId, out var mod)
                     || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
                 foreach (var separator in profile.Separators)
+                {
+                    if (separator.MemberCount != null || separator.IsCollapsed)
+                    {
+                        var count = GetSeparatorMemberCount(profile, separator, normal.Count);
+                        separator.MemberCount = count - normal.Skip(separator.Order).Take(count).Count(item => ids.Contains(item.ModId));
+                    }
+                }
+                foreach (var separator in profile.Separators)
                     separator.Order -= normal.Take(separator.Order).Count(item => ids.Contains(item.ModId));
             }
             if (profile.Mods.RemoveAll(mod => ids.Contains(mod.ModId)) > 0)
@@ -429,8 +437,13 @@ public class ProfileService
         RaiseProfilesChanged();
     }
 
-    public async Task ReorderProfileRowsAsync(Guid profileId, IReadOnlyList<Guid> modIds,
+    public Task ReorderProfileRowsAsync(Guid profileId, IReadOnlyList<Guid> modIds,
         IReadOnlyList<Guid> ordinaryRowIds, CancellationToken cancellationToken = default)
+        => ReorderProfileRowsAsync(profileId, modIds, ordinaryRowIds, null, cancellationToken);
+
+    public async Task ReorderProfileRowsAsync(Guid profileId, IReadOnlyList<Guid> modIds,
+        IReadOnlyList<Guid> ordinaryRowIds, IReadOnlyDictionary<Guid, int>? separatorMemberCounts,
+        CancellationToken cancellationToken = default)
     {
         await _optionsWriteGate.WaitAsync(cancellationToken);
         try
@@ -447,7 +460,8 @@ public class ProfileService
                 || ordinaryRowIds.Count != normalIds.Count + separatorMap.Count
                 || ordinaryRowIds.Distinct().Count() != ordinaryRowIds.Count
                 || !ordinaryRowIds.ToHashSet().SetEquals(normalIds.Concat(separatorMap.Keys))
-                || !ordinaryRowIds.Where(normalIds.Contains).SequenceEqual(modIds.Where(normalIds.Contains)))
+                || !ordinaryRowIds.Where(normalIds.Contains).SequenceEqual(modIds.Where(normalIds.Contains))
+                || separatorMemberCounts?.Any(pair => !separatorMap.ContainsKey(pair.Key) || pair.Value < 0) == true)
                 throw new InvalidOperationException("配置已发生变化，请刷新后重新排序。");
 
             var modMap = profile.Mods.ToDictionary(item => item.ModId);
@@ -463,11 +477,14 @@ public class ProfileService
                 if (separatorMap.TryGetValue(id, out var separator))
                 {
                     separator.Order = precedingMods;
+                    if (separatorMemberCounts?.TryGetValue(id, out var count) == true) separator.MemberCount = count;
                     separators.Add(separator);
                 }
                 else precedingMods++;
             }
             profile.Separators = separators;
+            foreach (var separator in separators.Where(item => item.MemberCount != null))
+                separator.MemberCount = GetSeparatorMemberCount(profile, separator, normalIds.Count);
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged();
@@ -560,6 +577,14 @@ public class ProfileService
                 var separator = profile.Separators.FirstOrDefault(item => item.Id == separatorId)
                     ?? throw new InvalidOperationException("分隔符不存在");
                 if (separator.IsCollapsed == collapsed) return;
+                if (separator.MemberCount == null)
+                {
+                    var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                        .ToDictionary(mod => mod.Id);
+                    var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
+                        || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+                    separator.MemberCount = GetSeparatorMemberCount(profile, separator, normalCount);
+                }
                 separator.IsCollapsed = collapsed;
             }
             profile.ModifiedAt = DateTime.UtcNow;
@@ -576,6 +601,13 @@ public class ProfileService
         if (color.Length != 7 || color[0] != '#' || !color.Skip(1).All(Uri.IsHexDigit))
             throw new ArgumentException("颜色须为 #RRGGBB 格式", nameof(color));
         return color.ToUpperInvariant();
+    }
+
+    private static int GetSeparatorMemberCount(Profile profile, ProfileSeparator separator, int normalCount)
+    {
+        var next = profile.Separators.OrderBy(item => item.Order).SkipWhile(item => item != separator).Skip(1).FirstOrDefault();
+        var available = Math.Max(0, Math.Min(next?.Order ?? normalCount, normalCount) - separator.Order);
+        return Math.Clamp(separator.MemberCount ?? available, 0, available);
     }
 
     public async Task RemoveSeparatorAsync(Guid profileId, Guid separatorId,

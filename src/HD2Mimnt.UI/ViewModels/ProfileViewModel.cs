@@ -589,6 +589,7 @@ public partial class ProfileViewModel : ObservableObject
         var visibleOrdinary = new List<ProfileModViewModel>();
         var group = (ProfileModViewModel?)null;
         var groupMatches = false;
+        var remainingMembers = 0;
         foreach (var row in ordinary)
         {
             if (row.IsUserSeparator)
@@ -597,11 +598,17 @@ public partial class ProfileViewModel : ObservableObject
                 groupMatches = Matches(row);
                 var members = GetSeparatorMembers(row);
                 row.GroupModCount = members.Count;
+                remainingMembers = members.Count;
                 if (query.Length == 0 || groupMatches || members.Any(Matches)) visibleOrdinary.Add(row);
             }
             // 搜索时显示匹配成员，避免折叠组藏住搜索结果；不改变已保存的折叠状态。
-            else if (query.Length > 0 ? groupMatches || Matches(row) : group?.IsCollapsed != true)
-                visibleOrdinary.Add(row);
+            else
+            {
+                if (remainingMembers == 0) { group = null; groupMatches = false; }
+                if (query.Length > 0 ? groupMatches || Matches(row) : group?.IsCollapsed != true)
+                    visibleOrdinary.Add(row);
+                if (remainingMembers > 0) remainingMembers--;
+            }
         }
         var separator = _luaSeparator;
         separator.GroupModCount = ProfileMods.Count(mod => mod.IsBslMember);
@@ -692,8 +699,10 @@ public partial class ProfileViewModel : ObservableObject
         try
         {
             var collapsed = !separator.IsCollapsed;
+            var memberCount = GetSeparatorMembers(separator).Count;
             await SuppressLocalChangeAsync(() => _profileService.SetSeparatorCollapsedAsync(profile.Id, separator.ModId, collapsed));
             if (SelectedProfile != profile) return;
+            if (separator.IsUserSeparator) separator.MemberCount ??= memberCount;
             separator.IsCollapsed = collapsed;
             foreach (var member in GetSeparatorMembers(separator)) member.IsSelected = false;
             ApplyModFilter();
@@ -722,6 +731,7 @@ public partial class ProfileViewModel : ObservableObject
     {
         ModId = separator.Id, ProfileId = separator.ProfileId, IsSeparator = true, IsUserSeparator = true,
         ModName = separator.Name, Order = separator.Order, IsCollapsed = separator.IsCollapsed,
+        MemberCount = separator.MemberCount,
         SeparatorColor = separator.Color
     };
 
@@ -742,12 +752,18 @@ public partial class ProfileViewModel : ObservableObject
 
     public List<ProfileModViewModel> GetSeparatorMembers(ProfileModViewModel separator)
         => separator.IsUserSeparator
-            ? BuildOrdinaryRows().SkipWhile(row => row != separator).Skip(1).TakeWhile(row => !row.IsUserSeparator).ToList()
+            ? BuildOrdinaryRows().SkipWhile(row => row != separator).Skip(1).TakeWhile(row => !row.IsUserSeparator)
+                .Take(separator.MemberCount ?? int.MaxValue).ToList()
             : ProfileMods.Where(row => row.IsBslMember).ToList();
 
     private void AdjustSeparatorPositionsAfterRemoval(IReadOnlyCollection<ProfileModViewModel> removed)
     {
         var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        foreach (var separator in ProfileSeparators.Where(row => row.MemberCount != null || row.IsCollapsed))
+        {
+            var members = GetSeparatorMembers(separator);
+            separator.MemberCount = members.Count - members.Count(removed.Contains);
+        }
         foreach (var separator in ProfileSeparators)
             separator.Order -= normal.Take(separator.Order).Count(removed.Contains);
     }
@@ -1456,6 +1472,19 @@ public partial class ProfileViewModel : ObservableObject
 
         var moving = fullRows.Where(mod => movingSet.Contains(mod.ModId)).ToList();
         var others = fullRows.Where(mod => !movingSet.Contains(mod.ModId)).ToList();
+        // 收起分组带走的成员范围有明确终点，不能因组后插入或整组移动而吸收其它模组。
+        var boundedMembers = ProfileSeparators.Where(row => row.MemberCount != null || row.IsCollapsed)
+            .ToDictionary(row => row, row => GetSeparatorMembers(row).Select(member => member.ModId).ToHashSet());
+        var originalInsertIndex = anchorModId == Guid.Empty ? GetLuaGroupBoundary(fullRows)
+            : anchorModId is { } targetId ? fullRows.FindIndex(row => row.ModId == targetId) : fullRows.Count;
+        foreach (var (separator, members) in boundedMembers)
+        {
+            var start = fullRows.IndexOf(separator);
+            // 展开后仍允许向可见成员范围内插入模组。
+            if (!separator.IsCollapsed && !movingSet.Contains(separator.ModId)
+                && originalInsertIndex > start && originalInsertIndex <= start + 1 + members.Count)
+                members.UnionWith(moving.Where(row => !row.IsSeparator && !row.IsBslMember).Select(row => row.ModId));
+        }
 
         // 落点换算为"anchor 之前的非拖动项数量"，anchor 本身也在拖动集中时视为放到末尾
         var insertIndex = others.Count;
@@ -1485,6 +1514,9 @@ public partial class ProfileViewModel : ObservableObject
 
         if (newOrder.Select(mod => mod.ModId).SequenceEqual(fullRows.Select(mod => mod.ModId))) return;
 
+        foreach (var (separator, members) in boundedMembers)
+            separator.MemberCount = newOrder.SkipWhile(row => row != separator).Skip(1)
+                .TakeWhile(row => !row.IsSeparator && !row.IsBslMember && members.Contains(row.ModId)).Count();
         ProfileMods = new ObservableCollection<ProfileModViewModel>(newOrder.Where(row => !row.IsSeparator));
         var ordinaryCount = 0;
         foreach (var row in newOrder.Where(row => !row.IsBslMember))
@@ -1500,7 +1532,8 @@ public partial class ProfileViewModel : ObservableObject
         {
             await SuppressLocalChangeAsync(() =>
                 _profileService.ReorderProfileRowsAsync(
-                    SelectedProfile.Id, CanonicalModIds(), BuildOrdinaryRows().Select(row => row.ModId).ToArray()));
+                    SelectedProfile.Id, CanonicalModIds(), BuildOrdinaryRows().Select(row => row.ModId).ToArray(),
+                    ProfileSeparators.Where(row => row.MemberCount != null).ToDictionary(row => row.ModId, row => row.MemberCount!.Value)));
             // 更新卡片的持久化位次，切换方向时仍保持依赖模组之间的实际覆盖顺序。
             var canonicalIds = CanonicalModIds();
             for (var i = 0; i < canonicalIds.Count; i++) ProfileMods.First(mod => mod.ModId == canonicalIds[i]).Order = i;
@@ -1650,6 +1683,7 @@ public partial class ProfileModViewModel : ObservableObject
 
     public bool IsSeparator { get; init; }
     public bool IsUserSeparator { get; init; }
+    public int? MemberCount { get; set; }
     [ObservableProperty]
     private bool _isCollapsed;
 

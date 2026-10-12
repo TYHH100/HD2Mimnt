@@ -2670,4 +2670,60 @@ See the Conflicts page for details.</value>
   <data name="Deployment.CancelledCleanup" xml:space="preserve">
     <value>Deployment cancelled. Use deployment cleanup to remove files already written</value>
   </data>
+  <data name="Settings.Storage.Title" xml:space="preserve">
+    <value>Storage locations</value>
+  </data>
+  <data name="Settings.Storage.RestartHelp" xml:space="preserve">
+    <value>Changes are applied after restarting the app. Existing files are migrated safely before switching.</value>
+  </data>
+  <data name="Settings.Storage.AppData" xml:space="preserve">
+    <value>Application data</value>
+  </data>
+  <data name="Settings.Storage.Mods" xml:space="preserve">
+    <value>Mod library</value>
+  </data>
+  <data name="Settings.Storage.Cache" xml:space="preserve">
+    <value>Temporary and cache files</value>
+  </data>
+  <data name="Settings.Storage.Active" xml:space="preserve">
+    <value>Active locations</value>
+  </data>
+  <data name="Settings.Storage.ActivePaths" xml:space="preserve">
+    <value>Application data: {0}
+Mod library: {1}
+Cache: {2}</value>
+  </data>
+  <data name="Settings.Storage.Saved" xml:space="preserve">
+    <value>Storage locations saved. Restart the app to migrate and apply them.</value>
+  </data>
+  <data name="Settings.Storage.Unchanged" xml:space="preserve">
+    <value>Storage locations are unchanged.</value>
+  </data>
+  <data name="Settings.Storage.Defaults" xml:space="preserve">
+    <value>Default locations restored in the editor.</value>
+  </data>
+  <data name="UI.Choose" xml:space="preserve">
+    <value>Choose</value>
+  </data>
+  <data name="Settings.Storage.Starting" xml:space="preserve">
+    <value>Preparing storage</value>
+  </data>
+  <data name="Settings.Storage.Migrating" xml:space="preserve">
+    <value>Migrating existing files if needed. Please keep the app open until it finishes.</value>
+  </data>
+  <data name="Settings.Storage.StartupFailed" xml:space="preserve">
+    <value>Storage initialization failed: {0}</value>
+  </data>
+  <data name="Settings.Storage.EmptyTarget" xml:space="preserve">
+    <value>Choose an empty folder to avoid overwriting existing files.</value>
+  </data>
+  <data name="Settings.Storage.LinkedDeployment" xml:space="preserve">
+    <value>Mods are still deployed with symbolic links. Clean up deployment on the Profiles page before moving the library.</value>
+  </data>
+  <data name="Settings.Storage.Failed" xml:space="preserve">
+    <value>Storage migration failed. Original locations are still in use: {0}</value>
+  </data>
+  <data name="Settings.Storage.CleanupPending" xml:space="preserve">
+    <value>Storage locations changed. Some old files could not be deleted; cleanup will retry on the next launch.</value>
+  </data>
 </root>

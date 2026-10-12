@@ -5,6 +5,7 @@ using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Localization;
 using HD2Mimnt.Infrastructure.Localization;
 using Moq;
+using Microsoft.Data.Sqlite;
 
 namespace HD2Mimnt.Tests.Services;
 
@@ -158,12 +159,15 @@ public sealed class LocalizationServiceTests : IDisposable
         await service.SetLanguageAsync("zh-TW");
         var eventCount = 0;
         service.LanguageChanged += (_, _) => eventCount++;
-        var path = Path.Combine(_root, "settings.json");
-        File.Delete(path);
-        Directory.CreateDirectory(path);
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(_root, "hd2mimnt.db"), Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "CREATE TRIGGER fail_settings BEFORE UPDATE ON Settings BEGIN SELECT RAISE(ABORT, 'test failure'); END";
+        command.ExecuteNonQuery();
 
         var failure = await Record.ExceptionAsync(() => service.SetLanguageAsync("en-US"));
-        Assert.True(failure is IOException or UnauthorizedAccessException);
+        Assert.IsType<SqliteException>(failure);
 
         Assert.Equal("zh-TW", service.CurrentLanguage);
         Assert.Equal("儲存", service["Common.Save"]);

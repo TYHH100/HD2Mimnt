@@ -9,7 +9,8 @@ public sealed record ModOnlineInfo(Mod Mod, IReadOnlyList<PlatformModFile> Files
 
 /// <summary>使用已保存的链接检查文件、下载指定版本并替换原模组。</summary>
 public sealed class ModOnlineService(IModRepository repository, IPlatformRegistry platforms,
-    ModService mods, DownloadManagerService downloads, ILogger<ModOnlineService>? logger = null)
+    ModService mods, DownloadManagerService downloads, ILogger<ModOnlineService>? logger = null,
+    StorageSettingsService? storage = null)
 {
     public string GetWebsiteDownloadUrl(ModPlatformLink link, PlatformModFile file)
         => GetProtocolPlatform(GetPlatform(link)).GetWebsiteDownloadUrl(link.ModId, file);
@@ -73,7 +74,7 @@ public sealed class ModOnlineService(IModRepository repository, IPlatformRegistr
     {
         if (string.IsNullOrWhiteSpace(file.Version))
             throw new InvalidOperationException("所选文件未提供版本号，无法更新；可以单独下载压缩包。");
-        var directory = Path.Combine(Path.GetTempPath(), "HD2Mimnt-Update-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(storage?.Current.TempPath ?? Path.GetTempPath(), "HD2Mimnt-Update-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try
         {

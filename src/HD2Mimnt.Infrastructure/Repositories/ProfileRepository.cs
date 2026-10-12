@@ -191,6 +191,7 @@ public class ProfileRepository : IProfileRepository
                 ProfileId = Guid.Empty,
                 Name = separator.Name,
                 Order = separator.Order,
+                MemberCount = separator.MemberCount,
                 IsCollapsed = separator.IsCollapsed,
                 Color = separator.Color
             }).ToList()
@@ -271,7 +272,7 @@ public class ProfileRepository : IProfileRepository
         var connection = await _dbContext.GetConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, ProfileId, Name, [Order], IsCollapsed, Color
+            SELECT Id, ProfileId, Name, [Order], IsCollapsed, Color, MemberCount
             FROM ProfileSeparators
             WHERE ProfileId = @ProfileId
             ORDER BY [Order], rowid";
@@ -288,7 +289,8 @@ public class ProfileRepository : IProfileRepository
                 Name = reader.GetString(2),
                 Order = reader.GetInt32(3),
                 IsCollapsed = reader.GetBoolean(4),
-                Color = reader.GetString(5)
+                Color = reader.GetString(5),
+                MemberCount = reader.IsDBNull(6) ? null : reader.GetInt32(6)
             });
         }
     }
@@ -327,14 +329,15 @@ public class ProfileRepository : IProfileRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO ProfileSeparators (Id, ProfileId, Name, [Order], IsCollapsed, Color)
-                VALUES (@Id, @ProfileId, @Name, @Order, @IsCollapsed, @Color)";
+                INSERT INTO ProfileSeparators (Id, ProfileId, Name, [Order], IsCollapsed, Color, MemberCount)
+                VALUES (@Id, @ProfileId, @Name, @Order, @IsCollapsed, @Color, @MemberCount)";
             command.Parameters.AddWithValue("@Id", separator.Id.ToString());
             command.Parameters.AddWithValue("@ProfileId", profile.Id.ToString());
             command.Parameters.AddWithValue("@Name", separator.Name);
             command.Parameters.AddWithValue("@Order", separator.Order);
             command.Parameters.AddWithValue("@IsCollapsed", separator.IsCollapsed);
             command.Parameters.AddWithValue("@Color", separator.Color);
+            command.Parameters.AddWithValue("@MemberCount", (object?)separator.MemberCount ?? DBNull.Value);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
     }

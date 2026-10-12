@@ -17,18 +17,21 @@ public class ModImportService
     private readonly string _modsStoragePath;
     private readonly ILogger<ModImportService>? _logger;
     private readonly IArchiveExtractor _archiveExtractor;
+    private readonly string _tempDirectory;
     private readonly ManifestParser _manifestParser = new();
 
     public ModImportService(
         IModRepository modRepository,
         string modsStoragePath,
         ILogger<ModImportService>? logger = null,
-        IArchiveExtractor? archiveExtractor = null)
+        IArchiveExtractor? archiveExtractor = null,
+        string? tempDirectory = null)
     {
         _modRepository = modRepository;
         _modsStoragePath = modsStoragePath;
         _logger = logger;
         _archiveExtractor = archiveExtractor ?? new SharpCompressArchiveExtractor();
+        _tempDirectory = tempDirectory ?? Path.GetTempPath();
 
         Directory.CreateDirectory(_modsStoragePath);
     }
@@ -69,7 +72,7 @@ public class ModImportService
             throw new FileNotFoundException($"Mod 路径不存在: {sourcePath}");
         }
 
-        string tempExtractPath = Path.Combine(Path.GetTempPath(), $"hd2mimnt_import_{Guid.NewGuid()}");
+        string tempExtractPath = Path.Combine(_tempDirectory, $"hd2mimnt_import_{Guid.NewGuid()}");
         string? modRootPath = null;
         string fallbackName;
         bool isArchiveFile = false;

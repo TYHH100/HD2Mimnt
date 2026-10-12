@@ -15,10 +15,11 @@ public class ArchiveExtractionService
     private readonly ILogger<ArchiveExtractionService>? _logger;
     private readonly string _tempExtractionPath;
 
-    public ArchiveExtractionService(ILogger<ArchiveExtractionService>? logger = null)
+    public ArchiveExtractionService(ILogger<ArchiveExtractionService>? logger = null, StorageSettingsService? storage = null)
     {
         _logger = logger;
-        _tempExtractionPath = Path.Combine(Path.GetTempPath(), "HD2Mimnt", "Extraction");
+        _tempExtractionPath = storage == null ? Path.Combine(Path.GetTempPath(), "HD2Mimnt", "Extraction")
+            : Path.Combine(storage.Current.TempPath, "Extraction");
 
         // 确保临时目录存在
         if (!Directory.Exists(_tempExtractionPath))

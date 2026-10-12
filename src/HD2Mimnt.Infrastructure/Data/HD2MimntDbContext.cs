@@ -105,6 +105,7 @@ public class HD2MimntDbContext : IDisposable
                 Name TEXT NOT NULL,
                 [Order] INTEGER NOT NULL,
                 IsCollapsed INTEGER NOT NULL DEFAULT 0,
+                MemberCount INTEGER,
                 Color TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY (ProfileId) REFERENCES Profiles(Id) ON DELETE CASCADE
             );
@@ -184,6 +185,10 @@ public class HD2MimntDbContext : IDisposable
             CREATE TABLE IF NOT EXISTS Settings (
                 Key TEXT PRIMARY KEY,
                 Value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS SettingsMigrations (
+                Id TEXT PRIMARY KEY
             );
 
             CREATE TABLE IF NOT EXISTS PlatformCaches (
@@ -487,6 +492,7 @@ public class HD2MimntDbContext : IDisposable
         foreach (var (table, column, type) in new[]
         {
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
+            ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
             ("Profiles", "LuaSeparatorColor", "TEXT NOT NULL DEFAULT ''")
         })

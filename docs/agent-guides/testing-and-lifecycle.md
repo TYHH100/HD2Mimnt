@@ -28,6 +28,10 @@
 
 - 备份必须通过 `BackupService` 生成临时 SQLite 快照后再压缩，恢复前必须校验路径位于备份目录，并在覆盖当前数据库前要求确认。
 
+- 应用设置由 `SettingsService` 通过 `ISettingsRepository` 保存到 SQLite `Settings` 表，`Value` 是保留类型的 JSON 文本。旧 `settings.json` 仅迁移一次，数据库已有键优先；导入与 `SettingsMigrations` 标记同事务提交，成功加载后才删除旧文件。不能只凭空表判断是否迁移，否则重置后残留 JSON 会复活旧值。新备份只含数据库；旧备份先在临时数据库导入其 JSON 并校验，再覆盖当前库，不能混入当前目录的旧 JSON。恢复覆盖与设置写入共用设置闸门，成功后重载并发布变化。来源：https://www.sqlite.org/lang_transaction.html 、https://www.sqlite.org/lang_upsert.html
+
+- `Microsoft.Data.Sqlite` 的异步 API 实际同步执行，设置写事务在后台线程使用短连接；启动加载直接同步读取，禁止用 `Wait()` 等待会回到 UI 调度器的异步方法。短连接禁用连接池，避免备份恢复/目录搬迁时留下文件占用。数据库失败测试使用 SQLite 事务/触发器制造写入错误，不能再锁 `settings.json`。启动定位用的 `storage-locations.json` 负责在数据库打开前定位数据目录，不属于应用偏好设置。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/async 、https://learn.microsoft.com/dotnet/standard/data/sqlite/connection-strings
+
 - 日志页面只能读取有限的尾部记录，文件日志读取要允许共享写入；不要一次性把整个日志文件加载进 UI 内存。
 
 - 插件 manifest 的解析和校验属于 `IPluginService`，View 只负责文件选择和权限确认，不要在 code-behind 中复制安装逻辑。

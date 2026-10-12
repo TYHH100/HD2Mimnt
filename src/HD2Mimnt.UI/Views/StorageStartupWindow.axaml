@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" x:Class="HD2Mimnt.UI.Views.StorageStartupWindow"
+        Title="HD2Mimnt" Width="520" Height="260" CanResize="False" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Surface0Brush}">
+  <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <TextBlock Text="{loc:Loc Settings.Storage.Starting}" Classes="page-title"/>
+    <StackPanel Grid.Row="1" Spacing="12">
+      <TextBlock x:Name="StatusText" Text="{loc:Loc Settings.Storage.Migrating}" TextWrapping="Wrap"/>
+      <ProgressBar x:Name="Progress" IsIndeterminate="True"/>
+    </StackPanel>
+    <Button Grid.Row="2" x:Name="CancelButton" Content="{loc:Loc Common.Cancel}" HorizontalAlignment="Right"/>
+  </Grid>
+</Window>

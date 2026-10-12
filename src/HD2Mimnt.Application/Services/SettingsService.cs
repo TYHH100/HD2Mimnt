@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Infrastructure.Repositories;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -9,7 +11,8 @@ namespace HD2Mimnt.Application.Services;
 /// </summary>
 public class SettingsService
 {
-    private readonly string _settingsFilePath;
+    private readonly string _legacySettingsPath;
+    private readonly ISettingsRepository _repository;
     private readonly ILogger<SettingsService>? _logger;
     private Dictionary<string, object> _settings;
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -17,8 +20,14 @@ public class SettingsService
     public event EventHandler<SettingChangedEventArgs>? SettingChanged;
 
     public SettingsService(string appDataPath, ILogger<SettingsService>? logger = null)
+        : this(new SettingsRepository(Path.Combine(appDataPath, "hd2mimnt.db")), appDataPath, logger)
     {
-        _settingsFilePath = Path.Combine(appDataPath, "settings.json");
+    }
+
+    public SettingsService(ISettingsRepository repository, string appDataPath, ILogger<SettingsService>? logger = null)
+    {
+        _repository = repository;
+        _legacySettingsPath = Path.Combine(appDataPath, "settings.json");
         _logger = logger;
         _settings = new Dictionary<string, object>();
 
@@ -81,7 +90,7 @@ public class SettingsService
 
             try
             {
-                await SaveSettingsAsync();
+                await SaveSettingsAsync(new[] { key }, Array.Empty<string>());
             }
             catch
             {
@@ -139,7 +148,7 @@ public class SettingsService
                 });
                 _settings[key] = value;
             }
-            try { await SaveSettingsAsync(); }
+            try { await SaveSettingsAsync(values.Keys, Array.Empty<string>()); }
             catch { _settings = previous; throw; }
         }
         finally { _lock.Release(); }
@@ -159,7 +168,7 @@ public class SettingsService
             _settings.Clear();
             try
             {
-                await SaveSettingsAsync();
+                await _repository.ResetAsync(null);
             }
             catch
             {
@@ -194,7 +203,7 @@ public class SettingsService
 
             try
             {
-                await SaveSettingsAsync();
+                await _repository.ResetAsync(category);
             }
             catch
             {
@@ -212,58 +221,55 @@ public class SettingsService
     }
 
     /// <summary>
-    /// 从文件加载设置
+    /// 从数据库加载设置；旧 JSON 只在尚未迁移时导入。
     /// </summary>
     private void LoadSettings()
     {
         try
         {
-            if (File.Exists(_settingsFilePath))
+            if (!_repository.IsLegacyMigrationComplete())
             {
-                var json = File.ReadAllText(_settingsFilePath);
-                var loaded = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-
-                if (loaded != null)
-                {
-                    _settings = new Dictionary<string, object>();
-                    foreach (var kvp in loaded)
-                    {
-                        _settings[kvp.Key] = kvp.Value;
-                    }
-                }
-
-                _logger?.LogInformation("设置已从文件加载: {Path}", _settingsFilePath);
+                var legacy = File.Exists(_legacySettingsPath)
+                    ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(File.ReadAllText(_legacySettingsPath))
+                        ?? throw new InvalidDataException("旧设置文件无效。")
+                    : new Dictionary<string, JsonElement>();
+                _repository.ImportLegacy(legacy.ToDictionary(pair => pair.Key, pair => pair.Value.GetRawText()));
             }
-            else
+
+            var loaded = _repository.ReadAll().ToDictionary(pair => pair.Key,
+                pair => (object)JsonSerializer.Deserialize<JsonElement>(pair.Value));
+            _settings = loaded;
+            // 标记与导入在同一事务提交。即使删除失败，重置后也不会重新导入旧值。
+            try
             {
-                _logger?.LogInformation("设置文件不存在，使用默认值");
-                _settings = new Dictionary<string, object>();
+                File.Delete(_legacySettingsPath);
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { _logger?.LogWarning(ex, "旧设置已迁移，但文件暂时无法删除: {Path}", _legacySettingsPath); }
+            _logger?.LogInformation("设置已从数据库加载");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "加载设置文件失败");
-            _settings = new Dictionary<string, object>();
+            _logger?.LogError(ex, "加载或迁移设置失败，保留原数据");
+            throw;
         }
-    }
-
-    private Task LoadSettingsAsync()
-    {
-        LoadSettings();
-        return Task.CompletedTask;
     }
 
     /// <summary>
     /// Reload settings after an external restore operation.
     /// </summary>
-    public async Task ReloadAsync()
+    public Task ReloadAsync() => ReloadAfterRestoreAsync(() => Task.CompletedTask);
+
+    /// <summary>恢复覆盖与设置写入共用闸门，避免后台保存落到正在替换的数据库。</summary>
+    internal async Task ReloadAfterRestoreAsync(Func<Task> restore)
     {
         List<SettingChangedEventArgs> changes;
         await _lock.WaitAsync();
         try
         {
             var previous = new Dictionary<string, object>(_settings);
-            await LoadSettingsAsync();
+            await restore();
+            LoadSettings();
             changes = FindChanges(previous, _settings);
         }
         finally
@@ -289,31 +295,19 @@ public class SettingsService
     }
 
     /// <summary>
-    /// 保存设置到文件
+    /// 只提交本次变更的键，避免其他服务实例的设置被旧内存快照覆盖。
     /// </summary>
-    private async Task SaveSettingsAsync()
+    private async Task SaveSettingsAsync(IEnumerable<string> updatedKeys, IReadOnlyCollection<string> removedKeys)
     {
         try
         {
-            var directory = Path.GetDirectoryName(_settingsFilePath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-
-            var json = JsonSerializer.Serialize(_settings, options);
-            await File.WriteAllTextAsync(_settingsFilePath, json);
-
-            _logger?.LogDebug("设置已保存到文件: {Path}", _settingsFilePath);
+            var values = updatedKeys.ToDictionary(key => key, key => JsonSerializer.Serialize(_settings[key]));
+            await _repository.ApplyAsync(values, removedKeys);
+            _logger?.LogDebug("设置已保存到数据库");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "保存设置文件失败");
+            _logger?.LogError(ex, "保存设置到数据库失败");
             throw;
         }
     }

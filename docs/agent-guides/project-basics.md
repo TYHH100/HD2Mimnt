@@ -51,6 +51,17 @@ dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-c
 - 外部平台实现 `IModPlatform`，通过 `PlatformRegistry` 使用；平台模型、认证、下载流程隔离在独立模块，见 [平台指南](platforms-and-downloads.md)。
 - 核心表包括 `Mods`、`Profiles`、`ProfileMods`、`Tasks`、`DeploymentRecords`、`DeploymentFiles`；字段变动须检查实体、补列、SQL 写入/读取和参数绑定，不能只增加实体属性。
 
+## 存储位置
+
+- “设置 → 存储位置”分别编辑应用数据（数据库、配置、日志、备份和插件数据）、模组库（含缩略图）、临时与缓存（图片缓存、下载断点、导入解压和在线更新临时文件）。保存计划后重启迁移；恢复默认位置只回填编辑内容，需要再次保存。
+- 只有设置页确认保存了与当前目录不同的位置，才生成待迁移计划并在启动时显示迁移窗口。首次启动、普通启动、保存相同路径（含规范化后相同）之后的启动均跳过搬迁，不自动收拢旧缓存或重写定位文件；未完成的已确认计划仍按提交状态恢复，已提交后的残留文件清理独立执行、不显示迁移窗口。
+- 启动定位文件 `storage-locations.json` 留在默认 `%LOCALAPPDATA%/HD2Mimnt`；测试通过 `HD2MIMNT_DATA_PATH` 改变该固定定位目录，不能把隔离测试写到真实用户目录。定位文件必须保持独立于可搬迁数据库，否则下次启动无法找到数据。
+- 路径由 `StorageSettingsService` 统一提供并在业务服务创建前迁移。新增临时文件或内部子服务时必须传入当前 `TempPath`，不能继续硬编码系统临时目录；插件子进程通过 `HD2MIMNT_RUNTIME_DATA_PATH` 接收已生效的应用数据目录。
+- 搬迁使用 SQLite 快照，并映射库路径、缩略图、部署来源和 SQLite 设置中的受管理路径。模组库/缓存不随仅应用数据根目录的移动而隐式更改；最长根目录匹配要包含未移动根，防止重写仍然有效的路径。游戏部署目标和外部目录保持原引用。符号链接部署先清理，避免搬库后出现断链。
+- 复制期间失败/取消保留源文件，目标只清理带本次搬迁标记的副本；复制完成先持久化提交状态，发布定位后才删除旧文件及 WAL/SHM。中断后的启动按提交状态恢复，不能在提交失败后让业务服务使用半迁移数据库。迁移在后台运行，关闭窗口须等清理完成。
+
+参考：[Microsoft.Data.Sqlite 备份](https://learn.microsoft.com/dotnet/standard/data/sqlite/backup)、[SQLite WAL](https://www.sqlite.org/wal.html)、[Avalonia 文件夹选择器](https://docs.avaloniaui.net/docs/concepts/services/storage-provider)。
+
 ## 代码约定
 
 - 启用 nullable reference types 与 ImplicitUsings，目标框架 `net10.0`。
