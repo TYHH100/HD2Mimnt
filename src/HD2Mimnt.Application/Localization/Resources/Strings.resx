@@ -2726,4 +2726,83 @@ Cache: {2}</value>
   <data name="Settings.Storage.CleanupPending" xml:space="preserve">
     <value>Storage locations changed. Some old files could not be deleted; cleanup will retry on the next launch.</value>
   </data>
+  <data name="Migration.Title" xml:space="preserve">
+    <value>Manager migration</value>
+  </data>
+  <data name="Migration.Description" xml:space="preserve">
+    <value>Transfer the full mod library and all profiles, including enabled states, order, options and separators.</value>
+  </data>
+  <data name="Migration.ImportDirection" xml:space="preserve">
+    <value>Import into HD2Mimnt</value>
+  </data>
+  <data name="Migration.ExportDirection" xml:space="preserve">
+    <value>Transfer to selected manager</value>
+  </data>
+  <data name="Migration.DataPath" xml:space="preserve">
+    <value>Manager data folder</value>
+  </data>
+  <data name="Migration.InstallationPath" xml:space="preserve">
+    <value>Installation folder (containing settings.json)</value>
+  </data>
+  <data name="Migration.ModsPath" xml:space="preserve">
+    <value>Mod library folder (optional)</value>
+  </data>
+  <data name="Migration.Browse" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="Migration.AutomaticPath" xml:space="preserve">
+    <value>Use the folder saved by the manager</value>
+  </data>
+  <data name="Migration.ExportNote" xml:space="preserve">
+    <value>Close the target manager first. Existing profiles are kept, and changed data files are backed up automatically. Open the target manager after the transfer.</value>
+  </data>
+  <data name="Migration.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Migration.Start" xml:space="preserve">
+    <value>Start migration</value>
+  </data>
+  <data name="Migration.Scanning" xml:space="preserve">
+    <value>Reading migration data…</value>
+  </data>
+  <data name="Migration.PreviewSummary" xml:space="preserve">
+    <value>{0} mods · {1} profiles · {2} separators · {3} issues</value>
+  </data>
+  <data name="Migration.Blocked" xml:space="preserve">
+    <value>Resolve the listed issues before transferring to the manager.</value>
+  </data>
+  <data name="Migration.PreviewReady" xml:space="preserve">
+    <value>Preview ready. You can start migration.</value>
+  </data>
+  <data name="Migration.Completed" xml:space="preserve">
+    <value>Migration finished: {0} mods and {1} profiles; {2} items reused, {3} issues.</value>
+  </data>
+  <data name="Migration.BackupsSaved" xml:space="preserve">
+    <value>Backups saved:
+{0}</value>
+  </data>
+  <data name="Migration.Cancelled" xml:space="preserve">
+    <value>Migration cancelled. Uncommitted temporary files have been cleaned up.</value>
+  </data>
+  <data name="Migration.Failed" xml:space="preserve">
+    <value>Migration failed: {0}</value>
+  </data>
+  <data name="Migration.Stage.Copy" xml:space="preserve">
+    <value>Copying mod files</value>
+  </data>
+  <data name="Migration.Stage.Prepare" xml:space="preserve">
+    <value>Profile prepared</value>
+  </data>
+  <data name="Migration.Stage.Save" xml:space="preserve">
+    <value>Saving migration results</value>
+  </data>
+  <data name="Migration.Stage.ModDone" xml:space="preserve">
+    <value>Mod processed</value>
+  </data>
+  <data name="Migration.Stage.ImportPrepare" xml:space="preserve">
+    <value>Preparing mod files</value>
+  </data>
+  <data name="Migration.Stage.ProfileDone" xml:space="preserve">
+    <value>Profile processed</value>
+  </data>
 </root>

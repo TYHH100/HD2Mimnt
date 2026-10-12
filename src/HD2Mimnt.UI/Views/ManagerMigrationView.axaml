@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             x:Class="HD2Mimnt.UI.Views.ManagerMigrationView" x:DataType="vm:ManagerMigrationViewModel">
+  <StackPanel Classes="section" Spacing="14">
+    <TextBlock Text="{loc:Loc Migration.Title}" Classes="section-title"/>
+    <TextBlock Text="{loc:Loc Migration.Description}" Classes="muted" TextWrapping="Wrap"/>
+    <StackPanel Spacing="12" IsEnabled="{Binding CanEdit}">
+      <ComboBox x:Name="MigrationManagerSelector" ItemsSource="{Binding Managers}" SelectedItem="{Binding SelectedManager}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MigrationManagerChoice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <RadioButton x:Name="MigrationImportDirection" Content="{loc:Loc Migration.ImportDirection}" GroupName="MigrationDirection" IsChecked="{Binding !IsExport}"/>
+        <RadioButton x:Name="MigrationExportDirection" Content="{loc:Loc Migration.ExportDirection}" GroupName="MigrationDirection" IsChecked="{Binding IsExport}"/>
+      </StackPanel>
+      <TextBlock Text="{loc:Loc Migration.DataPath}"/>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="MigrationDataPath" Text="{Binding DataPath}"/><Button Grid.Column="1" Content="{loc:Loc Migration.Browse}" Tag="data" Click="OnBrowseClicked"/></Grid>
+      <StackPanel IsVisible="{Binding IsHd2MM}" Spacing="8">
+        <TextBlock Text="{loc:Loc Migration.InstallationPath}"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="MigrationInstallationPath" Text="{Binding InstallationPath}"/><Button Grid.Column="1" Content="{loc:Loc Migration.Browse}" Tag="installation" Click="OnBrowseClicked"/></Grid>
+      </StackPanel>
+      <TextBlock Text="{loc:Loc Migration.ModsPath}"/>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="MigrationModsPath" Text="{Binding ModsPath}" PlaceholderText="{loc:Loc Migration.AutomaticPath}"/><Button Grid.Column="1" Content="{loc:Loc Migration.Browse}" Tag="mods" Click="OnBrowseClicked"/></Grid>
+    </StackPanel>
+    <TextBlock IsVisible="{Binding IsExport}" Text="{loc:Loc Migration.ExportNote}" Classes="muted" TextWrapping="Wrap"/>
+    <WrapPanel Orientation="Horizontal">
+      <Button x:Name="MigrationPreviewButton" Content="{loc:Loc Migration.Preview}" Command="{Binding PreviewCommand}" Margin="0,0,8,0"/>
+      <Button x:Name="MigrationRunButton" Content="{loc:Loc Migration.Start}" Classes="accent" Command="{Binding RunCommand}" Margin="0,0,8,0"/>
+      <Button x:Name="MigrationCancelButton" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}"/>
+    </WrapPanel>
+    <ProgressBar IsVisible="{Binding IsBusy}" Value="{Binding ProgressValue}" Minimum="0" Maximum="100"/>
+    <TextBlock Text="{loc:LocalizedBinding Summary}" TextWrapping="Wrap"/>
+    <TextBlock x:Name="MigrationStatus" Text="{loc:LocalizedBinding StatusMessage}" TextWrapping="Wrap" Classes="muted"/>
+    <ItemsControl ItemsSource="{Binding Issues}">
+      <ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,4" Spacing="2"><TextBlock Text="{ReflectionBinding Item}" FontWeight="SemiBold"/><TextBlock Text="{ReflectionBinding Message}" TextWrapping="Wrap" Classes="muted"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

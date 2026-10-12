@@ -2726,4 +2726,83 @@
   <data name="Settings.Storage.CleanupPending" xml:space="preserve">
     <value>儲存位置已切換，部分舊檔案未能刪除，下次啟動會重試清理。</value>
   </data>
+  <data name="Migration.Title" xml:space="preserve">
+    <value>管理器遷移</value>
+  </data>
+  <data name="Migration.Description" xml:space="preserve">
+    <value>遷移整個模組庫和所有設定檔，保留啟用狀態、排序、選項和分隔符。</value>
+  </data>
+  <data name="Migration.ImportDirection" xml:space="preserve">
+    <value>匯入到 HD2Mimnt</value>
+  </data>
+  <data name="Migration.ExportDirection" xml:space="preserve">
+    <value>遷回所選管理器</value>
+  </data>
+  <data name="Migration.DataPath" xml:space="preserve">
+    <value>管理器資料目錄</value>
+  </data>
+  <data name="Migration.InstallationPath" xml:space="preserve">
+    <value>軟體安裝目錄（包含 settings.json）</value>
+  </data>
+  <data name="Migration.ModsPath" xml:space="preserve">
+    <value>模組庫目錄（可選）</value>
+  </data>
+  <data name="Migration.Browse" xml:space="preserve">
+    <value>選擇目錄</value>
+  </data>
+  <data name="Migration.AutomaticPath" xml:space="preserve">
+    <value>使用管理器記錄的目錄</value>
+  </data>
+  <data name="Migration.ExportNote" xml:space="preserve">
+    <value>遷回前請關閉目標管理器。會保留目標已有設定檔，並自動備份需要更新的資料檔案。完成後開啟目標管理器即可使用。</value>
+  </data>
+  <data name="Migration.Preview" xml:space="preserve">
+    <value>預覽</value>
+  </data>
+  <data name="Migration.Start" xml:space="preserve">
+    <value>開始遷移</value>
+  </data>
+  <data name="Migration.Scanning" xml:space="preserve">
+    <value>正在讀取遷移內容…</value>
+  </data>
+  <data name="Migration.PreviewSummary" xml:space="preserve">
+    <value>{0} 個模組 · {1} 個設定檔 · {2} 個分隔符 · {3} 個問題</value>
+  </data>
+  <data name="Migration.Blocked" xml:space="preserve">
+    <value>請先修復列出的問題，再遷回管理器。</value>
+  </data>
+  <data name="Migration.PreviewReady" xml:space="preserve">
+    <value>預覽完成，可開始遷移。</value>
+  </data>
+  <data name="Migration.Completed" xml:space="preserve">
+    <value>遷移完成：{0} 個模組，{1} 個設定檔；重用 {2} 項，{3} 個問題。</value>
+  </data>
+  <data name="Migration.BackupsSaved" xml:space="preserve">
+    <value>備份已儲存：
+{0}</value>
+  </data>
+  <data name="Migration.Cancelled" xml:space="preserve">
+    <value>遷移已取消，未提交的暫存檔案已清理。</value>
+  </data>
+  <data name="Migration.Failed" xml:space="preserve">
+    <value>遷移失敗：{0}</value>
+  </data>
+  <data name="Migration.Stage.Copy" xml:space="preserve">
+    <value>複製模組檔案</value>
+  </data>
+  <data name="Migration.Stage.Prepare" xml:space="preserve">
+    <value>準備設定檔完成</value>
+  </data>
+  <data name="Migration.Stage.Save" xml:space="preserve">
+    <value>儲存遷移結果</value>
+  </data>
+  <data name="Migration.Stage.ModDone" xml:space="preserve">
+    <value>處理模組完成</value>
+  </data>
+  <data name="Migration.Stage.ImportPrepare" xml:space="preserve">
+    <value>準備模組檔案</value>
+  </data>
+  <data name="Migration.Stage.ProfileDone" xml:space="preserve">
+    <value>處理設定檔完成</value>
+  </data>
 </root>

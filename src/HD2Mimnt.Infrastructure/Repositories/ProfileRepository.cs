@@ -90,8 +90,8 @@ public class ProfileRepository : IProfileRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder, IsDefault, IsLuaGroupCollapsed, LuaSeparatorColor)
-                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder, @IsDefault, @IsLuaGroupCollapsed, @LuaSeparatorColor)";
+                INSERT INTO Profiles (Id, Name, Description, CreatedAt, ModifiedAt, IsActive, SortOrder, IsDefault, IsLuaGroupCollapsed, LuaSeparatorColor, IsLibraryLayout, DefaultMigrationStateJson)
+                VALUES (@Id, @Name, @Description, @CreatedAt, @ModifiedAt, @IsActive, @SortOrder, @IsDefault, @IsLuaGroupCollapsed, @LuaSeparatorColor, @IsLibraryLayout, @DefaultMigrationStateJson)";
 
             AddProfileParameters(command, profile);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -120,7 +120,8 @@ public class ProfileRepository : IProfileRepository
             command.CommandText = @"
                 UPDATE Profiles
                 SET Name = @Name, Description = @Description, ModifiedAt = @ModifiedAt, IsActive = @IsActive, SortOrder = @SortOrder, IsDefault = @IsDefault,
-                    IsLuaGroupCollapsed = @IsLuaGroupCollapsed, LuaSeparatorColor = @LuaSeparatorColor
+                    IsLuaGroupCollapsed = @IsLuaGroupCollapsed, LuaSeparatorColor = @LuaSeparatorColor, IsLibraryLayout = @IsLibraryLayout,
+                    DefaultMigrationStateJson = @DefaultMigrationStateJson
                 WHERE Id = @Id";
 
             AddProfileParameters(command, profile);
@@ -173,6 +174,7 @@ public class ProfileRepository : IProfileRepository
             Description = original.Description,
             IsLuaGroupCollapsed = original.IsLuaGroupCollapsed,
             LuaSeparatorColor = original.LuaSeparatorColor,
+            IsLibraryLayout = original.IsLibraryLayout,
             CreatedAt = DateTime.UtcNow,
             ModifiedAt = DateTime.UtcNow,
             IsActive = false,
@@ -357,6 +359,9 @@ public class ProfileRepository : IProfileRepository
             IsDefault = reader.GetBoolean(reader.GetOrdinal("IsDefault")),
             IsLuaGroupCollapsed = reader.GetBoolean(reader.GetOrdinal("IsLuaGroupCollapsed")),
             LuaSeparatorColor = reader.GetString(reader.GetOrdinal("LuaSeparatorColor")),
+            IsLibraryLayout = reader.GetBoolean(reader.GetOrdinal("IsLibraryLayout")),
+            DefaultMigrationState = System.Text.Json.JsonSerializer.Deserialize<Dictionary<Guid, DefaultProfileMigrationState>>(
+                reader.GetString(reader.GetOrdinal("DefaultMigrationStateJson"))) ?? new(),
             SortOrder = reader.GetInt32(reader.GetOrdinal("SortOrder"))
         };
     }
@@ -383,5 +388,7 @@ public class ProfileRepository : IProfileRepository
         command.Parameters.AddWithValue("@SortOrder", profile.SortOrder);
         command.Parameters.AddWithValue("@IsLuaGroupCollapsed", profile.IsLuaGroupCollapsed);
         command.Parameters.AddWithValue("@LuaSeparatorColor", profile.LuaSeparatorColor);
+        command.Parameters.AddWithValue("@IsLibraryLayout", profile.IsLibraryLayout);
+        command.Parameters.AddWithValue("@DefaultMigrationStateJson", System.Text.Json.JsonSerializer.Serialize(profile.DefaultMigrationState));
     }
 }

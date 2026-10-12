@@ -83,7 +83,9 @@ public class HD2MimntDbContext : IDisposable
                 IsDefault INTEGER NOT NULL DEFAULT 0,
                 SortOrder INTEGER NOT NULL DEFAULT 0,
                 IsLuaGroupCollapsed INTEGER NOT NULL DEFAULT 0,
-                LuaSeparatorColor TEXT NOT NULL DEFAULT ''
+                LuaSeparatorColor TEXT NOT NULL DEFAULT '',
+                IsLibraryLayout INTEGER NOT NULL DEFAULT 0,
+                DefaultMigrationStateJson TEXT NOT NULL DEFAULT '{}'
             );
 
             CREATE TABLE IF NOT EXISTS ProfileMods (
@@ -494,7 +496,9 @@ public class HD2MimntDbContext : IDisposable
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
-            ("Profiles", "LuaSeparatorColor", "TEXT NOT NULL DEFAULT ''")
+            ("Profiles", "LuaSeparatorColor", "TEXT NOT NULL DEFAULT ''"),
+            ("Profiles", "IsLibraryLayout", "INTEGER NOT NULL DEFAULT 0"),
+            ("Profiles", "DefaultMigrationStateJson", "TEXT NOT NULL DEFAULT '{}'")
         })
         {
             using var check = connection.CreateCommand();

@@ -82,7 +82,6 @@
                  DragDrop.DragOver="ProfileList_DragOver"
                  DragDrop.DragLeave="SortList_DragLeave"
                  DragDrop.Drop="ProfileList_Drop"
-                 PointerPressed="ProfileList_PointerPressed"
                  PointerMoved="ProfileList_PointerMoved"
                  ContextRequested="ProfileList_ContextRequested">
           <ListBox.ItemTemplate>

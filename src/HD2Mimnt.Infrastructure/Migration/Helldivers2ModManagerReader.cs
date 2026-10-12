@@ -36,7 +36,7 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
         if (!File.Exists(dbPath)) plan.Issues.Add(new(dbPath, "HD2MM 配置数据库不存在，无法迁移配置。"));
         else
         {
-            try { await ReadDatabaseAsync(dbPath, settings?.RootElement ?? default, plan, cancellationToken); }
+            try { await ReadDatabaseAsync(dbPath, modsPath, settings?.RootElement ?? default, plan, cancellationToken); }
             catch (Exception ex) when (ex is SqliteException or JsonException or IOException or UnauthorizedAccessException)
             { plan.Issues.Add(new(dbPath, $"HD2MM 配置数据库读取失败：{ex.Message}")); }
         }
@@ -62,6 +62,7 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
                     using var document = JsonDocument.Parse(File.ReadAllText(path), new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
                     manifest = new ManifestParser().ParseFromJsonElement(document.RootElement);
                     Guid.TryParse(document.RootElement.Get("Guid").Text(), out declared);
+                    if (Guid.TryParse(document.RootElement.Get("HD2MimntOriginalGuid").Text(), out var originalGuid)) manifest.Guid = originalGuid;
                 }
                 catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or InvalidOperationException)
                 { plan.Issues.Add(new(directory, $"HD2MM 清单读取失败：{ex.Message}")); continue; }
@@ -74,7 +75,7 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
                 Name = folder, ManifestVersion = ManifestVersion.Legacy,
                 LegacyOptions = Directory.EnumerateDirectories(directory).Select(Path.GetFileName).OfType<string>().ToList()
             };
-            manifest.Guid = declared == Guid.Empty ? MigrationJson.StableGuid($"hd2mm:{id}") : declared;
+            if (manifest.Guid == Guid.Empty) manifest.Guid = declared == Guid.Empty ? MigrationJson.StableGuid($"hd2mm:{id}") : declared;
             plan.Mods.Add(new ExternalMigrationMod { SourceId = id, SourcePath = directory, Manifest = manifest, Tags = manifest.Tags.ToList() });
         }
     }
@@ -87,7 +88,7 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
         return Convert.ToInt32(await command.ExecuteScalarAsync(token)) > 0;
     }
 
-    private static async Task ReadDatabaseAsync(string path, JsonElement settings, ExternalMigrationPlan plan, CancellationToken token)
+    private static async Task ReadDatabaseAsync(string path, string modsPath, JsonElement settings, ExternalMigrationPlan plan, CancellationToken token)
     {
         await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false }.ConnectionString);
@@ -105,6 +106,8 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
         var grouped = new Dictionary<string, Dictionary<string, SavedState>>(StringComparer.OrdinalIgnoreCase);
         var tags = settings.Get("Tags").Items().ToDictionary(item => item.Get("id").Text(), item => item.Get("name").Text(), StringComparer.OrdinalIgnoreCase);
         var known = plan.Mods.ToDictionary(mod => mod.SourceId, StringComparer.OrdinalIgnoreCase);
+        var presentFolders = Directory.Exists(modsPath) ? Directory.EnumerateDirectories(modsPath).Select(Path.GetFileName).OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase) : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (await HasTableAsync(connection, "enabled_mods", token))
         {
             using var columns = connection.CreateCommand();
@@ -148,15 +151,25 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
             {
                 SourceId = group.Id, Name = string.IsNullOrWhiteSpace(group.Name) ? $"HD2MM 配置 {index + 1}" : group.Name,
                 WasActive = index == 0,
+                IsDefault = Guid.TryParse(group.Id, out var groupId) && groupId == Guid.Parse("00000000-0000-0000-0000-000000000001"),
                 DeploymentOrder = settings.Get("DeployBottomToTop").Bool() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom
             };
             var states = grouped.GetValueOrDefault(group.Id) ?? global;
             var memberSet = group.Members.ToHashSet(StringComparer.OrdinalIgnoreCase);
             var ordered = states.Where(item => memberSet.Contains(item.Key)).OrderBy(item => item.Value.Order).Select(item => item.Key).ToList();
             ordered.AddRange(group.Members.Where(id => !ordered.Contains(id, StringComparer.OrdinalIgnoreCase)));
+            ordered = ordered.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var damaged = false;
-            foreach (var id in ordered.Distinct(StringComparer.OrdinalIgnoreCase))
+            var stale = new List<string>();
+            foreach (var id in ordered)
             {
+                // ModGuids 是缓存：已无文件且没有任何保存状态的引用是删除残留。
+                // 有保存状态的缺失成员仍保留，交给完整配置校验报告文件缺失。
+                if (!known.ContainsKey(id) && !presentFolders.Contains(id) && !states.ContainsKey(id) && !global.ContainsKey(id))
+                {
+                    stale.Add(id);
+                    continue;
+                }
                 var state = states.GetValueOrDefault(id) ?? new SavedState(false, "[]", "[]", 0);
                 try
                 {
@@ -169,18 +182,24 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
                 }
                 catch (JsonException ex) { damaged = true; plan.Issues.Add(new(profile.Name, $"成员 {id} 选项状态损坏：{ex.Message}")); }
             }
+            if (stale.Count > 0)
+                plan.Issues.Add(new(profile.Name, $"已忽略 {stale.Count} 个已删除且无保存状态的配置缓存引用：{string.Join(", ", stale)}"));
             for (var s = 0; s < separators.Count; s++)
             {
                 var separator = separators[s];
+                var owner = separator.Get("hd2mimntProfile").Text();
+                if (owner.Length > 0 && !owner.Equals(group.Id, StringComparison.OrdinalIgnoreCase)) continue;
                 var memberIds = separator.Get("modGuids").Strings();
-                var order = Math.Clamp(separator.Get("displayIndex").Int() - s, 0, profile.Mods.Count);
+                var originalOrder = Math.Clamp(separator.Get("displayIndex").Int() - s, 0, ordered.Count);
+                var order = ordered.Take(originalOrder).Count(id => profile.Mods.Any(mod => mod.SourceModId.Equals(id, StringComparison.OrdinalIgnoreCase)));
                 if (memberIds.Count > 0)
                 {
                     var positions = profile.Mods.Select((mod, position) => (mod, position)).Where(item => memberIds.Contains(item.mod.SourceModId, StringComparer.OrdinalIgnoreCase)).Select(item => item.position).ToList();
                     if (positions.Count > 0) order = positions.Min();
                 }
                 profile.Separators.Add(new(separator.Get("name").Text("分隔符"), order, !separator.Get("isExpanded").Bool(true),
-                    MigrationJson.Color(separator.Get("color").Text()), memberIds.Count > 0 ? memberIds.Count(id => profile.Mods.Any(mod => mod.SourceModId.Equals(id, StringComparison.OrdinalIgnoreCase))) : null));
+                    MigrationJson.Color(separator.Get("color").Text()), separator.Get("hd2mimntMemberCount").ValueKind == JsonValueKind.Number
+                        ? separator.Get("hd2mimntMemberCount").Int() : memberIds.Count > 0 ? memberIds.Count(id => profile.Mods.Any(mod => mod.SourceModId.Equals(id, StringComparison.OrdinalIgnoreCase))) : null));
             }
             if (!damaged) plan.Profiles.Add(profile);
         }

@@ -116,14 +116,26 @@ public class ProfileService
         return profile.Id;
     }
 
-    /// <summary>迁移完整配置快照；重复快照保留用户后续编辑，同名配置自动分配新名称。</summary>
-    internal async Task<(Guid Id, bool Reused)> ImportMigratedProfileAsync(Profile profile, CancellationToken cancellationToken)
+    /// <summary>迁移完整配置快照；来源默认配置合并到现有默认配置，重复快照保留用户后续编辑。</summary>
+    internal async Task<(Guid Id, bool Reused)> ImportMigratedProfileAsync(Profile profile, CancellationToken cancellationToken,
+        Guid? defaultSourceId = null)
     {
         await _optionsWriteGate.WaitAsync(cancellationToken);
         try
         {
-            var existing = await _profileRepository.GetByIdAsync(profile.Id, cancellationToken);
-            if (existing != null) return (existing.Id, true);
+            Profile? targetDefault = null;
+            if (defaultSourceId.HasValue)
+            {
+                targetDefault = (await _profileRepository.GetAllAsync(cancellationToken)).FirstOrDefault(item => item.IsDefault)
+                    ?? throw new InvalidOperationException("默认配置尚未初始化");
+                if (targetDefault.DefaultMigrationState.GetValueOrDefault(defaultSourceId.Value)?.SnapshotIds.Contains(profile.Id) == true)
+                    return (targetDefault.Id, true);
+            }
+            else
+            {
+                var existing = await _profileRepository.GetByIdAsync(profile.Id, cancellationToken);
+                if (existing != null) return (existing.Id, true);
+            }
             if (string.IsNullOrWhiteSpace(profile.Name)) throw new ArgumentException("源配置名称不能为空");
             var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToDictionary(mod => mod.Id);
             if (profile.Mods.Select(item => item.ModId).Distinct().Count() != profile.Mods.Count)
@@ -145,6 +157,12 @@ public class ProfileService
                 if (separator.MemberCount.HasValue) separator.MemberCount = Math.Clamp(separator.MemberCount.Value, 0, normalCount - separator.Order);
             }
             profile.LuaSeparatorColor = NormalizeSeparatorColor(profile.LuaSeparatorColor);
+            if (targetDefault != null)
+            {
+                await MergeMigratedDefaultAsync(targetDefault, profile, defaultSourceId!.Value, mods, cancellationToken);
+                RaiseProfilesChanged();
+                return (targetDefault.Id, false);
+            }
             var names = (await _profileRepository.GetAllAsync(cancellationToken)).Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var name = profile.Name.Trim();
             profile.Name = name;
@@ -158,6 +176,61 @@ public class ProfileService
             return (profile.Id, false);
         }
         finally { _optionsWriteGate.Release(); }
+    }
+
+    private async Task MergeMigratedDefaultAsync(Profile target, Profile incoming, Guid sourceId,
+        Dictionary<Guid, Mod> mods, CancellationToken cancellationToken)
+    {
+        var snapshotId = incoming.Id;
+        var previous = target.DefaultMigrationState.GetValueOrDefault(sourceId) ?? new DefaultProfileMigrationState();
+        var importedIds = incoming.Mods.Select(item => item.ModId).ToHashSet();
+        importedIds.UnionWith(previous.MemberIds);
+        foreach (var mod in await _modRepository.GetByIdsAsync(target.Mods.Select(item => item.ModId), cancellationToken))
+            mods.TryAdd(mod.Id, mod);
+        bool IsNormal(ProfileMod item) => !mods.TryGetValue(item.ModId, out var mod)
+            || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+
+        var oldNormal = target.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
+        var retained = target.Mods.OrderBy(item => item.Order).Where(item => !importedIds.Contains(item.ModId)).ToList();
+        var offset = retained.Count(IsNormal);
+        var oldSeparators = target.Separators.OrderBy(item => item.Order).ToList();
+        target.Separators = new();
+        for (var index = 0; index < oldSeparators.Count; index++)
+        {
+            var separator = oldSeparators[index];
+            if (previous.SeparatorIds.Contains(separator.Id)) continue;
+            var start = Math.Clamp(separator.Order, 0, oldNormal.Count);
+            var end = Math.Clamp(separator.MemberCount.HasValue ? start + separator.MemberCount.Value
+                : index + 1 < oldSeparators.Count ? oldSeparators[index + 1].Order : oldNormal.Count, start, oldNormal.Count);
+            separator.Order = oldNormal.Take(start).Count(item => !importedIds.Contains(item.ModId));
+            separator.MemberCount = oldNormal.Skip(start).Take(end - start).Count(item => !importedIds.Contains(item.ModId));
+            target.Separators.Add(separator);
+        }
+        foreach (var separator in incoming.Separators)
+        {
+            separator.ProfileId = target.Id;
+            separator.Order += offset;
+            target.Separators.Add(separator);
+        }
+        target.Mods = retained.Concat(incoming.Mods).ToList();
+        for (var index = 0; index < target.Mods.Count; index++)
+        {
+            target.Mods[index].ProfileId = target.Id;
+            target.Mods[index].Order = index;
+        }
+        BslProfilePolicy.SelectLoader(target, mods, incoming.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
+        BslProfilePolicy.Normalize(target, mods);
+        if (incoming.Mods.Any(item => !IsNormal(item)) || incoming.IsLuaGroupCollapsed || incoming.LuaSeparatorColor.Length > 0)
+        {
+            target.IsLuaGroupCollapsed = incoming.IsLuaGroupCollapsed;
+            target.LuaSeparatorColor = incoming.LuaSeparatorColor;
+        }
+        previous.SnapshotIds.Add(snapshotId);
+        previous.SeparatorIds = incoming.Separators.Select(item => item.Id).ToList();
+        previous.MemberIds = incoming.Mods.Select(item => item.ModId).ToList();
+        target.DefaultMigrationState[sourceId] = previous;
+        target.ModifiedAt = DateTime.UtcNow;
+        await _profileRepository.UpdateAsync(target, cancellationToken);
     }
 
     /// <summary>下一个可用排序号（新配置文件依次追加到列表末尾，默认配置在最前）。</summary>

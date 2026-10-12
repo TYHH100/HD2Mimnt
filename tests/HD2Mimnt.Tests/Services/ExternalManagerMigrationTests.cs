@@ -23,6 +23,7 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
     private ProfileService _profiles = null!;
     private SettingsService _settings = null!;
     private ExternalManagerMigrationService _migration = null!;
+    private ExternalManagerExportService _export = null!;
     private string Library => Path.Combine(_root, "target-library");
 
     public async Task InitializeAsync()
@@ -37,6 +38,7 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         _settings = new SettingsService(new SettingsRepository(_db.DatabasePath), _root);
         _migration = new ExternalManagerMigrationService([new Helldivers2ModManagerReader(), new EchelonReader(), new Hd2ArsenalReader()],
             _mods, _profiles, _settings);
+        _export = new ExternalManagerExportService([new Helldivers2ModManagerWriter(), new EchelonWriter(), new Hd2ArsenalWriter()], _mods, _profiles, _settings);
     }
 
     public Task DisposeAsync()
@@ -96,6 +98,424 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         var two = (await _profileRepository.GetByIdAsync(result.ProfileIds["two"]))!;
         Assert.Equal(result.ModIds["b"], two.Mods[0].ModId);
         Assert.True(ProfileModOptionsState.FromJson(two.Mods[1].OptionsJson).OptionToggles![0]);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task HD2MM_DefaultCachedDeletedReferences_FiltersOnlyUnsavedReferences(bool savedMissing, bool unreadableManifest)
+    {
+        const string defaultId = "00000000-0000-0000-0000-000000000001";
+        var source = Path.Combine(_root, "hd2mm-stale");
+        var definitions = new[] { SourceMod("first"), SourceMod("second") };
+        definitions[0].Manifest.Options = [new() { Name = "颜色", Include = [], SubOptions = [new() { Name = "红", Include = [] }, new() { Name = "蓝", Include = [] }] }];
+        foreach (var mod in definitions)
+        {
+            var path = Path.Combine(source, "Mods", mod.Manifest.Guid.ToString());
+            WriteFile(Path.Combine(path, "1234567890abcdef.patch_0"), "data");
+            new ManifestParser().SaveToFile(mod.Manifest, Path.Combine(path, "manifest.json"));
+        }
+        var ids = definitions.Select(mod => mod.Manifest.Guid.ToString()).ToArray();
+        var stale = Enumerable.Range(0, 10).Select(_ => Guid.NewGuid().ToString()).ToArray();
+        if (unreadableManifest) WriteFile(Path.Combine(source, "Mods", stale[0], "manifest.json"), "{broken");
+        var hasMissingMember = savedMissing || unreadableManifest;
+        WriteJson(Path.Combine(source, "settings.json"), new { StorageDirectory = source,
+            Separators = new[] { new { name = "装备", displayIndex = 0, isExpanded = false, color = "#123456", modGuids = ids.Concat(stale).ToArray() } } });
+        await using (var connection = new SqliteConnection($"Data Source={Path.Combine(source, "mod_manager.db")};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE mod_groups(Id TEXT,Name TEXT,DisplayIndex INT,ModGuids TEXT);
+                CREATE TABLE enabled_mods(Guid TEXT,Enabled INT,Toggled TEXT,Selected TEXT,SortOrder INT);
+                CREATE TABLE group_enabled_mods(GroupId TEXT,Guid TEXT,Enabled INT,Toggled TEXT,Selected TEXT,SortOrder INT);
+                """;
+            await command.ExecuteNonQueryAsync();
+            command.CommandText = "INSERT INTO mod_groups VALUES(@group,'默认配置文件',0,@members)";
+            command.Parameters.AddWithValue("@group", defaultId);
+            command.Parameters.AddWithValue("@members", JsonSerializer.Serialize(ids.Concat(stale)));
+            await command.ExecuteNonQueryAsync();
+            foreach (var (id, index) in ids.Select((id, index) => (id, index)).Concat(savedMissing ? new[] { (stale[0], 2) } : []))
+            {
+                command.Parameters.Clear();
+                command.CommandText = "INSERT INTO group_enabled_mods VALUES(@group,@id,@on,'[false]','[1]',@order); INSERT INTO enabled_mods VALUES(@id,@on,'[false]','[1]',@order)";
+                command.Parameters.AddWithValue("@group", defaultId);
+                command.Parameters.AddWithValue("@id", id);
+                command.Parameters.AddWithValue("@on", index == 0);
+                command.Parameters.AddWithValue("@order", index);
+                await command.ExecuteNonQueryAsync();
+            }
+        }
+        await _profiles.InitializeAsync();
+        var targetId = (await _profiles.GetActiveProfileAsync())!.Id;
+        var plan = await _migration.PreviewAsync(new(ExternalManagerKind.Helldivers2ModManager, source, source));
+        var sourceProfile = Assert.Single(plan.Profiles);
+        Assert.True(sourceProfile.IsDefault);
+        Assert.Equal(hasMissingMember ? 3 : 2, sourceProfile.Mods.Count);
+        Assert.Contains(plan.Issues, issue => issue.Message.Contains($"已忽略 {(hasMissingMember ? 9 : 10)} 个"));
+        var result = await _migration.MigrateAsync(plan);
+        Assert.Equal(2, result.ImportedMods);
+        var target = Assert.Single(await _profileRepository.GetAllAsync());
+        Assert.Equal(targetId, target.Id);
+        Assert.Equal("Default Profiles", target.Name);
+        if (hasMissingMember)
+        {
+            Assert.Empty(result.ProfileIds);
+            Assert.Empty(target.Mods);
+            Assert.Empty(target.DefaultMigrationState);
+            Assert.Contains(result.Issues, issue => issue.Message.Contains("未成功迁入"));
+            return;
+        }
+        Assert.Equal(targetId, result.ProfileIds[defaultId]);
+        Assert.Equal(ids.Select(id => result.ModIds[id]), target.Mods.Select(item => item.ModId));
+        Assert.True(target.Mods[0].Enabled);
+        Assert.False(target.Mods[1].Enabled);
+        Assert.Equal(new[] { false }, ProfileModOptionsState.FromJson(target.Mods[0].OptionsJson).OptionToggles);
+        Assert.Equal(new[] { 1 }, ProfileModOptionsState.FromJson(target.Mods[0].OptionsJson).OptionSelections);
+        Assert.Equal(("装备", 0, (int?)2, true, "#123456"),
+            (target.Separators[0].Name, target.Separators[0].Order, target.Separators[0].MemberCount, target.Separators[0].IsCollapsed, target.Separators[0].Color));
+        var retry = await _migration.MigrateAsync(plan);
+        Assert.Equal(2, retry.ReusedMods);
+        Assert.Equal(1, retry.ReusedProfiles);
+        Assert.Single((await _profileRepository.GetByIdAsync(targetId))!.Separators);
+    }
+
+    [Theory]
+    [InlineData(ExternalManagerKind.HD2Arsenal)]
+    [InlineData(ExternalManagerKind.Echelon)]
+    public async Task NativeDefault_MapsToExistingDefault_ActiveNonDefaultRemainsIndependent(ExternalManagerKind manager)
+    {
+        var source = Path.Combine(_root, "native-default");
+        if (manager == ExternalManagerKind.HD2Arsenal)
+            WriteJson(Path.Combine(source, "hd2a_data.json"), new { modsLibrary = Array.Empty<object>(), selectedProfile = "custom", profileOrder = new[] { "custom", "default" },
+                modsList = new Dictionary<string, object> { ["custom"] = new { label = "自定义", mods = Array.Empty<object>() }, ["default"] = new { label = "已改名的默认", mods = Array.Empty<object>() } } });
+        else
+            WriteJson(Path.Combine(source, "state.json"), new { version = 2, library = new { }, active_profile = "custom",
+                profiles = new[] { new { id = "custom", name = "自定义", entries = Array.Empty<object>() }, new { id = "random-native-id", name = "Default", entries = Array.Empty<object>() } } });
+        await _profiles.InitializeAsync();
+        var defaultId = (await _profiles.GetActiveProfileAsync())!.Id;
+        var plan = await _migration.PreviewAsync(new(manager, source));
+        var nativeDefault = Assert.Single(plan.Profiles, profile => profile.IsDefault);
+        Assert.False(plan.Profiles[0].IsDefault);
+        var result = await _migration.MigrateAsync(plan);
+        Assert.True(result.IsComplete);
+        Assert.Equal(defaultId, result.ProfileIds[nativeDefault.SourceId]);
+        Assert.NotEqual(defaultId, result.ProfileIds["custom"]);
+        Assert.Equal(2, (await _profileRepository.GetAllAsync()).Count());
+        Assert.Equal(defaultId, (await _profiles.GetActiveProfileAsync())!.Id);
+    }
+
+    [Fact]
+    public async Task Echelon_DuplicateDefaultNames_DoesNotGuessDefaultIdentity()
+    {
+        var source = Path.Combine(_root, "echelon-ambiguous");
+        WriteJson(Path.Combine(source, "state.json"), new { version = 2, library = new { }, active_profile = "one",
+            profiles = new[] { new { id = "one", name = "Default", entries = Array.Empty<object>() }, new { id = "two", name = "Default", entries = Array.Empty<object>() } } });
+        var plan = await _migration.PreviewAsync(new(ExternalManagerKind.Echelon, source));
+        Assert.All(plan.Profiles, profile => Assert.False(profile.IsDefault));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Migrate_DefaultMerge_PreservesExistingContentAndRetriesAtomically(bool writeFailure)
+    {
+        var seed = Plan(SourceMod("existing"));
+        seed.Profiles.Clear();
+        var existingId = (await _migration.MigrateAsync(seed)).ModIds["existing"];
+        await _profiles.InitializeAsync();
+        var target = (await _profiles.GetActiveProfileAsync())!;
+        target.Mods.Add(new() { ProfileId = target.Id, ModId = existingId, Enabled = false, Order = 0 });
+        var oldSeparatorId = Guid.NewGuid();
+        target.Separators.Add(new() { Id = oldSeparatorId, ProfileId = target.Id, Name = "已有分组", Order = 0, MemberCount = 1, Color = "#ABCDEF", IsCollapsed = true });
+        await _profileRepository.UpdateAsync(target);
+        var activeId = await _profiles.CreateProfileAsync("当前配置");
+        await _profiles.SetActiveProfileAsync(activeId);
+        var plan = Plan(SourceMod("a"), SourceMod("b"));
+        var incoming = new ExternalMigrationProfile { SourceId = "default", Name = "源默认", IsDefault = true, WasActive = true };
+        incoming.Mods.Add(new("b", false, new()));
+        incoming.Mods.Add(new("a", true, new()));
+        incoming.Separators.Add(new("迁入分组", 0, true, "#123456", 2));
+        plan.Profiles.Clear(); plan.Profiles.Add(incoming);
+        using var command = (await _db.GetConnectionAsync()).CreateCommand();
+        if (writeFailure)
+        {
+            command.CommandText = "CREATE TRIGGER reject_default_separator BEFORE INSERT ON ProfileSeparators WHEN NEW.Name='迁入分组' BEGIN SELECT RAISE(ABORT,'test failure'); END";
+            await command.ExecuteNonQueryAsync();
+            var failed = await _migration.MigrateAsync(plan);
+            Assert.Empty(failed.ProfileIds);
+            var unchanged = (await _profileRepository.GetByIdAsync(target.Id))!;
+            Assert.Equal(existingId, Assert.Single(unchanged.Mods).ModId);
+            Assert.Equal(oldSeparatorId, Assert.Single(unchanged.Separators).Id);
+            Assert.Empty(unchanged.DefaultMigrationState);
+            command.CommandText = "DROP TRIGGER reject_default_separator";
+            await command.ExecuteNonQueryAsync();
+        }
+        var result = await _migration.MigrateAsync(plan);
+        Assert.True(result.IsComplete, string.Join(";", result.Issues));
+        Assert.Equal(target.Id, result.ProfileIds["default"]);
+        var merged = (await _profileRepository.GetByIdAsync(target.Id))!;
+        Assert.Equal(new[] { existingId, result.ModIds["b"], result.ModIds["a"] }, merged.Mods.Select(item => item.ModId));
+        Assert.Equal(new[] { false, false, true }, merged.Mods.Select(item => item.Enabled));
+        Assert.Equal((oldSeparatorId, 0, (int?)1, "#ABCDEF", true),
+            (merged.Separators[0].Id, merged.Separators[0].Order, merged.Separators[0].MemberCount, merged.Separators[0].Color, merged.Separators[0].IsCollapsed));
+        Assert.Equal((1, (int?)2), (merged.Separators[1].Order, merged.Separators[1].MemberCount));
+        Assert.True(merged.IsDefault); Assert.False(merged.IsActive); Assert.Equal(target.Name, merged.Name);
+        Assert.Equal(activeId, (await _profiles.GetActiveProfileAsync())!.Id);
+        merged.Mods.Last().Enabled = false;
+        await _profileRepository.UpdateAsync(merged);
+        var retry = await _migration.MigrateAsync(plan);
+        Assert.Equal(1, retry.ReusedProfiles);
+        Assert.False((await _profileRepository.GetByIdAsync(target.Id))!.Mods.Last().Enabled);
+        incoming.Mods.Reverse();
+        incoming.Separators[0] = new("源分组更新", 0, false, "#654321", 1);
+        var update = await _migration.MigrateAsync(plan);
+        Assert.Equal(1, update.ImportedProfiles);
+        var changed = (await _profileRepository.GetByIdAsync(target.Id))!;
+        Assert.Equal(new[] { existingId, result.ModIds["a"], result.ModIds["b"] }, changed.Mods.Select(item => item.ModId));
+        Assert.Equal(2, changed.Separators.Count);
+        Assert.Equal("源分组更新", changed.Separators.Last().Name);
+        Assert.Equal(oldSeparatorId, changed.Separators[0].Id);
+        Assert.Equal(2, Assert.Single(changed.DefaultMigrationState).Value.SnapshotIds.Count);
+        WriteFile(Path.Combine(plan.Mods[0].SourcePath, "1234567890abcdef.patch_0"), "new source version");
+        var versionUpdate = await _migration.MigrateAsync(plan);
+        Assert.True(versionUpdate.IsComplete);
+        Assert.NotEqual(result.ModIds["a"], versionUpdate.ModIds["a"]);
+        var latest = (await _profileRepository.GetByIdAsync(target.Id))!;
+        Assert.Equal(new[] { existingId, versionUpdate.ModIds["a"], result.ModIds["b"] }, latest.Mods.Select(item => item.ModId));
+        Assert.Equal(2, latest.Separators.Count);
+        incoming.Mods.RemoveAt(1);
+        var memberUpdate = await _migration.MigrateAsync(plan);
+        Assert.True(memberUpdate.IsComplete);
+        Assert.Equal(new[] { existingId, versionUpdate.ModIds["a"] }, (await _profileRepository.GetByIdAsync(target.Id))!.Mods.Select(item => item.ModId));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Migrate_DefaultMerge_OverlapAndLoaders_PreservesRemainingGroupAndDeploymentDirection(bool reverse)
+    {
+        var a = SourceMod("shared"); var local = SourceMod("local");
+        var mdl = SourceMod("mdl", Guid.Parse("761188b2-c45b-4607-9241-f89ca221c47b"));
+        var seed = Plan(a, local, mdl); seed.Profiles.Clear();
+        var seeded = await _migration.MigrateAsync(seed);
+        var target = (await _profiles.GetActiveProfileAsync())!;
+        target.Mods = new[] { a, local, mdl }.Select((mod, index) => new ProfileMod
+            { ProfileId = target.Id, ModId = seeded.ModIds[mod.SourceId], Enabled = true, Order = index }).ToList();
+        target.Separators.Add(new() { Id = Guid.NewGuid(), ProfileId = target.Id, Name = "已有", Order = 0, MemberCount = 2 });
+        await _profileRepository.UpdateAsync(target);
+        await _settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, reverse ? DeploymentOrder.BottomToTop.ToString() : DeploymentOrder.TopToBottom.ToString());
+        var b = SourceMod("new"); var bsl = SourceMod("bsl", Guid.Parse("612eaf70-d682-43c7-9efd-16dcc695f977"));
+        var plan = Plan(b, a, bsl); plan.Profiles.Clear();
+        var incoming = new ExternalMigrationProfile { SourceId = "default", Name = "默认", IsDefault = true, DeploymentOrder = DeploymentOrder.TopToBottom };
+        incoming.Mods.AddRange(new[] { b, a, bsl }.Select(mod => new ExternalMigrationProfileMod(mod.SourceId, true, new())));
+        incoming.Separators.Add(new("迁入", 0, false, "#123456", 2));
+        plan.Profiles.Add(incoming);
+        var result = await _migration.MigrateAsync(plan);
+        Assert.True(result.IsComplete, string.Join(";", result.Issues));
+        Assert.Equal(seeded.ModIds["shared"], result.ModIds["shared"]);
+        var merged = (await _profileRepository.GetByIdAsync(target.Id))!;
+        Assert.Equal(5, merged.Mods.Count);
+        Assert.Equal(new[] { seeded.ModIds["local"] }.Concat((reverse ? new[] { a, b } : new[] { b, a }).Select(mod => result.ModIds[mod.SourceId])),
+            merged.Mods.Take(3).Select(item => item.ModId));
+        Assert.Equal(new[] { ("已有", 0, (int?)1), ("迁入", 1, (int?)2) },
+            merged.Separators.Select(separator => (separator.Name, separator.Order, separator.MemberCount)));
+        Assert.False(merged.Mods.Single(item => item.ModId == seeded.ModIds["mdl"]).Enabled);
+        Assert.True(merged.Mods.Single(item => item.ModId == result.ModIds["bsl"]).Enabled);
+    }
+
+    [Theory]
+    [InlineData(ExternalManagerKind.Helldivers2ModManager, false)]
+    [InlineData(ExternalManagerKind.Helldivers2ModManager, true)]
+    [InlineData(ExternalManagerKind.Echelon, false)]
+    [InlineData(ExternalManagerKind.Echelon, true)]
+    [InlineData(ExternalManagerKind.HD2Arsenal, false)]
+    [InlineData(ExternalManagerKind.HD2Arsenal, true)]
+    public async Task Export_AllManagers_RoundTripPreservesProfilesOptionsGroupsAndPriority(ExternalManagerKind manager, bool reverse)
+    {
+        var a = SourceMod("a"); var b = SourceMod("b"); var legacy = SourceMod("legacy", legacy: true);
+        var loader = SourceMod("loader", Guid.Parse("612eaf70-d682-43c7-9efd-16dcc695f977"));
+        a.Manifest.Options = [new() { Name = "配件", Include = [], SubOptions = [new() { Name = "红", Include = ["red"] }, new() { Name = "蓝", Include = ["blue"] }] }];
+        WriteFile(Path.Combine(a.SourcePath, "red", "1234567890abcde1.patch_0"), "red");
+        WriteFile(Path.Combine(a.SourcePath, "blue", "1234567890abcde2.patch_0"), "blue");
+        WriteFile(Path.Combine(a.SourcePath, "blue", "unused", "1234567890abcde5.patch_0"), "unselected nested variant");
+        WriteFile(Path.Combine(b.SourcePath, "unused", "1234567890abcde6.patch_0"), "unused files in mod without options");
+        WriteFile(Path.Combine(b.SourcePath, "1234567890abcdef.patch_2"), "two");
+        WriteFile(Path.Combine(b.SourcePath, "1234567890abcdef.patch_10"), "ten");
+        WriteFile(Path.Combine(legacy.SourcePath, "Low", "1234567890abcde3.patch_0"), "low");
+        WriteFile(Path.Combine(legacy.SourcePath, "High", "1234567890abcde4.patch_0"), "high");
+        var plan = Plan(a, b, legacy, loader);
+        var profile = plan.Profiles.Single();
+        profile.Separators.Add(new("武器", 0, true, "#123456", 2));
+        profile.Mods[0] = new("a", true, new() { OptionToggles = [true], OptionSelections = [1] });
+        profile.Mods[1] = new("b", false, new());
+        profile.Mods[2] = new("legacy", true, new() { LegacySelectedIndex = 1 });
+        var second = new ExternalMigrationProfile { SourceId = "two", Name = "备用" };
+        second.Mods.Add(new("a", false, new() { OptionToggles = [false], OptionSelections = [0] }));
+        second.Mods.Add(new("b", true, new())); plan.Profiles.Add(second);
+        var imported = await _migration.MigrateAsync(plan);
+        await _profiles.SetActiveProfileAsync(imported.ProfileIds["p"]);
+        var target = new ExternalMigrationSource(manager, Path.Combine(_root, "external", manager.ToString()), Path.Combine(_root, "install"));
+        var nativeFile = Path.Combine(target.DataPath, manager == ExternalManagerKind.Echelon ? "state.json" : "hd2a_data.json");
+        if (manager == ExternalManagerKind.Helldivers2ModManager) WriteJson(Path.Combine(target.InstallationPath!, "settings.json"), new { DeployBottomToTop = reverse, theme = "keep" });
+        else if (manager == ExternalManagerKind.Echelon) WriteJson(nativeFile, new { version = 2, library = new { }, profiles = Array.Empty<object>(), settings = new { priority = reverse ? "first" : "last", theme = "keep" } });
+        else WriteJson(nativeFile, new { modsLibrary = Array.Empty<object>(), modsList = new { }, profileOrder = Array.Empty<string>(), setTopPriority = reverse, theme = "keep" });
+        var preview = await _export.PreviewAsync(target);
+        Assert.DoesNotContain(preview.Issues, issue => issue.IsBlocking);
+        var result = await _export.MigrateAsync(preview);
+        Assert.Equal(4, result.ImportedMods); Assert.Equal(preview.Profiles.Count, result.ImportedProfiles);
+        Assert.NotEmpty(result.BackupPaths);
+        var back = await _migration.PreviewAsync(target);
+        Assert.Empty(back.Issues);
+        Assert.Equal(4, back.Mods.Count); Assert.Equal(preview.Profiles.Count, back.Profiles.Count);
+        var current = back.Profiles.Single(item => item.SourceId == result.ProfileIds[imported.ProfileIds["p"].ToString()].ToString());
+        Assert.True(current.WasActive);
+        var aId = result.ModIds[imported.ModIds["a"].ToString()].ToString();
+        var bId = result.ModIds[imported.ModIds["b"].ToString()].ToString();
+        var legacyId = result.ModIds[imported.ModIds["legacy"].ToString()].ToString();
+        var aState = current.Mods.Single(item => item.SourceModId == aId);
+        Assert.True(aState.Enabled); Assert.True(aState.Options.OptionToggles![0]); Assert.Equal(1, aState.Options.OptionSelections![0]);
+        Assert.False(current.Mods.Single(item => item.SourceModId == bId).Enabled);
+        Assert.Equal(1, manager == ExternalManagerKind.Helldivers2ModManager ? current.Mods.Single(item => item.SourceModId == legacyId).Options.LegacySelectedIndex
+            : current.Mods.Single(item => item.SourceModId == legacyId).Options.OptionSelections![0]);
+        var group = current.Separators.Single(separator => separator.Name == "武器");
+        Assert.True(group.IsCollapsed); Assert.Equal("#123456", group.Color); Assert.Equal(2, group.MemberCount);
+        Assert.Equal(new[] { aId, bId }.Order(), current.Mods.Skip(group.Order).Take(group.MemberCount!.Value).Select(member => member.SourceModId).Order());
+        var order = current.Mods.Where(member => member.SourceModId == aId || member.SourceModId == bId || member.SourceModId == legacyId).Select(member => member.SourceModId).ToList();
+        if (reverse) order.Reverse(); Assert.Equal(new[] { aId, bId, legacyId }, order);
+        var repeated = await _export.MigrateAsync(await _export.PreviewAsync(target));
+        Assert.Equal(0, repeated.ImportedMods); Assert.Equal(4, repeated.ReusedMods); Assert.Equal(0, repeated.ImportedProfiles);
+        Assert.Equal(preview.Profiles.Count, (await _migration.PreviewAsync(target)).Profiles.Count);
+
+        var roundTrip = await _migration.MigrateAsync(back);
+        var game = Path.Combine(_root, "roundtrip-game");
+        Directory.CreateDirectory(game);
+        var deployment = new DeploymentService(_profileRepository, _modRepository, new DeploymentRepository(_db), [new CopyDeploymentMethod()]);
+        var deployed = await deployment.DeployProfileAsync(roundTrip.ProfileIds[current.SourceId], DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, deployed.Status);
+        Assert.Equal(new[] { "blue", "high", "original" }, Directory.GetFiles(Path.Combine(game, "data"), "*.patch_*")
+            .Where(path => !path.EndsWith(".stream") && !path.EndsWith(".gpu_resources")).Select(File.ReadAllText).Order());
+        var other = back.Profiles.Single(item => item.SourceId == result.ProfileIds[imported.ProfileIds["two"].ToString()].ToString());
+        var otherGame = Path.Combine(_root, "other-roundtrip-game");
+        Directory.CreateDirectory(otherGame);
+        Assert.Equal(DeploymentStatus.Completed, (await deployment.DeployProfileAsync(roundTrip.ProfileIds[other.SourceId], DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, otherGame)).Status);
+        Assert.Equal("original", File.ReadAllText(Path.Combine(otherGame, "data", "1234567890abcdef.patch_0")));
+        Assert.Equal("two", File.ReadAllText(Path.Combine(otherGame, "data", "1234567890abcdef.patch_1")));
+        Assert.Equal("ten", File.ReadAllText(Path.Combine(otherGame, "data", "1234567890abcdef.patch_2")));
+    }
+
+    [Fact]
+    public async Task Export_Arsenal_RestoresLibrarySeparatorAndKeepsExistingNativeData()
+    {
+        var a = SourceMod("a"); var b = SourceMod("b"); var plan = Plan(a, b);
+        var original = plan.Profiles.Single();
+        var layout = new ExternalMigrationProfile { SourceId = "library-layout", Name = "库布局", IsLibraryLayout = true };
+        layout.Mods.AddRange(original.Mods.Select(member => member with { Enabled = false })); layout.Separators.Add(new("黄色", 0, true, "#FEE800", 1));
+        plan.Profiles.Add(layout);
+        var imported = await _migration.MigrateAsync(plan);
+        Assert.True((await _profileRepository.GetByIdAsync(imported.ProfileIds["library-layout"]))!.IsLibraryLayout);
+        var existing = SourceMod("old");
+        var target = new ExternalMigrationSource(ExternalManagerKind.HD2Arsenal, Path.Combine(_root, "arsenal-target"), Path.Combine(_root, "install"));
+        var path = Path.Combine(target.DataPath, "hd2a_data.json");
+        WriteJson(path, new { modsLibrary = new[] { new { uuid = "old", label = "原模组", path = existing.SourcePath } },
+            modsList = new { old = new { label = "原配置", mods = Array.Empty<object>() } }, profileOrder = new[] { "old" }, zoomLevel = 1.2 });
+        var before = File.ReadAllText(path);
+        var result = await _export.MigrateAsync(await _export.PreviewAsync(target));
+        Assert.Contains(result.BackupPaths, backup => File.ReadAllText(backup) == before);
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        Assert.Equal(1.2, document.RootElement.GetProperty("zoomLevel").GetDouble());
+        Assert.Equal("原配置", document.RootElement.GetProperty("modsList").GetProperty("old").GetProperty("label").GetString());
+        var back = await _migration.PreviewAsync(target);
+        var libraryLayout = back.Profiles.Single(profile => profile.IsLibraryLayout);
+        var separator = libraryLayout.Separators.Single(separator => separator.Name == "黄色");
+        Assert.Equal((true, "#FEE800", (int?)1), (separator.IsCollapsed, separator.Color, separator.MemberCount));
+    }
+
+    [Fact]
+    public async Task Export_TargetChangedAfterPreview_RejectsCommitAndCleansStaging()
+    {
+        await _migration.MigrateAsync(Plan(SourceMod("a")));
+        var target = new ExternalMigrationSource(ExternalManagerKind.HD2Arsenal, Path.Combine(_root, "export"), Path.Combine(_root, "install"));
+        var preview = await _export.PreviewAsync(target);
+        var path = Path.Combine(target.DataPath, "hd2a_data.json");
+        WriteJson(path, new { modsLibrary = Array.Empty<object>(), modsList = new { }, currentUserChange = true });
+        var expected = File.ReadAllText(path);
+        await Assert.ThrowsAsync<IOException>(() => _export.MigrateAsync(preview));
+        Assert.Equal(expected, File.ReadAllText(path));
+        Assert.Empty(Directory.GetDirectories(target.DataPath, ".hd2mimnt-migration-*"));
+        Assert.False(Directory.Exists(Path.Combine(target.DataPath, "mods")));
+    }
+
+    [Fact]
+    public async Task Export_CancelBeforeCommit_KeepsTargetUnchangedAndCleansStaging()
+    {
+        await _migration.MigrateAsync(Plan(SourceMod("a")));
+        var target = new ExternalMigrationSource(ExternalManagerKind.HD2Arsenal, Path.Combine(_root, "export"), Path.Combine(_root, "install"));
+        var preview = await _export.PreviewAsync(target);
+        using var cancellation = new CancellationTokenSource();
+        var progress = new ImmediateProgress(value => { if (value.Stage == "保存迁移结果") cancellation.Cancel(); });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _export.MigrateAsync(preview, progress, cancellation.Token));
+        Assert.False(File.Exists(Path.Combine(target.DataPath, "hd2a_data.json")));
+        Assert.Empty(Directory.GetDirectories(target.DataPath, ".hd2mimnt-migration-*"));
+        Assert.False(Directory.Exists(Path.Combine(target.DataPath, "mods")));
+        var retried = await _export.MigrateAsync(await _export.PreviewAsync(target));
+        Assert.Equal(1, retried.ImportedMods);
+    }
+
+    [Fact]
+    public async Task Export_SourceChangedAfterPreview_RejectsCommitAndCleansStaging()
+    {
+        var imported = await _migration.MigrateAsync(Plan(SourceMod("a")));
+        var target = new ExternalMigrationSource(ExternalManagerKind.HD2Arsenal, Path.Combine(_root, "export"), Path.Combine(_root, "install"));
+        var preview = await _export.PreviewAsync(target);
+        var mod = (await _modRepository.GetByIdAsync(imported.ModIds["a"]))!;
+        WriteFile(Path.Combine(mod.Path, "1234567890abcdef.patch_0"), "changed after preview");
+        await Assert.ThrowsAsync<IOException>(() => _export.MigrateAsync(preview));
+        Assert.False(File.Exists(Path.Combine(target.DataPath, "hd2a_data.json")));
+        Assert.Empty(Directory.GetDirectories(target.DataPath, ".hd2mimnt-migration-*"));
+        Assert.False(Directory.Exists(Path.Combine(target.DataPath, "mods")));
+    }
+
+    [Fact]
+    public async Task Export_MetadataPublishFails_RollsBackPublishedFilesAndMods()
+    {
+        await _migration.MigrateAsync(Plan(SourceMod("a")));
+        var target = new ExternalMigrationSource(ExternalManagerKind.Echelon, Path.Combine(_root, "export"), Path.Combine(_root, "install"));
+        var statePath = Path.Combine(target.DataPath, "state.json");
+        var locationsPath = Path.Combine(target.DataPath, "locations.json");
+        WriteJson(statePath, new { version = 2, library = new { }, profiles = Array.Empty<object>(), settings = new { priority = "last" } });
+        WriteJson(locationsPath, new { mods = Path.Combine(target.DataPath, "mods"), kept = true });
+        var stateBefore = File.ReadAllText(statePath); var locationsBefore = File.ReadAllText(locationsPath);
+        var preview = await _export.PreviewAsync(target);
+        using (var fileLock = new FileStream(statePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var failure = await Record.ExceptionAsync(() => _export.MigrateAsync(preview));
+            Assert.True(failure is IOException or UnauthorizedAccessException, failure?.ToString());
+        }
+        Assert.Equal(stateBefore, File.ReadAllText(statePath));
+        Assert.Equal(locationsBefore, File.ReadAllText(locationsPath));
+        Assert.Empty(Directory.GetDirectories(target.DataPath, ".hd2mimnt-migration-*"));
+        Assert.Empty(Directory.GetDirectories(Path.Combine(target.DataPath, "mods")));
+        Assert.Empty(Directory.GetFiles(target.DataPath, "*.hd2mimnt-pending-*"));
+        Assert.Equal(1, (await _export.MigrateAsync(await _export.PreviewAsync(target))).ImportedMods);
+    }
+
+    [Theory]
+    [InlineData(ExternalManagerKind.Echelon)]
+    [InlineData(ExternalManagerKind.HD2Arsenal)]
+    public async Task Export_EmptySeparator_DoesNotHideFollowingMods(ExternalManagerKind manager)
+    {
+        var plan = Plan(SourceMod("a"), SourceMod("b"));
+        plan.Profiles.Single().Separators.Add(new("空组", 0, true, "#123456", 0));
+        var imported = await _migration.MigrateAsync(plan);
+        var target = new ExternalMigrationSource(manager, Path.Combine(_root, "export"), Path.Combine(_root, "install"));
+        var exported = await _export.MigrateAsync(await _export.PreviewAsync(target));
+        var back = await _migration.PreviewAsync(target);
+        var profile = back.Profiles.Single(profile => profile.SourceId == exported.ProfileIds[imported.ProfileIds["p"].ToString()].ToString());
+        Assert.Equal(0, profile.Separators.Single(separator => separator.Name == "空组").MemberCount);
+        Assert.Equal(2, profile.Mods.Count);
     }
 
     [Fact]

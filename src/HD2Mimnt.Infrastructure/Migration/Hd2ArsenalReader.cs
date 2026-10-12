@@ -41,12 +41,17 @@ public sealed class Hd2ArsenalReader : IExternalManagerReader
             {
                 SourceId = id, Name = value.Get("label").Text(id),
                 WasActive = data.Get("selectedProfile").Text() == id,
+                IsDefault = id.Equals("default", StringComparison.OrdinalIgnoreCase),
                 DeploymentOrder = data.Get("setTopPriority").Bool() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom
             };
             var damaged = false;
             foreach (var item in value.Get("mods").Items())
             {
-                if (IsSeparator(item)) profile.Separators.Add(ReadSeparator(item, profile.Mods.Count));
+                if (IsSeparator(item))
+                {
+                    if (item.Get("hd2mimntLua").Bool()) { profile.IsLuaGroupCollapsed = item.Get("collapsed").Bool(); profile.LuaSeparatorColor = MigrationJson.Color(item.Get("backgroundColor").Text()); }
+                    else profile.Separators.Add(ReadSeparator(item, profile.Mods.Count));
+                }
                 else
                 {
                     var mod = AddMod(item);
@@ -61,7 +66,7 @@ public sealed class Hd2ArsenalReader : IExternalManagerReader
         // 当前模组库没有用户分组实体；库中独有的分隔符连同库顺序保存在独立组织配置。
         if (librarySeparators.Count > 0)
         {
-            var profile = new ExternalMigrationProfile { SourceId = "library-layout", Name = "HD2Arsenal 模组库分组" };
+            var profile = new ExternalMigrationProfile { SourceId = "library-layout", Name = "HD2Arsenal 模组库分组", IsLibraryLayout = true };
             foreach (var item in data.Get("modsLibrary").Items().Where(item => !IsSeparator(item)))
                 if (mods.TryGetValue(item.Get("uuid").Text(), out var mod))
                     profile.Mods.Add(new(mod.SourceId, false, ReadOptions(item, mod.Manifest)));

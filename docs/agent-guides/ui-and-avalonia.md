@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 配置文件列表右键只打开命中行的菜单，不改变 `SelectedProfile`，不触发自动激活；必须在 PointerPressed 隧道路由拦截右键，冒泡阶段已晚于 ListBoxItem 的默认选择。左键仍按设置切换配置，菜单命令绑定命中行；保留默认配置及使用中配置的删除保护。回归开启自动切换后实际右键删除非当前配置，并检查当前配置与数据库激活状态不变。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
+
 - 自动检查冲突在“设置 → 配置文件”默认关闭，保存后生效；合并连续变更，串行扫描、取消过期结果，关闭设置和退出均取消待执行任务。不要在 UI 线程解析索引或格式化大量详情。卡片关系共享去重后的成员集合，悬停最多列 8 个名称，点击仍可查看全部；冲突资源、持有者及定位选择列表保持虚拟化，不能嵌套无高度约束的 ScrollViewer 使所有条目同时创建。性能边界及实测见[自动检查评估](../reports/automatic-conflict-check-performance.md)。来源：https://docs.avaloniaui.net/docs/reference/controls/virtualizingstackpanel
 
 - 配置页“检查冲突”直接扫描正在查看的配置，不自动切换页面；配置卡片按 ModId 回填资源覆盖的黄色缩略图角标，共用冲突页结果。卡片悬停提示用于快速排查，只列出去重后的关联模组名称；点击角标时单目标直接定位，多目标先在浮动面板选择，再清除搜索、展开目标分组并滚动到卡片，以主题强调边框标记。固定加载器可以定位但不能变成批量选中；Escape 优先关选择窗，配置切换、视图卸载和结果失效均清空候选。资源编号、类型、差异和预期生效者留在“冲突”页。启用、选项、顺序、成员或部署方向改变后清除旧提示；卡片重建时回填仍有效的结果。角标位置不能随选项按钮有无变化，警告图标使用 UtilityIcon 与主题 WarningBrush，检查长名称、选项按钮、深浅主题和窄窗口，截图前先排空通知事件再关闭横幅，防止遮挡卡片。来源：https://docs.avaloniaui.net/docs/reference/controls/tooltip 、https://github.com/amwx/FluentAvalonia

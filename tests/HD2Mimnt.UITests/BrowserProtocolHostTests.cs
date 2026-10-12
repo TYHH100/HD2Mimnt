@@ -31,6 +31,31 @@ public sealed class BrowserProtocolHostTests
     }
 
     [Fact]
+    public void Registration_WhenCurrent_ShouldSkipWritesAndRepairMissingEntries()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var path = @"Software\HD2Mimnt-Protocol-Test-" + Guid.NewGuid().ToString("N");
+        const string executable = @"C:\Mod Tools\HD2Mimnt.exe";
+        var command = WebsiteDownloadLauncher.BuildCommand(executable, "");
+        try
+        {
+            using var root = Registry.CurrentUser.CreateSubKey(path);
+            using (var existing = root.CreateSubKey(@"Software\Classes\nxm\shell\open\command"))
+                existing.SetValue("", "existing-manager %1");
+            Assert.True(WebsiteDownloadLauncher.Register(root, command, executable));
+            // 只读根键确保重复检查不会尝试 CreateSubKey/SetValue。
+            using (var readOnly = Registry.CurrentUser.OpenSubKey(path, writable: false))
+                Assert.False(WebsiteDownloadLauncher.Register(readOnly!, command, executable));
+            root.DeleteSubKeyTree(@"Software\HD2Mimnt\Capabilities\URLAssociations");
+            Assert.True(WebsiteDownloadLauncher.Register(root, command, executable));
+            Assert.False(WebsiteDownloadLauncher.Register(root, command, executable));
+            using var handler = root.OpenSubKey(@"Software\Classes\nxm\shell\open\command");
+            Assert.Equal("existing-manager %1", handler!.GetValue(""));
+        }
+        finally { Registry.CurrentUser.DeleteSubKeyTree(path, false); }
+    }
+
+    [Fact]
     public void Registration_ShouldOfferApplicationWithoutOverwritingAnotherNxmHandler()
     {
         if (!OperatingSystem.IsWindows()) return;
@@ -60,7 +85,8 @@ public sealed class BrowserProtocolHostTests
             using (var owned = root.OpenSubKey(@"Software\Classes\nxm\shell\open\command", writable: true))
                 owned!.SetValue("", command);
             var movedCommand = WebsiteDownloadLauncher.BuildCommand(@"C:\New Folder\HD2Mimnt.exe", "");
-            WebsiteDownloadLauncher.Register(root, movedCommand, @"C:\New Folder\HD2Mimnt.exe");
+            Assert.True(WebsiteDownloadLauncher.Register(root, movedCommand, @"C:\New Folder\HD2Mimnt.exe"));
+            Assert.False(WebsiteDownloadLauncher.Register(root, movedCommand, @"C:\New Folder\HD2Mimnt.exe"));
             Assert.Equal(movedCommand, existingHandler.GetValue(""));
             Assert.Equal(movedCommand, handler.GetValue(""));
             Assert.Equal(movedCommand, appCommand.GetValue(""));

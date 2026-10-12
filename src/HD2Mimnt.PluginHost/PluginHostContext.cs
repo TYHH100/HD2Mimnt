@@ -1,4 +1,5 @@
 using HD2Mimnt.PluginSDK;
+using HD2Mimnt.Core;
 
 namespace HD2Mimnt.PluginHost;
 
@@ -45,8 +46,7 @@ public class PluginHostStorage : IPluginStorage
     public PluginHostStorage(string pluginId)
     {
         var baseDir = Path.Combine(
-            Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev"),
+            Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ?? RuntimeDataPaths.GetDefaultApplicationDataPath(),
             "Plugins",
             pluginId);
 
@@ -129,8 +129,7 @@ public class PluginHostConfiguration : IPluginConfiguration
     public PluginHostConfiguration(string pluginId)
     {
         var baseDir = Path.Combine(
-            Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev"),
+            Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ?? RuntimeDataPaths.GetDefaultApplicationDataPath(),
             "Plugins",
             pluginId);
 

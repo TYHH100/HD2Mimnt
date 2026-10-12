@@ -114,6 +114,7 @@ public partial class MainWindowViewModel : ObservableObject
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
     public TutorialViewModel Tutorial { get; } = new();
+    public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -134,7 +135,8 @@ public partial class MainWindowViewModel : ObservableObject
         LogViewModel logViewModel,
         ConfirmationService confirmationService,
         ImagePreviewService imagePreviewService,
-        NexusModsTestService nexusModsTestService)
+        NexusModsTestService nexusModsTestService,
+        ManagerMigrationViewModel? managerMigrationViewModel = null)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -155,6 +157,13 @@ public partial class MainWindowViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreviewService;
         _nexusModsTestService = nexusModsTestService;
+        ManagerMigrationViewModel = managerMigrationViewModel;
+        if (ManagerMigrationViewModel != null)
+            ManagerMigrationViewModel.RefreshImportedDataAsync = async () =>
+            {
+                await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
+                await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
         Tutorial.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
@@ -593,6 +602,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        if (ManagerMigrationViewModel is { IsBusy: true } migration)
+        {
+            await migration.CancelAndWaitAsync();
+        }
         if (_libraryViewModel.ModOnline is { } online)
             await online.CloseCommand.ExecuteAsync(null);
         if (!_libraryViewModel.ImportCompletion.IsCompleted)

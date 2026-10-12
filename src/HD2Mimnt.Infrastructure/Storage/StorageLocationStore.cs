@@ -1,4 +1,5 @@
 using System.Text.Json;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 
 namespace HD2Mimnt.Infrastructure.Storage;
@@ -15,7 +16,7 @@ public sealed class StorageLocationStore
     {
         var environmentPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         BootstrapPath = Normalize(bootstrapPath ?? (string.IsNullOrWhiteSpace(environmentPath)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev")
+            ? RuntimeDataPaths.GetDefaultApplicationDataPath()
             : environmentPath));
         _file = Path.Combine(BootstrapPath, "storage-locations.json");
         Defaults = new(BootstrapPath, Path.Combine(BootstrapPath, "mods"), Path.Combine(BootstrapPath, "Cache"));

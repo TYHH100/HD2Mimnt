@@ -30,12 +30,24 @@ public class Profile
     /// <summary>固定 Lua 分组的显示状态，不影响部署。</summary>
     public bool IsLuaGroupCollapsed { get; set; }
     public string LuaSeparatorColor { get; set; } = string.Empty;
+    /// <summary>保存外部管理器模组库组织关系的独立配置，迁回时恢复库分隔符。</summary>
+    public bool IsLibraryLayout { get; set; }
+
+    /// <summary>默认配置合并的来源与已提交快照；与成员同事务保存，供失败重试和重复迁移使用。</summary>
+    public Dictionary<Guid, DefaultProfileMigrationState> DefaultMigrationState { get; set; } = new();
 
     /// <summary>
     /// LogicalMod 引用列表
     /// 根据执行文档第 1208-1243 节，配置文件应保存 LogicalModId
     /// </summary>
     public List<ProfileLogicalMod> LogicalMods { get; set; } = new();
+}
+
+public sealed class DefaultProfileMigrationState
+{
+    public List<Guid> SnapshotIds { get; set; } = new();
+    public List<Guid> SeparatorIds { get; set; } = new();
+    public List<Guid> MemberIds { get; set; } = new();
 }
 
 /// <summary>

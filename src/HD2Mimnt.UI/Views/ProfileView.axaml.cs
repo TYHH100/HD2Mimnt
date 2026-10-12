@@ -48,6 +48,8 @@ public partial class ProfileView : UserControl
     public ProfileView()
     {
         InitializeComponent();
+        // 在 ListBoxItem 默认选择逻辑之前拦截右键，避免菜单操作自动激活目标配置。
+        ProfileList.AddHandler(PointerPressedEvent, ProfileList_PointerPressed, RoutingStrategies.Tunnel);
         // 右键事件在列表容器统一捕获，并包含已被子控件处理过的事件。
         ModItemsControl.AddHandler(InputElement.PointerReleasedEvent, ModList_ContextReleased,
             RoutingStrategies.Bubble, handledEventsToo: true);
@@ -73,12 +75,14 @@ public partial class ProfileView : UserControl
         if (DataContext is not ProfileViewModel) return;
 
         ProfileItemViewModel? profile = null;
-        if (e.Source is Visual source)
+        var hasPosition = e.TryGetPosition(ProfileList, out var position);
+        var source = hasPosition ? ProfileList.InputHitTest(position) as Visual : e.Source as Visual;
+        if (profile == null && source != null)
         {
-            var item = source.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+            var item = source as ListBoxItem ?? source.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
             profile = item?.DataContext as ProfileItemViewModel;
         }
-        profile ??= ProfileList.SelectedItem as ProfileItemViewModel;
+        if (!hasPosition) profile ??= ProfileList.SelectedItem as ProfileItemViewModel;
         if (profile == null) return;
 
         var entries = new List<object>();
@@ -138,6 +142,11 @@ public partial class ProfileView : UserControl
     {
         _dragProfile = null;
         _pressedArgs = null;
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            e.Handled = true;
+            return;
+        }
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         if (e.Source is not Visual source) return;
 

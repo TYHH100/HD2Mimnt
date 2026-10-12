@@ -82,11 +82,12 @@ public sealed class ExternalManagerMigrationService
                     var profile = MapProfile(external, imported, direction);
                     profile.Id = MigrationIdentity.Create(identity, "profile", external.SourceId.ToUpperInvariant(), JsonSerializer.Serialize(new
                     {
-                        external.Name, direction, profile.Mods,
+                        external.Name, direction, profile.Mods, profile.IsLibraryLayout,
                         Separators = profile.Separators.Select(item => new { item.Name, item.Order, item.Color, item.IsCollapsed, item.MemberCount }),
                         profile.IsLuaGroupCollapsed, profile.LuaSeparatorColor
                     }));
-                    var (id, reused) = await _profiles.ImportMigratedProfileAsync(profile, token);
+                    var defaultSourceId = external.IsDefault ? MigrationIdentity.Create(identity, "default-profile", external.SourceId.ToUpperInvariant()) : (Guid?)null;
+                    var (id, reused) = await _profiles.ImportMigratedProfileAsync(profile, token, defaultSourceId);
                     result.ProfileIds.Add(external.SourceId, id);
                     if (reused) result.ReusedProfiles++; else result.ImportedProfiles++;
                     if (external.WasActive) result.SourceActiveProfileId = id;
@@ -118,7 +119,8 @@ public sealed class ExternalManagerMigrationService
             {
                 ModId = mods[item.SourceModId].Id, Enabled = item.Enabled, Order = index, OptionsJson = item.Options.ToJson()
             }).ToList(),
-            IsLuaGroupCollapsed = external.IsLuaGroupCollapsed, LuaSeparatorColor = external.LuaSeparatorColor
+            IsLuaGroupCollapsed = external.IsLuaGroupCollapsed, LuaSeparatorColor = external.LuaSeparatorColor,
+            IsLibraryLayout = external.IsLibraryLayout
         };
         var separators = external.Separators.OrderBy(item => item.Order).ToList();
         for (var index = 0; index < separators.Count; index++)

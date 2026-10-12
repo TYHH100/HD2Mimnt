@@ -22,6 +22,6 @@
 
 - NXM 网页授权回传必须进入原运行实例，才能保留会话 API 密钥和用户发起的下载/更新动作；仅匹配当前等待的游戏、模组及网站文件编号，不接收回传后盲目替换。取消/关闭后回传不能复活旧任务，临时授权不入库或日志。Windows 按当前用户注册 ProgID/URLAssociations，不能覆盖其它管理器的已有默认关联；测试使用隔离管道与注册表子键并清理。来源：https://learn.microsoft.com/en-us/windows/win32/shell/default-programs
 
-- NXM 注册不能仅在打开下载网页时触发：每次主实例启动都按当前 EXE/DLL 路径幂等更新 ProgID、应用选择器候选及本应用的旧协议命令，再用 SHChangeNotify 通知系统刷新；注册失败必须呈现通知。开发目录可移动，不可因“已注册”跳过路径更新。来源：https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify
+- NXM 在主实例启动和打开下载网页时先只读检查注册状态；ProgID、应用选择器候选、URLAssociations 与当前 EXE/DLL 路径一致时直接跳过，不重写注册表、不发送 SHChangeNotify。仅首次注册、条目缺失或路径变化时更新并通知系统刷新；二次实例转发不注册，注册失败必须呈现通知。不要仅凭持久化布尔标记判断已注册，也不能覆盖其它管理器的默认关联。来源：https://learn.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify
 
 - 平台 API 密钥通过 IPlatformCredentialStore 写入独立 PlatformCredentials 表，仅保存 DPAPI CurrentUser 密文，不使用会记录值的 SettingsService，也不能放入模组绑定或日志。保存成功后才切换内存密钥，删除持久化成功后才清除内存；启动与备份恢复通过 Application 服务加载，解密失败提示重填但不中断启动。临时 NXM 授权仍不持久化。来源：https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata

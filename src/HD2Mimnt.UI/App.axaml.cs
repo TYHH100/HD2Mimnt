@@ -343,6 +343,11 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
         services.AddSingleton<IExternalManagerReader, EchelonReader>();
         services.AddSingleton<IExternalManagerReader, Hd2ArsenalReader>();
+        services.AddSingleton<IExternalManagerWriter, Helldivers2ModManagerWriter>();
+        services.AddSingleton<IExternalManagerWriter, EchelonWriter>();
+        services.AddSingleton<IExternalManagerWriter, Hd2ArsenalWriter>();
+        services.AddSingleton<ExternalManagerExportService>();
+        services.AddTransient<ManagerMigrationViewModel>();
         services.AddSingleton(sp => new ExternalManagerMigrationService(
             sp.GetServices<IExternalManagerReader>(),
             sp.GetRequiredService<ModService>(),
@@ -435,7 +440,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ProfileService>(),
             sp.GetRequiredService<ModService>(),
             sp.GetRequiredService<NotificationService>(),
-            sp.GetRequiredService<ConfirmationService>(),
+            sp.GetRequiredService<IConfirmationService>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>()));
 
@@ -487,6 +492,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<LogViewModel>(),
             sp.GetRequiredService<ConfirmationService>(),
             sp.GetRequiredService<ImagePreviewService>(),
-            sp.GetRequiredService<NexusModsTestService>()));
+            sp.GetRequiredService<NexusModsTestService>(),
+            sp.GetRequiredService<ManagerMigrationViewModel>()));
     }
 }

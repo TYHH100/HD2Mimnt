@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 
@@ -23,8 +24,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _optionsProvider = optionsProvider;
-        _resumeDirectory = resumeDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev", "Downloads");
+        _resumeDirectory = resumeDirectory ?? Path.Combine(RuntimeDataPaths.GetDefaultApplicationDataPath(), "Downloads");
         _tempDirectory = tempDirectory ?? Path.GetTempPath();
     }
 

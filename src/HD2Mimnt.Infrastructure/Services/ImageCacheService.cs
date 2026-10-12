@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using HD2Mimnt.Core;
 using Avalonia.Media.Imaging;
 
 namespace HD2Mimnt.Infrastructure.Services;
@@ -22,10 +23,7 @@ public class ImageCacheService : IImageCacheService
     public ImageCacheService(string? cachePath = null, int memoryCacheSize = DefaultMemoryCacheSize)
     {
         _memoryCache = new Cache.LruCache<string, Bitmap>(memoryCacheSize);
-        _diskCachePath = cachePath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "HD2Mimnt.dev",
-            "ImageCache");
+        _diskCachePath = cachePath ?? Path.Combine(RuntimeDataPaths.GetDefaultApplicationDataPath(), "ImageCache");
 
         Directory.CreateDirectory(_diskCachePath);
     }

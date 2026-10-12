@@ -5,7 +5,7 @@ namespace HD2Mimnt.Core.Migration;
 
 public enum ExternalManagerKind { Helldivers2ModManager, Echelon, HD2Arsenal }
 
-/// <summary>路径由调用方选择；InstallationPath 仅用于读取 HD2MM 的 settings.json。</summary>
+/// <summary>路径由调用方选择；InstallationPath 定位 HD2MM 的 settings.json 和目标进程。</summary>
 public sealed record ExternalMigrationSource(ExternalManagerKind Manager, string DataPath,
     string? InstallationPath = null, string? ModsPath = null);
 
@@ -13,6 +13,10 @@ public sealed class ExternalMigrationPlan
 {
     public required ExternalMigrationSource Source { get; init; }
     public required string SourceIdentity { get; init; }
+    public DeploymentOrder? TargetDeploymentOrder { get; set; }
+    public string TargetModsPath { get; set; } = string.Empty;
+    /// <summary>预览目标文件指纹，提交前检查外部软件是否修改过数据。</summary>
+    public Dictionary<string, string> TargetFileHashes { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<ExternalMigrationMod> Mods { get; } = [];
     public List<ExternalMigrationProfile> Profiles { get; } = [];
     public List<ExternalMigrationIssue> Issues { get; } = [];
@@ -25,6 +29,8 @@ public sealed class ExternalMigrationMod
     public required ModManifest Manifest { get; init; }
     public List<string> Tags { get; init; } = [];
     public string? ImagePath { get; init; }
+    public string ContentHash { get; init; } = string.Empty;
+    public BslModRole Role { get; init; }
     /// <summary>Echelon 的精确资源集合重新布局到独立目录，避免 Include 误选同目录其它集合。</summary>
     public List<ExternalMigrationFile> FileLayout { get; init; } = [];
 }
@@ -36,6 +42,9 @@ public sealed class ExternalMigrationProfile
     public required string SourceId { get; init; }
     public required string Name { get; init; }
     public bool WasActive { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsDefault { get; init; }
+    public bool IsLibraryLayout { get; init; }
     public DeploymentOrder? DeploymentOrder { get; init; }
     public List<ExternalMigrationProfileMod> Mods { get; } = [];
     public List<ExternalMigrationSeparator> Separators { get; } = [];
@@ -49,16 +58,17 @@ public sealed record ExternalMigrationProfileMod(string SourceModId, bool Enable
 public sealed record ExternalMigrationSeparator(string Name, int Order, bool IsCollapsed = false,
     string Color = "", int? MemberCount = null);
 
-public sealed record ExternalMigrationIssue(string Item, string Message);
+public sealed record ExternalMigrationIssue(string Item, string Message, bool IsBlocking = false);
 public sealed record ExternalMigrationProgress(int Completed, int Total, string Stage, string Item);
 
 public sealed class ExternalMigrationResult
 {
-    /// <summary>源软件的活动配置对应的目标 ID；迁移不会自动切换目标的活动配置。</summary>
+    /// <summary>源活动配置对应的目标 ID；迁入保留 HD2Mimnt 活动配置，迁回恢复导出的活动配置。</summary>
     public Guid? SourceActiveProfileId { get; set; }
     public Dictionary<string, Guid> ModIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, Guid> ProfileIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<ExternalMigrationIssue> Issues { get; } = [];
+    public List<string> BackupPaths { get; } = [];
     public int ImportedMods { get; set; }
     public int ReusedMods { get; set; }
     public int ImportedProfiles { get; set; }

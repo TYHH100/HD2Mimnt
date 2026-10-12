@@ -14,11 +14,6 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        try { WebsiteDownloadLauncher.RegisterCurrentApplication(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            ProtocolRegistrationError = "N 网链接接收注册失败，请检查当前用户的注册表写入权限后重启应用。";
-        }
         using var protocolHost = new BrowserProtocolHost(BrowserProtocolHost.GetScope());
         var protocolLink = BrowserProtocolHost.GetProtocolArgument(args);
         if (!protocolHost.IsPrimary)
@@ -26,6 +21,11 @@ class Program
             if (!protocolHost.ForwardAsync(protocolLink).GetAwaiter().GetResult())
                 Console.Error.WriteLine("无法将启动请求发送到当前窗口，请关闭旧窗口后重试。");
             return;
+        }
+        try { WebsiteDownloadLauncher.RegisterCurrentApplication(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            ProtocolRegistrationError = "N 网链接接收注册失败，请检查当前用户的注册表写入权限后重启应用。";
         }
         ProtocolHost = protocolHost;
         if (protocolLink.Length != 0) protocolHost.Receive(protocolLink);

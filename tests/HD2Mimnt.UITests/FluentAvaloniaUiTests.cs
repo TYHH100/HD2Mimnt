@@ -1048,6 +1048,78 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ProfileListRightClick_ShouldDeleteInactiveProfileWithoutSelectingOrActivatingIt()
+    {
+        var confirmation = new RecordingConfirmation();
+        await using var scope = await UiScope.CreateAsync(confirmation: confirmation);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        await profiles.InitializeAsync();
+        var deleteId = await profiles.CreateProfileAsync("右键删除目标");
+        var switchId = await profiles.CreateProfileAsync("左键切换目标");
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        var initial = vm.SelectedProfile!;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            window.CaptureRenderedFrame();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var list = view.FindControl<ListBox>("ProfileList")!;
+            Point RowPoint(Guid id)
+            {
+                var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(vm.Profiles.IndexOf(vm.Profiles.Single(p => p.Id == id))));
+                var title = row.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == ((ProfileItemViewModel)row.DataContext!).Name);
+                return title.TranslatePoint(new Point(15, 8), window)!.Value;
+            }
+            var point = RowPoint(deleteId);
+            var hit = Assert.IsAssignableFrom<Visual>(window.InputHitTest(point));
+            Assert.Equal(deleteId, Assert.IsType<ProfileItemViewModel>(hit.GetVisualAncestors().OfType<ListBoxItem>().First().DataContext).Id);
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            Assert.Same(initial, vm.SelectedProfile);
+            window.MouseUp(point, MouseButton.Right);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(initial, vm.SelectedProfile);
+            Assert.Equal(initial.Id, (await profiles.GetActiveProfileAsync())!.Id);
+            var menu = Assert.IsType<FAMenuFlyout>(list.ContextFlyout);
+            Assert.True(menu.IsOpen);
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+            var delete = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), item => Equals(item.Command, vm.Profiles.Single(p => p.Id == deleteId).DeleteCommand));
+            var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(delete));
+            popup.UpdateLayout();
+            var deletePoint = delete.TranslatePoint(new Point(20, 12), popup)!.Value;
+            popup.MouseMove(deletePoint);
+            popup.MouseDown(deletePoint, MouseButton.Left);
+            popup.MouseUp(deletePoint, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            for (var attempt = 0; attempt < 100 && vm.Profiles.Any(p => p.Id == deleteId); attempt++) await Task.Delay(10);
+            Assert.DoesNotContain(vm.Profiles, p => p.Id == deleteId);
+            Assert.Null(await profiles.GetProfileByIdAsync(deleteId));
+            Assert.Contains("右键删除目标", confirmation.Message);
+            Assert.Same(initial, vm.SelectedProfile);
+            Assert.Equal(initial.Id, (await profiles.GetActiveProfileAsync())!.Id);
+
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            window.CaptureRenderedFrame();
+            point = RowPoint(switchId);
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            for (var attempt = 0; attempt < 100 && !vm.Profiles.Single(p => p.Id == switchId).IsActive; attempt++) await Task.Delay(10);
+            Assert.Equal(switchId, vm.SelectedProfile!.Id);
+            Assert.Equal(switchId, (await profiles.GetActiveProfileAsync())!.Id);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task ProfileRightClick_ShouldOpenMenuAndMoveSelectionThroughDialog()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);

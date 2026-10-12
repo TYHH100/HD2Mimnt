@@ -45,6 +45,7 @@ public sealed class EchelonReader : IExternalManagerReader
                 else if (libraryFolders.TryGetValue(sourceId, out var exported) && Directory.Exists(exported)) path = exported;
             }
             var manifest = MigrationJson.Manifest(item, "name", "id");
+            if (Guid.TryParse(item.Get("guid").Text(), out var storedGuid)) manifest.Guid = storedGuid;
             var onDiskPath = Path.Combine(path, "manifest.json");
             if (File.Exists(onDiskPath))
             {
@@ -97,13 +98,17 @@ public sealed class EchelonReader : IExternalManagerReader
                 ImagePath = item.Get("image").Text() is { Length: > 0 } image ? MigrationJson.Inside(Path.Combine(root, "images"), image) : null
             });
         }
-        foreach (var item in state.Get("profiles").Items())
+        var sourceProfiles = state.Get("profiles").Items().ToList();
+        // 版本 2 没有默认 ID 标记；仅识别唯一的原生 Default 名称，不把活动或第一份配置当默认。
+        var defaultProfiles = sourceProfiles.Where(item => item.Get("name").Text() == "Default").ToList();
+        foreach (var item in sourceProfiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var profile = new ExternalMigrationProfile
             {
                 SourceId = item.Get("id").Text(), Name = item.Get("name").Text("Echelon 配置"),
                 WasActive = item.Get("id").Text() == state.Get("active_profile").Text(),
+                IsDefault = defaultProfiles.Count == 1 && item.Get("id").Text() == defaultProfiles[0].Get("id").Text(),
                 DeploymentOrder = state.Get("settings").Get("priority").Text("last") == "first"
                     ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom
             };

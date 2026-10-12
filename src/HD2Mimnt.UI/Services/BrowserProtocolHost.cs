@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text;
+using HD2Mimnt.Core;
 
 namespace HD2Mimnt.UI.Services;
 
@@ -31,7 +32,7 @@ public sealed class BrowserProtocolHost : IDisposable
     {
         var data = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         var directory = string.IsNullOrWhiteSpace(data)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev")
+            ? RuntimeDataPaths.GetDefaultApplicationDataPath()
             : Path.GetFullPath(data);
         return Environment.UserDomainName + "\\" + Environment.UserName + ":" + directory.TrimEnd('\\', '/').ToUpperInvariant();
     }
