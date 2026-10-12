@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
@@ -38,7 +38,7 @@
         <!-- Header -->
         <Grid ColumnDefinitions="Auto,*,Auto">
           <TextBlock Grid.Column="0"
-                     Text="模组详情"
+                     Text="{loc:Loc UI.ModDetails}"
                      FontSize="20"
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -47,7 +47,7 @@
                   Content="✕"
                   Classes="icon-button"
                   Command="{Binding CloseDetailPanelCommand}"
-                  ToolTip.Tip="关闭"/>
+                  ToolTip.Tip="{loc:Loc Common.Close}"/>
         </Grid>
 
         <!-- Mod Icon -->
@@ -61,7 +61,7 @@
                     Margin="0,0,0,16"
                     Tapped="Icon_Tapped"
                     Cursor="Hand"
-                    ToolTip.Tip="点击预览原图">
+                    ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
               <Image Source="{Binding IconBitmap}"
                      Stretch="UniformToFill"/>
             </Border>
@@ -86,13 +86,13 @@
         <!-- Status Badges -->
         <Border Classes="section">
           <StackPanel>
-            <TextBlock Text="状态" Classes="detail-label"/>
+            <TextBlock Text="{loc:Loc UI.Status}" Classes="detail-label"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Border Background="{DynamicResource SuccessBrush}"
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsProfileEnabled}">
-                <TextBlock Text="已启用"
+                <TextBlock Text="{loc:Loc UI.Enabled}"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -101,7 +101,7 @@
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsProfileMemberDisabled}">
-                <TextBlock Text="已加入 · 未启用"
+                <TextBlock Text="{loc:Loc UI.AddedDisabled}"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -110,7 +110,7 @@
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsDeployed}">
-                <TextBlock Text="已部署"
+                <TextBlock Text="{loc:Loc UI.Deployed}"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -119,7 +119,7 @@
                       CornerRadius="4"
                       Padding="8,4"
                       IsVisible="{Binding IsNotInCurrentProfile}">
-                <TextBlock Text="未加入当前 Profile"
+                <TextBlock Text="{loc:Loc UI.NotInTheCurrentProfile}"
                            FontSize="12"
                            Foreground="White"/>
               </Border>
@@ -130,30 +130,30 @@
         <!-- Basic Info -->
         <Border Classes="section" IsVisible="{Binding HasPlatformLink}">
           <StackPanel Spacing="8">
-            <TextBlock Text="模组链接" FontSize="16" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding PlatformLinkSummary}" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:Loc UI.ModLink}" FontSize="16" FontWeight="SemiBold" />
+            <TextBlock Text="{loc:LocalizedBinding PlatformLink}" TextWrapping="Wrap" />
             <TextBox Text="{Binding PlatformLinkUrl, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
 
         <Border Classes="section">
           <StackPanel>
-            <TextBlock Text="基本信息"
+            <TextBlock Text="{loc:Loc UI.BasicInformation}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        Margin="0,0,0,12"/>
 
-            <TextBlock Text="作者" Classes="detail-label"/>
+            <TextBlock Text="{loc:Loc UI.Author}" Classes="detail-label"/>
             <TextBlock Text="{Binding Author}" Classes="detail-value"/>
 
-            <TextBlock Text="分类" Classes="detail-label"/>
-            <TextBlock Text="{Binding CategoryDisplay}" Classes="detail-value" TextWrapping="Wrap" ToolTip.Tip="{Binding ResourceTypeDetails}"/>
+            <TextBlock Text="{loc:Loc UI.Category}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding CategoryDisplay, TranslateParts=True}" Classes="detail-value" TextWrapping="Wrap" ToolTip.Tip="{loc:LocalizedBinding ResourceTypeDetails, TranslateParts=True}"/>
 
-            <TextBlock Text="描述" Classes="detail-label"/>
+            <TextBlock Text="{loc:Loc UI.Description}" Classes="detail-label"/>
             <TextBlock Text="{Binding Description}" Classes="detail-value"/>
 
-            <TextBlock Text="标签"
+            <TextBlock Text="{loc:Loc UI.Tags}"
                        Classes="detail-label"
                        IsVisible="{Binding HasTags}"/>
             <ItemsControl ItemsSource="{Binding Tags}"
@@ -182,20 +182,20 @@
         <!-- File Info -->
         <Border Classes="section">
           <StackPanel>
-            <TextBlock Text="文件信息"
+            <TextBlock Text="{loc:Loc UI.FileInformation}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        Margin="0,0,0,12"/>
 
-            <TextBlock Text="路径" Classes="detail-label"/>
+            <TextBlock Text="{loc:Loc UI.Path}" Classes="detail-label"/>
             <TextBlock Text="{Binding Path}" Classes="detail-value"/>
 
-            <TextBlock Text="大小" Classes="detail-label"/>
+            <TextBlock Text="{loc:Loc UI.Size}" Classes="detail-label"/>
             <TextBlock Text="{Binding SizeFormatted}" Classes="detail-value"/>
 
-            <TextBlock Text="哈希" Classes="detail-label"/>
-            <TextBlock x:Name="ModHashValue" Text="{Binding HashDisplay}"
+            <TextBlock Text="{loc:Loc UI.Hash}" Classes="detail-label"/>
+            <TextBlock x:Name="ModHashValue" Text="{loc:LocalizedBinding HashDisplay}"
                        Classes="detail-value"
                        TextWrapping="Wrap" FontFamily="Consolas"/>
             <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsCalculatingHash}" Margin="0,4,0,8"/>
@@ -205,18 +205,18 @@
         <!-- Timestamps -->
         <Border Classes="section">
           <StackPanel>
-            <TextBlock Text="时间信息"
+            <TextBlock Text="{loc:Loc UI.Timestamps}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        Margin="0,0,0,12"/>
 
-            <TextBlock Text="导入时间" Classes="detail-label"/>
-            <TextBlock Text="{Binding ImportedAtDisplay}"
+            <TextBlock Text="{loc:Loc UI.Imported}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding ImportedAtDisplay}"
                        Classes="detail-value"/>
 
-            <TextBlock Text="修改时间" Classes="detail-label"/>
-            <TextBlock Text="{Binding ModifiedAtDisplay}"
+            <TextBlock Text="{loc:Loc UI.Modified}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding ModifiedAtDisplay}"
                        Classes="detail-value"/>
           </StackPanel>
         </Border>
@@ -224,32 +224,32 @@
         <!-- Actions -->
         <Border Classes="section">
           <StackPanel Spacing="8">
-            <TextBlock Text="操作"
+            <TextBlock Text="{loc:Loc UI.Actions}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        Margin="0,0,0,12"/>
 
-            <Button Content="{Binding EnableButtonText}"
+            <Button Content="{loc:LocalizedBinding EnableButtonText}"
                     Command="{Binding ToggleEnabledCommand}"
                     Classes="accent"
                     HorizontalAlignment="Stretch"
                     Height="36"/>
 
-            <Button Content="从当前 Profile 移除"
+            <Button Content="{loc:Loc UI.RemoveFromCurrentProfile}"
                     Command="{Binding RemoveFromProfileCommand}"
                     Classes="secondary"
                     HorizontalAlignment="Stretch"
                     Height="36"
                     IsVisible="{Binding IsInCurrentProfile}"/>
 
-            <Button Content="从 Library 删除 Mod"
+            <Button Content="{loc:Loc UI.DeleteModFromLibrary}"
                     Command="{Binding DeleteCommand}"
                     Classes="danger"
                     HorizontalAlignment="Stretch"
                     Height="36"/>
 
-            <Button Content="在文件夹中打开"
+            <Button Content="{loc:Loc UI.OpenFolder}"
                     Command="{Binding OpenFolderCommand}"
                     Classes="secondary"
                     HorizontalAlignment="Stretch"

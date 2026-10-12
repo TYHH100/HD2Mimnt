@@ -1,0 +1,2673 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Common.Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Common.Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common.Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="Common.No" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="Common.Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="Common.ItemCount" xml:space="preserve">
+    <value>{0:N0} items</value>
+  </data>
+  <data name="Settings.Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings.Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings.Language.Automatic" xml:space="preserve">
+    <value>Follow system</value>
+  </data>
+  <data name="Settings.Language.Current" xml:space="preserve">
+    <value>Current language: {0}</value>
+  </data>
+  <data name="Settings.Saved" xml:space="preserve">
+    <value>Settings saved</value>
+  </data>
+  <data name="Settings.SaveFailed" xml:space="preserve">
+    <value>Failed to save settings: {0}</value>
+  </data>
+  <data name="Settings.Reset" xml:space="preserve">
+    <value>Settings restored to defaults</value>
+  </data>
+  <data name="UI.ClosePreviewEsc" xml:space="preserve">
+    <value>Close preview (Esc)</value>
+  </data>
+  <data name="UI.ModDetails" xml:space="preserve">
+    <value>Mod details</value>
+  </data>
+  <data name="UI.PreviewOriginalImage" xml:space="preserve">
+    <value>Preview original image</value>
+  </data>
+  <data name="UI.Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="UI.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="UI.AddedDisabled" xml:space="preserve">
+    <value>Added · Disabled</value>
+  </data>
+  <data name="UI.Deployed" xml:space="preserve">
+    <value>Deployed</value>
+  </data>
+  <data name="UI.NotInTheCurrentProfile" xml:space="preserve">
+    <value>Not in the current profile</value>
+  </data>
+  <data name="UI.ModLink" xml:space="preserve">
+    <value>Mod link</value>
+  </data>
+  <data name="UI.BasicInformation" xml:space="preserve">
+    <value>Basic information</value>
+  </data>
+  <data name="UI.Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="UI.Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="UI.Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="UI.Tags" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="UI.FileInformation" xml:space="preserve">
+    <value>File information</value>
+  </data>
+  <data name="UI.Path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="UI.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="UI.Hash" xml:space="preserve">
+    <value>Hash</value>
+  </data>
+  <data name="UI.Timestamps" xml:space="preserve">
+    <value>Timestamps</value>
+  </data>
+  <data name="UI.Imported" xml:space="preserve">
+    <value>Imported</value>
+  </data>
+  <data name="UI.Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="UI.Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="UI.RemoveFromCurrentProfile" xml:space="preserve">
+    <value>Remove from current profile</value>
+  </data>
+  <data name="UI.DeleteModFromLibrary" xml:space="preserve">
+    <value>Delete mod from library</value>
+  </data>
+  <data name="UI.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="UI.AddMods" xml:space="preserve">
+    <value>Add mods</value>
+  </data>
+  <data name="UI.CurrentMod" xml:space="preserve">
+    <value>Current mod</value>
+  </data>
+  <data name="UI.DropArchivesOrFoldersIntoTheWindowToAddMultipleMods" xml:space="preserve">
+    <value>Drop archives or folders into the window to add multiple mods</value>
+  </data>
+  <data name="UI.ChooseFolder" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="UI.ChooseArchives" xml:space="preserve">
+    <value>Choose archives</value>
+  </data>
+  <data name="UI.CancelImport" xml:space="preserve">
+    <value>Cancel import</value>
+  </data>
+  <data name="UI.Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="UI.Notifications" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="UI.CloseNotifications" xml:space="preserve">
+    <value>Close notifications</value>
+  </data>
+  <data name="UI.DeleteNotification" xml:space="preserve">
+    <value>Delete notification</value>
+  </data>
+  <data name="UI.NoNotifications" xml:space="preserve">
+    <value>No notifications</value>
+  </data>
+  <data name="UI.BackgroundTasksDeploymentAndSystemMessagesAppearHere" xml:space="preserve">
+    <value>Background tasks, deployment and system messages appear here</value>
+  </data>
+  <data name="UI.ClearNotifications" xml:space="preserve">
+    <value>Clear notifications</value>
+  </data>
+  <data name="UI.DismissBannerAndKeepNotification" xml:space="preserve">
+    <value>Dismiss banner and keep notification</value>
+  </data>
+  <data name="UI.FeatureTutorial" xml:space="preserve">
+    <value>Feature tutorial</value>
+  </data>
+  <data name="UI.Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="UI.ExitTutorialEsc" xml:space="preserve">
+    <value>Exit tutorial (Esc)</value>
+  </data>
+  <data name="UI.ThisFeatureIsCurrentlyHiddenContinueReadingOrGoToTheNextStep" xml:space="preserve">
+    <value>This feature is currently hidden. Continue reading or go to the next step.</value>
+  </data>
+  <data name="UI.Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="UI.Profiles" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="UI.Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="UI.Conflicts" xml:space="preserve">
+    <value>Conflicts</value>
+  </data>
+  <data name="UI.Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="UI.OpenTaskCenter" xml:space="preserve">
+    <value>Open task center</value>
+  </data>
+  <data name="UI.OpenNotifications" xml:space="preserve">
+    <value>Open notifications</value>
+  </data>
+  <data name="UI.ReleaseToImportMods" xml:space="preserve">
+    <value>Release to import mods</value>
+  </data>
+  <data name="UI.DropAnywhereInTheWindowToImportMultipleMods" xml:space="preserve">
+    <value>Drop anywhere in the window to import multiple mods</value>
+  </data>
+  <data name="UI.DataBackupAndRestore" xml:space="preserve">
+    <value>Data backup and restore</value>
+  </data>
+  <data name="UI.BackupsIncludeTheModDatabaseAndApplicationSettingsRestoringRequiresCon" xml:space="preserve">
+    <value>Backups include the mod database and application settings. Restoring requires confirmation.</value>
+  </data>
+  <data name="UI.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="UI.CreateBackup" xml:space="preserve">
+    <value>Create backup</value>
+  </data>
+  <data name="UI.Restore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="UI.Working" xml:space="preserve">
+    <value>Working…</value>
+  </data>
+  <data name="UI.CheckSharedResourcesInEnabledModsExpectedWinnersFollowTheCurrentDeploy" xml:space="preserve">
+    <value>Check shared resources in enabled mods. Expected winners follow the current deployment direction and patch order. Different versions or sizes indicate definite differences; matching metadata may still contain different content.</value>
+  </data>
+  <data name="UI.CheckConflicts" xml:space="preserve">
+    <value>Check conflicts</value>
+  </data>
+  <data name="UI.CheckAgain" xml:space="preserve">
+    <value>Check again</value>
+  </data>
+  <data name="UI.NoProfileToCheck" xml:space="preserve">
+    <value>No profile to check</value>
+  </data>
+  <data name="UI.SelectAProfileOnTheProfilesPageBeforeCheckingConflicts" xml:space="preserve">
+    <value>Select a profile on the Profiles page before checking conflicts.</value>
+  </data>
+  <data name="UI.ConflictsHaveNotBeenChecked" xml:space="preserve">
+    <value>Conflicts have not been checked</value>
+  </data>
+  <data name="UI.ClickCheckConflictsToScanEnabledModsInTheCurrentProfile" xml:space="preserve">
+    <value>Click “Check conflicts” to scan enabled mods in the current profile.</value>
+  </data>
+  <data name="UI.CheckFailed" xml:space="preserve">
+    <value>Check failed</value>
+  </data>
+  <data name="UI.ReadingPatchResources" xml:space="preserve">
+    <value>Reading patch resources…</value>
+  </data>
+  <data name="UI.IncompleteResultsTheFollowingItemsCouldNotBeReadResolveTheseIssuesAndC" xml:space="preserve">
+    <value>Incomplete results: the following items could not be read. Resolve these issues and check again.</value>
+  </data>
+  <data name="UI.ResultsCoverSelectedPatchResourcesOnlyAndDoNotVerifyCompatibilityInThe" xml:space="preserve">
+    <value>Results cover selected patch resources only and do not verify compatibility in the game.</value>
+  </data>
+  <data name="UI.ExpectedWinner" xml:space="preserve">
+    <value>Expected winner</value>
+  </data>
+  <data name="UI.CheckingProfile" xml:space="preserve">
+    <value>Checking profile: {0}</value>
+  </data>
+  <data name="UI.Mods" xml:space="preserve">
+    <value>{0} mods</value>
+  </data>
+  <data name="UI.DeveloperTools" xml:space="preserve">
+    <value>Developer tools</value>
+  </data>
+  <data name="UI.NexusModsAPIKeyTesting" xml:space="preserve">
+    <value>Nexus Mods API key (testing)</value>
+  </data>
+  <data name="UI.TheKeyIsEncryptedInTheLocalDatabaseAndRestoredAtStartupClearingItAlsoD" xml:space="preserve">
+    <value>The key is encrypted in the local database and restored at startup. Clearing it also deletes the saved key.</value>
+  </data>
+  <data name="UI.PasteNexusModsAPIKey" xml:space="preserve">
+    <value>Paste Nexus Mods API key</value>
+  </data>
+  <data name="UI.SaveAndApplyKey" xml:space="preserve">
+    <value>Save and apply key</value>
+  </data>
+  <data name="UI.ClearKey" xml:space="preserve">
+    <value>Clear key</value>
+  </data>
+  <data name="UI.NumberToGenerate" xml:space="preserve">
+    <value>Number to generate:</value>
+  </data>
+  <data name="UI.GenerateTestMods" xml:space="preserve">
+    <value>Generate test mods</value>
+  </data>
+  <data name="UI.RandomizeEnabledState" xml:space="preserve">
+    <value>Randomize enabled state</value>
+  </data>
+  <data name="UI.ClearAllTestData" xml:space="preserve">
+    <value>Clear all test data</value>
+  </data>
+  <data name="UI.CancelCurrentOperation" xml:space="preserve">
+    <value>Cancel current operation</value>
+  </data>
+  <data name="UI.ImportModArchivesIntoTheLibraryOrDropThemIntoThisPage" xml:space="preserve">
+    <value>Import mod archives into the library, or drop them into this page</value>
+  </data>
+  <data name="UI.RefreshLibrary" xml:space="preserve">
+    <value>Refresh library</value>
+  </data>
+  <data name="UI.CurrentProfile" xml:space="preserve">
+    <value>Current profile</value>
+  </data>
+  <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
+    <value>Click to focus; Ctrl-click to select, Shift for a range, Ctrl+Shift to extend; Ctrl+A selects all, Esc clears selection. Search supports tag: filters.</value>
+  </data>
+  <data name="UI.AllCategories" xml:space="preserve">
+    <value>All categories</value>
+  </data>
+  <data name="UI.Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
+    <value>Search name, author or description; supports tag: filters…</value>
+  </data>
+  <data name="UI.ClearSearch" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="UI.SelectAllClearAll" xml:space="preserve">
+    <value>Select all / Clear all</value>
+  </data>
+  <data name="UI.InvertSelection" xml:space="preserve">
+    <value>Invert selection</value>
+  </data>
+  <data name="UI.AddToProfiles" xml:space="preserve">
+    <value>Add to profiles…</value>
+  </data>
+  <data name="UI.AddSelectedModsToOneOrMoreProfiles" xml:space="preserve">
+    <value>Add selected mods to one or more profiles</value>
+  </data>
+  <data name="UI.Disable" xml:space="preserve">
+    <value>Disable</value>
+  </data>
+  <data name="UI.RemoveFromProfile" xml:space="preserve">
+    <value>Remove from profile</value>
+  </data>
+  <data name="UI.RemoveSelectedModsFromTheCurrentProfileAndKeepLibraryFiles" xml:space="preserve">
+    <value>Remove selected mods from the current profile and keep library files</value>
+  </data>
+  <data name="UI.ClearSelection" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="UI.DeleteFromLibrary" xml:space="preserve">
+    <value>Delete from library</value>
+  </data>
+  <data name="UI.DeleteSelectedModsAndTheirFiles" xml:space="preserve">
+    <value>Delete selected mods and their files</value>
+  </data>
+  <data name="UI.ChooseProfilesToAddToMultipleSelection" xml:space="preserve">
+    <value>Choose profiles to add to (multiple selection)</value>
+  </data>
+  <data name="UI.LibraryIsEmpty" xml:space="preserve">
+    <value>Library is empty</value>
+  </data>
+  <data name="UI.ClickAddModsOrDropAnArchiveHereToImportYourFirstMod" xml:space="preserve">
+    <value>Click “Add mods” or drop an archive here to import your first mod</value>
+  </data>
+  <data name="UI.NoSearchResults" xml:space="preserve">
+    <value>No search results</value>
+  </data>
+  <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
+    <value>No mods match your search; tag: filters are supported</value>
+  </data>
+  <data name="UI.NoFilterResults" xml:space="preserve">
+    <value>No filter results</value>
+  </data>
+  <data name="UI.NoModsMatchTheCurrentFilters" xml:space="preserve">
+    <value>No mods match the current filters</value>
+  </data>
+  <data name="UI.ClearFilters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="UI.LoadingFailed" xml:space="preserve">
+    <value>Loading failed</value>
+  </data>
+  <data name="UI.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="UI.LoadingLibrary" xml:space="preserve">
+    <value>Loading library…</value>
+  </data>
+  <data name="UI.PasteANexusModsPageLinkFetchItsInformationThenSaveTheLink" xml:space="preserve">
+    <value>Paste a Nexus Mods page link, fetch its information, then save the link.</value>
+  </data>
+  <data name="UI.FetchInformation" xml:space="preserve">
+    <value>Fetch information</value>
+  </data>
+  <data name="UI.SaveLink" xml:space="preserve">
+    <value>Save link</value>
+  </data>
+  <data name="UI.ModUpdatesAndDownloads" xml:space="preserve">
+    <value>Mod updates and downloads</value>
+  </data>
+  <data name="UI.BrowserDownloadAuthorizationFreeAccounts" xml:space="preserve">
+    <value>Browser download authorization (free accounts)</value>
+  </data>
+  <data name="UI.On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="UI.Off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="UI.DownloadOrUpdateOpensTheSelectedFilePageConfirmTheDownloadThereAndOpen" xml:space="preserve">
+    <value>Download or update opens the selected file page. Confirm the download there and open the link with HD2Mimnt to continue automatically. Sign in with the account that owns your API key.</value>
+  </data>
+  <data name="UI.BrowserAuthorizationIsOffDirectAPIDownloadLinksRequireTheAppropriateAc" xml:space="preserve">
+    <value>Browser authorization is off. Direct API download links require the appropriate account permissions.</value>
+  </data>
+  <data name="UI.UpdatingReplacesTheLibraryModAndPreservesItsNameTagsAndProfileLinksExi" xml:space="preserve">
+    <value>Updating replaces the library mod and preserves its name, tags and profile links. Existing deployment is cleaned up; check options and deploy again after updating.</value>
+  </data>
+  <data name="UI.CheckUpdates" xml:space="preserve">
+    <value>Check updates</value>
+  </data>
+  <data name="UI.DownloadArchive" xml:space="preserve">
+    <value>Download archive…</value>
+  </data>
+  <data name="UI.DownloadAndUpdate" xml:space="preserve">
+    <value>Download and update</value>
+  </data>
+  <data name="UI.CancelOperation" xml:space="preserve">
+    <value>Cancel operation</value>
+  </data>
+  <data name="UI.SelectOneOrMoreProfilesTheModWillBeEnabledByDefaultInEachSelectedProfi" xml:space="preserve">
+    <value>Select one or more profiles. The mod will be enabled by default in each selected profile.</value>
+  </data>
+  <data name="UI.Current" xml:space="preserve">
+    <value>Current</value>
+  </data>
+  <data name="UI.Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="UI.TotalMods" xml:space="preserve">
+    <value>Total mods {0:N0}</value>
+  </data>
+  <data name="UI.DeployedNotDeployed" xml:space="preserve">
+    <value>Deployed {0:N0} · Not deployed {0:N0}</value>
+  </data>
+  <data name="UI.ModsSelected" xml:space="preserve">
+    <value>{0} mods selected</value>
+  </data>
+  <data name="UI.LocalVersion" xml:space="preserve">
+    <value>Local version: {0}</value>
+  </data>
+  <data name="UI.Version" xml:space="preserve">
+    <value>Version: {0}</value>
+  </data>
+  <data name="UI.LogsAndDiagnostics" xml:space="preserve">
+    <value>Logs and diagnostics</value>
+  </data>
+  <data name="UI.OnlyTheLatestEntriesAreReadToLimitMemoryUse" xml:space="preserve">
+    <value>Only the latest 500 entries are read to limit memory use.</value>
+  </data>
+  <data name="UI.ErrorsOnly" xml:space="preserve">
+    <value>Errors only</value>
+  </data>
+  <data name="UI.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="UI.Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="UI.Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
+    <value>Learn about the game directory, library, profiles, conflict checks and deployment. The tutorial changes pages and marks each feature with a blue border.</value>
+  </data>
+  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
+    <value>Use Previous and Next to browse. Press Esc or click Exit at any time. The tutorial does not import, deploy or launch the game.</value>
+  </data>
+  <data name="UI.StartTutorial" xml:space="preserve">
+    <value>Start tutorial</value>
+  </data>
+  <data name="UI.ExternalTools" xml:space="preserve">
+    <value>External tools</value>
+  </data>
+  <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
+    <value>Register local executables to open mod resources.</value>
+  </data>
+  <data name="UI.AddTool" xml:space="preserve">
+    <value>Add tool</value>
+  </data>
+  <data name="UI.Enable" xml:space="preserve">
+    <value>Enable</value>
+  </data>
+  <data name="UI.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="UI.Launch" xml:space="preserve">
+    <value>Launch</value>
+  </data>
+  <data name="UI.LoadingExternalTools" xml:space="preserve">
+    <value>Loading external tools…</value>
+  </data>
+  <data name="UI.NoExternalToolsRegistered" xml:space="preserve">
+    <value>No external tools registered</value>
+  </data>
+  <data name="UI.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="UI.Executable" xml:space="preserve">
+    <value>Executable</value>
+  </data>
+  <data name="UI.ArgumentTemplate" xml:space="preserve">
+    <value>Argument template</value>
+  </data>
+  <data name="UI.WorkingDirectory" xml:space="preserve">
+    <value>Working directory</value>
+  </data>
+  <data name="UI.Extensions" xml:space="preserve">
+    <value>Extensions</value>
+  </data>
+  <data name="UI.GenerateOrRemoveTestModDataForLocalValidation" xml:space="preserve">
+    <value>Generate or remove test mod data for local validation.</value>
+  </data>
+  <data name="UI.OpenDeveloperTools" xml:space="preserve">
+    <value>Open developer tools</value>
+  </data>
+  <data name="UI.AboutHDMimnt" xml:space="preserve">
+    <value>About HD2Mimnt</value>
+  </data>
+  <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
+    <value>Helldivers 2 mod manager · Version 0.1.0-alpha</value>
+  </data>
+  <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
+    <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
+  </data>
+  <data name="UI.PluginManagement" xml:space="preserve">
+    <value>Plugin management</value>
+  </data>
+  <data name="UI.ManageInstalledExtensionsAndTheirPermissions" xml:space="preserve">
+    <value>Manage installed extensions and their permissions.</value>
+  </data>
+  <data name="UI.InstallPlugin" xml:space="preserve">
+    <value>Install plugin</value>
+  </data>
+  <data name="UI.Plugins" xml:space="preserve">
+    <value>Plugins</value>
+  </data>
+  <data name="UI.Disable.4e6fd0e2" xml:space="preserve">
+    <value>Disable</value>
+  </data>
+  <data name="UI.Permissions" xml:space="preserve">
+    <value>Permissions</value>
+  </data>
+  <data name="UI.History" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="UI.Uninstall" xml:space="preserve">
+    <value>Uninstall</value>
+  </data>
+  <data name="UI.NoPluginsInstalled" xml:space="preserve">
+    <value>No plugins installed</value>
+  </data>
+  <data name="UI.InstallAPluginToManageItsPermissionsAndExecutionHistoryHere" xml:space="preserve">
+    <value>Install a plugin to manage its permissions and execution history here.</value>
+  </data>
+  <data name="UI.Total" xml:space="preserve">
+    <value>Total {0}</value>
+  </data>
+  <data name="UI.Enabled.47ae02ee" xml:space="preserve">
+    <value>Enabled {0}</value>
+  </data>
+  <data name="UI.Version.ce0744e6" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="UI.Author.cb8ce501" xml:space="preserve">
+    <value>Author {0}</value>
+  </data>
+  <data name="UI.PermissionMode" xml:space="preserve">
+    <value>Permission mode: {0}</value>
+  </data>
+  <data name="UI.PluginPermissionRequest" xml:space="preserve">
+    <value>Plugin permission request</value>
+  </data>
+  <data name="UI.ThisPluginRequestsAccessToSystemResources" xml:space="preserve">
+    <value>This plugin requests access to system resources.</value>
+  </data>
+  <data name="UI.RequestedPermissions" xml:space="preserve">
+    <value>Requested permissions</value>
+  </data>
+  <data name="UI.HighRisk" xml:space="preserve">
+    <value>High risk</value>
+  </data>
+  <data name="UI.GrantThisPermission" xml:space="preserve">
+    <value>Grant this permission</value>
+  </data>
+  <data name="UI.AllowOnceGrantPermissionsForThisSessionOnlyAlwaysAllowRememberThisDeci" xml:space="preserve">
+    <value>Allow once: grant permissions for this session only
+Always allow: remember this decision
+Deny: do not install this plugin</value>
+  </data>
+  <data name="UI.SelectPermissionsToGrant" xml:space="preserve">
+    <value>Select permissions to grant</value>
+  </data>
+  <data name="UI.Deny" xml:space="preserve">
+    <value>Deny</value>
+  </data>
+  <data name="UI.AllowOnce" xml:space="preserve">
+    <value>Allow once</value>
+  </data>
+  <data name="UI.AlwaysAllow" xml:space="preserve">
+    <value>Always allow</value>
+  </data>
+  <data name="UI.SavePermissions" xml:space="preserve">
+    <value>Save permissions</value>
+  </data>
+  <data name="UI.NewProfileName" xml:space="preserve">
+    <value>New profile name</value>
+  </data>
+  <data name="UI.CreateProfile" xml:space="preserve">
+    <value>Create profile</value>
+  </data>
+  <data name="UI.AddGroupSeparator" xml:space="preserve">
+    <value>Add group separator</value>
+  </data>
+  <data name="UI.AllProfiles" xml:space="preserve">
+    <value>All profiles</value>
+  </data>
+  <data name="UI.Checking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="UI.CancelCheck" xml:space="preserve">
+    <value>Cancel check</value>
+  </data>
+  <data name="UI.ListOrderDeterminesDeploymentOrderLaterModsOverwriteMatchingFilesOnlyE" xml:space="preserve">
+    <value>List order determines deployment order; later mods overwrite matching files. Only enabled mods are deployed. New profiles appear after existing ones and can be reordered by dragging. The default profile stays first. Right-click to duplicate, rename or delete a profile.</value>
+  </data>
+  <data name="UI.DefaultCannotBeDeleted" xml:space="preserve">
+    <value>Default · Cannot be deleted</value>
+  </data>
+  <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
+    <value>Search mods in the current profile…</value>
+  </data>
+  <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
+    <value>Remove from profile</value>
+  </data>
+  <data name="UI.RemoveSelectedModsFromTheProfileBeingViewed" xml:space="preserve">
+    <value>Remove selected mods from the profile being viewed</value>
+  </data>
+  <data name="UI.CollapseExpandGroup" xml:space="preserve">
+    <value>Collapse / Expand group</value>
+  </data>
+  <data name="UI.GroupActions" xml:space="preserve">
+    <value>Group actions</value>
+  </data>
+  <data name="UI.Disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="UI.HasOptions" xml:space="preserve">
+    <value>Has options</value>
+  </data>
+  <data name="UI.FixedPosition" xml:space="preserve">
+    <value>Fixed position</value>
+  </data>
+  <data name="UI.ModOptionsDeploymentIncludesSelectedOptions" xml:space="preserve">
+    <value>Mod options (deployment includes selected options)</value>
+  </data>
+  <data name="UI.EnableDisableOnlyEnabledModsAreDeployed" xml:space="preserve">
+    <value>Enable / Disable (only enabled mods are deployed)</value>
+  </data>
+  <data name="UI.RemoveFromProfile.7aae5ef7" xml:space="preserve">
+    <value>Remove from profile</value>
+  </data>
+  <data name="UI.LoadingMods" xml:space="preserve">
+    <value>Loading mods…</value>
+  </data>
+  <data name="UI.SelectAProfileOnTheLeftToViewItsMods" xml:space="preserve">
+    <value>Select a profile on the left to view its mods</value>
+  </data>
+  <data name="UI.ThisProfileHasNoModsYet" xml:space="preserve">
+    <value>This profile has no mods yet</value>
+  </data>
+  <data name="UI.UseAddModsOnTheLeftToAddModsFromTheLibrary" xml:space="preserve">
+    <value>Use “Add mods” on the left to add mods from the library</value>
+  </data>
+  <data name="UI.NoMatchingModsTryAnotherSearch" xml:space="preserve">
+    <value>No matching mods; try another search</value>
+  </data>
+  <data name="UI.AddFromLibrary" xml:space="preserve">
+    <value>Add from library</value>
+  </data>
+  <data name="UI.ClickToAddToTheCurrentProfile" xml:space="preserve">
+    <value>Click + to add to the current profile</value>
+  </data>
+  <data name="UI.SearchNameAuthorOrVersion" xml:space="preserve">
+    <value>Search name, author or version…</value>
+  </data>
+  <data name="UI.AddToProfile" xml:space="preserve">
+    <value>Add to profile</value>
+  </data>
+  <data name="UI.AllLibraryModsAreAlreadyInThisProfile" xml:space="preserve">
+    <value>All library mods are already in this profile.</value>
+  </data>
+  <data name="UI.LocateConflictingMod" xml:space="preserve">
+    <value>Locate conflicting mod</value>
+  </data>
+  <data name="UI.ChooseAModToView" xml:space="preserve">
+    <value>Choose a mod to view</value>
+  </data>
+  <data name="UI.MoveToPosition" xml:space="preserve">
+    <value>Move to position</value>
+  </data>
+  <data name="UI.SelectedModsMoveInTheirCurrentRelativeOrderPositionIsTheTopOfTheList" xml:space="preserve">
+    <value>Selected mods move in their current relative order. Position 1 is the top of the list.</value>
+  </data>
+  <data name="UI.EnterAPosition" xml:space="preserve">
+    <value>Enter a position</value>
+  </data>
+  <data name="UI.Move" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="UI.CleanUpCurrentlyDeployedModFiles" xml:space="preserve">
+    <value>Clean up currently deployed mod files</value>
+  </data>
+  <data name="UI.DeployEnabledModsInTheCurrentProfileInListOrder" xml:space="preserve">
+    <value>Deploy enabled mods in the current profile in list order</value>
+  </data>
+  <data name="UI.LaunchHelldiversThroughSteam" xml:space="preserve">
+    <value>Launch Helldivers 2 through Steam</value>
+  </data>
+  <data name="UI.DeploymentActions" xml:space="preserve">
+    <value>Deployment actions</value>
+  </data>
+  <data name="UI.ModOptions" xml:space="preserve">
+    <value>Mod options</value>
+  </data>
+  <data name="UI.NoPreview" xml:space="preserve">
+    <value>No preview</value>
+  </data>
+  <data name="UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment" xml:space="preserve">
+    <value>Enable / Disable option (disabled files are excluded from deployment)</value>
+  </data>
+  <data name="UI.Variants" xml:space="preserve">
+    <value>Variants</value>
+  </data>
+  <data name="UI.UncheckedOptionsAreExcludedFromDeploymentOptionsWithVariantsDeployOnly" xml:space="preserve">
+    <value>Unchecked options are excluded from deployment. Options with variants deploy only the selected variant. Unchecking all options deploys no files from this mod. Choices are saved separately for each profile.</value>
+  </data>
+  <data name="UI.ForExampleWeaponsArmorInterface" xml:space="preserve">
+    <value>For example: weapons, armor, interface</value>
+  </data>
+  <data name="UI.UseThemeColor" xml:space="preserve">
+    <value>Use theme color</value>
+  </data>
+  <data name="UI.GroupColor" xml:space="preserve">
+    <value>Group color</value>
+  </data>
+  <data name="UI.ModsSelected.483b1db6" xml:space="preserve">
+    <value>{0} mods selected</value>
+  </data>
+  <data name="UI.ApplicationSettings" xml:space="preserve">
+    <value>Application settings</value>
+  </data>
+  <data name="UI.ManageGamePathsDeploymentDownloadsAndInterfacePreferences" xml:space="preserve">
+    <value>Manage game paths, deployment, downloads and interface preferences.</value>
+  </data>
+  <data name="UI.GameDirectory" xml:space="preserve">
+    <value>Game directory</value>
+  </data>
+  <data name="UI.HelldiversInstallationDirectory" xml:space="preserve">
+    <value>Helldivers 2 installation directory</value>
+  </data>
+  <data name="UI.ChooseGameInstallationDirectory" xml:space="preserve">
+    <value>Choose game installation directory</value>
+  </data>
+  <data name="UI.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="UI.AutoDetect" xml:space="preserve">
+    <value>Auto-detect</value>
+  </data>
+  <data name="UI.AutoDetectGameAtStartup" xml:space="preserve">
+    <value>Auto-detect game at startup</value>
+  </data>
+  <data name="UI.ApplyProfileWhenSelected" xml:space="preserve">
+    <value>Apply profile when selected</value>
+  </data>
+  <data name="UI.WhenOffRightClickAProfileAndChooseSetAsCurrent" xml:space="preserve">
+    <value>When off, right-click a profile and choose “Set as current”.</value>
+  </data>
+  <data name="UI.CheckConflictsAutomatically" xml:space="preserve">
+    <value>Check conflicts automatically</value>
+  </data>
+  <data name="UI.CheckResourceOverlapsInTheCurrentProfileAfterProfilesOrModsChangeOffBy" xml:space="preserve">
+    <value>Check resource overlaps in the current profile after profiles or mods change. Off by default.</value>
+  </data>
+  <data name="UI.Deployment" xml:space="preserve">
+    <value>Deployment</value>
+  </data>
+  <data name="UI.DefaultDeploymentMethod" xml:space="preserve">
+    <value>Default deployment method</value>
+  </data>
+  <data name="UI.CheckTargetDirectoryBeforeDeployment" xml:space="preserve">
+    <value>Check target directory before deployment</value>
+  </data>
+  <data name="UI.DeployFromBottomToTop" xml:space="preserve">
+    <value>Deploy from bottom to top</value>
+  </data>
+  <data name="UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie" xml:space="preserve">
+    <value>When off, deploy from top to bottom. The Lua group moves to the start or end: dependencies → BSL / MDL → SmoothBoot. SmoothBoot has the highest priority.</value>
+  </data>
+  <data name="UI.ShowModThumbnails" xml:space="preserve">
+    <value>Show mod thumbnails</value>
+  </data>
+  <data name="UI.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="UI.SavedChangesApplyToNewOrRetriedDownloads" xml:space="preserve">
+    <value>Saved changes apply to new or retried downloads.</value>
+  </data>
+  <data name="UI.ConcurrentConnectionsPerFile" xml:space="preserve">
+    <value>Concurrent connections per file</value>
+  </data>
+  <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
+    <value>Used when the server supports segments; fewer connections are used for small files.</value>
+  </data>
+  <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
+    <value>Minimum segment size (MiB)</value>
+  </data>
+  <data name="UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles" xml:space="preserve">
+    <value>Range: 1–256 MiB. Larger segments reduce connections for small files.</value>
+  </data>
+  <data name="UI.RetriesAfterASegmentFails" xml:space="preserve">
+    <value>Retries after a segment fails</value>
+  </data>
+  <data name="UI.ExcludesTheInitialRequestDisablesRetries" xml:space="preserve">
+    <value>Excludes the initial request; 0 disables retries.</value>
+  </data>
+  <data name="UI.RetryDelayMilliseconds" xml:space="preserve">
+    <value>Retry delay (milliseconds)</value>
+  </data>
+  <data name="UI.RangeMilliseconds" xml:space="preserve">
+    <value>Range: 0–60000 milliseconds.</value>
+  </data>
+  <data name="UI.ResumeInterruptedDownloads" xml:space="preserve">
+    <value>Resume interrupted downloads</value>
+  </data>
+  <data name="UI.KeepInterruptedProgressWhenSupportedByTheWebsiteDownloadingTheSameFile" xml:space="preserve">
+    <value>Keep interrupted progress when supported by the website. Downloading the same file resumes it; changed files start over. Turning this off removes interrupted files.</value>
+  </data>
+  <data name="UI.Appearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="UI.Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="UI.ListDensity" xml:space="preserve">
+    <value>List density</value>
+  </data>
+  <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
+    <value>Enable interface animations</value>
+  </data>
+  <data name="UI.CustomBackground" xml:space="preserve">
+    <value>Custom background</value>
+  </data>
+  <data name="UI.AppliesAfterSavingLowerCardOpacityToRevealTheBackgroundImage" xml:space="preserve">
+    <value>Applies after saving. Lower card opacity to reveal the background image.</value>
+  </data>
+  <data name="UI.BackgroundImage" xml:space="preserve">
+    <value>Background image</value>
+  </data>
+  <data name="UI.ImagePathLeaveEmptyToDisable" xml:space="preserve">
+    <value>Image path (leave empty to disable)</value>
+  </data>
+  <data name="UI.ChooseImage" xml:space="preserve">
+    <value>Choose image</value>
+  </data>
+  <data name="UI.Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="UI.BackgroundImageOpacity" xml:space="preserve">
+    <value>Background image opacity</value>
+  </data>
+  <data name="UI.BackgroundImageBlur" xml:space="preserve">
+    <value>Background image blur</value>
+  </data>
+  <data name="UI.CardOpacity" xml:space="preserve">
+    <value>Card opacity</value>
+  </data>
+  <data name="UI.Cache" xml:space="preserve">
+    <value>Cache</value>
+  </data>
+  <data name="UI.ImageCache" xml:space="preserve">
+    <value>Image cache</value>
+  </data>
+  <data name="UI.RefreshInformation" xml:space="preserve">
+    <value>Refresh information</value>
+  </data>
+  <data name="UI.CleanUp" xml:space="preserve">
+    <value>Clean up</value>
+  </data>
+  <data name="UI.SaveSettings" xml:space="preserve">
+    <value>Save settings</value>
+  </data>
+  <data name="UI.RestoreDefaults" xml:space="preserve">
+    <value>Restore defaults</value>
+  </data>
+  <data name="UI.TaskCenter" xml:space="preserve">
+    <value>Task center</value>
+  </data>
+  <data name="UI.NoBackgroundTasks" xml:space="preserve">
+    <value>No background tasks</value>
+  </data>
+  <data name="UI.ImportScanAndDeploymentTasksAppearHereWhenCompleted" xml:space="preserve">
+    <value>Import, scan and deployment tasks appear here when completed</value>
+  </data>
+  <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
+    <value>Failed to load task center</value>
+  </data>
+  <data name="UI.NexusModsLinkHandler" xml:space="preserve">
+    <value>Nexus Mods link handler</value>
+  </data>
+  <data name="UI.FailedToRegisterNexusModsLinksCheckTheCurrentUserSRegistryPermissionsA" xml:space="preserve">
+    <value>Failed to register Nexus Mods links. Check the current user's registry permissions and restart the application.</value>
+  </data>
+  <data name="UI.CouldNotForwardTheRequestToTheCurrentWindowCloseTheOldWindowAndTryAgai" xml:space="preserve">
+    <value>Could not forward the request to the current window. Close the old window and try again.</value>
+  </data>
+  <data name="UI.ChooseModFolder" xml:space="preserve">
+    <value>Choose mod folder</value>
+  </data>
+  <data name="UI.ChooseModArchives" xml:space="preserve">
+    <value>Choose mod archives</value>
+  </data>
+  <data name="UI.ModArchives" xml:space="preserve">
+    <value>Mod archives</value>
+  </data>
+  <data name="UI.AllFiles" xml:space="preserve">
+    <value>All files</value>
+  </data>
+  <data name="UI.Success" xml:space="preserve">
+    <value>Success</value>
+  </data>
+  <data name="UI.Notice" xml:space="preserve">
+    <value>Notice</value>
+  </data>
+  <data name="UI.Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="UI.Server" xml:space="preserve">
+    <value>Server</value>
+  </data>
+  <data name="UI.Failed" xml:space="preserve">
+    <value>{0} failed</value>
+  </data>
+  <data name="UI.GetBrowserAuthorizedDownloadLink" xml:space="preserve">
+    <value>Get browser-authorized download link</value>
+  </data>
+  <data name="UI.BrowserDownloadAuthorizationExpiredClickModManagerDownloadOnTheNexusMo" xml:space="preserve">
+    <value>Browser download authorization expired. Click “Mod manager download” on the Nexus Mods file page again and paste the new nxm:// link.</value>
+  </data>
+  <data name="UI.NexusModsReportsAnAccountOrFileMismatchSignInWithTheAccountThatOwnsThe" xml:space="preserve">
+    <value>Nexus Mods reports an account or file mismatch. Sign in with the account that owns the API key and copy the complete nxm:// link for the selected file.</value>
+  </data>
+  <data name="UI.NexusModsRejectedThisAuthorizationUseTheSameAccountToRequestANewModMan" xml:space="preserve">
+    <value>Nexus Mods rejected this authorization. Use the same account to request a new “Mod manager download” link on the file page and try again.</value>
+  </data>
+  <data name="UI.TheServerRejectedAuthenticationReapplyAValidAPIKeyInToolsDeveloperTool" xml:space="preserve">
+    <value>The server rejected authentication. Reapply a valid API key in Tools → Developer tools and confirm it has not been revoked.</value>
+  </data>
+  <data name="UI.TheDownloadServerRejectedThisLinkSAuthorizationCheckUpdatesAgainToObta" xml:space="preserve">
+    <value>The download server rejected this link's authorization. Check updates again to obtain a new link.</value>
+  </data>
+  <data name="UI.GetDownloadLink" xml:space="preserve">
+    <value>Get download link</value>
+  </data>
+  <data name="UI.NexusModsRefusedADirectDownloadLinkFreeAccountsShouldEnableBrowserAuth" xml:space="preserve">
+    <value>Nexus Mods refused a direct download link. Free accounts should enable browser authorization, click “Mod manager download” on the file page and paste the temporary nxm:// link. Otherwise check the server details below.</value>
+  </data>
+  <data name="UI.NexusModsDeniedAccessCheckWhetherTheModOrFileIsAccessibleToYourAccount" xml:space="preserve">
+    <value>Nexus Mods denied access. Check whether the mod or file is accessible to your account and review the API restrictions below. HTTP 403 alone does not identify a key or permission issue.</value>
+  </data>
+  <data name="UI.TheDownloadServerDeniedFileAccessCheckUpdatesAgainToObtainANewDownload" xml:space="preserve">
+    <value>The download server denied file access. Check updates again to obtain a new download link.</value>
+  </data>
+  <data name="UI.TheServerCouldNotFindTheModOrFileCheckTheModLinkAndWhetherTheFileWasDe" xml:space="preserve">
+    <value>The server could not find the mod or file. Check the mod link and whether the file was deleted, then check updates again.</value>
+  </data>
+  <data name="UI.TheRequestLimitWasReachedTryAgainLaterAndAvoidRepeatedChecksOrDownload" xml:space="preserve">
+    <value>The request limit was reached. Try again later and avoid repeated checks or downloads.</value>
+  </data>
+  <data name="UI.NoValidHTTPResponseWasReceivedCheckYourNetworkOrProxyAndTryAgain" xml:space="preserve">
+    <value>No valid HTTP response was received. Check your network or proxy and try again.</value>
+  </data>
+  <data name="UI.TheServerCouldNotCompleteTheRequestTryAgainLaterRetainTheStatusCodeAnd" xml:space="preserve">
+    <value>The server could not complete the request. Try again later; retain the status code and server details if the issue persists.</value>
+  </data>
+  <data name="UI.Reported" xml:space="preserve">
+    <value>
+{0} reported: {1}</value>
+  </data>
+  <data name="UI.TheServerDidNotProvideASpecificReason" xml:space="preserve">
+    <value>
+The server did not provide a specific reason.</value>
+  </data>
+  <data name="UI.CannotDetermineTheApplicationExecutablePath" xml:space="preserve">
+    <value>Cannot determine the application executable path.</value>
+  </data>
+  <data name="UI.InvalidApplicationPath" xml:space="preserve">
+    <value>Invalid application path.</value>
+  </data>
+  <data name="UI.Backups" xml:space="preserve">
+    <value>{0} backups</value>
+  </data>
+  <data name="UI.FailedToReadBackups" xml:space="preserve">
+    <value>Failed to read backups: {0}</value>
+  </data>
+  <data name="UI.BackupCreated" xml:space="preserve">
+    <value>Backup created: {0}</value>
+  </data>
+  <data name="UI.DataBackupCreated" xml:space="preserve">
+    <value>Data backup created</value>
+  </data>
+  <data name="UI.Backup" xml:space="preserve">
+    <value>Backup</value>
+  </data>
+  <data name="UI.FailedToCreateBackup" xml:space="preserve">
+    <value>Failed to create backup: {0}</value>
+  </data>
+  <data name="UI.RestoreBackup" xml:space="preserve">
+    <value>Restore backup</value>
+  </data>
+  <data name="UI.RestoringOverwritesTheCurrentLibraryProfilesAndSettingsThenRefreshesTh" xml:space="preserve">
+    <value>Restoring “{0}” overwrites the current library, profiles and settings, then refreshes the pages. Continue?</value>
+  </data>
+  <data name="UI.BackupRestoredPageDataWillUpdateAfterRefreshing" xml:space="preserve">
+    <value>Backup restored; page data will update after refreshing</value>
+  </data>
+  <data name="UI.BackupRestored" xml:space="preserve">
+    <value>Backup restored</value>
+  </data>
+  <data name="UI.FailedToRestoreBackup" xml:space="preserve">
+    <value>Failed to restore backup: {0}</value>
+  </data>
+  <data name="UI.DeleteBackup" xml:space="preserve">
+    <value>Delete backup</value>
+  </data>
+  <data name="UI.Delete" xml:space="preserve">
+    <value>Delete “{0}”?</value>
+  </data>
+  <data name="UI.BackupDeleted" xml:space="preserve">
+    <value>Backup deleted</value>
+  </data>
+  <data name="UI.FailedToDeleteBackup" xml:space="preserve">
+    <value>Failed to delete backup: {0}</value>
+  </data>
+  <data name="UI.ProfilesOrModsChangedCheckConflictsAgain" xml:space="preserve">
+    <value>Profiles or mods changed. Check conflicts again.</value>
+  </data>
+  <data name="UI.NoOverlapsBetweenModsWereFoundInReadableResources" xml:space="preserve">
+    <value>No overlaps between mods were found in readable resources</value>
+  </data>
+  <data name="UI.NoResourceOverlapsBetweenModsFound" xml:space="preserve">
+    <value>No resource overlaps between mods found</value>
+  </data>
+  <data name="UI.CheckingEnabledMods" xml:space="preserve">
+    <value>Checking enabled mods…</value>
+  </data>
+  <data name="UI.FoundResourceOverlapGroupsRelatedCardsAreMarked" xml:space="preserve">
+    <value>Found {0} resource overlap groups; related cards are marked</value>
+  </data>
+  <data name="UI.ItemsCouldNotBeReadResultsAreIncomplete" xml:space="preserve">
+    <value>; {0} items could not be read; results are incomplete</value>
+  </data>
+  <data name="UI.ReadingPatchResourcesInTheCurrentProfile" xml:space="preserve">
+    <value>Reading patch resources in the current profile…</value>
+  </data>
+  <data name="UI.ScannedEnabledModsPatchesAndResources" xml:space="preserve">
+    <value>Scanned {0} enabled mods, {1} patches and {2} resources;</value>
+  </data>
+  <data name="UI.FoundOverlapGroupsIncludingWithDefiniteDifferences" xml:space="preserve">
+    <value>Found {0} overlap groups, including {1} with definite differences</value>
+  </data>
+  <data name="UI.UnreadableItemsResultsAreIncomplete" xml:space="preserve">
+    <value> ({0} unreadable items; results are incomplete)</value>
+  </data>
+  <data name="UI.CheckCancelledCheckAgainToContinue" xml:space="preserve">
+    <value>Check cancelled. Check again to continue.</value>
+  </data>
+  <data name="UI.ConflictCheckFailed" xml:space="preserve">
+    <value>Conflict check failed: {0}</value>
+  </data>
+  <data name="UI.DefiniteDifferences" xml:space="preserve">
+    <value>Definite differences</value>
+  </data>
+  <data name="UI.PotentialOverlapMatchingMetadataMayContainDifferentContent" xml:space="preserve">
+    <value>Potential overlap (matching metadata may contain different content)</value>
+  </data>
+  <data name="UI.DeploymentOrder" xml:space="preserve">
+    <value>Deployment order #{0}</value>
+  </data>
+  <data name="UI.MainStreamGPU" xml:space="preserve">
+    <value>Main {0} / Stream {1} / GPU {2}</value>
+  </data>
+  <data name="UI.UnitVersion" xml:space="preserve">
+    <value>Unit version {0}</value>
+  </data>
+  <data name="UI.NexusModsCredentialsConfiguredAndEncryptedKeyNotYetValidated" xml:space="preserve">
+    <value>Nexus Mods credentials configured and encrypted (key not yet validated).</value>
+  </data>
+  <data name="UI.NexusModsCredentialsConfiguredKeyNotYetValidated" xml:space="preserve">
+    <value>Nexus Mods credentials configured (key not yet validated).</value>
+  </data>
+  <data name="UI.NoNexusModsAPIKeyConfigured" xml:space="preserve">
+    <value>No Nexus Mods API key configured.</value>
+  </data>
+  <data name="UI.EnterAValidAPIKeyWithoutNewlinesOrControlCharacters" xml:space="preserve">
+    <value>Enter a valid API key without newlines or control characters.</value>
+  </data>
+  <data name="UI.FailedToSaveKeyThePreviousKeyIsUnchangedTryAgain" xml:space="preserve">
+    <value>Failed to save key. The previous key is unchanged; try again.</value>
+  </data>
+  <data name="UI.FailedToClearKeySavedDataIsRetainedTryAgain" xml:space="preserve">
+    <value>Failed to clear key. Saved data is retained; try again.</value>
+  </data>
+  <data name="UI.GeneratingTestData" xml:space="preserve">
+    <value>Generating test data…</value>
+  </data>
+  <data name="UI.GeneratedMods" xml:space="preserve">
+    <value>Generated {0}/{1} mods…</value>
+  </data>
+  <data name="UI.GeneratedTestMods" xml:space="preserve">
+    <value>Generated {0} test mods</value>
+  </data>
+  <data name="UI.TestDataGenerationCancelled" xml:space="preserve">
+    <value>Test data generation cancelled</value>
+  </data>
+  <data name="UI.GenerationFailed" xml:space="preserve">
+    <value>Generation failed: {0}</value>
+  </data>
+  <data name="UI.SettingEnabledStates" xml:space="preserve">
+    <value>Setting enabled states…</value>
+  </data>
+  <data name="UI.NoModsAvailable" xml:space="preserve">
+    <value>No mods available</value>
+  </data>
+  <data name="UI.DefaultProfile" xml:space="preserve">
+    <value>Default profile</value>
+  </data>
+  <data name="UI.TestProfile" xml:space="preserve">
+    <value>Test profile</value>
+  </data>
+  <data name="UI.CannotCreateProfile" xml:space="preserve">
+    <value>Cannot create profile</value>
+  </data>
+  <data name="UI.RandomlyEnabledMods" xml:space="preserve">
+    <value>Randomly enabled {0}/{1} mods</value>
+  </data>
+  <data name="UI.EnabledStateGenerationCancelled" xml:space="preserve">
+    <value>Enabled state generation cancelled</value>
+  </data>
+  <data name="UI.FailedToUpdateSettings" xml:space="preserve">
+    <value>Failed to update settings: {0}</value>
+  </data>
+  <data name="UI.ClearingTestData" xml:space="preserve">
+    <value>Clearing test data…</value>
+  </data>
+  <data name="UI.RemovedTestMods" xml:space="preserve">
+    <value>Removed {0} test mods</value>
+  </data>
+  <data name="UI.TestDataCleanupCancelled" xml:space="preserve">
+    <value>Test data cleanup cancelled</value>
+  </data>
+  <data name="UI.FailedToClear" xml:space="preserve">
+    <value>Failed to clear: {0}</value>
+  </data>
+  <data name="UI.EnterExternalToolInformation" xml:space="preserve">
+    <value>Enter external tool information</value>
+  </data>
+  <data name="UI.Editing" xml:space="preserve">
+    <value>Editing “{0}”</value>
+  </data>
+  <data name="UI.ValidationFailed" xml:space="preserve">
+    <value>Validation failed: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveExternalTool" xml:space="preserve">
+    <value>Failed to save external tool</value>
+  </data>
+  <data name="UI.ExternalToolUpdated" xml:space="preserve">
+    <value>External tool updated</value>
+  </data>
+  <data name="UI.ExternalToolAdded" xml:space="preserve">
+    <value>External tool added</value>
+  </data>
+  <data name="UI.DeleteExternalTool" xml:space="preserve">
+    <value>Delete external tool</value>
+  </data>
+  <data name="UI.LaunchingExternalTool" xml:space="preserve">
+    <value>Launching external tool…</value>
+  </data>
+  <data name="UI.ExternalToolLaunched" xml:space="preserve">
+    <value>External tool launched</value>
+  </data>
+  <data name="UI.LaunchFailed" xml:space="preserve">
+    <value>Launch failed: {0}</value>
+  </data>
+  <data name="UI.CouldNotLaunchHDCheckThatSteamIsInstalled" xml:space="preserve">
+    <value>Could not launch HD2. Check that Steam is installed: {0}</value>
+  </data>
+  <data name="UI.LaunchFailed.0cf642cf" xml:space="preserve">
+    <value>Launch failed</value>
+  </data>
+  <data name="UI.AddToProfiles.863fb01c" xml:space="preserve">
+    <value>Add “{0}” to profiles</value>
+  </data>
+  <data name="UI.AddSelectedModsToProfiles" xml:space="preserve">
+    <value>Add {0} selected mods to profiles</value>
+  </data>
+  <data name="UI.NoCurrentProfile" xml:space="preserve">
+    <value>No current profile</value>
+  </data>
+  <data name="UI.NameAscending" xml:space="preserve">
+    <value>Name ascending</value>
+  </data>
+  <data name="UI.NameDescending" xml:space="preserve">
+    <value>Name descending</value>
+  </data>
+  <data name="UI.NewestImported" xml:space="preserve">
+    <value>Newest imported</value>
+  </data>
+  <data name="UI.OldestImported" xml:space="preserve">
+    <value>Oldest imported</value>
+  </data>
+  <data name="UI.ByCategory" xml:space="preserve">
+    <value>By category</value>
+  </data>
+  <data name="UI.ShowingMods" xml:space="preserve">
+    <value>Showing {0} / {1} mods</value>
+  </data>
+  <data name="UI.FailedToLoadMods" xml:space="preserve">
+    <value>Failed to load mods: {0}</value>
+  </data>
+  <data name="UI.SelectModsToAddFirst" xml:space="preserve">
+    <value>Select mods to add first</value>
+  </data>
+  <data name="UI.AddToProfile.d2b10e96" xml:space="preserve">
+    <value>Add to profile</value>
+  </data>
+  <data name="UI.CreateAProfileFirst" xml:space="preserve">
+    <value>Create a profile first</value>
+  </data>
+  <data name="UI.OpenProfiles" xml:space="preserve">
+    <value>Open profiles</value>
+  </data>
+  <data name="UI.SelectAtLeastOneProfile" xml:space="preserve">
+    <value>Select at least one profile</value>
+  </data>
+  <data name="UI.AddedModsToProfiles" xml:space="preserve">
+    <value>Added {0} mods to {1} profiles</value>
+  </data>
+  <data name="UI.FailedToAddToProfiles" xml:space="preserve">
+    <value>Failed to add to profiles: {0}</value>
+  </data>
+  <data name="UI.SelectAProfileFirst" xml:space="preserve">
+    <value>Select a profile first</value>
+  </data>
+  <data name="UI.NoProfile" xml:space="preserve">
+    <value>No profile</value>
+  </data>
+  <data name="UI.DisabledMods" xml:space="preserve">
+    <value>Disabled {0} mods</value>
+  </data>
+  <data name="UI.DisableSelectedMods" xml:space="preserve">
+    <value>Disable selected mods</value>
+  </data>
+  <data name="UI.FailedToDisableSelectedMods" xml:space="preserve">
+    <value>Failed to disable selected mods: {0}</value>
+  </data>
+  <data name="UI.OperationFailed" xml:space="preserve">
+    <value>Operation failed</value>
+  </data>
+  <data name="UI.NoCurrentProfileAvailable" xml:space="preserve">
+    <value>No current profile available</value>
+  </data>
+  <data name="UI.RemoveFromProfile.30878196" xml:space="preserve">
+    <value>Remove from profile</value>
+  </data>
+  <data name="UI.NoneOfTheSelectedModsAreInTheCurrentProfile" xml:space="preserve">
+    <value>None of the selected mods are in the current profile</value>
+  </data>
+  <data name="UI.RemoveModsFromAndKeepTheirLibraryFilesContinue" xml:space="preserve">
+    <value>Remove {1} mods from “{0}” and keep their library files? Continue?</value>
+  </data>
+  <data name="UI.RemovedModsFromTheCurrentProfileLibraryFilesRetained" xml:space="preserve">
+    <value>Removed {0} mods from the current profile; library files retained</value>
+  </data>
+  <data name="UI.FailedToRemoveFromProfile" xml:space="preserve">
+    <value>Failed to remove from profile: {0}</value>
+  </data>
+  <data name="UI.DeleteMod" xml:space="preserve">
+    <value>Delete mod</value>
+  </data>
+  <data name="UI.DeleteSelectedModsTheirFilesWillAlsoBeDeleted" xml:space="preserve">
+    <value>Delete {0} selected mods? Their files will also be deleted.</value>
+  </data>
+  <data name="UI.DeletedMods" xml:space="preserve">
+    <value>Deleted {0} mods</value>
+  </data>
+  <data name="UI.DeleteSelectedMods" xml:space="preserve">
+    <value>Delete selected mods</value>
+  </data>
+  <data name="UI.FailedToDeleteSelectedMods" xml:space="preserve">
+    <value>Failed to delete selected mods: {0}</value>
+  </data>
+  <data name="UI.OperationFailed.87ab1b88" xml:space="preserve">
+    <value>Operation failed: {0}</value>
+  </data>
+  <data name="UI.DeleteAndItsModFiles" xml:space="preserve">
+    <value>Delete “{0}” and its mod files?</value>
+  </data>
+  <data name="UI.Deleted" xml:space="preserve">
+    <value>Deleted {0}</value>
+  </data>
+  <data name="UI.DeletionFailed" xml:space="preserve">
+    <value>Deletion failed: {0}</value>
+  </data>
+  <data name="UI.AddToProfile.53746158" xml:space="preserve">
+    <value>Add to profile</value>
+  </data>
+  <data name="UI.AddedToTheCurrentProfile" xml:space="preserve">
+    <value>Added “{0}” to the current profile</value>
+  </data>
+  <data name="UI.FailedToAddToProfile" xml:space="preserve">
+    <value>Failed to add to profile: {0}</value>
+  </data>
+  <data name="UI.Unfinished" xml:space="preserve">
+    <value>{0}; {1} unfinished</value>
+  </data>
+  <data name="UI.ImportedMods" xml:space="preserve">
+    <value>Imported {0} mods</value>
+  </data>
+  <data name="UI.ImportComplete" xml:space="preserve">
+    <value>Import complete</value>
+  </data>
+  <data name="UI.ModImportCancelled" xml:space="preserve">
+    <value>Mod import cancelled</value>
+  </data>
+  <data name="UI.ImportMods" xml:space="preserve">
+    <value>Import mods</value>
+  </data>
+  <data name="UI.ImportFailed" xml:space="preserve">
+    <value>Import failed: {0}</value>
+  </data>
+  <data name="UI.SelectAProfileFirst.af42ccab" xml:space="preserve">
+    <value>Select a profile first</value>
+  </data>
+  <data name="UI.DeployMods" xml:space="preserve">
+    <value>Deploy mods</value>
+  </data>
+  <data name="UI.NoValidGameDirectoryFound" xml:space="preserve">
+    <value>No valid game directory found</value>
+  </data>
+  <data name="UI.OpenSettings" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="UI.HardLink" xml:space="preserve">
+    <value>Hard link</value>
+  </data>
+  <data name="UI.SymbolicLink" xml:space="preserve">
+    <value>Symbolic link</value>
+  </data>
+  <data name="UI.CopyFiles" xml:space="preserve">
+    <value>Copy files</value>
+  </data>
+  <data name="UI.WaitingForDeploymentConfirmation" xml:space="preserve">
+    <value>Waiting for deployment confirmation…</value>
+  </data>
+  <data name="UI.ProfileEnabledModsMethodTargetCleanUpThePreviousDeploymentAndDeployInP" xml:space="preserve">
+    <value>Profile: {0}
+Enabled mods: {1}
+Method: {2}
+Target: {3}
+Clean up the previous deployment and deploy in profile order?</value>
+  </data>
+  <data name="UI.PreparingDeployment" xml:space="preserve">
+    <value>Preparing deployment…</value>
+  </data>
+  <data name="UI.DeployedMods" xml:space="preserve">
+    <value>Deployed {0} mods</value>
+  </data>
+  <data name="UI.DeploymentComplete" xml:space="preserve">
+    <value>Deployment complete</value>
+  </data>
+  <data name="UI.DeploymentPartiallyFailed" xml:space="preserve">
+    <value>Deployment partially failed</value>
+  </data>
+  <data name="UI.DeploymentResult" xml:space="preserve">
+    <value>Deployment result</value>
+  </data>
+  <data name="UI.DeploymentCancelled" xml:space="preserve">
+    <value>Deployment cancelled</value>
+  </data>
+  <data name="UI.DeploymentFailed" xml:space="preserve">
+    <value>Deployment failed: {0}</value>
+  </data>
+  <data name="UI.CleanUpDeployment" xml:space="preserve">
+    <value>Clean up deployment</value>
+  </data>
+  <data name="UI.DeleteFilesAndRecordsCreatedByTheLatestDeployment" xml:space="preserve">
+    <value>Delete files and records created by the latest deployment?</value>
+  </data>
+  <data name="UI.CleaningDeployedFiles" xml:space="preserve">
+    <value>Cleaning deployed files…</value>
+  </data>
+  <data name="UI.CleanedUpFiles" xml:space="preserve">
+    <value>Cleaned up {0} files</value>
+  </data>
+  <data name="UI.CleanupComplete" xml:space="preserve">
+    <value>Cleanup complete</value>
+  </data>
+  <data name="UI.DeploymentCleanupCancelled" xml:space="preserve">
+    <value>Deployment cleanup cancelled</value>
+  </data>
+  <data name="UI.CleanupFailed" xml:space="preserve">
+    <value>Cleanup failed: {0}</value>
+  </data>
+  <data name="UI.CancellingOperation" xml:space="preserve">
+    <value>Cancelling operation…</value>
+  </data>
+  <data name="UI.CalculationFailed" xml:space="preserve">
+    <value>Calculation failed: {0}</value>
+  </data>
+  <data name="UI.RemoveFromAndKeepItsLibraryFilesContinue" xml:space="preserve">
+    <value>Remove “{1}” from “{0}” and keep its library files? Continue?</value>
+  </data>
+  <data name="UI.RemovedFromTheCurrentProfileLibraryFilesRetained" xml:space="preserve">
+    <value>Removed {0} from the current profile; library files retained</value>
+  </data>
+  <data name="UI.LoadedTheLatestLogEntries" xml:space="preserve">
+    <value>Loaded the latest {0} log entries</value>
+  </data>
+  <data name="UI.FailedToReadLogs" xml:space="preserve">
+    <value>Failed to read logs: {0}</value>
+  </data>
+  <data name="UI.LogsExported" xml:space="preserve">
+    <value>Logs exported</value>
+  </data>
+  <data name="UI.FailedToExportLogs" xml:space="preserve">
+    <value>Failed to export logs: {0}</value>
+  </data>
+  <data name="UI.Game" xml:space="preserve">
+    <value>Game</value>
+  </data>
+  <data name="UI.TaskCompleted" xml:space="preserve">
+    <value>Task “{0}” completed</value>
+  </data>
+  <data name="UI.BackgroundTasks" xml:space="preserve">
+    <value>Background tasks</value>
+  </data>
+  <data name="UI.TaskPartiallyFailed" xml:space="preserve">
+    <value>Task “{0}” partially failed</value>
+  </data>
+  <data name="UI.TaskCancelled" xml:space="preserve">
+    <value>Task “{0}” cancelled</value>
+  </data>
+  <data name="UI.TaskFailed" xml:space="preserve">
+    <value>Task “{0}” failed: {1}</value>
+  </data>
+  <data name="UI.CouldNotReadTheSavedNexusModsKeyEnterAndSaveItAgainInDeveloperTools" xml:space="preserve">
+    <value>Could not read the saved Nexus Mods key. Enter and save it again in Developer tools.</value>
+  </data>
+  <data name="UI.NexusModsAuthentication" xml:space="preserve">
+    <value>Nexus Mods authentication</value>
+  </data>
+  <data name="UI.ANexusModsLinkWasReceivedButNoTaskIsWaitingForBrowserAuthorizationAppl" xml:space="preserve">
+    <value>A Nexus Mods link was received, but no task is waiting for browser authorization. Apply an API key in Developer tools, then select a file in the library and click Download or Update.</value>
+  </data>
+  <data name="UI.NexusModsDownloads" xml:space="preserve">
+    <value>Nexus Mods downloads</value>
+  </data>
+  <data name="UI.ExitApplication" xml:space="preserve">
+    <value>Exit application</value>
+  </data>
+  <data name="UI.ModsAreStillBeingImportedCancelImportWaitForCleanupAndExit" xml:space="preserve">
+    <value>Mods are still being imported. Cancel import, wait for cleanup and exit?</value>
+  </data>
+  <data name="UI.BackgroundTasksAreStillRunningExitingMayInterruptThemExitAnyway" xml:space="preserve">
+    <value>{0} background tasks are still running. Exiting may interrupt them. Exit anyway?</value>
+  </data>
+  <data name="UI.FailedToLoadBackgroundImageUsingASolidBackground" xml:space="preserve">
+    <value>Failed to load background image; using a solid background</value>
+  </data>
+  <data name="UI.ChooseModsToAdd" xml:space="preserve">
+    <value>Choose mods to add</value>
+  </data>
+  <data name="UI.SelectMultipleArchivesOrAddAModFolder" xml:space="preserve">
+    <value>Select multiple archives or add a mod folder.</value>
+  </data>
+  <data name="UI.ProcessedRemaining" xml:space="preserve">
+    <value>Processed {0} / {1} · {2} remaining</value>
+  </data>
+  <data name="UI.SucceededFailed" xml:space="preserve">
+    <value>{0} succeeded · {1} failed</value>
+  </data>
+  <data name="UI.Cancelling" xml:space="preserve">
+    <value>Cancelling</value>
+  </data>
+  <data name="UI.StoppingTheCurrentOperationAndCleaningTemporaryFilesImportedModsAreRet" xml:space="preserve">
+    <value>Stopping the current operation and cleaning temporary files. Imported mods are retained.</value>
+  </data>
+  <data name="UI.ReadyToAdd" xml:space="preserve">
+    <value>Ready to add</value>
+  </data>
+  <data name="UI.ImportCancelled" xml:space="preserve">
+    <value>Import cancelled</value>
+  </data>
+  <data name="UI.ImportFinishedWithSomeFailures" xml:space="preserve">
+    <value>Import finished with some failures</value>
+  </data>
+  <data name="UI.ImportComplete.0365e233" xml:space="preserve">
+    <value>Import complete</value>
+  </data>
+  <data name="UI.UnfinishedImportedModsAreRetained" xml:space="preserve">
+    <value>{0} unfinished; imported mods are retained.</value>
+  </data>
+  <data name="UI.CloseThisPanelToViewTheLibraryOrContinueAddingMods" xml:space="preserve">
+    <value>Close this panel to view the library, or continue adding mods.</value>
+  </data>
+  <data name="UI.Characters" xml:space="preserve">
+    <value>Characters</value>
+  </data>
+  <data name="UI.Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="UI.Gameplay" xml:space="preserve">
+    <value>Gameplay</value>
+  </data>
+  <data name="UI.Visuals" xml:space="preserve">
+    <value>Visuals</value>
+  </data>
+  <data name="UI.Scripts" xml:space="preserve">
+    <value>Scripts</value>
+  </data>
+  <data name="UI.Mixed" xml:space="preserve">
+    <value>Mixed</value>
+  </data>
+  <data name="UI.Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="UI.Uncategorized" xml:space="preserve">
+    <value>Uncategorized</value>
+  </data>
+  <data name="UI.NexusModsLatestAvailableVersion" xml:space="preserve">
+    <value>Nexus Mods · {0} · {1}
+{2}
+Latest available version: {3}</value>
+  </data>
+  <data name="UI.NotRecordedImportTimeMissingInOlderRecords" xml:space="preserve">
+    <value>Not recorded (import time missing in older records)</value>
+  </data>
+  <data name="UI.NotRecorded" xml:space="preserve">
+    <value>Not recorded</value>
+  </data>
+  <data name="UI.UnknownResources" xml:space="preserve">
+    <value>Unknown resources</value>
+  </data>
+  <data name="UI.NoGameResourceTypeIDDetected" xml:space="preserve">
+    <value>No game resource Type ID detected</value>
+  </data>
+  <data name="UI.CalculatingSHA" xml:space="preserve">
+    <value>Calculating SHA-256…</value>
+  </data>
+  <data name="UI.NotCalculated" xml:space="preserve">
+    <value>Not calculated</value>
+  </data>
+  <data name="UI.AddAndEnableInCurrentProfile" xml:space="preserve">
+    <value>Add and enable in current profile</value>
+  </data>
+  <data name="UI.DisableInCurrentProfile" xml:space="preserve">
+    <value>Disable in current profile</value>
+  </data>
+  <data name="UI.EnableInCurrentProfile" xml:space="preserve">
+    <value>Enable in current profile</value>
+  </data>
+  <data name="UI.Added" xml:space="preserve">
+    <value>Added</value>
+  </data>
+  <data name="UI.Disabled.f95ea7f4" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="UI.PlatformNexusModsGameModIDNameLatestAvailableVersion" xml:space="preserve">
+    <value>Platform: Nexus Mods
+Game: {0}
+Mod ID: {1}
+Name: {2}
+Latest available version: {3}
+{4}</value>
+  </data>
+  <data name="UI.NexusModsHelldiversModRecognizedFetchItsInformation" xml:space="preserve">
+    <value>Nexus Mods · Helldivers 2 · Mod {0} recognized. Fetch its information.</value>
+  </data>
+  <data name="UI.FetchingModInformationFromNexusMods" xml:space="preserve">
+    <value>Fetching mod information from Nexus Mods…</value>
+  </data>
+  <data name="UI.InformationFetchedSaveToLinkItToTheCurrentMod" xml:space="preserve">
+    <value>Information fetched. Save to link it to the current mod.</value>
+  </data>
+  <data name="UI.FetchModInformation" xml:space="preserve">
+    <value>Fetch mod information</value>
+  </data>
+  <data name="UI.NoDownloadableFiles" xml:space="preserve">
+    <value>No downloadable files.</value>
+  </data>
+  <data name="UI.InsufficientVersionInformationToCheckUpdates" xml:space="preserve">
+    <value>Insufficient version information to check updates.</value>
+  </data>
+  <data name="UI.TheSelectedFileVersionIsAlreadyInstalled" xml:space="preserve">
+    <value>The selected file version is already installed.</value>
+  </data>
+  <data name="UI.TheSelectedBrowserFileIsAlreadyInstalled" xml:space="preserve">
+    <value>The selected browser file is already installed.</value>
+  </data>
+  <data name="UI.TheSelectedBrowserFileDiffersFromTheInstalledOneDownloadToReplaceIt" xml:space="preserve">
+    <value>The selected browser file differs from the installed one. Download to replace it.</value>
+  </data>
+  <data name="UI.VersionNumbersMatchYouMayDownloadAgainOrReplaceTheMod" xml:space="preserve">
+    <value>Version numbers match; you may download again or replace the mod.</value>
+  </data>
+  <data name="UI.TheSelectedVersionDiffersFromTheLocalVersionDownloadToReplaceIt" xml:space="preserve">
+    <value>The selected version differs from the local version. Download to replace it.</value>
+  </data>
+  <data name="UI.CheckingNexusModsFileVersions" xml:space="preserve">
+    <value>Checking Nexus Mods file versions…</value>
+  </data>
+  <data name="UI.NoActiveDownloadableFilesFoundOnNexusMods" xml:space="preserve">
+    <value>No active downloadable files found on Nexus Mods.</value>
+  </data>
+  <data name="UI.ChooseAFileAndClickDownloadOrUpdateToOpenItsNexusModsPage" xml:space="preserve">
+    <value>Choose a file and click Download or Update to open its Nexus Mods page.</value>
+  </data>
+  <data name="UI.FileListFetchedTheMainFileIsSelectedByDefault" xml:space="preserve">
+    <value>File list fetched; the main file is selected by default.</value>
+  </data>
+  <data name="UI.DownloadMethodChangedCheckUpdatesAgain" xml:space="preserve">
+    <value>Download method changed. Check updates again.</value>
+  </data>
+  <data name="UI.BrowserAuthorizationReceivedValidatingAccountAndContinuing" xml:space="preserve">
+    <value>Browser authorization received. Validating account and continuing…</value>
+  </data>
+  <data name="UI.ReceiveBrowserAuthorization" xml:space="preserve">
+    <value>Receive browser authorization</value>
+  </data>
+  <data name="UI.StillWaitingForValidAuthorizationForTheSelectedFile" xml:space="preserve">
+    <value>
+Still waiting for valid authorization for the selected file.</value>
+  </data>
+  <data name="UI.WaitingForBrowserAuthorizationConfirmTheDownloadInYourBrowserAndOpenTh" xml:space="preserve">
+    <value>Waiting for browser authorization: confirm the download in your browser and open the link with HD2Mimnt to continue.</value>
+  </data>
+  <data name="UI.ValidatingTheBrowserAuthorizationAccount" xml:space="preserve">
+    <value>Validating the browser authorization account…</value>
+  </data>
+  <data name="UI.TheAuthorizedFileDiffersFromTheSelectedFile" xml:space="preserve">
+    <value>The authorized file differs from the selected file.</value>
+  </data>
+  <data name="UI.DownloadUpdatePackage" xml:space="preserve">
+    <value>Download update package</value>
+  </data>
+  <data name="UI.DownloadingUpdatePackage" xml:space="preserve">
+    <value>Downloading update package…</value>
+  </data>
+  <data name="UI.ModReplacedCheckItsOptions" xml:space="preserve">
+    <value>Mod replaced. Check its options.</value>
+  </data>
+  <data name="UI.PreviousDeploymentCleanedUpDeployAgain" xml:space="preserve">
+    <value>Previous deployment cleaned up. Deploy again.</value>
+  </data>
+  <data name="UI.DownloadArchive.3d1ec642" xml:space="preserve">
+    <value>Download archive</value>
+  </data>
+  <data name="UI.DownloadingArchive" xml:space="preserve">
+    <value>Downloading archive…</value>
+  </data>
+  <data name="UI.ArchiveSaved" xml:space="preserve">
+    <value>Archive saved:</value>
+  </data>
+  <data name="UI.DownloadingMB" xml:space="preserve">
+    <value>Downloading · {0} / {1} MB</value>
+  </data>
+  <data name="UI.DownloadingMB.59f4e85e" xml:space="preserve">
+    <value>Downloading · {0} MB</value>
+  </data>
+  <data name="UI.OperationCancelledTheOriginalModWasNotReplaced" xml:space="preserve">
+    <value>Operation cancelled. The original mod was not replaced.</value>
+  </data>
+  <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
+    <value>Cancelling and cleaning up…</value>
+  </data>
+  <data name="UI.Tutorial" xml:space="preserve">
+    <value>Tutorial</value>
+  </data>
+  <data name="UI.BackupAndRestore" xml:space="preserve">
+    <value>Backup and restore</value>
+  </data>
+  <data name="UI.Logs" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="UI.About" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="UI.LoadingPlugins" xml:space="preserve">
+    <value>Loading plugins…</value>
+  </data>
+  <data name="UI.LoadedPlugins" xml:space="preserve">
+    <value>Loaded {0} plugins</value>
+  </data>
+  <data name="UI.FailedToLoadPlugins" xml:space="preserve">
+    <value>Failed to load plugins: {0}</value>
+  </data>
+  <data name="UI.FailedToUpdatePermissions" xml:space="preserve">
+    <value>Failed to update permissions: {0}</value>
+  </data>
+  <data name="UI.UpdatedPermissionsFor" xml:space="preserve">
+    <value>Updated permissions for {0}</value>
+  </data>
+  <data name="UI.InstallingPlugin" xml:space="preserve">
+    <value>Installing plugin…</value>
+  </data>
+  <data name="UI.PluginInstalled" xml:space="preserve">
+    <value>Plugin installed</value>
+  </data>
+  <data name="UI.PluginInstallationFailed" xml:space="preserve">
+    <value>Plugin installation failed: {0}</value>
+  </data>
+  <data name="UI.Enabling" xml:space="preserve">
+    <value>Enabling {0}…</value>
+  </data>
+  <data name="UI.FailedToEnable" xml:space="preserve">
+    <value>Failed to enable {0}: {1}</value>
+  </data>
+  <data name="UI.OperationFailed.5bc4c481" xml:space="preserve">
+    <value>Operation failed: {0}</value>
+  </data>
+  <data name="UI.Disabling" xml:space="preserve">
+    <value>Disabling {0}…</value>
+  </data>
+  <data name="UI.Disabled.1e885630" xml:space="preserve">
+    <value>Disabled {0}</value>
+  </data>
+  <data name="UI.FailedToDisable" xml:space="preserve">
+    <value>Failed to disable {0}: {1}</value>
+  </data>
+  <data name="UI.UninstallPlugin" xml:space="preserve">
+    <value>Uninstall plugin</value>
+  </data>
+  <data name="UI.UninstallItWillStopRunningAndBeRemovedFromTheInstalledList" xml:space="preserve">
+    <value>Uninstall “{0}”? It will stop running and be removed from the installed list.</value>
+  </data>
+  <data name="UI.Uninstalling" xml:space="preserve">
+    <value>Uninstalling {0}…</value>
+  </data>
+  <data name="UI.Uninstalled" xml:space="preserve">
+    <value>Uninstalled {0}</value>
+  </data>
+  <data name="UI.FailedToUninstall" xml:space="preserve">
+    <value>Failed to uninstall {0}: {1}</value>
+  </data>
+  <data name="UI.FoundExecutionRecordsFor" xml:space="preserve">
+    <value>Found {1} execution records for {0}</value>
+  </data>
+  <data name="UI.FailedToReadRecords" xml:space="preserve">
+    <value>Failed to read records: {0}</value>
+  </data>
+  <data name="UI.On.989ca7db" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="UI.Off.16833aa2" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="UI.Full" xml:space="preserve">
+    <value>Full</value>
+  </data>
+  <data name="UI.Box" xml:space="preserve">
+    <value>Box</value>
+  </data>
+  <data name="UI.ThisPluginRequestsUnrestrictedAccessToSystemResourcesAllowOnlyPluginsF" xml:space="preserve">
+    <value>This plugin requests unrestricted access to system resources. Allow only plugins from trusted sources.</value>
+  </data>
+  <data name="UI.ThisPluginRequestsPotentiallyDangerousPermissionsReviewThemBeforeAllow" xml:space="preserve">
+    <value>This plugin requests potentially dangerous permissions. Review them before allowing access.</value>
+  </data>
+  <data name="UI.FullAccessBypassesPermissionChecksKeepThisModeOnlyForTrustedPlugins" xml:space="preserve">
+    <value>Full access bypasses permission checks. Keep this mode only for trusted plugins.</value>
+  </data>
+  <data name="UI.ChangesApplyTheNextTimeThePluginAccessesAResource" xml:space="preserve">
+    <value>Changes apply the next time the plugin accesses a resource.</value>
+  </data>
+  <data name="UI.ReadModFiles" xml:space="preserve">
+    <value>Read mod files</value>
+  </data>
+  <data name="UI.WriteModFiles" xml:space="preserve">
+    <value>Write mod files</value>
+  </data>
+  <data name="UI.NetworkAccess" xml:space="preserve">
+    <value>Network access</value>
+  </data>
+  <data name="UI.RunExternalPrograms" xml:space="preserve">
+    <value>Run external programs</value>
+  </data>
+  <data name="UI.ReadDatabase" xml:space="preserve">
+    <value>Read database</value>
+  </data>
+  <data name="UI.WriteSettings" xml:space="preserve">
+    <value>Write settings</value>
+  </data>
+  <data name="UI.FileSystemAccess" xml:space="preserve">
+    <value>File system access</value>
+  </data>
+  <data name="UI.RegistryAccess" xml:space="preserve">
+    <value>Registry access</value>
+  </data>
+  <data name="UI.ReadPluginStorage" xml:space="preserve">
+    <value>Read plugin storage</value>
+  </data>
+  <data name="UI.WritePluginStorage" xml:space="preserve">
+    <value>Write plugin storage</value>
+  </data>
+  <data name="UI.ReadModMetadataAndFileInformation" xml:space="preserve">
+    <value>Read mod metadata and file information</value>
+  </data>
+  <data name="UI.ModifyModFilesAndMetadata" xml:space="preserve">
+    <value>Modify mod files and metadata</value>
+  </data>
+  <data name="UI.SendRequestsToExternalServices" xml:space="preserve">
+    <value>Send requests to external services</value>
+  </data>
+  <data name="UI.RunExternalProgramsAndScripts" xml:space="preserve">
+    <value>Run external programs and scripts</value>
+  </data>
+  <data name="UI.QueryLibraryAndProfileData" xml:space="preserve">
+    <value>Query library and profile data</value>
+  </data>
+  <data name="UI.ModifyApplicationSettings" xml:space="preserve">
+    <value>Modify application settings</value>
+  </data>
+  <data name="UI.ReadAndWriteFilesOutsideThePluginDirectory" xml:space="preserve">
+    <value>Read and write files outside the plugin directory</value>
+  </data>
+  <data name="UI.ReadAndModifyTheWindowsRegistry" xml:space="preserve">
+    <value>Read and modify the Windows registry</value>
+  </data>
+  <data name="UI.ReadPluginSpecificStorage" xml:space="preserve">
+    <value>Read plugin-specific storage</value>
+  </data>
+  <data name="UI.WritePluginSpecificStorage" xml:space="preserve">
+    <value>Write plugin-specific storage</value>
+  </data>
+  <data name="UI.ModifyPluginSettings" xml:space="preserve">
+    <value>Modify plugin settings</value>
+  </data>
+  <data name="UI.CustomPermission" xml:space="preserve">
+    <value>Custom permission</value>
+  </data>
+  <data name="UI.FailedToUpdateSelectedModStates" xml:space="preserve">
+    <value>Failed to update selected mod states: {0}</value>
+  </data>
+  <data name="UI.FailedToRemoveSelectedMods" xml:space="preserve">
+    <value>Failed to remove selected mods: {0}</value>
+  </data>
+  <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
+    <value>Loader dependencies and BSL / MDL</value>
+  </data>
+  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
+    <value>Dependencies → BSL / MDL (choose one) → SmoothBoot (highest priority) · follows deployment direction</value>
+  </data>
+  <data name="UI.All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="UI.LeftOnly" xml:space="preserve">
+    <value>Left only</value>
+  </data>
+  <data name="UI.RightOnly" xml:space="preserve">
+    <value>Right only</value>
+  </data>
+  <data name="UI.DifferentStates" xml:space="preserve">
+    <value>Different states</value>
+  </data>
+  <data name="UI.InBoth" xml:space="preserve">
+    <value>In both</value>
+  </data>
+  <data name="UI.FailedToLoadProfiles" xml:space="preserve">
+    <value>Failed to load profiles: {0}</value>
+  </data>
+  <data name="UI.FailedToSynchronizeProfiles" xml:space="preserve">
+    <value>Failed to synchronize profiles: {0}</value>
+  </data>
+  <data name="UI.AddSeparatorGroup" xml:space="preserve">
+    <value>Add separator group</value>
+  </data>
+  <data name="UI.EditGroupNameAndColor" xml:space="preserve">
+    <value>Edit group name and color</value>
+  </data>
+  <data name="UI.EditLoaderGroupColor" xml:space="preserve">
+    <value>Edit loader group color</value>
+  </data>
+  <data name="UI.EnterAGroupName" xml:space="preserve">
+    <value>Enter a group name.</value>
+  </data>
+  <data name="UI.FailedToSaveGroup" xml:space="preserve">
+    <value>Failed to save group: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveSeparatorState" xml:space="preserve">
+    <value>Failed to save separator state: {0}</value>
+  </data>
+  <data name="UI.FailedToDeleteSeparator" xml:space="preserve">
+    <value>Failed to delete separator: {0}</value>
+  </data>
+  <data name="UI.TheSelectedProfileWasNotFound" xml:space="preserve">
+    <value>The selected profile was not found.</value>
+  </data>
+  <data name="UI.FailedToLoadProfileMods" xml:space="preserve">
+    <value>Failed to load profile mods: {0}</value>
+  </data>
+  <data name="UI.ModDirectoryDoesNotExist" xml:space="preserve">
+    <value>Mod directory does not exist</value>
+  </data>
+  <data name="UI.OpenModDirectory" xml:space="preserve">
+    <value>Open mod directory</value>
+  </data>
+  <data name="UI.FailedToOpenModDirectory" xml:space="preserve">
+    <value>Failed to open mod directory: {0}</value>
+  </data>
+  <data name="UI.FailedToReadLibrary" xml:space="preserve">
+    <value>Failed to read library: {0}</value>
+  </data>
+  <data name="UI.AddedToTheProfileBeingViewed" xml:space="preserve">
+    <value>Added “{0}” to the profile being viewed</value>
+  </data>
+  <data name="UI.FailedToAddMod" xml:space="preserve">
+    <value>Failed to add mod: {0}</value>
+  </data>
+  <data name="UI.FailedToCompareProfiles" xml:space="preserve">
+    <value>Failed to compare profiles: {0}</value>
+  </data>
+  <data name="UI.CompareProfiles" xml:space="preserve">
+    <value>Compare profiles</value>
+  </data>
+  <data name="UI.DifferentEnabledStates" xml:space="preserve">
+    <value>Different enabled states</value>
+  </data>
+  <data name="UI.Disabled.bc5a87a7" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="UI.EnterAProfileName" xml:space="preserve">
+    <value>Enter a profile name</value>
+  </data>
+  <data name="UI.CreationFailed" xml:space="preserve">
+    <value>Creation failed: {0}</value>
+  </data>
+  <data name="UI.TheDefaultProfileCannotBeDeleted" xml:space="preserve">
+    <value>The default profile cannot be deleted</value>
+  </data>
+  <data name="UI.DeleteProfile" xml:space="preserve">
+    <value>Delete profile</value>
+  </data>
+  <data name="UI.SwitchToAnotherProfileBeforeDeletingTheCurrentOne" xml:space="preserve">
+    <value>Switch to another profile before deleting the current one</value>
+  </data>
+  <data name="UI.DeleteProfileLibraryModsAreRetained" xml:space="preserve">
+    <value>Delete profile “{0}”? Library mods are retained.</value>
+  </data>
+  <data name="UI.DeletedProfile" xml:space="preserve">
+    <value>Deleted profile “{0}”</value>
+  </data>
+  <data name="UI.EnterANewNameInTheFieldAboveThenClickRename" xml:space="preserve">
+    <value>Enter a new name in the field above, then click Rename</value>
+  </data>
+  <data name="UI.RenameProfile" xml:space="preserve">
+    <value>Rename profile</value>
+  </data>
+  <data name="UI.ProfileNameUpdated" xml:space="preserve">
+    <value>Profile name updated</value>
+  </data>
+  <data name="UI.RenameFailed" xml:space="preserve">
+    <value>Rename failed: {0}</value>
+  </data>
+  <data name="UI.DuplicatedProfileAs" xml:space="preserve">
+    <value>Duplicated profile as “{0}”</value>
+  </data>
+  <data name="UI.DuplicateProfile" xml:space="preserve">
+    <value>Duplicate profile</value>
+  </data>
+  <data name="UI.FailedToDuplicate" xml:space="preserve">
+    <value>Failed to duplicate: {0}</value>
+  </data>
+  <data name="UI.FailedToSwitch" xml:space="preserve">
+    <value>Failed to switch: {0}</value>
+  </data>
+  <data name="UI.SwitchProfile" xml:space="preserve">
+    <value>Switch profile</value>
+  </data>
+  <data name="UI.FailedToUpdateModState" xml:space="preserve">
+    <value>Failed to update mod state: {0}</value>
+  </data>
+  <data name="UI.EnterAValidIntegerPosition" xml:space="preserve">
+    <value>Enter a valid integer position.</value>
+  </data>
+  <data name="UI.PositionMustBeBetweenAnd" xml:space="preserve">
+    <value>Position must be between 1 and {0}.</value>
+  </data>
+  <data name="UI.TheSelectionContainsModsWithFixedPositions" xml:space="preserve">
+    <value>The selection contains mods with fixed positions.</value>
+  </data>
+  <data name="UI.ThisPositionWouldBreakTheFixedLuaModOrLoaderOrder" xml:space="preserve">
+    <value>This position would break the fixed Lua mod or loader order.</value>
+  </data>
+  <data name="UI.FailedToSaveModOptions" xml:space="preserve">
+    <value>Failed to save mod options: {0}</value>
+  </data>
+  <data name="UI.FailedToRemoveMod" xml:space="preserve">
+    <value>Failed to remove mod: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveProfileOrder" xml:space="preserve">
+    <value>Failed to save profile order: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveDeploymentOrder" xml:space="preserve">
+    <value>Failed to save deployment order: {0}</value>
+  </data>
+  <data name="UI.OverlapsWithTheseMods" xml:space="preserve">
+    <value>Overlaps with these mods:
+</value>
+  </data>
+  <data name="UI.ClickTheWarningIconToViewAllRelatedMods" xml:space="preserve">
+    <value>
+…Click the warning icon to view all related mods.</value>
+  </data>
+  <data name="UI.SeeTheConflictsPageForDetails" xml:space="preserve">
+    <value>
+
+See the Conflicts page for details.</value>
+  </data>
+  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
+    <value>SmoothBoot · Highest priority</value>
+  </data>
+  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
+    <value>BSL / MDL · Fixed after dependencies</value>
+  </data>
+  <data name="UI.LoaderDependency" xml:space="preserve">
+    <value>Loader dependency</value>
+  </data>
+  <data name="UI.CacheInformationNotLoaded" xml:space="preserve">
+    <value>Cache information not loaded</value>
+  </data>
+  <data name="UI.SettingsLoaded" xml:space="preserve">
+    <value>Settings loaded</value>
+  </data>
+  <data name="UI.SegmentSizeMustBeMiB" xml:space="preserve">
+    <value>Segment size must be 1–256 MiB.</value>
+  </data>
+  <data name="UI.DownloadSettingsSavedAppliesToTheNextDownload" xml:space="preserve">
+    <value>Download settings saved; applies to the next download</value>
+  </data>
+  <data name="UI.ProfileSettingsSaved" xml:space="preserve">
+    <value>Profile settings saved</value>
+  </data>
+  <data name="UI.FailedToSaveSettings" xml:space="preserve">
+    <value>Failed to save settings: {0}</value>
+  </data>
+  <data name="UI.GameNotDetected" xml:space="preserve">
+    <value>Game not detected</value>
+  </data>
+  <data name="UI.GameDirectoryIsValid" xml:space="preserve">
+    <value>Game directory is valid</value>
+  </data>
+  <data name="UI.GameDirectoryIsInvalid" xml:space="preserve">
+    <value>Game directory is invalid</value>
+  </data>
+  <data name="UI.NoValidHelldiversGameDirectoryFound" xml:space="preserve">
+    <value>No valid Helldivers 2 game directory found</value>
+  </data>
+  <data name="UI.GameSettings" xml:space="preserve">
+    <value>Game settings</value>
+  </data>
+  <data name="UI.DownloadSettingsRestoredToDefaults" xml:space="preserve">
+    <value>Download settings restored to defaults</value>
+  </data>
+  <data name="UI.BackgroundImageUpdated" xml:space="preserve">
+    <value>Background image updated</value>
+  </data>
+  <data name="UI.ImageCacheCleared" xml:space="preserve">
+    <value>Image cache cleared</value>
+  </data>
+  <data name="UI.FailedToClearCache" xml:space="preserve">
+    <value>Failed to clear cache: {0}</value>
+  </data>
+  <data name="UI.MemoryItemsDiskItemsDiskUsage" xml:space="preserve">
+    <value>Memory: {0} items; disk: {1} items; disk usage: {2}</value>
+  </data>
+  <data name="UI.RunningHistory" xml:space="preserve">
+    <value>Running: {0}; history: {1}</value>
+  </data>
+  <data name="UI.FailedToLoadTasks" xml:space="preserve">
+    <value>Failed to load tasks: {0}</value>
+  </data>
+  <data name="UI.FailedToCancelTask" xml:space="preserve">
+    <value>Failed to cancel task: {0}</value>
+  </data>
+  <data name="UI.FailedToCancelTask.2bb7ec1a" xml:space="preserve">
+    <value>Failed to cancel task</value>
+  </data>
+  <data name="UI.CheckTheGameDirectoryFirst" xml:space="preserve">
+    <value>Check the game directory first</value>
+  </data>
+  <data name="UI.SelectTheHelldiversInstallationRootContainingBinDataAndToolsOrUseAutoD" xml:space="preserve">
+    <value>Select the Helldivers 2 installation root containing bin, data and tools, or use Auto-detect. Validate it and save settings. Mods deploy to its data subdirectory.</value>
+  </data>
+  <data name="UI.ChooseADeploymentMethod" xml:space="preserve">
+    <value>Choose a deployment method</value>
+  </data>
+  <data name="UI.CopyCreatesIndependentFilesHardLinksRequireTheLibraryAndGameOnTheSameV" xml:space="preserve">
+    <value>Copy creates independent files. Hard links require the library and game on the same volume; symbolic links usually require administrator privileges. Save your choice for the next deployment.</value>
+  </data>
+  <data name="UI.ImportModsIntoTheLibrary" xml:space="preserve">
+    <value>Import mods into the library</value>
+  </data>
+  <data name="UI.UseAddModsToImportArchivesOrDropFilesIntoTheWindowToImportMultipleMods" xml:space="preserve">
+    <value>Use “Add mods” to import archives, or drop files into the window to import multiple mods. The library stores mod assets; importing does not modify game files.</value>
+  </data>
+  <data name="UI.FindAndSelectMods" xml:space="preserve">
+    <value>Find and select mods</value>
+  </data>
+  <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
+    <value>Search matches name, author and description and supports tag: filters. Click to focus, Ctrl-click to select, Shift for a range and Ctrl+A for all. Use batch actions to add selected mods to profiles.</value>
+  </data>
+  <data name="UI.CreateModCombinations" xml:space="preserve">
+    <value>Create mod combinations</value>
+  </data>
+  <data name="UI.EachProfileStoresAnIndependentModCombinationAndOptionsEnterANameToCrea" xml:space="preserve">
+    <value>Each profile stores an independent mod combination and options. Enter a name to create one. The default profile stays first; right-click others to duplicate, rename or set as current.</value>
+  </data>
+  <data name="UI.ChooseLibraryModsOrUseAddModsHereToAddThemToTheProfileBeingViewedAddin" xml:space="preserve">
+    <value>Choose library mods or use “Add mods” here to add them to the profile being viewed. Adding to a profile does not deploy to the game.</value>
+  </data>
+  <data name="UI.EnabledStateOptionsAndOrder" xml:space="preserve">
+    <value>Enabled state, options and order</value>
+  </data>
+  <data name="UI.CardSwitchesControlDeploymentModsWithOptionsLetYouSelectVariantsTheNum" xml:space="preserve">
+    <value>Card switches control deployment. Mods with options let you select variants. The number before the version is the position. Drag to reorder, or select mods and right-click to enter a position. Lua mods are marked; dependencies and loaders stay in a fixed group. Add mods to see these cards.</value>
+  </data>
+  <data name="UI.CheckConflictsBeforeDeployment" xml:space="preserve">
+    <value>Check conflicts before deployment</value>
+  </data>
+  <data name="UI.CheckResourceOverlapsInEnabledModsYellowWarningIconsMarkAffectedCardsH" xml:space="preserve">
+    <value>Check resource overlaps in enabled mods. Yellow warning icons mark affected cards. Hover for related mods or click to locate them; choose a target when several are involved. View details on the Conflicts page. Check again after changing mods, options or order. The tutorial does not start a scan.</value>
+  </data>
+  <data name="UI.DeployTheCurrentProfile" xml:space="preserve">
+    <value>Deploy the current profile</value>
+  </data>
+  <data name="UI.DeployEnabledModsFromTheProfileBeingViewedWithTheSavedDeploymentMethod" xml:space="preserve">
+    <value>Deploy enabled mods from the profile being viewed with the saved deployment method. By default, deployment runs from top to bottom and later mods overwrite shared resources; reverse deployment reverses this order. The tutorial does not deploy anything.</value>
+  </data>
+  <data name="UI.CleanUpDeployedFiles" xml:space="preserve">
+    <value>Clean up deployed files</value>
+  </data>
+  <data name="UI.RemoveTrackedDeployedFilesFromTheGameWhileKeepingLibraryAssetsCleanupR" xml:space="preserve">
+    <value>Remove tracked deployed files from the game while keeping library assets. Cleanup removes the current deployment; deleting library mods is a separate action.</value>
+  </data>
+  <data name="UI.LaunchHD" xml:space="preserve">
+    <value>Launch HD2</value>
+  </data>
+  <data name="UI.LaunchHelldiversThroughSteamAfterDeploymentWhileRetainingSteamLaunchOp" xml:space="preserve">
+    <value>Launch Helldivers 2 through Steam after deployment while retaining Steam launch options. This button also works independently; the tutorial does not launch the game.</value>
+  </data>
+  <data name="UI.ViewTaskProgress" xml:space="preserve">
+    <value>View task progress</value>
+  </data>
+  <data name="UI.TheTaskCenterShowsImportDeploymentAndScanProgressAndResultsAndSupports" xml:space="preserve">
+    <value>The task center shows import, deployment and scan progress and results, and supports cancelling eligible tasks. Open it from this button after the tutorial.</value>
+  </data>
+  <data name="UI.ViewNotifications" xml:space="preserve">
+    <value>View notifications</value>
+  </data>
+  <data name="UI.NotificationsRetainResultsAndErrorsAfterBannersDisappearReadTheMessage" xml:space="preserve">
+    <value>Notifications retain results and errors after banners disappear. Read the message before deciding whether to retry.</value>
+  </data>
+  <data name="UI.BackUpManagementData" xml:space="preserve">
+    <value>Back up management data</value>
+  </data>
+  <data name="UI.CreateDatabaseAndSettingsBackupsOnTheToolsPageRestoringRequiresConfirm" xml:space="preserve">
+    <value>Create database and settings backups on the Tools page. Restoring requires confirmation. These backups contain manager data, not the full game installation.</value>
+  </data>
+  <data name="UI.Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="UI.ViewDetails" xml:space="preserve">
+    <value>View details</value>
+  </data>
+  <data name="UI.ModLink.fac95c1d" xml:space="preserve">
+    <value>Mod link…</value>
+  </data>
+  <data name="UI.CheckAndUpdateMod" xml:space="preserve">
+    <value>Check and update mod…</value>
+  </data>
+  <data name="UI.DisableInCurrentProfile.81c717c0" xml:space="preserve">
+    <value>Disable in current profile</value>
+  </data>
+  <data name="UI.EnableInCurrentProfile.2646a5cd" xml:space="preserve">
+    <value>Enable in current profile</value>
+  </data>
+  <data name="UI.OpenFileLocation" xml:space="preserve">
+    <value>Open file location</value>
+  </data>
+  <data name="UI.SaveModArchive" xml:space="preserve">
+    <value>Save mod archive</value>
+  </data>
+  <data name="UI.ExportApplicationLogs" xml:space="preserve">
+    <value>Export application logs</value>
+  </data>
+  <data name="UI.LogFiles" xml:space="preserve">
+    <value>Log files</value>
+  </data>
+  <data name="UI.ChooseAFileToOpenWith" xml:space="preserve">
+    <value>Choose a file to open with {0}</value>
+  </data>
+  <data name="UI.ChoosePluginManifest" xml:space="preserve">
+    <value>Choose plugin manifest</value>
+  </data>
+  <data name="UI.PluginManifest" xml:space="preserve">
+    <value>Plugin manifest</value>
+  </data>
+  <data name="UI.SetAsCurrent" xml:space="preserve">
+    <value>Set as current</value>
+  </data>
+  <data name="UI.Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="UI.EditGroupColor" xml:space="preserve">
+    <value>Edit group color</value>
+  </data>
+  <data name="UI.DeleteGroup" xml:space="preserve">
+    <value>Delete group</value>
+  </data>
+  <data name="UI.AddGroupSeparatorHere" xml:space="preserve">
+    <value>Add group separator here</value>
+  </data>
+  <data name="UI.MoveToPosition.e06860aa" xml:space="preserve">
+    <value>Move to position…</value>
+  </data>
+  <data name="UI.PositionUnchanged" xml:space="preserve">
+    <value>Position unchanged</value>
+  </data>
+  <data name="UI.ReleaseToPlaceBefore" xml:space="preserve">
+    <value>Release to place before “{0}”</value>
+  </data>
+  <data name="UI.ReleaseToPlaceAtTheEndOfTheList" xml:space="preserve">
+    <value>Release to place at the end of the list</value>
+  </data>
+  <data name="UI.GroupOfMods" xml:space="preserve">
+    <value>{0} · Group of {1} mods</value>
+  </data>
+  <data name="UI.AndMods" xml:space="preserve">
+    <value>{0} and {1} mods</value>
+  </data>
+  <data name="UI.ReleaseToPlaceBeforeTheBSLSeparator" xml:space="preserve">
+    <value>Release to place before the BSL separator</value>
+  </data>
+  <data name="UI.ChooseBackgroundImage" xml:space="preserve">
+    <value>Choose background image</value>
+  </data>
+  <data name="UI.ImageFiles" xml:space="preserve">
+    <value>Image files</value>
+  </data>
+  <data name="Settings.Language.Help" xml:space="preserve">
+    <value>Changes apply immediately. Automatic mode follows the system display language.</value>
+  </data>
+  <data name="Settings.Language.ChangeFailed" xml:space="preserve">
+    <value>Failed to change language: {0}</value>
+  </data>
+  <data name="Options.Dark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="Options.Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Options.System" xml:space="preserve">
+    <value>Follow system</value>
+  </data>
+  <data name="Options.Comfortable" xml:space="preserve">
+    <value>Comfortable</value>
+  </data>
+  <data name="Options.Compact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="Options.Copy" xml:space="preserve">
+    <value>Copy files</value>
+  </data>
+  <data name="Options.HardLink" xml:space="preserve">
+    <value>Hard link</value>
+  </data>
+  <data name="Options.SymbolicLink" xml:space="preserve">
+    <value>Symbolic link</value>
+  </data>
+  <data name="Game.Found" xml:space="preserve">
+    <value>Game Found</value>
+  </data>
+  <data name="Game.NotFound" xml:space="preserve">
+    <value>Game Not Found</value>
+  </data>
+  <data name="Game.Invalid" xml:space="preserve">
+    <value>Invalid Path</value>
+  </data>
+  <data name="Game.Detecting" xml:space="preserve">
+    <value>Detecting...</value>
+  </data>
+  <data name="Game.Checking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+  <data name="Shell.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Shell.Title" xml:space="preserve">
+    <value>HD2Mimnt - Helldivers 2 Mod Manager</value>
+  </data>
+  <data name="Shell.Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="Shell.NoProfile" xml:space="preserve">
+    <value>No Profile</value>
+  </data>
+  <data name="Shell.NotDeployed" xml:space="preserve">
+    <value>Not Deployed</value>
+  </data>
+  <data name="Shell.Idle" xml:space="preserve">
+    <value>Idle</value>
+  </data>
+  <data name="Shell.Initialized" xml:space="preserve">
+    <value>Application initialized</value>
+  </data>
+  <data name="Shell.Started" xml:space="preserve">
+    <value>HD2Mimnt started successfully</value>
+  </data>
+  <data name="Shell.Welcome" xml:space="preserve">
+    <value>Welcome</value>
+  </data>
+  <data name="Task.Running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="Task.Pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Task.Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="Task.Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Task.Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Task.ForceTerminated" xml:space="preserve">
+    <value>Force terminated</value>
+  </data>
+  <data name="Plugin.FullAccess" xml:space="preserve">
+    <value>Full Access</value>
+  </data>
+  <data name="Plugin.Sandboxed" xml:space="preserve">
+    <value>Sandbox</value>
+  </data>
+  <data name="Notification.Success" xml:space="preserve">
+    <value>Success</value>
+  </data>
+  <data name="Notification.Warning" xml:space="preserve">
+    <value>Notice</value>
+  </data>
+  <data name="Notification.Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Notification.Info" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="Time.JustNow" xml:space="preserve">
+    <value>just now</value>
+  </data>
+  <data name="Time.MinutesAgo" xml:space="preserve">
+    <value>{0}m ago</value>
+  </data>
+  <data name="Time.HoursAgo" xml:space="preserve">
+    <value>{0}h ago</value>
+  </data>
+  <data name="Time.DaysAgo" xml:space="preserve">
+    <value>{0}d ago</value>
+  </data>
+  <data name="Profile.ConflictTooltip" xml:space="preserve">
+    <value>Overlaps with these mods:
+{0}
+
+See the Conflicts page for details.</value>
+  </data>
+  <data name="Profile.ConflictTooltipMore" xml:space="preserve">
+    <value>Overlaps with these mods:
+{0}
+…Click the warning icon to view all related mods.
+
+See the Conflicts page for details.</value>
+  </data>
+  <data name="Conflicts.Summary" xml:space="preserve">
+    <value>Scanned {0} enabled mods, {1} patches and {2} resources; found {3} overlap groups, including {4} with definite differences</value>
+  </data>
+  <data name="Conflicts.SummaryWarnings" xml:space="preserve">
+    <value>Scanned {0} enabled mods, {1} patches and {2} resources; found {3} overlap groups, including {4} with definite differences ({5} unreadable items; incomplete results)</value>
+  </data>
+  <data name="Conflicts.CardWarnings" xml:space="preserve">
+    <value>Found {0} resource overlap groups; related cards are marked ({1} unreadable items; incomplete results)</value>
+  </data>
+  <data name="ResourceType.UnknownId" xml:space="preserve">
+    <value>Unknown resource 0x{0}</value>
+  </data>
+  <data name="Import.CheckSource" xml:space="preserve">
+    <value>Checking source files</value>
+  </data>
+  <data name="Import.Extract" xml:space="preserve">
+    <value>Extracting mod</value>
+  </data>
+  <data name="Import.ReadManifest" xml:space="preserve">
+    <value>Reading mod manifest</value>
+  </data>
+  <data name="Import.Identify" xml:space="preserve">
+    <value>Identifying mod information and options</value>
+  </data>
+  <data name="Import.Analyze" xml:space="preserve">
+    <value>Analyzing mod files</value>
+  </data>
+  <data name="Import.CountFiles" xml:space="preserve">
+    <value>Calculating file sizes and contents</value>
+  </data>
+  <data name="Import.Types" xml:space="preserve">
+    <value>Identifying resource types</value>
+  </data>
+  <data name="Import.Index" xml:space="preserve">
+    <value>Scanning mod resource indexes</value>
+  </data>
+  <data name="Import.Copy" xml:space="preserve">
+    <value>Copying mod files</value>
+  </data>
+  <data name="Import.PrepareCopy" xml:space="preserve">
+    <value>Preparing to copy into the library</value>
+  </data>
+  <data name="Import.CopyComplete" xml:space="preserve">
+    <value>Files copied</value>
+  </data>
+  <data name="Import.Save" xml:space="preserve">
+    <value>Saving mod</value>
+  </data>
+  <data name="Import.Saved" xml:space="preserve">
+    <value>Mod saved</value>
+  </data>
+  <data name="Common.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ResourceType.bones" xml:space="preserve">
+    <value>Bones</value>
+  </data>
+  <data name="ResourceType.level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="ResourceType.physics" xml:space="preserve">
+    <value>Physics</value>
+  </data>
+  <data name="ResourceType.animation" xml:space="preserve">
+    <value>Animation</value>
+  </data>
+  <data name="ResourceType.state_machine" xml:space="preserve">
+    <value>State Machine</value>
+  </data>
+  <data name="ResourceType.particles" xml:space="preserve">
+    <value>Particles</value>
+  </data>
+  <data name="ResourceType.prefab" xml:space="preserve">
+    <value>Prefab</value>
+  </data>
+  <data name="ResourceType.texture" xml:space="preserve">
+    <value>Texture</value>
+  </data>
+  <data name="ResourceType.mesh" xml:space="preserve">
+    <value>Mesh</value>
+  </data>
+  <data name="ResourceType.material" xml:space="preserve">
+    <value>Material</value>
+  </data>
+  <data name="ResourceType.wwise_bank" xml:space="preserve">
+    <value>Wwise Bank</value>
+  </data>
+  <data name="ResourceType.wwise_dep" xml:space="preserve">
+    <value>Wwise Dep</value>
+  </data>
+  <data name="ResourceType.wwise_stream" xml:space="preserve">
+    <value>Wwise Stream</value>
+  </data>
+  <data name="ResourceType.shading_environment_mapping" xml:space="preserve">
+    <value>Shading Environment Mapping</value>
+  </data>
+  <data name="ResourceType.entity" xml:space="preserve">
+    <value>Entity</value>
+  </data>
+  <data name="ResourceType.bik" xml:space="preserve">
+    <value>Bik</value>
+  </data>
+  <data name="ResourceType.font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="ResourceType.cloth" xml:space="preserve">
+    <value>Cloth</value>
+  </data>
+  <data name="ResourceType.shading_environment" xml:space="preserve">
+    <value>Shading Environment</value>
+  </data>
+  <data name="ResourceType.lua" xml:space="preserve">
+    <value>Lua</value>
+  </data>
+  <data name="ResourceType.vector_field" xml:space="preserve">
+    <value>Vector Field</value>
+  </data>
+  <data name="ResourceType.flow" xml:space="preserve">
+    <value>Flow</value>
+  </data>
+  <data name="ResourceType.render_config" xml:space="preserve">
+    <value>Render Config</value>
+  </data>
+  <data name="ResourceType.strings" xml:space="preserve">
+    <value>Strings</value>
+  </data>
+  <data name="ResourceType.network_config" xml:space="preserve">
+    <value>Network Config</value>
+  </data>
+  <data name="ResourceType.config" xml:space="preserve">
+    <value>Config</value>
+  </data>
+  <data name="ResourceType.package" xml:space="preserve">
+    <value>Package</value>
+  </data>
+  <data name="ResourceType.wwise_metadata" xml:space="preserve">
+    <value>Wwise Metadata</value>
+  </data>
+  <data name="ResourceType.mouse_cursor" xml:space="preserve">
+    <value>Mouse Cursor</value>
+  </data>
+  <data name="ResourceType.renderable" xml:space="preserve">
+    <value>Renderable</value>
+  </data>
+  <data name="ResourceType.shader_library_group" xml:space="preserve">
+    <value>Shader Library Group</value>
+  </data>
+  <data name="ResourceType.shader_library" xml:space="preserve">
+    <value>Shader Library</value>
+  </data>
+  <data name="ResourceType.runtime_font" xml:space="preserve">
+    <value>Runtime Font</value>
+  </data>
+  <data name="ResourceType.ragdoll_profile" xml:space="preserve">
+    <value>Ragdoll Profile</value>
+  </data>
+  <data name="ResourceType.ah_bin" xml:space="preserve">
+    <value>AH Bin</value>
+  </data>
+  <data name="ResourceType.ik_skeleton" xml:space="preserve">
+    <value>IK Skeleton</value>
+  </data>
+  <data name="ResourceType.wwise_properties" xml:space="preserve">
+    <value>Wwise Properties</value>
+  </data>
+  <data name="ResourceType.havok_ai_properties" xml:space="preserve">
+    <value>Havok Ai Properties</value>
+  </data>
+  <data name="ResourceType.texture_atlas" xml:space="preserve">
+    <value>Texture Atlas</value>
+  </data>
+  <data name="ResourceType.geleta" xml:space="preserve">
+    <value>Geleta</value>
+  </data>
+  <data name="ResourceType.geometry_group" xml:space="preserve">
+    <value>Geometry Group</value>
+  </data>
+  <data name="ResourceType.hash_lookup" xml:space="preserve">
+    <value>Hash Lookup</value>
+  </data>
+  <data name="ResourceType.speedtree" xml:space="preserve">
+    <value>Speedtree</value>
+  </data>
+  <data name="ResourceType.havok_physics_properties" xml:space="preserve">
+    <value>Havok Physics Properties</value>
+  </data>
+  <data name="ResourceType.camera_shake" xml:space="preserve">
+    <value>Camera Shake</value>
+  </data>
+  <data name="ResourceType.bik2" xml:space="preserve">
+    <value>Bik2</value>
+  </data>
+  <data name="ResourceType.unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Profile.PositionHint" xml:space="preserve">
+    <value>List position: {0} (right-click to enter a destination)</value>
+  </data>
+  <data name="Profile.HasConflict" xml:space="preserve">
+    <value>Resource overlap detected</value>
+  </data>
+  <data name="Profile.LocateConflict" xml:space="preserve">
+    <value>Locate related conflicting mods</value>
+  </data>
+  <data name="Profile.CleanDeployment" xml:space="preserve">
+    <value>Clean current deployment</value>
+  </data>
+  <data name="Profile.DeployCurrent" xml:space="preserve">
+    <value>Deploy current profile</value>
+  </data>
+  <data name="Platform.NoApiName" xml:space="preserve">
+    <value>API did not provide a name</value>
+  </data>
+  <data name="Deployment.StartCleanup" xml:space="preserve">
+    <value>Starting pre-deployment cleanup...</value>
+  </data>
+  <data name="Deployment.NoRecords" xml:space="preserve">
+    <value>No previous deployment records found</value>
+  </data>
+  <data name="Deployment.LatestSession" xml:space="preserve">
+    <value>Latest deployment session found: {0}</value>
+  </data>
+  <data name="Deployment.EmptySession" xml:space="preserve">
+    <value>The deployment session has no records</value>
+  </data>
+  <data name="Deployment.RecordCount" xml:space="preserve">
+    <value>Found {0} deployment records</value>
+  </data>
+  <data name="Deployment.CleanupComplete" xml:space="preserve">
+    <value>Pre-deployment cleanup complete: session {0}, deleted {1} files and {2} records</value>
+  </data>
+  <data name="Deployment.CleanMod" xml:space="preserve">
+    <value>Cleaning mod {0}: {1} files</value>
+  </data>
+  <data name="Deployment.CleanedFiles" xml:space="preserve">
+    <value>Cleaned {0}/{1} files</value>
+  </data>
+  <data name="Deployment.Compatibility" xml:space="preserve">
+    <value>Checking deployment compatibility: {0}</value>
+  </data>
+  <data name="Deployment.CleanPrevious" xml:space="preserve">
+    <value>Cleaning previous deployment...</value>
+  </data>
+  <data name="Deployment.FileProgress" xml:space="preserve">
+    <value>Deploying {0}: {1}/{2}, {3}</value>
+  </data>
+  <data name="Deployment.Result" xml:space="preserve">
+    <value>Profile “{0}”: deployed {1}/{2} mods, {3} failed, {4} skipped. Location: {5}</value>
+  </data>
+  <data name="Deployment.CancelledCleanup" xml:space="preserve">
+    <value>Deployment cancelled. Use deployment cleanup to remove files already written</value>
+  </data>
+</root>

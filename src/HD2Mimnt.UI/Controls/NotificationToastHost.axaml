@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.Controls"
              xmlns:services="using:HD2Mimnt.Application.Services"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
@@ -17,18 +17,18 @@
             </Border>
             <StackPanel Grid.Column="1" Spacing="5" Margin="12,0,4,0">
               <TextBlock Text="HD2Mimnt" Classes="caption-text"/>
-              <TextBlock Text="{Binding Title, TargetNullValue=通知}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-              <TextBlock Text="{Binding Message}" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Message}"/>
-              <TextBlock Text="{Binding Level, Converter={StaticResource NotificationLevelLabelConverter}}" Classes="caption-text"
+              <TextBlock Text="{loc:LocalizedBinding Title, TargetNullValue=通知}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis" ToolTip.Tip="{loc:LocalizedBinding Message}"/>
+              <TextBlock Text="{loc:LocalizedBinding Level, InnerConverter={StaticResource NotificationLevelLabelConverter}}" Classes="caption-text"
                          Classes.success="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Success}"
                          Classes.warning="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Warning}"
                          Classes.error="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Error}"/>
-              <Button Content="{Binding ActionText, TargetNullValue=打开}" IsVisible="{Binding HasAction}"
+              <Button Content="{loc:LocalizedBinding ActionText, TargetNullValue=打开}" IsVisible="{Binding HasAction}"
                       Classes="tertiary" HorizontalAlignment="Left" Margin="-8,0,0,0"
                       Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).ExecuteActionCommand}"
                       CommandParameter="{Binding}"/>
             </StackPanel>
-            <Button Grid.Column="2" Classes="icon-button" VerticalAlignment="Top" ToolTip.Tip="收起横幅，保留通知"
+            <Button Grid.Column="2" Classes="icon-button" VerticalAlignment="Top" ToolTip.Tip="{loc:Loc UI.DismissBannerAndKeepNotification}"
                     Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).DismissToastCommand}"
                     CommandParameter="{Binding}"><controls:UtilityIcon Kind="Close"/></Button>
           </Grid>

@@ -1,5 +1,5 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
@@ -24,16 +24,16 @@
             <DockPanel>
                 <!-- 顶部：导入 / 刷新 -->
                 <StackPanel DockPanel.Dock="Top" Spacing="2">
-                    <Button x:Name="ImportModButton" Classes="side-nav" Click="OnImportClicked" ToolTip.Tip="导入 Mod 压缩包到 Library，也可直接拖拽压缩包到页面">
+                    <Button x:Name="ImportModButton" Classes="side-nav" Click="OnImportClicked" ToolTip.Tip="{loc:Loc UI.ImportModArchivesIntoTheLibraryOrDropThemIntoThisPage}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <controls:UtilityIcon Kind="Add" Width="16" Height="16" VerticalAlignment="Center"/>
-                            <TextBlock Text="添加模组" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{loc:Loc UI.AddMods}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
                     <Button Classes="side-nav" Command="{Binding RefreshCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <controls:UtilityIcon Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center"/>
-                            <TextBlock Text="刷新模组库" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{loc:Loc UI.RefreshLibrary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
                     <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
@@ -43,22 +43,22 @@
                 <StackPanel DockPanel.Dock="Bottom" Spacing="2">
                     <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="10,2,4,2">
-                        <TextBlock Text="当前 Profile" Classes="caption-text" VerticalAlignment="Center"/>
+                        <TextBlock Text="{loc:Loc UI.CurrentProfile}" Classes="caption-text" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding CurrentProfileName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding CurrentProfileName}"/>
                     </StackPanel>
-                    <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{Binding TotalModCount, StringFormat='模组总数 {0:N0}'}"/>
-                    <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{Binding DeployedCount, StringFormat='已部署 {0:N0} · 未部署 {0:N0}'}"/>
+                    <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{loc:LocalizedBinding TotalModCount, FormatKey=UI.TotalMods}"/>
+                    <TextBlock Classes="caption-text" Margin="10,0,4,2" Text="{loc:LocalizedBinding DeployedCount, FormatKey=UI.DeployedNotDeployed}"/>
                     <TextBlock Classes="caption-text" TextWrapping="Wrap" Margin="10,6,4,2"
-                               Text="单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 tag:标签。"/>
+                               Text="{loc:Loc UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec}"/>
                 </StackPanel>
 
                 <!-- 中部：分类/排序 -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="分类" Classes="secondary-text" FontWeight="SemiBold" Margin="10,0,0,6"/>
-                        <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedValue="{Binding SelectedCategory}" DisplayMemberBinding="{Binding Display}" SelectedValueBinding="{Binding Value}" PlaceholderText="全部分类" MinWidth="200" HorizontalAlignment="Stretch" Margin="0,1"/>
-                        <TextBlock Text="排序" Classes="secondary-text" FontWeight="SemiBold" Margin="10,8,0,6"/>
-                        <ComboBox ItemsSource="{Binding SortModes}" SelectedValue="{Binding CurrentSortMode}" DisplayMemberBinding="{Binding Display}" SelectedValueBinding="{Binding Value}" MinWidth="200" HorizontalAlignment="Stretch" Margin="0,1"/>
+                        <TextBlock Text="{loc:Loc UI.Category}" Classes="secondary-text" FontWeight="SemiBold" Margin="10,0,0,6"/>
+                        <ComboBox ItemsSource="{Binding CategoryOptions}" SelectedValue="{Binding SelectedCategory}" DisplayMemberBinding="{loc:LocalizedBinding Display, TranslateParts=True}" SelectedValueBinding="{Binding Value}" PlaceholderText="{loc:Loc UI.AllCategories}" MinWidth="200" HorizontalAlignment="Stretch" Margin="0,1"/>
+                        <TextBlock Text="{loc:Loc UI.Sort}" Classes="secondary-text" FontWeight="SemiBold" Margin="10,8,0,6"/>
+                        <ComboBox ItemsSource="{Binding SortModes}" SelectedValue="{Binding CurrentSortMode}" DisplayMemberBinding="{loc:LocalizedBinding Display, TranslateParts=True}" SelectedValueBinding="{Binding Value}" MinWidth="200" HorizontalAlignment="Stretch" Margin="0,1"/>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
@@ -70,9 +70,9 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <Grid>
                         <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
-                        <TextBox x:Name="SearchBox" PlaceholderText="搜索名称、作者或描述，支持 tag:标签 前缀…" Text="{Binding SearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
+                        <TextBox x:Name="SearchBox" PlaceholderText="{loc:Loc UI.SearchNameAuthorOrDescriptionSupportsTagFilters}" Text="{Binding SearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
                     </Grid>
-                    <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearSearchCommand}" ToolTip.Tip="清除搜索" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}">
+                    <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearSearchCommand}" ToolTip.Tip="{loc:Loc UI.ClearSearch}" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}">
                         <controls:UtilityIcon Kind="BackspaceQWERTY"/>
                     </Button>
                 </Grid>
@@ -80,15 +80,15 @@
                 <!-- 批量操作条：有选中项时出现（旧版 HasSelection WrapPanel，窄窗口可换行） -->
                 <WrapPanel x:Name="LibrarySelectionToolbar" Grid.Row="1" IsVisible="{Binding SelectedCount, Converter={StaticResource GreaterThanZeroConverter}}">
                     <Border Background="{DynamicResource SelectedSurfaceBrush}" CornerRadius="4" Padding="10,5" VerticalAlignment="Center" Margin="0,0,8,4">
-                        <TextBlock Text="{Binding SelectedCount, StringFormat='已选择 {0} 个 Mod'}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="{loc:LocalizedBinding SelectedCount, FormatKey=UI.ModsSelected}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
-                    <Button Content="全选 / 取消全选" Command="{Binding SelectAllCommand}" Classes="secondary" Margin="0,0,8,4"/>
-                    <Button Content="反选" Command="{Binding InvertSelectionCommand}" Classes="secondary" Margin="0,0,8,4"/>
-                    <Button Content="加入 Profile…" Command="{Binding OpenAddToProfileDialogCommand}" Classes="accent" Margin="0,0,8,4" ToolTip.Tip="将选中的 Mod 加入配置文件（可多选多个配置文件）"/>
-                    <Button Content="禁用" Command="{Binding BatchDisableCommand}" Classes="secondary" Margin="0,0,8,4"/>
-                    <Button Content="移出 Profile" Command="{Binding RemoveSelectedFromProfileCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="从当前 Profile 移除选中的 Mod，Library 文件保留"/>
-                    <Button Content="清空选择" Command="{Binding ClearSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
-                    <Button Content="从 Library 删除" Command="{Binding BatchDeleteCommand}" Classes="danger" Margin="0,0,8,4" ToolTip.Tip="删除选中的 Mod 及其文件"/>
+                    <Button Content="{loc:Loc UI.SelectAllClearAll}" Command="{Binding SelectAllCommand}" Classes="secondary" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc UI.InvertSelection}" Command="{Binding InvertSelectionCommand}" Classes="secondary" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc UI.AddToProfiles}" Command="{Binding OpenAddToProfileDialogCommand}" Classes="accent" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.AddSelectedModsToOneOrMoreProfiles}"/>
+                    <Button Content="{loc:Loc UI.Disable}" Command="{Binding BatchDisableCommand}" Classes="secondary" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc UI.RemoveFromProfile}" Command="{Binding RemoveSelectedFromProfileCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.RemoveSelectedModsFromTheCurrentProfileAndKeepLibraryFiles}"/>
+                    <Button Content="{loc:Loc UI.ClearSelection}" Command="{Binding ClearSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc UI.DeleteFromLibrary}" Command="{Binding BatchDeleteCommand}" Classes="danger" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.DeleteSelectedModsAndTheirFiles}"/>
                 </WrapPanel>
             </Grid>
         </Border>
@@ -112,7 +112,7 @@
                                 <Grid ColumnDefinitions="52,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                                 <!-- 图标槽：无缩略图时显示 Package 图标 -->
                                 <Border Classes="mod-thumbnail" Grid.RowSpan="2" Width="52" Height="52" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True"
-                                        Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="点击预览原图">
+                                        Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
                                     <Panel>
                                         <Image Source="{Binding Icon}" Width="52" Height="52" Stretch="Uniform" IsVisible="{Binding Icon, Converter={StaticResource NotNullConverter}}"/>
                                         <controls:UtilityIcon Kind="Package" Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.35" IsVisible="{Binding Icon, Converter={x:Static avConverters:ObjectConverters.IsNull}}"/>
@@ -124,10 +124,10 @@
                                 <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
                                     <Border Classes="chip"><TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="12" Classes="muted"/></Border>
-                                    <Border Grid.Column="1" Classes="chip" MaxWidth="200" HorizontalAlignment="Left" ToolTip.Tip="{Binding ResourceTypeDetails}">
-                                        <TextBlock Text="{Binding CategoryDisplay}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis"/>
+                                    <Border Grid.Column="1" Classes="chip" MaxWidth="200" HorizontalAlignment="Left" ToolTip.Tip="{loc:LocalizedBinding ResourceTypeDetails, TranslateParts=True}">
+                                        <TextBlock Text="{loc:LocalizedBinding CategoryDisplay, TranslateParts=True}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis"/>
                                     </Border>
-                                    <TextBlock Grid.Column="2" Text="已部署" FontSize="12" Classes="accent-text" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
+                                    <TextBlock Grid.Column="2" Text="{loc:Loc UI.Deployed}" FontSize="12" Classes="accent-text" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
                                     <TextBlock Grid.Column="3" Text="{Binding Author}" MaxWidth="100" FontSize="12" Classes="muted" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Author}"/>
                                     <TextBlock Grid.Column="4" Text="{Binding SizeFormatted}" FontSize="12" Classes="caption-text"
@@ -135,9 +135,9 @@
                                 </Grid>
 
                                 <!-- 右侧操作：加入 Profile + 删除（删除按钮造型同配置文件页的移除按钮） -->
-                                <Button Grid.Column="2" Grid.RowSpan="2" Classes="accent" Content="加入 Profile…" VerticalAlignment="Center"
-                                        Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).OpenAddToProfileDialogCommand}" CommandParameter="{Binding}" ToolTip.Tip="选择要加入的配置文件（可多选）"/>
-                                <Button Grid.Column="3" Grid.RowSpan="2" Classes="icon-button" Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).DeleteModCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" ToolTip.Tip="从 Library 删除 Mod">
+                                <Button Grid.Column="2" Grid.RowSpan="2" Classes="accent" Content="{loc:Loc UI.AddToProfiles}" VerticalAlignment="Center"
+                                        Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).OpenAddToProfileDialogCommand}" CommandParameter="{Binding}" ToolTip.Tip="{loc:Loc UI.ChooseProfilesToAddToMultipleSelection}"/>
+                                <Button Grid.Column="3" Grid.RowSpan="2" Classes="icon-button" Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).DeleteModCommand}" CommandParameter="{Binding}" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc UI.DeleteModFromLibrary}">
                                     <controls:UtilityIcon Kind="Close" Foreground="{DynamicResource ErrorBrush}"/>
                                 </Button>
                             </Grid>
@@ -151,32 +151,32 @@
             <!-- 空库 -->
             <StackPanel IsVisible="{Binding IsLibraryEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <controls:UtilityIcon Kind="Package" Width="40" Height="40" Opacity="0.4" HorizontalAlignment="Center"/>
-                <TextBlock Text="模组库为空" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
-                <TextBlock Text="还没有导入 Mod，点击“添加模组”或将压缩包拖拽到页面" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
-                <Button Content="添加模组" Click="OnImportClicked" Classes="accent" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.LibraryIsEmpty}" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.ClickAddModsOrDropAnArchiveHereToImportYourFirstMod}" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
+                <Button Content="{loc:Loc UI.AddMods}" Click="OnImportClicked" Classes="accent" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 搜索无结果 -->
             <StackPanel IsVisible="{Binding IsSearchEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <TextBlock Text="搜索无结果" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
-                <TextBlock Text="没有匹配当前搜索条件的 Mod，支持 tag:标签 前缀" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
-                <Button Content="清除搜索" Command="{Binding ClearSearchCommand}" Classes="secondary" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.NoSearchResults}" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.NoModsMatchYourSearchTagFiltersAreSupported}" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
+                <Button Content="{loc:Loc UI.ClearSearch}" Command="{Binding ClearSearchCommand}" Classes="secondary" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 筛选无结果 -->
             <StackPanel IsVisible="{Binding IsFilterEmptyStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <TextBlock Text="筛选无结果" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
-                <TextBlock Text="没有符合当前筛选条件的 Mod" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
-                <Button Content="清除筛选" Command="{Binding ClearFiltersCommand}" Classes="secondary" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.NoFilterResults}" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.NoModsMatchTheCurrentFilters}" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
+                <Button Content="{loc:Loc UI.ClearFilters}" Command="{Binding ClearFiltersCommand}" Classes="secondary" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 加载失败 -->
             <StackPanel IsVisible="{Binding IsErrorStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <TextBlock Text="加载失败" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding ErrorMessage}" FontSize="13" Classes="caption-text" TextWrapping="Wrap" MaxWidth="400" HorizontalAlignment="Center"/>
-                <Button Content="重试" Command="{Binding RefreshCommand}" Classes="accent" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.LoadingFailed}" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:LocalizedBinding ErrorMessage}" FontSize="13" Classes="caption-text" TextWrapping="Wrap" MaxWidth="400" HorizontalAlignment="Center"/>
+                <Button Content="{loc:Loc UI.Retry}" Command="{Binding RefreshCommand}" Classes="accent" HorizontalAlignment="Center"/>
             </StackPanel>
             <!-- 加载中 -->
             <StackPanel IsVisible="{Binding IsLoadingStateVisible}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                 <ProgressBar IsIndeterminate="True" Width="220"/>
-                <TextBlock Text="正在加载模组库…" FontSize="13" Classes="muted" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc UI.LoadingLibrary}" FontSize="13" Classes="muted" HorizontalAlignment="Center"/>
             </StackPanel>
         </Grid>
 
@@ -184,10 +184,10 @@
         <Border Grid.Row="2" Grid.Column="1" Classes="card" Padding="12" Margin="0,12,0,0">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="caption-text"
-                           Text="{Binding FilterSummaryText}"/>
+                           Text="{loc:LocalizedBinding FilterSummaryText}"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="清除筛选" Command="{Binding ClearFiltersCommand}" Classes="tertiary"/>
-                    <Button Content="清空选择" Command="{Binding ClearSelectionCommand}" Classes="tertiary"/>
+                    <Button Content="{loc:Loc UI.ClearFilters}" Command="{Binding ClearFiltersCommand}" Classes="tertiary"/>
+                    <Button Content="{loc:Loc UI.ClearSelection}" Command="{Binding ClearSelectionCommand}" Classes="tertiary"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -205,18 +205,18 @@
               MaxWidth="520" MaxHeight="560" Margin="20" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
         <ScrollViewer>
           <StackPanel Spacing="12">
-            <TextBlock Text="模组链接" Classes="section-title" />
+            <TextBlock Text="{loc:Loc UI.ModLink}" Classes="section-title" />
             <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Text="粘贴 N 网模组页面链接，获取信息后保存关联。" Classes="muted" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:Loc UI.PasteANexusModsPageLinkFetchItsInformationThenSaveTheLink}" Classes="muted" TextWrapping="Wrap" />
             <TextBox x:Name="ModLinkUrlInput" Text="{Binding Url, Mode=TwoWay}" IsEnabled="{Binding !IsSaving}"
                      PlaceholderText="https://www.nexusmods.com/helldivers2/mods/16633" />
-            <Button x:Name="FetchModLinkButton" Content="获取信息" Command="{Binding FetchCommand}" IsEnabled="{Binding !IsSaving}" />
+            <Button x:Name="FetchModLinkButton" Content="{loc:Loc UI.FetchInformation}" Command="{Binding FetchCommand}" IsEnabled="{Binding !IsSaving}" />
             <ProgressBar IsVisible="{Binding IsFetching}" IsIndeterminate="True" />
-            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes="muted" />
-            <TextBlock Text="{Binding PreviewText}" IsVisible="{Binding HasPreview}" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" Classes="muted" />
+            <TextBlock Text="{loc:LocalizedBinding PreviewText}" IsVisible="{Binding HasPreview}" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-              <Button x:Name="CloseModLinkButton" Content="取消" Command="{Binding CloseCommand}" />
-              <Button x:Name="SaveModLinkButton" Content="保存关联" Classes="accent" Command="{Binding SaveCommand}" />
+              <Button x:Name="CloseModLinkButton" Content="{loc:Loc Common.Cancel}" Command="{Binding CloseCommand}" />
+              <Button x:Name="SaveModLinkButton" Content="{loc:Loc UI.SaveLink}" Classes="accent" Command="{Binding SaveCommand}" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>
@@ -230,12 +230,12 @@
               Width="560" MaxHeight="650" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center">
         <ScrollViewer>
           <StackPanel Spacing="12">
-            <TextBlock Text="模组更新与下载" Classes="section-title" />
+            <TextBlock Text="{loc:Loc UI.ModUpdatesAndDownloads}" Classes="section-title" />
             <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding LocalVersion, StringFormat='本地版本：{0}'}" />
+            <TextBlock Text="{loc:LocalizedBinding LocalVersion, FormatKey=UI.LocalVersion}" />
             <StackPanel Orientation="Horizontal" Spacing="12">
-              <TextBlock Text="网页授权下载（免费账户）" VerticalAlignment="Center" />
-              <ToggleSwitch x:Name="WebsiteAuthorizationToggle" OnContent="开" OffContent="关"
+              <TextBlock Text="{loc:Loc UI.BrowserDownloadAuthorizationFreeAccounts}" VerticalAlignment="Center" />
+              <ToggleSwitch x:Name="WebsiteAuthorizationToggle" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"
                             IsChecked="{Binding UseWebsiteAuthorization}" IsEnabled="{Binding !IsBusy}" />
             </StackPanel>
             <ComboBox x:Name="OnlineFileSelector" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
@@ -244,26 +244,26 @@
                 <DataTemplate x:DataType="core:PlatformModFile">
                   <StackPanel>
                     <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Version, StringFormat='版本：{0}'}" Classes="muted" />
+                    <TextBlock Text="{loc:LocalizedBinding Version, FormatKey=UI.Version}" Classes="muted" />
                   </StackPanel>
                 </DataTemplate>
               </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="{Binding VersionMessage}" TextWrapping="Wrap" />
-            <TextBlock Text="点击下载或更新后会打开所选文件网页。在网页完成下载确认，选择 HD2Mimnt 打开链接，应用会自动继续。网页需登录 API 密钥对应的账户。"
+            <TextBlock Text="{loc:LocalizedBinding VersionMessage}" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:Loc UI.DownloadOrUpdateOpensTheSelectedFilePageConfirmTheDownloadThereAndOpen}"
                        IsVisible="{Binding UseWebsiteAuthorization}" TextWrapping="Wrap" Classes="muted" />
-            <TextBlock Text="已关闭网页授权：通过 API 直接获取下载链接，需要相应的账户权限。" IsVisible="{Binding !UseWebsiteAuthorization}"
+            <TextBlock Text="{loc:Loc UI.BrowserAuthorizationIsOffDirectAPIDownloadLinksRequireTheAppropriateAc}" IsVisible="{Binding !UseWebsiteAuthorization}"
                        TextWrapping="Wrap" Classes="muted" />
-            <TextBlock Text="更新将直接替换模组库中的原模组，保留名称、标签和配置关联。旧部署会清理，更新后请检查选项并重新部署。"
+            <TextBlock Text="{loc:Loc UI.UpdatingReplacesTheLibraryModAndPreservesItsNameTagsAndProfileLinksExi}"
                        Classes="muted" TextWrapping="Wrap" />
             <ProgressBar IsVisible="{Binding IsBusy}" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" />
-            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" />
             <WrapPanel HorizontalAlignment="Right">
-              <Button x:Name="CheckOnlineModButton" Content="检查更新" Command="{Binding CheckCommand}" Margin="4" />
-              <Button x:Name="DownloadOnlineModButton" Content="下载压缩包…" IsEnabled="{Binding CanDownload}" Click="OnDownloadOnlineClicked" Margin="4" />
-              <Button x:Name="UpdateOnlineModButton" Content="下载并更新" Classes="accent" Command="{Binding UpdateCommand}" Margin="4" />
-              <Button Content="取消操作" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}" Margin="4" />
-              <Button Content="关闭" Command="{Binding CloseCommand}" Margin="4" />
+              <Button x:Name="CheckOnlineModButton" Content="{loc:Loc UI.CheckUpdates}" Command="{Binding CheckCommand}" Margin="4" />
+              <Button x:Name="DownloadOnlineModButton" Content="{loc:Loc UI.DownloadArchive}" IsEnabled="{Binding CanDownload}" Click="OnDownloadOnlineClicked" Margin="4" />
+              <Button x:Name="UpdateOnlineModButton" Content="{loc:Loc UI.DownloadAndUpdate}" Classes="accent" Command="{Binding UpdateCommand}" Margin="4" />
+              <Button Content="{loc:Loc UI.CancelOperation}" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}" Margin="4" />
+              <Button Content="{loc:Loc Common.Close}" Command="{Binding CloseCommand}" Margin="4" />
             </WrapPanel>
           </StackPanel>
         </ScrollViewer>
@@ -274,7 +274,7 @@
     <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsDeploying}" ZIndex="90">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
             <ProgressBar IsIndeterminate="True" Width="260"/>
-            <TextBlock Text="{Binding DeploymentMessage}" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:LocalizedBinding DeploymentMessage}" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
         </StackPanel>
     </Border>
 
@@ -283,17 +283,17 @@
         <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnAddToProfileBackgroundPressed"/>
         <Border Name="AddToProfileDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}" Width="400" MaxHeight="480" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
             <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
-                <TextBlock Text="{Binding AddToProfileDialogTitle}" Classes="section-title" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Grid.Row="1" Text="勾选要加入的配置文件（可多选），加入后模组在该配置文件中默认启用。" Classes="caption-text" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:LocalizedBinding AddToProfileDialogTitle}" Classes="section-title" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Row="1" Text="{loc:Loc UI.SelectOneOrMoreProfilesTheModWillBeEnabledByDefaultInEachSelectedProfi}" Classes="caption-text" TextWrapping="Wrap"/>
                 <ListBox Grid.Row="2" ItemsSource="{Binding AddToProfileChoices}" ScrollViewer.VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:ProfileChoiceViewModel">
                             <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Stretch" Margin="2,3">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding ModCount, StringFormat='{}{0} 个模组'}" Classes="caption-text" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{loc:LocalizedBinding ModCount, FormatKey=UI.Mods}" Classes="caption-text" VerticalAlignment="Center"/>
                                     <Border Classes="chip" IsVisible="{Binding IsActive}">
-                                        <TextBlock Text="当前" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock Text="{loc:Loc UI.Current}" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
                                     </Border>
                                 </StackPanel>
                             </CheckBox>
@@ -301,8 +301,8 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button Content="取消" Command="{Binding CancelAddToProfileCommand}" Classes="secondary"/>
-                    <Button Content="加入" Command="{Binding ConfirmAddToProfileCommand}" Classes="accent"/>
+                    <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelAddToProfileCommand}" Classes="secondary"/>
+                    <Button Content="{loc:Loc UI.Add}" Command="{Binding ConfirmAddToProfileCommand}" Classes="accent"/>
                 </StackPanel>
             </Grid>
         </Border>

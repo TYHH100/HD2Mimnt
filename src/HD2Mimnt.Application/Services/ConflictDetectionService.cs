@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Resources;
 using HD2Mimnt.Infrastructure.Analysis;
+using System.Runtime.InteropServices;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -44,6 +45,7 @@ public class ConflictScanResult
     public int ScannedModCount { get; set; }
     public int SkippedModCount { get; set; }
     public int ScannedPatchCount { get; set; }
+    public int CachedPatchCount { get; set; }
     public int ScannedResourceCount { get; set; }
     public List<ConflictGroup> Groups { get; set; } = new();
     public List<ConflictScanWarning> Warnings { get; } = new();
@@ -56,6 +58,23 @@ public class ConflictDetectionService
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
     private readonly SettingsService? _settingsService;
+    private readonly PatchResourceIndexCache _indexCache = new();
+
+    private sealed record PatchOwner(Mod Mod, int Order, string Path, string Target);
+    private readonly record struct ResourceOccurrence(PatchOwner Source, uint Size, uint Stream, uint Gpu, uint? Version)
+    {
+        public ConflictFileOwner ToOwner() => new()
+        {
+            ModId = Source.Mod.Id, ModName = Source.Mod.Name, ModOrder = Source.Order,
+            FullPath = Source.Path, TargetFileName = Source.Target,
+            Size = Size, StreamSize = Stream, GpuSize = Gpu, UnitVersion = Version
+        };
+    }
+    private struct ResourceOwners
+    {
+        public ResourceOccurrence First;
+        public List<ResourceOccurrence>? Repeated;
+    }
 
     public ConflictDetectionService(IProfileRepository profileRepository, IModRepository modRepository, SettingsService? settingsService = null)
     {
@@ -80,7 +99,7 @@ public class ConflictDetectionService
 
         return await Task.Run(() =>
         {
-            var resources = new Dictionary<(ulong Type, ulong Id), List<ConflictFileOwner>>();
+            var resources = new Dictionary<(ulong Type, ulong Id), ResourceOwners>();
             var nextIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var position = 0; position < sequence.Count; position++)
             {
@@ -116,21 +135,24 @@ public class ConflictDetectionService
                     cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
-                        var entries = PatchResourceIndexReader.Read(file.SourcePath!, cancellationToken);
+                        var entries = _indexCache.Read(file.SourcePath!, cancellationToken, out var cached);
+                        if (cached) result.CachedPatchCount++;
                         result.ScannedPatchCount++;
                         result.ScannedResourceCount += entries.Count;
+                        var source = new PatchOwner(mod, position, file.SourcePath!, file.FileName);
                         foreach (var entry in entries)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
                             var key = (entry.TypeId, entry.ResourceId);
-                            if (!resources.TryGetValue(key, out var owners)) resources[key] = owners = new();
-                            owners.Add(new ConflictFileOwner
+                            var occurrence = new ResourceOccurrence(source, entry.DataSize, entry.StreamSize, entry.GpuSize, entry.UnitVersion);
+                            ref var owners = ref CollectionsMarshal.GetValueRefOrAddDefault(resources, key, out var exists);
+                            if (!exists) owners.First = occurrence;
+                            else
                             {
-                                ModId = mod.Id, ModName = mod.Name, ModOrder = position,
-                                FullPath = file.SourcePath!, TargetFileName = file.FileName,
-                                Size = entry.DataSize, StreamSize = entry.StreamSize, GpuSize = entry.GpuSize,
-                                UnitVersion = entry.UnitVersion
-                            });
+                                // 唯一资源不分配 List 或展示对象；仅重复资源保留全部持有者。
+                                owners.Repeated ??= [owners.First];
+                                owners.Repeated.Add(occurrence);
+                            }
                         }
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
@@ -140,9 +162,15 @@ public class ConflictDetectionService
                 }
             }
             cancellationToken.ThrowIfCancellationRequested();
-            result.Groups = resources.Where(pair => pair.Value.Select(owner => owner.ModId).Distinct().Count() > 1)
+            result.Groups = resources.Where(pair =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return pair.Value.Repeated is { } repeated
+                        && repeated.Any(owner => owner.Source.Mod.Id != pair.Value.First.Source.Mod.Id);
+                })
                 .OrderBy(pair => pair.Key.Type).ThenBy(pair => pair.Key.Id)
-                .Select(pair => new ConflictGroup { TypeId = pair.Key.Type, ResourceId = pair.Key.Id, Owners = pair.Value }).ToList();
+                .Select(pair => new ConflictGroup { TypeId = pair.Key.Type, ResourceId = pair.Key.Id,
+                    Owners = pair.Value.Repeated!.Select(owner => owner.ToOwner()).ToArray() }).ToList();
             return result;
         }, cancellationToken);
     }

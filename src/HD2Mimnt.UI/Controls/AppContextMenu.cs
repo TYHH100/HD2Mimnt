@@ -2,6 +2,7 @@ using System.Windows.Input;
 using Avalonia.Controls;
 using FluentAvalonia.UI.Controls;
 using HD2Mimnt.UI.Services;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.Controls;
 
@@ -63,6 +64,7 @@ public static class AppContextMenu
             if (entry is not ContextMenuItem definition) continue;
 
             var menuItem = new FAMenuFlyoutItem { Text = definition.Header, Command = definition.Command, CommandParameter = definition.CommandParameter };
+            menuItem.Bind(FAMenuFlyoutItem.TextProperty, UiLocalization.Current.TextBinding(definition.Header));
             if (definition.IconKind is { } iconKind)
             {
                 menuItem.IconSource = new FASymbolIconSource { Symbol = new UtilityIcon { Kind = iconKind }.Symbol };

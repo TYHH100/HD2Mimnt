@@ -1,5 +1,7 @@
 # HD2Mimnt
 
+文档入口：[文档导航](docs/README.md)（模块说明、设计计划、性能报告与历史归档）。
+
 **Helldivers 2 Mod Manager**
 
 A comprehensive mod management solution for Helldivers 2, featuring advanced support for HD2IR (nested archive) mods, profile-based configurations, and multiple deployment methods.
@@ -21,7 +23,7 @@ A comprehensive mod management solution for Helldivers 2, featuring advanced sup
 - ✅ **Phase 4 (P4)**: Profile Integration - LogicalMod profile integration, diff-driven profile switching
 - ✅ **24/24 Acceptance Criteria Passed** (100%)
 
-See [HD2IR Documentation Index](docs/HD2IR_DOCUMENTATION_INDEX.md) for complete documentation.
+See [HD2IR Documentation Index](docs/Archive%20records/HD2IR/HD2IR_DOCUMENTATION_INDEX.md) for complete documentation.
 
 ---
 
@@ -139,18 +141,18 @@ dotnet run -c Release
 
 ### Quick Start
 - [CLAUDE.md](CLAUDE.md) - Project overview and development guide
-- [HD2IR Quick Reference](docs/HD2IR_QUICKREF.md) - API and usage examples
+- [HD2IR Quick Reference](docs/Archive%20records/HD2IR/HD2IR_QUICKREF.md) - API and usage examples
 
 ### HD2IR Phase 1-4 Documentation
-- [Documentation Index](docs/HD2IR_DOCUMENTATION_INDEX.md) - Complete documentation navigation
-- [Final Summary](docs/HD2IR_PHASE1-4_FINAL_SUMMARY.md) - Phase 1-4 overview
-- [Acceptance Report](docs/HD2IR_PHASE1-4_ACCEPTANCE_REPORT.md) - Verification and acceptance
-- [Implementation Report](docs/HD2IR_PHASE1-4_IMPLEMENTATION_REPORT.md) - Technical details
+- [Documentation Index](docs/Archive%20records/HD2IR/HD2IR_DOCUMENTATION_INDEX.md) - Complete documentation navigation
+- [Final Summary](docs/Archive%20records/HD2IR/HD2IR_PHASE1-4_FINAL_SUMMARY.md) - Phase 1-4 overview
+- [Acceptance Report](docs/Archive%20records/HD2IR/HD2IR_PHASE1-4_ACCEPTANCE_REPORT.md) - Verification and acceptance
+- [Implementation Report](docs/Archive%20records/HD2IR/HD2IR_PHASE1-4_IMPLEMENTATION_REPORT.md) - Technical details
 
 ### Phase-Specific Reports
-- [Phase 1 Complete](docs/HD2IR_PHASE1_COMPLETE.md) - Import & Detection
-- [Phase 2-3 Complete](docs/HD2IR_PHASE2-3_COMPLETE.md) - Deployment Integration
-- [Phase 4 Complete](docs/HD2IR_PHASE4_COMPLETE.md) - Profile Integration
+- [Phase 1 Complete](docs/Archive%20records/HD2IR/HD2IR_PHASE1_COMPLETE.md) - Import & Detection
+- [Phase 2-3 Complete](docs/Archive%20records/HD2IR/HD2IR_PHASE2-3_COMPLETE.md) - Deployment Integration
+- [Phase 4 Complete](docs/Archive%20records/HD2IR/HD2IR_PHASE4_COMPLETE.md) - Profile Integration
 
 ---
 

@@ -1,3 +1,4 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -27,18 +28,18 @@ public partial class ModImportOverlay : UserControl
             {
                 items = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
-                    Title = "选择模组文件夹", AllowMultiple = true
+                    Title = UiLocalization.Current.Translate("选择模组文件夹"), AllowMultiple = true
                 });
             }
             else
             {
                 items = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "选择模组压缩包", AllowMultiple = true,
+                    Title = UiLocalization.Current.Translate("选择模组压缩包"), AllowMultiple = true,
                     FileTypeFilter = new[]
                     {
-                        new FilePickerFileType("模组压缩包") { Patterns = new[] { "*.zip", "*.rar", "*.7z", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.tbz2", "*.xz" } },
-                        new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                        new FilePickerFileType(UiLocalization.Current.Translate("模组压缩包")) { Patterns = new[] { "*.zip", "*.rar", "*.7z", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.tbz2", "*.xz" } },
+                        new FilePickerFileType(UiLocalization.Current.Translate("所有文件")) { Patterns = new[] { "*" } }
                     }
                 });
             }

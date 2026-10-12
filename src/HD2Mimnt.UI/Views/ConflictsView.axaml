@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:app="using:HD2Mimnt.Application.Services"
              x:Class="HD2Mimnt.UI.Views.ConflictsView"
@@ -7,21 +7,21 @@
   <Grid RowDefinitions="Auto,Auto,*" Margin="24,16,24,20">
 
     <StackPanel Grid.Row="0" Spacing="4">
-      <TextBlock Text="冲突" Classes="page-title"/>
-      <TextBlock Text="{Binding ProfileName, StringFormat='检查配置：{0}'}" FontWeight="SemiBold"/>
-      <TextBlock Text="检查启用模组中的相同资源；按当前部署方向和补丁顺序显示预期生效者。版本或大小不同表示明确差异，相同仍可能存在内容差异。"
+      <TextBlock Text="{loc:Loc UI.Conflicts}" Classes="page-title"/>
+      <TextBlock Text="{loc:LocalizedBinding ProfileName, FormatKey=UI.CheckingProfile}" FontWeight="SemiBold"/>
+      <TextBlock Text="{loc:Loc UI.CheckSharedResourcesInEnabledModsExpectedWinnersFollowTheCurrentDeploy}"
                  Classes="page-subtitle" TextWrapping="Wrap" Margin="0,4,0,0"/>
     </StackPanel>
 
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,12">
-      <TextBlock Text="{Binding SummaryText}" Classes="secondary-text" VerticalAlignment="Center"
+      <TextBlock Text="{loc:LocalizedBinding SummaryText}" Classes="secondary-text" VerticalAlignment="Center"
                  TextTrimming="CharacterEllipsis"/>
       <Button Grid.Column="1" Classes="secondary" Command="{Binding CancelScanCommand}"
-              IsVisible="{Binding IsScanning}" Margin="0,0,8,0" Content="取消"/>
+              IsVisible="{Binding IsScanning}" Margin="0,0,8,0" Content="{loc:Loc Common.Cancel}"/>
       <Button x:Name="ScanConflictsButton" Grid.Column="2" Classes="accent" Command="{Binding ScanCommand}" IsEnabled="{Binding !IsScanning}">
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock Text="检查冲突" IsVisible="{Binding !HasScanned}"/>
-          <TextBlock Text="重新检查" IsVisible="{Binding HasScanned}"/>
+          <TextBlock Text="{loc:Loc UI.CheckConflicts}" IsVisible="{Binding !HasScanned}"/>
+          <TextBlock Text="{loc:Loc UI.CheckAgain}" IsVisible="{Binding HasScanned}"/>
         </StackPanel>
       </Button>
     </Grid>
@@ -29,71 +29,80 @@
     <Grid Grid.Row="2">
       <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
                   IsVisible="{Binding IsNoProfileStateVisible}">
-        <TextBlock Text="没有可检查的配置文件" FontSize="16" HorizontalAlignment="Center"/>
-        <TextBlock Text="先在配置文件页选择一个配置，再执行冲突检测。" Classes="muted" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc UI.NoProfileToCheck}" FontSize="16" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc UI.SelectAProfileOnTheProfilesPageBeforeCheckingConflicts}" Classes="muted" HorizontalAlignment="Center"/>
       </StackPanel>
 
       <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
                   IsVisible="{Binding IsNotScannedStateVisible}">
-        <TextBlock Text="尚未执行冲突检测" FontSize="16" HorizontalAlignment="Center"/>
-        <TextBlock Text="点击右上角「检查冲突」开始扫描当前配置的启用模组。" Classes="muted" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc UI.ConflictsHaveNotBeenChecked}" FontSize="16" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc UI.ClickCheckConflictsToScanEnabledModsInTheCurrentProfile}" Classes="muted" HorizontalAlignment="Center"/>
       </StackPanel>
 
       <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
                   IsVisible="{Binding IsErrorStateVisible}">
-        <TextBlock Text="检测失败" FontSize="16" HorizontalAlignment="Center"
+        <TextBlock Text="{loc:Loc UI.CheckFailed}" FontSize="16" HorizontalAlignment="Center"
                    Foreground="{DynamicResource ErrorBrush}"/>
-        <TextBlock Text="{Binding ErrorMessage}" Classes="muted" MaxWidth="420" TextWrapping="Wrap"
+        <TextBlock Text="{loc:LocalizedBinding ErrorMessage}" Classes="muted" MaxWidth="420" TextWrapping="Wrap"
                    HorizontalAlignment="Center"/>
       </StackPanel>
 
       <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding IsLoading}">
         <ProgressBar IsIndeterminate="True" Width="240"/>
-        <TextBlock Text="正在读取补丁资源…" Classes="muted" HorizontalAlignment="Center"/>
+        <TextBlock Text="{loc:Loc UI.ReadingPatchResources}" Classes="muted" HorizontalAlignment="Center"/>
       </StackPanel>
 
-      <ScrollViewer IsVisible="{Binding IsResultsVisible}">
-        <StackPanel Spacing="12">
-          <Border Classes="card" IsVisible="{Binding HasWarnings}">
+      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="12" IsVisible="{Binding IsResultsVisible}">
+          <Border Classes="card" IsVisible="{Binding HasWarnings}" MaxHeight="180">
+            <ScrollViewer>
             <StackPanel Spacing="8">
-              <TextBlock Text="检测不完整：以下项目未能读取，请处理后重新检查。" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="{loc:Loc UI.IncompleteResultsTheFollowingItemsCouldNotBeReadResolveTheseIssuesAndC}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"/>
               <ItemsControl ItemsSource="{Binding Warnings}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="app:ConflictScanWarning">
                     <StackPanel Margin="0,4" Spacing="3">
                       <TextBlock Text="{Binding ModName}" FontWeight="SemiBold"/>
-                      <TextBlock Text="{Binding Message}" Classes="muted" TextWrapping="Wrap"/>
+                      <TextBlock Text="{loc:LocalizedBinding Message}" Classes="muted" TextWrapping="Wrap"/>
                       <TextBlock Text="{Binding FilePath}" Classes="muted" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FilePath}"/>
                     </StackPanel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </StackPanel>
+            </ScrollViewer>
           </Border>
-          <StackPanel Spacing="8" HorizontalAlignment="Center" IsVisible="{Binding IsNoConflictsVisible}">
-            <TextBlock Text="{Binding NoConflictsText}" FontSize="16"
+          <StackPanel Grid.Row="1" Spacing="8" HorizontalAlignment="Center" IsVisible="{Binding IsNoConflictsVisible}">
+            <TextBlock Text="{loc:LocalizedBinding NoConflictsText}" FontSize="16"
                        Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center"/>
-            <TextBlock Text="结果仅包含当前选中的补丁资源，不代表已验证游戏运行兼容性。" Classes="muted" HorizontalAlignment="Center"/>
+            <TextBlock Text="{loc:Loc UI.ResultsCoverSelectedPatchResourcesOnlyAndDoNotVerifyCompatibilityInThe}" Classes="muted" HorizontalAlignment="Center"/>
           </StackPanel>
 
-          <ItemsControl ItemsSource="{Binding Groups}" IsVisible="{Binding IsConflictsVisible}">
-            <ItemsControl.ItemTemplate>
+          <ListBox x:Name="ConflictGroupsList" Grid.Row="2" ItemsSource="{Binding Groups}" IsVisible="{Binding IsConflictsVisible}"
+                   Background="Transparent" BorderThickness="0" Padding="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="Padding" Value="0"/>
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:ConflictGroupViewModel">
                 <Border Classes="card" Margin="0,0,0,10">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Text="{Binding RelativePath}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                                  FontFamily="Consolas"/>
-                      <TextBlock Grid.Column="1" Text="{Binding ModCount, StringFormat='{}{0} 个模组'}"
+                      <TextBlock Grid.Column="1" Text="{loc:LocalizedBinding ModCount, FormatKey=UI.Mods}"
                                  Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                      <TextBlock Text="{Binding ResourceTypeName}" FontWeight="SemiBold"/>
-                      <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource WarningBrush}"/>
+                      <TextBlock Text="{loc:LocalizedBinding ResourceTypeName, TranslateParts=True}" FontWeight="SemiBold"/>
+                      <TextBlock Text="{loc:LocalizedBinding StatusText}" Foreground="{DynamicResource WarningBrush}"/>
                     </StackPanel>
                     <TextBlock Text="{Binding TypeIdText}" Classes="muted" FontSize="12"/>
-                    <ItemsControl ItemsSource="{Binding Owners}">
-                      <ItemsControl.ItemTemplate>
+                    <ListBox ItemsSource="{Binding Owners}" MaxHeight="320" Background="Transparent" BorderThickness="0"
+                             Padding="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                      <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:ConflictOwnerViewModel">
                           <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" Margin="0,4">
                             <Ellipse Width="7" Height="7" VerticalAlignment="Center"
@@ -103,27 +112,26 @@
                                      IsVisible="{Binding !IsWinner}"
                                      Fill="{DynamicResource WarningBrush}"/>
                             <TextBlock Grid.Column="1" Text="{Binding ModName}" FontWeight="Medium"/>
-                            <TextBlock Grid.Column="2" Text="预期生效" FontSize="12"
+                            <TextBlock Grid.Column="2" Text="{loc:Loc UI.ExpectedWinner}" FontSize="12"
                                        Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"
                                        IsVisible="{Binding IsWinner}"/>
                             <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
-                              <TextBlock Text="{Binding OrderText}" Classes="muted" FontSize="12"/>
-                              <TextBlock Text="{Binding VersionText}" Classes="muted" FontSize="12"/>
-                              <TextBlock Text="{Binding SizeText}" Classes="muted" FontSize="12"/>
+                              <TextBlock Text="{loc:LocalizedBinding OrderText}" Classes="muted" FontSize="12"/>
+                              <TextBlock Text="{loc:LocalizedBinding VersionText}" Classes="muted" FontSize="12"/>
+                              <TextBlock Text="{loc:LocalizedBinding SizeText}" Classes="muted" FontSize="12"/>
                             </StackPanel>
                             <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding PatchText}" Classes="muted" FontSize="12"
                                        TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" Margin="0,3,0,0"/>
                           </Grid>
                         </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
                   </StackPanel>
                 </Border>
               </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </ScrollViewer>
+            </ListBox.ItemTemplate>
+          </ListBox>
+      </Grid>
     </Grid>
   </Grid>
 </UserControl>

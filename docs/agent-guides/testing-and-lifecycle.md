@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- Headless 实际点击验证在工具栏、弹窗等改变布局后，应先排空 Dispatcher、更新布局并调用 `CaptureRenderedFrame` 刷新合成命中场景，再执行 `InputHitTest` 和鼠标输入。单独 `UpdateLayout` 或 `RenderTargetBitmap.Render` 可能显示新位置却命中旧场景，不能据此误改业务绑定。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless/HeadlessWindowExtensions.cs
+
 - 导入、部署、清理等耗时操作必须可取消并保持 UI 可响应；临时解压目录和测试目录必须在流程结束后清理。
 
 - 修改后先顺序执行 `dotnet build HD2Mimnt.slnx --no-restore` 和相关测试；共享 SQLite 输出的测试程序集已禁用类级并行，避免全局池清理互相干扰。

@@ -163,12 +163,16 @@ public class ProfileServiceTests : IDisposable
     public async Task ProfileSeparator_ShouldPersistRenameCollapseAndReload()
     {
         var profileId = await _profileService.CreateProfileAsync("分组配置");
+        var changes = new List<ProfilesChangedEventArgs>();
+        _profileService.ProfilesChanged += (_, change) => changes.Add(change);
         var separator = await _profileService.AddSeparatorAsync(profileId, "武器", 0);
         await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
         await _profileService.RenameSeparatorAsync(profileId, separator.Id, "武器与护甲");
         await _profileService.UpdateSeparatorAsync(profileId, separator.Id, "武器与护甲", "#aa33ee");
         await _profileService.UpdateSeparatorAsync(profileId, Guid.Empty, "", "#12ab56");
         await _profileService.SetSeparatorCollapsedAsync(profileId, Guid.Empty, true);
+        Assert.NotEmpty(changes);
+        Assert.All(changes, change => Assert.False(change.AffectsConflictResults));
 
         using var reopened = new HD2MimntDbContext(_testDbPath);
         await reopened.InitializeDatabaseAsync();

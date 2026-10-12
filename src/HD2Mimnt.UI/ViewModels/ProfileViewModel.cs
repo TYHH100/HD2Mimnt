@@ -26,6 +26,59 @@ public partial class ProfileViewModel : ObservableObject
     private readonly ImagePreviewService? _imagePreview;
 
     public event EventHandler? ActiveProfileChanged;
+    public event EventHandler<ProfileModViewModel>? ConflictModLocationRequested;
+
+    [ObservableProperty]
+    private bool _isConflictPickerOpen;
+
+    [ObservableProperty]
+    private ObservableCollection<ProfileModViewModel> _conflictNavigationChoices = new();
+
+    [RelayCommand]
+    private async Task OpenConflictNavigationAsync(ProfileModViewModel? source)
+    {
+        if (source == null || !ProfileMods.Contains(source) || !source.HasConflict) return;
+        var ids = source.ConflictTargets.Select(target => target.ModId).ToHashSet();
+        ConflictNavigationChoices = new(ProfileMods.Where(mod => ids.Contains(mod.ModId)));
+        if (ConflictNavigationChoices.Count == 1)
+            await LocateConflictModAsync(ConflictNavigationChoices[0]);
+        else IsConflictPickerOpen = ConflictNavigationChoices.Count > 1;
+    }
+
+    [RelayCommand]
+    private void CloseConflictPicker()
+    {
+        IsConflictPickerOpen = false;
+        ConflictNavigationChoices = new();
+    }
+
+    [RelayCommand]
+    private async Task LocateConflictModAsync(ProfileModViewModel? target)
+    {
+        if (target == null || !ConflictNavigationChoices.Contains(target) || !ProfileMods.Contains(target)
+            || SelectedProfile is not { } profile) return;
+        CloseConflictPicker();
+        ModSearchText = string.Empty;
+        var group = target.IsBslMember ? _luaSeparator
+            : ProfileSeparators.FirstOrDefault(separator => GetSeparatorMembers(separator).Contains(target));
+        if (group?.IsCollapsed == true) await ToggleSeparatorAsync(group);
+        if (SelectedProfile != profile || !ProfileMods.Contains(target) || !VisibleProfileMods.Contains(target)) return;
+        ClearModSelection();
+        if (target.CanSelect) FocusMod(target);
+        target.IsConflictLocation = true;
+        ConflictModLocationRequested?.Invoke(this, target);
+    }
+
+    /// <summary>按模组 ID 回填当前扫描，不持久化临时分析结果。</summary>
+    public void ApplyConflictResults(IEnumerable<ConflictGroupViewModel> groups)
+        => ApplyConflictIndex(ConflictCardIndex.Create(groups));
+
+    public void ApplyConflictIndex(ConflictCardIndex index)
+    {
+        CloseConflictPicker();
+        foreach (var mod in ProfileMods)
+            mod.ApplyConflictStatus(mod.Enabled && index.Contains(mod.ModId), index);
+    }
 
     [ObservableProperty]
     private ObservableCollection<ProfileItemViewModel> _profiles = new();
@@ -111,7 +164,11 @@ public partial class ProfileViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearModSelection() => _modSelection.Clear();
+    private void ClearModSelection()
+    {
+        _modSelection.Clear();
+        foreach (var mod in ProfileMods) mod.IsConflictLocation = false;
+    }
 
     [RelayCommand]
     private void ToggleSelectAllMods() => _modSelection.ToggleAll();
@@ -257,6 +314,30 @@ public partial class ProfileViewModel : ObservableObject
     private ObservableCollection<LibraryModChoiceViewModel> _availableLibraryMods = new();
 
     [ObservableProperty]
+    private string _addModSearchText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoAddModSearchResults))]
+    private ObservableCollection<LibraryModChoiceViewModel> _visibleAvailableLibraryMods = new();
+
+    public bool HasNoAddModSearchResults => !HasNoAvailableMods && VisibleAvailableLibraryMods.Count == 0;
+
+    partial void OnAddModSearchTextChanged(string value) => ApplyAddModFilter();
+
+    private void ApplyAddModFilter()
+    {
+        var query = AddModSearchText.Trim();
+        VisibleAvailableLibraryMods = new(AvailableLibraryMods.Where(mod => query.Length == 0
+            || mod.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || mod.Author.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || mod.Version.Contains(query, StringComparison.OrdinalIgnoreCase)));
+        OnPropertyChanged(nameof(HasNoAvailableMods));
+    }
+
+    [RelayCommand]
+    private void ClearAddModSearch() => AddModSearchText = string.Empty;
+
+    [ObservableProperty]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -319,6 +400,7 @@ public partial class ProfileViewModel : ObservableObject
         void Apply()
         {
             _bottomToTop = e.NewValue?.ToString() == DeploymentOrder.BottomToTop.ToString();
+            _luaSeparator.ChevronAngle = _bottomToTop ? -90 : 90;
             ArrangeBslDisplay();
             RenumberProfileMods();
             ApplyModFilter();
@@ -481,7 +563,7 @@ public partial class ProfileViewModel : ObservableObject
     partial void OnHasNoModResultsChanged(bool value) => RefreshProfileModStateProperties();
 
     partial void OnAvailableLibraryModsChanged(ObservableCollection<LibraryModChoiceViewModel> value)
-        => OnPropertyChanged(nameof(HasNoAvailableMods));
+        => ApplyAddModFilter();
 
     partial void OnCompareRightProfileChanged(ProfileItemViewModel? value)
     {
@@ -674,11 +756,14 @@ public partial class ProfileViewModel : ObservableObject
     {
         ClearModSelection();
         IsAddModOpen = false;
+        CloseConflictPicker();
         IsSeparatorDialogOpen = false;
         ProfileSeparators.Clear();
         _luaSeparator.IsCollapsed = false;
         _luaSeparator.SeparatorColor = string.Empty;
         AvailableLibraryMods.Clear();
+        AddModSearchText = string.Empty;
+        ApplyAddModFilter();
         if (value == null && IsCompareOpen)
         {
             IsCompareOpen = false;
@@ -775,6 +860,7 @@ public partial class ProfileViewModel : ObservableObject
             _luaSeparator.ProfileId = profile.Id;
             _luaSeparator.IsCollapsed = profile.IsLuaGroupCollapsed;
             _luaSeparator.SeparatorColor = profile.LuaSeparatorColor;
+            _luaSeparator.ChevronAngle = _bottomToTop ? -90 : 90;
             ProfileSeparators = new ObservableCollection<ProfileModViewModel>(profile.Separators
                 .OrderBy(separator => separator.Order)
                 .Select(CreateSeparatorRow));
@@ -877,6 +963,7 @@ public partial class ProfileViewModel : ObservableObject
                 })
                 .ToList();
 
+            AddModSearchText = string.Empty;
             AvailableLibraryMods = new ObservableCollection<LibraryModChoiceViewModel>(available);
             IsAddModOpen = true;
         }
@@ -900,6 +987,7 @@ public partial class ProfileViewModel : ObservableObject
                 _profileService.AddModToProfileAsync(SelectedProfile.Id, mod.Id));
             SelectedProfile.ModCount++;
             AvailableLibraryMods.Remove(mod);
+            ApplyAddModFilter();
             await LoadProfileModsAsync(SelectedProfile.Id);
             _notificationService.ShowSuccess($"已将“{mod.Name}”添加到当前查看的 Profile", "添加模组");
         }
@@ -1532,6 +1620,34 @@ public partial class ProfileItemViewModel : ObservableObject
 
 public partial class ProfileModViewModel : ObservableObject
 {
+    [ObservableProperty]
+    private bool _isConflictLocation;
+
+    public IEnumerable<ConflictModTarget> ConflictTargets { get; private set; } = [];
+
+    [ObservableProperty]
+    private bool _hasConflict;
+
+    public string ConflictTooltip
+    {
+        get
+        {
+            if (!HasConflict) return string.Empty;
+            var preview = ConflictTargets.Take(9).ToArray();
+            return "与以下模组存在覆盖冲突：\n"
+                + string.Join("\n", preview.Take(8).Select(target => target.ModName))
+                + (preview.Length > 8 ? "\n…点击感叹号查看全部关联模组。" : "")
+                + "\n\n详细信息请查看“冲突”页。";
+        }
+    }
+
+    internal void ApplyConflictStatus(bool hasConflict, ConflictCardIndex index)
+    {
+        HasConflict = hasConflict;
+        ConflictTargets = hasConflict ? index.GetTargets(ModId) : [];
+        OnPropertyChanged(nameof(ConflictTooltip));
+    }
+
     public bool IsSeparator { get; init; }
     public bool IsUserSeparator { get; init; }
     [ObservableProperty]
@@ -1539,6 +1655,10 @@ public partial class ProfileModViewModel : ObservableObject
 
     [ObservableProperty]
     private int _groupModCount;
+
+    /// <summary>展开时的箭头方向：常规部署向下，从下到上部署向上。</summary>
+    [ObservableProperty]
+    private double _chevronAngle = 90;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCustomSeparatorColor))]
     [NotifyPropertyChangedFor(nameof(SeparatorColorBrush))]
@@ -1661,6 +1781,8 @@ public partial class ProfileModViewModel : ObservableObject
         }
     }
 }
+
+public sealed record ConflictModTarget(Guid ModId, string ModName);
 
 /// <summary>
 /// 模组选项覆盖层（应用内模态弹窗）：展示 v1 选项卡片（独立开关 + 带图片的子选项多选一）

@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Application.Localization;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Data;
@@ -13,10 +14,12 @@ using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Downloads;
+using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
+using HD2Mimnt.UI.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -54,6 +57,12 @@ public partial class App : Avalonia.Application
 
             // 设置 Program.AppHost
             Program.SetAppHost(host);
+
+            // 在 ViewModel/窗口构造前应用保存的语言，自动模式持续跟随系统。
+            var localization = ServiceProvider.GetRequiredService<LocalizationService>();
+            ServiceProvider.GetRequiredService<UiLocalization>();
+            localization.StartMonitoring();
+            desktop.Exit += (_, _) => localization.Dispose();
 
             // 开屏窗口：纯展示，关闭由 Opened 事件与兜底计时器异步触发，
             // 不参与启动流程、没有任何等待关系，结构上不可能与启动互相死锁
@@ -302,6 +311,17 @@ public partial class App : Avalonia.Application
             appDataPath,
             sp.GetService<ILogger<SettingsService>>()));
 
+        services.AddSingleton<ISystemLanguageProvider, SystemLanguageProvider>();
+        services.AddSingleton<TranslationCatalog>();
+        services.AddSingleton<LocalizationService>();
+        services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
+        services.AddSingleton(sp =>
+        {
+            var adapter = UiLocalization.Current;
+            adapter.Attach(sp.GetRequiredService<ILocalizationService>());
+            return adapter;
+        });
+
         services.AddSingleton(sp => new BackupService(
             appDataPath,
             sp.GetRequiredService<HD2MimntDbContext>(),
@@ -349,7 +369,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<NotificationService>(),
-            sp.GetRequiredService<IImageCacheService>()));
+            sp.GetRequiredService<IImageCacheService>(),
+            sp.GetRequiredService<UiLocalization>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(

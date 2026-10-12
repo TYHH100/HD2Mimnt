@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+using HD2Mimnt.UI.Localization;
+using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -302,10 +303,10 @@ public partial class LibraryView : UserControl
         var suggestedName = online.SuggestedDownloadFileName;
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "保存模组压缩包", SuggestedFileName = suggestedName, DefaultExtension = Path.GetExtension(suggestedName).TrimStart('.'),
+            Title = UiLocalization.Current.Translate("保存模组压缩包"), SuggestedFileName = suggestedName, DefaultExtension = Path.GetExtension(suggestedName).TrimStart('.'),
             FileTypeChoices = new[]
             {
-                new FilePickerFileType("模组压缩包") { Patterns = new[] { "*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.bz2", "*.xz" } },
+                new FilePickerFileType(UiLocalization.Current.Translate("模组压缩包")) { Patterns = new[] { "*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.bz2", "*.xz" } },
                 FilePickerFileTypes.All
             }
         });

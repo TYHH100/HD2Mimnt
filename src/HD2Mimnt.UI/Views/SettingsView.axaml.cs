@@ -1,3 +1,4 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.ViewModels;
@@ -17,11 +18,11 @@ public partial class SettingsView : UserControl
 
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "选择背景图片",
+            Title = UiLocalization.Current.Translate("选择背景图片"),
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("图片文件")
+                new FilePickerFileType(UiLocalization.Current.Translate("图片文件"))
                 {
                     Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" }
                 }

@@ -4,7 +4,13 @@
 
 ## 易错点与正确做法
 
-- 用户分组保存于 `ProfileSeparators`，固定 Lua 分组的折叠及颜色单独保存于 `Profiles`；颜色用 `#RRGGBB`，空值跟随主题，标题保留主题文字并以色条区分。两种分组折叠只影响显示，不改启用/选项/顺序、不参与部署；反向时 Lua 分隔符隐藏其上方固定成员，固定分隔符仍不可拖动或删除。搜索按完整成员显示匹配项，不改变保存的折叠状态；排序事务保存完整模组顺序及用户分隔符落点，不能按折叠/过滤后的索引改变归属。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
+- 自动检查冲突在“设置 → 配置文件”默认关闭，保存后生效；合并连续变更，串行扫描、取消过期结果，关闭设置和退出均取消待执行任务。不要在 UI 线程解析索引或格式化大量详情。卡片关系共享去重后的成员集合，悬停最多列 8 个名称，点击仍可查看全部；冲突资源、持有者及定位选择列表保持虚拟化，不能嵌套无高度约束的 ScrollViewer 使所有条目同时创建。性能边界及实测见[自动检查评估](../reports/automatic-conflict-check-performance.md)。来源：https://docs.avaloniaui.net/docs/reference/controls/virtualizingstackpanel
+
+- 配置页“检查冲突”直接扫描正在查看的配置，不自动切换页面；配置卡片按 ModId 回填资源覆盖的黄色缩略图角标，共用冲突页结果。卡片悬停提示用于快速排查，只列出去重后的关联模组名称；点击角标时单目标直接定位，多目标先在浮动面板选择，再清除搜索、展开目标分组并滚动到卡片，以主题强调边框标记。固定加载器可以定位但不能变成批量选中；Escape 优先关选择窗，配置切换、视图卸载和结果失效均清空候选。资源编号、类型、差异和预期生效者留在“冲突”页。启用、选项、顺序、成员或部署方向改变后清除旧提示；卡片重建时回填仍有效的结果。角标位置不能随选项按钮有无变化，警告图标使用 UtilityIcon 与主题 WarningBrush，检查长名称、选项按钮、深浅主题和窄窗口，截图前先排空通知事件再关闭横幅，防止遮挡卡片。来源：https://docs.avaloniaui.net/docs/reference/controls/tooltip 、https://github.com/amwx/FluentAvalonia
+
+- 用户分组保存于 `ProfileSeparators`，固定 Lua 分组的折叠及颜色单独保存于 `Profiles`；颜色用 `#RRGGBB`，空值跟随主题，标题保留主题文字并以色条区分。两种分组折叠只影响显示，不改启用/选项/顺序、不参与部署；分隔符添加、删除、改名、颜色和折叠保存仍通知界面刷新，但通过 `ProfilesChangedEventArgs.AffectsConflictResults=false` 保留冲突结果，不能触发重检或取消正在进行的扫描。反向时 Lua 分隔符隐藏其上方固定成员，固定分隔符仍不可拖动或删除。搜索按完整成员显示匹配项，不改变保存的折叠状态；排序事务保存完整模组顺序及用户分隔符落点，不能按折叠/过滤后的索引改变归属。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
+
+- 依赖加载器分隔符使用 `ChevronAngle` 表达部署方向：常规部署展开箭头向下（90°），从下到上部署向上（-90°）；不要只改固定图标，否则方向切换后 UI 与列表顺序不一致。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 外部文件导入拖放统一在 MainWindow 冒泡路由处理并启用 handledEventsToo（DragDrop 事件不走隧道路由），先识别本地文件再标记 Handled，避免页面子控件吞掉事件或内部排序覆盖 Copy；根容器使用透明背景覆盖空白区域。提示层不参与命中测试，DragLeave 只有窗口坐标越界才隐藏，不能因子控件之间移动反复显隐；无文件数据继续交给内部排序。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 

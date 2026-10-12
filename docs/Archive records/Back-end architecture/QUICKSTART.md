@@ -198,9 +198,9 @@ Mod 导入服务，提供:
 
 ## 技术文档
 
-- [CLAUDE.md](./CLAUDE.md) - 详细的开发文档
+- [CLAUDE.md](../../../CLAUDE.md) - 详细的开发文档
 - [PROGRESS.md](./PROGRESS.md) - 开发进度跟踪
-- [HD2Mimnt v2 总体开发计划.md](./HD2Mimnt%20v2%20总体开发计划.md) - 总体规划
+- [HD2Mimnt v2 总体开发计划.md](../../plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md) - 总体规划
 
 ## 常见问题
 
@@ -236,4 +236,4 @@ Mod 导入服务，提供:
 3. 创建内置工作流（标准部署、PAK 处理等）
 4. 添加工作流测试
 
-详细计划参见 [HD2Mimnt v2 总体开发计划.md](./HD2Mimnt%20v2%20总体开发计划.md)
+详细计划参见 [HD2Mimnt v2 总体开发计划.md](../../plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)

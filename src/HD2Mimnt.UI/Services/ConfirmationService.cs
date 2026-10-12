@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using FluentAvalonia.UI.Controls;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.Services;
 
@@ -27,6 +28,11 @@ public sealed class ConfirmationService : IConfirmationService
             CloseButtonText = "取消",
             DefaultButton = FAContentDialogButton.Close
         };
+        var localizer = UiLocalization.Current;
+        using var titleBinding = dialog.Bind(FAContentDialog.TitleProperty, localizer.TextBinding(title));
+        using var messageBinding = ((TextBlock)dialog.Content!).Bind(TextBlock.TextProperty, localizer.TextBinding(message));
+        using var confirmBinding = dialog.Bind(FAContentDialog.PrimaryButtonTextProperty, localizer.TextBinding("确认"));
+        using var cancelBinding = dialog.Bind(FAContentDialog.CloseButtonTextProperty, localizer.TextBinding("取消"));
         return await dialog.ShowAsync(_owner) == FAContentDialogResult.Primary;
     }
 }

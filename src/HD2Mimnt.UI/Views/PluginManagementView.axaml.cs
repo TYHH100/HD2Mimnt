@@ -1,3 +1,4 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -48,12 +49,12 @@ public partial class PluginManagementView : UserControl
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "选择插件 manifest",
+            Title = UiLocalization.Current.Translate("选择插件 manifest"),
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("插件 manifest") { Patterns = new[] { "*.json" } },
-                new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                new FilePickerFileType(UiLocalization.Current.Translate("插件 manifest")) { Patterns = new[] { "*.json" } },
+                new FilePickerFileType(UiLocalization.Current.Translate("所有文件")) { Patterns = new[] { "*" } }
             }
         });
 

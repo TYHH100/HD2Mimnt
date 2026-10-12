@@ -2,6 +2,7 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using System;
 using System.Globalization;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.Converters;
 
@@ -95,15 +96,15 @@ public class TimeAgoConverter : IValueConverter
             var diff = now - dateTime;
 
             if (diff.TotalSeconds < 60)
-                return "just now";
+                return UiLocalization.Current["Time.JustNow"];
             if (diff.TotalMinutes < 60)
-                return $"{(int)diff.TotalMinutes}m ago";
+                return UiLocalization.Current.Format("Time.MinutesAgo", (int)diff.TotalMinutes);
             if (diff.TotalHours < 24)
-                return $"{(int)diff.TotalHours}h ago";
+                return UiLocalization.Current.Format("Time.HoursAgo", (int)diff.TotalHours);
             if (diff.TotalDays < 7)
-                return $"{(int)diff.TotalDays}d ago";
+                return UiLocalization.Current.Format("Time.DaysAgo", (int)diff.TotalDays);
 
-            return dateTime.ToLocalTime().ToString("MMM dd");
+            return dateTime.ToLocalTime().ToString("MMM dd", UiLocalization.Current.Culture);
         }
         return string.Empty;
     }

@@ -4,16 +4,36 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Services;
+using HD2Mimnt.Core.Localization;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.ViewModels;
 
-public partial class SettingsViewModel : ObservableObject
+public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly SettingsService _settingsService;
     private readonly GameDetectionService _gameDetectionService;
     private readonly NotificationService _notificationService;
     private readonly IImageCacheService _imageCacheService;
     private readonly DownloadSettingsService _downloadSettingsService;
+    private readonly UiLocalization? _localization;
+    private bool _syncingLanguage;
+    private readonly SemaphoreSlim _languageGate = new(1, 1);
+    private int _pendingLanguageChanges;
+
+    [ObservableProperty] private string _selectedLanguageCode = LanguageCodes.Automatic;
+    [ObservableProperty] private bool _isChangingLanguage;
+    public Task LanguageChangeTask { get; private set; } = Task.CompletedTask;
+    public IReadOnlyList<LanguageInfo> LanguageOptions { get; }
+    public string CurrentLanguageText
+    {
+        get
+        {
+            var language = _localization?.Service?.CurrentLanguage ?? LanguageCodes.SimplifiedChinese;
+            var name = LanguageOptions.FirstOrDefault(option => option.Code == language)?.NativeName ?? language;
+            return (_localization ?? UiLocalization.Current).Format("Settings.Language.Current", name);
+        }
+    }
 
     [ObservableProperty] private string _gamePath = string.Empty;
     [ObservableProperty] private bool _autoDetectGame = true;
@@ -29,6 +49,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private double _cardOpacity = 100;
     [ObservableProperty] private bool _enableAnimations = true;
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
+    [ObservableProperty] private bool _autoCheckConflicts;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -46,6 +67,7 @@ public partial class SettingsViewModel : ObservableObject
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? AppearanceChanged;
+    public event EventHandler<bool>? AutoCheckConflictsChanged;
 
     public bool IsGameCategoryVisible => SelectedCategory == "游戏";
     public bool IsProfileCategoryVisible => SelectedCategory == "配置文件";
@@ -55,13 +77,71 @@ public partial class SettingsViewModel : ObservableObject
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
     public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
 
-    public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService)
+    public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
+        UiLocalization? localization = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _imageCacheService = imageCacheService;
         _downloadSettingsService = new DownloadSettingsService(settingsService);
+        _localization = localization;
+        LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
+            .Concat(localization?.Service?.SupportedLanguages ?? new HD2Mimnt.Application.Localization.TranslationCatalog().SupportedLanguages)
+            .ToArray();
+        if (_localization != null) _localization.PropertyChanged += OnUiLanguageChanged;
+        SynchronizeLanguage();
+    }
+
+    partial void OnSelectedLanguageCodeChanged(string value)
+    {
+        // ComboBox 初始化/重建选中项时可能短暂回写 null；这不是用户的语言选择。
+        if (string.IsNullOrWhiteSpace(value)) return;
+        if (!_syncingLanguage && _localization?.Service != null)
+            LanguageChangeTask = ApplyLanguageAsync(value);
+    }
+
+    private async Task ApplyLanguageAsync(string code)
+    {
+        _pendingLanguageChanges++;
+        IsChangingLanguage = true;
+        await _languageGate.WaitAsync();
+        try
+        {
+            await _localization!.Service!.SetLanguageAsync(code);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = _localization!.Format("Settings.Language.ChangeFailed", ex.Message);
+            _notificationService.ShowError(StatusMessage, _localization["Settings.Title"]);
+        }
+        finally
+        {
+            _languageGate.Release();
+            _pendingLanguageChanges--;
+            IsChangingLanguage = _pendingLanguageChanges > 0;
+            if (!IsChangingLanguage) SynchronizeLanguage();
+        }
+    }
+
+    private void OnUiLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(UiLocalization.Revision)) return;
+        if (!IsChangingLanguage) SynchronizeLanguage();
+        OnPropertyChanged(nameof(CurrentLanguageText));
+    }
+
+    private void SynchronizeLanguage()
+    {
+        _syncingLanguage = true;
+        try { SelectedLanguageCode = _localization?.Service?.SelectedLanguage ?? LanguageCodes.Automatic; }
+        finally { _syncingLanguage = false; }
+        OnPropertyChanged(nameof(CurrentLanguageText));
+    }
+
+    public void Dispose()
+    {
+        if (_localization != null) _localization.PropertyChanged -= OnUiLanguageChanged;
     }
 
     partial void OnSelectedCategoryChanged(string value)
@@ -86,9 +166,12 @@ public partial class SettingsViewModel : ObservableObject
         IsLoading = true;
         try
         {
+            SynchronizeLanguage();
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
+            AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
+            AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
             DeployBottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
@@ -138,6 +221,14 @@ public partial class SettingsViewModel : ObservableObject
                 _notificationService.ShowSuccess(StatusMessage, "设置");
                 return;
             }
+            // 配置偏好可独立保存，不受游戏路径验证影响。
+            if (IsProfileCategoryVisible)
+            {
+                await SaveProfilePreferencesAsync();
+                StatusMessage = "配置文件设置已保存";
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             var gamePath = GamePath.Trim();
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -158,7 +249,7 @@ public partial class SettingsViewModel : ObservableObject
                 GamePath = gamePath;
             }
             await _settingsService.SetSettingAsync(SettingKeys.GameAutoDetect, AutoDetectGame);
-            await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
+            await SaveProfilePreferencesAsync();
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentMethod, DefaultDeploymentMethod.ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
                 (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString());
@@ -181,6 +272,13 @@ public partial class SettingsViewModel : ObservableObject
             StatusMessage = $"保存设置失败：{ex.Message}";
             _notificationService.ShowError($"保存设置失败: {ex.Message}", "设置");
         }
+    }
+
+    private async Task SaveProfilePreferencesAsync()
+    {
+        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
+        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, AutoCheckConflicts);
+        AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
     }
 
     [RelayCommand]

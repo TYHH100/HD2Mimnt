@@ -1,5 +1,5 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:HD2Mimnt.UI.ViewModels"
@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
         x:Class="HD2Mimnt.UI.Views.PluginPermissionDialog"
         x:DataType="vm:PluginPermissionDialogViewModel"
-        Title="插件权限请求"
+        Title="{loc:Loc UI.PluginPermissionRequest}"
         Width="600" Height="700"
         MinWidth="500" MinHeight="500"
         MaxWidth="700" MaxHeight="900"
@@ -24,11 +24,11 @@
         <!-- Header -->
         <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,20">
             <StackPanel Spacing="8">
-                <TextBlock Text="插件权限请求"
+                <TextBlock Text="{loc:Loc UI.PluginPermissionRequest}"
                           FontSize="20"
                           FontWeight="SemiBold"
                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                <TextBlock Text="此插件请求访问系统资源的权限。"
+                <TextBlock Text="{loc:Loc UI.ThisPluginRequestsAccessToSystemResources}"
                           FontSize="13"
                           Foreground="{DynamicResource TextSecondaryBrush}"
                           TextWrapping="Wrap"/>
@@ -95,7 +95,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="4">
                                 <controls:UtilityIcon Kind="{Binding PermissionModeIcon}" Width="16" Height="16"
                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{Binding PermissionMode}"
+                                <TextBlock Text="{loc:LocalizedBinding PermissionMode}"
                                          FontSize="12"
                                          FontWeight="Medium"
                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -105,11 +105,11 @@
                 </Border>
 
                 <!-- Warning Banner -->
-                <fa:FAInfoBar IsOpen="{Binding ShowWarning}" Severity="Warning" IsClosable="False" Message="{Binding WarningMessage}"/>
+                <fa:FAInfoBar IsOpen="{Binding ShowWarning}" Severity="Warning" IsClosable="False" Message="{loc:LocalizedBinding WarningMessage}"/>
 
                 <!-- Requested Permissions Section -->
                 <StackPanel Spacing="12">
-                    <TextBlock Text="请求的权限"
+                    <TextBlock Text="{loc:Loc UI.RequestedPermissions}"
                               FontSize="14"
                               FontWeight="SemiBold"
                               Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -132,11 +132,11 @@
 
                                         <!-- Permission Info -->
                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}"
+                                            <TextBlock Text="{loc:LocalizedBinding DisplayName}"
                                                      FontSize="13"
                                                      FontWeight="Medium"
                                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="{Binding Description}"
+                                            <TextBlock Text="{loc:LocalizedBinding Description}"
                                                      FontSize="12"
                                                      Foreground="{DynamicResource TextSecondaryBrush}"
                                                      TextWrapping="Wrap"/>
@@ -150,7 +150,7 @@
                                                    BorderThickness="1"
                                                    CornerRadius="999"
                                                    Padding="8,4">
-                                                <TextBlock Text="高风险"
+                                                <TextBlock Text="{loc:Loc UI.HighRisk}"
                                                          FontSize="12"
                                                          FontWeight="Medium"
                                                          Foreground="{DynamicResource ErrorBrush}"/>
@@ -158,7 +158,7 @@
                                             <CheckBox IsVisible="{Binding CanEdit}"
                                                      IsChecked="{Binding IsGranted}"
                                                      VerticalAlignment="Center"
-                                                     ToolTip.Tip="授予此权限"/>
+                                                     ToolTip.Tip="{loc:Loc UI.GrantThisPermission}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -168,7 +168,7 @@
                 </StackPanel>
 
                 <!-- Information Text -->
-                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="仅本次允许：仅在本次会话授予权限&#x0a;始终允许：记住此决定，不再询问&#x0a;拒绝：不安装此插件"
+                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="{loc:Loc UI.AllowOnceGrantPermissionsForThisSessionOnlyAlwaysAllowRememberThisDeci}"
                           FontSize="12"
                           Foreground="{DynamicResource TextMutedBrush}"
                           TextWrapping="Wrap"
@@ -180,10 +180,10 @@
         <Border Grid.Row="2" Padding="24,16">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsManagementMode}">
-                    <TextBlock Text="勾选需要授予的权限" VerticalAlignment="Center"/>
+                    <TextBlock Text="{loc:Loc UI.SelectPermissionsToGrant}" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-                    <Button Content="拒绝"
+                    <Button Content="{loc:Loc UI.Deny}"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding DenyCommand}"
                            CommandParameter="{Binding $parent[Window]}"
@@ -191,7 +191,7 @@
                            MinWidth="100">
                     </Button>
 
-                    <Button Content="仅本次允许"
+                    <Button Content="{loc:Loc UI.AllowOnce}"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowOnceCommand}"
                            CommandParameter="{Binding $parent[Window]}"
@@ -199,19 +199,19 @@
                            MinWidth="120">
                     </Button>
 
-                    <Button Classes="accent" Content="始终允许"
+                    <Button Classes="accent" Content="{loc:Loc UI.AlwaysAllow}"
                            IsVisible="{Binding !IsManagementMode}"
                            Command="{Binding AllowAlwaysCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Padding="24,10"
                            MinWidth="120">
                     </Button>
-                    <Button Content="取消"
+                    <Button Content="{loc:Loc Common.Cancel}"
                            IsVisible="{Binding IsManagementMode}"
                            Command="{Binding CancelEditCommand}"
                            CommandParameter="{Binding $parent[Window]}"
                            Classes="secondary"/>
-                    <Button Content="保存权限"
+                    <Button Content="{loc:Loc UI.SavePermissions}"
                            IsVisible="{Binding IsManagementMode}"
                            Command="{Binding SavePermissionsCommand}"
                            CommandParameter="{Binding $parent[Window]}"

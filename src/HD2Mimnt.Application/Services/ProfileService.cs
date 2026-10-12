@@ -3,6 +3,11 @@ using HD2Mimnt.Core.Interfaces;
 
 namespace HD2Mimnt.Application.Services;
 
+public sealed class ProfilesChangedEventArgs(bool affectsConflictResults = true) : EventArgs
+{
+    public bool AffectsConflictResults { get; } = affectsConflictResults;
+}
+
 /// <summary>
 /// Profile Service
 /// 处理 Profile 的业务逻辑
@@ -32,7 +37,7 @@ public class ProfileService
                 {
                     defaultProfile = new Profile
                     {
-                        Id = Guid.NewGuid(), Name = "默认配置", IsDefault = true, SortOrder = 0,
+                        Id = Guid.NewGuid(), Name = "Default Profiles", IsDefault = true, SortOrder = 0,
                         CreatedAt = DateTime.UtcNow, ModifiedAt = DateTime.UtcNow
                     };
                     await _profileRepository.AddAsync(defaultProfile, cancellationToken);
@@ -51,10 +56,10 @@ public class ProfileService
     }
 
     /// <summary>
-    /// 配置文件数据变更事件（新建/删除/改名/切换/排序/模组成员与启用状态变化）。
+    /// 配置文件数据变更事件（含分组显示状态）；AffectsConflictResults 区分资源关系与纯显示变更。
     /// 在最终状态写入数据库后触发；UI 订阅方只负责刷新视图，不得在回调中再次持久化。
     /// </summary>
-    public event EventHandler? ProfilesChanged;
+    public event EventHandler<ProfilesChangedEventArgs>? ProfilesChanged;
 
     public ProfileService(IProfileRepository profileRepository, IModRepository modRepository)
     {
@@ -62,7 +67,8 @@ public class ProfileService
         _modRepository = modRepository;
     }
 
-    private void RaiseProfilesChanged() => ProfilesChanged?.Invoke(this, EventArgs.Empty);
+    private void RaiseProfilesChanged(bool affectsConflictResults = true)
+        => ProfilesChanged?.Invoke(this, new ProfilesChangedEventArgs(affectsConflictResults));
 
     public async Task<Profile?> GetProfileByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -496,7 +502,7 @@ public class ProfileService
             profile.Separators.Add(separator);
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
-            RaiseProfilesChanged();
+            RaiseProfilesChanged(affectsConflictResults: false);
             return separator;
         }
         finally { _optionsWriteGate.Release(); }
@@ -531,7 +537,7 @@ public class ProfileService
             }
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
-            RaiseProfilesChanged();
+            RaiseProfilesChanged(affectsConflictResults: false);
         }
         finally { _optionsWriteGate.Release(); }
     }
@@ -558,7 +564,7 @@ public class ProfileService
             }
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
-            RaiseProfilesChanged();
+            RaiseProfilesChanged(affectsConflictResults: false);
         }
         finally { _optionsWriteGate.Release(); }
     }
@@ -583,7 +589,7 @@ public class ProfileService
             if (profile.Separators.RemoveAll(item => item.Id == separatorId) == 0) return;
             profile.ModifiedAt = DateTime.UtcNow;
             await _profileRepository.UpdateAsync(profile, cancellationToken);
-            RaiseProfilesChanged();
+            RaiseProfilesChanged(affectsConflictResults: false);
         }
         finally { _optionsWriteGate.Release(); }
     }

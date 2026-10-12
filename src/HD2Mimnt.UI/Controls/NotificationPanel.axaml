@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.Controls"
              xmlns:services="using:HD2Mimnt.Application.Services"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
@@ -8,8 +8,8 @@
              x:DataType="vm:NotificationPanelViewModel" MinWidth="320" MaxWidth="400">
   <Grid RowDefinitions="Auto,*,Auto">
     <Grid ColumnDefinitions="*,Auto" Margin="16,12">
-      <TextBlock Text="通知" Classes="section-title" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" Classes="icon-button" Command="{Binding CloseCommand}" ToolTip.Tip="关闭通知">
+      <TextBlock Text="{loc:Loc Notification.Info}" Classes="section-title" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" Classes="icon-button" Command="{Binding CloseCommand}" ToolTip.Tip="{loc:Loc UI.CloseNotifications}">
         <controls:UtilityIcon Kind="Close"/>
       </Button>
     </Grid>
@@ -23,19 +23,19 @@
                 <StackPanel Spacing="6">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <controls:UtilityIcon Kind="Bell" Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock Text="{Binding Level, Converter={StaticResource NotificationLevelLabelConverter}}" Classes="caption-text"
+                    <TextBlock Text="{loc:LocalizedBinding Level, InnerConverter={StaticResource NotificationLevelLabelConverter}}" Classes="caption-text"
                                Classes.success="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Success}"
                                Classes.warning="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Warning}"
                                Classes.error="{Binding Level, Converter={StaticResource EqualConverter}, ConverterParameter=Error}"/>
-                    <TextBlock Text="{Binding Timestamp, Converter={StaticResource TimeAgoConverter}}" Classes="caption-text"/>
+                    <TextBlock Text="{loc:LocalizedBinding Timestamp, InnerConverter={StaticResource TimeAgoConverter}}" Classes="caption-text"/>
                   </StackPanel>
-                  <TextBlock Text="{Binding Title, TargetNullValue=通知}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                  <TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
-                  <Button Content="{Binding ActionText, TargetNullValue=打开}"
+                  <TextBlock Text="{loc:LocalizedBinding Title, TargetNullValue=通知}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                  <Button Content="{loc:LocalizedBinding ActionText, TargetNullValue=打开}"
                           Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).ExecuteActionCommand}"
                           CommandParameter="{Binding}" IsVisible="{Binding HasAction}"/>
                 </StackPanel>
-                <Button Grid.Column="1" Classes="icon-button" VerticalAlignment="Top" ToolTip.Tip="删除通知"
+                <Button Grid.Column="1" Classes="icon-button" VerticalAlignment="Top" ToolTip.Tip="{loc:Loc UI.DeleteNotification}"
                         Command="{Binding $parent[UserControl].((vm:NotificationPanelViewModel)DataContext).RemoveNotificationCommand}"
                         CommandParameter="{Binding}"><controls:UtilityIcon Kind="Close"/></Button>
                 </Grid>
@@ -46,13 +46,13 @@
         <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,60"
                     IsVisible="{Binding !Notifications.Count}">
           <controls:UtilityIcon Kind="Bell" Width="40" Height="40" HorizontalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"/>
-          <TextBlock Text="暂无通知" FontSize="16" HorizontalAlignment="Center"/>
-          <TextBlock Text="后台任务、部署和系统消息会显示在这里" Classes="muted" TextWrapping="Wrap" TextAlignment="Center"/>
+          <TextBlock Text="{loc:Loc UI.NoNotifications}" FontSize="16" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc UI.BackgroundTasksDeploymentAndSystemMessagesAppearHere}" Classes="muted" TextWrapping="Wrap" TextAlignment="Center"/>
         </StackPanel>
       </Panel>
     </ScrollViewer>
     <Border Grid.Row="2" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource BorderBrush}" Padding="16,12" IsVisible="{Binding Notifications.Count}">
-      <Button Content="清空通知" Command="{Binding ClearAllCommand}" HorizontalAlignment="Stretch"/>
+      <Button Content="{loc:Loc UI.ClearNotifications}" Command="{Binding ClearAllCommand}" HorizontalAlignment="Stretch"/>
     </Border>
   </Grid>
 </UserControl>

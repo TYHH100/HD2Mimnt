@@ -1,11 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:HD2Mimnt.UI.ViewModels"
         xmlns:views="using:HD2Mimnt.UI.Views"
         xmlns:controls="using:HD2Mimnt.UI.Controls"
         xmlns:fa="using:FluentAvalonia.UI.Controls"
         x:Class="HD2Mimnt.UI.MainWindow" x:DataType="vm:MainWindowViewModel"
-        Closing="OnClosing" Title="{Binding Title}"
+        Closing="OnClosing" Title="{loc:LocalizedBinding Title}"
         Width="1280" Height="800" MinWidth="960" MinHeight="600">
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+1" Command="{Binding NavigateToProfilesCommand}"/>
@@ -32,27 +32,27 @@
         <StaticResource x:Key="NavigationViewContentBackground" ResourceKey="ContentFillBrush"/>
       </fa:FANavigationView.Resources>
       <fa:FANavigationView.MenuItems>
-        <fa:FANavigationViewItem Content="配置文件" IconSource="Folder" Tag="0"/>
-        <fa:FANavigationViewItem Content="模组库" IconSource="Library" Tag="1"/>
-        <fa:FANavigationViewItem Content="冲突" IconSource="Important" Tag="2"/>
-        <fa:FANavigationViewItem Content="工具" IconSource="Repair" Tag="3"/>
-        <fa:FANavigationViewItem Content="设置" IconSource="Settings" Tag="4"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Profiles}" IconSource="Folder" Tag="0"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Library}" IconSource="Library" Tag="1"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Conflicts}" IconSource="Important" Tag="2"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Tools}" IconSource="Repair" Tag="3"/>
+        <fa:FANavigationViewItem Content="{loc:Loc Settings.Title}" IconSource="Settings" Tag="4"/>
       </fa:FANavigationView.MenuItems>
       <fa:FANavigationView.PaneFooter>
         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,16,0">
-          <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding GameStatus}">
+          <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{loc:LocalizedBinding GameStatus}">
             <Ellipse Width="7" Height="7" Fill="{DynamicResource DisabledBrush}" Classes.detected="{Binding GameDetected}" VerticalAlignment="Center">
               <Ellipse.Styles><Style Selector="Ellipse.detected"><Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/></Style></Ellipse.Styles>
             </Ellipse>
-            <TextBlock Text="{Binding GameStatus}" Classes="caption-text" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{loc:LocalizedBinding GameStatus}" Classes="caption-text" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
           <Grid>
-            <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="打开任务中心"><controls:UtilityIcon Kind="Tasks"/></Button>
+            <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="{loc:Loc UI.OpenTaskCenter}"><controls:UtilityIcon Kind="Tasks"/></Button>
             <fa:FAInfoBadge Value="{Binding RunningTaskCount}" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}"
                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0" IsHitTestVisible="False"/>
           </Grid>
           <Grid>
-            <Button x:Name="NotificationsButton" Command="{Binding OpenNotificationsCommand}" Classes="icon-button" ToolTip.Tip="打开通知"><controls:UtilityIcon Kind="Bell"/></Button>
+            <Button x:Name="NotificationsButton" Command="{Binding OpenNotificationsCommand}" Classes="icon-button" ToolTip.Tip="{loc:Loc UI.OpenNotifications}"><controls:UtilityIcon Kind="Bell"/></Button>
             <fa:FAInfoBadge Value="{Binding UnreadNotificationCount}" IsVisible="{Binding UnreadNotificationCount, Converter={StaticResource GreaterThanZeroConverter}}"
                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0" IsHitTestVisible="False"/>
           </Grid>
@@ -73,10 +73,10 @@
     <Border Grid.Row="1" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
       <Grid Height="32" ColumnDefinitions="*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <TextBlock Text="{Binding StatusBarText}" Classes="caption-text"/>
+          <TextBlock Text="{loc:LocalizedBinding StatusBarText}" Classes="caption-text"/>
           <TextBlock Text="·" Classes="caption-text"/>
           <TextBlock Text="{Binding CurrentProfileName}" Classes="caption-text"/>
-          <TextBlock Text="{Binding DeploymentStatus}" Classes="caption-text"/>
+          <TextBlock Text="{loc:LocalizedBinding DeploymentStatus}" Classes="caption-text"/>
         </StackPanel>
         <TextBlock Grid.Column="1" Text="v0.1.0" Classes="caption-text" VerticalAlignment="Center"/>
       </Grid>
@@ -96,7 +96,7 @@
               CornerRadius="{DynamicResource OverlayCornerRadius}"
               MaxWidth="680" MaxHeight="560" Margin="24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="16">
         <Grid RowDefinitions="Auto,*">
-          <Button Command="{Binding CloseTaskCenterCommand}" Classes="icon-button" HorizontalAlignment="Right" ToolTip.Tip="关闭"><controls:UtilityIcon Kind="Close"/></Button>
+          <Button Command="{Binding CloseTaskCenterCommand}" Classes="icon-button" HorizontalAlignment="Right" ToolTip.Tip="{loc:Loc Common.Close}"><controls:UtilityIcon Kind="Close"/></Button>
           <views:TaskCenterView Grid.Row="1" DataContext="{Binding TaskCenterViewModel}"/>
         </Grid>
       </Border>
@@ -109,8 +109,8 @@
               BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2">
         <StackPanel Spacing="8">
           <controls:UtilityIcon Kind="Add" Width="28" Height="28" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
-          <TextBlock Text="松开鼠标导入模组" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-          <TextBlock Text="拖到窗口任意位置即可导入，支持批量添加" Classes="caption-text" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc UI.ReleaseToImportMods}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc UI.DropAnywhereInTheWindowToImportMultipleMods}" Classes="caption-text" HorizontalAlignment="Center"/>
         </StackPanel>
       </Border>
     </Border>

@@ -1,118 +1,133 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:fa="using:FluentAvalonia.UI.Controls"
              x:Class="HD2Mimnt.UI.Views.SettingsView" x:DataType="vm:SettingsViewModel">
   <Grid ColumnDefinitions="180,*" Margin="24,16,24,20" ColumnSpacing="24">
     <StackPanel Spacing="12">
-      <TextBlock Text="设置" Classes="page-title"/>
+      <TextBlock Text="{loc:Loc Settings.Title}" Classes="page-title"/>
       <ListBox ItemsSource="{Binding SettingsCategories}" SelectedItem="{Binding SelectedCategory}">
-        <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Padding="8,9"/></DataTemplate></ListBox.ItemTemplate>
+        <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" Padding="8,9"/></DataTemplate></ListBox.ItemTemplate>
       </ListBox>
     </StackPanel>
     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" MaxWidth="880" HorizontalAlignment="Stretch">
       <StackPanel Spacing="4" Margin="0,0,0,20">
-        <TextBlock Text="应用设置" Classes="page-title"/>
-        <TextBlock Text="管理游戏路径、部署、下载和界面偏好。" Classes="page-subtitle"/>
+        <TextBlock Text="{loc:Loc UI.ApplicationSettings}" Classes="page-title"/>
+        <TextBlock Text="{loc:Loc UI.ManageGamePathsDeploymentDownloadsAndInterfacePreferences}" Classes="page-subtitle"/>
       </StackPanel>
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="12" Margin="0,0,4,0">
-        <fa:FASettingsExpander Header="游戏目录" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsGameCategoryVisible}">
+        <fa:FASettingsExpander Header="{loc:Loc UI.GameDirectory}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsGameCategoryVisible}">
           <fa:FASettingsExpanderItem>
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-              <TextBlock Text="Helldivers 2 安装目录"/>
+              <TextBlock Text="{loc:Loc UI.HelldiversInstallationDirectory}"/>
               <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox x:Name="GamePathInput" Text="{Binding GamePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="选择游戏安装目录"/>
-                <Button Grid.Column="1" Content="验证" Command="{Binding ValidateGameCommand}"/>
-                <Button Grid.Column="2" Content="自动识别" Command="{Binding DetectGameCommand}"/>
+                <TextBox x:Name="GamePathInput" Text="{Binding GamePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ChooseGameInstallationDirectory}"/>
+                <Button Grid.Column="1" Content="{loc:Loc UI.Validate}" Command="{Binding ValidateGameCommand}"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.AutoDetect}" Command="{Binding DetectGameCommand}"/>
               </Grid>
             </Grid>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="启动时自动识别游戏">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.AutoDetectGameAtStartup}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="配置文件" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="选择时自动应用配置文件" Description="关闭后可右键配置文件，选择“设为当前”。">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ApplyProfileWhenSelected}" Description="{loc:Loc UI.WhenOffRightClickAProfileAndChooseSetAsCurrent}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CheckConflictsAutomatically}" Description="{loc:Loc UI.CheckResourceOverlapsInTheCurrentProfileAfterProfilesOrModsChangeOffBy}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoCheckConflictsToggle" IsChecked="{Binding AutoCheckConflicts}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="部署" IconSource="Upload" IsExpanded="True" IsVisible="{Binding IsDeploymentCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="默认部署方式">
-            <fa:FASettingsExpanderItem.Footer><ComboBox x:Name="DeploymentMethodInput" ItemsSource="{Binding DeploymentMethods}" SelectedItem="{Binding DefaultDeploymentMethod}" Width="200"/></fa:FASettingsExpanderItem.Footer>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Deployment}" IconSource="Upload" IsExpanded="True" IsVisible="{Binding IsDeploymentCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.DefaultDeploymentMethod}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox x:Name="DeploymentMethodInput" ItemsSource="{Binding DeploymentMethods}" SelectedItem="{Binding DefaultDeploymentMethod}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="部署前检查目标目录">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding CheckBeforeDeploy}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CheckTargetDirectoryBeforeDeployment}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding CheckBeforeDeploy}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="从下到上部署" Description="关闭时从上到下部署。Lua 分组随方向置顶或置底：依赖 → BSL / MDL → SmoothBoot，SmoothBoot 优先级最高。">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
-          </fa:FASettingsExpanderItem>
-        </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="模组库" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="显示模组缩略图">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.DeployFromBottomToTop}" Description="{loc:Loc UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="下载" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="保存后对新开始或重新尝试的下载生效。">
-          <fa:FASettingsExpanderItem Content="每个文件的并发连接数" Description="服务器支持分段时使用；文件较小时自动减少连接。">
+        <fa:FASettingsExpander Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Downloads}" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="{loc:Loc UI.SavedChangesApplyToNewOrRetriedDownloads}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="16" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="最小分段大小（MiB）" Description="范围 1–256 MiB；较大的分段会减少小文件的连接数。">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.MinimumSegmentSizeMiB}" Description="{loc:Loc UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadSegmentInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadSegmentSizeMiB}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="分段失败重试次数" Description="不包含首次请求；0 表示不重试。">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.RetriesAfterASegmentFails}" Description="{loc:Loc UI.ExcludesTheInitialRequestDisablesRetries}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadRetriesInput" Minimum="0" Maximum="10" Increment="1" FormatString="0" Value="{Binding DownloadMaxRetries}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="重试间隔（毫秒）" Description="范围 0–60000 毫秒。">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.RetryDelayMilliseconds}" Description="{loc:Loc UI.RangeMilliseconds}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadRetryDelayInput" Minimum="0" Maximum="60000" Increment="100" FormatString="0" Value="{Binding DownloadRetryDelayMs}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="启用断点续传" Description="网站支持时保留中断进度，再次下载同一文件会继续。文件已变更时重新下载；关闭后中断文件会清理。">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="DownloadResumeToggle" IsChecked="{Binding DownloadEnableResume}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ResumeInterruptedDownloads}" Description="{loc:Loc UI.KeepInterruptedProgressWhenSupportedByTheWebsiteDownloadingTheSameFile}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="DownloadResumeToggle" IsChecked="{Binding DownloadEnableResume}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="外观" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="主题">
-            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}" Width="200"/></fa:FASettingsExpanderItem.Footer>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Appearance}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Language}" Description="{loc:Loc Settings.Language.Help}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Spacing="6" Width="220">
+                <ComboBox x:Name="LanguageInput" ItemsSource="{Binding LanguageOptions}"
+                          SelectedValue="{Binding SelectedLanguageCode}" SelectedValueBinding="{Binding Code}"
+                          IsEnabled="{Binding !IsChangingLanguage}" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding NativeName}"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock x:Name="CurrentLanguageLabel" Text="{Binding CurrentLanguageText}" Classes="caption-text" TextWrapping="Wrap"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="列表密度">
-            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ListDensityOptions}" SelectedItem="{Binding ListDensity}" Width="200"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.Theme}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="启用界面动画">
-            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding EnableAnimations}" OnContent="开" OffContent="关"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ListDensity}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ListDensityOptions}" SelectedItem="{Binding ListDensity}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.EnableInterfaceAnimations}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding EnableAnimations}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="自定义背景" IconSource="BrowsePhotos" Description="保存后应用；降低卡片不透明度可透出背景图片。" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
+        <fa:FASettingsExpander Header="{loc:Loc UI.CustomBackground}" IconSource="BrowsePhotos" Description="{loc:Loc UI.AppliesAfterSavingLowerCardOpacityToRevealTheBackgroundImage}" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
           <fa:FASettingsExpanderItem>
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-              <TextBlock Text="背景图片"/>
+              <TextBlock Text="{loc:Loc UI.BackgroundImage}"/>
               <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox Text="{Binding BackgroundImagePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="图片路径（留空禁用）"/>
-                <Button Grid.Column="1" Content="选择图片" Click="OnPickBackgroundClicked"/>
-                <Button Grid.Column="2" Content="清除" Command="{Binding ClearBackgroundImageCommand}"/>
+                <TextBox Text="{Binding BackgroundImagePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ImagePathLeaveEmptyToDisable}"/>
+                <Button Grid.Column="1" Content="{loc:Loc UI.ChooseImage}" Click="OnPickBackgroundClicked"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.Clear}" Command="{Binding ClearBackgroundImageCommand}"/>
               </Grid>
             </Grid>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="背景图片不透明度">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.BackgroundImageOpacity}">
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="0" Maximum="100" Value="{Binding BackgroundImageOpacity}"/><TextBlock Grid.Column="1" Text="{Binding BackgroundImageOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="背景图片模糊">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.BackgroundImageBlur}">
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="0" Maximum="40" Value="{Binding BackgroundBlur}"/><TextBlock Grid.Column="1" Text="{Binding BackgroundBlur, StringFormat='{}{0:0}'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="卡片不透明度">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CardOpacity}">
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="20" Maximum="100" Value="{Binding CardOpacity}"/><TextBlock Grid.Column="1" Text="{Binding CardOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="缓存" IconSource="Save" IsExpanded="True" IsVisible="{Binding IsCacheCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="图片缓存">
-            <fa:FASettingsExpanderItem.Footer><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="刷新信息" Command="{Binding RefreshCacheCommand}"/><Button Content="清理" Command="{Binding ClearImageCacheCommand}"/></StackPanel></fa:FASettingsExpanderItem.Footer>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Cache}" IconSource="Save" IsExpanded="True" IsVisible="{Binding IsCacheCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ImageCache}">
+            <fa:FASettingsExpanderItem.Footer><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="{loc:Loc UI.RefreshInformation}" Command="{Binding RefreshCacheCommand}"/><Button Content="{loc:Loc UI.CleanUp}" Command="{Binding ClearImageCacheCommand}"/></StackPanel></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="{Binding CacheStatus}"/>
+          <fa:FASettingsExpanderItem Content="{loc:LocalizedBinding CacheStatus}"/>
         </fa:FASettingsExpander>
         </StackPanel>
       </ScrollViewer>
       <StackPanel Grid.Row="2" Spacing="8" Margin="0,20,0,0">
-        <TextBlock Text="{Binding StatusMessage}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullConverter}}"/>
+        <TextBlock Text="{loc:LocalizedBinding StatusMessage}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullConverter}}"/>
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Content="保存设置" Classes="accent" Command="{Binding SaveCommand}"/>
-          <Button Content="恢复默认" Command="{Binding ResetCommand}"/>
+          <Button Content="{loc:Loc UI.SaveSettings}" Classes="accent" Command="{Binding SaveCommand}"/>
+          <Button Content="{loc:Loc UI.RestoreDefaults}" Command="{Binding ResetCommand}"/>
         </StackPanel>
       </StackPanel>
     </Grid>

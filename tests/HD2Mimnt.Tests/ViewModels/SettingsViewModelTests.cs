@@ -23,6 +23,29 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfilePreferences_ShouldDefaultOffSaveWithoutGamePathAndReset()
+    {
+        var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        Assert.False(vm.AutoCheckConflicts);
+        vm.GamePath = "invalid-game-path";
+        vm.SelectedCategory = "配置文件";
+        vm.AutoCheckConflicts = true;
+        bool? applied = null;
+        vm.AutoCheckConflictsChanged += (_, enabled) => applied = enabled;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(applied);
+        Assert.Equal("配置文件设置已保存", vm.StatusMessage);
+        var reopened = new SettingsService(_rootDirectory);
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
+        await vm.LoadAsync();
+        Assert.True(vm.AutoCheckConflicts);
+        await vm.ResetCommand.ExecuteAsync(null);
+        Assert.False(vm.AutoCheckConflicts);
+        Assert.False(applied);
+    }
+
+    [Fact]
     public async Task SaveCommand_WithValidGamePath_ShouldPersistAndUpdateRuntimeDetection()
     {
         var gameDirectory = Path.Combine(_rootDirectory, "Helldivers 2");

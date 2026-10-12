@@ -272,7 +272,7 @@ Deployment Engine (文件部署)
 
 - [文档索引](HD2IR_DOCUMENTATION_INDEX.md)
 - [快速参考](HD2IR_QUICKREF.md)
-- [项目状态](../PROJECT_STATUS.md)
+- [项目状态](../../../PROJECT_STATUS.md)
 
 ### 9.2 验收检查（10 分钟）
 

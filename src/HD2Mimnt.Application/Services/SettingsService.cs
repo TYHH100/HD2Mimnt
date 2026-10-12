@@ -28,43 +28,41 @@ public class SettingsService
         LoadSettings();
     }
 
-    /// <summary>
-    /// 获取设置值
-    /// </summary>
+    /// <summary>同步读取内存设置，供启动期服务构造使用；不要同步等待异步读取。</summary>
+    public T GetSetting<T>(string key, T defaultValue)
+    {
+        _lock.Wait();
+        try { return ReadSetting(key, defaultValue); }
+        finally { _lock.Release(); }
+    }
+
+    /// <summary>异步获取设置值。</summary>
     public async Task<T> GetSettingAsync<T>(string key, T defaultValue)
     {
         await _lock.WaitAsync();
         try
         {
-            if (_settings.TryGetValue(key, out var value))
-            {
-                try
-                {
-                    if (value is JsonElement jsonElement)
-                    {
-                        return jsonElement.Deserialize<T>() ?? defaultValue;
-                    }
-
-                    if (value is T typedValue)
-                    {
-                        return typedValue;
-                    }
-
-                    // 尝试转换
-                    return (T)Convert.ChangeType(value, typeof(T));
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "设置值类型转换失败: {Key}", key);
-                    return defaultValue;
-                }
-            }
-
-            return defaultValue;
+            return ReadSetting(key, defaultValue);
         }
         finally
         {
             _lock.Release();
+        }
+    }
+
+    private T ReadSetting<T>(string key, T defaultValue)
+    {
+        if (!_settings.TryGetValue(key, out var value)) return defaultValue;
+        try
+        {
+            if (value is JsonElement jsonElement) return jsonElement.Deserialize<T>() ?? defaultValue;
+            if (value is T typedValue) return typedValue;
+            return (T)Convert.ChangeType(value, typeof(T));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "设置值类型转换失败: {Key}", key);
+            return defaultValue;
         }
     }
 
@@ -73,6 +71,7 @@ public class SettingsService
     /// </summary>
     public async Task SetSettingAsync<T>(string key, T value)
     {
+        SettingChangedEventArgs change;
         await _lock.WaitAsync();
         try
         {
@@ -91,13 +90,12 @@ public class SettingsService
                 throw;
             }
 
-            // 触发事件
-            SettingChanged?.Invoke(this, new SettingChangedEventArgs
+            change = new SettingChangedEventArgs
             {
                 Key = key,
                 OldValue = oldValue,
                 NewValue = value
-            });
+            };
 
             _logger?.LogInformation("设置已更新: {Key} = {Value}", key, value);
         }
@@ -105,6 +103,8 @@ public class SettingsService
         {
             _lock.Release();
         }
+        // 持久化成功且释放闸门后通知，监听者可以重新读取设置。
+        SettingChanged?.Invoke(this, change);
     }
 
     /// <summary>
@@ -151,6 +151,7 @@ public class SettingsService
     /// </summary>
     public async Task ResetToDefaultAsync()
     {
+        List<SettingChangedEventArgs> changes;
         await _lock.WaitAsync();
         try
         {
@@ -165,12 +166,14 @@ public class SettingsService
                 _settings = previous;
                 throw;
             }
+            changes = FindChanges(previous, _settings);
             _logger?.LogInformation("所有设置已重置为默认值");
         }
         finally
         {
             _lock.Release();
         }
+        foreach (var change in changes) SettingChanged?.Invoke(this, change);
     }
 
     /// <summary>
@@ -178,6 +181,7 @@ public class SettingsService
     /// </summary>
     public async Task ResetCategoryAsync(string category)
     {
+        List<SettingChangedEventArgs> changes;
         await _lock.WaitAsync();
         try
         {
@@ -197,12 +201,14 @@ public class SettingsService
                 _settings = previous;
                 throw;
             }
+            changes = FindChanges(previous, _settings);
             _logger?.LogInformation("分类设置已重置: {Category}", category);
         }
         finally
         {
             _lock.Release();
         }
+        foreach (var change in changes) SettingChanged?.Invoke(this, change);
     }
 
     /// <summary>
@@ -252,15 +258,34 @@ public class SettingsService
     /// </summary>
     public async Task ReloadAsync()
     {
+        List<SettingChangedEventArgs> changes;
         await _lock.WaitAsync();
         try
         {
+            var previous = new Dictionary<string, object>(_settings);
             await LoadSettingsAsync();
+            changes = FindChanges(previous, _settings);
         }
         finally
         {
             _lock.Release();
         }
+        foreach (var change in changes) SettingChanged?.Invoke(this, change);
+    }
+
+    private static List<SettingChangedEventArgs> FindChanges(
+        IReadOnlyDictionary<string, object> previous, IReadOnlyDictionary<string, object> current)
+    {
+        var changes = new List<SettingChangedEventArgs>();
+        foreach (var key in previous.Keys.Union(current.Keys))
+        {
+            var hadOld = previous.TryGetValue(key, out var oldValue);
+            var hasNew = current.TryGetValue(key, out var newValue);
+            if (hadOld == hasNew && JsonSerializer.Serialize(oldValue) == JsonSerializer.Serialize(newValue))
+                continue;
+            changes.Add(new SettingChangedEventArgs { Key = key, OldValue = oldValue, NewValue = newValue });
+        }
+        return changes;
     }
 
     /// <summary>
@@ -305,6 +330,7 @@ public static class SettingKeys
 
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
+    public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
@@ -324,6 +350,7 @@ public static class SettingKeys
     public const string DownloadEnableResume = "Download.EnableResume";
 
     // UI 相关
+    public const string Language = "UI.Language";
     public const string Theme = "UI.Theme";
     public const string ListDensity = "UI.ListDensity";
     public const string BackgroundImagePath = "UI.BackgroundImagePath";

@@ -1,7 +1,9 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
@@ -21,6 +23,27 @@ public partial class ProfileView : UserControl
     private PointerPressedEventArgs? _modPressedArgs;
     private Point _modDragStartPoint;
     private readonly List<(Control Control, double Opacity)> _dimmedDragSources = new();
+    private ProfileViewModel? _navigationViewModel;
+
+    private void SubscribeConflictNavigation(ProfileViewModel? viewModel)
+    {
+        if (_navigationViewModel != null) _navigationViewModel.ConflictModLocationRequested -= OnConflictModLocationRequested;
+        _navigationViewModel = viewModel;
+        if (viewModel != null) viewModel.ConflictModLocationRequested += OnConflictModLocationRequested;
+    }
+
+    private void OnConflictModLocationRequested(object? sender, ProfileModViewModel target)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsEffectivelyVisible || DataContext != sender || !target.IsConflictLocation) return;
+            ModItemsControl.ScrollIntoView(target);
+            UpdateLayout();
+            var index = ((ProfileViewModel)sender!).ProfileRows.IndexOf(target);
+            if (index >= 0 && ModItemsControl.ContainerFromIndex(index) is Control container)
+                container.BringIntoView();
+        }, DispatcherPriority.Loaded);
+    }
 
     public ProfileView()
     {
@@ -33,8 +56,15 @@ public partial class ProfileView : UserControl
         DetachedFromVisualTree += (_, _) =>
         {
             ClearSortPreview();
+            _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
+            SubscribeConflictNavigation(null);
         };
-        DataContextChanged += (_, _) => ClearSortPreview();
+        AttachedToVisualTree += (_, _) => SubscribeConflictNavigation(DataContext as ProfileViewModel);
+        DataContextChanged += (_, _) =>
+        {
+            ClearSortPreview();
+            SubscribeConflictNavigation(DataContext as ProfileViewModel);
+        };
     }
 
     /// <summary>右键配置文件行：经统一的 AppContextMenu 模块弹出操作菜单。</summary>
@@ -240,7 +270,7 @@ public partial class ProfileView : UserControl
     private void ModList_KeyDown(object? sender, KeyEventArgs e)
     {
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen) return;
+            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
         if (e.Key == Key.Escape)
@@ -530,8 +560,8 @@ public partial class ProfileView : UserControl
         SortInsertionMarker.Width = width;
         Canvas.SetLeft(SortInsertionMarker, viewportOrigin.X + 4);
         Canvas.SetTop(SortInsertionMarker, markerY);
-        SortDragTitle.Text = title;
-        SortDragDestination.Text = destination;
+        SortDragTitle.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(title));
+        SortDragDestination.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(destination));
         SortDragGhost.Width = Math.Min(width, 360);
         SortInsertionMarker.IsVisible = true;
         SortDragGhost.IsVisible = true;

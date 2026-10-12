@@ -1,0 +1,2673 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="Common.Save" xml:space="preserve">
+    <value>儲存</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Common.Apply" xml:space="preserve">
+    <value>套用</value>
+  </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>關閉</value>
+  </data>
+  <data name="Common.Confirm" xml:space="preserve">
+    <value>確認</value>
+  </data>
+  <data name="Common.Reset" xml:space="preserve">
+    <value>重設</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>刪除</value>
+  </data>
+  <data name="Common.Yes" xml:space="preserve">
+    <value>是</value>
+  </data>
+  <data name="Common.No" xml:space="preserve">
+    <value>否</value>
+  </data>
+  <data name="Common.Loading" xml:space="preserve">
+    <value>載入中…</value>
+  </data>
+  <data name="Common.ItemCount" xml:space="preserve">
+    <value>{0:N0} 項</value>
+  </data>
+  <data name="Settings.Title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Settings.Language" xml:space="preserve">
+    <value>語言</value>
+  </data>
+  <data name="Settings.Language.Automatic" xml:space="preserve">
+    <value>跟隨系統</value>
+  </data>
+  <data name="Settings.Language.Current" xml:space="preserve">
+    <value>目前語言：{0}</value>
+  </data>
+  <data name="Settings.Saved" xml:space="preserve">
+    <value>設定已儲存</value>
+  </data>
+  <data name="Settings.SaveFailed" xml:space="preserve">
+    <value>儲存設定失敗：{0}</value>
+  </data>
+  <data name="Settings.Reset" xml:space="preserve">
+    <value>設定已還原為預設值</value>
+  </data>
+  <data name="UI.ClosePreviewEsc" xml:space="preserve">
+    <value>關閉預覽 (Esc)</value>
+  </data>
+  <data name="UI.ModDetails" xml:space="preserve">
+    <value>模組詳情</value>
+  </data>
+  <data name="UI.PreviewOriginalImage" xml:space="preserve">
+    <value>點擊預覽原圖</value>
+  </data>
+  <data name="UI.Status" xml:space="preserve">
+    <value>狀態</value>
+  </data>
+  <data name="UI.Enabled" xml:space="preserve">
+    <value>已啟用</value>
+  </data>
+  <data name="UI.AddedDisabled" xml:space="preserve">
+    <value>已加入 · 未啟用</value>
+  </data>
+  <data name="UI.Deployed" xml:space="preserve">
+    <value>已部署</value>
+  </data>
+  <data name="UI.NotInTheCurrentProfile" xml:space="preserve">
+    <value>未加入當前 Profile</value>
+  </data>
+  <data name="UI.ModLink" xml:space="preserve">
+    <value>模組連結</value>
+  </data>
+  <data name="UI.BasicInformation" xml:space="preserve">
+    <value>基本資訊</value>
+  </data>
+  <data name="UI.Author" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="UI.Category" xml:space="preserve">
+    <value>分類</value>
+  </data>
+  <data name="UI.Description" xml:space="preserve">
+    <value>描述</value>
+  </data>
+  <data name="UI.Tags" xml:space="preserve">
+    <value>標簽</value>
+  </data>
+  <data name="UI.FileInformation" xml:space="preserve">
+    <value>檔案資訊</value>
+  </data>
+  <data name="UI.Path" xml:space="preserve">
+    <value>路徑</value>
+  </data>
+  <data name="UI.Size" xml:space="preserve">
+    <value>大小</value>
+  </data>
+  <data name="UI.Hash" xml:space="preserve">
+    <value>哈希</value>
+  </data>
+  <data name="UI.Timestamps" xml:space="preserve">
+    <value>時間資訊</value>
+  </data>
+  <data name="UI.Imported" xml:space="preserve">
+    <value>導入時間</value>
+  </data>
+  <data name="UI.Modified" xml:space="preserve">
+    <value>修改時間</value>
+  </data>
+  <data name="UI.Actions" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="UI.RemoveFromCurrentProfile" xml:space="preserve">
+    <value>從當前 Profile 移除</value>
+  </data>
+  <data name="UI.DeleteModFromLibrary" xml:space="preserve">
+    <value>從 Library 刪除 Mod</value>
+  </data>
+  <data name="UI.OpenFolder" xml:space="preserve">
+    <value>在資料夾中打開</value>
+  </data>
+  <data name="UI.AddMods" xml:space="preserve">
+    <value>添加模組</value>
+  </data>
+  <data name="UI.CurrentMod" xml:space="preserve">
+    <value>當前模組</value>
+  </data>
+  <data name="UI.DropArchivesOrFoldersIntoTheWindowToAddMultipleMods" xml:space="preserve">
+    <value>可將壓縮檔或資料夾拖入窗口批量添加</value>
+  </data>
+  <data name="UI.ChooseFolder" xml:space="preserve">
+    <value>選擇資料夾</value>
+  </data>
+  <data name="UI.ChooseArchives" xml:space="preserve">
+    <value>選擇壓縮檔</value>
+  </data>
+  <data name="UI.CancelImport" xml:space="preserve">
+    <value>取消添加</value>
+  </data>
+  <data name="UI.Done" xml:space="preserve">
+    <value>完成</value>
+  </data>
+  <data name="UI.Notifications" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="UI.CloseNotifications" xml:space="preserve">
+    <value>關閉通知</value>
+  </data>
+  <data name="UI.DeleteNotification" xml:space="preserve">
+    <value>刪除通知</value>
+  </data>
+  <data name="UI.NoNotifications" xml:space="preserve">
+    <value>暫無通知</value>
+  </data>
+  <data name="UI.BackgroundTasksDeploymentAndSystemMessagesAppearHere" xml:space="preserve">
+    <value>后臺任務、部署和系統消息會顯示在這里</value>
+  </data>
+  <data name="UI.ClearNotifications" xml:space="preserve">
+    <value>清空通知</value>
+  </data>
+  <data name="UI.DismissBannerAndKeepNotification" xml:space="preserve">
+    <value>收起橫幅，保留通知</value>
+  </data>
+  <data name="UI.FeatureTutorial" xml:space="preserve">
+    <value>功能教程</value>
+  </data>
+  <data name="UI.Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="UI.ExitTutorialEsc" xml:space="preserve">
+    <value>退出教程（Esc）</value>
+  </data>
+  <data name="UI.ThisFeatureIsCurrentlyHiddenContinueReadingOrGoToTheNextStep" xml:space="preserve">
+    <value>當前功能暫未顯示，可繼續閱讀或進入下一步。</value>
+  </data>
+  <data name="UI.Previous" xml:space="preserve">
+    <value>上一步</value>
+  </data>
+  <data name="UI.Profiles" xml:space="preserve">
+    <value>設定檔</value>
+  </data>
+  <data name="UI.Library" xml:space="preserve">
+    <value>模組庫</value>
+  </data>
+  <data name="UI.Conflicts" xml:space="preserve">
+    <value>沖突</value>
+  </data>
+  <data name="UI.Tools" xml:space="preserve">
+    <value>工具</value>
+  </data>
+  <data name="UI.OpenTaskCenter" xml:space="preserve">
+    <value>打開任務中心</value>
+  </data>
+  <data name="UI.OpenNotifications" xml:space="preserve">
+    <value>打開通知</value>
+  </data>
+  <data name="UI.ReleaseToImportMods" xml:space="preserve">
+    <value>松開滑鼠導入模組</value>
+  </data>
+  <data name="UI.DropAnywhereInTheWindowToImportMultipleMods" xml:space="preserve">
+    <value>拖到窗口任意位置即可導入，支持批量添加</value>
+  </data>
+  <data name="UI.DataBackupAndRestore" xml:space="preserve">
+    <value>數據備份與恢復</value>
+  </data>
+  <data name="UI.BackupsIncludeTheModDatabaseAndApplicationSettingsRestoringRequiresCon" xml:space="preserve">
+    <value>備份包含模組庫數據庫和應用設定，恢復前會要求確認。</value>
+  </data>
+  <data name="UI.Refresh" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+  <data name="UI.CreateBackup" xml:space="preserve">
+    <value>創建備份</value>
+  </data>
+  <data name="UI.Restore" xml:space="preserve">
+    <value>恢復</value>
+  </data>
+  <data name="UI.Working" xml:space="preserve">
+    <value>處理中...</value>
+  </data>
+  <data name="UI.CheckSharedResourcesInEnabledModsExpectedWinnersFollowTheCurrentDeploy" xml:space="preserve">
+    <value>檢查啟用模組中的相同資源；按當前部署方向和補丁順序顯示預期生效者。版本或大小不同表示明確差異，相同仍可能存在內容差異。</value>
+  </data>
+  <data name="UI.CheckConflicts" xml:space="preserve">
+    <value>檢查沖突</value>
+  </data>
+  <data name="UI.CheckAgain" xml:space="preserve">
+    <value>重新檢查</value>
+  </data>
+  <data name="UI.NoProfileToCheck" xml:space="preserve">
+    <value>沒有可檢查的設定檔</value>
+  </data>
+  <data name="UI.SelectAProfileOnTheProfilesPageBeforeCheckingConflicts" xml:space="preserve">
+    <value>先在設定檔頁選擇一個配置，再執行沖突檢測。</value>
+  </data>
+  <data name="UI.ConflictsHaveNotBeenChecked" xml:space="preserve">
+    <value>尚未執行沖突檢測</value>
+  </data>
+  <data name="UI.ClickCheckConflictsToScanEnabledModsInTheCurrentProfile" xml:space="preserve">
+    <value>點擊右上角「檢查沖突」開始掃描當前配置的啟用模組。</value>
+  </data>
+  <data name="UI.CheckFailed" xml:space="preserve">
+    <value>檢測失敗</value>
+  </data>
+  <data name="UI.ReadingPatchResources" xml:space="preserve">
+    <value>正在讀取補丁資源…</value>
+  </data>
+  <data name="UI.IncompleteResultsTheFollowingItemsCouldNotBeReadResolveTheseIssuesAndC" xml:space="preserve">
+    <value>檢測不完整：以下項目未能讀取，請處理后重新檢查。</value>
+  </data>
+  <data name="UI.ResultsCoverSelectedPatchResourcesOnlyAndDoNotVerifyCompatibilityInThe" xml:space="preserve">
+    <value>結果僅包含當前選中的補丁資源，不代表已驗證游戲運行兼容性。</value>
+  </data>
+  <data name="UI.ExpectedWinner" xml:space="preserve">
+    <value>預期生效</value>
+  </data>
+  <data name="UI.CheckingProfile" xml:space="preserve">
+    <value>檢查配置：{0}</value>
+  </data>
+  <data name="UI.Mods" xml:space="preserve">
+    <value>{0} 個模組</value>
+  </data>
+  <data name="UI.DeveloperTools" xml:space="preserve">
+    <value>開發工具</value>
+  </data>
+  <data name="UI.NexusModsAPIKeyTesting" xml:space="preserve">
+    <value>N 網 API 密鑰（測試）</value>
+  </data>
+  <data name="UI.TheKeyIsEncryptedInTheLocalDatabaseAndRestoredAtStartupClearingItAlsoD" xml:space="preserve">
+    <value>密鑰加密儲存到本地數據庫，啟動時自動恢復。清除密鑰會同時刪除儲存的數據。</value>
+  </data>
+  <data name="UI.PasteNexusModsAPIKey" xml:space="preserve">
+    <value>粘貼 Nexus Mods API 密鑰</value>
+  </data>
+  <data name="UI.SaveAndApplyKey" xml:space="preserve">
+    <value>儲存并應用密鑰</value>
+  </data>
+  <data name="UI.ClearKey" xml:space="preserve">
+    <value>清除密鑰</value>
+  </data>
+  <data name="UI.NumberToGenerate" xml:space="preserve">
+    <value>生成數量:</value>
+  </data>
+  <data name="UI.GenerateTestMods" xml:space="preserve">
+    <value>生成測試模組</value>
+  </data>
+  <data name="UI.RandomizeEnabledState" xml:space="preserve">
+    <value>設定隨機啟用狀態</value>
+  </data>
+  <data name="UI.ClearAllTestData" xml:space="preserve">
+    <value>清除所有測試數據</value>
+  </data>
+  <data name="UI.CancelCurrentOperation" xml:space="preserve">
+    <value>取消當前操作</value>
+  </data>
+  <data name="UI.ImportModArchivesIntoTheLibraryOrDropThemIntoThisPage" xml:space="preserve">
+    <value>導入 Mod 壓縮檔到 Library，也可直接拖拽壓縮檔到頁面</value>
+  </data>
+  <data name="UI.RefreshLibrary" xml:space="preserve">
+    <value>刷新模組庫</value>
+  </data>
+  <data name="UI.CurrentProfile" xml:space="preserve">
+    <value>當前 Profile</value>
+  </data>
+  <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
+    <value>單擊聚焦；Ctrl 點擊增減選擇，Shift 選擇范圍，Ctrl+Shift 追加范圍；Ctrl+A 全選，Esc 清空選擇。搜索支持 tag:標簽。</value>
+  </data>
+  <data name="UI.AllCategories" xml:space="preserve">
+    <value>全部分類</value>
+  </data>
+  <data name="UI.Sort" xml:space="preserve">
+    <value>排序</value>
+  </data>
+  <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
+    <value>搜索名稱、作者或描述，支持 tag:標簽 前綴…</value>
+  </data>
+  <data name="UI.ClearSearch" xml:space="preserve">
+    <value>清除搜索</value>
+  </data>
+  <data name="UI.SelectAllClearAll" xml:space="preserve">
+    <value>全選 / 取消全選</value>
+  </data>
+  <data name="UI.InvertSelection" xml:space="preserve">
+    <value>反選</value>
+  </data>
+  <data name="UI.AddToProfiles" xml:space="preserve">
+    <value>加入 Profile…</value>
+  </data>
+  <data name="UI.AddSelectedModsToOneOrMoreProfiles" xml:space="preserve">
+    <value>將選中的 Mod 加入設定檔（可多選多個設定檔）</value>
+  </data>
+  <data name="UI.Disable" xml:space="preserve">
+    <value>禁用</value>
+  </data>
+  <data name="UI.RemoveFromProfile" xml:space="preserve">
+    <value>移出 Profile</value>
+  </data>
+  <data name="UI.RemoveSelectedModsFromTheCurrentProfileAndKeepLibraryFiles" xml:space="preserve">
+    <value>從當前 Profile 移除選中的 Mod，Library 檔案保留</value>
+  </data>
+  <data name="UI.ClearSelection" xml:space="preserve">
+    <value>清空選擇</value>
+  </data>
+  <data name="UI.DeleteFromLibrary" xml:space="preserve">
+    <value>從 Library 刪除</value>
+  </data>
+  <data name="UI.DeleteSelectedModsAndTheirFiles" xml:space="preserve">
+    <value>刪除選中的 Mod 及其檔案</value>
+  </data>
+  <data name="UI.ChooseProfilesToAddToMultipleSelection" xml:space="preserve">
+    <value>選擇要加入的設定檔（可多選）</value>
+  </data>
+  <data name="UI.LibraryIsEmpty" xml:space="preserve">
+    <value>模組庫為空</value>
+  </data>
+  <data name="UI.ClickAddModsOrDropAnArchiveHereToImportYourFirstMod" xml:space="preserve">
+    <value>還沒有導入 Mod，點擊“添加模組”或將壓縮檔拖拽到頁面</value>
+  </data>
+  <data name="UI.NoSearchResults" xml:space="preserve">
+    <value>搜索無結果</value>
+  </data>
+  <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
+    <value>沒有匹配當前搜索條件的 Mod，支持 tag:標簽 前綴</value>
+  </data>
+  <data name="UI.NoFilterResults" xml:space="preserve">
+    <value>篩選無結果</value>
+  </data>
+  <data name="UI.NoModsMatchTheCurrentFilters" xml:space="preserve">
+    <value>沒有符合當前篩選條件的 Mod</value>
+  </data>
+  <data name="UI.ClearFilters" xml:space="preserve">
+    <value>清除篩選</value>
+  </data>
+  <data name="UI.LoadingFailed" xml:space="preserve">
+    <value>載入失敗</value>
+  </data>
+  <data name="UI.Retry" xml:space="preserve">
+    <value>重試</value>
+  </data>
+  <data name="UI.LoadingLibrary" xml:space="preserve">
+    <value>正在載入模組庫…</value>
+  </data>
+  <data name="UI.PasteANexusModsPageLinkFetchItsInformationThenSaveTheLink" xml:space="preserve">
+    <value>粘貼 N 網模組頁面連結，獲取資訊后儲存關聯。</value>
+  </data>
+  <data name="UI.FetchInformation" xml:space="preserve">
+    <value>獲取資訊</value>
+  </data>
+  <data name="UI.SaveLink" xml:space="preserve">
+    <value>儲存關聯</value>
+  </data>
+  <data name="UI.ModUpdatesAndDownloads" xml:space="preserve">
+    <value>模組更新與下載</value>
+  </data>
+  <data name="UI.BrowserDownloadAuthorizationFreeAccounts" xml:space="preserve">
+    <value>網頁授權下載（免費帳戶）</value>
+  </data>
+  <data name="UI.On" xml:space="preserve">
+    <value>開</value>
+  </data>
+  <data name="UI.Off" xml:space="preserve">
+    <value>關</value>
+  </data>
+  <data name="UI.DownloadOrUpdateOpensTheSelectedFilePageConfirmTheDownloadThereAndOpen" xml:space="preserve">
+    <value>點擊下載或更新后會打開所選檔案網頁。在網頁完成下載確認，選擇 HD2Mimnt 打開連結，應用會自動繼續。網頁需登錄 API 密鑰對應的帳戶。</value>
+  </data>
+  <data name="UI.BrowserAuthorizationIsOffDirectAPIDownloadLinksRequireTheAppropriateAc" xml:space="preserve">
+    <value>已關閉網頁授權：通過 API 直接獲取下載連結，需要相應的帳戶權限。</value>
+  </data>
+  <data name="UI.UpdatingReplacesTheLibraryModAndPreservesItsNameTagsAndProfileLinksExi" xml:space="preserve">
+    <value>更新將直接替換模組庫中的原模組，保留名稱、標簽和配置關聯。舊部署會清理，更新后請檢查選項并重新部署。</value>
+  </data>
+  <data name="UI.CheckUpdates" xml:space="preserve">
+    <value>檢查更新</value>
+  </data>
+  <data name="UI.DownloadArchive" xml:space="preserve">
+    <value>下載壓縮檔…</value>
+  </data>
+  <data name="UI.DownloadAndUpdate" xml:space="preserve">
+    <value>下載并更新</value>
+  </data>
+  <data name="UI.CancelOperation" xml:space="preserve">
+    <value>取消操作</value>
+  </data>
+  <data name="UI.SelectOneOrMoreProfilesTheModWillBeEnabledByDefaultInEachSelectedProfi" xml:space="preserve">
+    <value>勾選要加入的設定檔（可多選），加入后模組在該設定檔中預設啟用。</value>
+  </data>
+  <data name="UI.Current" xml:space="preserve">
+    <value>當前</value>
+  </data>
+  <data name="UI.Add" xml:space="preserve">
+    <value>加入</value>
+  </data>
+  <data name="UI.TotalMods" xml:space="preserve">
+    <value>模組總數 {0:N0}</value>
+  </data>
+  <data name="UI.DeployedNotDeployed" xml:space="preserve">
+    <value>已部署 {0:N0} · 未部署 {0:N0}</value>
+  </data>
+  <data name="UI.ModsSelected" xml:space="preserve">
+    <value>已選擇 {0} 個 Mod</value>
+  </data>
+  <data name="UI.LocalVersion" xml:space="preserve">
+    <value>本地版本：{0}</value>
+  </data>
+  <data name="UI.Version" xml:space="preserve">
+    <value>版本：{0}</value>
+  </data>
+  <data name="UI.LogsAndDiagnostics" xml:space="preserve">
+    <value>日志與診斷</value>
+  </data>
+  <data name="UI.OnlyTheLatestEntriesAreReadToLimitMemoryUse" xml:space="preserve">
+    <value>僅讀取最近 500 條記錄，避免打開日志時持續占用內存。</value>
+  </data>
+  <data name="UI.ErrorsOnly" xml:space="preserve">
+    <value>僅顯示錯誤</value>
+  </data>
+  <data name="UI.Copy" xml:space="preserve">
+    <value>複製</value>
+  </data>
+  <data name="UI.Export" xml:space="preserve">
+    <value>導出</value>
+  </data>
+  <data name="UI.Loading" xml:space="preserve">
+    <value>正在載入...</value>
+  </data>
+  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
+    <value>跟著引導認識游戲目錄、模組庫、設定檔、沖突檢查和部署。教程會自動切換頁面，用藍色邊框標記當前功能。</value>
+  </data>
+  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
+    <value>使用上一步或下一步瀏覽，隨時按 Esc 或點擊退出結束；教程不會執行導入、部署或啟動游戲。</value>
+  </data>
+  <data name="UI.StartTutorial" xml:space="preserve">
+    <value>開始教程</value>
+  </data>
+  <data name="UI.ExternalTools" xml:space="preserve">
+    <value>外部工具</value>
+  </data>
+  <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
+    <value>登記本地可執行檔案，用于打開模組資源。</value>
+  </data>
+  <data name="UI.AddTool" xml:space="preserve">
+    <value>添加工具</value>
+  </data>
+  <data name="UI.Enable" xml:space="preserve">
+    <value>啟用</value>
+  </data>
+  <data name="UI.Edit" xml:space="preserve">
+    <value>編輯</value>
+  </data>
+  <data name="UI.Launch" xml:space="preserve">
+    <value>啟動</value>
+  </data>
+  <data name="UI.LoadingExternalTools" xml:space="preserve">
+    <value>正在載入外部工具...</value>
+  </data>
+  <data name="UI.NoExternalToolsRegistered" xml:space="preserve">
+    <value>尚未登記外部工具</value>
+  </data>
+  <data name="UI.Name" xml:space="preserve">
+    <value>名稱</value>
+  </data>
+  <data name="UI.Executable" xml:space="preserve">
+    <value>可執行檔案</value>
+  </data>
+  <data name="UI.ArgumentTemplate" xml:space="preserve">
+    <value>參數模板</value>
+  </data>
+  <data name="UI.WorkingDirectory" xml:space="preserve">
+    <value>工作目錄</value>
+  </data>
+  <data name="UI.Extensions" xml:space="preserve">
+    <value>擴展名</value>
+  </data>
+  <data name="UI.GenerateOrRemoveTestModDataForLocalValidation" xml:space="preserve">
+    <value>生成或清理測試模組數據，用于本地驗收。</value>
+  </data>
+  <data name="UI.OpenDeveloperTools" xml:space="preserve">
+    <value>打開開發工具</value>
+  </data>
+  <data name="UI.AboutHDMimnt" xml:space="preserve">
+    <value>關于 HD2Mimnt</value>
+  </data>
+  <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
+    <value>Helldivers 2 模組管理器 · 版本 0.1.0-alpha</value>
+  </data>
+  <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
+    <value>項目地址：https://github.com/TYHH100/HD2Mimnt</value>
+  </data>
+  <data name="UI.PluginManagement" xml:space="preserve">
+    <value>插件管理</value>
+  </data>
+  <data name="UI.ManageInstalledExtensionsAndTheirPermissions" xml:space="preserve">
+    <value>管理已安裝的擴展及其權限。</value>
+  </data>
+  <data name="UI.InstallPlugin" xml:space="preserve">
+    <value>安裝插件</value>
+  </data>
+  <data name="UI.Plugins" xml:space="preserve">
+    <value>插件</value>
+  </data>
+  <data name="UI.Disable.4e6fd0e2" xml:space="preserve">
+    <value>停用</value>
+  </data>
+  <data name="UI.Permissions" xml:space="preserve">
+    <value>權限</value>
+  </data>
+  <data name="UI.History" xml:space="preserve">
+    <value>歷史</value>
+  </data>
+  <data name="UI.Uninstall" xml:space="preserve">
+    <value>卸載</value>
+  </data>
+  <data name="UI.NoPluginsInstalled" xml:space="preserve">
+    <value>尚未安裝插件</value>
+  </data>
+  <data name="UI.InstallAPluginToManageItsPermissionsAndExecutionHistoryHere" xml:space="preserve">
+    <value>安裝插件后可在這里管理權限與運行記錄。</value>
+  </data>
+  <data name="UI.Total" xml:space="preserve">
+    <value>總數 {0}</value>
+  </data>
+  <data name="UI.Enabled.47ae02ee" xml:space="preserve">
+    <value>已啟用 {0}</value>
+  </data>
+  <data name="UI.Version.ce0744e6" xml:space="preserve">
+    <value>版本 {0}</value>
+  </data>
+  <data name="UI.Author.cb8ce501" xml:space="preserve">
+    <value>作者 {0}</value>
+  </data>
+  <data name="UI.PermissionMode" xml:space="preserve">
+    <value>權限模式：{0}</value>
+  </data>
+  <data name="UI.PluginPermissionRequest" xml:space="preserve">
+    <value>插件權限請求</value>
+  </data>
+  <data name="UI.ThisPluginRequestsAccessToSystemResources" xml:space="preserve">
+    <value>此插件請求訪問系統資源的權限。</value>
+  </data>
+  <data name="UI.RequestedPermissions" xml:space="preserve">
+    <value>請求的權限</value>
+  </data>
+  <data name="UI.HighRisk" xml:space="preserve">
+    <value>高風險</value>
+  </data>
+  <data name="UI.GrantThisPermission" xml:space="preserve">
+    <value>授予此權限</value>
+  </data>
+  <data name="UI.AllowOnceGrantPermissionsForThisSessionOnlyAlwaysAllowRememberThisDeci" xml:space="preserve">
+    <value>僅本次允許：僅在本次會話授予權限
+始終允許：記住此決定，不再詢問
+拒絕：不安裝此插件</value>
+  </data>
+  <data name="UI.SelectPermissionsToGrant" xml:space="preserve">
+    <value>勾選需要授予的權限</value>
+  </data>
+  <data name="UI.Deny" xml:space="preserve">
+    <value>拒絕</value>
+  </data>
+  <data name="UI.AllowOnce" xml:space="preserve">
+    <value>僅本次允許</value>
+  </data>
+  <data name="UI.AlwaysAllow" xml:space="preserve">
+    <value>始終允許</value>
+  </data>
+  <data name="UI.SavePermissions" xml:space="preserve">
+    <value>儲存權限</value>
+  </data>
+  <data name="UI.NewProfileName" xml:space="preserve">
+    <value>新設定檔名稱</value>
+  </data>
+  <data name="UI.CreateProfile" xml:space="preserve">
+    <value>新建設定檔</value>
+  </data>
+  <data name="UI.AddGroupSeparator" xml:space="preserve">
+    <value>添加分組分隔符</value>
+  </data>
+  <data name="UI.AllProfiles" xml:space="preserve">
+    <value>全部設定檔</value>
+  </data>
+  <data name="UI.Checking" xml:space="preserve">
+    <value>正在檢查…</value>
+  </data>
+  <data name="UI.CancelCheck" xml:space="preserve">
+    <value>取消檢查</value>
+  </data>
+  <data name="UI.ListOrderDeterminesDeploymentOrderLaterModsOverwriteMatchingFilesOnlyE" xml:space="preserve">
+    <value>列表順序即部署順序，靠后的模組覆蓋同名檔案；部署時僅部署已啟用的模組。新建的設定檔會依次排在其后，可拖動調整順序；預設配置固定在第一位。右鍵設定檔可複製、重命名或刪除。</value>
+  </data>
+  <data name="UI.DefaultCannotBeDeleted" xml:space="preserve">
+    <value>預設 · 不可刪除</value>
+  </data>
+  <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
+    <value>搜索當前配置的模組…</value>
+  </data>
+  <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
+    <value>移出配置</value>
+  </data>
+  <data name="UI.RemoveSelectedModsFromTheProfileBeingViewed" xml:space="preserve">
+    <value>從正在查看的設定檔移除選中模組</value>
+  </data>
+  <data name="UI.CollapseExpandGroup" xml:space="preserve">
+    <value>收起 / 展開分組</value>
+  </data>
+  <data name="UI.GroupActions" xml:space="preserve">
+    <value>分組操作</value>
+  </data>
+  <data name="UI.Disabled" xml:space="preserve">
+    <value>已停用</value>
+  </data>
+  <data name="UI.HasOptions" xml:space="preserve">
+    <value>含選項</value>
+  </data>
+  <data name="UI.FixedPosition" xml:space="preserve">
+    <value>位置固定</value>
+  </data>
+  <data name="UI.ModOptionsDeploymentIncludesSelectedOptions" xml:space="preserve">
+    <value>模組選項（部署時按所選選項收集檔案）</value>
+  </data>
+  <data name="UI.EnableDisableOnlyEnabledModsAreDeployed" xml:space="preserve">
+    <value>啟用/禁用（部署時僅部署已啟用的模組）</value>
+  </data>
+  <data name="UI.RemoveFromProfile.7aae5ef7" xml:space="preserve">
+    <value>從設定檔移除</value>
+  </data>
+  <data name="UI.LoadingMods" xml:space="preserve">
+    <value>正在載入模組…</value>
+  </data>
+  <data name="UI.SelectAProfileOnTheLeftToViewItsMods" xml:space="preserve">
+    <value>從左側選擇一個設定檔查看模組</value>
+  </data>
+  <data name="UI.ThisProfileHasNoModsYet" xml:space="preserve">
+    <value>此設定檔暫未添加模組</value>
+  </data>
+  <data name="UI.UseAddModsOnTheLeftToAddModsFromTheLibrary" xml:space="preserve">
+    <value>可通過左側“添加模組”從模組庫加入</value>
+  </data>
+  <data name="UI.NoMatchingModsTryAnotherSearch" xml:space="preserve">
+    <value>沒有匹配的模組，換個關鍵詞試試</value>
+  </data>
+  <data name="UI.AddFromLibrary" xml:space="preserve">
+    <value>從模組庫添加</value>
+  </data>
+  <data name="UI.ClickToAddToTheCurrentProfile" xml:space="preserve">
+    <value>點擊 + 加入當前設定檔</value>
+  </data>
+  <data name="UI.SearchNameAuthorOrVersion" xml:space="preserve">
+    <value>搜索名稱、作者或版本…</value>
+  </data>
+  <data name="UI.AddToProfile" xml:space="preserve">
+    <value>添加到設定檔</value>
+  </data>
+  <data name="UI.AllLibraryModsAreAlreadyInThisProfile" xml:space="preserve">
+    <value>模組庫中的模組都已加入當前設定檔。</value>
+  </data>
+  <data name="UI.LocateConflictingMod" xml:space="preserve">
+    <value>定位沖突模組</value>
+  </data>
+  <data name="UI.ChooseAModToView" xml:space="preserve">
+    <value>選擇要查看的模組</value>
+  </data>
+  <data name="UI.MoveToPosition" xml:space="preserve">
+    <value>移動到指定位置</value>
+  </data>
+  <data name="UI.SelectedModsMoveInTheirCurrentRelativeOrderPositionIsTheTopOfTheList" xml:space="preserve">
+    <value>已選擇的模組將按當前相對順序移動，位置 1 表示列表頂部。</value>
+  </data>
+  <data name="UI.EnterAPosition" xml:space="preserve">
+    <value>輸入位置數字</value>
+  </data>
+  <data name="UI.Move" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="UI.CleanUpCurrentlyDeployedModFiles" xml:space="preserve">
+    <value>清理當前已部署的模組檔案</value>
+  </data>
+  <data name="UI.DeployEnabledModsInTheCurrentProfileInListOrder" xml:space="preserve">
+    <value>按列表順序部署當前設定檔中已啟用的模組</value>
+  </data>
+  <data name="UI.LaunchHelldiversThroughSteam" xml:space="preserve">
+    <value>通過 Steam 啟動 Helldivers 2</value>
+  </data>
+  <data name="UI.DeploymentActions" xml:space="preserve">
+    <value>部署操作</value>
+  </data>
+  <data name="UI.ModOptions" xml:space="preserve">
+    <value>模組選項</value>
+  </data>
+  <data name="UI.NoPreview" xml:space="preserve">
+    <value>無預覽</value>
+  </data>
+  <data name="UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment" xml:space="preserve">
+    <value>啟用/停用該選項（停用后其檔案不參與部署）</value>
+  </data>
+  <data name="UI.Variants" xml:space="preserve">
+    <value>子選項</value>
+  </data>
+  <data name="UI.UncheckedOptionsAreExcludedFromDeploymentOptionsWithVariantsDeployOnly" xml:space="preserve">
+    <value>取消勾選的選項在部署時會被排除；帶變體的選項只部署選中變體的檔案；全部取消時該模組不部署任何檔案。選擇按設定檔分別儲存。</value>
+  </data>
+  <data name="UI.ForExampleWeaponsArmorInterface" xml:space="preserve">
+    <value>例如：武器、護甲、界面</value>
+  </data>
+  <data name="UI.UseThemeColor" xml:space="preserve">
+    <value>顏色跟隨主題</value>
+  </data>
+  <data name="UI.GroupColor" xml:space="preserve">
+    <value>分組顏色</value>
+  </data>
+  <data name="UI.ModsSelected.483b1db6" xml:space="preserve">
+    <value>已選擇 {0} 個模組</value>
+  </data>
+  <data name="UI.ApplicationSettings" xml:space="preserve">
+    <value>應用設定</value>
+  </data>
+  <data name="UI.ManageGamePathsDeploymentDownloadsAndInterfacePreferences" xml:space="preserve">
+    <value>管理游戲路徑、部署、下載和界面偏好。</value>
+  </data>
+  <data name="UI.GameDirectory" xml:space="preserve">
+    <value>游戲目錄</value>
+  </data>
+  <data name="UI.HelldiversInstallationDirectory" xml:space="preserve">
+    <value>Helldivers 2 安裝目錄</value>
+  </data>
+  <data name="UI.ChooseGameInstallationDirectory" xml:space="preserve">
+    <value>選擇游戲安裝目錄</value>
+  </data>
+  <data name="UI.Validate" xml:space="preserve">
+    <value>驗證</value>
+  </data>
+  <data name="UI.AutoDetect" xml:space="preserve">
+    <value>自動識別</value>
+  </data>
+  <data name="UI.AutoDetectGameAtStartup" xml:space="preserve">
+    <value>啟動時自動識別游戲</value>
+  </data>
+  <data name="UI.ApplyProfileWhenSelected" xml:space="preserve">
+    <value>選擇時自動應用設定檔</value>
+  </data>
+  <data name="UI.WhenOffRightClickAProfileAndChooseSetAsCurrent" xml:space="preserve">
+    <value>關閉后可右鍵設定檔，選擇“設為當前”。</value>
+  </data>
+  <data name="UI.CheckConflictsAutomatically" xml:space="preserve">
+    <value>自動檢查沖突</value>
+  </data>
+  <data name="UI.CheckResourceOverlapsInTheCurrentProfileAfterProfilesOrModsChangeOffBy" xml:space="preserve">
+    <value>配置或模組變更后，在后臺檢查當前配置的覆蓋關系。預設關閉。</value>
+  </data>
+  <data name="UI.Deployment" xml:space="preserve">
+    <value>部署</value>
+  </data>
+  <data name="UI.DefaultDeploymentMethod" xml:space="preserve">
+    <value>預設部署方式</value>
+  </data>
+  <data name="UI.CheckTargetDirectoryBeforeDeployment" xml:space="preserve">
+    <value>部署前檢查目標目錄</value>
+  </data>
+  <data name="UI.DeployFromBottomToTop" xml:space="preserve">
+    <value>從下到上部署</value>
+  </data>
+  <data name="UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie" xml:space="preserve">
+    <value>關閉時從上到下部署。Lua 分組隨方向置頂或置底：依賴 → BSL / MDL → SmoothBoot，SmoothBoot 優先級最高。</value>
+  </data>
+  <data name="UI.ShowModThumbnails" xml:space="preserve">
+    <value>顯示模組縮略圖</value>
+  </data>
+  <data name="UI.Downloads" xml:space="preserve">
+    <value>下載</value>
+  </data>
+  <data name="UI.SavedChangesApplyToNewOrRetriedDownloads" xml:space="preserve">
+    <value>儲存后對新開始或重新嘗試的下載生效。</value>
+  </data>
+  <data name="UI.ConcurrentConnectionsPerFile" xml:space="preserve">
+    <value>每個檔案的并發連接數</value>
+  </data>
+  <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
+    <value>伺服器支持分段時使用；檔案較小時自動減少連接。</value>
+  </data>
+  <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
+    <value>最小分段大小（MiB）</value>
+  </data>
+  <data name="UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles" xml:space="preserve">
+    <value>范圍 1–256 MiB；較大的分段會減少小檔案的連接數。</value>
+  </data>
+  <data name="UI.RetriesAfterASegmentFails" xml:space="preserve">
+    <value>分段失敗重試次數</value>
+  </data>
+  <data name="UI.ExcludesTheInitialRequestDisablesRetries" xml:space="preserve">
+    <value>不包含首次請求；0 表示不重試。</value>
+  </data>
+  <data name="UI.RetryDelayMilliseconds" xml:space="preserve">
+    <value>重試間隔（毫秒）</value>
+  </data>
+  <data name="UI.RangeMilliseconds" xml:space="preserve">
+    <value>范圍 0–60000 毫秒。</value>
+  </data>
+  <data name="UI.ResumeInterruptedDownloads" xml:space="preserve">
+    <value>啟用斷點續傳</value>
+  </data>
+  <data name="UI.KeepInterruptedProgressWhenSupportedByTheWebsiteDownloadingTheSameFile" xml:space="preserve">
+    <value>網站支持時保留中斷進度，再次下載同一檔案會繼續。檔案已變更時重新下載；關閉后中斷檔案會清理。</value>
+  </data>
+  <data name="UI.Appearance" xml:space="preserve">
+    <value>外觀</value>
+  </data>
+  <data name="UI.Theme" xml:space="preserve">
+    <value>主題</value>
+  </data>
+  <data name="UI.ListDensity" xml:space="preserve">
+    <value>列表密度</value>
+  </data>
+  <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
+    <value>啟用界面動畫</value>
+  </data>
+  <data name="UI.CustomBackground" xml:space="preserve">
+    <value>自定義背景</value>
+  </data>
+  <data name="UI.AppliesAfterSavingLowerCardOpacityToRevealTheBackgroundImage" xml:space="preserve">
+    <value>儲存后應用；降低卡片不透明度可透出背景圖片。</value>
+  </data>
+  <data name="UI.BackgroundImage" xml:space="preserve">
+    <value>背景圖片</value>
+  </data>
+  <data name="UI.ImagePathLeaveEmptyToDisable" xml:space="preserve">
+    <value>圖片路徑（留空禁用）</value>
+  </data>
+  <data name="UI.ChooseImage" xml:space="preserve">
+    <value>選擇圖片</value>
+  </data>
+  <data name="UI.Clear" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="UI.BackgroundImageOpacity" xml:space="preserve">
+    <value>背景圖片不透明度</value>
+  </data>
+  <data name="UI.BackgroundImageBlur" xml:space="preserve">
+    <value>背景圖片模糊</value>
+  </data>
+  <data name="UI.CardOpacity" xml:space="preserve">
+    <value>卡片不透明度</value>
+  </data>
+  <data name="UI.Cache" xml:space="preserve">
+    <value>快取</value>
+  </data>
+  <data name="UI.ImageCache" xml:space="preserve">
+    <value>圖片快取</value>
+  </data>
+  <data name="UI.RefreshInformation" xml:space="preserve">
+    <value>刷新資訊</value>
+  </data>
+  <data name="UI.CleanUp" xml:space="preserve">
+    <value>清理</value>
+  </data>
+  <data name="UI.SaveSettings" xml:space="preserve">
+    <value>儲存設定</value>
+  </data>
+  <data name="UI.RestoreDefaults" xml:space="preserve">
+    <value>恢復預設</value>
+  </data>
+  <data name="UI.TaskCenter" xml:space="preserve">
+    <value>任務中心</value>
+  </data>
+  <data name="UI.NoBackgroundTasks" xml:space="preserve">
+    <value>暫無后臺任務</value>
+  </data>
+  <data name="UI.ImportScanAndDeploymentTasksAppearHereWhenCompleted" xml:space="preserve">
+    <value>導入、掃描或部署任務完成后會顯示在這里</value>
+  </data>
+  <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
+    <value>任務中心載入失敗</value>
+  </data>
+  <data name="UI.NexusModsLinkHandler" xml:space="preserve">
+    <value>N 網連結接收</value>
+  </data>
+  <data name="UI.FailedToRegisterNexusModsLinksCheckTheCurrentUserSRegistryPermissionsA" xml:space="preserve">
+    <value>N 網連結接收注冊失敗，請檢查當前用戶的注冊表寫入權限后重啟應用。</value>
+  </data>
+  <data name="UI.CouldNotForwardTheRequestToTheCurrentWindowCloseTheOldWindowAndTryAgai" xml:space="preserve">
+    <value>無法將啟動請求發送到當前窗口，請關閉舊窗口后重試。</value>
+  </data>
+  <data name="UI.ChooseModFolder" xml:space="preserve">
+    <value>選擇模組資料夾</value>
+  </data>
+  <data name="UI.ChooseModArchives" xml:space="preserve">
+    <value>選擇模組壓縮檔</value>
+  </data>
+  <data name="UI.ModArchives" xml:space="preserve">
+    <value>模組壓縮檔</value>
+  </data>
+  <data name="UI.AllFiles" xml:space="preserve">
+    <value>所有檔案</value>
+  </data>
+  <data name="UI.Success" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="UI.Notice" xml:space="preserve">
+    <value>提醒</value>
+  </data>
+  <data name="UI.Error" xml:space="preserve">
+    <value>錯誤</value>
+  </data>
+  <data name="UI.Server" xml:space="preserve">
+    <value>伺服器</value>
+  </data>
+  <data name="UI.Failed" xml:space="preserve">
+    <value>{0}失敗</value>
+  </data>
+  <data name="UI.GetBrowserAuthorizedDownloadLink" xml:space="preserve">
+    <value>獲取網頁授權下載連結</value>
+  </data>
+  <data name="UI.BrowserDownloadAuthorizationExpiredClickModManagerDownloadOnTheNexusMo" xml:space="preserve">
+    <value>網頁臨時下載授權已過期。請到 N 網檔案頁面重新點擊“Mod manager download”，粘貼新的 nxm:// 連結后重試。</value>
+  </data>
+  <data name="UI.NexusModsReportsAnAccountOrFileMismatchSignInWithTheAccountThatOwnsThe" xml:space="preserve">
+    <value>N 網認為臨時授權與帳戶或檔案不匹配。請使用 API 密鑰所屬帳戶重新登錄網頁，并完整複製所選檔案的 nxm:// 連結。</value>
+  </data>
+  <data name="UI.NexusModsRejectedThisAuthorizationUseTheSameAccountToRequestANewModMan" xml:space="preserve">
+    <value>N 網拒絕當前網頁授權。請使用同一帳戶在檔案頁面重新點擊“Mod manager download”獲取臨時連結后重試。</value>
+  </data>
+  <data name="UI.TheServerRejectedAuthenticationReapplyAValidAPIKeyInToolsDeveloperTool" xml:space="preserve">
+    <value>伺服器未接受當前認證。請到“更多 → 開發工具”重新填寫并應用 API 密鑰，確認密鑰有效且未被撤銷。</value>
+  </data>
+  <data name="UI.TheDownloadServerRejectedThisLinkSAuthorizationCheckUpdatesAgainToObta" xml:space="preserve">
+    <value>下載伺服器未接受此下載連結的授權。請重新檢查更新以獲取新的下載連結后重試。</value>
+  </data>
+  <data name="UI.GetDownloadLink" xml:space="preserve">
+    <value>獲取下載連結</value>
+  </data>
+  <data name="UI.NexusModsRefusedADirectDownloadLinkFreeAccountsShouldEnableBrowserAuth" xml:space="preserve">
+    <value>N 網拒絕直接提供下載連結。免費帳戶請啟用“網頁授權下載”，到檔案網頁點擊“Mod manager download”，再粘貼 nxm:// 臨時連結。其他情況請查看下方伺服器說明。</value>
+  </data>
+  <data name="UI.NexusModsDeniedAccessCheckWhetherTheModOrFileIsAccessibleToYourAccount" xml:space="preserve">
+    <value>N 網拒絕訪問此資訊。請確認模組或檔案仍對你的帳戶開放，并根據下方伺服器說明檢查 API 訪問限制。僅憑 HTTP 403 無法確定是密鑰問題還是權限問題。</value>
+  </data>
+  <data name="UI.TheDownloadServerDeniedFileAccessCheckUpdatesAgainToObtainANewDownload" xml:space="preserve">
+    <value>下載伺服器拒絕訪問檔案。請重新檢查更新以獲取新的下載連結后重試。</value>
+  </data>
+  <data name="UI.TheServerCouldNotFindTheModOrFileCheckTheModLinkAndWhetherTheFileWasDe" xml:space="preserve">
+    <value>伺服器未找到該模組或檔案。請確認模組連結正確、檔案未被刪除，然后重新檢查更新。</value>
+  </data>
+  <data name="UI.TheRequestLimitWasReachedTryAgainLaterAndAvoidRepeatedChecksOrDownload" xml:space="preserve">
+    <value>請求次數已達限制。請稍后再試，避免連續點擊檢查或下載。</value>
+  </data>
+  <data name="UI.NoValidHTTPResponseWasReceivedCheckYourNetworkOrProxyAndTryAgain" xml:space="preserve">
+    <value>請求未收到有效的 HTTP 響應。請檢查網路或代理設定后重試。</value>
+  </data>
+  <data name="UI.TheServerCouldNotCompleteTheRequestTryAgainLaterRetainTheStatusCodeAnd" xml:space="preserve">
+    <value>伺服器未能完成請求。請稍后重試；若持續失敗，請保留此狀態碼和伺服器說明。</value>
+  </data>
+  <data name="UI.Reported" xml:space="preserve">
+    <value>
+{0} 返回的原因：{1}</value>
+  </data>
+  <data name="UI.TheServerDidNotProvideASpecificReason" xml:space="preserve">
+    <value>
+伺服器未提供具體原因。</value>
+  </data>
+  <data name="UI.CannotDetermineTheApplicationExecutablePath" xml:space="preserve">
+    <value>無法確定應用執行路徑。</value>
+  </data>
+  <data name="UI.InvalidApplicationPath" xml:space="preserve">
+    <value>應用路徑無效。</value>
+  </data>
+  <data name="UI.Backups" xml:space="preserve">
+    <value>共有 {0} 個備份</value>
+  </data>
+  <data name="UI.FailedToReadBackups" xml:space="preserve">
+    <value>讀取備份失敗：{0}</value>
+  </data>
+  <data name="UI.BackupCreated" xml:space="preserve">
+    <value>備份已創建：{0}</value>
+  </data>
+  <data name="UI.DataBackupCreated" xml:space="preserve">
+    <value>數據備份已創建</value>
+  </data>
+  <data name="UI.Backup" xml:space="preserve">
+    <value>備份</value>
+  </data>
+  <data name="UI.FailedToCreateBackup" xml:space="preserve">
+    <value>創建備份失敗：{0}</value>
+  </data>
+  <data name="UI.RestoreBackup" xml:space="preserve">
+    <value>恢復備份</value>
+  </data>
+  <data name="UI.RestoringOverwritesTheCurrentLibraryProfilesAndSettingsThenRefreshesTh" xml:space="preserve">
+    <value>恢復“{0}”會覆蓋當前模組庫、設定檔和設定，并刷新當前頁面。確定繼續嗎？</value>
+  </data>
+  <data name="UI.BackupRestoredPageDataWillUpdateAfterRefreshing" xml:space="preserve">
+    <value>備份已恢復，頁面數據將在刷新后同步</value>
+  </data>
+  <data name="UI.BackupRestored" xml:space="preserve">
+    <value>備份已恢復</value>
+  </data>
+  <data name="UI.FailedToRestoreBackup" xml:space="preserve">
+    <value>恢復備份失敗：{0}</value>
+  </data>
+  <data name="UI.DeleteBackup" xml:space="preserve">
+    <value>刪除備份</value>
+  </data>
+  <data name="UI.Delete" xml:space="preserve">
+    <value>確定刪除“{0}”嗎？</value>
+  </data>
+  <data name="UI.BackupDeleted" xml:space="preserve">
+    <value>備份已刪除</value>
+  </data>
+  <data name="UI.FailedToDeleteBackup" xml:space="preserve">
+    <value>刪除備份失敗：{0}</value>
+  </data>
+  <data name="UI.ProfilesOrModsChangedCheckConflictsAgain" xml:space="preserve">
+    <value>配置或模組已更新，請檢查沖突</value>
+  </data>
+  <data name="UI.NoOverlapsBetweenModsWereFoundInReadableResources" xml:space="preserve">
+    <value>已讀取的資源中未發現跨模組覆蓋</value>
+  </data>
+  <data name="UI.NoResourceOverlapsBetweenModsFound" xml:space="preserve">
+    <value>未檢測到跨模組資源覆蓋</value>
+  </data>
+  <data name="UI.CheckingEnabledMods" xml:space="preserve">
+    <value>正在檢查啟用模組…</value>
+  </data>
+  <data name="UI.FoundResourceOverlapGroupsRelatedCardsAreMarked" xml:space="preserve">
+    <value>發現 {0} 組資源覆蓋，已標記相關卡片</value>
+  </data>
+  <data name="UI.ItemsCouldNotBeReadResultsAreIncomplete" xml:space="preserve">
+    <value>；{0} 項未能讀取，檢測不完整</value>
+  </data>
+  <data name="UI.ReadingPatchResourcesInTheCurrentProfile" xml:space="preserve">
+    <value>正在讀取當前配置的補丁資源…</value>
+  </data>
+  <data name="UI.ScannedEnabledModsPatchesAndResources" xml:space="preserve">
+    <value>已掃描 {0} 個啟用模組、{1} 個補丁、{2} 條資源；</value>
+  </data>
+  <data name="UI.FoundOverlapGroupsIncludingWithDefiniteDifferences" xml:space="preserve">
+    <value>發現 {0} 組覆蓋，其中 {1} 組有明確差異</value>
+  </data>
+  <data name="UI.UnreadableItemsResultsAreIncomplete" xml:space="preserve">
+    <value>（{0} 項未能讀取，檢測不完整）</value>
+  </data>
+  <data name="UI.CheckCancelledCheckAgainToContinue" xml:space="preserve">
+    <value>檢測已取消，請重新檢查</value>
+  </data>
+  <data name="UI.ConflictCheckFailed" xml:space="preserve">
+    <value>沖突檢測失敗: {0}</value>
+  </data>
+  <data name="UI.DefiniteDifferences" xml:space="preserve">
+    <value>明確差異</value>
+  </data>
+  <data name="UI.PotentialOverlapMatchingMetadataMayContainDifferentContent" xml:space="preserve">
+    <value>潛在覆蓋（元數據相同，內容仍可能不同）</value>
+  </data>
+  <data name="UI.DeploymentOrder" xml:space="preserve">
+    <value>部署順序 #{0}</value>
+  </data>
+  <data name="UI.MainStreamGPU" xml:space="preserve">
+    <value>主數據 {0} / Stream {1} / GPU {2}</value>
+  </data>
+  <data name="UI.UnitVersion" xml:space="preserve">
+    <value>Unit 版本 {0}</value>
+  </data>
+  <data name="UI.NexusModsCredentialsConfiguredAndEncryptedKeyNotYetValidated" xml:space="preserve">
+    <value>已配置 N 網認證，密鑰已加密儲存（尚未驗證密鑰）。</value>
+  </data>
+  <data name="UI.NexusModsCredentialsConfiguredKeyNotYetValidated" xml:space="preserve">
+    <value>已配置 N 網認證（尚未驗證密鑰）。</value>
+  </data>
+  <data name="UI.NoNexusModsAPIKeyConfigured" xml:space="preserve">
+    <value>尚未配置 N 網 API 密鑰。</value>
+  </data>
+  <data name="UI.EnterAValidAPIKeyWithoutNewlinesOrControlCharacters" xml:space="preserve">
+    <value>請輸入有效的 API 密鑰，不能包含換行或控制字符。</value>
+  </data>
+  <data name="UI.FailedToSaveKeyThePreviousKeyIsUnchangedTryAgain" xml:space="preserve">
+    <value>密鑰儲存失敗，未更改原密鑰，請重試。</value>
+  </data>
+  <data name="UI.FailedToClearKeySavedDataIsRetainedTryAgain" xml:space="preserve">
+    <value>密鑰清除失敗，儲存的數據仍保留，請重試。</value>
+  </data>
+  <data name="UI.GeneratingTestData" xml:space="preserve">
+    <value>正在生成測試數據...</value>
+  </data>
+  <data name="UI.GeneratedMods" xml:space="preserve">
+    <value>已生成 {0}/{1} 個模組...</value>
+  </data>
+  <data name="UI.GeneratedTestMods" xml:space="preserve">
+    <value>成功生成 {0} 個測試模組</value>
+  </data>
+  <data name="UI.TestDataGenerationCancelled" xml:space="preserve">
+    <value>測試數據生成已取消</value>
+  </data>
+  <data name="UI.GenerationFailed" xml:space="preserve">
+    <value>生成失敗：{0}</value>
+  </data>
+  <data name="UI.SettingEnabledStates" xml:space="preserve">
+    <value>正在設定模組啟用狀態...</value>
+  </data>
+  <data name="UI.NoModsAvailable" xml:space="preserve">
+    <value>沒有模組可設定</value>
+  </data>
+  <data name="UI.DefaultProfile" xml:space="preserve">
+    <value>預設配置</value>
+  </data>
+  <data name="UI.TestProfile" xml:space="preserve">
+    <value>測試用設定檔</value>
+  </data>
+  <data name="UI.CannotCreateProfile" xml:space="preserve">
+    <value>無法創建設定檔</value>
+  </data>
+  <data name="UI.RandomlyEnabledMods" xml:space="preserve">
+    <value>已隨機啟用 {0}/{1} 個模組</value>
+  </data>
+  <data name="UI.EnabledStateGenerationCancelled" xml:space="preserve">
+    <value>啟用狀態生成已取消</value>
+  </data>
+  <data name="UI.FailedToUpdateSettings" xml:space="preserve">
+    <value>設定失敗：{0}</value>
+  </data>
+  <data name="UI.ClearingTestData" xml:space="preserve">
+    <value>正在清除測試數據...</value>
+  </data>
+  <data name="UI.RemovedTestMods" xml:space="preserve">
+    <value>已清除 {0} 個測試模組</value>
+  </data>
+  <data name="UI.TestDataCleanupCancelled" xml:space="preserve">
+    <value>測試數據清理已取消</value>
+  </data>
+  <data name="UI.FailedToClear" xml:space="preserve">
+    <value>清除失敗：{0}</value>
+  </data>
+  <data name="UI.EnterExternalToolInformation" xml:space="preserve">
+    <value>請輸入外部工具資訊</value>
+  </data>
+  <data name="UI.Editing" xml:space="preserve">
+    <value>正在編輯“{0}”</value>
+  </data>
+  <data name="UI.ValidationFailed" xml:space="preserve">
+    <value>校驗失敗：{0}</value>
+  </data>
+  <data name="UI.FailedToSaveExternalTool" xml:space="preserve">
+    <value>儲存外部工具失敗</value>
+  </data>
+  <data name="UI.ExternalToolUpdated" xml:space="preserve">
+    <value>外部工具已更新</value>
+  </data>
+  <data name="UI.ExternalToolAdded" xml:space="preserve">
+    <value>外部工具已添加</value>
+  </data>
+  <data name="UI.DeleteExternalTool" xml:space="preserve">
+    <value>刪除外部工具</value>
+  </data>
+  <data name="UI.LaunchingExternalTool" xml:space="preserve">
+    <value>正在啟動外部工具...</value>
+  </data>
+  <data name="UI.ExternalToolLaunched" xml:space="preserve">
+    <value>外部工具已啟動</value>
+  </data>
+  <data name="UI.LaunchFailed" xml:space="preserve">
+    <value>啟動失敗：{0}</value>
+  </data>
+  <data name="UI.CouldNotLaunchHDCheckThatSteamIsInstalled" xml:space="preserve">
+    <value>無法啟動 HD2，請確認已安裝 Steam：{0}</value>
+  </data>
+  <data name="UI.LaunchFailed.0cf642cf" xml:space="preserve">
+    <value>啟動失敗</value>
+  </data>
+  <data name="UI.AddToProfiles.863fb01c" xml:space="preserve">
+    <value>將“{0}”加入設定檔</value>
+  </data>
+  <data name="UI.AddSelectedModsToProfiles" xml:space="preserve">
+    <value>將選中的 {0} 個 Mod 加入設定檔</value>
+  </data>
+  <data name="UI.NoCurrentProfile" xml:space="preserve">
+    <value>無當前 Profile</value>
+  </data>
+  <data name="UI.NameAscending" xml:space="preserve">
+    <value>名稱升序</value>
+  </data>
+  <data name="UI.NameDescending" xml:space="preserve">
+    <value>名稱降序</value>
+  </data>
+  <data name="UI.NewestImported" xml:space="preserve">
+    <value>最新導入</value>
+  </data>
+  <data name="UI.OldestImported" xml:space="preserve">
+    <value>最早導入</value>
+  </data>
+  <data name="UI.ByCategory" xml:space="preserve">
+    <value>按分類</value>
+  </data>
+  <data name="UI.ShowingMods" xml:space="preserve">
+    <value>顯示 {0} / {1} 個 Mod</value>
+  </data>
+  <data name="UI.FailedToLoadMods" xml:space="preserve">
+    <value>載入模組失敗: {0}</value>
+  </data>
+  <data name="UI.SelectModsToAddFirst" xml:space="preserve">
+    <value>請先選擇要加入的 Mod</value>
+  </data>
+  <data name="UI.AddToProfile.d2b10e96" xml:space="preserve">
+    <value>加入設定檔</value>
+  </data>
+  <data name="UI.CreateAProfileFirst" xml:space="preserve">
+    <value>請先創建一個設定檔</value>
+  </data>
+  <data name="UI.OpenProfiles" xml:space="preserve">
+    <value>打開設定檔</value>
+  </data>
+  <data name="UI.SelectAtLeastOneProfile" xml:space="preserve">
+    <value>請至少勾選一個設定檔</value>
+  </data>
+  <data name="UI.AddedModsToProfiles" xml:space="preserve">
+    <value>已將 {0} 個 Mod 加入 {1} 個設定檔</value>
+  </data>
+  <data name="UI.FailedToAddToProfiles" xml:space="preserve">
+    <value>加入設定檔失敗: {0}</value>
+  </data>
+  <data name="UI.SelectAProfileFirst" xml:space="preserve">
+    <value>請先選擇一個設定檔</value>
+  </data>
+  <data name="UI.NoProfile" xml:space="preserve">
+    <value>無設定檔</value>
+  </data>
+  <data name="UI.DisabledMods" xml:space="preserve">
+    <value>已禁用 {0} 個模組</value>
+  </data>
+  <data name="UI.DisableSelectedMods" xml:space="preserve">
+    <value>批量禁用</value>
+  </data>
+  <data name="UI.FailedToDisableSelectedMods" xml:space="preserve">
+    <value>批量禁用失敗: {0}</value>
+  </data>
+  <data name="UI.OperationFailed" xml:space="preserve">
+    <value>操作失敗</value>
+  </data>
+  <data name="UI.NoCurrentProfileAvailable" xml:space="preserve">
+    <value>當前沒有可操作的 Profile</value>
+  </data>
+  <data name="UI.RemoveFromProfile.30878196" xml:space="preserve">
+    <value>從 Profile 移除</value>
+  </data>
+  <data name="UI.NoneOfTheSelectedModsAreInTheCurrentProfile" xml:space="preserve">
+    <value>所選 Mod 均未加入當前 Profile</value>
+  </data>
+  <data name="UI.RemoveModsFromAndKeepTheirLibraryFilesContinue" xml:space="preserve">
+    <value>將從“{0}”移除 {1} 個 Mod，Library 中的 Mod 檔案不會刪除。是否繼續？</value>
+  </data>
+  <data name="UI.RemovedModsFromTheCurrentProfileLibraryFilesRetained" xml:space="preserve">
+    <value>已從當前 Profile 移除 {0} 個 Mod，Library 資產已保留</value>
+  </data>
+  <data name="UI.FailedToRemoveFromProfile" xml:space="preserve">
+    <value>從 Profile 移除失敗: {0}</value>
+  </data>
+  <data name="UI.DeleteMod" xml:space="preserve">
+    <value>刪除模組</value>
+  </data>
+  <data name="UI.DeleteSelectedModsTheirFilesWillAlsoBeDeleted" xml:space="preserve">
+    <value>確定刪除選中的 {0} 個模組嗎？此操作會刪除模組檔案。</value>
+  </data>
+  <data name="UI.DeletedMods" xml:space="preserve">
+    <value>已刪除 {0} 個模組</value>
+  </data>
+  <data name="UI.DeleteSelectedMods" xml:space="preserve">
+    <value>批量刪除</value>
+  </data>
+  <data name="UI.FailedToDeleteSelectedMods" xml:space="preserve">
+    <value>批量刪除失敗: {0}</value>
+  </data>
+  <data name="UI.OperationFailed.87ab1b88" xml:space="preserve">
+    <value>操作失敗: {0}</value>
+  </data>
+  <data name="UI.DeleteAndItsModFiles" xml:space="preserve">
+    <value>確定刪除“{0}”嗎？此操作會刪除模組檔案。</value>
+  </data>
+  <data name="UI.Deleted" xml:space="preserve">
+    <value>已刪除 {0}</value>
+  </data>
+  <data name="UI.DeletionFailed" xml:space="preserve">
+    <value>刪除失敗: {0}</value>
+  </data>
+  <data name="UI.AddToProfile.53746158" xml:space="preserve">
+    <value>加入 Profile</value>
+  </data>
+  <data name="UI.AddedToTheCurrentProfile" xml:space="preserve">
+    <value>已將“{0}”加入當前 Profile</value>
+  </data>
+  <data name="UI.FailedToAddToProfile" xml:space="preserve">
+    <value>加入 Profile 失敗: {0}</value>
+  </data>
+  <data name="UI.Unfinished" xml:space="preserve">
+    <value>{0}，未完成 {1} 個</value>
+  </data>
+  <data name="UI.ImportedMods" xml:space="preserve">
+    <value>已導入 {0} 個模組</value>
+  </data>
+  <data name="UI.ImportComplete" xml:space="preserve">
+    <value>導入完成</value>
+  </data>
+  <data name="UI.ModImportCancelled" xml:space="preserve">
+    <value>模組導入已取消</value>
+  </data>
+  <data name="UI.ImportMods" xml:space="preserve">
+    <value>導入模組</value>
+  </data>
+  <data name="UI.ImportFailed" xml:space="preserve">
+    <value>導入失敗: {0}</value>
+  </data>
+  <data name="UI.SelectAProfileFirst.af42ccab" xml:space="preserve">
+    <value>請先選擇設定檔</value>
+  </data>
+  <data name="UI.DeployMods" xml:space="preserve">
+    <value>部署模組</value>
+  </data>
+  <data name="UI.NoValidGameDirectoryFound" xml:space="preserve">
+    <value>未檢測到有效的游戲目錄</value>
+  </data>
+  <data name="UI.OpenSettings" xml:space="preserve">
+    <value>打開設定</value>
+  </data>
+  <data name="UI.HardLink" xml:space="preserve">
+    <value>硬連結</value>
+  </data>
+  <data name="UI.SymbolicLink" xml:space="preserve">
+    <value>符號連結</value>
+  </data>
+  <data name="UI.CopyFiles" xml:space="preserve">
+    <value>檔案複製</value>
+  </data>
+  <data name="UI.WaitingForDeploymentConfirmation" xml:space="preserve">
+    <value>等待確認部署...</value>
+  </data>
+  <data name="UI.ProfileEnabledModsMethodTargetCleanUpThePreviousDeploymentAndDeployInP" xml:space="preserve">
+    <value>配置：{0}
+啟用模組：{1} 個
+部署方式：{2}
+部署位置：{3}
+將清理之前的部署并按配置順序部署，是否繼續？</value>
+  </data>
+  <data name="UI.PreparingDeployment" xml:space="preserve">
+    <value>正在準備部署...</value>
+  </data>
+  <data name="UI.DeployedMods" xml:space="preserve">
+    <value>已部署 {0} 個模組</value>
+  </data>
+  <data name="UI.DeploymentComplete" xml:space="preserve">
+    <value>部署完成</value>
+  </data>
+  <data name="UI.DeploymentPartiallyFailed" xml:space="preserve">
+    <value>部署未完全成功</value>
+  </data>
+  <data name="UI.DeploymentResult" xml:space="preserve">
+    <value>部署結果</value>
+  </data>
+  <data name="UI.DeploymentCancelled" xml:space="preserve">
+    <value>部署已取消</value>
+  </data>
+  <data name="UI.DeploymentFailed" xml:space="preserve">
+    <value>部署失敗: {0}</value>
+  </data>
+  <data name="UI.CleanUpDeployment" xml:space="preserve">
+    <value>清理部署</value>
+  </data>
+  <data name="UI.DeleteFilesAndRecordsCreatedByTheLatestDeployment" xml:space="preserve">
+    <value>將刪除最近一次部署產生的目標檔案和部署記錄。是否繼續？</value>
+  </data>
+  <data name="UI.CleaningDeployedFiles" xml:space="preserve">
+    <value>正在清理部署檔案...</value>
+  </data>
+  <data name="UI.CleanedUpFiles" xml:space="preserve">
+    <value>已清理 {0} 個檔案</value>
+  </data>
+  <data name="UI.CleanupComplete" xml:space="preserve">
+    <value>清理完成</value>
+  </data>
+  <data name="UI.DeploymentCleanupCancelled" xml:space="preserve">
+    <value>清理部署已取消</value>
+  </data>
+  <data name="UI.CleanupFailed" xml:space="preserve">
+    <value>清理失敗: {0}</value>
+  </data>
+  <data name="UI.CancellingOperation" xml:space="preserve">
+    <value>正在取消操作...</value>
+  </data>
+  <data name="UI.CalculationFailed" xml:space="preserve">
+    <value>計算失敗：{0}</value>
+  </data>
+  <data name="UI.RemoveFromAndKeepItsLibraryFilesContinue" xml:space="preserve">
+    <value>將從“{0}”移除“{1}”，Library 中的 Mod 檔案不會刪除。是否繼續？</value>
+  </data>
+  <data name="UI.RemovedFromTheCurrentProfileLibraryFilesRetained" xml:space="preserve">
+    <value>已從當前 Profile 移除 {0}，Library 資產已保留</value>
+  </data>
+  <data name="UI.LoadedTheLatestLogEntries" xml:space="preserve">
+    <value>已載入最近 {0} 條日志</value>
+  </data>
+  <data name="UI.FailedToReadLogs" xml:space="preserve">
+    <value>讀取日志失敗：{0}</value>
+  </data>
+  <data name="UI.LogsExported" xml:space="preserve">
+    <value>日志已導出</value>
+  </data>
+  <data name="UI.FailedToExportLogs" xml:space="preserve">
+    <value>導出日志失敗：{0}</value>
+  </data>
+  <data name="UI.Game" xml:space="preserve">
+    <value>游戲</value>
+  </data>
+  <data name="UI.TaskCompleted" xml:space="preserve">
+    <value>任務“{0}”已完成</value>
+  </data>
+  <data name="UI.BackgroundTasks" xml:space="preserve">
+    <value>后臺任務</value>
+  </data>
+  <data name="UI.TaskPartiallyFailed" xml:space="preserve">
+    <value>任務“{0}”部分失敗</value>
+  </data>
+  <data name="UI.TaskCancelled" xml:space="preserve">
+    <value>任務“{0}”已取消</value>
+  </data>
+  <data name="UI.TaskFailed" xml:space="preserve">
+    <value>任務“{0}”執行失敗：{1}</value>
+  </data>
+  <data name="UI.CouldNotReadTheSavedNexusModsKeyEnterAndSaveItAgainInDeveloperTools" xml:space="preserve">
+    <value>無法讀取已儲存的 N 網密鑰，請在開發工具重新填寫并儲存。</value>
+  </data>
+  <data name="UI.NexusModsAuthentication" xml:space="preserve">
+    <value>N 網認證</value>
+  </data>
+  <data name="UI.ANexusModsLinkWasReceivedButNoTaskIsWaitingForBrowserAuthorizationAppl" xml:space="preserve">
+    <value>已收到 N 網下載連結，但當前沒有等待網頁授權的任務。請先在開發工具應用 API 密鑰，再從模組庫選擇檔案并點擊下載或更新。</value>
+  </data>
+  <data name="UI.NexusModsDownloads" xml:space="preserve">
+    <value>N 網下載</value>
+  </data>
+  <data name="UI.ExitApplication" xml:space="preserve">
+    <value>退出應用</value>
+  </data>
+  <data name="UI.ModsAreStillBeingImportedCancelImportWaitForCleanupAndExit" xml:space="preserve">
+    <value>模組仍在添加中。是否取消添加并在清理完成后退出？</value>
+  </data>
+  <data name="UI.BackgroundTasksAreStillRunningExitingMayInterruptThemExitAnyway" xml:space="preserve">
+    <value>當前仍有 {0} 個后臺任務運行中。退出可能中斷正在進行的操作，確定退出嗎？</value>
+  </data>
+  <data name="UI.FailedToLoadBackgroundImageUsingASolidBackground" xml:space="preserve">
+    <value>背景圖片載入失敗，已回退為純色背景</value>
+  </data>
+  <data name="UI.ChooseModsToAdd" xml:space="preserve">
+    <value>選擇要添加的模組</value>
+  </data>
+  <data name="UI.SelectMultipleArchivesOrAddAModFolder" xml:space="preserve">
+    <value>支持批量選擇壓縮檔，也可以添加模組資料夾。</value>
+  </data>
+  <data name="UI.ProcessedRemaining" xml:space="preserve">
+    <value>已處理 {0} / {1} · 剩余 {2} 個</value>
+  </data>
+  <data name="UI.SucceededFailed" xml:space="preserve">
+    <value>成功 {0} 個 · 失敗 {1} 個</value>
+  </data>
+  <data name="UI.Cancelling" xml:space="preserve">
+    <value>正在取消</value>
+  </data>
+  <data name="UI.StoppingTheCurrentOperationAndCleaningTemporaryFilesImportedModsAreRet" xml:space="preserve">
+    <value>正在停止當前操作并清理臨時檔案，已添加的模組會保留。</value>
+  </data>
+  <data name="UI.ReadyToAdd" xml:space="preserve">
+    <value>準備添加</value>
+  </data>
+  <data name="UI.ImportCancelled" xml:space="preserve">
+    <value>添加已取消</value>
+  </data>
+  <data name="UI.ImportFinishedWithSomeFailures" xml:space="preserve">
+    <value>添加結束，部分模組失敗</value>
+  </data>
+  <data name="UI.ImportComplete.0365e233" xml:space="preserve">
+    <value>添加完成</value>
+  </data>
+  <data name="UI.UnfinishedImportedModsAreRetained" xml:space="preserve">
+    <value>還有 {0} 個未完成；已添加的模組會保留。</value>
+  </data>
+  <data name="UI.CloseThisPanelToViewTheLibraryOrContinueAddingMods" xml:space="preserve">
+    <value>可關閉浮窗查看模組庫，或繼續添加。</value>
+  </data>
+  <data name="UI.Characters" xml:space="preserve">
+    <value>角色</value>
+  </data>
+  <data name="UI.Audio" xml:space="preserve">
+    <value>音頻</value>
+  </data>
+  <data name="UI.Gameplay" xml:space="preserve">
+    <value>玩法</value>
+  </data>
+  <data name="UI.Visuals" xml:space="preserve">
+    <value>視覺</value>
+  </data>
+  <data name="UI.Scripts" xml:space="preserve">
+    <value>腳本</value>
+  </data>
+  <data name="UI.Mixed" xml:space="preserve">
+    <value>混合</value>
+  </data>
+  <data name="UI.Other" xml:space="preserve">
+    <value>其他</value>
+  </data>
+  <data name="UI.Uncategorized" xml:space="preserve">
+    <value>未分類</value>
+  </data>
+  <data name="UI.NexusModsLatestAvailableVersion" xml:space="preserve">
+    <value>Nexus Mods · {0} · {1}
+{2}
+最新可用版本：{3}</value>
+  </data>
+  <data name="UI.NotRecordedImportTimeMissingInOlderRecords" xml:space="preserve">
+    <value>未記錄（舊記錄缺失導入時間）</value>
+  </data>
+  <data name="UI.NotRecorded" xml:space="preserve">
+    <value>未記錄</value>
+  </data>
+  <data name="UI.UnknownResources" xml:space="preserve">
+    <value>未識別資源</value>
+  </data>
+  <data name="UI.NoGameResourceTypeIDDetected" xml:space="preserve">
+    <value>未識別出游戲資源 Type ID</value>
+  </data>
+  <data name="UI.CalculatingSHA" xml:space="preserve">
+    <value>正在計算 SHA-256…</value>
+  </data>
+  <data name="UI.NotCalculated" xml:space="preserve">
+    <value>未計算</value>
+  </data>
+  <data name="UI.AddAndEnableInCurrentProfile" xml:space="preserve">
+    <value>加入并啟用當前 Profile</value>
+  </data>
+  <data name="UI.DisableInCurrentProfile" xml:space="preserve">
+    <value>禁用當前 Profile Mod</value>
+  </data>
+  <data name="UI.EnableInCurrentProfile" xml:space="preserve">
+    <value>啟用當前 Profile Mod</value>
+  </data>
+  <data name="UI.Added" xml:space="preserve">
+    <value>已加入</value>
+  </data>
+  <data name="UI.Disabled.f95ea7f4" xml:space="preserve">
+    <value>未啟用</value>
+  </data>
+  <data name="UI.PlatformNexusModsGameModIDNameLatestAvailableVersion" xml:space="preserve">
+    <value>平臺：Nexus Mods（N 網）
+游戲：{0}
+模組編號：{1}
+名稱：{2}
+最新可用版本：{3}
+{4}</value>
+  </data>
+  <data name="UI.NexusModsHelldiversModRecognizedFetchItsInformation" xml:space="preserve">
+    <value>已識別 N 網 · Helldivers 2 · 模組 {0}，點擊獲取資訊。</value>
+  </data>
+  <data name="UI.FetchingModInformationFromNexusMods" xml:space="preserve">
+    <value>正在從 N 網獲取模組資訊…</value>
+  </data>
+  <data name="UI.InformationFetchedSaveToLinkItToTheCurrentMod" xml:space="preserve">
+    <value>資訊已獲取，儲存后將與當前模組綁定。</value>
+  </data>
+  <data name="UI.FetchModInformation" xml:space="preserve">
+    <value>獲取模組資訊</value>
+  </data>
+  <data name="UI.NoDownloadableFiles" xml:space="preserve">
+    <value>沒有可下載檔案。</value>
+  </data>
+  <data name="UI.InsufficientVersionInformationToCheckUpdates" xml:space="preserve">
+    <value>版本資訊不足，無法判斷更新。</value>
+  </data>
+  <data name="UI.TheSelectedFileVersionIsAlreadyInstalled" xml:space="preserve">
+    <value>已安裝所選檔案版本。</value>
+  </data>
+  <data name="UI.TheSelectedBrowserFileIsAlreadyInstalled" xml:space="preserve">
+    <value>已安裝所選網頁檔案。</value>
+  </data>
+  <data name="UI.TheSelectedBrowserFileDiffersFromTheInstalledOneDownloadToReplaceIt" xml:space="preserve">
+    <value>所選網頁檔案與已安裝檔案不同，可下載并替換。</value>
+  </data>
+  <data name="UI.VersionNumbersMatchYouMayDownloadAgainOrReplaceTheMod" xml:space="preserve">
+    <value>版本號相同；可重新下載或替換。</value>
+  </data>
+  <data name="UI.TheSelectedVersionDiffersFromTheLocalVersionDownloadToReplaceIt" xml:space="preserve">
+    <value>所選版本與本地不同，可下載并替換。</value>
+  </data>
+  <data name="UI.CheckingNexusModsFileVersions" xml:space="preserve">
+    <value>正在檢查 N 網檔案版本…</value>
+  </data>
+  <data name="UI.NoActiveDownloadableFilesFoundOnNexusMods" xml:space="preserve">
+    <value>N 網沒有可下載的活動檔案。</value>
+  </data>
+  <data name="UI.ChooseAFileAndClickDownloadOrUpdateToOpenItsNexusModsPage" xml:space="preserve">
+    <value>選擇檔案后點擊下載或更新，將自動打開該檔案的 N 網網頁。</value>
+  </data>
+  <data name="UI.FileListFetchedTheMainFileIsSelectedByDefault" xml:space="preserve">
+    <value>已獲取檔案列表，預設選擇主檔案。</value>
+  </data>
+  <data name="UI.DownloadMethodChangedCheckUpdatesAgain" xml:space="preserve">
+    <value>下載方式已切換，請重新檢查更新。</value>
+  </data>
+  <data name="UI.BrowserAuthorizationReceivedValidatingAccountAndContinuing" xml:space="preserve">
+    <value>已收到網頁授權，正在驗證帳戶并繼續…</value>
+  </data>
+  <data name="UI.ReceiveBrowserAuthorization" xml:space="preserve">
+    <value>接收網頁授權</value>
+  </data>
+  <data name="UI.StillWaitingForValidAuthorizationForTheSelectedFile" xml:space="preserve">
+    <value>
+仍在等待所選檔案的有效授權。</value>
+  </data>
+  <data name="UI.WaitingForBrowserAuthorizationConfirmTheDownloadInYourBrowserAndOpenTh" xml:space="preserve">
+    <value>等待網頁授權：在瀏覽器完成下載確認，選擇 HD2Mimnt 打開連結后將自動繼續。</value>
+  </data>
+  <data name="UI.ValidatingTheBrowserAuthorizationAccount" xml:space="preserve">
+    <value>正在驗證網頁授權所屬帳戶…</value>
+  </data>
+  <data name="UI.TheAuthorizedFileDiffersFromTheSelectedFile" xml:space="preserve">
+    <value>授權檔案與所選檔案不同。</value>
+  </data>
+  <data name="UI.DownloadUpdatePackage" xml:space="preserve">
+    <value>下載更新包</value>
+  </data>
+  <data name="UI.DownloadingUpdatePackage" xml:space="preserve">
+    <value>正在下載更新包…</value>
+  </data>
+  <data name="UI.ModReplacedCheckItsOptions" xml:space="preserve">
+    <value>模組已替換，請檢查模組選項。</value>
+  </data>
+  <data name="UI.PreviousDeploymentCleanedUpDeployAgain" xml:space="preserve">
+    <value>舊部署已清理，請重新部署。</value>
+  </data>
+  <data name="UI.DownloadArchive.3d1ec642" xml:space="preserve">
+    <value>下載壓縮檔</value>
+  </data>
+  <data name="UI.DownloadingArchive" xml:space="preserve">
+    <value>正在下載壓縮檔…</value>
+  </data>
+  <data name="UI.ArchiveSaved" xml:space="preserve">
+    <value>壓縮檔已儲存：</value>
+  </data>
+  <data name="UI.DownloadingMB" xml:space="preserve">
+    <value>下載中 · {0} / {1} MB</value>
+  </data>
+  <data name="UI.DownloadingMB.59f4e85e" xml:space="preserve">
+    <value>下載中 · {0} MB</value>
+  </data>
+  <data name="UI.OperationCancelledTheOriginalModWasNotReplaced" xml:space="preserve">
+    <value>操作已取消，原模組未替換。</value>
+  </data>
+  <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
+    <value>正在取消并清理…</value>
+  </data>
+  <data name="UI.Tutorial" xml:space="preserve">
+    <value>教程</value>
+  </data>
+  <data name="UI.BackupAndRestore" xml:space="preserve">
+    <value>備份與恢復</value>
+  </data>
+  <data name="UI.Logs" xml:space="preserve">
+    <value>日志</value>
+  </data>
+  <data name="UI.About" xml:space="preserve">
+    <value>關于</value>
+  </data>
+  <data name="UI.LoadingPlugins" xml:space="preserve">
+    <value>正在載入插件...</value>
+  </data>
+  <data name="UI.LoadedPlugins" xml:space="preserve">
+    <value>已載入 {0} 個插件</value>
+  </data>
+  <data name="UI.FailedToLoadPlugins" xml:space="preserve">
+    <value>載入插件失敗：{0}</value>
+  </data>
+  <data name="UI.FailedToUpdatePermissions" xml:space="preserve">
+    <value>權限更新失敗：{0}</value>
+  </data>
+  <data name="UI.UpdatedPermissionsFor" xml:space="preserve">
+    <value>已更新 {0} 的權限</value>
+  </data>
+  <data name="UI.InstallingPlugin" xml:space="preserve">
+    <value>正在安裝插件...</value>
+  </data>
+  <data name="UI.PluginInstalled" xml:space="preserve">
+    <value>插件安裝成功</value>
+  </data>
+  <data name="UI.PluginInstallationFailed" xml:space="preserve">
+    <value>插件安裝失敗：{0}</value>
+  </data>
+  <data name="UI.Enabling" xml:space="preserve">
+    <value>正在啟用 {0}...</value>
+  </data>
+  <data name="UI.FailedToEnable" xml:space="preserve">
+    <value>啟用 {0} 失敗：{1}</value>
+  </data>
+  <data name="UI.OperationFailed.5bc4c481" xml:space="preserve">
+    <value>操作失敗：{0}</value>
+  </data>
+  <data name="UI.Disabling" xml:space="preserve">
+    <value>正在停用 {0}...</value>
+  </data>
+  <data name="UI.Disabled.1e885630" xml:space="preserve">
+    <value>已停用 {0}</value>
+  </data>
+  <data name="UI.FailedToDisable" xml:space="preserve">
+    <value>停用 {0} 失敗：{1}</value>
+  </data>
+  <data name="UI.UninstallPlugin" xml:space="preserve">
+    <value>卸載插件</value>
+  </data>
+  <data name="UI.UninstallItWillStopRunningAndBeRemovedFromTheInstalledList" xml:space="preserve">
+    <value>確定卸載“{0}”嗎？插件將停止運行并從已安裝列表移除。</value>
+  </data>
+  <data name="UI.Uninstalling" xml:space="preserve">
+    <value>正在卸載 {0}...</value>
+  </data>
+  <data name="UI.Uninstalled" xml:space="preserve">
+    <value>已卸載 {0}</value>
+  </data>
+  <data name="UI.FailedToUninstall" xml:space="preserve">
+    <value>卸載 {0} 失敗：{1}</value>
+  </data>
+  <data name="UI.FoundExecutionRecordsFor" xml:space="preserve">
+    <value>已找到 {0} 的 {1} 條運行記錄</value>
+  </data>
+  <data name="UI.FailedToReadRecords" xml:space="preserve">
+    <value>讀取記錄失敗：{0}</value>
+  </data>
+  <data name="UI.On.989ca7db" xml:space="preserve">
+    <value>啟</value>
+  </data>
+  <data name="UI.Off.16833aa2" xml:space="preserve">
+    <value>停</value>
+  </data>
+  <data name="UI.Full" xml:space="preserve">
+    <value>全</value>
+  </data>
+  <data name="UI.Box" xml:space="preserve">
+    <value>沙</value>
+  </data>
+  <data name="UI.ThisPluginRequestsUnrestrictedAccessToSystemResourcesAllowOnlyPluginsF" xml:space="preserve">
+    <value>此插件請求完全訪問模式，可不受限制地訪問系統資源。僅允許可信來源的插件。</value>
+  </data>
+  <data name="UI.ThisPluginRequestsPotentiallyDangerousPermissionsReviewThemBeforeAllow" xml:space="preserve">
+    <value>此插件請求潛在危險權限，請在允許前仔細檢查。</value>
+  </data>
+  <data name="UI.FullAccessBypassesPermissionChecksKeepThisModeOnlyForTrustedPlugins" xml:space="preserve">
+    <value>完全訪問模式繞過權限列表檢查，只有可信插件才應保持此模式。</value>
+  </data>
+  <data name="UI.ChangesApplyTheNextTimeThePluginAccessesAResource" xml:space="preserve">
+    <value>修改權限后，插件下次訪問資源時會按新的授權狀態執行。</value>
+  </data>
+  <data name="UI.ReadModFiles" xml:space="preserve">
+    <value>讀取模組檔案</value>
+  </data>
+  <data name="UI.WriteModFiles" xml:space="preserve">
+    <value>寫入模組檔案</value>
+  </data>
+  <data name="UI.NetworkAccess" xml:space="preserve">
+    <value>網路訪問</value>
+  </data>
+  <data name="UI.RunExternalPrograms" xml:space="preserve">
+    <value>執行外部程序</value>
+  </data>
+  <data name="UI.ReadDatabase" xml:space="preserve">
+    <value>讀取數據庫</value>
+  </data>
+  <data name="UI.WriteSettings" xml:space="preserve">
+    <value>寫入配置</value>
+  </data>
+  <data name="UI.FileSystemAccess" xml:space="preserve">
+    <value>檔案系統訪問</value>
+  </data>
+  <data name="UI.RegistryAccess" xml:space="preserve">
+    <value>注冊表訪問</value>
+  </data>
+  <data name="UI.ReadPluginStorage" xml:space="preserve">
+    <value>讀取插件存儲</value>
+  </data>
+  <data name="UI.WritePluginStorage" xml:space="preserve">
+    <value>寫入插件存儲</value>
+  </data>
+  <data name="UI.ReadModMetadataAndFileInformation" xml:space="preserve">
+    <value>讀取模組元數據和檔案資訊</value>
+  </data>
+  <data name="UI.ModifyModFilesAndMetadata" xml:space="preserve">
+    <value>修改模組檔案和元數據</value>
+  </data>
+  <data name="UI.SendRequestsToExternalServices" xml:space="preserve">
+    <value>向外部服務發起網路請求</value>
+  </data>
+  <data name="UI.RunExternalProgramsAndScripts" xml:space="preserve">
+    <value>運行外部程序和腳本</value>
+  </data>
+  <data name="UI.QueryLibraryAndProfileData" xml:space="preserve">
+    <value>查詢模組庫和設定檔數據</value>
+  </data>
+  <data name="UI.ModifyApplicationSettings" xml:space="preserve">
+    <value>修改應用設定</value>
+  </data>
+  <data name="UI.ReadAndWriteFilesOutsideThePluginDirectory" xml:space="preserve">
+    <value>讀寫插件目錄之外的檔案</value>
+  </data>
+  <data name="UI.ReadAndModifyTheWindowsRegistry" xml:space="preserve">
+    <value>讀取和修改 Windows 注冊表</value>
+  </data>
+  <data name="UI.ReadPluginSpecificStorage" xml:space="preserve">
+    <value>讀取插件專用存儲</value>
+  </data>
+  <data name="UI.WritePluginSpecificStorage" xml:space="preserve">
+    <value>寫入插件專用存儲</value>
+  </data>
+  <data name="UI.ModifyPluginSettings" xml:space="preserve">
+    <value>修改插件配置</value>
+  </data>
+  <data name="UI.CustomPermission" xml:space="preserve">
+    <value>自定義權限</value>
+  </data>
+  <data name="UI.FailedToUpdateSelectedModStates" xml:space="preserve">
+    <value>批量更新模組狀態失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToRemoveSelectedMods" xml:space="preserve">
+    <value>批量移除模組失敗: {0}</value>
+  </data>
+  <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
+    <value>依賴載入器的模組與 BSL / MDL</value>
+  </data>
+  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
+    <value>依賴載入器的模組 → BSL / MDL（二選一）→ SmoothBoot（最高優先級）· 按部署方向排列</value>
+  </data>
+  <data name="UI.All" xml:space="preserve">
+    <value>全部</value>
+  </data>
+  <data name="UI.LeftOnly" xml:space="preserve">
+    <value>僅左側</value>
+  </data>
+  <data name="UI.RightOnly" xml:space="preserve">
+    <value>僅右側</value>
+  </data>
+  <data name="UI.DifferentStates" xml:space="preserve">
+    <value>狀態不同</value>
+  </data>
+  <data name="UI.InBoth" xml:space="preserve">
+    <value>兩邊共有</value>
+  </data>
+  <data name="UI.FailedToLoadProfiles" xml:space="preserve">
+    <value>載入設定檔失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToSynchronizeProfiles" xml:space="preserve">
+    <value>同步設定檔變更失敗: {0}</value>
+  </data>
+  <data name="UI.AddSeparatorGroup" xml:space="preserve">
+    <value>添加分隔符分組</value>
+  </data>
+  <data name="UI.EditGroupNameAndColor" xml:space="preserve">
+    <value>編輯分組名稱與顏色</value>
+  </data>
+  <data name="UI.EditLoaderGroupColor" xml:space="preserve">
+    <value>編輯依賴載入器分組顏色</value>
+  </data>
+  <data name="UI.EnterAGroupName" xml:space="preserve">
+    <value>請輸入分組名稱。</value>
+  </data>
+  <data name="UI.FailedToSaveGroup" xml:space="preserve">
+    <value>儲存分組失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveSeparatorState" xml:space="preserve">
+    <value>儲存分隔符狀態失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToDeleteSeparator" xml:space="preserve">
+    <value>刪除分隔符失敗: {0}</value>
+  </data>
+  <data name="UI.TheSelectedProfileWasNotFound" xml:space="preserve">
+    <value>找不到所選 Profile。</value>
+  </data>
+  <data name="UI.FailedToLoadProfileMods" xml:space="preserve">
+    <value>載入 Profile Mod 失敗: {0}</value>
+  </data>
+  <data name="UI.ModDirectoryDoesNotExist" xml:space="preserve">
+    <value>模組目錄不存在</value>
+  </data>
+  <data name="UI.OpenModDirectory" xml:space="preserve">
+    <value>打開模組目錄</value>
+  </data>
+  <data name="UI.FailedToOpenModDirectory" xml:space="preserve">
+    <value>打開模組目錄失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToReadLibrary" xml:space="preserve">
+    <value>讀取模組庫失敗: {0}</value>
+  </data>
+  <data name="UI.AddedToTheProfileBeingViewed" xml:space="preserve">
+    <value>已將“{0}”添加到當前查看的 Profile</value>
+  </data>
+  <data name="UI.FailedToAddMod" xml:space="preserve">
+    <value>添加模組失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToCompareProfiles" xml:space="preserve">
+    <value>設定檔對比失敗: {0}</value>
+  </data>
+  <data name="UI.CompareProfiles" xml:space="preserve">
+    <value>設定檔對比</value>
+  </data>
+  <data name="UI.DifferentEnabledStates" xml:space="preserve">
+    <value>啟用狀態不同</value>
+  </data>
+  <data name="UI.Disabled.bc5a87a7" xml:space="preserve">
+    <value>已禁用</value>
+  </data>
+  <data name="UI.EnterAProfileName" xml:space="preserve">
+    <value>請輸入設定檔名稱</value>
+  </data>
+  <data name="UI.CreationFailed" xml:space="preserve">
+    <value>創建失敗: {0}</value>
+  </data>
+  <data name="UI.TheDefaultProfileCannotBeDeleted" xml:space="preserve">
+    <value>預設設定檔不能刪除</value>
+  </data>
+  <data name="UI.DeleteProfile" xml:space="preserve">
+    <value>刪除設定檔</value>
+  </data>
+  <data name="UI.SwitchToAnotherProfileBeforeDeletingTheCurrentOne" xml:space="preserve">
+    <value>請先切換到其他設定檔，再刪除當前配置</value>
+  </data>
+  <data name="UI.DeleteProfileLibraryModsAreRetained" xml:space="preserve">
+    <value>確定刪除設定檔“{0}”嗎？模組庫中的模組不會被刪除。</value>
+  </data>
+  <data name="UI.DeletedProfile" xml:space="preserve">
+    <value>已刪除設定檔“{0}”</value>
+  </data>
+  <data name="UI.EnterANewNameInTheFieldAboveThenClickRename" xml:space="preserve">
+    <value>請先在上方輸入框填寫新名稱，再點擊重命名</value>
+  </data>
+  <data name="UI.RenameProfile" xml:space="preserve">
+    <value>重命名設定檔</value>
+  </data>
+  <data name="UI.ProfileNameUpdated" xml:space="preserve">
+    <value>設定檔名稱已更新</value>
+  </data>
+  <data name="UI.RenameFailed" xml:space="preserve">
+    <value>重命名失敗: {0}</value>
+  </data>
+  <data name="UI.DuplicatedProfileAs" xml:space="preserve">
+    <value>已複製設定檔為“{0}”</value>
+  </data>
+  <data name="UI.DuplicateProfile" xml:space="preserve">
+    <value>複製設定檔</value>
+  </data>
+  <data name="UI.FailedToDuplicate" xml:space="preserve">
+    <value>複製失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToSwitch" xml:space="preserve">
+    <value>切換失敗: {0}</value>
+  </data>
+  <data name="UI.SwitchProfile" xml:space="preserve">
+    <value>切換設定檔</value>
+  </data>
+  <data name="UI.FailedToUpdateModState" xml:space="preserve">
+    <value>更新模組狀態失敗: {0}</value>
+  </data>
+  <data name="UI.EnterAValidIntegerPosition" xml:space="preserve">
+    <value>請輸入有效的整數位置。</value>
+  </data>
+  <data name="UI.PositionMustBeBetweenAnd" xml:space="preserve">
+    <value>位置必須在 1 到 {0} 之間。</value>
+  </data>
+  <data name="UI.TheSelectionContainsModsWithFixedPositions" xml:space="preserve">
+    <value>當前選擇中包含不能調整位置的模組。</value>
+  </data>
+  <data name="UI.ThisPositionWouldBreakTheFixedLuaModOrLoaderOrder" xml:space="preserve">
+    <value>該位置會破壞 Lua 模組或載入器的固定順序。</value>
+  </data>
+  <data name="UI.FailedToSaveModOptions" xml:space="preserve">
+    <value>儲存模組選項失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToRemoveMod" xml:space="preserve">
+    <value>移除模組失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveProfileOrder" xml:space="preserve">
+    <value>儲存設定檔順序失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToSaveDeploymentOrder" xml:space="preserve">
+    <value>儲存部署順序失敗: {0}</value>
+  </data>
+  <data name="UI.OverlapsWithTheseMods" xml:space="preserve">
+    <value>與以下模組存在覆蓋沖突：
+</value>
+  </data>
+  <data name="UI.ClickTheWarningIconToViewAllRelatedMods" xml:space="preserve">
+    <value>
+…點擊感嘆號查看全部關聯模組。</value>
+  </data>
+  <data name="UI.SeeTheConflictsPageForDetails" xml:space="preserve">
+    <value>
+
+詳細資訊請查看“沖突”頁。</value>
+  </data>
+  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
+    <value>SmoothBoot · 最高優先級</value>
+  </data>
+  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
+    <value>BSL / MDL · 固定在依賴之后</value>
+  </data>
+  <data name="UI.LoaderDependency" xml:space="preserve">
+    <value>依賴載入器</value>
+  </data>
+  <data name="UI.CacheInformationNotLoaded" xml:space="preserve">
+    <value>快取資訊未載入</value>
+  </data>
+  <data name="UI.SettingsLoaded" xml:space="preserve">
+    <value>設定已載入</value>
+  </data>
+  <data name="UI.SegmentSizeMustBeMiB" xml:space="preserve">
+    <value>分段大小應為 1–256 MiB。</value>
+  </data>
+  <data name="UI.DownloadSettingsSavedAppliesToTheNextDownload" xml:space="preserve">
+    <value>下載設定已儲存，下次下載生效</value>
+  </data>
+  <data name="UI.ProfileSettingsSaved" xml:space="preserve">
+    <value>設定檔設定已儲存</value>
+  </data>
+  <data name="UI.FailedToSaveSettings" xml:space="preserve">
+    <value>儲存設定失敗: {0}</value>
+  </data>
+  <data name="UI.GameNotDetected" xml:space="preserve">
+    <value>未檢測到游戲</value>
+  </data>
+  <data name="UI.GameDirectoryIsValid" xml:space="preserve">
+    <value>游戲目錄有效</value>
+  </data>
+  <data name="UI.GameDirectoryIsInvalid" xml:space="preserve">
+    <value>游戲目錄無效</value>
+  </data>
+  <data name="UI.NoValidHelldiversGameDirectoryFound" xml:space="preserve">
+    <value>未找到有效的 Helldivers 2 游戲目錄</value>
+  </data>
+  <data name="UI.GameSettings" xml:space="preserve">
+    <value>游戲設定</value>
+  </data>
+  <data name="UI.DownloadSettingsRestoredToDefaults" xml:space="preserve">
+    <value>下載設定已恢復預設值</value>
+  </data>
+  <data name="UI.BackgroundImageUpdated" xml:space="preserve">
+    <value>背景圖片已更新</value>
+  </data>
+  <data name="UI.ImageCacheCleared" xml:space="preserve">
+    <value>圖片快取已清理</value>
+  </data>
+  <data name="UI.FailedToClearCache" xml:space="preserve">
+    <value>快取清理失敗: {0}</value>
+  </data>
+  <data name="UI.MemoryItemsDiskItemsDiskUsage" xml:space="preserve">
+    <value>內存 {0} 項，磁盤 {1} 項，磁盤占用 {2}</value>
+  </data>
+  <data name="UI.RunningHistory" xml:space="preserve">
+    <value>運行中 {0} 個，歷史 {1} 個</value>
+  </data>
+  <data name="UI.FailedToLoadTasks" xml:space="preserve">
+    <value>載入任務失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToCancelTask" xml:space="preserve">
+    <value>取消任務失敗: {0}</value>
+  </data>
+  <data name="UI.FailedToCancelTask.2bb7ec1a" xml:space="preserve">
+    <value>取消任務失敗</value>
+  </data>
+  <data name="UI.CheckTheGameDirectoryFirst" xml:space="preserve">
+    <value>先確認游戲目錄</value>
+  </data>
+  <data name="UI.SelectTheHelldiversInstallationRootContainingBinDataAndToolsOrUseAutoD" xml:space="preserve">
+    <value>選擇 Helldivers 2 安裝根目錄（包含 bin、data、tools），也可以使用自動識別。驗證后點擊“儲存設定”，模組會部署到游戲的 data 子目錄。</value>
+  </data>
+  <data name="UI.ChooseADeploymentMethod" xml:space="preserve">
+    <value>選擇部署方式</value>
+  </data>
+  <data name="UI.CopyCreatesIndependentFilesHardLinksRequireTheLibraryAndGameOnTheSameV" xml:space="preserve">
+    <value>複製會生成獨立檔案；硬連結要求模組庫與游戲位于同一磁盤卷；符號連結通常需要管理員權限。選擇適合你的方式，儲存后應用于下一次部署。</value>
+  </data>
+  <data name="UI.ImportModsIntoTheLibrary" xml:space="preserve">
+    <value>把模組導入模組庫</value>
+  </data>
+  <data name="UI.UseAddModsToImportArchivesOrDropFilesIntoTheWindowToImportMultipleMods" xml:space="preserve">
+    <value>“添加模組”用于導入模組壓縮檔。也可以把檔案拖入窗口批量導入。模組庫儲存模組資產，導入本身不會修改游戲檔案。</value>
+  </data>
+  <data name="UI.FindAndSelectMods" xml:space="preserve">
+    <value>查找與選擇模組</value>
+  </data>
+  <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
+    <value>搜索可匹配名稱、作者、描述，也支持 tag:標簽。單擊聚焦；Ctrl 點擊增減選擇，Shift 選擇范圍，Ctrl+A 全選。選中后可使用批量操作加入設定檔。</value>
+  </data>
+  <data name="UI.CreateModCombinations" xml:space="preserve">
+    <value>創建模組組合</value>
+  </data>
+  <data name="UI.EachProfileStoresAnIndependentModCombinationAndOptionsEnterANameToCrea" xml:space="preserve">
+    <value>設定檔儲存一套獨立的模組組合和選項。輸入名稱后新建；預設配置固定在第一位。右鍵已有配置可以複製、重命名或設為當前。</value>
+  </data>
+  <data name="UI.ChooseLibraryModsOrUseAddModsHereToAddThemToTheProfileBeingViewedAddin" xml:space="preserve">
+    <value>從模組庫選好模組后，也可以在這里打開“添加模組”，把庫中的模組加入正在查看的設定檔。加入設定檔不等于部署到游戲。</value>
+  </data>
+  <data name="UI.EnabledStateOptionsAndOrder" xml:space="preserve">
+    <value>啟用、選項與順序</value>
+  </data>
+  <data name="UI.CardSwitchesControlDeploymentModsWithOptionsLetYouSelectVariantsTheNum" xml:space="preserve">
+    <value>卡片開關決定是否參與部署。“含選項”的模組可打開選項按鈕調整變體；版本號前的數字是位置。拖動排序，或選中后右鍵輸入目標位置。Lua Mods 會特別標記，Lua 依賴與載入器位于固定分組。配置中暫無模組時，添加后即可看到卡片。</value>
+  </data>
+  <data name="UI.CheckConflictsBeforeDeployment" xml:space="preserve">
+    <value>部署前檢查沖突</value>
+  </data>
+  <data name="UI.CheckResourceOverlapsInEnabledModsYellowWarningIconsMarkAffectedCardsH" xml:space="preserve">
+    <value>點擊即可檢查當前配置中已啟用模組的覆蓋關系，結果直接以卡片上的黃色感嘆號提示。懸停可查看關聯模組，點擊感嘆號可自動定位；有多個關聯模組時先選擇目標。詳細資訊可在“沖突”頁查看。修改模組、選項或順序后應重新檢查。教程只介紹按鈕，不會自動執行掃描。</value>
+  </data>
+  <data name="UI.DeployTheCurrentProfile" xml:space="preserve">
+    <value>部署當前配置</value>
+  </data>
+  <data name="UI.DeployEnabledModsFromTheProfileBeingViewedWithTheSavedDeploymentMethod" xml:space="preserve">
+    <value>將正在查看的配置中已啟用模組部署到游戲，使用設定中儲存的部署方式。列表預設從上到下部署，靠后的模組覆蓋同名資源；反向部署時順序相反。教程不會執行部署。</value>
+  </data>
+  <data name="UI.CleanUpDeployedFiles" xml:space="preserve">
+    <value>清理已部署檔案</value>
+  </data>
+  <data name="UI.RemoveTrackedDeployedFilesFromTheGameWhileKeepingLibraryAssetsCleanupR" xml:space="preserve">
+    <value>移除管理器追蹤的已部署游戲檔案，模組庫中的原始資產仍保留。清理用于撤下當前部署；刪除庫里的模組是另一個操作。</value>
+  </data>
+  <data name="UI.LaunchHD" xml:space="preserve">
+    <value>啟動 HD2</value>
+  </data>
+  <data name="UI.LaunchHelldiversThroughSteamAfterDeploymentWhileRetainingSteamLaunchOp" xml:space="preserve">
+    <value>完成部署后可通過 Steam 啟動 Helldivers 2，保留 Steam 的啟動選項。這個按鈕也可以獨立啟動游戲，教程不會替你啟動。</value>
+  </data>
+  <data name="UI.ViewTaskProgress" xml:space="preserve">
+    <value>查看任務進度</value>
+  </data>
+  <data name="UI.TheTaskCenterShowsImportDeploymentAndScanProgressAndResultsAndSupports" xml:space="preserve">
+    <value>任務中心集中顯示導入、部署、掃描等任務的進度和結果，支持取消可取消的任務。教程結束后，你可以從這個入口打開任務中心。</value>
+  </data>
+  <data name="UI.ViewNotifications" xml:space="preserve">
+    <value>查看通知</value>
+  </data>
+  <data name="UI.NotificationsRetainResultsAndErrorsAfterBannersDisappearReadTheMessage" xml:space="preserve">
+    <value>通知儲存操作結果和錯誤提示，橫幅消失后仍可在歷史中查看。遇到失敗時先查看提示，再決定是否重試。</value>
+  </data>
+  <data name="UI.BackUpManagementData" xml:space="preserve">
+    <value>備份管理數據</value>
+  </data>
+  <data name="UI.CreateDatabaseAndSettingsBackupsOnTheToolsPageRestoringRequiresConfirm" xml:space="preserve">
+    <value>在工具頁創建數據庫和設定備份。恢復前會要求確認；這里介紹的是管理器數據備份，不是游戲安裝檔案的完整備份。</value>
+  </data>
+  <data name="UI.Next" xml:space="preserve">
+    <value>下一步</value>
+  </data>
+  <data name="UI.ViewDetails" xml:space="preserve">
+    <value>查看詳情</value>
+  </data>
+  <data name="UI.ModLink.fac95c1d" xml:space="preserve">
+    <value>模組連結…</value>
+  </data>
+  <data name="UI.CheckAndUpdateMod" xml:space="preserve">
+    <value>檢查和更新模組…</value>
+  </data>
+  <data name="UI.DisableInCurrentProfile.81c717c0" xml:space="preserve">
+    <value>在當前 Profile 禁用</value>
+  </data>
+  <data name="UI.EnableInCurrentProfile.2646a5cd" xml:space="preserve">
+    <value>在當前 Profile 啟用</value>
+  </data>
+  <data name="UI.OpenFileLocation" xml:space="preserve">
+    <value>打開檔案位置</value>
+  </data>
+  <data name="UI.SaveModArchive" xml:space="preserve">
+    <value>儲存模組壓縮檔</value>
+  </data>
+  <data name="UI.ExportApplicationLogs" xml:space="preserve">
+    <value>導出應用日志</value>
+  </data>
+  <data name="UI.LogFiles" xml:space="preserve">
+    <value>日志檔案</value>
+  </data>
+  <data name="UI.ChooseAFileToOpenWith" xml:space="preserve">
+    <value>選擇要交給 {0} 打開的檔案</value>
+  </data>
+  <data name="UI.ChoosePluginManifest" xml:space="preserve">
+    <value>選擇插件 manifest</value>
+  </data>
+  <data name="UI.PluginManifest" xml:space="preserve">
+    <value>插件 manifest</value>
+  </data>
+  <data name="UI.SetAsCurrent" xml:space="preserve">
+    <value>設為當前</value>
+  </data>
+  <data name="UI.Rename" xml:space="preserve">
+    <value>重命名</value>
+  </data>
+  <data name="UI.EditGroupColor" xml:space="preserve">
+    <value>編輯分組顏色</value>
+  </data>
+  <data name="UI.DeleteGroup" xml:space="preserve">
+    <value>刪除分組</value>
+  </data>
+  <data name="UI.AddGroupSeparatorHere" xml:space="preserve">
+    <value>在此處添加分組分隔符</value>
+  </data>
+  <data name="UI.MoveToPosition.e06860aa" xml:space="preserve">
+    <value>移動到指定位置…</value>
+  </data>
+  <data name="UI.PositionUnchanged" xml:space="preserve">
+    <value>位置不變</value>
+  </data>
+  <data name="UI.ReleaseToPlaceBefore" xml:space="preserve">
+    <value>松開放到「{0}」之前</value>
+  </data>
+  <data name="UI.ReleaseToPlaceAtTheEndOfTheList" xml:space="preserve">
+    <value>松開放到列表末尾</value>
+  </data>
+  <data name="UI.GroupOfMods" xml:space="preserve">
+    <value>{0} · 整組 {1} 個模組</value>
+  </data>
+  <data name="UI.AndMods" xml:space="preserve">
+    <value>{0} 等 {1} 個模組</value>
+  </data>
+  <data name="UI.ReleaseToPlaceBeforeTheBSLSeparator" xml:space="preserve">
+    <value>松開放到 BSL 分隔符之前</value>
+  </data>
+  <data name="UI.ChooseBackgroundImage" xml:space="preserve">
+    <value>選擇背景圖片</value>
+  </data>
+  <data name="UI.ImageFiles" xml:space="preserve">
+    <value>圖片檔案</value>
+  </data>
+  <data name="Settings.Language.Help" xml:space="preserve">
+    <value>選擇后立即生效，無需重啟。自動模式跟隨系統顯示語言。</value>
+  </data>
+  <data name="Settings.Language.ChangeFailed" xml:space="preserve">
+    <value>切換語言失敗：{0}</value>
+  </data>
+  <data name="Options.Dark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="Options.Light" xml:space="preserve">
+    <value>淺色</value>
+  </data>
+  <data name="Options.System" xml:space="preserve">
+    <value>跟隨系統</value>
+  </data>
+  <data name="Options.Comfortable" xml:space="preserve">
+    <value>舒適</value>
+  </data>
+  <data name="Options.Compact" xml:space="preserve">
+    <value>緊湊</value>
+  </data>
+  <data name="Options.Copy" xml:space="preserve">
+    <value>複製檔案</value>
+  </data>
+  <data name="Options.HardLink" xml:space="preserve">
+    <value>硬連結</value>
+  </data>
+  <data name="Options.SymbolicLink" xml:space="preserve">
+    <value>符號連結</value>
+  </data>
+  <data name="Game.Found" xml:space="preserve">
+    <value>已找到游戲</value>
+  </data>
+  <data name="Game.NotFound" xml:space="preserve">
+    <value>未找到游戲</value>
+  </data>
+  <data name="Game.Invalid" xml:space="preserve">
+    <value>路徑無效</value>
+  </data>
+  <data name="Game.Detecting" xml:space="preserve">
+    <value>正在檢測…</value>
+  </data>
+  <data name="Game.Checking" xml:space="preserve">
+    <value>正在檢查…</value>
+  </data>
+  <data name="Shell.Unknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="Shell.Title" xml:space="preserve">
+    <value>HD2Mimnt - Helldivers 2 模組管理器</value>
+  </data>
+  <data name="Shell.Ready" xml:space="preserve">
+    <value>就緒</value>
+  </data>
+  <data name="Shell.NoProfile" xml:space="preserve">
+    <value>無設定檔</value>
+  </data>
+  <data name="Shell.NotDeployed" xml:space="preserve">
+    <value>未部署</value>
+  </data>
+  <data name="Shell.Idle" xml:space="preserve">
+    <value>空閑</value>
+  </data>
+  <data name="Shell.Initialized" xml:space="preserve">
+    <value>應用已初始化</value>
+  </data>
+  <data name="Shell.Started" xml:space="preserve">
+    <value>HD2Mimnt 已成功啟動</value>
+  </data>
+  <data name="Shell.Welcome" xml:space="preserve">
+    <value>歡迎</value>
+  </data>
+  <data name="Task.Running" xml:space="preserve">
+    <value>運行中</value>
+  </data>
+  <data name="Task.Pending" xml:space="preserve">
+    <value>等待中</value>
+  </data>
+  <data name="Task.Completed" xml:space="preserve">
+    <value>已完成</value>
+  </data>
+  <data name="Task.Failed" xml:space="preserve">
+    <value>失敗</value>
+  </data>
+  <data name="Task.Cancelled" xml:space="preserve">
+    <value>已取消</value>
+  </data>
+  <data name="Task.ForceTerminated" xml:space="preserve">
+    <value>已強制終止</value>
+  </data>
+  <data name="Plugin.FullAccess" xml:space="preserve">
+    <value>完全訪問</value>
+  </data>
+  <data name="Plugin.Sandboxed" xml:space="preserve">
+    <value>沙盒</value>
+  </data>
+  <data name="Notification.Success" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="Notification.Warning" xml:space="preserve">
+    <value>提醒</value>
+  </data>
+  <data name="Notification.Error" xml:space="preserve">
+    <value>錯誤</value>
+  </data>
+  <data name="Notification.Info" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="Time.JustNow" xml:space="preserve">
+    <value>剛剛</value>
+  </data>
+  <data name="Time.MinutesAgo" xml:space="preserve">
+    <value>{0} 分鐘前</value>
+  </data>
+  <data name="Time.HoursAgo" xml:space="preserve">
+    <value>{0} 小時前</value>
+  </data>
+  <data name="Time.DaysAgo" xml:space="preserve">
+    <value>{0} 天前</value>
+  </data>
+  <data name="Profile.ConflictTooltip" xml:space="preserve">
+    <value>與以下模組存在覆蓋沖突：
+{0}
+
+詳細資訊請查看“沖突”頁。</value>
+  </data>
+  <data name="Profile.ConflictTooltipMore" xml:space="preserve">
+    <value>與以下模組存在覆蓋沖突：
+{0}
+…點擊感嘆號查看全部關聯模組。
+
+詳細資訊請查看“沖突”頁。</value>
+  </data>
+  <data name="Conflicts.Summary" xml:space="preserve">
+    <value>已掃描 {0} 個啟用模組、{1} 個補丁、{2} 條資源；發現 {3} 組覆蓋，其中 {4} 組有明確差異</value>
+  </data>
+  <data name="Conflicts.SummaryWarnings" xml:space="preserve">
+    <value>已掃描 {0} 個啟用模組、{1} 個補丁、{2} 條資源；發現 {3} 組覆蓋，其中 {4} 組有明確差異（{5} 項未能讀取，檢測不完整）</value>
+  </data>
+  <data name="Conflicts.CardWarnings" xml:space="preserve">
+    <value>發現 {0} 組資源覆蓋，已標記相關卡片；{1} 項未能讀取，檢測不完整</value>
+  </data>
+  <data name="ResourceType.UnknownId" xml:space="preserve">
+    <value>未知資源 0x{0}</value>
+  </data>
+  <data name="Import.CheckSource" xml:space="preserve">
+    <value>檢查源檔案</value>
+  </data>
+  <data name="Import.Extract" xml:space="preserve">
+    <value>解壓模組</value>
+  </data>
+  <data name="Import.ReadManifest" xml:space="preserve">
+    <value>讀取模組清單</value>
+  </data>
+  <data name="Import.Identify" xml:space="preserve">
+    <value>識別模組資訊和選項</value>
+  </data>
+  <data name="Import.Analyze" xml:space="preserve">
+    <value>分析模組檔案</value>
+  </data>
+  <data name="Import.CountFiles" xml:space="preserve">
+    <value>統計檔案大小和內容</value>
+  </data>
+  <data name="Import.Types" xml:space="preserve">
+    <value>識別資源類型</value>
+  </data>
+  <data name="Import.Index" xml:space="preserve">
+    <value>掃描模組資源索引</value>
+  </data>
+  <data name="Import.Copy" xml:space="preserve">
+    <value>複製模組檔案</value>
+  </data>
+  <data name="Import.PrepareCopy" xml:space="preserve">
+    <value>準備複製到模組庫</value>
+  </data>
+  <data name="Import.CopyComplete" xml:space="preserve">
+    <value>檔案複製完成</value>
+  </data>
+  <data name="Import.Save" xml:space="preserve">
+    <value>儲存模組</value>
+  </data>
+  <data name="Import.Saved" xml:space="preserve">
+    <value>模組已儲存</value>
+  </data>
+  <data name="Common.Open" xml:space="preserve">
+    <value>打開</value>
+  </data>
+  <data name="ResourceType.bones" xml:space="preserve">
+    <value>骨骼</value>
+  </data>
+  <data name="ResourceType.level" xml:space="preserve">
+    <value>關卡</value>
+  </data>
+  <data name="ResourceType.physics" xml:space="preserve">
+    <value>物理</value>
+  </data>
+  <data name="ResourceType.animation" xml:space="preserve">
+    <value>動畫</value>
+  </data>
+  <data name="ResourceType.state_machine" xml:space="preserve">
+    <value>狀態機</value>
+  </data>
+  <data name="ResourceType.particles" xml:space="preserve">
+    <value>粒子</value>
+  </data>
+  <data name="ResourceType.prefab" xml:space="preserve">
+    <value>預制體</value>
+  </data>
+  <data name="ResourceType.texture" xml:space="preserve">
+    <value>紋理</value>
+  </data>
+  <data name="ResourceType.mesh" xml:space="preserve">
+    <value>模型</value>
+  </data>
+  <data name="ResourceType.material" xml:space="preserve">
+    <value>材質</value>
+  </data>
+  <data name="ResourceType.wwise_bank" xml:space="preserve">
+    <value>音頻庫</value>
+  </data>
+  <data name="ResourceType.wwise_dep" xml:space="preserve">
+    <value>音頻依賴</value>
+  </data>
+  <data name="ResourceType.wwise_stream" xml:space="preserve">
+    <value>音頻流</value>
+  </data>
+  <data name="ResourceType.shading_environment_mapping" xml:space="preserve">
+    <value>著色環境映射</value>
+  </data>
+  <data name="ResourceType.entity" xml:space="preserve">
+    <value>實體</value>
+  </data>
+  <data name="ResourceType.bik" xml:space="preserve">
+    <value>視頻</value>
+  </data>
+  <data name="ResourceType.font" xml:space="preserve">
+    <value>字體</value>
+  </data>
+  <data name="ResourceType.cloth" xml:space="preserve">
+    <value>布料</value>
+  </data>
+  <data name="ResourceType.shading_environment" xml:space="preserve">
+    <value>著色環境</value>
+  </data>
+  <data name="ResourceType.lua" xml:space="preserve">
+    <value>Lua 腳本</value>
+  </data>
+  <data name="ResourceType.vector_field" xml:space="preserve">
+    <value>向量場</value>
+  </data>
+  <data name="ResourceType.flow" xml:space="preserve">
+    <value>流程</value>
+  </data>
+  <data name="ResourceType.render_config" xml:space="preserve">
+    <value>渲染配置</value>
+  </data>
+  <data name="ResourceType.strings" xml:space="preserve">
+    <value>字符串</value>
+  </data>
+  <data name="ResourceType.network_config" xml:space="preserve">
+    <value>網路配置</value>
+  </data>
+  <data name="ResourceType.config" xml:space="preserve">
+    <value>配置</value>
+  </data>
+  <data name="ResourceType.package" xml:space="preserve">
+    <value>資源包</value>
+  </data>
+  <data name="ResourceType.wwise_metadata" xml:space="preserve">
+    <value>音頻元數據</value>
+  </data>
+  <data name="ResourceType.mouse_cursor" xml:space="preserve">
+    <value>滑鼠指針</value>
+  </data>
+  <data name="ResourceType.renderable" xml:space="preserve">
+    <value>可渲染對象</value>
+  </data>
+  <data name="ResourceType.shader_library_group" xml:space="preserve">
+    <value>著色器庫組</value>
+  </data>
+  <data name="ResourceType.shader_library" xml:space="preserve">
+    <value>著色器庫</value>
+  </data>
+  <data name="ResourceType.runtime_font" xml:space="preserve">
+    <value>運行時字體</value>
+  </data>
+  <data name="ResourceType.ragdoll_profile" xml:space="preserve">
+    <value>布娃娃配置</value>
+  </data>
+  <data name="ResourceType.ah_bin" xml:space="preserve">
+    <value>AH 二進制</value>
+  </data>
+  <data name="ResourceType.ik_skeleton" xml:space="preserve">
+    <value>IK 骨架</value>
+  </data>
+  <data name="ResourceType.wwise_properties" xml:space="preserve">
+    <value>音頻屬性</value>
+  </data>
+  <data name="ResourceType.havok_ai_properties" xml:space="preserve">
+    <value>Havok AI 屬性</value>
+  </data>
+  <data name="ResourceType.texture_atlas" xml:space="preserve">
+    <value>紋理圖集</value>
+  </data>
+  <data name="ResourceType.geleta" xml:space="preserve">
+    <value>Geleta</value>
+  </data>
+  <data name="ResourceType.geometry_group" xml:space="preserve">
+    <value>幾何組</value>
+  </data>
+  <data name="ResourceType.hash_lookup" xml:space="preserve">
+    <value>哈希查詢</value>
+  </data>
+  <data name="ResourceType.speedtree" xml:space="preserve">
+    <value>SpeedTree</value>
+  </data>
+  <data name="ResourceType.havok_physics_properties" xml:space="preserve">
+    <value>Havok 物理屬性</value>
+  </data>
+  <data name="ResourceType.camera_shake" xml:space="preserve">
+    <value>鏡頭震動</value>
+  </data>
+  <data name="ResourceType.bik2" xml:space="preserve">
+    <value>視頻 BIK2</value>
+  </data>
+  <data name="ResourceType.unknown" xml:space="preserve">
+    <value>未知類型（XAML）</value>
+  </data>
+  <data name="Profile.PositionHint" xml:space="preserve">
+    <value>列表順序：{0}（右鍵可輸入目標位置）</value>
+  </data>
+  <data name="Profile.HasConflict" xml:space="preserve">
+    <value>存在資源覆蓋</value>
+  </data>
+  <data name="Profile.LocateConflict" xml:space="preserve">
+    <value>定位關聯沖突模組</value>
+  </data>
+  <data name="Profile.CleanDeployment" xml:space="preserve">
+    <value>清理當前部署</value>
+  </data>
+  <data name="Profile.DeployCurrent" xml:space="preserve">
+    <value>部署當前設定檔</value>
+  </data>
+  <data name="Platform.NoApiName" xml:space="preserve">
+    <value>API 未提供名稱</value>
+  </data>
+  <data name="Deployment.StartCleanup" xml:space="preserve">
+    <value>開始 Pre-Deployment Cleanup...</value>
+  </data>
+  <data name="Deployment.NoRecords" xml:space="preserve">
+    <value>沒有找到之前的部署記錄</value>
+  </data>
+  <data name="Deployment.LatestSession" xml:space="preserve">
+    <value>找到最近部署會話: {0}</value>
+  </data>
+  <data name="Deployment.EmptySession" xml:space="preserve">
+    <value>部署會話中沒有部署記錄</value>
+  </data>
+  <data name="Deployment.RecordCount" xml:space="preserve">
+    <value>找到 {0} 個部署記錄</value>
+  </data>
+  <data name="Deployment.CleanupComplete" xml:space="preserve">
+    <value>Pre-Deployment Cleanup 完成: 會話 {0}，刪除 {1} 個檔案, {2} 個記錄</value>
+  </data>
+  <data name="Deployment.CleanMod" xml:space="preserve">
+    <value>清理 Mod {0}: {1} 個檔案</value>
+  </data>
+  <data name="Deployment.CleanedFiles" xml:space="preserve">
+    <value>已清理 {0}/{1} 個檔案</value>
+  </data>
+  <data name="Deployment.Compatibility" xml:space="preserve">
+    <value>檢查部署兼容性：{0}</value>
+  </data>
+  <data name="Deployment.CleanPrevious" xml:space="preserve">
+    <value>清理之前的部署...</value>
+  </data>
+  <data name="Deployment.FileProgress" xml:space="preserve">
+    <value>正在部署 {0}：{1}/{2}，{3}</value>
+  </data>
+  <data name="Deployment.Result" xml:space="preserve">
+    <value>配置“{0}”：已部署 {1}/{2} 個模組，失敗 {3} 個，跳過 {4} 個。位置：{5}</value>
+  </data>
+  <data name="Deployment.CancelledCleanup" xml:space="preserve">
+    <value>部署已取消，已寫入的檔案可通過清理部署移除</value>
+  </data>
+</root>

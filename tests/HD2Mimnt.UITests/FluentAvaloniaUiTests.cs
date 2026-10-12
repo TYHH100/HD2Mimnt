@@ -25,8 +25,91 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HD2Mimnt.Tests.UI;
 
-public sealed class FluentAvaloniaUiTests
+public sealed partial class FluentAvaloniaUiTests
 {
+    [AvaloniaFact]
+    public async Task AddProfileModSearch_ShouldFilterAddAndRestoreRemainingChoices()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var emptyId = await profiles.CreateProfileAsync("搜索添加测试");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.SelectedProfile = vm.Profiles.Single(profile => profile.Id == emptyId);
+        await vm.RetryProfileModsCommand.ExecuteAsync(null);
+        await vm.OpenAddModCommand.ExecuteAsync(null);
+        var window = new MainWindow { DataContext = main, Width = 1000, Height = 760 };
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            main.NotificationPanelViewModel.DismissAllToasts();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var drawer = view.FindControl<Border>("AddProfileModDrawer")!;
+            var search = view.FindControl<TextBox>("AddProfileModSearchBox")!;
+            var list = view.FindControl<ListBox>("AvailableProfileModList")!;
+            var clear = view.FindControl<Button>("ClearAddProfileModSearchButton")!;
+            Assert.Equal(3, vm.VisibleAvailableLibraryMods.Count);
+            search.Focus();
+            search.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Text = " fluent 2 " });
+            Layout();
+            Assert.Equal(" fluent 2 ", vm.AddModSearchText);
+            var choice = Assert.Single(vm.VisibleAvailableLibraryMods);
+            Assert.EndsWith("2", choice.Name);
+            Assert.Same(vm.VisibleAvailableLibraryMods, list.ItemsSource);
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                app.RequestedThemeVariant = theme;
+                Layout();
+                var searchBottom = search.TranslatePoint(new Point(0, search.Bounds.Height), drawer)!.Value.Y;
+                Assert.True(search.IsEffectivelyVisible && search.Bounds.Width > 200);
+                Assert.True(searchBottom < list.TranslatePoint(default, drawer)!.Value.Y);
+                Capture(window, theme.ToString(), "add-profile-mod-search");
+            }
+            var add = list.GetVisualDescendants().OfType<Button>().Single(button => button.CommandParameter == choice);
+            void Click(Button button)
+            {
+                var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                Layout();
+            }
+            Click(add);
+            await vm.AddModToProfileCommand.ExecutionTask!;
+            Layout();
+            Assert.True(vm.HasNoAddModSearchResults);
+            Assert.False(vm.HasNoAvailableMods);
+            Assert.True(view.FindControl<TextBlock>("NoAddModSearchResultsText")!.IsEffectivelyVisible);
+            Assert.Equal(choice.Id, Assert.Single((await profiles.GetProfileByIdAsync(emptyId))!.Mods).ModId);
+            Click(clear);
+            Assert.Equal(string.Empty, search.Text);
+            Assert.Equal(2, vm.VisibleAvailableLibraryMods.Count);
+            Assert.DoesNotContain(vm.VisibleAvailableLibraryMods, mod => mod.Id == choice.Id);
+            search.Text = "helldivers";
+            Layout();
+            Assert.Equal(2, vm.VisibleAvailableLibraryMods.Count);
+            search.Text = "1.0.0";
+            Layout();
+            Assert.Equal(2, vm.VisibleAvailableLibraryMods.Count);
+            search.Text = "不存在的模组";
+            Layout();
+            Assert.True(vm.HasNoAddModSearchResults);
+            vm.CloseAddModCommand.Execute(null);
+            await vm.OpenAddModCommand.ExecuteAsync(null);
+            Assert.Equal(string.Empty, vm.AddModSearchText);
+            Assert.Equal(2, vm.VisibleAvailableLibraryMods.Count);
+            foreach (var remaining in vm.VisibleAvailableLibraryMods.ToArray())
+                await vm.AddModToProfileCommand.ExecuteAsync(remaining);
+            Assert.True(vm.HasNoAvailableMods);
+            Assert.False(vm.HasNoAddModSearchResults);
+        }
+        finally { app.RequestedThemeVariant = originalTheme; window.DataContext = null; window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task ProfileSeparators_ShouldAddCollapseExpandAndDropGroupsThroughActualView()
     {
@@ -74,6 +157,8 @@ public sealed class FluentAvaloniaUiTests
             Layout();
             Button Toggle(ProfileModViewModel group) => view.GetVisualDescendants().OfType<Button>()
                 .Single(button => button.Classes.Contains("group-toggle") && button.DataContext == group);
+            Assert.Equal(90, Assert.IsType<RotateTransform>(Toggle(weapons).GetVisualDescendants()
+                .OfType<HD2Mimnt.UI.Controls.UtilityIcon>().Single(icon => icon.RenderTransform is RotateTransform).RenderTransform).Angle);
             Click(Toggle(weapons));
             while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
             Layout();
@@ -173,6 +258,10 @@ public sealed class FluentAvaloniaUiTests
                 var before = (await profiles.GetProfileByIdAsync(profileId))!.Mods
                     .Select(mod => (mod.ModId, mod.Enabled, mod.Order)).ToArray();
                 var toggle = card.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("group-toggle"));
+                var expandedChevron = toggle.GetVisualDescendants().OfType<HD2Mimnt.UI.Controls.UtilityIcon>()
+                    .Single(icon => icon.RenderTransform is RotateTransform);
+                Assert.True(expandedChevron.IsVisible);
+                Assert.Equal(bottomToTop ? -90 : 90, Assert.IsType<RotateTransform>(expandedChevron.RenderTransform).Angle);
                 Click(toggle);
                 while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
                 Assert.True(group.IsCollapsed);
@@ -187,6 +276,13 @@ public sealed class FluentAvaloniaUiTests
                 while (vm.ToggleSeparatorCommand.IsRunning) await Task.Delay(10, timeout.Token);
                 Assert.False(group.IsCollapsed);
                 Assert.Equal(4, vm.VisibleProfileMods.Count);
+                // 不重载页面，切换方向后绑定立即更新；收起图标仍是常规右箭头。
+                await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, bottomToTop ? "TopToBottom" : "BottomToTop");
+                Layout();
+                var updatedToggle = view.GetVisualDescendants().OfType<Button>()
+                    .Single(button => button.Classes.Contains("group-toggle") && button.DataContext == group);
+                Assert.Equal(bottomToTop ? 90 : -90, Assert.IsType<RotateTransform>(updatedToggle.GetVisualDescendants()
+                    .OfType<HD2Mimnt.UI.Controls.UtilityIcon>().Single(icon => icon.RenderTransform is RotateTransform).RenderTransform).Angle);
             }
         }
         finally { window.DataContext = null; window.Close(); }
@@ -806,7 +902,7 @@ public sealed class FluentAvaloniaUiTests
                             rendered?.Save(Path.Combine(previewPath, $"{theme}-tutorial-rendered-{size.Width}-{index}.png"));
                         }
                     }
-                    if (step.TargetKey is "ScanConflictsButton" or "DeployCurrentProfileButton" or "CleanupDeploymentButton" or "LaunchHd2Button")
+                    if (step.TargetKey is "ScanProfileConflictsButton" or "DeployCurrentProfileButton" or "CleanupDeploymentButton" or "LaunchHd2Button")
                     {
                         Click(target);
                         Assert.False(main.ConflictsViewModel.IsScanning);
@@ -1001,7 +1097,7 @@ public sealed class FluentAvaloniaUiTests
             Assert.True(menu.IsOpen);
             await Task.Delay(50);
             Dispatcher.UIThread.RunJobs();
-            var item = Assert.IsType<FAMenuFlyoutItem>(Assert.Single(menu.Items));
+            var item = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "移动到指定位置…");
             Assert.Equal("移动到指定位置…", item.Text);
             Assert.True(item.IsEffectivelyVisible);
             var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(item));
@@ -1044,7 +1140,7 @@ public sealed class FluentAvaloniaUiTests
             Assert.True(menu.IsOpen);
             await Task.Delay(50);
             Dispatcher.UIThread.RunJobs();
-            item = Assert.IsType<FAMenuFlyoutItem>(Assert.Single(menu.Items));
+            item = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "移动到指定位置…");
             popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(item));
             popup.UpdateLayout();
             itemPoint = item.TranslatePoint(new Point(20, 12), popup)!.Value;
@@ -2513,6 +2609,461 @@ public sealed class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ConflictDetails_ShouldVirtualizeLargeResourceAndOwnerLists()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ConflictsViewModel;
+        var owners = Enumerable.Range(0, 2000).Select(index => new ConflictFileOwner
+            { ModId = Guid.NewGuid(), ModName = $"HD2Mimnt Test Owner {index}", FullPath = "sample.patch_0" }).ToArray();
+        vm.Groups = new(Enumerable.Range(0, 10000).Select(index => new ConflictGroupViewModel(new ConflictGroup
+            { ResourceId = (ulong)index, TypeId = 0xcd4238c6a0c69e32UL, Owners = index == 0 ? owners : owners.Take(2).ToArray() })));
+        vm.HasScanned = true;
+        main.SelectedTabIndex = 2;
+        main.NotificationPanelViewModel.DismissAllToasts();
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 760 };
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+                using var frame = window.CaptureRenderedFrame();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ConflictsView>().Single();
+            var list = view.FindControl<ListBox>("ConflictGroupsList")!;
+            main.NotificationPanelViewModel.DismissAllToasts();
+            Layout();
+            Assert.True(list.IsEffectivelyVisible);
+            Assert.InRange(list.GetRealizedContainers().Count(), 1, 30);
+            Assert.Null(list.ContainerFromIndex(9999));
+            var ownerList = list.GetVisualDescendants().OfType<ListBox>().First();
+            Assert.InRange(ownerList.GetRealizedContainers().Count(), 1, 30);
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                app.RequestedThemeVariant = theme;
+                Layout();
+                Capture(window, theme.ToString(), "large-conflict-details");
+            }
+            list.ScrollIntoView(vm.Groups[^1]);
+            Layout();
+            Assert.NotNull(list.ContainerFromIndex(9999));
+            Assert.InRange(list.GetRealizedContainers().Count(), 1, 30);
+        }
+        finally { app.RequestedThemeVariant = originalTheme; window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task AutomaticConflicts_ShouldSaveDefaultOffDebounceChangesAndStopOnClose()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        var mods = (await data.GetAllModsAsync()).ToArray();
+        foreach (var mod in mods)
+        {
+            using var writer = new BinaryWriter(File.Create(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_0")));
+            writer.Write(0xF0000011u); writer.Write(1u); writer.Write(1u);
+            writer.Write(new byte[60 + 32]); writer.Write(42UL); writer.Write(0xcd4238c6a0c69e32UL);
+            writer.Write(new byte[64]); // 零长度正文，仅需索引。
+        }
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var settings = main.SettingsViewModel;
+        var conflicts = main.ConflictsViewModel;
+        var completed = 0;
+        conflicts.ScanCompleted += (_, _) => completed++;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 760 };
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            main.SelectedTabIndex = 4;
+            settings.SelectedCategory = "配置文件";
+            main.NotificationPanelViewModel.DismissAllToasts();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            void Click(Control control)
+            {
+                Layout();
+                using var frame = window.CaptureRenderedFrame();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Layout();
+            }
+            async Task WaitForScan(int count)
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                while (completed < count || conflicts.IsScanning) await Task.Delay(20, timeout.Token);
+                Layout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
+            var toggle = view.FindControl<ToggleSwitch>("AutoCheckConflictsToggle")!;
+            main.NotificationPanelViewModel.DismissAllToasts();
+            Layout();
+            Assert.False(settings.AutoCheckConflicts);
+            Assert.False(toggle.IsChecked);
+            await Task.Delay(900);
+            Assert.Equal(0, completed);
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                app.RequestedThemeVariant = theme;
+                Layout();
+                Assert.True(toggle.IsEffectivelyVisible && toggle.Bounds.Width > 0);
+                Capture(window, theme.ToString(), "automatic-conflict-settings");
+            }
+            Click(toggle);
+            Assert.True(settings.AutoCheckConflicts);
+            await Task.Delay(900); // 修改草稿不会提前启用后台检查，保存后才生效。
+            Assert.Equal(0, completed);
+            var save = view.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "保存设置");
+            Click(save);
+            await settings.SaveCommand.ExecutionTask!;
+            Assert.True(await scope.Services.GetRequiredService<SettingsService>().GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
+            await WaitForScan(1);
+            Assert.All(main.ProfileViewModel.ProfileMods, mod => Assert.True(mod.HasConflict));
+            Assert.Equal(4, main.SelectedTabIndex);
+            var profiles = scope.Services.GetRequiredService<ProfileService>();
+            var id = main.ProfileViewModel.SelectedProfile!.Id;
+            var existingResults = conflicts.Groups;
+            var separator = await profiles.AddSeparatorAsync(id, "显示分组", 0);
+            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                while (!main.ProfileViewModel.ProfileSeparators.Any(row => row.ModId == separator.Id))
+                    await Task.Delay(20, timeout.Token);
+            var separatorRow = main.ProfileViewModel.ProfileSeparators.Single(row => row.ModId == separator.Id);
+            await main.ProfileViewModel.ToggleSeparatorCommand.ExecuteAsync(separatorRow);
+            Assert.True(separatorRow.IsCollapsed);
+            await main.ProfileViewModel.ToggleSeparatorCommand.ExecuteAsync(separatorRow);
+            Assert.False(separatorRow.IsCollapsed);
+            await profiles.SetSeparatorCollapsedAsync(id, Guid.Empty, true);
+            await profiles.SetSeparatorCollapsedAsync(id, Guid.Empty, false);
+            await profiles.UpdateSeparatorAsync(id, separator.Id, "显示分组 · 改名", "#12AB56");
+            await profiles.RemoveSeparatorAsync(id, separator.Id);
+            await Task.Delay(1000);
+            Layout();
+            Assert.Equal(1, completed);
+            Assert.True(conflicts.HasScanned);
+            Assert.Same(existingResults, conflicts.Groups);
+            Assert.All(main.ProfileViewModel.ProfileMods, mod => Assert.True(mod.HasConflict));
+            for (var index = 0; index < 6; index++)
+                await profiles.SetModEnabledAsync(id, mods[0].Id, index % 2 != 0);
+            await WaitForScan(2);
+            await Task.Delay(900);
+            Assert.Equal(2, completed);
+            // 正在进行的结果失效后，旧扫描不能回填卡片。
+            var obsolete = conflicts.ScanCommand.ExecuteAsync(null);
+            conflicts.InvalidateResults();
+            conflicts.InvalidateResults();
+            await obsolete;
+            await WaitForScan(3);
+            Assert.Equal(3, completed);
+            conflicts.InvalidateResults();
+            main.NotificationPanelViewModel.DismissAllToasts();
+            Click(toggle);
+            Assert.False(settings.AutoCheckConflicts);
+            await settings.SaveCommand.ExecuteAsync(null);
+            await Task.Delay(900);
+            Assert.Equal(3, completed);
+            Assert.False(conflicts.IsScanning);
+            // 关闭自动检查后，手动检查仍可用。
+            await main.ScanProfileConflictsCommand.ExecuteAsync(null);
+            Assert.Equal(4, completed);
+            settings.AutoCheckConflicts = true;
+            await settings.SaveCommand.ExecuteAsync(null);
+            Assert.True(await main.CanCloseAsync());
+            await Task.Delay(900);
+            Assert.Equal(4, completed);
+            Assert.False(conflicts.IsScanning);
+        }
+        finally
+        {
+            await conflicts.StopScanAsync();
+            app.RequestedThemeVariant = originalTheme;
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ConflictBadge_ShouldChooseTargetRevealGroupAndScrollToCard()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        await data.ImportGeneratedModsAsync(Enumerable.Range(1, 24).Select(index => new Mod
+        {
+            Name = $"HD2Mimnt Test Navigation {index:00}", Author = "Helldivers", Version = "1.0.0",
+            Path = Path.Combine(scope.Root, "navigation", index.ToString())
+        }));
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profile = (await profiles.GetActiveProfileAsync())!;
+        foreach (var mod in (await data.GetAllModsAsync()).Where(mod => !profile.Mods.Any(item => item.ModId == mod.Id)))
+            await profiles.AddModToProfileAsync(profile.Id, mod.Id);
+        var separator = await profiles.AddSeparatorAsync(profile.Id, "冲突目标分组", 3);
+        await profiles.SetSeparatorCollapsedAsync(profile.Id, separator.Id, true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        var source = vm.ProfileMods[0];
+        var middle = vm.ProfileMods[15];
+        var last = vm.ProfileMods[^1];
+        ConflictGroupViewModel Group(params ProfileModViewModel[] owners) => new(new ConflictGroup
+        {
+            ResourceId = 42, TypeId = 0xcd4238c6a0c69e32UL,
+            Owners = owners.Select(mod => new ConflictFileOwner { ModId = mod.ModId, ModName = mod.ModName }).ToArray()
+        });
+        var overlap = Group(source, middle, last);
+        vm.ApplyConflictResults([overlap, overlap]);
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 760 };
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            main.NotificationPanelViewModel.DismissAllToasts();
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var scroll = view.FindControl<ScrollViewer>("ModScrollViewer")!;
+            var items = view.FindControl<ItemsControl>("ModItemsControl")!;
+            Button Badge() => view.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Name == "NavigateConflictButton" && button.DataContext == source && button.IsEffectivelyVisible);
+            void Click(Button button)
+            {
+                Layout();
+                using var frame = window.CaptureRenderedFrame();
+                Assert.NotNull(button.Command);
+                Assert.True(button.IsEffectivelyEnabled);
+                var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+                var hit = window.InputHitTest(point) as Visual;
+                Assert.True(hit == button || hit?.GetVisualAncestors().Contains(button) == true,
+                    $"{button.Name} 中心 {point} 命中 {hit?.GetType().Name} / {(hit as Control)?.Name}");
+                window.MouseMove(point);
+                window.MouseDown(point, MouseButton.Left);
+                Assert.True(button.IsPressed, $"未按下 {button.Name}，命中 {hit?.GetType().Name}");
+                window.MouseUp(point, MouseButton.Left);
+                Layout();
+            }
+            vm.ToggleModSelected(source);
+            vm.ToggleModSelected(vm.ProfileMods[1]);
+            Layout();
+            Click(Badge());
+            await vm.OpenConflictNavigationCommand.ExecutionTask!;
+            Layout();
+            Assert.True(vm.IsConflictPickerOpen);
+            Assert.Equal(new[] { middle.ModId, last.ModId }, vm.ConflictNavigationChoices.Select(mod => mod.ModId));
+            Assert.Equal(2, vm.SelectedModCount);
+            Assert.DoesNotContain(last, vm.VisibleProfileMods);
+            var picker = view.FindControl<Border>("ConflictModPickerSurface")!;
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                app.RequestedThemeVariant = theme;
+                Layout();
+                Assert.True(picker.IsEffectivelyVisible && picker.Bounds.Height > 100);
+                Assert.Equal(2, picker.GetVisualDescendants().OfType<Button>().Count(button => button.CommandParameter is ProfileModViewModel));
+                Capture(window, theme.ToString(), "conflict-mod-picker");
+            }
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Layout();
+            Assert.False(vm.IsConflictPickerOpen);
+            Assert.Equal(2, vm.SelectedModCount);
+            Click(Badge());
+            await vm.OpenConflictNavigationCommand.ExecutionTask!;
+            Layout();
+            Click(picker.GetVisualDescendants().OfType<Button>().Single(button => button.CommandParameter == last));
+            await vm.LocateConflictModCommand.ExecutionTask!;
+            await Task.Delay(50);
+            Layout();
+            Assert.False(vm.IsConflictPickerOpen);
+            Assert.False(vm.ProfileSeparators.Single().IsCollapsed);
+            Assert.False((await profiles.GetProfileByIdAsync(profile.Id))!.Separators.Single().IsCollapsed);
+            Assert.Same(last, vm.FocusedMod);
+            Assert.True(last.IsConflictLocation && last.IsFocused);
+            Assert.Equal(0, vm.SelectedModCount);
+            void AssertTargetInView()
+            {
+                Assert.True(scroll.Offset.Y > 0);
+                var container = Assert.IsAssignableFrom<Control>(items.ContainerFromIndex(vm.ProfileRows.IndexOf(last)));
+                var top = container.TranslatePoint(default, scroll)!.Value.Y;
+                Assert.True(top >= -1 && top + container.Bounds.Height <= scroll.Bounds.Height + 1,
+                    $"目标未完全显示：top={top}，height={container.Bounds.Height}，viewport={scroll.Bounds.Height}");
+                Assert.Contains(view.GetVisualDescendants().OfType<Border>(), card => card.DataContext == last && card.Classes.Contains("conflict-location"));
+            }
+            AssertTargetInView();
+            Capture(window, "Dark", "conflict-mod-located");
+            // 只有一个关联模组时直接定位，同时清除遮住目标的搜索。
+            vm.ApplyConflictResults([Group(source, last)]);
+            vm.ModSearchText = source.ModName;
+            scroll.Offset = default;
+            Layout();
+            Assert.DoesNotContain(last, vm.VisibleProfileMods);
+            Click(Badge());
+            await vm.OpenConflictNavigationCommand.ExecutionTask!;
+            await Task.Delay(50);
+            Layout();
+            Assert.Equal(string.Empty, vm.ModSearchText);
+            Assert.False(vm.IsConflictPickerOpen);
+            AssertTargetInView();
+            Assert.Equal(0, main.SelectedTabIndex);
+            vm.ApplyConflictResults([overlap]);
+            scroll.Offset = default;
+            Layout();
+            Click(Badge());
+            await vm.OpenConflictNavigationCommand.ExecutionTask!;
+            Assert.True(vm.IsConflictPickerOpen);
+            vm.ApplyConflictResults([]);
+            Assert.False(vm.IsConflictPickerOpen);
+            Assert.Empty(vm.ConflictNavigationChoices);
+        }
+        finally { app.RequestedThemeVariant = originalTheme; window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ProfileConflicts_ShouldScanInPlaceMarkCardsAndClearStaleBadges()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var mods = (await scope.Services.GetRequiredService<TestDataService>().GetAllModsAsync()).ToArray();
+        void WriteResource(Mod mod, string name, uint size)
+        {
+            using var writer = new BinaryWriter(File.Create(Path.Combine(mod.Path, name)));
+            writer.Write(0xF0000011u);
+            writer.Write(1u);
+            writer.Write(1u);
+            writer.Write(new byte[60]);
+            writer.Write(new byte[32]);
+            writer.Write(ulong.MaxValue);
+            writer.Write(0xcd4238c6a0c69e32UL);
+            writer.Write(184UL);
+            writer.Write(new byte[32]);
+            writer.Write(size);
+            writer.Write(new byte[20]);
+            writer.Write(new byte[size]);
+        }
+        WriteResource(mods[0], "aaaaaaaaaaaaaaaa.patch_0", 48);
+        WriteResource(mods[1], "bbbbbbbbbbbbbbbb.patch_0", 64);
+        File.WriteAllText(Path.Combine(mods[2].Path, "cccccccccccccccc.patch_0"), "broken");
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var activeId = (await profiles.GetActiveProfileAsync())!.Id;
+        var viewedId = await profiles.CreateProfileAsync("日常装备 · 冲突检查");
+        foreach (var mod in mods) await profiles.AddModToProfileAsync(viewedId, mod.Id);
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, false);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        main.ProfileViewModel.SelectedProfile = main.ProfileViewModel.Profiles.Single(profile => profile.Id == viewedId);
+        await main.ProfileViewModel.RetryProfileModsCommand.ExecuteAsync(null);
+        scope.Services.GetRequiredService<NotificationService>().Clear();
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 760 };
+        var app = Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant;
+        try
+        {
+            window.Show();
+            main.NavigateToProfilesCommand.Execute(null);
+            main.NotificationPanelViewModel.DismissAllToasts();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var button = view.FindControl<Button>("ScanProfileConflictsButton")!;
+            Assert.Same(main.ScanProfileConflictsCommand, button.Command);
+            Assert.True(button.IsEffectivelyEnabled);
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<Border>(),
+                badge => badge.Name == "ProfileConflictBadge" && badge.IsEffectivelyVisible);
+            var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Left);
+            Assert.True(button.IsPressed);
+            window.MouseUp(point, MouseButton.Left);
+            var pending = main.ScanProfileConflictsCommand.ExecutionTask;
+            Assert.NotNull(pending);
+            await pending!;
+            Layout();
+            Assert.Equal(0, main.SelectedTabIndex);
+            Assert.Equal(activeId, (await profiles.GetActiveProfileAsync())!.Id);
+            Assert.Equal("日常装备 · 冲突检查", main.ConflictsViewModel.ProfileName);
+            Assert.True(main.ConflictsViewModel.HasScanned);
+            Assert.Contains("检测不完整", view.FindControl<TextBlock>("ProfileConflictStatus")!.Text);
+            var flagged = main.ProfileViewModel.ProfileMods.Where(mod => mod.HasConflict).ToArray();
+            Assert.Equal(2, flagged.Length);
+            Assert.All(flagged, mod =>
+            {
+                var other = flagged.Single(other => other.ModId != mod.ModId);
+                Assert.Equal($"与以下模组存在覆盖冲突：\n{other.ModName}\n\n详细信息请查看“冲突”页。", mod.ConflictTooltip);
+            });
+            // 名称较长且带选项时，也不能挤掉警告和右侧操作。
+            flagged[0].ModName = "超级地球装备外观组合 · 很长的模组名称用于检查省略和提示布局";
+            flagged[0].HasOptions = true;
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            foreach (var width in new[] { 1100, 900 })
+            {
+                app.RequestedThemeVariant = theme;
+                window.Width = width;
+                Layout();
+                main.NotificationPanelViewModel.DismissAllToasts();
+                Layout();
+                var badges = view.GetVisualDescendants().OfType<Border>()
+                    .Where(badge => badge.Name == "ProfileConflictBadge" && badge.IsEffectivelyVisible).ToArray();
+                Assert.Equal(2, badges.Length);
+                foreach (var badge in badges)
+                {
+                    Assert.Equal(20, badge.Bounds.Width);
+                    Assert.Equal(20, badge.Bounds.Height);
+                    var icon = badge.GetVisualDescendants().OfType<HD2Mimnt.UI.Controls.UtilityIcon>().Single();
+                    Assert.Equal("Warning", icon.Kind);
+                    var imageSlot = Assert.IsType<Panel>(badge.Parent);
+                    Assert.Equal(52, imageSlot.Bounds.Width);
+                    Assert.Equal(52, imageSlot.Bounds.Height);
+                    Assert.Equal(Avalonia.Layout.HorizontalAlignment.Right, badge.HorizontalAlignment);
+                    Assert.Equal(Avalonia.Layout.VerticalAlignment.Top, badge.VerticalAlignment);
+                    var card = badge.GetVisualAncestors().OfType<Border>().First(border => border.Classes.Contains("mod-card"));
+                    var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == ((ProfileModViewModel)badge.DataContext!).ModName);
+                    var toggle = card.GetVisualDescendants().OfType<ToggleSwitch>().Single();
+                    var badgeRight = badge.TranslatePoint(new Point(badge.Bounds.Width, 0), card)!.Value.X;
+                    Assert.True(badgeRight < title.TranslatePoint(default, card)!.Value.X);
+                    Assert.True(badgeRight < toggle.TranslatePoint(default, card)!.Value.X);
+                }
+                Capture(window, theme.ToString(), $"profile-conflicts-{width}");
+                if (theme == ThemeVariant.Dark && width == 1100)
+                {
+                    var badge = badges.First();
+                    ToolTip.SetShowDelay(badge, 0);
+                    var hover = badge.TranslatePoint(new Point(10, 10), window)!.Value;
+                    window.MouseMove(hover);
+                    await Task.Delay(100);
+                    Layout();
+                    Assert.True(ToolTip.GetIsOpen(badge));
+                    Capture(window, theme.ToString(), "profile-conflict-tooltip");
+                    window.MouseMove(new Point(260, 600));
+                    Layout();
+                }
+            }
+            // 详情页共用同一结果，回到配置页或重建卡片不需要再扫描。
+            main.NavigateToConflictsCommand.Execute(null);
+            Assert.Single(main.ConflictsViewModel.Groups);
+            main.NavigateToProfilesCommand.Execute(null);
+            await main.ProfileViewModel.RetryProfileModsCommand.ExecuteAsync(null);
+            Assert.Equal(2, main.ProfileViewModel.ProfileMods.Count(mod => mod.HasConflict));
+            await profiles.SetModEnabledAsync(viewedId, mods[0].Id, false);
+            Assert.False(main.ConflictsViewModel.HasScanned);
+            Assert.All(main.ProfileViewModel.ProfileMods, mod => Assert.False(mod.HasConflict));
+            await main.ScanProfileConflictsCommand.ExecuteAsync(null);
+            Assert.True(main.ConflictsViewModel.HasScanned);
+            Assert.Empty(main.ConflictsViewModel.Groups);
+            Assert.All(main.ProfileViewModel.ProfileMods, mod => Assert.False(mod.HasConflict));
+            await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.DefaultDeploymentOrder, "BottomToTop");
+            Assert.False(main.ConflictsViewModel.HasScanned);
+            main.ProfileViewModel.SelectedProfile = main.ProfileViewModel.Profiles.Single(profile => profile.Id == activeId);
+            await main.ProfileViewModel.RetryProfileModsCommand.ExecuteAsync(null);
+            Assert.All(main.ProfileViewModel.ProfileMods, mod => Assert.False(mod.HasConflict));
+            Assert.Equal(0, main.SelectedTabIndex);
+        }
+        finally { app.RequestedThemeVariant = originalTheme; window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task Conflicts_ShouldRenderResourceDifferencesAndIncompleteScanThroughActualButton()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
@@ -2825,7 +3376,7 @@ public sealed class FluentAvaloniaUiTests
         public ServiceProvider Services { get; private set; } = null!;
 
         public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
-            HttpMessageHandler? nexusHandler = null)
+            HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -2836,6 +3387,7 @@ public sealed class FluentAvaloniaUiTests
                 typeof(App).GetMethod("ConfigureServices", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(Avalonia.Application.Current, new object[] { services });
                 services.AddSingleton<IWebsiteDownloadLauncher>(scope.WebsiteLauncher);
+                if (systemLanguage != null) services.AddSingleton(systemLanguage);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
                 if (nexusHandler != null)
                 {
@@ -2859,7 +3411,7 @@ public sealed class FluentAvaloniaUiTests
                         Description = "模组外观与功能测试", Path = Path.Combine(scope._root, "sources", index.ToString())
                     }));
                     var profiles = scope.Services.GetRequiredService<ProfileService>();
-                    var profileId = await profiles.CreateProfileAsync("默认配置", "日常使用的模组组合");
+                    var profileId = await profiles.CreateProfileAsync("Default Profiles", "日常使用的模组组合");
                     await profiles.SetActiveProfileAsync(profileId);
                     foreach (var mod in await testData.GetAllModsAsync())
                         await profiles.AddModToProfileAsync(profileId, mod.Id);

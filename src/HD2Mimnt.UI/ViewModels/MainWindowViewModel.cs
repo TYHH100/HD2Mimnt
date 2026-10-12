@@ -187,11 +187,24 @@ public partial class MainWindowViewModel : ObservableObject
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
         _profileViewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(ProfileViewModel.SelectedProfile)) SyncConflictProfile();
+            if (args.PropertyName == nameof(ProfileViewModel.SelectedProfile))
+            {
+                SyncConflictProfile();
+                ScanProfileConflictsCommand.NotifyCanExecuteChanged();
+            }
+            if (args.PropertyName == nameof(ProfileViewModel.ProfileMods)) SyncConflictBadges();
+        };
+        _conflictsViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ConflictsViewModel.HasScanned)) SyncConflictBadges();
+            if (args.PropertyName == nameof(ConflictsViewModel.IsScanning))
+                ScanProfileConflictsCommand.NotifyCanExecuteChanged();
         };
         _settingsViewModel.ThemeChanged += OnThemeChanged;
         _settingsViewModel.ListDensityChanged += OnListDensityChanged;
         _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
+        _settingsViewModel.AutoCheckConflictsChanged += (_, enabled) =>
+            ApplyOnUiThread(() => _conflictsViewModel.SetAutomaticChecking(enabled));
         _backupViewModel.RestoreCompleted += OnBackupRestored;
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
@@ -333,12 +346,12 @@ public partial class MainWindowViewModel : ObservableObject
         });
     }
 
-    private void OnProfilesChanged(object? sender, EventArgs e)
+    private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
     {
         // 配置文件数据变更（含模组成员/启用状态）联动刷新配置文件页与库页统计、归属状态
         ApplyOnUiThread(async () =>
         {
-            _conflictsViewModel.InvalidateResults();
+            if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
             await _profileViewModel.RefreshAfterProfilesChangedAsync();
             await _libraryViewModel.RefreshProfileStateAsync();
             SyncConflictProfile();
@@ -440,12 +453,17 @@ public partial class MainWindowViewModel : ObservableObject
     private void SyncConflictProfile() => _conflictsViewModel.SetProfile(
         _profileViewModel.SelectedProfile?.Id, _profileViewModel.SelectedProfile?.Name);
 
-    /// <summary>配置文件页“检查冲突”入口：跳转冲突页并立即启动扫描。</summary>
-    [RelayCommand]
-    private void OpenConflictsAndScan()
+    private void SyncConflictBadges() => _profileViewModel.ApplyConflictIndex(
+        _conflictsViewModel.HasScanned ? _conflictsViewModel.CardIndex : ConflictCardIndex.Empty);
+
+    private bool CanScanProfileConflicts() => _profileViewModel.HasSelectedProfile && !_conflictsViewModel.IsScanning;
+
+    /// <summary>直接检查正在查看的配置，保持当前页面并回填卡片提示。</summary>
+    [RelayCommand(CanExecute = nameof(CanScanProfileConflicts))]
+    private async Task ScanProfileConflictsAsync()
     {
-        NavigateToConflicts();
-        _ = _conflictsViewModel.ScanAsync();
+        SyncConflictProfile();
+        await _conflictsViewModel.ScanCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]
@@ -530,7 +548,9 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (SelectedTabIndex == 0 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
         {
-            if (_profileViewModel.IsMoveToPositionDialogOpen)
+            if (_profileViewModel.IsConflictPickerOpen)
+                _profileViewModel.CloseConflictPickerCommand.Execute(null);
+            else if (_profileViewModel.IsMoveToPositionDialogOpen)
                 _profileViewModel.CancelMoveToPositionCommand.Execute(null);
             else if (_profileViewModel.IsModOptionsDialogOpen)
                 _profileViewModel.CloseModOptionsCommand.Execute(null);
@@ -585,6 +605,7 @@ public partial class MainWindowViewModel : ObservableObject
         var runningTasks = await _taskService.GetRunningTasksAsync();
         if (!runningTasks.Any())
         {
+            await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
             return true;
         }
@@ -594,6 +615,7 @@ public partial class MainWindowViewModel : ObservableObject
             $"当前仍有 {runningTasks.Count()} 个后台任务运行中。退出可能中断正在进行的操作，确定退出吗？");
         if (canClose)
         {
+            await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
         }
 

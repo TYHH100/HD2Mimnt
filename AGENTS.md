@@ -23,6 +23,7 @@
 | 部署、配置文件、加载器、补丁清理 | [`deployment-and-loaders.md`](docs/agent-guides/deployment-and-loaders.md) |
 | 外部平台、Nexus Mods、下载和凭据 | [`platforms-and-downloads.md`](docs/agent-guides/platforms-and-downloads.md) |
 | Avalonia、FluentAvalonia、选择、拖放和通知 | [`ui-and-avalonia.md`](docs/agent-guides/ui-and-avalonia.md) |
+| 多语言、系统语言检测、翻译资源和实时切换 | [`localization.md`](docs/agent-guides/localization.md) |
 | 构建、测试、任务、备份、日志和性能 | [`testing-and-lifecycle.md`](docs/agent-guides/testing-and-lifecycle.md) |
 | 导入、压缩包、TOC、Type ID、哈希 | [`import-and-resource-types.md`](docs/agent-guides/import-and-resource-types.md) |
 

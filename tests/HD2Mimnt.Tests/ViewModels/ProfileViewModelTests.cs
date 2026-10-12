@@ -12,6 +12,28 @@ namespace HD2Mimnt.Tests.ViewModels;
 public sealed class ProfileViewModelTests : IDisposable
 {
     [Fact]
+    public void ConflictCards_ShouldKeepDenseRelationsSharedAndPreviewBounded()
+    {
+        var vm = CreateViewModel();
+        var owners = Enumerable.Range(0, 1000).Select(index => new ConflictFileOwner
+            { ModId = Guid.NewGuid(), ModName = $"Mod {index}" }).ToArray();
+        var groups = Enumerable.Range(0, 100).Select(index => new ConflictGroupViewModel(new ConflictGroup
+            { ResourceId = (ulong)index, Owners = owners })).ToArray();
+        foreach (var owner in owners)
+            vm.ProfileMods.Add(new ProfileModViewModel { ModId = owner.ModId, ModName = owner.ModName, Enabled = true });
+        vm.ApplyConflictResults(groups);
+        Assert.All(vm.ProfileMods, mod => Assert.True(mod.HasConflict));
+        var card = vm.ProfileMods[0];
+        Assert.Equal(999, card.ConflictTargets.Count());
+        Assert.DoesNotContain(card.ModId, card.ConflictTargets.Select(target => target.ModId));
+        Assert.Contains("查看全部关联模组", card.ConflictTooltip);
+        Assert.True(card.ConflictTooltip.Length < 500);
+        vm.ApplyConflictResults([]);
+        Assert.Empty(card.ConflictTargets);
+        Assert.Equal(string.Empty, card.ConflictTooltip);
+    }
+
+    [Fact]
     public void FocusMod_ShouldOnlyFocusAndAnchorVisibleRangesWithoutSelectingFixedCards()
     {
         var vm = CreateViewModel();
@@ -225,6 +247,8 @@ public sealed class ProfileViewModelTests : IDisposable
                 ? new[] { smoothBoot.Id, loader.Id, second.Id, first.Id, Guid.Empty, normal.Id }
                 : new[] { normal.Id, Guid.Empty, first.Id, second.Id, loader.Id, smoothBoot.Id },
             vm.ProfileRows.Select(row => row.ModId));
+        Assert.Equal(bottomToTop ? -90 : 90,
+            vm.ProfileRows.Single(row => row.ModId == Guid.Empty).ChevronAngle);
         Assert.Equal(!bottomToTop, vm.CanMoveMods(new[] { normal.Id }, Guid.Empty));
         Assert.Equal(bottomToTop, vm.CanMoveMods(new[] { second.Id }, Guid.Empty));
         Assert.False(vm.CanMoveMods(new[] { normal.Id }, first.Id));

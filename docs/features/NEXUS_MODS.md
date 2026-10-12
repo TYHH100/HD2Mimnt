@@ -1,6 +1,6 @@
 # Nexus Mods 接入
 
-实现以仓库的 [nexus_openapi.yaml](nexus_openapi.yaml) 为契约，服务器为 `https://api.nexusmods.com/v3`。
+实现以仓库的 [nexus_openapi.yaml](../references/nexus_openapi.yaml) 为契约，服务器为 `https://api.nexusmods.com/v3`。
 
 网页 `nxm://` 授权下载单独依据 [Nexus Mods v1 Swagger 文档](https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0?view=elementsDocs) 实现，不向 v3 repacked 接口拼接 v1 授权参数。
 

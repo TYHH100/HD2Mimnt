@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 冲突扫描的补丁索引按块读取并以有限容量 LRU 缓存完整解析成功的结果；缓存键校验路径、长度、修改/创建时间，不能缓存损坏索引或选项/部署顺序。资源聚合的唯一条目避免逐条分配展示对象，只为真实跨模组覆盖生成详情；保留同一模组多个补丁的最终覆盖语义。修改索引读取后覆盖跨块读取及 Unit 版本随机定位，取消时归还缓冲区。来源：https://learn.microsoft.com/dotnet/api/system.buffers.arraypool-1
+
 - SharpCompress `ReaderFactory` 的流式格式不包含 7z；先按内容签名检测 7z 并重置流位置，再用 `ArchiveFactory.OpenArchive` + `ExtractAllEntries`，其它格式保留 ReaderFactory 以支持 tar.gz 等复合流。格式支持测试必须实际生成/读取该格式，不能用 tar.gz 通过来代表 7z 已支持，也不能只凭扩展名选择读取器。来源：https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md
 
 - 开发工具批量生成启用状态也必须调用批量接口，不能通过 AddModToProfileAsync 与 SetModEnabledAsync 的逐条组合模拟批量操作。

@@ -1,3 +1,4 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
@@ -27,9 +28,9 @@ public partial class LogView : UserControl
         if (DataContext is not LogViewModel viewModel || TopLevel.GetTopLevel(this) is not Window owner) return;
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "导出应用日志",
+            Title = UiLocalization.Current.Translate("导出应用日志"),
             SuggestedFileName = $"hd2mimnt-log-{DateTime.Now:yyyyMMdd-HHmmss}.log",
-            FileTypeChoices = new[] { new FilePickerFileType("日志文件") { Patterns = new[] { "*.log", "*.txt" } } }
+            FileTypeChoices = new[] { new FilePickerFileType(UiLocalization.Current.Translate("日志文件")) { Patterns = new[] { "*.log", "*.txt" } } }
         });
         var path = file?.Path.LocalPath;
         if (!string.IsNullOrWhiteSpace(path)) await viewModel.ExportAsync(path);

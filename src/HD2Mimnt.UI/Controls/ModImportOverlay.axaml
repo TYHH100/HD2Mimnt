@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
              x:Class="HD2Mimnt.UI.Controls.ModImportOverlay"
@@ -13,9 +13,9 @@
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
             <controls:UtilityIcon Kind="Add" Foreground="{DynamicResource AccentBrush}"/>
-            <TextBlock Text="添加模组" Classes="section-title"/>
+            <TextBlock Text="{loc:Loc UI.AddMods}" Classes="section-title"/>
           </StackPanel>
-          <Button Grid.Column="1" Classes="icon-button" Command="{Binding Import.CloseCommand}" ToolTip.Tip="关闭">
+          <Button Grid.Column="1" Classes="icon-button" Command="{Binding Import.CloseCommand}" ToolTip.Tip="{loc:Loc Common.Close}">
             <controls:UtilityIcon Kind="Close"/>
           </Button>
         </Grid>
@@ -24,38 +24,38 @@
             <TextBlock Text="{Binding Import.CurrentFile}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
                        ToolTip.Tip="{Binding Import.CurrentFile}"/>
             <StackPanel Spacing="6">
-              <TextBlock x:Name="ImportStep" Text="{Binding Import.Step}" FontWeight="SemiBold"/>
-              <TextBlock Text="{Binding Import.Detail}" Classes="secondary-text" TextWrapping="Wrap" MaxHeight="64" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="ImportStep" Text="{loc:LocalizedBinding Import.Step}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:LocalizedBinding Import.Detail}" Classes="secondary-text" TextWrapping="Wrap" MaxHeight="64" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
             <StackPanel Spacing="8" IsVisible="{Binding Import.TotalCount, Converter={StaticResource GreaterThanZeroConverter}}">
               <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="当前模组" Classes="caption-text"/>
+                <TextBlock Text="{loc:Loc UI.CurrentMod}" Classes="caption-text"/>
                 <TextBlock Grid.Column="1" Text="{Binding Import.FileProgress, StringFormat={}{0:0}%}" Classes="caption-text" IsVisible="{Binding !Import.IsIndeterminate}"/>
               </Grid>
               <ProgressBar x:Name="ImportFileProgress" Minimum="0" Maximum="100" Value="{Binding Import.FileProgress}" IsIndeterminate="{Binding Import.IsIndeterminate}"/>
               <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                <TextBlock x:Name="ImportCounts" Text="{Binding Import.CountText}"/>
+                <TextBlock x:Name="ImportCounts" Text="{loc:LocalizedBinding Import.CountText}"/>
                 <TextBlock Grid.Column="1" Text="{Binding Import.OverallProgress, StringFormat={}{0:0}%}" Classes="caption-text"/>
               </Grid>
               <ProgressBar x:Name="ImportTotalProgress" Minimum="0" Maximum="100" Value="{Binding Import.OverallProgress}"/>
-              <TextBlock Text="{Binding Import.ResultText}" Classes="caption-text"/>
+              <TextBlock Text="{loc:LocalizedBinding Import.ResultText}" Classes="caption-text"/>
             </StackPanel>
             <ItemsControl ItemsSource="{Binding Import.Errors}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="x:String">
-                  <TextBlock Text="{Binding}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorBrush}" Margin="0,0,0,8"/>
+                  <TextBlock Text="{loc:LocalizedBinding}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorBrush}" Margin="0,0,0,8"/>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
         </ScrollViewer>
         <StackPanel Grid.Row="2" Spacing="12">
-          <TextBlock Text="可将压缩包或文件夹拖入窗口批量添加" Classes="caption-text" IsVisible="{Binding Import.CanSelect}"/>
+          <TextBlock Text="{loc:Loc UI.DropArchivesOrFoldersIntoTheWindowToAddMultipleMods}" Classes="caption-text" IsVisible="{Binding Import.CanSelect}"/>
           <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-            <Button Content="选择文件夹" Click="OnSelectFolder" IsVisible="{Binding Import.CanSelect}"/>
-            <Button Content="选择压缩包" Classes="accent" Click="OnSelectArchives" IsVisible="{Binding Import.CanSelect}"/>
-            <Button Content="取消添加" Command="{Binding Import.CancelCommand}" IsVisible="{Binding Import.IsImporting}"/>
-            <Button Content="完成" Command="{Binding Import.CloseCommand}" IsVisible="{Binding Import.HasResult}"/>
+            <Button Content="{loc:Loc UI.ChooseFolder}" Click="OnSelectFolder" IsVisible="{Binding Import.CanSelect}"/>
+            <Button Content="{loc:Loc UI.ChooseArchives}" Classes="accent" Click="OnSelectArchives" IsVisible="{Binding Import.CanSelect}"/>
+            <Button Content="{loc:Loc UI.CancelImport}" Command="{Binding Import.CancelCommand}" IsVisible="{Binding Import.IsImporting}"/>
+            <Button Content="{loc:Loc UI.Done}" Command="{Binding Import.CloseCommand}" IsVisible="{Binding Import.HasResult}"/>
           </StackPanel>
         </StackPanel>
       </Grid>

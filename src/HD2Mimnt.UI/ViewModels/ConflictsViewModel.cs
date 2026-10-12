@@ -17,6 +17,56 @@ public partial class ConflictsViewModel : ObservableObject
     private CancellationTokenSource? _scanCts;
     private Guid? _targetProfileId;
     private int _revision;
+    private bool _automaticChecking;
+    private bool _automaticInvocation;
+    private bool _automaticScanActive;
+    private CancellationTokenSource? _automaticCts;
+    private Task? _automaticTask;
+    public ConflictCardIndex CardIndex { get; private set; } = ConflictCardIndex.Empty;
+
+    public void SetAutomaticChecking(bool enabled)
+    {
+        if (_automaticChecking == enabled) return;
+        _automaticChecking = enabled;
+        if (enabled) QueueAutomaticScan();
+        else
+        {
+            _automaticCts?.Cancel();
+            if (_automaticScanActive) _scanCts?.Cancel();
+        }
+    }
+
+    private void QueueAutomaticScan()
+    {
+        _automaticCts?.Cancel();
+        if (!_automaticChecking || !_targetProfileId.HasValue) return;
+        var cts = new CancellationTokenSource();
+        _automaticCts = cts;
+        _automaticTask = RunAutomaticScanAsync(cts);
+    }
+
+    private async Task RunAutomaticScanAsync(CancellationTokenSource cts)
+    {
+        try
+        {
+            // 合并连续启停、选项及排序变更；始终等待上一轮完成清理，避免并发读取磁盘。
+            await Task.Delay(750, cts.Token);
+            if (ScanCommand.ExecutionTask is { IsCompleted: false } pending) await pending;
+            cts.Token.ThrowIfCancellationRequested();
+            if (!_automaticChecking || !_targetProfileId.HasValue) return;
+            _automaticInvocation = true;
+            Task scan;
+            try { scan = ScanCommand.ExecuteAsync(null); }
+            finally { _automaticInvocation = false; }
+            await scan;
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (_automaticCts == cts) _automaticCts = null;
+            cts.Dispose();
+        }
+    }
 
     [ObservableProperty] private string _profileName = string.Empty;
 
@@ -33,6 +83,7 @@ public partial class ConflictsViewModel : ObservableObject
     {
         _revision++;
         _scanCts?.Cancel();
+        CardIndex = ConflictCardIndex.Empty;
         HasScanned = false;
         HasError = false;
         ErrorMessage = string.Empty;
@@ -40,6 +91,7 @@ public partial class ConflictsViewModel : ObservableObject
         Groups = new();
         Warnings = new();
         RefreshStateProperties();
+        QueueAutomaticScan();
     }
 
     /// <summary>扫描完成（含结果数量），供总览页统计回填。</summary>
@@ -80,6 +132,14 @@ public partial class ConflictsViewModel : ObservableObject
     public bool IsNoConflictsVisible => IsResultsVisible && Groups.Count == 0;
     public bool IsConflictsVisible => IsResultsVisible && Groups.Count > 0;
 
+    public string ProfileScanStatus => IsScanning ? "正在检查启用模组…"
+        : HasError ? ErrorMessage
+        : HasScanned ? (Groups.Count > 0 ? $"发现 {Groups.Count} 组资源覆盖，已标记相关卡片" : NoConflictsText)
+            + (HasWarnings ? $"；{Warnings.Count} 项未能读取，检测不完整" : "")
+        : SummaryText;
+
+    public bool HasProfileScanStatus => !string.IsNullOrEmpty(ProfileScanStatus);
+
     public ConflictsViewModel(
         ConflictDetectionService conflictDetectionService,
         ProfileService profileService,
@@ -98,6 +158,16 @@ public partial class ConflictsViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasWarnings));
         OnPropertyChanged(nameof(NoConflictsText));
+        RefreshProfileScanStatus();
+    }
+
+    partial void OnSummaryTextChanged(string value) => RefreshProfileScanStatus();
+    partial void OnErrorMessageChanged(string value) => RefreshProfileScanStatus();
+
+    private void RefreshProfileScanStatus()
+    {
+        OnPropertyChanged(nameof(ProfileScanStatus));
+        OnPropertyChanged(nameof(HasProfileScanStatus));
     }
 
     private void RefreshStateProperties()
@@ -109,20 +179,25 @@ public partial class ConflictsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsResultsVisible));
         OnPropertyChanged(nameof(IsNoConflictsVisible));
         OnPropertyChanged(nameof(IsConflictsVisible));
+        RefreshProfileScanStatus();
     }
 
     [RelayCommand]
     public async Task ScanAsync()
     {
         if (IsLoading) return;
+        _automaticScanActive = _automaticInvocation;
+        if (!_automaticInvocation) _automaticCts?.Cancel();
 
         _scanCts?.Cancel();
         _scanCts?.Dispose();
-        _scanCts = new CancellationTokenSource();
-        var cancellationToken = _scanCts.Token;
+        using var scanCts = new CancellationTokenSource();
+        _scanCts = scanCts;
+        var cancellationToken = scanCts.Token;
         var revision = _revision;
 
         IsLoading = true;
+        CardIndex = ConflictCardIndex.Empty;
         HasScanned = false;
         HasError = false;
         ErrorMessage = string.Empty;
@@ -149,12 +224,25 @@ public partial class ConflictsViewModel : ObservableObject
             cancellationToken.ThrowIfCancellationRequested();
             if (revision != _revision) return;
 
-            Groups = new ObservableCollection<ConflictGroupViewModel>(
-                result.Groups.Select(group => new ConflictGroupViewModel(group)));
+            // 大量冲突的文字格式化和卡片关系归并同样在后台完成。
+            var presentation = await Task.Run(() =>
+            {
+                var groups = result.Groups.Select(group =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return new ConflictGroupViewModel(group);
+                }).ToArray();
+                return (Groups: groups, Index: ConflictCardIndex.Create(groups, cancellationToken),
+                    Definite: groups.Count(group => group.IsDefiniteConflict));
+            }, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (revision != _revision) return;
+            CardIndex = presentation.Index;
+            Groups = new(presentation.Groups);
             HasScanned = true;
             Warnings = new(result.Warnings);
             SummaryText = $"已扫描 {result.ScannedModCount} 个启用模组、{result.ScannedPatchCount} 个补丁、{result.ScannedResourceCount} 条资源；"
-                + $"发现 {Groups.Count} 组覆盖，其中 {result.DefiniteConflictCount} 组有明确差异"
+                + $"发现 {Groups.Count} 组覆盖，其中 {presentation.Definite} 组有明确差异"
                 + (HasWarnings ? $"（{Warnings.Count} 项未能读取，检测不完整）" : "");
 
             ScanCompleted?.Invoke(this, Groups.Count);
@@ -174,15 +262,31 @@ public partial class ConflictsViewModel : ObservableObject
         }
         finally
         {
-            if (_scanCts == null || _scanCts.Token == cancellationToken)
+            if (_scanCts == scanCts)
             {
+                _scanCts = null;
                 IsLoading = false;
+                _automaticScanActive = false;
             }
         }
     }
 
     [RelayCommand]
-    private void CancelScan() => _scanCts?.Cancel();
+    private void CancelScan()
+    {
+        _automaticCts?.Cancel();
+        _scanCts?.Cancel();
+    }
+
+    public async Task StopScanAsync()
+    {
+        // 关闭时先禁用调度，避免延迟任务在退出过程中重新启动扫描。
+        _automaticChecking = false;
+        _automaticCts?.Cancel();
+        _scanCts?.Cancel();
+        if (ScanCommand.ExecutionTask is { } pending) await pending;
+        if (_automaticTask is { } automatic) await automatic;
+    }
 }
 
 public class ConflictGroupViewModel

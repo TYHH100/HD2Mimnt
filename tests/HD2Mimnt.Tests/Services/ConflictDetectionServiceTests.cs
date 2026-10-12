@@ -43,6 +43,82 @@ public sealed class ConflictDetectionServiceTests : IDisposable
     }
 
     [Fact]
+    public void Reader_ShouldReadAcrossChunksWithoutUnitSeeksCorruptingIndex()
+    {
+        const int count = 1100;
+        var path = Path.Combine(_root, "chunks");
+        var start = 104UL + 80UL * count;
+        using (var writer = new BinaryWriter(File.Create(path)))
+        {
+            writer.Write(0xF0000011u); writer.Write(1u); writer.Write((uint)count); writer.Write(new byte[60 + 32]);
+            for (var index = 0; index < count; index++)
+            {
+                writer.Write((ulong)index); writer.Write(index % 100 == 0 ? Unit : Texture);
+                writer.Write(start + (ulong)index * 48); writer.Write(new byte[32]); writer.Write(48u); writer.Write(new byte[20]);
+            }
+            for (var index = 0; index < count; index++) { writer.Write(new byte[44]); writer.Write((uint)(index + 1)); }
+        }
+        var entries = PatchResourceIndexReader.Read(path);
+        Assert.Equal(count, entries.Count);
+        for (var index = 0; index < count; index++)
+        {
+            Assert.Equal((ulong)index, entries[index].ResourceId);
+            Assert.Equal(index % 100 == 0 ? (uint?)(index + 1) : null, entries[index].UnitVersion);
+        }
+    }
+
+    [Fact]
+    public async Task Scan_ShouldReuseIndexesButRecomputeOrderAndRefreshChangedFiles()
+    {
+        var first = AddMod();
+        var second = AddMod();
+        var path = Path.Combine(second.Path, "aaaaaaaaaaaaaaaa.patch_0");
+        WritePatch(Path.Combine(first.Path, "aaaaaaaaaaaaaaaa.patch_0"), 1);
+        WritePatch(path, 1);
+        Assert.Equal(0, (await _scanner.ScanProfileAsync(_profile.Id)).CachedPatchCount);
+        await _settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.BottomToTop.ToString());
+        var cached = await _scanner.ScanProfileAsync(_profile.Id);
+        Assert.Equal(2, cached.CachedPatchCount);
+        Assert.Equal(first.Id, Assert.Single(cached.Groups).Owners.Last().ModId);
+        var timestamp = File.GetLastWriteTimeUtc(path);
+        WritePatch(path, 2); // 相同文件长度也必须依据修改时间失效。
+        File.SetLastWriteTimeUtc(path, timestamp.AddSeconds(2));
+        var changed = await _scanner.ScanProfileAsync(_profile.Id);
+        Assert.Equal(1, changed.CachedPatchCount);
+        Assert.Empty(changed.Groups);
+        File.WriteAllText(path, "broken");
+        Assert.Single((await _scanner.ScanProfileAsync(_profile.Id)).Warnings);
+        File.Delete(path);
+        Assert.Equal(1, (await _scanner.ScanProfileAsync(_profile.Id)).ScannedPatchCount);
+    }
+
+    [Fact]
+    public void IndexCache_ShouldEvictAtCapacityAndNeverCacheFailedReads()
+    {
+        var a = Path.Combine(_root, "a");
+        var b = Path.Combine(_root, "b");
+        WritePatch(a, 1);
+        WritePatch(b, 2);
+        var cache = new PatchResourceIndexCache(maximumFiles: 1);
+        cache.Read(a, default, out var hit);
+        Assert.False(hit);
+        cache.Read(a, default, out hit);
+        Assert.True(hit);
+        cache.Read(b, default, out _);
+        cache.Read(a, default, out hit);
+        Assert.False(hit);
+        File.WriteAllText(b, "bad");
+        Assert.Throws<InvalidDataException>(() => cache.Read(b, default, out _));
+        WritePatch(b, 3);
+        Assert.Equal(3UL, Assert.Single(cache.Read(b, default, out hit)).ResourceId);
+        Assert.False(hit);
+        cache = new PatchResourceIndexCache(maximumBytes: 1);
+        cache.Read(a, default, out _);
+        cache.Read(a, default, out hit);
+        Assert.False(hit);
+    }
+
+    [Fact]
     public async Task Scan_ShouldMatchResourceIdentityAcrossDifferentPatchNamesAndKeepUnsignedIds()
     {
         var first = AddMod();

@@ -1,3 +1,4 @@
+using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.ViewModels;
@@ -17,7 +18,7 @@ public partial class MoreView : UserControl
 
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = $"选择要交给 {tool.Name} 打开的文件",
+            Title = UiLocalization.Current.Translate($"选择要交给 {tool.Name} 打开的文件"),
             AllowMultiple = false
         });
         var path = files.FirstOrDefault()?.TryGetLocalPath();

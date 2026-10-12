@@ -1,6 +1,6 @@
 # 平台、认证与下载
 
-涉及 IModPlatform、Nexus Mods、凭据、NXM、在线更新或 HTTP 下载时先读本文件。实现说明见 [Nexus Mods](../NEXUS_MODS.md) 与 [分段下载](../MULTITHREADED_DOWNLOADS.md)。
+涉及 IModPlatform、Nexus Mods、凭据、NXM、在线更新或 HTTP 下载时先读本文件。实现说明见 [Nexus Mods](../features/NEXUS_MODS.md) 与 [分段下载](../features/MULTITHREADED_DOWNLOADS.md)。
 
 ## 易错点与正确做法
 
@@ -10,7 +10,7 @@
 
 - 外部平台按独立模块目录组织，例如 `Infrastructure/Platforms/NexusMods/`；公开适配器实现 `IModPlatform` 并通过 `PlatformRegistry` 调用，HTTP 客户端、平台模型、映射和文件流程按职责拆分，内部类型保持 `internal`。新增 A 网等平台使用自己的目录、认证状态和 API 模型，不向 N 网文件追加其它网站逻辑，也不把平台 DTO 泄漏到 Application/UI。来源：https://learn.microsoft.com/dotnet/csharp/fundamentals/types/interfaces
 
-- Nexus Mods v3 以 `docs/openapi.yaml` 为契约：网站 `game_scoped_id`、模组全局 `id`、文件 `id` 和文件版本 `id` 不可混用。读取接口用 `data` 包装，但 `download-repacked` 的 POST 响应直接返回 `download_url`；下载优先活动主版本，API 凭据不能放入共享默认头并随签名下载地址发送。热门接口仅前 5 项，不能称为全站搜索；详情不含版本号，更新检查须查询文件版本，空版本不能制造更新提示。来源：https://api-docs.nexusmods.com/
+- Nexus Mods v3 以 `docs/references/nexus_openapi.yaml` 为契约：网站 `game_scoped_id`、模组全局 `id`、文件 `id` 和文件版本 `id` 不可混用。读取接口用 `data` 包装，但 `download-repacked` 的 POST 响应直接返回 `download_url`；下载优先活动主版本，API 凭据不能放入共享默认头并随签名下载地址发送。热门接口仅前 5 项，不能称为全站搜索；详情不含版本号，更新检查须查询文件版本，空版本不能制造更新提示。来源：https://api-docs.nexusmods.com/
 
 - 模组平台字段新增或用于关联时，须同时核对 Core 实体、SQLite 补列、Repository 的 INSERT/UPDATE/读取与参数绑定；实体存在 `PlatformId` 等属性不代表已持久化。N 网页面编号用于更新/下载调用，全局 ID 仅用于其 API 内部路由；规范页面与 API 信息保存在 Mod 行内，删模组时一起删除，不保存签名下载地址或密钥。回归须覆盖数据库重开、旧库补列、删除及更新/下载读取。来源：https://api-docs.nexusmods.com/
 

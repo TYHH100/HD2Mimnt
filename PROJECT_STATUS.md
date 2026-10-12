@@ -338,18 +338,21 @@ dotnet build
 ## 🔗 快速链接
 
 ### 文档导航
-- 📖 [文档索引](docs/HD2IR_DOCUMENTATION_INDEX.md)
-- 🚀 [快速参考](docs/HD2IR_QUICKREF.md)
-- ✅ [验收报告](docs/HD2IR_PHASE1-4_ACCEPTANCE_REPORT.md)
-- 📊 [最终总结](docs/HD2IR_PHASE1-4_FINAL_SUMMARY.md)
-- 🧪 [测试结果](docs/HD2IR_TEST_RESULTS.md)
+
+- [当前文档导航](docs/README.md) - 模块说明、设计计划、性能报告和历史归档
+
+- 📖 [文档索引](docs/Archive%20records/HD2IR/HD2IR_DOCUMENTATION_INDEX.md)
+- 🚀 [快速参考](docs/Archive%20records/HD2IR/HD2IR_QUICKREF.md)
+- ✅ [验收报告](docs/Archive%20records/HD2IR/HD2IR_PHASE1-4_ACCEPTANCE_REPORT.md)
+- 📊 [最终总结](docs/Archive%20records/HD2IR/HD2IR_PHASE1-4_FINAL_SUMMARY.md)
+- 🧪 [测试结果](docs/Archive%20records/HD2IR/HD2IR_TEST_RESULTS.md)
 
 ### 开发指南
 - 📋 [CLAUDE.md](CLAUDE.md) - 项目概览和开发指南
 - 📁 [README.md](README.md) - 项目介绍和快速开始
 
 ### 执行文档
-- 📄 [HD2IR 执行文档](docs/HD2Mimnt%20—%20HD2IR%20-%20嵌套压缩包兼容专项执行文档.md)
+- 📄 [HD2IR 执行文档](docs/Archive%20records/HD2IR/HD2Mimnt%20%E2%80%94%20HD2IR%20-%20%E5%B5%8C%E5%A5%97%E5%8E%8B%E7%BC%A9%E5%8C%85%E5%85%BC%E5%AE%B9%E4%B8%93%E9%A1%B9%E6%89%A7%E8%A1%8C%E6%96%87%E6%A1%A3.md)
 
 ---
 
