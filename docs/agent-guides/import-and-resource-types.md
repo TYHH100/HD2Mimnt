@@ -4,6 +4,12 @@
 
 ## 易错点与正确做法
 
+- 外部管理器迁移复用 Application 的导入和配置服务；模组身份包含管理器、源数据目录、源条目 ID 与准备后内容哈希，不能只按名称或作者 GUID 覆盖用户记录。文件、图片、标签、清单和哈希完成后才落库；成功项保留供重试，未提交副本在失败/取消时清理。配置成员、选项和分隔符一次事务提交，缺成员跳过整个配置。来源：[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://www.sqlite.org/lang_transaction.html
+
+- 迁移清单时保留未知包元数据；`Version` 只保存格式、`ModVersion` 保存模组版本，Legacy 不写 `Version`。缺少 `Include` 与显式 `Include: []` 语义不同，不能序列化成相同结果。Echelon 按集合的真实文件路径复制到独立目录，有选项时只部署被引用集合，无选项才部署全部集合；选项排列须同时转换选择索引。来源：[来源格式及验证范围](../features/EXTERNAL_MANAGER_MIGRATION.md)
+
+- 源部署方向与目标不同时转换完整分隔符成员范围；固定 Lua 成员归入现有固定区域，库分隔符用独立禁用配置保留组织关系。自定义排序导致分组成员不连续时报告不兼容并跳过配置，不能悄悄扩大分组。HD2MM 源库用只读短连接，禁止把源设置中的凭据写入迁移记录或日志。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/connection-strings 、[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)
+
 - 冲突扫描的补丁索引按块读取并以有限容量 LRU 缓存完整解析成功的结果；缓存键校验路径、长度、修改/创建时间，不能缓存损坏索引或选项/部署顺序。资源聚合的唯一条目避免逐条分配展示对象，只为真实跨模组覆盖生成详情；保留同一模组多个补丁的最终覆盖语义。修改索引读取后覆盖跨块读取及 Unit 版本随机定位，取消时归还缓冲区。来源：https://learn.microsoft.com/dotnet/api/system.buffers.arraypool-1
 
 - SharpCompress `ReaderFactory` 的流式格式不包含 7z；先按内容签名检测 7z 并重置流位置，再用 `ArchiveFactory.OpenArchive` + `ExtractAllEntries`，其它格式保留 ReaderFactory 以支持 tar.gz 等复合流。格式支持测试必须实际生成/读取该格式，不能用 tar.gz 通过来代表 7z 已支持，也不能只凭扩展名选择读取器。来源：https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md

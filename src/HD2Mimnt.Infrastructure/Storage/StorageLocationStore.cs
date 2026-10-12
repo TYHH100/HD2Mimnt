@@ -15,7 +15,7 @@ public sealed class StorageLocationStore
     {
         var environmentPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         BootstrapPath = Normalize(bootstrapPath ?? (string.IsNullOrWhiteSpace(environmentPath)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt")
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev")
             : environmentPath));
         _file = Path.Combine(BootstrapPath, "storage-locations.json");
         Defaults = new(BootstrapPath, Path.Combine(BootstrapPath, "mods"), Path.Combine(BootstrapPath, "Cache"));

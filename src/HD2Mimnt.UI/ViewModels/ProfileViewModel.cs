@@ -614,8 +614,19 @@ public partial class ProfileViewModel : ObservableObject
         separator.GroupModCount = ProfileMods.Count(mod => mod.IsBslMember);
         var fixedRows = ProfileMods.Where(mod => mod.IsBslMember
             && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
-        var rows = _bottomToTop ? fixedRows.Concat(new[] { separator }).Concat(visibleOrdinary).ToList()
-            : visibleOrdinary.Concat(new[] { separator }).Concat(fixedRows).ToList();
+        var rows = new List<ProfileModViewModel>();
+        if (_bottomToTop)
+        {
+            rows.AddRange(fixedRows);
+            if (separator.GroupModCount > 0) rows.Add(separator);
+            rows.AddRange(visibleOrdinary);
+        }
+        else
+        {
+            rows.AddRange(visibleOrdinary);
+            if (separator.GroupModCount > 0) rows.Add(separator);
+            rows.AddRange(fixedRows);
+        }
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
         ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
         HasNoModResults = query.Length > 0 && rows.Count == 1 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);

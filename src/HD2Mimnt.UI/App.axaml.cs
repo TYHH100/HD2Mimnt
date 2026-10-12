@@ -17,6 +17,7 @@ using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.Infrastructure.Storage;
+using HD2Mimnt.Infrastructure.Migration;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
@@ -337,6 +338,17 @@ public partial class App : Avalonia.Application
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>()));
+
+        // 外部管理器迁移：读取器只读源数据，实际复制和落库由 Application 服务完成。
+        services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
+        services.AddSingleton<IExternalManagerReader, EchelonReader>();
+        services.AddSingleton<IExternalManagerReader, Hd2ArsenalReader>();
+        services.AddSingleton(sp => new ExternalManagerMigrationService(
+            sp.GetServices<IExternalManagerReader>(),
+            sp.GetRequiredService<ModService>(),
+            sp.GetRequiredService<ProfileService>(),
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetService<ILogger<ExternalManagerMigrationService>>()));
 
         services.AddSingleton<ConflictDetectionService>();
 

@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Migration;
 using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Archive;
 using Microsoft.Extensions.Logging;
@@ -61,7 +62,7 @@ public class ModImportService
 
     /// <summary>准备独立副本，不落库；调用方取得成功结果后负责保留或清理。</summary>
     internal async Task<Mod> PrepareModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null)
+        IProgress<ModImportProgress>? progress = null, ExternalMigrationMod? migration = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new(0, "检查源文件", Path.GetFileName(sourcePath)));
@@ -101,7 +102,8 @@ public class ModImportService
             // 读取 manifest：真实模组压缩包常带一层同名子文件夹，根目录没有时向下查找
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new(20, "读取模组清单", "识别模组信息和选项", true));
-            var manifest = await ReadManifestAsync(modRootPath, cancellationToken);
+            var manifest = migration == null ? await ReadManifestAsync(modRootPath, cancellationToken)
+                : System.Text.Json.JsonSerializer.Deserialize<ModManifest>(System.Text.Json.JsonSerializer.Serialize(migration.Manifest));
             if (manifest == null)
             {
                 var nestedRoot = FindManifestRoot(modRootPath);
@@ -145,7 +147,36 @@ public class ModImportService
             // 复制 Mod 到存储目录
             targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
             Directory.CreateDirectory(targetPath);
-            await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
+            if (migration == null)
+                await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
+            else
+            {
+                await CopyMigratedDirectoryAsync(migration, targetPath, cancellationToken);
+                var manifestPath = Path.Combine(targetPath, "manifest.json");
+                System.Text.Json.Nodes.JsonObject? original = null;
+                if (File.Exists(manifestPath))
+                    original = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(manifestPath, cancellationToken),
+                        documentOptions: new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip }) as System.Text.Json.Nodes.JsonObject;
+                if (!string.IsNullOrWhiteSpace(migration.ImagePath))
+                {
+                    if (!File.Exists(migration.ImagePath)) throw new FileNotFoundException("源预览图不存在", migration.ImagePath);
+                    var imageName = "migration-preview" + Path.GetExtension(migration.ImagePath);
+                    await CopyMigrationFileAsync(migration.ImagePath, Path.Combine(targetPath, imageName), cancellationToken);
+                    manifest!.IconPath = imageName;
+                    mod.ThumbnailPath = Path.Combine(targetPath, imageName);
+                }
+                manifest!.Tags = migration.Tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                mod.Tags = manifest.Tags;
+                _manifestParser.SaveToFile(manifest, manifestPath);
+                if (original != null)
+                {
+                    var normalized = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(manifestPath, cancellationToken))!.AsObject();
+                    var controlled = new HashSet<string>(["Version", "ModVersion", "Guid", "Name", "Description", "Author", "IconPath", "Category", "Tags", "Options", "NexusData"], StringComparer.OrdinalIgnoreCase);
+                    foreach (var property in original.Where(property => !controlled.Contains(property.Key))) normalized[property.Key] = property.Value?.DeepClone();
+                    await File.WriteAllTextAsync(manifestPath, normalized.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), cancellationToken);
+                }
+                mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
+            }
             mod.Path = targetPath;
             progress?.Report(new(80, "识别资源类型", "扫描模组资源索引", true));
             await PopulateResourceTypesAsync(mod, cancellationToken);
@@ -428,5 +459,46 @@ public class ModImportService
         public long TotalSize { get; set; }
         public bool ContainsScripts { get; set; }
         public List<string> FileTypes { get; set; } = new();
+    }
+
+    private static async Task CopyMigratedDirectoryAsync(ExternalMigrationMod migration, string target, CancellationToken token)
+    {
+        var layout = migration.FileLayout.GroupBy(file => Inside(migration.SourcePath, file.SourceRelativePath), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Select(file => Inside(target, file.TargetRelativePath)).ToList(), StringComparer.OrdinalIgnoreCase);
+        foreach (var file in layout.Keys)
+            if (!File.Exists(file)) throw new FileNotFoundException("源资源集合文件不存在", file);
+        var destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Directory.EnumerateFiles(migration.SourcePath, "*", SearchOption.AllDirectories))
+        {
+            token.ThrowIfCancellationRequested();
+            var targets = layout.GetValueOrDefault(Path.GetFullPath(file)) ?? [Inside(target, Path.GetRelativePath(migration.SourcePath, file))];
+            foreach (var destination in targets)
+            {
+                if (!destinations.Add(destination)) throw new InvalidDataException($"源资源集合目标重名：{destination}");
+                await CopyMigrationFileAsync(file, destination, token);
+            }
+        }
+        foreach (var directory in Directory.EnumerateDirectories(migration.SourcePath, "*", SearchOption.AllDirectories))
+        {
+            token.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(Inside(target, Path.GetRelativePath(migration.SourcePath, directory)));
+        }
+    }
+
+    private static async Task CopyMigrationFileAsync(string source, string target, CancellationToken token)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+        await input.CopyToAsync(output, token);
+    }
+
+    private static string Inside(string root, string relative)
+    {
+        var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var full = Path.GetFullPath(Path.Combine(normalized, relative.Replace('/', Path.DirectorySeparatorChar)));
+        if (!full.StartsWith(normalized + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"迁移文件路径越出模组目录：{relative}");
+        return full;
     }
 }

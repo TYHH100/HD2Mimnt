@@ -7,6 +7,7 @@
 | 开发协作与易错点 | [仓库规则](../AGENTS.md)，按索引读取 `agent-guides/` |
 | Nexus Mods 接入、认证与在线更新 | [NEXUS_MODS.md](features/NEXUS_MODS.md) |
 | HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
+| 外部管理器模组库、配置和分隔符迁移 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
 | Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
 | 总体设计与路线 | [v2 总体开发计划](plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)；计划不等于已实现功能 |
 | 自动冲突检查与性能测量边界 | [性能评估](reports/automatic-conflict-check-performance.md) |

@@ -116,6 +116,50 @@ public class ProfileService
         return profile.Id;
     }
 
+    /// <summary>迁移完整配置快照；重复快照保留用户后续编辑，同名配置自动分配新名称。</summary>
+    internal async Task<(Guid Id, bool Reused)> ImportMigratedProfileAsync(Profile profile, CancellationToken cancellationToken)
+    {
+        await _optionsWriteGate.WaitAsync(cancellationToken);
+        try
+        {
+            var existing = await _profileRepository.GetByIdAsync(profile.Id, cancellationToken);
+            if (existing != null) return (existing.Id, true);
+            if (string.IsNullOrWhiteSpace(profile.Name)) throw new ArgumentException("源配置名称不能为空");
+            var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToDictionary(mod => mod.Id);
+            if (profile.Mods.Select(item => item.ModId).Distinct().Count() != profile.Mods.Count)
+                throw new InvalidDataException("源配置包含重复模组成员");
+            foreach (var item in profile.Mods)
+            {
+                if (!mods.TryGetValue(item.ModId, out var mod)) throw new InvalidDataException("源配置的模组成员未成功迁入");
+                item.ProfileId = profile.Id;
+                item.OptionsJson = ProfileModOptionResolver.ResolveEffective(mod.Manifest, item.OptionsJson).ToJson();
+            }
+            BslProfilePolicy.SelectLoader(profile, mods, profile.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
+            BslProfilePolicy.Normalize(profile, mods);
+            var normalCount = profile.Mods.Count(item => BslProfilePolicy.Role(mods[item.ModId]) == HD2Mimnt.Core.Enums.BslModRole.None);
+            foreach (var separator in profile.Separators)
+            {
+                separator.ProfileId = profile.Id;
+                separator.Order = Math.Clamp(separator.Order, 0, normalCount);
+                separator.Color = NormalizeSeparatorColor(separator.Color);
+                if (separator.MemberCount.HasValue) separator.MemberCount = Math.Clamp(separator.MemberCount.Value, 0, normalCount - separator.Order);
+            }
+            profile.LuaSeparatorColor = NormalizeSeparatorColor(profile.LuaSeparatorColor);
+            var names = (await _profileRepository.GetAllAsync(cancellationToken)).Select(item => item.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var name = profile.Name.Trim();
+            profile.Name = name;
+            for (var index = 2; names.Contains(profile.Name); index++) profile.Name = $"{name} ({index})";
+            profile.IsActive = false;
+            profile.IsDefault = false;
+            profile.SortOrder = await GetNextSortOrderAsync(cancellationToken);
+            profile.CreatedAt = profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.AddAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+            return (profile.Id, false);
+        }
+        finally { _optionsWriteGate.Release(); }
+    }
+
     /// <summary>下一个可用排序号（新配置文件依次追加到列表末尾，默认配置在最前）。</summary>
     private async Task<int> GetNextSortOrderAsync(CancellationToken cancellationToken)
     {

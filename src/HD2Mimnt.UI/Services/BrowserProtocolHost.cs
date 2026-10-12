@@ -31,7 +31,7 @@ public sealed class BrowserProtocolHost : IDisposable
     {
         var data = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         var directory = string.IsNullOrWhiteSpace(data)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt")
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev")
             : Path.GetFullPath(data);
         return Environment.UserDomainName + "\\" + Environment.UserName + ":" + directory.TrimEnd('\\', '/').ToUpperInvariant();
     }

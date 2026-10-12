@@ -24,7 +24,7 @@ public class ImageCacheService : IImageCacheService
         _memoryCache = new Cache.LruCache<string, Bitmap>(memoryCacheSize);
         _diskCachePath = cachePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "HD2Mimnt",
+            "HD2Mimnt.dev",
             "ImageCache");
 
         Directory.CreateDirectory(_diskCachePath);

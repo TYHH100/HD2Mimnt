@@ -24,7 +24,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _optionsProvider = optionsProvider;
         _resumeDirectory = resumeDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt", "Downloads");
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev", "Downloads");
         _tempDirectory = tempDirectory ?? Path.GetTempPath();
     }
 

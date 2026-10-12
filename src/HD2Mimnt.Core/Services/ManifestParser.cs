@@ -76,7 +76,7 @@ public class ManifestParser
         // 解析基础字段
         var name = GetStringProperty(root, "Name") ?? "Unknown Mod";
         var description = GetStringProperty(root, "Description") ?? string.Empty;
-        var version = GetStringProperty(root, "Version") ?? "1.0.0";
+        var version = GetStringProperty(root, "ModVersion") ?? GetStringProperty(root, "Version") ?? "1.0.0";
         var author = GetStringProperty(root, "Author") ?? "Unknown";
         var iconPath = GetStringProperty(root, "IconPath");
 
@@ -183,11 +183,9 @@ public class ManifestParser
         writer.WriteString("Guid", manifest.Guid.ToString());
         writer.WriteString("Name", manifest.Name);
         writer.WriteString("Description", manifest.Description);
+        if (!string.IsNullOrEmpty(manifest.Version)) writer.WriteString("ModVersion", manifest.Version);
 
-        if (!string.IsNullOrEmpty(manifest.Version))
-        {
-            writer.WriteString("Version", manifest.Version);
-        }
+        // Version 是清单格式标记；Legacy 写入该字段会在再次读取时被误判为 V1。
 
         if (!string.IsNullOrEmpty(manifest.Author))
         {
@@ -198,6 +196,11 @@ public class ManifestParser
         {
             writer.WriteString("IconPath", manifest.IconPath);
         }
+
+        if (manifest.Category != null) writer.WriteString("Category", manifest.Category);
+        writer.WriteStartArray("Tags");
+        foreach (var tag in manifest.Tags) writer.WriteStringValue(tag);
+        writer.WriteEndArray();
 
         // 写入选项
         if (manifest.ManifestVersion == ManifestVersion.Legacy && manifest.LegacyOptions?.Count > 0)
@@ -242,7 +245,7 @@ public class ManifestParser
             writer.WriteBoolean("DefaultEnabled", option.DefaultEnabled.Value);
         }
 
-        if (option.Include is { Count: > 0 })
+        if (option.Include != null)
         {
             writer.WriteStartArray("Include");
             foreach (var include in option.Include)
@@ -276,7 +279,7 @@ public class ManifestParser
         writer.WriteString("Name", subOption.Name);
         writer.WriteString("Description", subOption.Description);
 
-        if (subOption.Include is { Count: > 0 })
+        if (subOption.Include != null)
         {
             writer.WriteStartArray("Include");
             foreach (var include in subOption.Include)
@@ -406,7 +409,7 @@ public class ManifestParser
             Name = name,
             Description = description,
             DefaultEnabled = defaultEnabled,
-            Include = ParseStringArray(element, "Include"),
+            Include = TryGetPropertyIgnoreCase(element, "Include", out _) ? ParseStringArray(element, "Include") : null,
             Image = GetStringProperty(element, "Image")
         };
 
@@ -422,7 +425,7 @@ public class ManifestParser
                     {
                         Name = GetStringProperty(subElement, "Name") ?? "Unnamed SubOption",
                         Description = GetStringProperty(subElement, "Description") ?? string.Empty,
-                        Include = ParseStringArray(subElement, "Include"),
+                        Include = TryGetPropertyIgnoreCase(subElement, "Include", out _) ? ParseStringArray(subElement, "Include") : null,
                         Image = GetStringProperty(subElement, "Image")
                     });
                 }

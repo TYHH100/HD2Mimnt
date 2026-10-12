@@ -1,6 +1,7 @@
 ﻿using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Migration;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -324,6 +325,42 @@ public class ModService
     #endregion
 
     #region Import Operations
+
+    internal async Task<(Mod Mod, bool Reused)> ImportMigratedModAsync(ExternalMigrationMod external, string sourceIdentity,
+        CancellationToken cancellationToken)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        Mod? prepared = null;
+        var saved = false;
+        try
+        {
+            prepared = await _importService.PrepareModAsync(external.SourcePath, cancellationToken, migration: external);
+            var id = MigrationIdentity.Create(sourceIdentity, "mod", external.SourceId.ToUpperInvariant(), prepared.Hash);
+            var existing = await _modRepository.GetByIdAsync(id, cancellationToken);
+            if (existing != null)
+            {
+                if (!Directory.Exists(existing.Path) || existing.Hash != prepared.Hash)
+                    throw new InvalidDataException("已有迁移副本不完整，请先修复或删除该副本后重试。");
+                return (existing, true);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var path = Path.Combine(_storageDirectory, id.ToString());
+            if (!string.IsNullOrWhiteSpace(prepared.ThumbnailPath))
+                prepared.ThumbnailPath = Path.Combine(path, Path.GetRelativePath(prepared.Path, prepared.ThumbnailPath));
+            Directory.Move(prepared.Path, path);
+            prepared.Path = path;
+            prepared.Id = id;
+            await _modRepository.AddAsync(prepared, cancellationToken);
+            saved = true;
+            RaiseModsChanged();
+            return (prepared, false);
+        }
+        finally
+        {
+            try { if (!saved && prepared != null && Directory.Exists(prepared.Path)) Directory.Delete(prepared.Path, true); }
+            finally { _mutationGate.Release(); }
+        }
+    }
 
     /// <summary>
     /// 从文件夹或 ZIP 导入 Mod

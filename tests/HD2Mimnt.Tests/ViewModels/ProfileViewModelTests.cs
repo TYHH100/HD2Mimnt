@@ -311,6 +311,28 @@ public sealed class ProfileViewModelTests : IDisposable
     }
 
     [Theory]
+    [InlineData(HD2Mimnt.Core.Enums.BslModRole.Dependency)]
+    [InlineData(HD2Mimnt.Core.Enums.BslModRole.Loader)]
+    public async Task LuaSeparator_ShouldOnlyShowWhenDependencyOrLoaderIsInProfile(HD2Mimnt.Core.Enums.BslModRole role)
+    {
+        var mod = await AddModAsync("Ordinary mod");
+        var profileId = await _profileService.CreateProfileAsync("Conditional Lua Separator");
+        await _profileService.SetActiveProfileAsync(profileId);
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        Assert.DoesNotContain(vm.ProfileRows, row => row.ModId == Guid.Empty);
+
+        mod.BslRole = role;
+        mod.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
+        await _modRepository.UpdateAsync(mod);
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        Assert.Contains(vm.ProfileRows, row => row.ModId == Guid.Empty);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task MoveToPosition_WithLuaGroup_ShouldAllowOrdinaryBoundaryAndRejectCrossing(bool bottomToTop)

@@ -46,7 +46,7 @@ public class PluginHostStorage : IPluginStorage
     {
         var baseDir = Path.Combine(
             Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev"),
             "Plugins",
             pluginId);
 
@@ -130,7 +130,7 @@ public class PluginHostConfiguration : IPluginConfiguration
     {
         var baseDir = Path.Combine(
             Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HD2Mimnt.dev"),
             "Plugins",
             pluginId);
 
