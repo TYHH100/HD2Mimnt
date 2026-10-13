@@ -110,7 +110,7 @@ public class ModService
                 }))
                 throw new InvalidDataException("下载包中没有可用的游戏补丁，已保留原模组。");
 
-            newThumbnail = await _thumbnailService.GenerateThumbnailAsync(prepared.Id, prepared.Path, cancellationToken);
+            newThumbnail = await _thumbnailService.GenerateThumbnailAsync(prepared.Id, prepared.Path, cancellationToken, prepared.Manifest?.IconPath);
             await _mutationGate.WaitAsync(cancellationToken);
             try
             {
@@ -246,32 +246,42 @@ public class ModService
 
     private async Task BackfillMissingManifestAsync(Mod mod, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (mod.ResourceTypeIds == null)
         {
             await _importService.PopulateResourceTypesAsync(mod, cancellationToken);
             if (mod.ResourceTypeIds != null) await _modRepository.UpdateAsync(mod, cancellationToken);
         }
 
-        if (mod.Manifest != null || string.IsNullOrEmpty(mod.Path) || !Directory.Exists(mod.Path))
+        if (string.IsNullOrEmpty(mod.Path) || !Directory.Exists(mod.Path))
         {
             return;
         }
 
         try
         {
-            // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义，保证历史模组也能用选项
-            var manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
-                ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
-            if (manifest == null)
+            var changed = false;
+            if (mod.Manifest == null)
             {
-                return;
+                // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义。
+                mod.Manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
+                    ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
+                changed = mod.Manifest != null;
             }
 
-            mod.Manifest = manifest;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
-            _logger?.LogInformation("已回填历史遗漏的 manifest: {ModName}", mod.Name);
+            if (!File.Exists(mod.ThumbnailPath)
+                && ModImportService.ResolveManifestIconPath(mod.Path, mod.Manifest?.IconPath) is { } image)
+            {
+                mod.ThumbnailPath = image;
+                changed = true;
+            }
+            if (changed)
+            {
+                await _modRepository.UpdateAsync(mod, cancellationToken);
+                _logger?.LogInformation("已回填历史遗漏的清单或预览图: {ModName}", mod.Name);
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "回填 manifest 失败: {ModPath}", mod.Path);
         }
@@ -377,7 +387,7 @@ public class ModService
             var mod = await _modRepository.GetByIdAsync(modId, CancellationToken.None);
             if (mod != null)
             {
-                var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken);
+                var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
                 if (thumbnailPath != null)
                 {
                     mod.ThumbnailPath = thumbnailPath;
@@ -521,7 +531,7 @@ public class ModService
             return null;
         }
 
-        var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken);
+        var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
         if (thumbnailPath != null)
         {
             mod.ThumbnailPath = thumbnailPath;

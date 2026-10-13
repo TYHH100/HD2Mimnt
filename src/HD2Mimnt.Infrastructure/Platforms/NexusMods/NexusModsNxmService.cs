@@ -18,6 +18,33 @@ internal sealed class NexusModsNxmService(NexusModsApiClient api, IHttpDownloadS
             .Select(Map).ToList();
     }
 
+    public async Task<bool> IsPremiumAsync(CancellationToken token)
+    {
+        var user = await api.GetLegacyDataAsync<LegacyUser>("/users/validate.json", "检查 N 网会员状态", token);
+        if (user.UserId <= 0 || user.IsPremium == null)
+            throw new JsonException("N 网未返回有效的账户会员状态。");
+        return user.IsPremium.Value;
+    }
+
+    public async Task<Stream> DownloadPremiumAsync(string modId, string fileId,
+        IProgress<DownloadProgress>? progress, CancellationToken token)
+    {
+        modId = ValidateModId(modId);
+        const string prefix = "nexus-v1-file:";
+        if (!fileId.StartsWith(prefix, StringComparison.Ordinal) ||
+            !NexusModsNxmLink.TryPositiveId(fileId[prefix.Length..], out var websiteId))
+            throw new ArgumentException("所选文件缺少有效的网页编号，请重新检查更新。");
+        if (!await IsPremiumAsync(token))
+            throw new InvalidOperationException("当前账户没有 Premium 下载权限，请重新点击下载以使用网页授权。");
+        await GetFileAsync(modId, websiteId, token);
+        var urls = await api.GetLegacyDataAsync<List<LegacyDownload>>(
+            $"/games/helldivers2/mods/{modId}/files/{websiteId}/download_link.json", "获取会员下载链接", token);
+        if (!Uri.TryCreate(urls.FirstOrDefault()?.Uri, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length != 0)
+            throw new JsonException("N 网未返回有效的 HTTPS 下载地址，请重新尝试下载。");
+        return await downloader.DownloadAsync(uri, progress: progress, cancellationToken: token,
+            resumeKey: "nexusmods:websitefile:" + websiteId);
+    }
+
     public async Task<PlatformModFile> ResolveAsync(string modId, string input, CancellationToken token)
     {
         var link = NexusModsNxmLink.Parse(input, ValidateModId(modId));
@@ -52,9 +79,12 @@ internal sealed class NexusModsNxmService(NexusModsApiClient api, IHttpDownloadS
     }
 
     private async Task<PlatformModFile> GetFileAsync(NexusModsNxmLink link, CancellationToken token)
+        => await GetFileAsync(link.ModId, link.FileId, token);
+
+    private async Task<PlatformModFile> GetFileAsync(string modId, string fileId, CancellationToken token)
     {
-        var file = await api.GetLegacyDataAsync<LegacyFile>($"/games/helldivers2/mods/{link.ModId}/files/{link.FileId}.json", "获取临时授权文件信息", token);
-        if (file.FileId.ToString(CultureInfo.InvariantCulture) != link.FileId || file.CategoryId is 6 or 7)
+        var file = await api.GetLegacyDataAsync<LegacyFile>($"/games/helldivers2/mods/{modId}/files/{fileId}.json", "获取所选文件信息", token);
+        if (file.FileId.ToString(CultureInfo.InvariantCulture) != fileId || file.CategoryId is 6 or 7)
             throw new InvalidOperationException("临时链接对应文件已删除、归档或返回的编号不一致，请从网页重新选择。");
         return Map(file);
     }
@@ -66,13 +96,13 @@ internal sealed class NexusModsNxmService(NexusModsApiClient api, IHttpDownloadS
     {
         if (file.FileId <= 0) throw new JsonException("N 网文件信息缺少有效编号。");
         var id = file.FileId.ToString(CultureInfo.InvariantCulture);
-        return new() { Id = "nexus-v1-file:" + id, WebsiteFileId = id, Name = file.Name ?? "文件 " + id,
+        return new() { Id = "nexus-v1-file:" + id, WebsiteFileId = id, Name = file.Name ?? id,
             FileName = string.IsNullOrWhiteSpace(file.FileName) ? null : Path.GetFileName(file.FileName),
             Version = file.Version ?? "", Size = file.SizeKb is >= 0 and <= long.MaxValue / 1024 ? file.SizeKb * 1024 : 0 };
     }
 
     private sealed class LegacyFileList { public required List<LegacyFile> Files { get; init; } }
-    private sealed class LegacyUser { public long UserId { get; init; } }
+    private sealed class LegacyUser { public long UserId { get; init; } public bool? IsPremium { get; init; } }
     private sealed class LegacyFile
     {
         public long FileId { get; init; }

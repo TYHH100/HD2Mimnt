@@ -336,7 +336,7 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
     {
         var a = SourceMod("a"); var b = SourceMod("b"); var legacy = SourceMod("legacy", legacy: true);
         var loader = SourceMod("loader", Guid.Parse("612eaf70-d682-43c7-9efd-16dcc695f977"));
-        a.Manifest.Options = [new() { Name = "配件", Include = [], SubOptions = [new() { Name = "红", Include = ["red"] }, new() { Name = "蓝", Include = ["blue"] }] }];
+        a.Manifest.Options = [new() { Name = "配件", Include = null, SubOptions = [new() { Name = "红", Include = ["red"] }, new() { Name = "蓝", Include = ["blue"] }] }];
         WriteFile(Path.Combine(a.SourcePath, "red", "1234567890abcde1.patch_0"), "red");
         WriteFile(Path.Combine(a.SourcePath, "blue", "1234567890abcde2.patch_0"), "blue");
         WriteFile(Path.Combine(a.SourcePath, "blue", "unused", "1234567890abcde5.patch_0"), "unselected nested variant");
@@ -869,6 +869,52 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         Assert.Equal("BingusSharedLoader", original.RootElement.GetProperty("provenance").GetProperty("requires")[0].GetString());
         Assert.Contains("盔甲", imported.Tags);
         Assert.Equal(result.ModIds["metadata"], (await _migration.MigrateAsync(Plan(mod))).ModIds["metadata"]);
+    }
+
+    [Theory]
+    [InlineData(ExternalManagerKind.Helldivers2ModManager)]
+    [InlineData(ExternalManagerKind.HD2Arsenal)]
+    [InlineData(ExternalManagerKind.Echelon)]
+    public async Task Migrate_ManifestIconWithoutManagerImage_UsesImageInMigratedCopy(ExternalManagerKind manager)
+    {
+        var source = Path.Combine(_root, "manifest-icon-source");
+        var id = Guid.NewGuid().ToString();
+        var path = Path.Combine(source, "Mods", id);
+        WriteFile(Path.Combine(path, "manifest.json"), $$"""
+            {"Version":1,"Guid":"{{id}}","Name":"IconMod","IconPath":"images/封面.png"}
+            """);
+        WriteFile(Path.Combine(path, "1234567890abcdef.patch_0"), "patch");
+        WriteFile(Path.Combine(path, "images", "封面.png"), "chosen image");
+        if (manager == ExternalManagerKind.HD2Arsenal)
+            WriteJson(Path.Combine(source, "hd2a_data.json"), new
+            {
+                modsLibrary = new[] { new { uuid = id, path, label = "IconMod" } },
+                modsList = new Dictionary<string, object>()
+            });
+        if (manager == ExternalManagerKind.Echelon)
+            WriteJson(Path.Combine(source, "state.json"), new
+            {
+                version = 2, profiles = Array.Empty<object>(),
+                library = new Dictionary<string, object>
+                {
+                    [id] = new { id, name = "IconMod", store = id,
+                        sets = new[] { new { files = new[] { "1234567890abcdef.patch_0" } } } }
+                }
+            });
+        var plan = await _migration.PreviewAsync(new(manager, source, source,
+            manager == ExternalManagerKind.Echelon ? Path.Combine(source, "Mods") : null));
+        var external = Assert.Single(plan.Mods);
+        Assert.Equal("images/封面.png", external.Manifest.IconPath);
+        Assert.Null(external.ImagePath);
+
+        var result = await _migration.MigrateAsync(plan);
+
+        Assert.Equal(1, result.ImportedMods);
+        var imported = (await _modRepository.GetByIdAsync(result.ModIds[id]))!;
+        Assert.Equal(Path.Combine(imported.Path, "images", "封面.png"), imported.ThumbnailPath);
+        Directory.Delete(source, true);
+        Assert.Equal("chosen image", await File.ReadAllTextAsync(imported.ThumbnailPath));
+        Assert.Equal("images/封面.png", new ManifestParser().ParseFromFile(Path.Combine(imported.Path, "manifest.json"))!.IconPath);
     }
 
     [Fact]

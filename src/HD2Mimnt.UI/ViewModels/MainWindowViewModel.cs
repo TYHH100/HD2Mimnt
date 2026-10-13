@@ -113,6 +113,7 @@ public partial class MainWindowViewModel : ObservableObject
     public MoreViewModel MoreViewModel { get; } = new();
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
+    public BrowseModsViewModel? BrowseModsViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -136,7 +137,8 @@ public partial class MainWindowViewModel : ObservableObject
         ConfirmationService confirmationService,
         ImagePreviewService imagePreviewService,
         NexusModsTestService nexusModsTestService,
-        ManagerMigrationViewModel? managerMigrationViewModel = null)
+        ManagerMigrationViewModel? managerMigrationViewModel = null,
+        BrowseModsViewModel? browseModsViewModel = null)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -158,6 +160,18 @@ public partial class MainWindowViewModel : ObservableObject
         _imagePreview = imagePreviewService;
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
+        BrowseModsViewModel = browseModsViewModel;
+        if (BrowseModsViewModel != null)
+            BrowseModsViewModel.ImportDownloadedArchiveAsync = async (archive, token) =>
+            {
+                if (!_libraryViewModel.ImportCompletion.IsCompleted)
+                    throw new InvalidOperationException("已有模组正在导入，请等待完成后重试。");
+                await _libraryViewModel.ImportPathsAsync(new[] { archive }, token);
+                if (_libraryViewModel.Import.SuccessCount > 0) return;
+                token.ThrowIfCancellationRequested();
+                if (_libraryViewModel.Import.RemainingCount > 0) throw new OperationCanceledException();
+                throw new InvalidOperationException(_libraryViewModel.Import.Errors.FirstOrDefault() ?? "模组导入失败。");
+            };
         if (ManagerMigrationViewModel != null)
             ManagerMigrationViewModel.RefreshImportedDataAsync = async () =>
             {
@@ -240,6 +254,7 @@ public partial class MainWindowViewModel : ObservableObject
             case 2: NavigateToConflicts(); break;
             case 3: NavigateToTools(); break;
             case 4: NavigateToSettings(); break;
+            case 5: NavigateToBrowseCommand.Execute(null); break;
         }
     }
 
@@ -451,6 +466,21 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task NavigateToBrowseAsync()
+    {
+        SelectedTabIndex = 5;
+        CurrentView = BrowseModsViewModel;
+        StatusBarText = "浏览模组";
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.EnsureLoadedAsync();
+    }
+
+    partial void OnSelectedTabIndexChanged(int oldValue, int newValue)
+    {
+        if (oldValue == 5 && newValue != 5 && BrowseModsViewModel != null)
+            _ = BrowseModsViewModel.StopAsync();
+    }
+
+    [RelayCommand]
     private void NavigateToConflicts()
     {
         SyncConflictProfile();
@@ -546,13 +576,20 @@ public partial class MainWindowViewModel : ObservableObject
         }
         if (_libraryViewModel.Import.IsOpen)
         {
-            _libraryViewModel.Import.CloseCommand.Execute(null);
+            if (SelectedTabIndex == 5 && _libraryViewModel.Import.IsImporting)
+                _libraryViewModel.Import.CancelCommand.Execute(null);
+            else _libraryViewModel.Import.CloseCommand.Execute(null);
             return;
         }
         if (_imagePreview.IsOpen)
         {
             _imagePreview.Close();
             return;
+        }
+        if (SelectedTabIndex == 5 && BrowseModsViewModel is { } browse)
+        {
+            if (browse.IsLoadingImage) { browse.CancelImagePreview(); return; }
+            if (browse.IsBusy) { browse.CancelCommand.Execute(null); return; }
         }
 
         if (SelectedTabIndex == 0 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
@@ -590,6 +627,11 @@ public partial class MainWindowViewModel : ObservableObject
     public void ReceiveBrowserProtocolLink(string value)
     {
         if (value.Length == 0) return;
+        if (BrowseModsViewModel is { IsWaitingForWebsite: true } browse && browse.TryReceiveProtocolLink(value))
+        {
+            SelectedTabIndex = 5;
+            return;
+        }
         if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } online)
         {
             SelectedTabIndex = 1;
@@ -602,6 +644,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {
             await migration.CancelAndWaitAsync();

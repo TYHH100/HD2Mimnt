@@ -1,0 +1,137 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:core="using:HD2Mimnt.Core.Entities"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:avConverters="using:Avalonia.Data.Converters"
+             x:Class="HD2Mimnt.UI.Views.BrowseModsView" x:DataType="vm:BrowseModsViewModel">
+  <Grid Margin="24,16,24,20" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+    <Border Classes="card" Padding="16,12">
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{loc:Loc Browse.Title}" Classes="section-title"/>
+            <TextBlock Text="Nexus Mods · Helldivers 2" Classes="caption-text"/>
+          </StackPanel>
+          <Button Grid.Column="1" Command="{Binding OpenWebsiteCommand}" Content="{loc:Loc Browse.OpenWebsite}" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Grid.Row="1" ColumnDefinitions="180,*,Auto,Auto,Auto" ColumnSpacing="10">
+          <ComboBox x:Name="BrowseFeedSelector" ItemsSource="{Binding Feeds}" SelectedItem="{Binding SelectedFeed}"
+                    HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:BrowseFeedChoice"><TextBlock Text="{loc:LocalizedBinding Label}"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBox x:Name="BrowseSearchInput" Grid.Column="1" Text="{Binding SearchText}" PlaceholderText="{loc:Loc Browse.SearchPlaceholder}">
+            <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}"/></TextBox.KeyBindings>
+          </TextBox>
+          <Button x:Name="BrowseSearchButton" Grid.Column="2" Command="{Binding SearchCommand}" Content="{loc:Loc Browse.Search}"/>
+          <Button x:Name="BrowseRefreshButton" Grid.Column="3" Command="{Binding RefreshCommand}" Content="{loc:Loc Browse.LoadList}"/>
+          <Button Grid.Column="4" Command="{Binding CancelCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}"/>
+        </Grid>
+      </Grid>
+    </Border>
+    <StackPanel Grid.Row="1" Spacing="6">
+      <TextBlock x:Name="BrowseScopeText" Text="{loc:LocalizedBinding ScopeDescription}" Classes="caption-text" TextWrapping="Wrap"/>
+      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSearchResults}">
+        <Button x:Name="BrowsePreviousPageButton" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding CanPreviousPage}" Content="{loc:Loc Browse.PreviousPage}"/>
+        <Button x:Name="BrowseNextPageButton" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanNextPage}" Content="{loc:Loc Browse.NextPage}"/>
+      </StackPanel>
+      <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="{Binding IsIndeterminate}" Value="{Binding Progress}"/>
+      <TextBlock Text="{loc:Loc Browse.LoadingImage}" IsVisible="{Binding IsLoadingImage}" Classes="caption-text"/>
+      <TextBlock x:Name="BrowseStatusText" Text="{loc:LocalizedBinding DisplayMessage}" TextWrapping="Wrap" MaxHeight="80"
+                 IsVisible="{Binding HasMessage}" ToolTip.Tip="{loc:LocalizedBinding DisplayMessage}"/>
+    </StackPanel>
+    <Grid Grid.Row="2" ColumnDefinitions="*,360" ColumnSpacing="12">
+      <Grid>
+        <ListBox x:Name="BrowseModList" ItemsSource="{Binding Mods}" SelectedItem="{Binding SelectedMod}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:BrowseModCardViewModel">
+              <Border Classes="card" Padding="12" Margin="0,4">
+                <Grid ColumnDefinitions="88,*" ColumnSpacing="12">
+                  <Border Width="88" Height="68" CornerRadius="6" Background="{DynamicResource Surface3Brush}" ClipToBounds="True"
+                          Tapped="Cover_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc Browse.PreviewCover}">
+                    <Panel>
+                      <controls:UtilityIcon Kind="Package" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            IsVisible="{Binding Image, Converter={x:Static avConverters:ObjectConverters.IsNull}}"/>
+                      <Image Source="{Binding Image}" Stretch="UniformToFill"/>
+                    </Panel>
+                  </Border>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="{Binding Info.Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Info.Name}"/>
+                    <TextBlock Text="{Binding Info.Author}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
+                    <Button Command="{Binding $parent[UserControl].((vm:BrowseModsViewModel)DataContext).OpenDetailsCommand}"
+                            CommandParameter="{Binding}" Content="{loc:Loc Browse.Details}" HorizontalAlignment="Left"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Text="{loc:Loc Browse.NoResults}" IsVisible="{Binding HasNoResults}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Grid>
+      <Border Grid.Column="1" Classes="card" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+            <TextBox x:Name="BrowseModLinkInput" Text="{Binding ModLink}" PlaceholderText="{loc:Loc Browse.LinkPlaceholder}"/>
+            <Button x:Name="BrowseOpenLinkButton" Grid.Column="1" Command="{Binding OpenLinkCommand}" Content="{loc:Loc Browse.OpenLink}"/>
+          </Grid>
+          <Grid Grid.Row="1">
+            <StackPanel IsVisible="{Binding !HasDetails}" VerticalAlignment="Center" Spacing="10">
+              <controls:UtilityIcon Kind="Globe" Width="32" Height="32" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Loc Browse.SelectHint}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+              <TextBlock Text="{loc:Loc Browse.AuthHint}" Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6" IsVisible="{Binding HasDetails}">
+              <StackPanel Spacing="2">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                  <TextBlock Text="{Binding Details.Name}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding Details.Name}" VerticalAlignment="Center"/>
+                  <Button x:Name="BrowsePreviewCoverButton" Grid.Column="1" Command="{Binding PreviewCoverCommand}" CommandParameter="{Binding Details}"
+                          Content="{loc:Loc Browse.PreviewCover}"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Details.Author}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Details.Version}" Classes="caption-text" Margin="8,0,0,0"/>
+                </Grid>
+              </StackPanel>
+              <ScrollViewer Grid.Row="1">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Details.Description}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </ScrollViewer>
+              <StackPanel Grid.Row="2" Spacing="6">
+                <TextBlock Text="{loc:Loc Browse.Files}" FontWeight="SemiBold"/>
+                <ComboBox x:Name="BrowseFileSelector" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
+                          HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}" MaxDropDownHeight="240">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="core:PlatformModFile">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                        <TextBlock Text="{Binding Version}" Classes="caption-text"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <Button x:Name="BrowseDownloadButton" Content="{loc:Loc Browse.Download}" IsEnabled="{Binding CanDownload}"
+                          Click="Download_Click" HorizontalAlignment="Stretch"/>
+                  <Button x:Name="BrowseDownloadAndImportButton" Grid.Column="1" Classes="accent" Content="{loc:Loc Browse.DownloadAndImport}"
+                          Command="{Binding DownloadAndImportCommand}" IsEnabled="{Binding CanDownloadAndImport}" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <Button Command="{Binding OpenWebsiteCommand}" Content="{loc:Loc Browse.OpenModPage}" HorizontalAlignment="Stretch"/>
+                  <Button x:Name="BrowseImagesWebsiteButton" Grid.Column="1" Command="{Binding OpenImagesWebsiteCommand}"
+                          Content="{loc:Loc Browse.OpenImagesWebsite}" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <TextBlock x:Name="BrowseDownloadHint" Text="{loc:Loc Browse.DownloadHint}" Classes="caption-text" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{loc:Loc Browse.DownloadHint}"/>
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

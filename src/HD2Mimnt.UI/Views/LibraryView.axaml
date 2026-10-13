@@ -98,7 +98,7 @@
         <ScrollViewer IsVisible="{Binding IsResultsVisible}" HorizontalScrollBarVisibility="Disabled"
                       Background="Transparent" PointerPressed="OnModListBackgroundPressed">
             <ItemsControl x:Name="ModList" Focusable="True" ItemsSource="{Binding FilteredMods}"
-                          Margin="0,-4,4,0">
+                          Margin="0,0,4,0">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>

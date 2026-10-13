@@ -872,7 +872,8 @@ public sealed partial class FluentAvaloniaUiTests
                     var step = main.Tutorial.CurrentStep;
                     Assert.Equal(index, main.Tutorial.CurrentStepIndex);
                     Assert.Equal(step.PageIndex, main.SelectedTabIndex);
-                    Assert.Same(window.FindControl<FANavigationView>("NavigationView")!.MenuItems[step.PageIndex],
+                    Assert.Same(window.FindControl<FANavigationView>("NavigationView")!.MenuItems.OfType<FANavigationViewItem>()
+                            .Single(item => item.Tag?.ToString() == step.PageIndex.ToString()),
                         window.FindControl<FANavigationView>("NavigationView")!.SelectedItem);
                     Assert.True(frame.IsEffectivelyVisible, $"Missing target: {step.TargetKey}");
                     var target = window.GetVisualDescendants().OfType<Control>()
@@ -1172,6 +1173,8 @@ public sealed partial class FluentAvaloniaUiTests
             var item = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "移动到指定位置…");
             Assert.Equal("移动到指定位置…", item.Text);
             Assert.True(item.IsEffectivelyVisible);
+            var openLocationItem = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "打开文件位置");
+            Assert.True(openLocationItem.IsEffectivelyVisible);
             var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(item));
             popup.UpdateLayout();
             var itemPoint = item.TranslatePoint(new Point(20, 12), popup)!.Value;
@@ -2499,7 +2502,8 @@ public sealed partial class FluentAvaloniaUiTests
     [AvaloniaFact]
     public async Task Navigation_ShouldSynchronizeNativeSelectionCommandsAndPages()
     {
-        await using var scope = await UiScope.CreateAsync();
+        using var handler = new BrowseContractHandler();
+        await using var scope = await UiScope.CreateAsync(nexusHandler: handler);
         var viewModel = scope.Services.GetRequiredService<MainWindowViewModel>();
         var window = new MainWindow { DataContext = viewModel };
         try
@@ -2509,9 +2513,10 @@ public sealed partial class FluentAvaloniaUiTests
             var pageHost = window.FindControl<TabControl>("PageHost")!;
             Assert.IsType<FluentAvaloniaTheme>(Avalonia.Application.Current!.Styles[0]);
 
-            for (var index = 0; index < 5; index++)
+            foreach (var item in navigation.MenuItems.OfType<FANavigationViewItem>())
             {
-                navigation.SelectedItem = navigation.MenuItems[index];
+                var index = int.Parse(item.Tag!.ToString()!);
+                navigation.SelectedItem = item;
                 Assert.Equal(index, viewModel.SelectedTabIndex);
                 Assert.Equal(index, pageHost.SelectedIndex);
             }
@@ -2521,7 +2526,8 @@ public sealed partial class FluentAvaloniaUiTests
             viewModel.NavigateToProfilesCommand.Execute(null);
             Assert.Same(navigation.MenuItems[0], navigation.SelectedItem);
             viewModel.NavigateToSettingsCommand.Execute(null);
-            Assert.Same(navigation.MenuItems[4], navigation.SelectedItem);
+            Assert.Same(navigation.MenuItems.OfType<FANavigationViewItem>().Single(item => item.Tag?.ToString() == "4"), navigation.SelectedItem);
+            await viewModel.BrowseModsViewModel!.StopAsync();
         }
         finally { window.DataContext = null; window.Close(); }
     }
@@ -2973,6 +2979,9 @@ public sealed partial class FluentAvaloniaUiTests
             scroll.Offset = default;
             Layout();
             Assert.DoesNotContain(last, vm.VisibleProfileMods);
+            Assert.Single(vm.VisibleProfileMods);
+            Assert.False(vm.HasNoModResults);
+            Assert.True(scroll.IsEffectivelyVisible);
             Click(Badge());
             await vm.OpenConflictNavigationCommand.ExecutionTask!;
             await Task.Delay(50);
@@ -3465,6 +3474,7 @@ public sealed partial class FluentAvaloniaUiTests
                 {
                     services.AddKeyedSingleton<HttpClient>("nexus-api", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
                     services.AddKeyedSingleton<HttpClient>("downloads", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
+                    services.AddKeyedSingleton<HttpClient>("browse-images", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
                 }
                 scope.Services = services.BuildServiceProvider();
             }

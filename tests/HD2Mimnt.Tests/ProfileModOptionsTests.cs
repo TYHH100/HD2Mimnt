@@ -402,6 +402,48 @@ public class ProfileModOptionsTests : IDisposable
 
     // ── 部署集成：选项选择真正决定部署哪些文件 ──
 
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    public async Task DeployProfileAsync_V1GroupWithoutParentInclude_DeploysOnlyEnabledSelection(int selection, bool enabled)
+    {
+        var mod = await CreateModAsync("grouped_mod", new ManifestParser().ParseFromJson("""
+            {"Version":1,"Name":"grouped_mod","Options":[
+              {"Name":"人物","Include":["人物"]},
+              {"Name":"材质球","SubOptions":[
+                {"Name":"新","Include":["材质球/新"]},
+                {"Name":"旧","Include":["材质球/旧"]}]}]}
+            """));
+        foreach (var (directory, content) in new[] { ("人物", "body"), ("材质球/新", "new"), ("材质球/旧", "old") })
+        {
+            Directory.CreateDirectory(Path.Combine(mod.Path, directory));
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, directory, "9ba626afa44a3aa3.patch_71"), content);
+        }
+        await File.WriteAllTextAsync(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_0"), "unselected root");
+        var profileId = await _profileService.CreateProfileAsync("GroupedV1");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        await _profileService.SetModOptionsAsync(profileId, mod.Id, new()
+        {
+            OptionToggles = [true, enabled], OptionSelections = [0, selection]
+        });
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(1, result.CompletedMods);
+        Assert.Equal(0, result.SkippedMods);
+        var data = Path.Combine(_gameDirRoot, "data");
+        Assert.Equal("body", await File.ReadAllTextAsync(Path.Combine(data, "9ba626afa44a3aa3.patch_0")));
+        if (enabled)
+            Assert.Equal(selection == 0 ? "new" : "old", await File.ReadAllTextAsync(Path.Combine(data, "9ba626afa44a3aa3.patch_1")));
+        else
+            Assert.False(File.Exists(Path.Combine(data, "9ba626afa44a3aa3.patch_1")));
+        Assert.False(File.Exists(Path.Combine(data, "9ba626afa44a3aa3.patch_2")));
+        Assert.False(File.Exists(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")));
+    }
+
     [Fact]
     public async Task DeployProfileAsync_LegacyOptions_ShouldDeployOnlySelectedSubDirectory()
     {

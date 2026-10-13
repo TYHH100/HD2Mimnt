@@ -629,7 +629,7 @@ public partial class ProfileViewModel : ObservableObject
         }
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
         ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
-        HasNoModResults = query.Length > 0 && rows.Count == 1 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
+        HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
     }
 
     private int GetLuaGroupBoundary(IEnumerable<ProfileModViewModel> mods)

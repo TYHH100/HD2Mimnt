@@ -11,6 +11,7 @@ namespace HD2Mimnt.UI.Services;
 /// </summary>
 public partial class ImagePreviewService : ObservableObject
 {
+    private Bitmap? _ownedImage;
     [ObservableProperty]
     private bool _isOpen;
 
@@ -20,10 +21,12 @@ public partial class ImagePreviewService : ObservableObject
     [ObservableProperty]
     private string _title = string.Empty;
 
-    public void Show(Bitmap? image, string? title)
+    public void Show(Bitmap? image, string? title, bool ownsImage = false)
     {
         if (image == null) return;
 
+        Close();
+        _ownedImage = ownsImage ? image : null;
         Image = image;
         Title = title ?? string.Empty;
         IsOpen = true;
@@ -35,5 +38,7 @@ public partial class ImagePreviewService : ObservableObject
         IsOpen = false;
         Image = null;
         Title = string.Empty;
+        _ownedImage?.Dispose();
+        _ownedImage = null;
     }
 }

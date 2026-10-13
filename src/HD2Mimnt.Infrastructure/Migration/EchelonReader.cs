@@ -55,6 +55,7 @@ public sealed class EchelonReader : IExternalManagerReader
                 manifest.Author = metadata.Author;
                 manifest.Version = metadata.Version;
                 manifest.NexusData = metadata.NexusData;
+                manifest.IconPath = metadata.IconPath;
             }
             var sets = item.Get("sets").Items().ToList();
             var layout = new List<ExternalMigrationFile>();

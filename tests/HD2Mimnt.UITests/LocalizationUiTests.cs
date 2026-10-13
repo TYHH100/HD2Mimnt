@@ -61,7 +61,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.DoesNotContain("切换语言失败", vm.StatusMessage);
             Assert.Contains(settings.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Language");
             var navigation = window.FindControl<FANavigationView>("NavigationView")!;
-            Assert.Equal("Settings", ((FANavigationViewItem)navigation.MenuItems[4]!).Content);
+            Assert.Equal("Settings", navigation.MenuItems.OfType<FANavigationViewItem>().Single(item => item.Tag?.ToString() == "4").Content);
             Assert.Equal("en-US", new SettingsService(scope.Root).GetSetting(SettingKeys.Language, "auto"));
             Assert.Equal("外观", vm.SelectedCategory);
             Assert.Equal("Dark", vm.Theme);

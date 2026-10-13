@@ -53,6 +53,8 @@ await localization.SetLanguageAsync(LanguageCodes.Automatic);
 - ComboBox 初始化选中值时可能短暂回写空值，过滤这次过渡，避免持久化空代码或生成误报；真实写入失败必须提示并回滚。资源模板匹配接受 CRLF/LF 差异，但不修改捕获到的用户参数或路径。
 - 英文长说明在最小窗口可能挤掉列表；限制辅助说明的展示高度并用完整悬停提示，检查三语、深浅主题和最小尺寸，不只验证编译成功。
 
+- 多段 HTTP 错误不能只把整段字符串交给模板匹配：保存异常和操作对象，展示时分别翻译操作、状态模板、建议及来源标签，并通过 `Revision` 重新格式化。服务端原始诊断保持原文，不能对其递归替换；运行时切换要检查已有错误。
+
 ## 验证与参考
 
 相关测试：`LocalizationServiceTests`、`SettingsServiceTests`、`TranslationCatalogTests`；UI 接入在 `HD2Mimnt.UITests/LocalizationUiTests.cs`，覆盖实际键盘选项、立即持久化、后台派发、reset/reload、保存失败、连续选择、已打开弹窗/菜单/通知和用户数据保留。设置和配置方向行为回归：`SettingsViewModelTests`、`ProfileViewModelTests`。

@@ -21,7 +21,8 @@ public class DownloadManagerService
     /// Starts a download task for a mod.
     /// </summary>
     public Guid EnqueueDownload(string platformId, string modId, string targetPath,
-        string? fileVersionId = null, IProgress<DownloadProgress>? progress = null, string? protocolLink = null)
+        string? fileVersionId = null, IProgress<DownloadProgress>? progress = null, string? protocolLink = null,
+        string? displayName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
         var platform = _platformRegistry.GetPlatform(platformId);
@@ -42,6 +43,7 @@ public class DownloadManagerService
             ModId = modId,
             TargetPath = targetPath,
             FileVersionId = fileVersionId,
+            ModName = displayName ?? "",
             Status = DownloadStatus.Queued,
             EnqueuedAt = DateTime.UtcNow
         };
@@ -150,8 +152,9 @@ public class DownloadManagerService
             }
 
             // Get mod info first
-            task.ModName = protocolLink != null ? task.ModId :
-                (await platform.GetModInfoAsync(task.ModId, task.CancellationTokenSource.Token)).Name;
+            if (string.IsNullOrWhiteSpace(task.ModName))
+                task.ModName = protocolLink != null ? task.ModId :
+                    (await platform.GetModInfoAsync(task.ModId, task.CancellationTokenSource.Token)).Name;
 
             // Create progress reporter
             var progress = new DownloadProgressReporter(p =>

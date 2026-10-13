@@ -239,7 +239,7 @@ public partial class App : Avalonia.Application
         {
             try
             {
-                using var stream = AssetLoader.Open(new Uri("avares://HD2Mimnt.UI/Assets/logo.png"));
+                using var stream = AssetLoader.Open(new Uri("avares://HD2Mimnt.UI/Assets/app.ico"));
                 _appIcon = new WindowIcon(stream);
             }
             catch
@@ -324,6 +324,10 @@ public partial class App : Avalonia.Application
         services.AddSingleton<NexusModsTestService>();
         services.AddSingleton<ModLinkService>();
         services.AddSingleton<ModOnlineService>();
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("browse-images", (_, _) => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) });
+        services.AddSingleton(sp => new ModBrowseService(sp.GetRequiredService<IPlatformRegistry>(),
+            sp.GetRequiredService<DownloadManagerService>(), sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("browse-images"), storageLocations.TempPath));
+        services.AddTransient<BrowseModsViewModel>();
         services.AddSingleton<IWebsiteDownloadLauncher, WebsiteDownloadLauncher>();
 
         // 应用层
@@ -493,6 +497,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ConfirmationService>(),
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<NexusModsTestService>(),
-            sp.GetRequiredService<ManagerMigrationViewModel>()));
+            sp.GetRequiredService<ManagerMigrationViewModel>(),
+            sp.GetRequiredService<BrowseModsViewModel>()));
     }
 }

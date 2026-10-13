@@ -2805,4 +2805,268 @@
   <data name="Migration.Stage.ProfileDone" xml:space="preserve">
     <value>處理設定檔完成</value>
   </data>
+  <data name="Browse.Title" xml:space="preserve">
+    <value>瀏覽模組</value>
+  </data>
+  <data name="Browse.Trending" xml:space="preserve">
+    <value>熱門模組</value>
+  </data>
+  <data name="Browse.LatestAdded" xml:space="preserve">
+    <value>最新發佈</value>
+  </data>
+  <data name="Browse.LatestUpdated" xml:space="preserve">
+    <value>最近更新</value>
+  </data>
+  <data name="Browse.TrendingScope" xml:space="preserve">
+    <value>N 網熱門前 5 項。</value>
+  </data>
+  <data name="Browse.LatestAddedScope" xml:space="preserve">
+    <value>N 網最新發佈 10 項。</value>
+  </data>
+  <data name="Browse.LatestUpdatedScope" xml:space="preserve">
+    <value>N 網最近更新 10 項。</value>
+  </data>
+  <data name="Browse.OpenWebsite" xml:space="preserve">
+    <value>開啟 N 網</value>
+  </data>
+  <data name="Browse.LoadList" xml:space="preserve">
+    <value>載入清單</value>
+  </data>
+  <data name="Browse.Details" xml:space="preserve">
+    <value>查看詳情</value>
+  </data>
+  <data name="Browse.NoResults" xml:space="preserve">
+    <value>沒有符合的模組。</value>
+  </data>
+  <data name="Browse.LinkPlaceholder" xml:space="preserve">
+    <value>模組連結或編號</value>
+  </data>
+  <data name="Browse.OpenLink" xml:space="preserve">
+    <value>開啟</value>
+  </data>
+  <data name="Browse.SelectHint" xml:space="preserve">
+    <value>查看模組詳情，或輸入 N 網連結和編號。</value>
+  </data>
+  <data name="Browse.AuthHint" xml:space="preserve">
+    <value>最新發佈、最近更新、詳情和下載需要 N 網金鑰，可在「工具 → 開發工具」設定。</value>
+  </data>
+  <data name="Browse.Files" xml:space="preserve">
+    <value>可下載檔案</value>
+  </data>
+  <data name="Browse.Download" xml:space="preserve">
+    <value>下載壓縮檔…</value>
+  </data>
+  <data name="Browse.OpenModPage" xml:space="preserve">
+    <value>開啟模組網頁</value>
+  </data>
+  <data name="Browse.DownloadHint" xml:space="preserve">
+    <value>Premium 會員直接下載，免費帳戶網頁授權；下載並匯入會自動新增至模組庫。</value>
+  </data>
+  <data name="Browse.NoFiles" xml:space="preserve">
+    <value>此模組沒有可下載的有效檔案。</value>
+  </data>
+  <data name="Browse.WaitingForWebsite" xml:space="preserve">
+    <value>等待網頁授權：在瀏覽器完成下載確認，選擇 HD2Mimnt 開啟連結後自動繼續。</value>
+  </data>
+  <data name="Browse.Downloading" xml:space="preserve">
+    <value>正在下載所選檔案…</value>
+  </data>
+  <data name="Browse.DownloadComplete" xml:space="preserve">
+    <value>壓縮檔已儲存，可拖入視窗新增至模組庫。</value>
+  </data>
+  <data name="Browse.Cancelled" xml:space="preserve">
+    <value>操作已取消。</value>
+  </data>
+  <data name="Browse.DownloadAndImport" xml:space="preserve">
+    <value>下載並匯入</value>
+  </data>
+  <data name="Browse.PreviewCover" xml:space="preserve">
+    <value>預覽封面</value>
+  </data>
+  <data name="Browse.OpenImagesWebsite" xml:space="preserve">
+    <value>在網頁查看其他圖片</value>
+  </data>
+  <data name="Browse.LoadingImage" xml:space="preserve">
+    <value>正在載入封面…</value>
+  </data>
+  <data name="Browse.PreviewUnavailable" xml:space="preserve">
+    <value>此封面無法預覽，圖片缺失或超過大小限制。</value>
+  </data>
+  <data name="Browse.Importing" xml:space="preserve">
+    <value>下載完成，正在匯入模組…</value>
+  </data>
+  <data name="Browse.ImportComplete" xml:space="preserve">
+    <value>模組已下載並匯入模組庫。</value>
+  </data>
+  <data name="Browse.ImportBusy" xml:space="preserve">
+    <value>已有模組正在匯入，請等待完成後重試。</value>
+  </data>
+  <data name="Browse.ImportFailed" xml:space="preserve">
+    <value>模組匯入失敗。</value>
+  </data>
+  <data name="Browse.Search" xml:space="preserve">
+    <value>搜尋</value>
+  </data>
+  <data name="Browse.SearchPlaceholder" xml:space="preserve">
+    <value>搜尋模組名稱或作者</value>
+  </data>
+  <data name="Browse.PreviousPage" xml:space="preserve">
+    <value>上一頁</value>
+  </data>
+  <data name="Browse.NextPage" xml:space="preserve">
+    <value>下一頁</value>
+  </data>
+  <data name="Browse.SearchEmpty" xml:space="preserve">
+    <value>請輸入模組名稱或作者後搜尋。</value>
+  </data>
+  <data name="Browse.Searching" xml:space="preserve">
+    <value>正在搜尋 N 網模組…</value>
+  </data>
+  <data name="Browse.SearchScope" xml:space="preserve">
+    <value>N 網搜尋「{0}」：共 {1} 項，第 {2} 頁。</value>
+  </data>
+  <data name="Browse.CheckingMembership" xml:space="preserve">
+    <value>正在檢查 N 網會員狀態…</value>
+  </data>
+  <data name="Browse.PremiumDownloading" xml:space="preserve">
+    <value>Premium 會員：正在透過 API 下載所選檔案…</value>
+  </data>
+  <data name="Browse.OperationError" xml:space="preserve">
+    <value>{0}失敗。</value>
+  </data>
+  <data name="Browse.HttpError" xml:space="preserve">
+    <value>{0}失敗（HTTP {1}）。</value>
+  </data>
+  <data name="Browse.ServerReason" xml:space="preserve">
+    <value>{0} 回傳的原因：{1}</value>
+  </data>
+  <data name="Browse.MembershipOperation" xml:space="preserve">
+    <value>檢查 N 網會員狀態</value>
+  </data>
+  <data name="Browse.MembershipMissing" xml:space="preserve">
+    <value>N 網未回傳有效的帳戶會員狀態。</value>
+  </data>
+  <data name="Browse.PremiumRequired" xml:space="preserve">
+    <value>目前帳戶沒有 Premium 下載權限，請重新點擊下載以使用網頁授權。</value>
+  </data>
+  <data name="Browse.PremiumLinkOperation" xml:space="preserve">
+    <value>取得會員下載連結</value>
+  </data>
+  <data name="Browse.PremiumLinkInvalid" xml:space="preserve">
+    <value>N 網未回傳有效的 HTTPS 下載位址，請重新嘗試下載。</value>
+  </data>
+  <data name="Browse.PremiumRejected" xml:space="preserve">
+    <value>N 網拒絕會員下載。請確認 Premium 會員仍有效，然後重新點擊下載。</value>
+  </data>
+  <data name="Browse.SearchOperation" xml:space="preserve">
+    <value>搜尋 N 網模組</value>
+  </data>
+  <data name="Browse.SearchFailed" xml:space="preserve">
+    <value>N 網搜尋失敗，請稍後重試。</value>
+  </data>
+  <data name="Browse.SearchMissing" xml:space="preserve">
+    <value>N 網搜尋回應缺少結果。</value>
+  </data>
+  <data name="Browse.SearchInvalid" xml:space="preserve">
+    <value>N 網搜尋回傳的模組資訊無效。</value>
+  </data>
+  <data name="Browse.Operation" xml:space="preserve">
+    <value>瀏覽 N 網模組</value>
+  </data>
+  <data name="Browse.PreviewOperation" xml:space="preserve">
+    <value>預覽模組封面</value>
+  </data>
+  <data name="Browse.DetailsOperation" xml:space="preserve">
+    <value>取得模組詳細資料</value>
+  </data>
+  <data name="Browse.FilesOperation" xml:space="preserve">
+    <value>取得網頁檔案清單</value>
+  </data>
+  <data name="Browse.FileOperation" xml:space="preserve">
+    <value>取得所選檔案資訊</value>
+  </data>
+  <data name="Browse.AccountOperation" xml:space="preserve">
+    <value>驗證臨時授權所屬帳戶</value>
+  </data>
+  <data name="Browse.NotRegistered" xml:space="preserve">
+    <value>N 網平台未註冊。</value>
+  </data>
+  <data name="Browse.NotSupported" xml:space="preserve">
+    <value>此平台不支援模組瀏覽。</value>
+  </data>
+  <data name="Browse.ProtocolNotSupported" xml:space="preserve">
+    <value>此平台不支援網頁授權下載。</value>
+  </data>
+  <data name="Browse.InvalidModId" xml:space="preserve">
+    <value>N 網模組編號無效。</value>
+  </data>
+  <data name="Browse.IdentityMismatch" xml:space="preserve">
+    <value>N 網回傳的模組編號與請求不一致。</value>
+  </data>
+  <data name="Browse.InvalidModInfo" xml:space="preserve">
+    <value>N 網模組資訊缺少有效的頁面編號。</value>
+  </data>
+  <data name="Browse.ProtocolMismatch" xml:space="preserve">
+    <value>網頁授權與所選模組或檔案不一致，請從所選檔案網頁重新取得授權。</value>
+  </data>
+  <data name="Browse.FileMismatch" xml:space="preserve">
+    <value>網頁授權檔案與所選檔案不一致。</value>
+  </data>
+  <data name="Browse.DownloadFailed" xml:space="preserve">
+    <value>下載失敗：{0}</value>
+  </data>
+  <data name="Browse.ApiAuthenticationRequired" xml:space="preserve">
+    <value>Nexus Mods 此操作需要 API Key 或 Bearer JWT 驗證。</value>
+  </data>
+  <data name="Browse.ApiMissingData" xml:space="preserve">
+    <value>Nexus Mods API 回應缺少 data 欄位。</value>
+  </data>
+  <data name="Browse.ApiEmpty" xml:space="preserve">
+    <value>Nexus Mods API 回傳空白回應。</value>
+  </data>
+  <data name="Browse.FileIdMissing" xml:space="preserve">
+    <value>N 網檔案資訊缺少有效編號。</value>
+  </data>
+  <data name="Browse.FileNumberInvalid" xml:space="preserve">
+    <value>所選檔案缺少有效的網頁編號，請重新檢查更新。</value>
+  </data>
+  <data name="Browse.NxmFileMismatch" xml:space="preserve">
+    <value>臨時授權的檔案與所選檔案不同，請重新選擇或取得對應檔案的 nxm 連結。</value>
+  </data>
+  <data name="Browse.NxmUrlInvalid" xml:space="preserve">
+    <value>N 網未回傳有效的 HTTPS 下載位址，請重新取得臨時授權。</value>
+  </data>
+  <data name="Browse.NxmAccountMismatch" xml:space="preserve">
+    <value>臨時連結的 N 網帳戶與目前 API 金鑰所屬帳戶不同。請使用同一帳戶登入網頁並重新取得連結，或更換 API 金鑰。</value>
+  </data>
+  <data name="Browse.FileUnavailable" xml:space="preserve">
+    <value>臨時連結對應檔案已刪除、封存或回傳編號不一致，請從網頁重新選擇。</value>
+  </data>
+  <data name="Browse.SaveArchive" xml:space="preserve">
+    <value>儲存模組壓縮檔</value>
+  </data>
+  <data name="Browse.NxmInvalidLink" xml:space="preserve">
+    <value>收到的連結不是 N 網 Helldivers 2 臨時下載連結。</value>
+  </data>
+  <data name="Browse.NxmInvalidIds" xml:space="preserve">
+    <value>臨時連結必須包含有效的模組編號和檔案編號。</value>
+  </data>
+  <data name="Browse.NxmWrongMod" xml:space="preserve">
+    <value>臨時連結屬於另一個模組，請從目前模組網頁重新取得。</value>
+  </data>
+  <data name="Browse.NxmInvalidParameters" xml:space="preserve">
+    <value>臨時連結參數不完整或重複，請重新從網頁複製。</value>
+  </data>
+  <data name="Browse.NxmAuthorizationRequired" xml:space="preserve">
+    <value>免費帳戶連結需包含 key、expires 和 user_id，請在網頁點擊「Mod manager download」重新取得完整連結。</value>
+  </data>
+  <data name="Browse.NxmExpired" xml:space="preserve">
+    <value>臨時下載連結已過期，請在 N 網網頁重新點擊「Mod manager download」。</value>
+  </data>
+  <data name="Browse.UnsupportedLink" xml:space="preserve">
+    <value>目前僅支援 Nexus Mods 的模組頁面連結；A 網待文件恢復後接入。</value>
+  </data>
+  <data name="Browse.InvalidLink" xml:space="preserve">
+    <value>請輸入 Helldivers 2 模組頁面連結，例如 https://www.nexusmods.com/helldivers2/mods/16633。</value>
+  </data>
 </root>

@@ -436,6 +436,51 @@ public class NexusModsPlatformAdapterTests : IDisposable
         Assert.DoesNotContain(_handler.Requests, r => r.Method == HttpMethod.Post);
     }
 
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public async Task Membership_ShouldRequirePremiumRatherThanSupporter(bool premium, bool supporter, bool allowed)
+    {
+        LegacyJson("/users/validate.json", JsonSerializer.Serialize(new { user_id = 789, is_premium = premium, is_supporter = supporter }));
+        Assert.Equal(allowed, await _platform.HasDirectDownloadAccessAsync());
+    }
+
+    [Fact]
+    public async Task Membership_ShouldRejectMissingStatus()
+    {
+        LegacyJson("/users/validate.json", """{"user_id":789}""");
+        await Assert.ThrowsAsync<JsonException>(() => _platform.HasDirectDownloadAccessAsync());
+    }
+
+    [Fact]
+    public async Task PremiumDownload_ShouldUseSelectedWebsiteFileWithoutAuthorizationOrV3AndKeepCdnAnonymous()
+    {
+        LegacyJson("/users/validate.json", """{"user_id":789,"is_premium":true}""");
+        LegacyJson("/games/helldivers2/mods/123/files/456.json", """{"file_id":456,"category_id":3,"name":"Optional"}""");
+        LegacyJson("/games/helldivers2/mods/123/files/456/download_link.json", """[{"URI":"https://cdn.example.com/premium"}]""");
+        _handler.Routes[(HttpMethod.Get, "https://cdn.example.com/premium")] =
+            () => new(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[] { 7, 8 }) };
+        using var stream = await _platform.DownloadFileAsync("123", "nexus-v1-file:456");
+        Assert.Equal(7, stream.ReadByte());
+        Assert.Contains(_handler.Requests, request => request.Url.EndsWith("files/456/download_link.json"));
+        Assert.DoesNotContain(_handler.Requests, request => request.Url.Contains("/v3/") || request.Url.Contains("?"));
+        Assert.Null(_handler.Requests[^1].ApiKey);
+    }
+
+    [Theory]
+    [InlineData(false, 456, 1)]
+    [InlineData(true, 999, 1)]
+    [InlineData(true, 456, 6)]
+    [InlineData(true, 456, 7)]
+    public async Task PremiumDownload_ShouldRejectMissingPermissionOrUnavailableFile(bool premium, int returnedId, int category)
+    {
+        LegacyJson("/users/validate.json", JsonSerializer.Serialize(new { user_id = 789, is_premium = premium }));
+        LegacyJson("/games/helldivers2/mods/123/files/456.json", JsonSerializer.Serialize(new { file_id = returnedId, category_id = category }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _platform.DownloadFileAsync("123", "nexus-v1-file:456"));
+        Assert.DoesNotContain(_handler.Requests, request => request.Url.Contains("download_link") || request.Url.Contains("/v3/"));
+    }
+
     private void SetupTrending() => _handler.Json(HttpMethod.Get, "/games/helldivers2/trending-mods",
         """{"data":{"mods":[{"name":"Weapon","author":"Author","summary":null,"picture_url":null,"mod_page_url":"https://www.nexusmods.com/helldivers2/mods/456"},{"name":"Armor","author":null,"summary":"Armor description","picture_url":null,"mod_page_url":"https://www.nexusmods.com/helldivers2/mods/123"}]}}""");
 

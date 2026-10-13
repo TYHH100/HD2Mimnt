@@ -13,6 +13,7 @@
     <KeyBinding Gesture="Ctrl+3" Command="{Binding NavigateToConflictsCommand}"/>
     <KeyBinding Gesture="Ctrl+4" Command="{Binding NavigateToToolsCommand}"/>
     <KeyBinding Gesture="Ctrl+5" Command="{Binding NavigateToSettingsCommand}"/>
+    <KeyBinding Gesture="Ctrl+6" Command="{Binding NavigateToBrowseCommand}"/>
     <KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
   </Window.KeyBindings>
   <Grid>
@@ -34,6 +35,7 @@
       <fa:FANavigationView.MenuItems>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Profiles}" IconSource="Folder" Tag="0"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Library}" IconSource="Library" Tag="1"/>
+        <fa:FANavigationViewItem Content="{loc:Loc Browse.Title}" IconSource="Globe" Tag="5"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Conflicts}" IconSource="Important" Tag="2"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Tools}" IconSource="Repair" Tag="3"/>
         <fa:FANavigationViewItem Content="{loc:Loc Settings.Title}" IconSource="Settings" Tag="4"/>
@@ -67,6 +69,7 @@
           <TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
           <TabItem><views:MoreView/></TabItem>
           <TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
+          <TabItem><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
         </TabControl>
       </Border>
     </fa:FANavigationView>

@@ -77,6 +77,7 @@ public sealed class UiLocalization : INotifyPropertyChanged, IDisposable
     public string Translate(object? value)
     {
         if (value is null || ReferenceEquals(value, AvaloniaProperty.UnsetValue)) return string.Empty;
+        if (value is HD2Mimnt.UI.Services.ModPlatformErrorMessage error) return error.Localize();
         if (value is ModPlatformLink link)
             return Format("UI.NexusModsLatestAvailableVersion", link.GameDomain, link.ModId,
                 link.Name ?? this["Platform.NoApiName"], link.LatestVersion ?? this["Shell.Unknown"]);

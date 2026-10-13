@@ -2,6 +2,7 @@ using HD2Mimnt.Infrastructure.Platforms.NexusMods.Models;
 using HD2Mimnt.Core.Entities;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Net.Http.Json;
 
 namespace HD2Mimnt.Infrastructure.Platforms.NexusMods;
 
@@ -116,6 +117,14 @@ internal sealed class NexusModsApiClient
         using var request = CreateApiRequest(HttpMethod.Get, path, true);
         request.RequestUri = new Uri("https://api.nexusmods.com/v1" + path);
         return await SendJsonAsync<T>(request, false, operation, cancellationToken, downloadKey);
+    }
+
+    internal async Task<T> SearchGraphAsync<T>(string query, object variables, CancellationToken token)
+    {
+        using var request = CreateApiRequest(HttpMethod.Post, "", IsAuthenticated);
+        request.RequestUri = new Uri("https://api.nexusmods.com/v2/graphql");
+        request.Content = JsonContent.Create(new { query, variables });
+        return await SendJsonAsync<T>(request, false, "搜索 N 网模组", token);
     }
 
     private async Task<T> GetDataAsync<T>(string path, bool authenticated, string operation, CancellationToken cancellationToken)

@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- 浏览页下载并导入使用独立临时目录，复用现有导入浮窗并等待完成后清理压缩包；不能将导入浮窗吞掉的错误误报成成功，下载进度进入导入阶段后也不能覆盖导入状态。封面预览完整解码 `picture_url` 源图，关闭时只释放预览自己拥有的图片，不能释放其它页面共享的 Bitmap。v1/v3 公开 REST 契约没有列出模组画廊列表接口，其他图片提供网页 Images 入口。来源：https://api.nexusmods.com/openapi.yaml 、https://api.swaggerhub.com/apis/NexusMods/nexus-mods_public_api_params_in_form_data/1.0
+
+- “浏览模组”通过 `IModBrowsePlatform` → `ModBrowseService` 调用独立 Nexus 模块。v3 热门仅 5 项且无需认证；v1 最新发布/最近更新各 10 项并需要已有密钥，名称或作者搜索用官方 v2 GraphQL `mods`，AND 限定本游戏、OR 匹配名称/作者；每页 20 项，按服务器总数翻页，`WILDCARD` 传原始关键词，不添加星号。旧 `IModPlatform.SearchAsync` 仍是有限热门兼容接口。首次下载不必先建本地 Mod，选文件后检查 v1 `is_premium`：Premium 使用同一网站文件编号直接获取链接，免费账户复用网页授权和 DownloadManager；Supporter 不等于 Premium，状态读取失败不能猜测权限；取消、离页、关闭必须等待清理，回传仅匹配当前等待的文件。预览客户端不带 API 凭据且加载不阻塞列表操作。来源：https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0 、https://api-docs.nexusmods.com/ 、https://github.com/Nexus-Mods/node-nexus-api/blob/master/src/parameters.ts 、https://api.nexusmods.com/v2/graphql
+
 - 断点续传不能把预分配文件长度当成已下载进度，按分段偏移持久化；先刷新数据到磁盘，再原子替换断点 JSON。恢复必须校验下载身份、远端长度与强 ETag / Last-Modified，签名 URL 更新按稳定文件版本键关联，不能明文保存 URL 凭据。同一断点禁止并发写入，回退前等待全部分段退出；下载设置按每次启动读取快照，独立下载 Tab 保存不依赖游戏路径校验。开启续传时保留中断数据，测试使用隔离目录并结束后清理。来源：https://www.rfc-editor.org/rfc/rfc9110.html#section-14
 
 - HTTP 分段下载使用独立 `Downloads/HttpDownloadService`：先确认已知长度、Range 支持及强 ETag / Last-Modified，再带 If-Range 请求并严格校验 206 范围和长度；HTTP 200 回退前必须等待所有分段写入者退出。重试进度不能重复计数，取消/失败不能替换已有目标，临时文件流必须释放；下载客户端默认头禁止携带平台 API 凭据。测试未知长度时不能使用可定位 MemoryStream 的 StreamContent（.NET 会推导 Content-Length），应使用 TryComputeLength 返回 false 的 HttpContent。来源：https://www.rfc-editor.org/rfc/rfc9110.html#section-14

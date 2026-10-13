@@ -104,21 +104,21 @@ public partial class MainWindow : Window
             _viewModel.Tutorial.CloseCommand.Execute(null);
             e.Handled = true;
         }
-        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is >= Key.D1 and <= Key.D5)
+        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is >= Key.D1 and <= Key.D6)
             e.Handled = true;
     }
 
     private void UpdateNavigationSelection()
     {
         var index = _viewModel?.SelectedTabIndex ?? 0;
-        if (index >= 0 && index < NavigationView.MenuItems.Count)
-            NavigationView.SelectedItem = NavigationView.MenuItems[index];
+        NavigationView.SelectedItem = NavigationView.MenuItems.OfType<FANavigationViewItem>()
+            .FirstOrDefault(item => item.Tag?.ToString() == index.ToString());
     }
 
     private void OnNavigationSelectionChanged(object? sender, FANavigationViewSelectionChangedEventArgs e)
     {
         if (_viewModel == null) return;
-        var index = NavigationView.MenuItems.IndexOf(e.SelectedItem);
+        if (e.SelectedItem is not FANavigationViewItem item || !int.TryParse(item.Tag?.ToString(), out var index)) return;
         if (index == _viewModel.SelectedTabIndex) return;
         switch (index)
         {
@@ -127,6 +127,7 @@ public partial class MainWindow : Window
             case 2: _viewModel.NavigateToConflictsCommand.Execute(null); break;
             case 3: _viewModel.NavigateToToolsCommand.Execute(null); break;
             case 4: _viewModel.NavigateToSettingsCommand.Execute(null); break;
+            case 5: _viewModel.NavigateToBrowseCommand.Execute(null); break;
         }
     }
 

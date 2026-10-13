@@ -26,29 +26,34 @@ public class ThumbnailService
     /// <summary>
     /// 为 Mod 生成缩略图
     /// </summary>
-    public async Task<string?> GenerateThumbnailAsync(Guid modId, string modPath, CancellationToken cancellationToken = default)
+    public async Task<string?> GenerateThumbnailAsync(Guid modId, string modPath, CancellationToken cancellationToken = default,
+        string? iconPath = null)
     {
         try
         {
-            // 查找 Mod 目录中的图片文件
-            var imageFiles = Directory.GetFiles(modPath, "*.*", SearchOption.AllDirectories)
-                .Where(f =>
-                {
-                    var ext = Path.GetExtension(f).ToLowerInvariant();
-                    return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp";
-                })
-                .OrderBy(f => Path.GetFileName(f))
-                .ToList();
-
-            // 优先查找 thumbnail.png 或 preview.png
-            var thumbnailFile = imageFiles.FirstOrDefault(f =>
+            var thumbnailFile = ModImportService.ResolveManifestIconPath(modPath, iconPath);
+            if (thumbnailFile == null)
             {
-                var name = Path.GetFileNameWithoutExtension(f).ToLowerInvariant();
-                return name == "thumbnail" || name == "preview" || name == "icon";
-            });
+                // 清单图片不可用时才回退目录内的候选图。
+                var imageFiles = Directory.GetFiles(modPath, "*.*", SearchOption.AllDirectories)
+                    .Where(f =>
+                    {
+                        var ext = Path.GetExtension(f).ToLowerInvariant();
+                        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp";
+                    })
+                    .OrderBy(f => Path.GetFileName(f))
+                    .ToList();
 
-            // 如果没有找到，使用第一个图片文件
-            thumbnailFile ??= imageFiles.FirstOrDefault();
+                // 优先查找 thumbnail.png 或 preview.png
+                thumbnailFile = imageFiles.FirstOrDefault(f =>
+                {
+                    var name = Path.GetFileNameWithoutExtension(f).ToLowerInvariant();
+                    return name == "thumbnail" || name == "preview" || name == "icon";
+                });
+
+                // 如果没有找到，使用第一个图片文件
+                thumbnailFile ??= imageFiles.FirstOrDefault();
+            }
 
             if (thumbnailFile == null)
             {

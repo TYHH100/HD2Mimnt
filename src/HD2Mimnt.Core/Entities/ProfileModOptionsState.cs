@@ -128,8 +128,8 @@ public static class ProfileModOptionResolver
     }
 
     /// <summary>
-    /// 部署时的文件收集范围。只有清单声明了完整映射（每个 v1 选项都有 Include、
-    /// 每个子选项都有 Include）才能按选项过滤；映射不完整时回退全量部署保持兼容。
+    /// 部署时的文件收集范围。父选项可以只负责分组，由子选项声明 Include；
+    /// 无子选项的条目及子选项缺少映射时，回退根目录部署保持兼容。
     /// </summary>
     public static OptionDeployPlan ResolveDeployPlan(ModManifest? manifest, ProfileModOptionsState state)
     {
@@ -142,7 +142,7 @@ public static class ProfileModOptionResolver
         {
             var options = manifest.Options!;
             // Include == null 表示清单未声明映射；空列表是显式的“无文件占位”，两者语义不同
-            if (options.Any(o => o.Include == null)
+            if (options.Any(o => o.Include == null && o.SubOptions is not { Count: > 0 })
                 || options.Any(o => o.SubOptions?.Any(s => s.Include == null) == true))
             {
                 return new OptionDeployPlan { Scope = OptionDeployScope.FullDirectory };
@@ -158,7 +158,8 @@ public static class ProfileModOptionResolver
                     continue;
                 }
 
-                directories.AddRange(options[i].Include!);
+                if (options[i].Include != null)
+                    directories.AddRange(options[i].Include!);
 
                 var subOptions = options[i].SubOptions;
                 if (subOptions is { Count: > 0 })

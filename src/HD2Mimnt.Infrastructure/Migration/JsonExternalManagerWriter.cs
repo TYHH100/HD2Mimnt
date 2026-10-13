@@ -176,7 +176,9 @@ public abstract class JsonExternalManagerWriter : IExternalManagerWriter
                 SubOptions = source.LegacyOptions.Select(option => new ModSubOption { Name = option, Include = [option] }).ToList() }];
         manifest.ManifestVersion = ManifestVersion.V1;
         manifest.LegacyOptions = null;
-        if (manifest.Options?.Any(option => option.Include == null || option.SubOptions?.Any(sub => sub.Include == null) == true) == true)
+        if (manifest.Options is { Count: > 0 }
+            && ProfileModOptionResolver.ResolveDeployPlan(manifest,
+                ProfileModOptionResolver.ResolveEffective(manifest, null)).Scope == OptionDeployScope.FullDirectory)
         {
             foreach (var option in manifest.Options)
             {

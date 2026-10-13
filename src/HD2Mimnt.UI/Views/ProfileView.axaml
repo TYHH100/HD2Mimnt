@@ -5,7 +5,46 @@
              x:Class="HD2Mimnt.UI.Views.ProfileView"
              x:DataType="vm:ProfileViewModel">
 
+  <UserControl.Resources>
+    <DataTemplate x:Key="ModOptionHeaderTemplate" x:DataType="vm:ProfileModOptionCardViewModel">
+      <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="12">
+        <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                PointerPressed="OptionPreview_PointerPressed" Tapped="PreviewImage_Tapped"
+                Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+          <Panel>
+            <TextBlock Text="{loc:Loc UI.NoPreview}" Classes="caption-text" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
+            <Image Source="{Binding Image}" Width="64" Height="64" Stretch="Uniform"/>
+          </Panel>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+                     IsVisible="{Binding HasDescription}"/>
+        </StackPanel>
+        <Border Grid.Column="2" Width="32" IsVisible="{Binding HasSubOptions}" IsHitTestVisible="False"/>
+        <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
+                  IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                  Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).ModOptionsDialog.ToggleOptionCommand}"
+                  CommandParameter="{Binding}"
+                  ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
 <UserControl.Styles>
+  <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <!-- 原生箭头放在头部预留槽位，所有选项的勾选框保持最右侧对齐。 -->
+  <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+    <Setter Property="Grid.Column" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="Margin" Value="0,0,44,0"/>
+  </Style>
   <!-- 复用 FluentAvalonia 原生 ListBoxItem 模板，只调整内容布局，不覆盖选中态模板。 -->
   <Style Selector="ListBoxItem.profile-mod-item">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -133,7 +172,7 @@
       <!-- 模组卡片列表（卡片可拖动排序，支持 Ctrl 多选后整体拖动） -->
       <ScrollViewer x:Name="ModScrollViewer" IsVisible="{Binding IsProfileModsContentVisible}"
                     Background="Transparent" PointerPressed="ModBackground_PointerPressed">
-        <ItemsControl x:Name="ModItemsControl" ItemsSource="{Binding ProfileRows}" Margin="0,-4,4,0" Focusable="True"
+        <ItemsControl x:Name="ModItemsControl" ItemsSource="{Binding ProfileRows}" Margin="0,0,4,0" Focusable="True"
                       DragDrop.AllowDrop="True" DragDrop.DragOver="ModList_DragOver" DragDrop.DragLeave="SortList_DragLeave" DragDrop.Drop="ModList_Drop">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -444,30 +483,11 @@
                   <DataTemplate x:DataType="vm:ProfileModOptionCardViewModel">
                     <Border Classes="option-card" Margin="0,6">
                       <StackPanel>
-                        <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12">
-                          <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
-                                  Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
-                            <Panel>
-                              <TextBlock Text="{loc:Loc UI.NoPreview}" Classes="caption-text" HorizontalAlignment="Center"
-                                         VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
-                              <Image Source="{Binding Image}" Width="64" Height="64" Stretch="Uniform"/>
-                            </Panel>
-                          </Border>
-                          <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                            <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
-                                       IsVisible="{Binding HasDescription}"/>
-                          </StackPanel>
-                          <CheckBox Grid.Column="2" VerticalAlignment="Center"
-                                    IsChecked="{Binding IsEnabled, Mode=OneWay}"
-                                    Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).ModOptionsDialog.ToggleOptionCommand}"
-                                    CommandParameter="{Binding}"
-                                    ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
-                        </Grid>
-
-                        <!-- 子选项默认收起，按需展开后多选一，点选高亮。 -->
-                        <Expander Header="{loc:Loc UI.Variants}" IsExpanded="False" Margin="0,8,0,0"
+                        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ModOptionHeaderTemplate}"
+                                        HorizontalContentAlignment="Stretch" IsVisible="{Binding !HasSubOptions}"/>
+                        <!-- 选项头部直接展开子选项，勾选框与预览图保留独立操作。 -->
+                        <Expander Classes="mod-option" Header="{Binding}" HeaderTemplate="{StaticResource ModOptionHeaderTemplate}"
+                                  IsExpanded="False" Padding="0,8,0,0" Background="Transparent" BorderThickness="0"
                                   HorizontalAlignment="Stretch" IsVisible="{Binding HasSubOptions}">
                           <ItemsControl ItemsSource="{Binding SubOptions}">
                           <ItemsControl.ItemTemplate>

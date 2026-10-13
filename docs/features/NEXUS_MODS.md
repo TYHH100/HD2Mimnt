@@ -11,11 +11,12 @@ N 网实现独立组织在 `src/HD2Mimnt.Infrastructure/Platforms/NexusMods/`，
 | 文件 | 职责 |
 | --- | --- |
 | `NexusModsPlatformAdapter.cs` | 公开模块入口，实现统一平台接口、转发认证设置和操作 |
-| `NexusModsApiClient.cs` | v3 路由、认证、HTTP 请求、JSON 包装及错误处理 |
+| `NexusModsApiClient.cs` | v1/v3 路由、v2 GraphQL、认证、HTTP 请求及错误处理 |
 | `NexusModsFileService.cs` | 模组/文件/版本查询流程、下载及进度 |
 | `NexusModsFileSelector.cs` | 下载与更新检查共用的活动主版本选择规则 |
 | `NexusModsMapper.cs` | API 数据转换为平台无关的 Core 模型，热门列表筛选与分页 |
-| `NexusModsNxmLink.cs` / `NexusModsNxmService.cs` | v1 网站文件列表、nxm 链接校验、同账户验证和临时授权下载 |
+| `NexusModsNxmLink.cs` / `NexusModsNxmService.cs` | v1 网站文件列表、nxm 链接校验、同账户验证、临时授权及 Premium 直接下载 |
+| `NexusModsBrowseService.cs` | v1 最新发布、最近更新和完整详情，v3 公开热门列表、v2 GraphQL 模组名或作者搜索 |
 | `Models/` | 按模组、文件及通用响应分组的内部 API 模型 |
 
 内部实现均为 `internal`，模块对外保留 `HD2Mimnt.Infrastructure.Platforms.NexusModsPlatformAdapter` 的类名、命名空间和构造方式。通用 `Retry-After` 等待逻辑单独位于 `Platforms/RateLimiter.cs`；各客户端持有自己的实例。
@@ -43,7 +44,7 @@ var mod = await platform.GetModInfoAsync("123");
 | 功能 | v3 请求及行为 |
 | --- | --- |
 | 可用性 | GET `/games/helldivers2/trending-mods`，检查公开接口，不验证账号 |
-| 搜索入口 | 在热门前 5 项中按名称/摘要筛选，支持名称、作者排序及本地分页；`ScopeDescription` 标明范围，非全站搜索 |
+| 旧 `IModPlatform.SearchAsync` | 在热门前 5 项中按名称/摘要筛选，支持名称、作者排序及本地分页；`ScopeDescription` 标明范围，非全站搜索 |
 | 模组详情 | GET `/games/helldivers2/mods/{game_scoped_id}`，读取 `data` 内的 ID、游戏 ID 和可空名称 |
 | 文件列表 | 先解析模组全局 ID，再 GET `/mods/{id}/files`，随后逐文件 GET `/mod-files/{id}/versions` |
 | 版本列表 | 活动类别（main/update/optional/miscellaneous）按版本号分组；默认下载版本排首位，其余按上传日期降序 |
@@ -71,6 +72,24 @@ API 错误读取 `application/problem+json` 的 `title`、`detail`，并保留 H
 `PlatformCredentials` 表按平台 ID 保存 `ProtectedApiKey` BLOB，通过 Windows DPAPI `CurrentUser` 保护，并用应用/平台标识作为附加熵，不另存解密密码或明文密钥。不通过 `SettingsService` 保存，不写入 settings.json、模组绑定或日志。主窗口初始化时自动解密并应用，备份恢复后重新加载认证；没有保存记录时保持未配置。密文损坏或在无法解密的 Windows 用户环境恢复时提示重新填写，启动继续进行，不自动删除密文。数据库备份包含密文；原有普通模组数据保留。依据：[Windows ProtectedData](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.protecteddata)、[DataProtectionScope.CurrentUser](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope)。
 
 依据 [API Acceptable Use Policy](https://help.nexusmods.com/article/114-api-acceptable-use-policy)，个人 API Key 可用于开发测试或个人使用。若计划面向普通用户公开提供 API 功能，在有可演示 API 用途的测试构建后，应联系 `support@nexusmods.com` 注册应用；注册后可选择接入 SSO。不得以个人 Key 替代正式应用认证、将用户 Key 存在开发者服务器上或在没有用户发起操作时使用，也不得批量抓取数据用于重新托管。所有 API 请求携带稳定的 `Application-Name: HD2Mimnt` 和来自 UI 程序集当前版本的 `Application-Version`；签名存档下载不附带这些 API 专用头或密钥。
+
+## 应用内浏览模组
+
+顶部“浏览模组”位于模组库右侧，使用 FluentAvalonia 列表和详情面板；`Ctrl+6` 打开，原有快捷键保留。首次进入读取公开热门列表，后续切换保留搜索结果和详情，点击“加载列表”刷新当前来源。三个来源的范围明确显示：热门为 v3 `trending-mods` 前 5 项；最新发布和最近更新为 v1 `latest_added.json` / `latest_updated.json` 各 10 项。输入模组名或作者后点击“搜索”或按 Enter，调用官方 v2 GraphQL `mods` 搜索；限定 `gameDomainName=helldivers2`，名称与作者以 OR 匹配。每页 20 项，按服务器 `totalCount` 提供上一页/下一页；编辑输入不会本地过滤列表，也不改变已提交的翻页关键词。“加载列表”回到所选来源。公开搜索允许未配置密钥时使用；旧 `IModPlatform.SearchAsync` 的有限热门兼容行为保留。
+
+最新发布、最近更新、v1 `{id}.json` 完整详情及文件列表共用“工具 → 开发工具”已配置的 N 网密钥。可以从卡片查看详情，也可以直接输入 Helldivers 2 模组链接或正整数编号。API 模型仍留在 Nexus 模块，通过 `IModBrowsePlatform` 和 Application 的 `ModBrowseService` 返回通用模型；图片加载使用独立无认证 HTTP 客户端，不阻塞列表交互。
+
+“下载压缩包…”先选择保存位置，两种下载按钮均通过 v1 `/users/validate.json` 检查 `is_premium`。Premium 会员调用所选网站文件的 v1 `download_link.json`，不传 `key/expires`，直接 API 下载；Supporter 或免费账户打开所选文件的网页等待 NXM 回传。会员状态读取失败会显示错误，不猜测权限；真正下载前再次校验会员和所选文件的编号及状态。复用已有账户校验及 `DownloadManagerService`。首次下载不要求先创建本地 Mod；保存后拖入窗口进入现有导入流程。错误游戏、模组和文件的回传不能继续下载；取消、离开页面和退出等待下载清理，后来的回传不能复活已取消任务。临时 NXM 链接及签名下载地址不写入数据库或历史。该链路的回归使用模拟 API/存档响应，真实账户授权仍依赖用户 N 网账户和本机浏览器。
+
+来源：[Nexus Mods v1 官方契约](https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0)、[仓库 v3 契约](../references/nexus_openapi.yaml)、[官方客户端 GraphQL 地址](https://github.com/Nexus-Mods/node-nexus-api/blob/master/src/parameters.ts)、[官方 GraphQL 接口](https://api.nexusmods.com/v2/graphql)。2026-10-13 通过接口 schema 与匿名请求验证：按作者 CowboyBingus 返回本游戏 4 项；`WILDCARD` 传原始关键词，不额外添加星号。
+
+## 浏览页导入与图片
+
+浏览页也提供“下载并导入”：复用同一会员/网页授权判断与所选文件校验，下载到配置的临时目录，再进入现有导入浮窗，完成后刷新模组库。导入失败或取消不显示成功；临时压缩包在导入流程退出后清理，已有成功导入项保留。不会自动部署或切换到模组库。
+
+列表封面可点击预览，详情中也有“预览封面”；按 API 的 `picture_url` 源地址完整解码，独立于 240px 列表缩略图。覆盖层关闭、刷新和离页释放源图，加载期间可按 Escape 取消，图片请求不携带 API 凭据。单张图片目前最多 4 MiB。
+
+2026-10-13 核对 [v1 Swagger JSON](https://api.swaggerhub.com/apis/NexusMods/nexus-mods_public_api_params_in_form_data/1.0) 与 [当前 v3 OpenAPI](https://api.nexusmods.com/openapi.yaml)：v3 将 `picture_url` 定义为模组主图地址，两份公开 REST 契约都未列出模组画廊列表接口。其他图片通过“网页查看其他图片”打开模组的 Images 页；不将封面接口冒充画廊，也不猜测未公开接口。
 
 ## 模组库页面关联
 
@@ -128,3 +147,5 @@ dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --filter "Full
 浏览器回传回归使用隔离的命名管道和注册表子键，覆盖启动排队、单实例转发、默认关联保留、实际下载按钮到协议回传的自动替换、错文件/过期/错账户、取消与重复回传、只下载压缩包。未用真实浏览器或真实账户完成端到端验证。Windows 注册依据：[默认应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/default-programs)、[应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/app-registration)。
 
 凭据回归使用真实 DPAPI 与隔离 SQLite，覆盖密文入库、更新覆盖、新数据库上下文恢复、清除后不再恢复、损坏密文拒绝解密、读写失败保持已有凭据，以及开发工具实际按钮和主窗口启动恢复。
+
+浏览页搜索、会员判断、保存与导入、封面预览、分页、进度和错误提示均接入简中/繁中/英语及运行时切换。HTTP 错误保存异常与操作信息，展示时分别翻译步骤、建议与标签；服务器诊断、模组名、作者、关键词和文件名保持原文。回归覆盖匿名搜索请求体、服务器分页、GraphQL 错误、Premium/Supporter 权限、所选网站文件、无凭据 CDN 下载、真实 ZIP 导入及取消清理；UI 用例分进程顺序执行。真实账户会员下载尚未端到端验证。

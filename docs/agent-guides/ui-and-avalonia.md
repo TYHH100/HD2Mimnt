@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- 模组选项的子选项直接由选项头部展开；有/无子选项复用同一头部模板，勾选框固定在最右侧对齐，展开箭头放在其左侧预留槽位。Expander 头部内的图片预览要在 PointerPressed 阻止父按钮捕获，只有 Tapped.Handled 会来不及阻止展开状态切换。回归实际点击标题、箭头、勾选框与图片，并检查深浅主题、最小窗口和长名称下的勾选框坐标。来源：https://github.com/amwx/FluentAvalonia/blob/master/src/FluentAvalonia/Styling/ControlThemes/BasicControls/ExpanderStyles.axaml 、https://docs.avaloniaui.net/docs/concepts/input/routed-events
+
+- 虚拟化模组列表的 ItemsControl 不要使用顶部负 Margin 抵消卡片间距。Avalonia 12.0.3 的 VirtualizingStackPanel 根据有效视口与估算行高定位；负边距会让滚动条归零时的面板视口起点仍大于 0，连续 ScrollIntoView 后滚轮返回顶部可能保留位置误差，裁切分隔符甚至普通卡片。保留非负列表边距，由卡片自身控制间距；跳转只调用 ItemsControl.ScrollIntoView，由虚拟化面板完成实现与布局，不重复 BringIntoView。回归必须实际用滚轮逐步返回顶部，检查首行位置及目标完整可见，并覆盖有/无分隔符；直接设置 Offset=0 无法代替该路径。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/VirtualizingStackPanel.cs
+
 - 配置文件列表右键只打开命中行的菜单，不改变 `SelectedProfile`，不触发自动激活；必须在 PointerPressed 隧道路由拦截右键，冒泡阶段已晚于 ListBoxItem 的默认选择。左键仍按设置切换配置，菜单命令绑定命中行；保留默认配置及使用中配置的删除保护。回归开启自动切换后实际右键删除非当前配置，并检查当前配置与数据库激活状态不变。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
 - 自动检查冲突在“设置 → 配置文件”默认关闭，保存后生效；合并连续变更，串行扫描、取消过期结果，关闭设置和退出均取消待执行任务。不要在 UI 线程解析索引或格式化大量详情。卡片关系共享去重后的成员集合，悬停最多列 8 个名称，点击仍可查看全部；冲突资源、持有者及定位选择列表保持虚拟化，不能嵌套无高度约束的 ScrollViewer 使所有条目同时创建。性能边界及实测见[自动检查评估](../reports/automatic-conflict-check-performance.md)。来源：https://docs.avaloniaui.net/docs/reference/controls/virtualizingstackpanel
@@ -20,7 +24,7 @@
 
 - 弹出通知的计时器随视图挂载/卸载启动和停止，横幅收起不能删除通知历史；后台通知事件先派发到 UI 线程。Avalonia 位移动画使用已创建的 `TranslateTransform` 和 `TranslateTransform.X`，不要直接对 `RenderTransform` 写关键帧，否则可能编译通过但运行时报无 Animator；必须用 Headless 实际显示通知验证。来源：https://docs.avaloniaui.net/docs/guides/graphics-and-animation/keyframe-animations
 
-- 调整顶部导航顺序时必须同步 FluentAvalonia `FANavigationView.MenuItems`、`MainWindow` 的选择事件映射、`MainWindowViewModel.SelectedTabIndex`、快捷导航命令和隐藏 `TabControl` 的页面顺序；只修改 XAML 标签会导致按钮与页面错位。
+- 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，显示在模组库右侧。来源：https://github.com/amwx/FluentAvalonia
 
 - UI 只通过 Application 服务访问模组、配置文件和部署数据；不要在 View 或 ViewModel 中直接访问 SQLite、部署实现或复制文件。
 

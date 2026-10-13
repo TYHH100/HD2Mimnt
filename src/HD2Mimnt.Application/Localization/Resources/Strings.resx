@@ -2805,4 +2805,268 @@ Cache: {2}</value>
   <data name="Migration.Stage.ProfileDone" xml:space="preserve">
     <value>Profile processed</value>
   </data>
+  <data name="Browse.Title" xml:space="preserve">
+    <value>Browse mods</value>
+  </data>
+  <data name="Browse.Trending" xml:space="preserve">
+    <value>Trending mods</value>
+  </data>
+  <data name="Browse.LatestAdded" xml:space="preserve">
+    <value>Latest added</value>
+  </data>
+  <data name="Browse.LatestUpdated" xml:space="preserve">
+    <value>Recently updated</value>
+  </data>
+  <data name="Browse.TrendingScope" xml:space="preserve">
+    <value>Top 5 trending mods.</value>
+  </data>
+  <data name="Browse.LatestAddedScope" xml:space="preserve">
+    <value>10 latest added mods.</value>
+  </data>
+  <data name="Browse.LatestUpdatedScope" xml:space="preserve">
+    <value>10 recently updated mods.</value>
+  </data>
+  <data name="Browse.OpenWebsite" xml:space="preserve">
+    <value>Open Nexus Mods</value>
+  </data>
+  <data name="Browse.LoadList" xml:space="preserve">
+    <value>Load list</value>
+  </data>
+  <data name="Browse.Details" xml:space="preserve">
+    <value>View details</value>
+  </data>
+  <data name="Browse.NoResults" xml:space="preserve">
+    <value>No matching mods.</value>
+  </data>
+  <data name="Browse.LinkPlaceholder" xml:space="preserve">
+    <value>Mod URL or ID</value>
+  </data>
+  <data name="Browse.OpenLink" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Browse.SelectHint" xml:space="preserve">
+    <value>View mod details, or enter a Nexus Mods URL or ID.</value>
+  </data>
+  <data name="Browse.AuthHint" xml:space="preserve">
+    <value>Latest feeds, details and downloads require a Nexus Mods key configured in Tools → Developer tools.</value>
+  </data>
+  <data name="Browse.Files" xml:space="preserve">
+    <value>Available files</value>
+  </data>
+  <data name="Browse.Download" xml:space="preserve">
+    <value>Download archive…</value>
+  </data>
+  <data name="Browse.OpenModPage" xml:space="preserve">
+    <value>Open mod page</value>
+  </data>
+  <data name="Browse.DownloadHint" xml:space="preserve">
+    <value>Premium downloads directly; free accounts authorize on Nexus Mods. Download and import adds the mod to your library.</value>
+  </data>
+  <data name="Browse.NoFiles" xml:space="preserve">
+    <value>This mod has no active downloadable files.</value>
+  </data>
+  <data name="Browse.WaitingForWebsite" xml:space="preserve">
+    <value>Waiting for website authorization: confirm the download in your browser and open the link with HD2Mimnt.</value>
+  </data>
+  <data name="Browse.Downloading" xml:space="preserve">
+    <value>Downloading the selected file…</value>
+  </data>
+  <data name="Browse.DownloadComplete" xml:space="preserve">
+    <value>Archive saved. Drop it into this window to add it to your library.</value>
+  </data>
+  <data name="Browse.Cancelled" xml:space="preserve">
+    <value>Operation cancelled.</value>
+  </data>
+  <data name="Browse.DownloadAndImport" xml:space="preserve">
+    <value>Download and import</value>
+  </data>
+  <data name="Browse.PreviewCover" xml:space="preserve">
+    <value>Preview cover</value>
+  </data>
+  <data name="Browse.OpenImagesWebsite" xml:space="preserve">
+    <value>Other images (web)</value>
+  </data>
+  <data name="Browse.LoadingImage" xml:space="preserve">
+    <value>Loading cover…</value>
+  </data>
+  <data name="Browse.PreviewUnavailable" xml:space="preserve">
+    <value>This cover is unavailable or exceeds the image size limit.</value>
+  </data>
+  <data name="Browse.Importing" xml:space="preserve">
+    <value>Download complete. Importing the mod…</value>
+  </data>
+  <data name="Browse.ImportComplete" xml:space="preserve">
+    <value>Mod downloaded and imported into the library.</value>
+  </data>
+  <data name="Browse.ImportBusy" xml:space="preserve">
+    <value>Another mod import is running. Wait for it to finish and try again.</value>
+  </data>
+  <data name="Browse.ImportFailed" xml:space="preserve">
+    <value>Mod import failed.</value>
+  </data>
+  <data name="Browse.Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="Browse.SearchPlaceholder" xml:space="preserve">
+    <value>Search mod name or author</value>
+  </data>
+  <data name="Browse.PreviousPage" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Browse.NextPage" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Browse.SearchEmpty" xml:space="preserve">
+    <value>Enter a mod name or author to search.</value>
+  </data>
+  <data name="Browse.Searching" xml:space="preserve">
+    <value>Searching Nexus Mods…</value>
+  </data>
+  <data name="Browse.SearchScope" xml:space="preserve">
+    <value>Nexus search "{0}": {1} results, page {2}.</value>
+  </data>
+  <data name="Browse.CheckingMembership" xml:space="preserve">
+    <value>Checking Nexus Mods membership…</value>
+  </data>
+  <data name="Browse.PremiumDownloading" xml:space="preserve">
+    <value>Premium: downloading the selected file through the API…</value>
+  </data>
+  <data name="Browse.OperationError" xml:space="preserve">
+    <value>{0} failed.</value>
+  </data>
+  <data name="Browse.HttpError" xml:space="preserve">
+    <value>{0} failed (HTTP {1}).</value>
+  </data>
+  <data name="Browse.ServerReason" xml:space="preserve">
+    <value>{0} reported: {1}</value>
+  </data>
+  <data name="Browse.MembershipOperation" xml:space="preserve">
+    <value>Check Nexus Mods membership</value>
+  </data>
+  <data name="Browse.MembershipMissing" xml:space="preserve">
+    <value>Nexus Mods did not return a valid account membership status.</value>
+  </data>
+  <data name="Browse.PremiumRequired" xml:space="preserve">
+    <value>This account no longer has Premium download access. Click download again to use website authorization.</value>
+  </data>
+  <data name="Browse.PremiumLinkOperation" xml:space="preserve">
+    <value>Get Premium download link</value>
+  </data>
+  <data name="Browse.PremiumLinkInvalid" xml:space="preserve">
+    <value>Nexus Mods did not return a valid HTTPS download URL. Try downloading again.</value>
+  </data>
+  <data name="Browse.PremiumRejected" xml:space="preserve">
+    <value>Nexus Mods rejected the Premium download. Check that Premium is active and click download again.</value>
+  </data>
+  <data name="Browse.SearchOperation" xml:space="preserve">
+    <value>Search Nexus Mods</value>
+  </data>
+  <data name="Browse.SearchFailed" xml:space="preserve">
+    <value>Nexus Mods search failed. Try again later.</value>
+  </data>
+  <data name="Browse.SearchMissing" xml:space="preserve">
+    <value>The Nexus Mods search response is missing results.</value>
+  </data>
+  <data name="Browse.SearchInvalid" xml:space="preserve">
+    <value>Nexus Mods search returned invalid mod information.</value>
+  </data>
+  <data name="Browse.Operation" xml:space="preserve">
+    <value>Browse Nexus Mods</value>
+  </data>
+  <data name="Browse.PreviewOperation" xml:space="preserve">
+    <value>Preview mod cover</value>
+  </data>
+  <data name="Browse.DetailsOperation" xml:space="preserve">
+    <value>Get mod details</value>
+  </data>
+  <data name="Browse.FilesOperation" xml:space="preserve">
+    <value>Get available files</value>
+  </data>
+  <data name="Browse.FileOperation" xml:space="preserve">
+    <value>Get selected file information</value>
+  </data>
+  <data name="Browse.AccountOperation" xml:space="preserve">
+    <value>Verify website authorization account</value>
+  </data>
+  <data name="Browse.NotRegistered" xml:space="preserve">
+    <value>Nexus Mods is not registered.</value>
+  </data>
+  <data name="Browse.NotSupported" xml:space="preserve">
+    <value>This platform does not support mod browsing.</value>
+  </data>
+  <data name="Browse.ProtocolNotSupported" xml:space="preserve">
+    <value>This platform does not support website authorized downloads.</value>
+  </data>
+  <data name="Browse.InvalidModId" xml:space="preserve">
+    <value>Invalid Nexus Mods mod ID.</value>
+  </data>
+  <data name="Browse.IdentityMismatch" xml:space="preserve">
+    <value>The returned Nexus Mods mod ID does not match the request.</value>
+  </data>
+  <data name="Browse.InvalidModInfo" xml:space="preserve">
+    <value>Nexus Mods mod information is missing a valid page ID.</value>
+  </data>
+  <data name="Browse.ProtocolMismatch" xml:space="preserve">
+    <value>Website authorization does not match the selected mod or file. Request authorization again from the selected file page.</value>
+  </data>
+  <data name="Browse.FileMismatch" xml:space="preserve">
+    <value>The website authorized file does not match the selected file.</value>
+  </data>
+  <data name="Browse.DownloadFailed" xml:space="preserve">
+    <value>Download failed: {0}</value>
+  </data>
+  <data name="Browse.ApiAuthenticationRequired" xml:space="preserve">
+    <value>This Nexus Mods operation requires API Key or Bearer JWT authentication.</value>
+  </data>
+  <data name="Browse.ApiMissingData" xml:space="preserve">
+    <value>The Nexus Mods API response is missing the data field.</value>
+  </data>
+  <data name="Browse.ApiEmpty" xml:space="preserve">
+    <value>The Nexus Mods API returned an empty response.</value>
+  </data>
+  <data name="Browse.FileIdMissing" xml:space="preserve">
+    <value>Nexus Mods file information is missing a valid ID.</value>
+  </data>
+  <data name="Browse.FileNumberInvalid" xml:space="preserve">
+    <value>The selected file is missing a valid website ID. Refresh the available files.</value>
+  </data>
+  <data name="Browse.NxmFileMismatch" xml:space="preserve">
+    <value>Website authorization is for a different file. Select the matching file or request a new nxm link.</value>
+  </data>
+  <data name="Browse.NxmUrlInvalid" xml:space="preserve">
+    <value>Nexus Mods did not return a valid HTTPS download URL. Request website authorization again.</value>
+  </data>
+  <data name="Browse.NxmAccountMismatch" xml:space="preserve">
+    <value>The website account differs from the API key account. Sign in with the same account and request a new link, or change the API key.</value>
+  </data>
+  <data name="Browse.FileUnavailable" xml:space="preserve">
+    <value>The selected file was deleted, archived, or returned a different ID. Select another file.</value>
+  </data>
+  <data name="Browse.SaveArchive" xml:space="preserve">
+    <value>Save mod archive</value>
+  </data>
+  <data name="Browse.NxmInvalidLink" xml:space="preserve">
+    <value>The received link is not a Nexus Mods Helldivers 2 temporary download link.</value>
+  </data>
+  <data name="Browse.NxmInvalidIds" xml:space="preserve">
+    <value>The temporary link must contain valid mod and file IDs.</value>
+  </data>
+  <data name="Browse.NxmWrongMod" xml:space="preserve">
+    <value>The temporary link belongs to another mod. Request it again from the current mod page.</value>
+  </data>
+  <data name="Browse.NxmInvalidParameters" xml:space="preserve">
+    <value>Temporary link parameters are incomplete or duplicated. Copy a new link from the website.</value>
+  </data>
+  <data name="Browse.NxmAuthorizationRequired" xml:space="preserve">
+    <value>Free account links require key, expires and user_id. Click "Mod manager download" on the website to obtain the complete link.</value>
+  </data>
+  <data name="Browse.NxmExpired" xml:space="preserve">
+    <value>The temporary download link expired. Click "Mod manager download" on Nexus Mods again.</value>
+  </data>
+  <data name="Browse.UnsupportedLink" xml:space="preserve">
+    <value>Only Nexus Mods mod page links are supported. A-site support will follow when its documentation is available.</value>
+  </data>
+  <data name="Browse.InvalidLink" xml:space="preserve">
+    <value>Enter a Helldivers 2 mod page URL, such as https://www.nexusmods.com/helldivers2/mods/16633.</value>
+  </data>
 </root>

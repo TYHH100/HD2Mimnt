@@ -299,14 +299,8 @@ public class ManifestParser
 
     private Guid ParseGuid(JsonElement root)
     {
-        if (TryGetPropertyIgnoreCase(root, "Guid", out var guidProp))
-        {
-            var guidStr = guidProp.GetString();
-            if (Guid.TryParse(guidStr, out var guid))
-            {
-                return guid;
-            }
-        }
+        if (Guid.TryParse(GetStringProperty(root, "Guid"), out var guid))
+            return guid;
 
         _logger?.LogWarning("Invalid or missing GUID in manifest, generating new one");
         return Guid.NewGuid();
@@ -409,7 +403,7 @@ public class ManifestParser
             Name = name,
             Description = description,
             DefaultEnabled = defaultEnabled,
-            Include = TryGetPropertyIgnoreCase(element, "Include", out _) ? ParseStringArray(element, "Include") : null,
+            Include = ParseInclude(element),
             Image = GetStringProperty(element, "Image")
         };
 
@@ -425,7 +419,7 @@ public class ManifestParser
                     {
                         Name = GetStringProperty(subElement, "Name") ?? "Unnamed SubOption",
                         Description = GetStringProperty(subElement, "Description") ?? string.Empty,
-                        Include = TryGetPropertyIgnoreCase(subElement, "Include", out _) ? ParseStringArray(subElement, "Include") : null,
+                        Include = ParseInclude(subElement),
                         Image = GetStringProperty(subElement, "Image")
                     });
                 }
@@ -435,6 +429,10 @@ public class ManifestParser
 
         return option;
     }
+
+    private static List<string>? ParseInclude(JsonElement element)
+        => TryGetPropertyIgnoreCase(element, "Include", out var include) && include.ValueKind == JsonValueKind.Array
+            ? ParseStringArray(element, "Include") : null;
 
     private static List<string> ParseStringArray(JsonElement root, string propertyName)
     {
@@ -460,7 +458,15 @@ public class ManifestParser
             return null;
         }
 
-        var modId = TryGetPropertyIgnoreCase(nexusProp, "ModId", out var idProp) ? idProp.GetInt32() : 0;
+        var modId = 0;
+        if (TryGetPropertyIgnoreCase(nexusProp, "ModId", out var idProp))
+        {
+            if (idProp.ValueKind == JsonValueKind.Number)
+                idProp.TryGetInt32(out modId);
+            else if (idProp.ValueKind == JsonValueKind.String)
+                int.TryParse(idProp.GetString(), System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out modId);
+        }
         var version = GetStringProperty(nexusProp, "Version") ?? string.Empty;
 
         if (modId > 0)

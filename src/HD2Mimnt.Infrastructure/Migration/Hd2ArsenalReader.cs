@@ -113,7 +113,7 @@ public sealed class Hd2ArsenalReader : IExternalManagerReader
                 manifest.ManifestVersion = ManifestVersion.Legacy;
                 manifest.LegacyOptions = onDisk.LegacyOptions;
             }
-            manifest.IconPath = RelativeImage(item.Get("iconPath").Text(), path);
+            manifest.IconPath = RelativeImage(item.Get("iconPath").Text(), path) ?? onDisk?.IconPath;
             manifest.Tags = item.Get("tags").Strings();
             var mod = new ExternalMigrationMod
             {

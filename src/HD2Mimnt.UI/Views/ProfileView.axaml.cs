@@ -37,11 +37,8 @@ public partial class ProfileView : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             if (!IsEffectivelyVisible || DataContext != sender || !target.IsConflictLocation) return;
+            // 虚拟化面板负责实现目标与布局，不再对同一容器重复发起滚动。
             ModItemsControl.ScrollIntoView(target);
-            UpdateLayout();
-            var index = ((ProfileViewModel)sender!).ProfileRows.IndexOf(target);
-            if (index >= 0 && ModItemsControl.ContainerFromIndex(index) is Control container)
-                container.BringIntoView();
         }, DispatcherPriority.Loaded);
     }
 
@@ -132,6 +129,11 @@ public partial class ProfileView : UserControl
             },
             AppContextMenu.Separator,
             new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
+            {
+                CommandParameter = mod
+            },
+            AppContextMenu.Separator,
+            new ContextMenuItem("打开文件位置", vm.OpenModLocationCommand, "Folder")
             {
                 CommandParameter = mod
             }
@@ -606,6 +608,13 @@ public partial class ProfileView : UserControl
         _pressedArgs = null;
         _pressedMod = null;
         _modPressedArgs = null;
+    }
+
+    // 图片位于 Expander 的头部按钮内，先阻止按钮捕获按下，避免预览同时改变展开状态。
+    private void OptionPreview_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control control && e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
+            e.Handled = true;
     }
 
     /// <summary>子选项行点击：同卡片内互斥多选一，选中后立即持久化。</summary>

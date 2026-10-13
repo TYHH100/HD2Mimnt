@@ -59,6 +59,61 @@ public class ModServiceTests : IDisposable
         Assert.Equal(mod.Version, retrievedMod.Version);
     }
 
+    [Theory]
+    [InlineData("", "preview.png", true)]
+    [InlineData("missing.png", "preview.png", true)]
+    [InlineData("custom.png", "preview.png", false)]
+    [InlineData("", "missing.png", false)]
+    [InlineData("", "../outside.png", false)]
+    public async Task GetAllMods_ManifestIcon_RepairsMissingPreviewAndPreservesCustomImage(
+        string thumbnail, string icon, bool repaired)
+    {
+        var path = Path.Combine(_testStoragePath, "mod");
+        Directory.CreateDirectory(path);
+        await File.WriteAllTextAsync(Path.Combine(path, "preview.png"), "preview");
+        await File.WriteAllTextAsync(Path.Combine(path, "custom.png"), "custom");
+        await File.WriteAllTextAsync(Path.Combine(_testStoragePath, "outside.png"), "outside");
+        var original = thumbnail.Length == 0 ? "" : Path.Combine(path, thumbnail);
+        var mod = new Mod
+        {
+            Id = Guid.NewGuid(), Name = "Migrated", Path = path, ResourceTypeIds = [],
+            Manifest = new() { IconPath = icon }, ThumbnailPath = original
+        };
+        await _modRepository.AddAsync(mod);
+
+        var loaded = Assert.Single(await _modService.GetAllModsAsync());
+
+        var expected = repaired ? Path.Combine(path, "preview.png") : original;
+        Assert.Equal(expected, loaded.ThumbnailPath);
+        Assert.Equal(expected, (await _modRepository.GetByIdAsync(mod.Id))!.ThumbnailPath);
+    }
+
+    [Fact]
+    public async Task ImportMod_ManifestIcon_TakesPriorityOverOtherPreviewImages()
+    {
+        var source = Path.Combine(_testStoragePath, "source");
+        Directory.CreateDirectory(Path.Combine(source, "images"));
+        await File.WriteAllTextAsync(Path.Combine(source, "manifest.json"),
+            """{"Version":1,"Name":"ChosenIcon","IconPath":"images/封面.png"}""");
+        foreach (var (relative, color) in new[]
+        {
+            ("preview.png", System.Drawing.Color.Blue), ("images/封面.png", System.Drawing.Color.Red)
+        })
+        {
+            using var bitmap = new System.Drawing.Bitmap(4, 4);
+            using var graphics = System.Drawing.Graphics.FromImage(bitmap);
+            graphics.Clear(color);
+            bitmap.Save(Path.Combine(source, relative), System.Drawing.Imaging.ImageFormat.Png);
+        }
+
+        var id = await _modService.ImportModAsync(source);
+
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+        Assert.True(File.Exists(mod.ThumbnailPath));
+        using var thumbnail = new System.Drawing.Bitmap(mod.ThumbnailPath);
+        Assert.Equal(System.Drawing.Color.Red.ToArgb(), thumbnail.GetPixel(128, 128).ToArgb());
+    }
+
     [Fact]
     public async Task GetModsByIds_ShouldReturnOnlyRequestedMods()
     {

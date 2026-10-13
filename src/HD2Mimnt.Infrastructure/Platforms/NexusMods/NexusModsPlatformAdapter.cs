@@ -9,11 +9,12 @@ using System.Text.Json;
 namespace HD2Mimnt.Infrastructure.Platforms;
 
 /// <summary>Nexus module entry point implementing the shared platform contract.</summary>
-public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPlatform, IModProtocolDownloadPlatform
+public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPlatform, IModProtocolDownloadPlatform, IModBrowsePlatform, IModDownloadAccessPlatform
 {
     private readonly NexusModsApiClient _api;
     private readonly NexusModsFileService _files;
     private readonly NexusModsNxmService _nxm;
+    private readonly NexusModsBrowseService _browse;
 
     public override string Name => "NexusMods";
     public override string Id => "nexusmods";
@@ -33,6 +34,7 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPla
         var downloadService = downloader ?? new HttpDownloadService(httpClient);
         _files = new NexusModsFileService(_api, downloadService);
         _nxm = new NexusModsNxmService(_api, downloadService);
+        _browse = new NexusModsBrowseService(_api);
     }
 
     public void SetApiKey(string apiKey) => _api.SetApiKey(apiKey);
@@ -40,6 +42,15 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPla
     public void ClearApiKey() => _api.ClearApiKey();
     public void ClearAuthentication() => _api.ClearAuthentication();
     public bool IsAuthenticated => _api.IsAuthenticated;
+
+    public Task<PlatformSearchResult> BrowseAsync(ModBrowseFeed feed, CancellationToken cancellationToken = default)
+        => _browse.BrowseAsync(feed, cancellationToken);
+
+    public Task<PlatformModInfo> GetBrowseDetailsAsync(string modId, CancellationToken cancellationToken = default)
+        => _browse.GetDetailsAsync(modId, cancellationToken);
+
+    public Task<PlatformSearchResult> SearchBrowseAsync(PlatformSearchQuery query, CancellationToken cancellationToken = default)
+        => _browse.SearchAsync(query, cancellationToken);
 
     /// <summary>Checks public API availability, not credential validity (v3 has no validation endpoint).</summary>
     public override async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
@@ -84,7 +95,12 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPla
 
     public Task<Stream> DownloadFileAsync(string modId, string fileVersionId,
         IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) =>
-        _files.DownloadFileAsync(modId, fileVersionId, progress, cancellationToken);
+        fileVersionId.StartsWith("nexus-v1-file:", StringComparison.Ordinal)
+            ? _nxm.DownloadPremiumAsync(modId, fileVersionId, progress, cancellationToken)
+            : _files.DownloadFileAsync(modId, fileVersionId, progress, cancellationToken);
+
+    public Task<bool> HasDirectDownloadAccessAsync(CancellationToken cancellationToken = default)
+        => _nxm.IsPremiumAsync(cancellationToken);
 
     public Task<List<PlatformModFile>> GetProtocolFilesAsync(string modId, CancellationToken cancellationToken = default)
         => _nxm.GetFilesAsync(modId, cancellationToken);

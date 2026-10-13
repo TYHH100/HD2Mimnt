@@ -178,6 +178,8 @@ public class ModImportService
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             mod.Path = targetPath;
+            if (string.IsNullOrWhiteSpace(mod.ThumbnailPath))
+                mod.ThumbnailPath = ResolveManifestIconPath(targetPath, manifest?.IconPath) ?? string.Empty;
             progress?.Report(new(80, "识别资源类型", "扫描模组资源索引", true));
             await PopulateResourceTypesAsync(mod, cancellationToken);
             try
@@ -218,6 +220,21 @@ public class ModImportService
                 }
             }
         }
+    }
+
+    /// <summary>清单图片以模组目录为基准，导入副本和历史回填使用同一规则。</summary>
+    internal static string? ResolveManifestIconPath(string modPath, string? iconPath)
+    {
+        if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(iconPath)) return null;
+        try
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(modPath));
+            var image = Path.GetFullPath(iconPath.Replace('/', Path.DirectorySeparatorChar), root);
+            return image.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(image) ? image : null;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        { return null; }
     }
 
     internal async Task PopulateResourceTypesAsync(Mod mod, CancellationToken cancellationToken)

@@ -4,6 +4,12 @@
 
 ## 易错点与正确做法
 
+- V1 父选项只有 `SubOptions` 时可以不写 `Include`，按启用状态收集所选子选项的目录，不能因此丢弃整份清单的映射并只检查根目录；独立叶选项缺少 `Include` 与显式空数组仍区分。导入和迁移的预览优先读取清单 `IconPath`，以迁入后的模组目录解析并保存库内路径；来源管理器未额外提供图片字段时也要保留清单图片。历史预览为空或失效时按相同规则回填，保留仍有效的自定义封面。来源：已复现的白鲸、Plum、Beacon 等 9 份清单及 42 个缺少预览字段的迁移记录；[.NET 相对路径解析](https://learn.microsoft.com/dotnet/api/system.io.path.getfullpath#system-io-path-getfullpath(system-string-system-string))。
+
+- 清单的可选字段类型异常不能让已解析的名称、选项和图片一起丢失：GUID 先按字符串检查，Nexus ModId 先检查 JSON 类型再尝试读取整数，非法或超范围值只忽略该可选字段。`Include: null` 与字段缺失一致，只有数组才构成映射，不能变成 `Include: []` 的明确无文件语义。来源：[JsonElement.TryGetInt32 类型及范围要求](https://learn.microsoft.com/dotnet/api/system.text.json.jsonelement.trygetint32)。
+
+- 正向导入、反向迁回及往返后部署共用 `ProfileModOptionResolver` 的映射完整性规则；反向写入器不能独立要求父分组必有 Include，否则会清空子选项映射并错误添加根目录“全部文件”。预览图回退也需覆盖每种管理器读取器，包括 Echelon 的源清单 IconPath。来源：[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)。
+
 - 反向迁回使用 Application 快照与原生写入器；预览和执行前校验目标数据指纹，复制后的模组指纹与预览一致才提交。元数据备份与真正发布项分别记录，写入失败只恢复已发布项，避免锁住尚未更新的文件时中断其余回滚和清理。目标管理器正常退出后才写入；SQLite 使用备份 API 复制旧库，不能覆盖非空 WAL。来源：[双向迁移说明](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://learn.microsoft.com/dotnet/standard/data/sqlite/backup
 
 - Echelon 的选项引用映射须与 HD2Mimnt 部署一致：只匹配 Include 目录直属补丁，不能用路径前缀递归包含未选变体。Legacy 子目录转换为一个互斥子选项；原生只有分隔符起点时，为显式短范围和空组添加结束条目。库组织配置须用持久化标记识别，不能凭显示名称猜测。来源：[原生格式与往返验证](../features/EXTERNAL_MANAGER_MIGRATION.md)
