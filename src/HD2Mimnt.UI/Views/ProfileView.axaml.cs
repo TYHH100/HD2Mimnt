@@ -24,6 +24,10 @@ public partial class ProfileView : UserControl
     private Point _modDragStartPoint;
     private readonly List<(Control Control, double Opacity)> _dimmedDragSources = new();
     private ProfileViewModel? _navigationViewModel;
+    private IPointer? _sortPointer;
+    private ItemsControl? _sortList;
+    private DataTransfer? _sortData;
+    private Func<object?, bool>? _sortIsMoving;
 
     private void SubscribeConflictNavigation(ProfileViewModel? viewModel)
     {
@@ -50,7 +54,14 @@ public partial class ProfileView : UserControl
         // 右键事件在列表容器统一捕获，并包含已被子控件处理过的事件。
         ModItemsControl.AddHandler(InputElement.PointerReleasedEvent, ModList_ContextReleased,
             RoutingStrategies.Bubble, handledEventsToo: true);
-        AddHandler(KeyDownEvent, ModList_KeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, ModList_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, SortPointer_Moved, RoutingStrategies.Tunnel);
+        AddHandler(PointerReleasedEvent, SortPointer_Released, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, SortPointer_WheelChanged, RoutingStrategies.Tunnel);
+        PointerCaptureLost += (_, _) =>
+        {
+            if (_sortPointer != null && _sortPointer.Captured != this) ClearSortPreview();
+        };
         ModItemsControl.AddHandler(PointerReleasedEvent, ModList_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
         DetachedFromVisualTree += (_, _) =>
         {
@@ -162,7 +173,7 @@ public partial class ProfileView : UserControl
         _dragStartPoint = e.GetPosition(ProfileList);
     }
 
-    private async void ProfileList_PointerMoved(object? sender, PointerEventArgs e)
+    private void ProfileList_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (_dragProfile == null || _pressedArgs == null) return;
 
@@ -181,16 +192,13 @@ public partial class ProfileView : UserControl
         }
 
         var profile = _dragProfile;
-        var pressedArgs = _pressedArgs;
         _dragProfile = null;
         _pressedArgs = null;
 
-        // Avalonia 12 拖放 API：DataTransfer + DoDragDropAsync
         var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText(profile.Id.ToString()));
         BeginProfileDragPreview(profile.Id);
-        try { await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move); }
-        finally { ClearSortPreview(); }
+        BeginSortPointerDrag(e, ProfileList, data);
     }
 
     private void ProfileList_DragOver(object? sender, DragEventArgs e)
@@ -280,6 +288,13 @@ public partial class ProfileView : UserControl
 
     private void ModList_KeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && _sortPointer != null)
+        {
+            ClearSortPreview();
+            e.Handled = true;
+            return;
+        }
+        if (e.Handled) return;
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
             || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
@@ -338,7 +353,7 @@ public partial class ProfileView : UserControl
     }
 
     /// <summary>模组卡片拖动启动：把拖动集（选中集或单卡）以 "id;id;…" 文本放入 DataTransfer。</summary>
-    private async void ModCard_PointerMoved(object? sender, PointerEventArgs e)
+    private void ModCard_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (_pressedMod == null || _modPressedArgs == null) return;
 
@@ -362,15 +377,82 @@ public partial class ProfileView : UserControl
             : new List<Guid> { _pressedMod.ModId };
         if (vm.ProfileMods.Any(mod => movingIds.Contains(mod.ModId) && !mod.CanDrag)) return;
 
-        var pressedArgs = _modPressedArgs;
         _pressedMod = null;
         _modPressedArgs = null;
 
         var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText(string.Join(';', movingIds)));
         BeginModDragPreview(movingIds);
-        try { await DragDrop.DoDragDropAsync(pressedArgs, data, DragDropEffects.Move); }
+        BeginSortPointerDrag(e, ModItemsControl, data);
+    }
+
+    // 页面内排序使用指针捕获，避免系统拖放循环接管输入后滚轮无法滚动列表。
+    // 仍通过原有 DragOver/Drop 路径预览、校验及保存落点。
+    private void BeginSortPointerDrag(PointerEventArgs e, ItemsControl list, DataTransfer data)
+    {
+        _sortList = list;
+        _sortData = data;
+        _sortPointer = e.Pointer;
+        e.Pointer.Capture(this);
+        UpdateSortPointerDrag(e);
+        e.Handled = true;
+    }
+
+    private Control SortViewport => ReferenceEquals(_sortList, ProfileList) ? ProfileList : ModScrollViewer;
+
+    private void UpdateSortPointerDrag(PointerEventArgs e)
+    {
+        if (_sortList == null || _sortData == null) return;
+        // 滚动会回收卡片容器，透明度必须跟随当前数据，不能留在复用后的其他行上。
+        if (_sortIsMoving is { } isMoving) DimDragSources(_sortList, isMoving);
+        if (!new Rect(SortViewport.Bounds.Size).Contains(e.GetPosition(SortViewport)))
+        {
+            HideSortPreview();
+            return;
+        }
+        _sortList.RaiseEvent(new DragEventArgs(DragDrop.DragOverEvent, _sortData, _sortList,
+            e.GetPosition(_sortList), e.KeyModifiers));
+    }
+
+    private void SortPointer_Moved(object? sender, PointerEventArgs e)
+    {
+        if (_sortPointer != e.Pointer) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) ClearSortPreview();
+        else UpdateSortPointerDrag(e);
+        e.Handled = true;
+    }
+
+    private void SortPointer_Released(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_sortPointer != e.Pointer || e.InitialPressMouseButton != MouseButton.Left) return;
+        try
+        {
+            if (_sortList != null && _sortData != null
+                && new Rect(SortViewport.Bounds.Size).Contains(e.GetPosition(SortViewport)))
+                _sortList.RaiseEvent(new DragEventArgs(DragDrop.DropEvent, _sortData, _sortList,
+                    e.GetPosition(_sortList), e.KeyModifiers));
+        }
         finally { ClearSortPreview(); }
+        e.Handled = true;
+    }
+
+    private void SortPointer_WheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (_sortPointer == null || _sortData == null) return;
+        e.Handled = true;
+        if (!new Rect(SortViewport.Bounds.Size).Contains(e.GetPosition(SortViewport))) return;
+        var scroll = ReferenceEquals(_sortList, ProfileList)
+            ? ProfileList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault()
+            : ModScrollViewer;
+        if (scroll == null) return;
+        scroll.SetCurrentValue(ScrollViewer.OffsetProperty,
+            scroll.Offset - new Vector(0, e.Delta.Y * scroll.SmallChange.Height * 3));
+        var data = _sortData;
+        // 等虚拟化面板实现新视口的行后刷新插入线，鼠标无需再次移动。
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_sortData == data) UpdateSortPointerDrag(e);
+        }, DispatcherPriority.Loaded);
     }
 
     private void ModList_DragOver(object? sender, DragEventArgs e)
@@ -502,6 +584,8 @@ public partial class ProfileView : UserControl
 
     private void DimDragSources(ItemsControl list, Func<object?, bool> isMoving)
     {
+        RestoreDragSources();
+        _sortIsMoving = isMoving;
         for (var index = 0; index < list.ItemCount; index++)
         {
             if (list.ContainerFromIndex(index) is not Control container || !isMoving(container.DataContext)) continue;
@@ -601,13 +685,25 @@ public partial class ProfileView : UserControl
 
     private void ClearSortPreview()
     {
+        var pointer = _sortPointer;
+        _sortPointer = null;
+        _sortList = null;
+        (_sortData as IDisposable)?.Dispose();
+        _sortData = null;
+        if (pointer?.Captured == this) pointer.Capture(null);
         HideSortPreview();
-        foreach (var (control, opacity) in _dimmedDragSources) control.Opacity = opacity;
-        _dimmedDragSources.Clear();
+        RestoreDragSources();
+        _sortIsMoving = null;
         _dragProfile = null;
         _pressedArgs = null;
         _pressedMod = null;
         _modPressedArgs = null;
+    }
+
+    private void RestoreDragSources()
+    {
+        foreach (var (control, opacity) in _dimmedDragSources) control.Opacity = opacity;
+        _dimmedDragSources.Clear();
     }
 
     // 图片位于 Expander 的头部按钮内，先阻止按钮捕获按下，避免预览同时改变展开状态。

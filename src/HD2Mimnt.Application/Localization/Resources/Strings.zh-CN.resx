@@ -3069,4 +3069,351 @@
   <data name="Browse.InvalidLink" xml:space="preserve">
     <value>请输入 Helldivers 2 模组页面链接，例如 https://www.nexusmods.com/helldivers2/mods/16633。</value>
   </data>
+  <data name="Crash.Title" xml:space="preserve">
+    <value>游戏崩溃排查</value>
+  </data>
+  <data name="Crash.Description" xml:space="preserve">
+    <value>离线分析本地崩溃转储，比较崩溃前的部署变化。线索用于决定优先测试哪些模组，不能直接证明崩溃原因。</value>
+  </data>
+  <data name="Crash.ToolMissing" xml:space="preserve">
+    <value>内置分析工具缺失，请恢复安装包中的 Tools/minidump-stackwalk。</value>
+  </data>
+  <data name="Crash.Path" xml:space="preserve">
+    <value>崩溃转储文件路径（.dmp / .mdmp）</value>
+  </data>
+  <data name="Crash.Browse" xml:space="preserve">
+    <value>选择转储</value>
+  </data>
+  <data name="Crash.RecentDumps" xml:space="preserve">
+    <value>最近的游戏转储</value>
+  </data>
+  <data name="Crash.Refresh" xml:space="preserve">
+    <value>刷新转储与部署历史</value>
+  </data>
+  <data name="Crash.Analyze" xml:space="preserve">
+    <value>分析崩溃</value>
+  </data>
+  <data name="Crash.Export" xml:space="preserve">
+    <value>导出 JSON 报告</value>
+  </data>
+  <data name="Crash.History" xml:space="preserve">
+    <value>最近部署与正常基准</value>
+  </data>
+  <data name="Crash.HistoryHelp" xml:space="preserve">
+    <value>从现在开始记录部署快照，清理部署后仍保留。确认某次部署在游戏中正常运行后，选中并标记为正常。请先在设置中配置游戏路径。</value>
+  </data>
+  <data name="Crash.KnownGood" xml:space="preserve">
+    <value>已由你确认正常</value>
+  </data>
+  <data name="Crash.MarkGood" xml:space="preserve">
+    <value>将选中部署标记为正常</value>
+  </data>
+  <data name="Crash.Found" xml:space="preserve">
+    <value>找到 {0} 份转储、{1} 次部署快照。</value>
+  </data>
+  <data name="Crash.Complete" xml:space="preserve">
+    <value>分析完成。</value>
+  </data>
+  <data name="Crash.MarkedGood" xml:space="preserve">
+    <value>已保存正常基准，请重新分析转储以更新对比。</value>
+  </data>
+  <data name="Crash.Exported" xml:space="preserve">
+    <value>已导出报告：{0}</value>
+  </data>
+  <data name="Crash.Working" xml:space="preserve">
+    <value>正在处理…</value>
+  </data>
+  <data name="Crash.Cancelled" xml:space="preserve">
+    <value>已取消，分析进程已停止。</value>
+  </data>
+  <data name="Crash.Failed" xml:space="preserve">
+    <value>操作失败：{0}</value>
+  </data>
+  <data name="Crash.Unknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
+  <data name="Crash.NotGame" xml:space="preserve">
+    <value>未确认主模块是 helldivers2.exe，不进行游戏模组归因。</value>
+  </data>
+  <data name="Crash.ModClues" xml:space="preserve">
+    <value>发现模组相关模块线索，需要复现确认。</value>
+  </data>
+  <data name="Crash.Inconclusive" xml:space="preserve">
+    <value>证据不足，无法确定是否由模组导致。</value>
+  </data>
+  <data name="Crash.Details" xml:space="preserve">
+    <value>异常：{0}
+地址：{1}
+主模块：{2}
+转储时间：{3}</value>
+  </data>
+  <data name="Crash.ManagedModuleInStack" xml:space="preserve">
+    <value>{0} 出现在崩溃线程，并与当前部署文件名匹配：{1}。文件名匹配只是线索，未验证二进制身份。</value>
+  </data>
+  <data name="Crash.ManagedModuleLoaded" xml:space="preserve">
+    <value>{0} 已加载，与部署文件名匹配：{1}。仅已加载不能证明致因。</value>
+  </data>
+  <data name="Crash.PossibleHookLoaded" xml:space="preserve">
+    <value>{0} 使用常见代理／注入 DLL 名称，也可能是系统 DLL，归属未知。</value>
+  </data>
+  <data name="Crash.Ambiguous" xml:space="preserve">
+    <value>存在同名模块，无法确定归属。</value>
+  </data>
+  <data name="Crash.ScanFrame" xml:space="preserve">
+    <value>包含扫描推测栈帧，可靠性较低。</value>
+  </data>
+  <data name="Crash.MissingSymbols" xml:space="preserve">
+    <value>缺少函数符号或栈帧。资源模组和 Lua 脚本通常无法仅凭 DLL 名称定位。</value>
+  </data>
+  <data name="Crash.LaterDeployment" xml:space="preserve">
+    <value>当前部署晚于转储，已排除其 DLL 归属判断。</value>
+  </data>
+  <data name="Crash.NoTimestamp" xml:space="preserve">
+    <value>转储时间缺失，无法可靠匹配部署历史。</value>
+  </data>
+  <data name="Crash.ContextFailed" xml:space="preserve">
+    <value>部署上下文读取不完整：{0}</value>
+  </data>
+  <data name="Crash.Deployment" xml:space="preserve">
+    <value>崩溃前部署：{0}（{1}）</value>
+  </data>
+  <data name="Crash.GoodBaseline" xml:space="preserve">
+    <value>对比已确认正常部署：{0}</value>
+  </data>
+  <data name="Crash.PreviousBaseline" xml:space="preserve">
+    <value>对比上一次完成部署：{0}</value>
+  </data>
+  <data name="Crash.UnverifiedBaseline" xml:space="preserve">
+    <value>上一次部署尚未确认正常，差异仅用于安排排查优先级。</value>
+  </data>
+  <data name="Crash.NoBaseline" xml:space="preserve">
+    <value>没有更早的对比基准，请在游戏验证后标记正常部署。</value>
+  </data>
+  <data name="Crash.IncompleteDeployment" xml:space="preserve">
+    <value>该次部署未完成或在崩溃时仍在进行，先检查部署错误。</value>
+  </data>
+  <data name="Crash.NoHistory" xml:space="preserve">
+    <value>此转储之前没有匹配的部署快照，不能用当前配置补造过去的状态。</value>
+  </data>
+  <data name="Crash.Change" xml:space="preserve">
+    <value>{0}：{1}</value>
+  </data>
+  <data name="Crash.ChangeAdded" xml:space="preserve">
+    <value>新增／启用</value>
+  </data>
+  <data name="Crash.ChangeUpdated" xml:space="preserve">
+    <value>版本、哈希或文件元数据改变</value>
+  </data>
+  <data name="Crash.ChangeOptionsChanged" xml:space="preserve">
+    <value>选项改变</value>
+  </data>
+  <data name="Crash.ChangeOrderChanged" xml:space="preserve">
+    <value>相对顺序改变</value>
+  </data>
+  <data name="Crash.ChangeRemoved" xml:space="preserve">
+    <value>移除／停用（可能影响依赖）</value>
+  </data>
+  <data name="Crash.ChangesTitle" xml:space="preserve">
+    <value>优先排查的部署变化</value>
+  </data>
+  <data name="Crash.NoChanges" xml:space="preserve">
+    <value>没有可列出的变化，可能缺少基准或部署相同，不能据此排除模组。</value>
+  </data>
+  <data name="Crash.CluesTitle" xml:space="preserve">
+    <value>模块线索</value>
+  </data>
+  <data name="Crash.NoClues" xml:space="preserve">
+    <value>没有可关联的模块线索，资源模组仍可能相关。</value>
+  </data>
+  <data name="Crash.NextSteps" xml:space="preserve">
+    <value>建议复现步骤</value>
+  </data>
+  <data name="Crash.Steps" xml:space="preserve">
+    <value>1. 用已确认正常的部署或干净游戏基准复现相同场景。
+2. 优先测试新增或改动的模组，每次停用一半候选并重新部署；加载器与必需依赖保持成组。
+3. 多次复现，记录哪组组合消除崩溃、重新启用后是否恢复崩溃。
+DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他工具的部署和之后手动修改不在此时间线内。</value>
+  </data>
+  <data name="Crash.Stack" xml:space="preserve">
+    <value>崩溃线程（最多 128 帧）</value>
+  </data>
+  <data name="Crash.Modules" xml:space="preserve">
+    <value>已加载模块</value>
+  </data>
+  <data name="Crash.StatusCompleted" xml:space="preserve">
+    <value>已完成</value>
+  </data>
+  <data name="Crash.StatusDeploying" xml:space="preserve">
+    <value>部署中</value>
+  </data>
+  <data name="Crash.StatusPartiallyFailed" xml:space="preserve">
+    <value>部分失败</value>
+  </data>
+  <data name="Crash.StatusFailed" xml:space="preserve">
+    <value>失败</value>
+  </data>
+  <data name="Crash.StatusCancelled" xml:space="preserve">
+    <value>已取消</value>
+  </data>
+  <data name="Crash.StatusInProgressAtCrash" xml:space="preserve">
+    <value>崩溃时尚未完成</value>
+  </data>
+  <data name="Interop.Title" xml:space="preserve">
+    <value>离线模组接口</value>
+  </data>
+  <data name="DirectDownload.Title" xml:space="preserve">
+    <value>直链下载</value>
+  </data>
+  <data name="DirectDownload.Description" xml:space="preserve">
+    <value>使用内置下载器下载 HTTP/HTTPS 链接，自动处理多次跳转并识别文件名。可导入模组库，也可仅保存到文件夹。</value>
+  </data>
+  <data name="DirectDownload.Link" xml:space="preserve">
+    <value>下载链接</value>
+  </data>
+  <data name="DirectDownload.FileName" xml:space="preserve">
+    <value>文件名（可选）</value>
+  </data>
+  <data name="DirectDownload.AutoName" xml:space="preserve">
+    <value>留空时从服务器响应或最终链接自动识别</value>
+  </data>
+  <data name="DirectDownload.Destination" xml:space="preserve">
+    <value>仅下载的保存文件夹</value>
+  </data>
+  <data name="DirectDownload.ChooseFolder" xml:space="preserve">
+    <value>选择下载文件夹</value>
+  </data>
+  <data name="DirectDownload.Browse" xml:space="preserve">
+    <value>浏览…</value>
+  </data>
+  <data name="DirectDownload.Network" xml:space="preserve">
+    <value>代理与网络</value>
+  </data>
+  <data name="DirectDownload.ProxyUser" xml:space="preserve">
+    <value>代理账号（可选）</value>
+  </data>
+  <data name="DirectDownload.ProxyPassword" xml:space="preserve">
+    <value>代理密码（可选）</value>
+  </data>
+  <data name="DirectDownload.ProxyHint" xml:space="preserve">
+    <value>代理仅作用于此工具，跳转和分段请求使用相同代理。账号与密码只在本次会话中保留。</value>
+  </data>
+  <data name="DirectDownload.Save" xml:space="preserve">
+    <value>保存位置与代理</value>
+  </data>
+  <data name="DirectDownload.Import" xml:space="preserve">
+    <value>下载并导入</value>
+  </data>
+  <data name="DirectDownload.Only" xml:space="preserve">
+    <value>仅下载到指定位置</value>
+  </data>
+  <data name="DirectDownload.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="DirectDownload.Retry" xml:space="preserve">
+    <value>重试上次下载</value>
+  </data>
+  <data name="DirectDownload.OpenFolder" xml:space="preserve">
+    <value>打开文件位置</value>
+  </data>
+  <data name="DirectDownload.ResumeHint" xml:space="preserve">
+    <value>分段、重试与断点续传沿用“设置 → 下载”；同名文件自动编号另存。登录、JavaScript 或验证码页面需要先在浏览器取得实际文件直链。</value>
+  </data>
+  <data name="DirectDownload.ProxySystem" xml:space="preserve">
+    <value>跟随系统代理</value>
+  </data>
+  <data name="DirectDownload.ProxyDirect" xml:space="preserve">
+    <value>不使用代理</value>
+  </data>
+  <data name="DirectDownload.ProxyCustom" xml:space="preserve">
+    <value>自定义代理</value>
+  </data>
+  <data name="DirectDownload.Resolving" xml:space="preserve">
+    <value>正在解析下载链接…</value>
+  </data>
+  <data name="DirectDownload.Downloading" xml:space="preserve">
+    <value>正在下载文件…</value>
+  </data>
+  <data name="DirectDownload.Complete" xml:space="preserve">
+    <value>文件下载完成。</value>
+  </data>
+  <data name="DirectDownload.Cancelled" xml:space="preserve">
+    <value>下载已取消；服务器支持时，重试可继续下载。</value>
+  </data>
+  <data name="DirectDownload.Saved" xml:space="preserve">
+    <value>下载位置与代理设置已保存；代理账号和密码仅本次会话有效。</value>
+  </data>
+  <data name="DirectDownload.Failed" xml:space="preserve">
+    <value>下载失败：{0}</value>
+  </data>
+  <data name="DirectDownload.SaveFailed" xml:space="preserve">
+    <value>保存失败：{0}</value>
+  </data>
+  <data name="DirectDownload.InvalidLink" xml:space="preserve">
+    <value>请输入有效的 HTTP 或 HTTPS 下载链接。</value>
+  </data>
+  <data name="DirectDownload.InvalidProxy" xml:space="preserve">
+    <value>请输入有效的 HTTP、HTTPS 或 SOCKS5 代理地址；账号和密码请填写在单独的输入框中。</value>
+  </data>
+  <data name="DirectDownload.InvalidProxyMode" xml:space="preserve">
+    <value>代理模式无效。</value>
+  </data>
+  <data name="DirectDownload.MissingFolder" xml:space="preserve">
+    <value>请选择下载文件夹。</value>
+  </data>
+  <data name="DirectDownload.ImportUnavailable" xml:space="preserve">
+    <value>模组导入不可用。</value>
+  </data>
+  <data name="DirectDownload.HtmlResponse" xml:space="preserve">
+    <value>链接返回了网页而不是文件，请复制实际下载直链（登录页、JavaScript 跳转或验证码需先在浏览器中完成）。</value>
+  </data>
+  <data name="DirectDownload.ErrorTitle" xml:space="preserve"><value>下载失败。</value></data>
+  <data name="DirectDownload.SaveErrorTitle" xml:space="preserve"><value>保存失败。</value></data>
+  <data name="DirectDownload.OpenBrowser" xml:space="preserve">
+    <value>在浏览器中打开</value>
+  </data>
+  <data name="DirectDownload.BrowserHint" xml:space="preserve">
+    <value>请在系统浏览器完成登录或验证，再将已授权的文件地址替换到上方。也可以由浏览器下载后，在这里选择文件导入。管理器不会读取浏览器 Cookie 或账号密码。</value>
+  </data>
+  <data name="DirectDownload.ImportBrowserFile" xml:space="preserve">
+    <value>导入浏览器下载的文件…</value>
+  </data>
+  <data name="DirectDownload.DownloadedArchive" xml:space="preserve">
+    <value>已下载的模组压缩包</value>
+  </data>
+  <data name="DirectDownload.BrowserRequired" xml:space="preserve">
+    <value>需要在浏览器完成验证。</value>
+  </data>
+  <data name="DirectDownload.LoginRequired" xml:space="preserve">
+    <value>此链接需要先在浏览器登录账号并完成验证。请使用验证后的实际下载地址，或由浏览器下载文件后导入。</value>
+  </data>
+  <data name="DirectDownload.AccessDenied" xml:space="preserve">
+    <value>网站拒绝访问该链接。请在浏览器确认登录与下载权限，或重新获取有效的下载地址。</value>
+  </data>
+  <data name="DirectDownload.ExpiredLink" xml:space="preserve">
+    <value>下载链接或验证信息已过期，请在浏览器重新获取有效的下载地址。</value>
+  </data>
+  <data name="DirectDownload.WebPage" xml:space="preserve">
+    <value>链接返回了网页而不是文件，请在浏览器完成登录或验证后使用实际下载地址。</value>
+  </data>
+  <data name="DirectDownload.ApiResponse" xml:space="preserve">
+    <value>链接返回了接口数据，而不是下载文件。请在浏览器确认下载状态并获取实际下载地址。</value>
+  </data>
+  <data name="DirectDownload.ServerError" xml:space="preserve">
+    <value>下载接口返回了错误信息，没有提供可下载的文件。请稍后重试或在浏览器检查下载状态。</value>
+  </data>
+  <data name="DirectDownload.OpenBrowserFailed" xml:space="preserve">
+    <value>打开浏览器失败。</value>
+  </data>
+  <data name="DirectDownload.ImportingBrowserFile" xml:space="preserve">
+    <value>正在导入浏览器下载的文件…</value>
+  </data>
+  <data name="DirectDownload.BrowserFileImported" xml:space="preserve">
+    <value>浏览器下载的文件已导入模组库。</value>
+  </data>
+  <data name="DirectDownload.BrowserFileMissing" xml:space="preserve">
+    <value>未找到浏览器下载的文件。</value>
+  </data>
+  <data name="DirectDownload.BrowserFileImportFailed" xml:space="preserve">
+    <value>导入失败。</value>
+  </data>
 </root>

@@ -15,6 +15,10 @@ public class DeploymentRecord
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public string Status { get; set; } = string.Empty;
+    /// <summary>部署时归一化后的选项；null 表示旧记录未知，不能用当前配置补造。</summary>
+    public string? OptionsSnapshotJson { get; set; }
+    public int? DeploymentOrderIndex { get; set; }
+    public string? ModVersion { get; set; }
     public List<DeploymentFile> Files { get; set; } = new();
 }
 

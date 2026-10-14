@@ -9,6 +9,7 @@ public sealed class StorageSettingsService
     private readonly StorageLocationStore _store;
     private readonly SemaphoreSlim _gate = new(1, 1);
     public StorageLocations Current => _store.State.Current;
+    public string BootstrapPath => _store.BootstrapPath;
     public StorageLocations Selected => _store.State.Pending ?? Current;
     public StorageLocations Defaults => _store.Defaults;
     public bool HasPendingMigration => _store.State.Pending != null;

@@ -19,6 +19,7 @@ public sealed class BackupService
     private readonly HD2MimntDbContext _dbContext;
     private readonly SettingsService _settingsService;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    public event EventHandler? Restored;
 
     public BackupService(
         string appDataPath,
@@ -123,6 +124,7 @@ public sealed class BackupService
                 DeleteIfExists(_databasePath + "-shm");
                 await _dbContext.InitializeDatabaseAsync(cancellationToken);
             });
+            Restored?.Invoke(this, EventArgs.Empty);
         }
         finally
         {

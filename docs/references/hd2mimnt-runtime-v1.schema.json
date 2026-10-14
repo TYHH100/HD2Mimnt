@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HD2Mimnt offline runtime v1",
+  "description": "Stable major version 1. Consumers ignore unknown fields; future major versions retain this projection.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "hd2mimnt-runtime"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "schemaMinorVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "snapshotId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "generatedUtc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "managerVersion": {
+      "type": "string"
+    },
+    "storage": {
+      "$ref": "#/$defs/storage"
+    },
+    "activeProfileId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "deploymentOrder": {
+      "type": "string"
+    },
+    "library": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mod"
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "deployments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/deployment"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "schemaMinorVersion",
+    "snapshotId",
+    "generatedUtc",
+    "managerVersion",
+    "storage",
+    "activeProfileId",
+    "deploymentOrder",
+    "library",
+    "profiles",
+    "deployments"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "storage": {
+      "type": "object",
+      "properties": {
+        "appDataPath": {
+          "type": "string"
+        },
+        "modsPath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "appDataPath",
+        "modsPath"
+      ],
+      "additionalProperties": true
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "legacySelectedIndex": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "optionToggles": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "boolean"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "optionSelections": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "legacySelectedIndex",
+        "optionToggles",
+        "optionSelections"
+      ],
+      "additionalProperties": true
+    },
+    "subOption": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "include": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "include",
+        "image"
+      ],
+      "additionalProperties": true
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "defaultEnabled": {
+          "type": "boolean"
+        },
+        "include": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subOptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/subOption"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "defaultEnabled",
+        "include",
+        "image",
+        "subOptions"
+      ],
+      "additionalProperties": true
+    },
+    "libraryFile": {
+      "type": "object",
+      "properties": {
+        "relativePath": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "relativePath",
+        "size"
+      ],
+      "additionalProperties": true
+    },
+    "mod": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "manifestGuid": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "thumbnailPath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hash": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "workflow": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "containsScripts": {
+          "type": "boolean"
+        },
+        "resourceTypeIds": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modifiedUtc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "legacyOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "defaultOptions": {
+          "$ref": "#/$defs/state"
+        },
+        "filesComplete": {
+          "type": "boolean"
+        },
+        "filesError": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/libraryFile"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "manifestGuid",
+        "name",
+        "version",
+        "author",
+        "description",
+        "path",
+        "thumbnailPath",
+        "size",
+        "hash",
+        "role",
+        "category",
+        "workflow",
+        "status",
+        "tags",
+        "containsScripts",
+        "resourceTypeIds",
+        "modifiedUtc",
+        "legacyOptions",
+        "options",
+        "defaultOptions",
+        "filesComplete",
+        "filesError",
+        "files"
+      ],
+      "additionalProperties": true
+    },
+    "member": {
+      "type": "object",
+      "properties": {
+        "modId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "options": {
+          "$ref": "#/$defs/state"
+        }
+      },
+      "required": [
+        "modId",
+        "enabled",
+        "order",
+        "options"
+      ],
+      "additionalProperties": true
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "mods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/member"
+          }
+        },
+        "deploymentSequence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "isActive",
+        "mods",
+        "deploymentSequence"
+      ],
+      "additionalProperties": true
+    },
+    "deployedFile": {
+      "type": "object",
+      "properties": {
+        "sourcePath": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetPath": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "isPlaceholder": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sourcePath",
+        "targetPath",
+        "method",
+        "isPlaceholder"
+      ],
+      "additionalProperties": true
+    },
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sessionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "profileId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "modId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "startedUtc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedUtc": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "order": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "options": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/state"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isComplete": {
+          "type": "boolean"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/deployedFile"
+          }
+        },
+        "missingTargets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "sessionId",
+        "profileId",
+        "modId",
+        "status",
+        "method",
+        "startedUtc",
+        "endedUtc",
+        "order",
+        "modVersion",
+        "options",
+        "isComplete",
+        "files",
+        "missingTargets"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

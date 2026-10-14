@@ -243,7 +243,7 @@ public class ModRepository : IModRepository
         return Convert.ToInt64(result) > 0;
     }
 
-    private static Mod MapToMod(SqliteDataReader reader)
+    internal static Mod MapToMod(SqliteDataReader reader)
     {
         var tagsJson = reader.GetString(reader.GetOrdinal("Tags"));
         var tags = string.IsNullOrEmpty(tagsJson)

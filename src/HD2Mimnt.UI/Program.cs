@@ -32,6 +32,9 @@ class Program
         // 构建 Host（在 App.OnFrameworkInitializationCompleted 中初始化）
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
+        // Avalonia 已退出，在后台发布最终离线快照并等清理结束，避免退出时遗留临时文件。
+        AppHost?.Services.GetService<HD2Mimnt.Application.Services.OfflineInteropService>()
+            ?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         ProtocolHost = null;
     }
 

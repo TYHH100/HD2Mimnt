@@ -4,6 +4,12 @@
 
 ## 易错点与正确做法
 
+- “工具 → 直链下载”通过 `DirectDownloadService` 复用 `HttpDownloadService`，按每次任务创建独立代理客户端；解析、HTTP 重定向、分段和回退请求使用同一客户端与 Cookie。最多跟随 20 次 HTTP 跳转；登录、验证码和 JavaScript 页面不当作模组压缩包导入。最终响应的 `filename*` / `filename` 优先于最终 URL，文件名去除路径并处理 Windows 保留名；仅下载遇同名文件自动编号，发布时仍禁止覆盖，防止并发创建目标。导入必须等待现有导入浮窗完成并检查结果，再清理独立源目录；取消后等待下载释放流，支持续传的断点由缓存管理。代理地址可保存，代理账号、密码和完整下载链接不得写入设置或任务历史。来源：[.NET 自动重定向](https://learn.microsoft.com/dotnet/api/system.net.http.httpclienthandler.allowautoredirect)、[SOCKS 代理](https://devblogs.microsoft.com/dotnet/dotnet-6-networking-improvements/#socks-proxy-support)、[Content-Disposition](https://www.rfc-editor.org/rfc/rfc6266)。
+
+- HTTP 200 不代表返回了文件：下载接口可能用 JSON 报告登录、权限或过期错误，例如 `ec=40100`。`DirectDownloadResponseGuard` 在解析、分段和回退时检查响应，最多探测 16 KiB，按常见错误字段识别而不绑定单一网站；探测过的真实文件字节必须完整重放，保留正常 JSON 文件和明确的附件。不要把错误 JSON 保存成无扩展名的 `redirect` 文件再交给解压器，也不把原始响应、授权地址或凭据带入异常历史。来源：[HTTP 状态语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.1)、[Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html)。
+
+- 需要网站账号验证时使用系统浏览器，不提供 Cookie/Referer 粘贴入口、不读取浏览器登录凭据。浏览器完成验证后可以使用已授权的文件直链；无法取得独立可用直链时，提供浏览器下载文件的导入入口。导入用户选择的本地文件不得删除源文件；这与管理器自己创建、完成后清理的临时下载目录不同。来源：[RFC 6265 会话 Cookie](https://www.rfc-editor.org/rfc/rfc6265)、[Avalonia 文件选择器](https://docs.avaloniaui.net/docs/concepts/services/storage-provider)。
+
 - 浏览页下载并导入使用独立临时目录，复用现有导入浮窗并等待完成后清理压缩包；不能将导入浮窗吞掉的错误误报成成功，下载进度进入导入阶段后也不能覆盖导入状态。封面预览完整解码 `picture_url` 源图，关闭时只释放预览自己拥有的图片，不能释放其它页面共享的 Bitmap。v1/v3 公开 REST 契约没有列出模组画廊列表接口，其他图片提供网页 Images 入口。来源：https://api.nexusmods.com/openapi.yaml 、https://api.swaggerhub.com/apis/NexusMods/nexus-mods_public_api_params_in_form_data/1.0
 
 - “浏览模组”通过 `IModBrowsePlatform` → `ModBrowseService` 调用独立 Nexus 模块。v3 热门仅 5 项且无需认证；v1 最新发布/最近更新各 10 项并需要已有密钥，名称或作者搜索用官方 v2 GraphQL `mods`，AND 限定本游戏、OR 匹配名称/作者；每页 20 项，按服务器总数翻页，`WILDCARD` 传原始关键词，不添加星号。旧 `IModPlatform.SearchAsync` 仍是有限热门兼容接口。首次下载不必先建本地 Mod，选文件后检查 v1 `is_premium`：Premium 使用同一网站文件编号直接获取链接，免费账户复用网页授权和 DownloadManager；Supporter 不等于 Premium，状态读取失败不能猜测权限；取消、离页、关闭必须等待清理，回传仅匹配当前等待的文件。预览客户端不带 API 凭据且加载不阻塞列表操作。来源：https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0 、https://api-docs.nexusmods.com/ 、https://github.com/Nexus-Mods/node-nexus-api/blob/master/src/parameters.ts 、https://api.nexusmods.com/v2/graphql

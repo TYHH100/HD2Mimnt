@@ -542,6 +542,21 @@ public sealed class HttpDownloadServiceTests : IDisposable
         Assert.Single(Directory.GetFiles(_directory));
     }
 
+    [Fact]
+    public async Task DownloadToFileAsync_NoOverwrite_PreservesFileCreatedDuringDownloadAndCleansTemporary()
+    {
+        var target = Path.Combine(_directory, "existing.zip");
+        using var client = new HttpClient(new Handler(async (_, _) =>
+        {
+            await File.WriteAllTextAsync(target, "created by another operation");
+            return Full();
+        }));
+        await Assert.ThrowsAsync<IOException>(() => new HttpDownloadService(client).DownloadToFileAsync(Address, target,
+            new DownloadOptions { EnableResume = false, MaxParallelSegments = 1, OverwriteExisting = false }));
+        Assert.Equal("created by another operation", await File.ReadAllTextAsync(target));
+        Assert.Single(Directory.GetFiles(_directory));
+    }
+
     private async Task InterruptAsync(HttpDownloadService service, string target, DownloadOptions options)
     {
         using var cancellation = new CancellationTokenSource();

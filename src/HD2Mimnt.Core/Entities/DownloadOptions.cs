@@ -10,6 +10,8 @@ public sealed class DownloadOptions
     public TimeSpan RetryDelay { get; init; } = TimeSpan.FromMilliseconds(500);
     /// <summary>Keep validated partial downloads on interruption and reuse them on the next attempt.</summary>
     public bool EnableResume { get; init; } = true;
+    /// <summary>Allow publication to replace an existing destination.</summary>
+    public bool OverwriteExisting { get; init; } = true;
 
     public void Validate()
     {

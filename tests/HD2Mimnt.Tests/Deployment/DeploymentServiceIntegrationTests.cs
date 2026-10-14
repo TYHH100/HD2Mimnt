@@ -737,10 +737,36 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Equal(0, result.CompletedMods);
         var record = Assert.Single(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
         Assert.Equal(DeploymentStatus.Cancelled.ToString(), record.Status);
-        var file = Assert.Single(await service.GetDeploymentFilesAsync(record.Id));
+        var tracked = (await service.GetDeploymentFilesAsync(record.Id)).ToList();
+        Assert.Equal(3, tracked.Count); // 主文件及未写入的占位文件在复制前已一并登记
+        var file = Assert.Single(tracked, item => item.SourcePath != string.Empty);
         Assert.Equal("partial", File.ReadAllText(file.TargetPath));
         await _deploymentService.PreDeploymentCleanupAsync();
         Assert.False(File.Exists(file.TargetPath));
+        Assert.Empty(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+    }
+
+    [Fact]
+    public async Task DeployProfile_FileTrackingBatchFails_ShouldWriteNoTargetsAndRollbackTracking()
+    {
+        var mod = await AddPatchModAsync("tracking-failure", "aaaaaaaaaaaaaaaa.patch_0");
+        var profile = await AddPatchProfileAsync(mod);
+        var connection = await _dbContext.GetConnectionAsync();
+        using var trigger = connection.CreateCommand();
+        trigger.CommandText = """
+            CREATE TRIGGER fail_placeholder_tracking BEFORE INSERT ON DeploymentFiles
+            WHEN NEW.SourcePath = '' BEGIN SELECT RAISE(ABORT, 'tracking failed'); END;
+            """;
+        await trigger.ExecuteNonQueryAsync();
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
+        var record = Assert.Single(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
+        Assert.Equal(DeploymentStatus.Failed.ToString(), record.Status);
+        Assert.Empty(await _deploymentService.GetDeploymentFilesAsync(record.Id));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
     }
 
     [Theory]

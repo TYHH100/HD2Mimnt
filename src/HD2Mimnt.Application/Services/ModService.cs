@@ -38,6 +38,7 @@ public class ModService
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
             mod.Hash = hash;
             await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
             return hash;
         }
         finally { _hashGate.Release(); }
@@ -474,6 +475,7 @@ public class ModService
 
         mod.ModifiedAt = DateTime.UtcNow;
         await _modRepository.UpdateAsync(mod, cancellationToken);
+        RaiseModsChanged();
     }
 
     #endregion
@@ -493,6 +495,7 @@ public class ModService
             mod.Tags.Add(tag);
             mod.ModifiedAt = DateTime.UtcNow;
             await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
         }
     }
 
@@ -510,6 +513,7 @@ public class ModService
             mod.Tags.Remove(tagToRemove);
             mod.ModifiedAt = DateTime.UtcNow;
             await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
         }
     }
 
@@ -536,6 +540,7 @@ public class ModService
         {
             mod.ThumbnailPath = thumbnailPath;
             await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
         }
 
         return thumbnailPath;
@@ -554,6 +559,7 @@ public class ModService
         {
             mod.ThumbnailPath = thumbnailPath;
             await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
         }
 
         return thumbnailPath;

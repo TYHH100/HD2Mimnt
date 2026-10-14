@@ -6,6 +6,7 @@ obj/
 *.cache
 *.dll
 *.exe
+!src/HD2Mimnt.UI/Tools/minidump-stackwalk/minidump-stackwalk.exe
 *.pdb
 *.ilk
 *.log

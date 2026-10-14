@@ -3438,7 +3438,7 @@ public sealed partial class FluentAvaloniaUiTests
         bitmap.Save(Path.Combine(output, $"{theme}-{name}.png"));
     }
 
-    private sealed class RecordingWebsiteLauncher : IWebsiteDownloadLauncher
+    private sealed class RecordingWebsiteLauncher : IWebsiteDownloadLauncher, IBrowserLauncher
     {
         public List<string> Urls { get; } = new();
         public bool FailNext { get; set; }
@@ -3457,7 +3457,9 @@ public sealed partial class FluentAvaloniaUiTests
         public ServiceProvider Services { get; private set; } = null!;
 
         public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
-            HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null)
+            HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null,
+            HD2Mimnt.Core.Interfaces.IMinidumpAnalyzer? minidumpAnalyzer = null,
+            HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3468,7 +3470,10 @@ public sealed partial class FluentAvaloniaUiTests
                 typeof(App).GetMethod("ConfigureServices", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(Avalonia.Application.Current, new object[] { services });
                 services.AddSingleton<IWebsiteDownloadLauncher>(scope.WebsiteLauncher);
+                services.AddSingleton<IBrowserLauncher>(scope.WebsiteLauncher);
                 if (systemLanguage != null) services.AddSingleton(systemLanguage);
+                if (minidumpAnalyzer != null) services.AddSingleton(minidumpAnalyzer);
+                if (directDownloads != null) services.AddSingleton(directDownloads);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
                 if (nexusHandler != null)
                 {

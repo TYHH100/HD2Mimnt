@@ -61,7 +61,12 @@ public sealed class HttpDownloadService : IHttpDownloadService
         var temporary = target + ".hd2download.part";
         await using var lease = AcquireLease(temporary);
         await DownloadStoredAsync(uri, temporary, GetIdentity(uri, resumeKey), options, progress, cancellationToken);
-        File.Move(temporary, target, overwrite: true);
+        try { File.Move(temporary, target, overwrite: options.OverwriteExisting); }
+        catch
+        {
+            File.Delete(temporary);
+            throw;
+        }
     }
 
     private static string GetIdentity(Uri uri, string? resumeKey) =>

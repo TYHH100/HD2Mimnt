@@ -41,7 +41,8 @@ public sealed class StorageLocationStore
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
-    public bool IsBootstrapFile(string path) => Same(path, _file) || Same(path, _file + ".tmp");
+    public bool IsBootstrapFile(string path) => Same(path, _file) || Same(path, _file + ".tmp") ||
+        Contains(Path.Combine(BootstrapPath, "interop"), path);
     public static string Normalize(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

@@ -52,6 +52,8 @@
 
 - 拖放排序预览必须与 Drop 共用插入位置计算，覆盖层设置 IsHitTestVisible=False 且不参与列表布局；DragLeave 可能从子控件冒泡，只有指针真正离开列表视口才隐藏预览，避免鼠标跨过文字/图片时闪烁。取消、完成、DataContext 变化和视图卸载都要恢复拖动源透明度。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
+- 配置页内部排序使用页面指针捕获，避免系统拖放循环接管输入后滚轮失效；捕获后滚轮要明确滚动正在排序的列表，并在虚拟化布局完成后重算预览。滚动回收容器时重新按当前数据应用源透明度，不能让复用的其他卡片变淡。松开沿用同一 DragOver/Drop 落点校验，Escape、捕获丢失和卸载均释放捕获与数据。回归通过实际 MouseDown/MouseMove/MouseWheel/MouseUp 验证两类列表、双向滚动及保存/取消，Headless 移动和滚轮事件须显式传入 LeftMouseButton。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Input/DragDrop.cs
+
 - 枚举类型的 RelayCommand 必须用 `{x:Static vm:枚举类型.成员}` 传递 CommandParameter，不能传同名字符串，否则 CanExecute 会禁用按钮；命令驱动的筛选 RadioButton 选中状态使用 OneWay，避免转换器反写枚举属性。来源：https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/generators/relaycommand
 
 - 模组库普通单击只聚焦是明确的产品设计，不要改成单击进入批量选择；但必须记录范围锚点。Shift 替换范围且连续操作保留锚点，Ctrl+Shift 追加范围，Ctrl 增减选择并更新锚点；Ctrl+A 始终全选，与工具栏的全选切换按钮区分。交互按钮和文本输入不能触发卡片选择，验证须覆盖实际鼠标/键盘事件。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox

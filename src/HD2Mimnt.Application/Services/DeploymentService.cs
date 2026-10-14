@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -16,18 +17,23 @@ public class DeploymentService
     private readonly IDeploymentRepository _deploymentRepository;
     private readonly ILogger<DeploymentService>? _logger;
     private readonly Dictionary<DeploymentMethod, IDeploymentMethod> _deploymentMethods;
+    private readonly CrashDeploymentHistoryService? _crashHistory;
+    public event EventHandler? DeploymentsChanged;
+    private void RaiseDeploymentsChanged() => DeploymentsChanged?.Invoke(this, EventArgs.Empty);
 
     public DeploymentService(
         IProfileRepository profileRepository,
         IModRepository modRepository,
         IDeploymentRepository deploymentRepository,
         IEnumerable<IDeploymentMethod> deploymentMethods,
-        ILogger<DeploymentService>? logger = null)
+        ILogger<DeploymentService>? logger = null,
+        CrashDeploymentHistoryService? crashHistory = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
         _deploymentRepository = deploymentRepository;
         _logger = logger;
+        _crashHistory = crashHistory;
 
         // 注册所有部署方法
         _deploymentMethods = new Dictionary<DeploymentMethod, IDeploymentMethod>();
@@ -147,6 +153,11 @@ public class DeploymentService
         if (allRecordsCleaned)
         {
             await CleanupDeploymentRecordsAsync(latestSessionId.Value, cancellationToken);
+            if (_crashHistory != null)
+            {
+                try { await _crashHistory.RecordRemovalAsync(latestSessionId.Value, null, CancellationToken.None); }
+                catch (Exception error) { _logger?.LogWarning(error, "记录部署清理时间线失败"); }
+            }
         }
 
         progress?.Report($"Pre-Deployment Cleanup 完成: 会话 {latestSessionId.Value}，删除 {totalFilesDeleted} 个文件, {totalRecordsDeleted} 个记录");
@@ -164,6 +175,13 @@ public class DeploymentService
         => await CleanupDeploymentFilesAsync(deploymentId, true, progress, cancellationToken);
 
     private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesAsync(
+        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        try { return await CleanupDeploymentFilesCoreAsync(deploymentId, deleteRecord, progress, cancellationToken); }
+        finally { RaiseDeploymentsChanged(); }
+    }
+
+    private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesCoreAsync(
         Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var deployment = await _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
@@ -242,6 +260,7 @@ public class DeploymentService
         CancellationToken cancellationToken = default)
     {
         await _deploymentRepository.DeleteBySessionIdAsync(sessionId, cancellationToken);
+        RaiseDeploymentsChanged();
         _logger?.LogInformation("已清理部署会话记录: {SessionId}", sessionId);
     }
 
@@ -266,6 +285,13 @@ public class DeploymentService
             filesDeleted += result.FilesDeleted;
         }
         await CompactPatchIndexesAsync(records, cancellationToken);
+        RaiseDeploymentsChanged();
+        if (_crashHistory != null)
+            foreach (var sessionId in records.Select(record => record.SessionId).Distinct())
+            {
+                try { await _crashHistory.RecordRemovalAsync(sessionId, new[] { modId }, CancellationToken.None); }
+                catch (Exception error) { _logger?.LogWarning(error, "记录模组部署移除时间线失败"); }
+            }
         _logger?.LogInformation("已清理 Mod 部署文件及记录: {ModId}，{FilesDeleted} 个文件，{RecordsDeleted} 个记录",
             modId, filesDeleted, records.Count);
     }
@@ -341,6 +367,7 @@ public class DeploymentService
             SessionId = Guid.NewGuid(), ProfileId = profileId, Method = method,
             Order = order, StartTime = DateTime.UtcNow
         };
+        CrashDeploymentSnapshot? diagnosticSnapshot = null;
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -413,13 +440,39 @@ public class DeploymentService
                 throw new IOException("之前的部署未完全清理，请重试清理后再部署");
 
             result.Status = DeploymentStatus.Deploying;
+            if (_crashHistory != null)
+            {
+                try
+                {
+                    diagnosticSnapshot = await _crashHistory.CaptureAsync(result.SessionId, profile, gameDirectory, DateTime.UtcNow,
+                        plans.Select(plan => (plan.Mod, orderedMods.First(item => item.ModId == plan.Mod.Id).OptionsJson,
+                            (IReadOnlyList<string>)plan.Files.Where(file => file.SourcePath != null).Select(file => file.SourcePath!).ToArray())).ToArray(), cancellationToken);
+                    await _crashHistory.SaveAsync(diagnosticSnapshot, cancellationToken);
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                { _logger?.LogWarning(error, "保存崩溃排查部署快照失败"); }
+            }
             Directory.CreateDirectory(targetDirectory);
+            var deploymentOrderIndex = 0;
             foreach (var (mod, files) in plans)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var record = await CreateDeploymentRecordAsync(result.SessionId, profileId, mod.Id, method, cancellationToken: cancellationToken);
+                var options = ProfileModOptionResolver.ResolveEffective(mod.Manifest,
+                    orderedMods.First(item => item.ModId == mod.Id).OptionsJson).ToJson();
+                var record = await CreateDeploymentRecordAsync(result.SessionId, profileId, mod.Id, method,
+                    cancellationToken: cancellationToken, optionsSnapshotJson: options,
+                    deploymentOrderIndex: deploymentOrderIndex++, modVersion: mod.Version);
                 try
                 {
+                    // 一次事务预登记整个模组，避免每复制一个文件都提交 SQLite。
+                    // 占位文件仍独立记录为 Copy，取消/失败后也能清理全部目标。
+                    await _deploymentRepository.AddDeploymentFilesAsync(files.Select(file => new DeploymentFile
+                    {
+                        Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = mod.Id,
+                        SourcePath = file.SourcePath ?? string.Empty,
+                        TargetPath = Path.Combine(targetDirectory, file.FileName),
+                        Method = (file.SourcePath == null ? DeploymentMethod.Copy : method).ToString()
+                    }).ToList(), cancellationToken);
                     var hasFailure = false;
                     var done = 0;
                     foreach (var file in files)
@@ -432,9 +485,6 @@ public class DeploymentService
                             CurrentMod = mod.Name, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods,
                             CurrentModFiles = done, CurrentModTotalFiles = files.Count
                         });
-                        // 先登记目标，确保部分复制和取消后仍能清理；占位文件使用普通文件。
-                        await AddDeploymentFileAsync(record.Id, mod.Id, file.SourcePath ?? string.Empty, target,
-                            file.SourcePath == null ? DeploymentMethod.Copy : method, cancellationToken);
                         if (file.SourcePath == null)
                         {
                             // 先解除可能存在的链接，不能截断链接指向的源文件。
@@ -487,7 +537,16 @@ public class DeploymentService
             result.Status = DeploymentStatus.Failed;
             result.ErrorMessage = ex.Message;
         }
-        finally { result.EndTime = DateTime.UtcNow; }
+        finally
+        {
+            result.EndTime = DateTime.UtcNow;
+            if (_crashHistory != null && diagnosticSnapshot != null)
+            {
+                try { await _crashHistory.SaveAsync(diagnosticSnapshot with { Status = result.Status.ToString(), EndedUtc = result.EndTime }, CancellationToken.None); }
+                catch (Exception error) { _logger?.LogWarning(error, "完成崩溃排查部署快照失败"); }
+            }
+            RaiseDeploymentsChanged();
+        }
         return result;
     }
 
@@ -504,7 +563,10 @@ public class DeploymentService
         Guid modId,
         DeploymentMethod method,
         string? workflow = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? optionsSnapshotJson = null,
+        int? deploymentOrderIndex = null,
+        string? modVersion = null)
     {
         var record = new DeploymentRecord
         {
@@ -515,10 +577,14 @@ public class DeploymentService
             Workflow = workflow ?? string.Empty,
             DeploymentMethod = method.ToString(),
             StartTime = DateTime.UtcNow,
-            Status = DeploymentStatus.Pending.ToString()
+            Status = DeploymentStatus.Pending.ToString(),
+            OptionsSnapshotJson = optionsSnapshotJson,
+            DeploymentOrderIndex = deploymentOrderIndex,
+            ModVersion = modVersion
         };
 
         await _deploymentRepository.AddAsync(record, cancellationToken);
+        RaiseDeploymentsChanged();
         return record;
     }
 
@@ -544,6 +610,7 @@ public class DeploymentService
         }
 
         await _deploymentRepository.UpdateAsync(record, cancellationToken);
+        RaiseDeploymentsChanged();
     }
 
     /// <summary>
@@ -568,6 +635,7 @@ public class DeploymentService
         };
 
         await _deploymentRepository.AddDeploymentFileAsync(file, cancellationToken);
+        RaiseDeploymentsChanged();
     }
 
     /// <summary>
@@ -591,6 +659,7 @@ public class DeploymentService
         }).ToList();
 
         await _deploymentRepository.AddDeploymentFilesAsync(deploymentFiles, cancellationToken);
+        RaiseDeploymentsChanged();
     }
 
     /// <summary>

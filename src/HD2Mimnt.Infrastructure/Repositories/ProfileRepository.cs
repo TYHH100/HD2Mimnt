@@ -344,7 +344,7 @@ public class ProfileRepository : IProfileRepository
         }
     }
 
-    private static Profile MapToProfile(SqliteDataReader reader)
+    internal static Profile MapToProfile(SqliteDataReader reader)
     {
         return new Profile
         {

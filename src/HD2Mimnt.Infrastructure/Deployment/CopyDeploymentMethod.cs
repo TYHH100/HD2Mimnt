@@ -1,4 +1,5 @@
 using HD2Mimnt.Core.Interfaces;
+using System.Buffers;
 using System.IO;
 
 namespace HD2Mimnt.Infrastructure.Deployment;
@@ -9,7 +10,7 @@ namespace HD2Mimnt.Infrastructure.Deployment;
 /// </summary>
 public class CopyDeploymentMethod : IDeploymentMethod
 {
-    private const int DefaultBufferSize = 81920; // 80KB buffer for streaming
+    private const int DefaultBufferSize = 1024 * 1024; // 1MiB，减少大补丁的读写调用
     private const long LargeFileThreshold = 10 * 1024 * 1024; // 10MB
 
     /// <summary>
@@ -86,8 +87,10 @@ public class CopyDeploymentMethod : IDeploymentMethod
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var targetTouched = false;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             // 检查源文件是否存在
             if (!File.Exists(sourcePath))
             {
@@ -103,6 +106,8 @@ public class CopyDeploymentMethod : IDeploymentMethod
             }
 
             // 如果目标文件已存在，先删除
+            cancellationToken.ThrowIfCancellationRequested();
+            targetTouched = true;
             if (File.Exists(targetPath))
             {
                 File.Delete(targetPath);
@@ -137,7 +142,7 @@ public class CopyDeploymentMethod : IDeploymentMethod
             progress?.Report($"Cancelled: {Path.GetFileName(sourcePath)}");
 
             // 清理部分复制的文件
-            if (File.Exists(targetPath))
+            if (targetTouched && File.Exists(targetPath))
             {
                 try
                 {
@@ -168,40 +173,43 @@ public class CopyDeploymentMethod : IDeploymentMethod
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        await using var sourceStream = new FileStream(
-            sourcePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            DefaultBufferSize,
-            useAsync: true);
-
-        await using var targetStream = new FileStream(
-            targetPath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            DefaultBufferSize,
-            useAsync: true);
-
-        var buffer = new byte[DefaultBufferSize];
-        long totalBytesRead = 0;
-        int bytesRead;
-        int lastReportedProgress = -1;
-
-        while ((bytesRead = await sourceStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+        await using var sourceStream = new FileStream(sourcePath, new FileStreamOptions
         {
-            await targetStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
-            totalBytesRead += bytesRead;
+            Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.Read,
+            BufferSize = 1, Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+        });
+        await using var targetStream = new FileStream(targetPath, new FileStreamOptions
+        {
+            Mode = FileMode.Create, Access = FileAccess.Write, Share = FileShare.None,
+            BufferSize = 1, Options = FileOptions.Asynchronous,
+            PreallocationSize = fileSize
+        });
 
-            // 报告进度（每 10% 报告一次，避免过于频繁）
-            var progressPercent = (int)((totalBytesRead * 100) / fileSize);
-            if (progressPercent / 10 > lastReportedProgress / 10)
+        // 复用复制缓冲区，避免每个大补丁分配大对象；FileStream 不再额外缓冲。
+        var buffer = ArrayPool<byte>.Shared.Rent(DefaultBufferSize);
+        try
+        {
+            long totalBytesRead = 0;
+            int bytesRead;
+            int lastReportedProgress = -1;
+            while ((bytesRead = await sourceStream.ReadAsync(buffer.AsMemory(0, DefaultBufferSize), cancellationToken).ConfigureAwait(false)) > 0)
             {
-                lastReportedProgress = progressPercent;
-                progress?.Report($"Copying: {Path.GetFileName(sourcePath)} - {progressPercent}%");
+                await targetStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                totalBytesRead += bytesRead;
+
+                // 部署服务不需要字节进度时，跳过进度计算和字符串构造。
+                if (progress != null)
+                {
+                    var progressPercent = (int)((totalBytesRead * 100) / fileSize);
+                    if (progressPercent / 10 > lastReportedProgress / 10)
+                    {
+                        lastReportedProgress = progressPercent;
+                        progress.Report($"Copying: {Path.GetFileName(sourcePath)} - {progressPercent}%");
+                    }
+                }
             }
         }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
     }
 
     /// <summary>

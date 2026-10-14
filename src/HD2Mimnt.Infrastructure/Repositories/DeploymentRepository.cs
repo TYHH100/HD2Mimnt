@@ -118,8 +118,8 @@ public class DeploymentRepository : IDeploymentRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status)
-                VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status)";
+                INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status, OptionsSnapshotJson, DeploymentOrderIndex, ModVersion)
+                VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status, @OptionsSnapshotJson, @DeploymentOrderIndex, @ModVersion)";
 
             AddDeploymentRecordParameters(command, record);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -148,7 +148,8 @@ public class DeploymentRepository : IDeploymentRepository
             UPDATE DeploymentRecords
             SET SessionId = @SessionId, ProfileId = @ProfileId, ModId = @ModId,
                 Workflow = @Workflow, DeploymentMethod = @DeploymentMethod,
-                StartTime = @StartTime, EndTime = @EndTime, Status = @Status
+                StartTime = @StartTime, EndTime = @EndTime, Status = @Status,
+                OptionsSnapshotJson = @OptionsSnapshotJson, DeploymentOrderIndex = @DeploymentOrderIndex, ModVersion = @ModVersion
             WHERE Id = @Id";
 
         AddDeploymentRecordParameters(command, record);
@@ -269,7 +270,7 @@ public class DeploymentRepository : IDeploymentRepository
         }
     }
 
-    private static DeploymentRecord MapToDeploymentRecord(SqliteDataReader reader)
+    internal static DeploymentRecord MapToDeploymentRecord(SqliteDataReader reader)
     {
         return new DeploymentRecord
         {
@@ -281,11 +282,14 @@ public class DeploymentRepository : IDeploymentRepository
             DeploymentMethod = reader.IsDBNull(reader.GetOrdinal("DeploymentMethod")) ? string.Empty : reader.GetString(reader.GetOrdinal("DeploymentMethod")),
             StartTime = DateTime.Parse(reader.GetString(reader.GetOrdinal("StartTime"))),
             EndTime = reader.IsDBNull(reader.GetOrdinal("EndTime")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("EndTime"))),
-            Status = reader.IsDBNull(reader.GetOrdinal("Status")) ? string.Empty : reader.GetString(reader.GetOrdinal("Status"))
+            Status = reader.IsDBNull(reader.GetOrdinal("Status")) ? string.Empty : reader.GetString(reader.GetOrdinal("Status")),
+            OptionsSnapshotJson = reader.IsDBNull(reader.GetOrdinal("OptionsSnapshotJson")) ? null : reader.GetString(reader.GetOrdinal("OptionsSnapshotJson")),
+            DeploymentOrderIndex = reader.IsDBNull(reader.GetOrdinal("DeploymentOrderIndex")) ? null : reader.GetInt32(reader.GetOrdinal("DeploymentOrderIndex")),
+            ModVersion = reader.IsDBNull(reader.GetOrdinal("ModVersion")) ? null : reader.GetString(reader.GetOrdinal("ModVersion"))
         };
     }
 
-    private static DeploymentFile MapToDeploymentFile(SqliteDataReader reader)
+    internal static DeploymentFile MapToDeploymentFile(SqliteDataReader reader)
     {
         return new DeploymentFile
         {
@@ -309,6 +313,9 @@ public class DeploymentRepository : IDeploymentRepository
         command.Parameters.AddWithValue("@StartTime", record.StartTime.ToString("O"));
         command.Parameters.AddWithValue("@EndTime", record.EndTime?.ToString("O") ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@Status", record.Status ?? string.Empty);
+        command.Parameters.AddWithValue("@OptionsSnapshotJson", (object?)record.OptionsSnapshotJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("@DeploymentOrderIndex", (object?)record.DeploymentOrderIndex ?? DBNull.Value);
+        command.Parameters.AddWithValue("@ModVersion", (object?)record.ModVersion ?? DBNull.Value);
     }
 
     private static void AddDeploymentFileParameters(SqliteCommand command, DeploymentFile file)

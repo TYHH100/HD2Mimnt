@@ -27,6 +27,8 @@
           <views:LogView DataContext="{Binding LogViewModel}" />
         </StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsMigrationVisible}"><views:ManagerMigrationView DataContext="{Binding ManagerMigrationViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsCrashDiagnosticsVisible}"><views:CrashDiagnosticsView DataContext="{Binding CrashDiagnosticsViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsDirectDownloadVisible}"><views:DirectDownloadView DataContext="{Binding DirectDownloadViewModel}"/></StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsExternalToolsVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.ExternalTools}" Classes="section-title" />

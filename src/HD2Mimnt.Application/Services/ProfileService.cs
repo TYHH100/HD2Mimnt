@@ -51,6 +51,7 @@ public class ProfileService
             }
             if (profiles.All(profile => !profile.IsActive))
                 await _profileRepository.SetActiveProfileAsync(defaultProfile.Id, cancellationToken);
+            RaiseProfilesChanged();
         }
         finally { _initializationGate.Release(); }
     }

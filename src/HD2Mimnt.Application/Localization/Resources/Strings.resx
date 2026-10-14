@@ -3069,4 +3069,351 @@ Cache: {2}</value>
   <data name="Browse.InvalidLink" xml:space="preserve">
     <value>Enter a Helldivers 2 mod page URL, such as https://www.nexusmods.com/helldivers2/mods/16633.</value>
   </data>
+  <data name="Crash.Title" xml:space="preserve">
+    <value>Game crash diagnostics</value>
+  </data>
+  <data name="Crash.Description" xml:space="preserve">
+    <value>Analyze a local minidump offline and compare deployments before the crash. Clues identify what to test first; they do not prove which mod caused the crash.</value>
+  </data>
+  <data name="Crash.ToolMissing" xml:space="preserve">
+    <value>The bundled analyzer is missing. Restore Tools/minidump-stackwalk from the application package.</value>
+  </data>
+  <data name="Crash.Path" xml:space="preserve">
+    <value>Path to a .dmp or .mdmp file</value>
+  </data>
+  <data name="Crash.Browse" xml:space="preserve">
+    <value>Choose dump</value>
+  </data>
+  <data name="Crash.RecentDumps" xml:space="preserve">
+    <value>Recent game dumps</value>
+  </data>
+  <data name="Crash.Refresh" xml:space="preserve">
+    <value>Refresh dumps and history</value>
+  </data>
+  <data name="Crash.Analyze" xml:space="preserve">
+    <value>Analyze crash</value>
+  </data>
+  <data name="Crash.Export" xml:space="preserve">
+    <value>Export JSON report</value>
+  </data>
+  <data name="Crash.History" xml:space="preserve">
+    <value>Recent deployments and working baseline</value>
+  </data>
+  <data name="Crash.HistoryHelp" xml:space="preserve">
+    <value>Snapshots are recorded from now on and survive deployment cleanup. After verifying a deployment works in-game, select it and mark it as working. Keep the game path configured in Settings.</value>
+  </data>
+  <data name="Crash.KnownGood" xml:space="preserve">
+    <value>Confirmed working by you</value>
+  </data>
+  <data name="Crash.MarkGood" xml:space="preserve">
+    <value>Mark selected deployment as working</value>
+  </data>
+  <data name="Crash.Found" xml:space="preserve">
+    <value>Found {0} dumps and {1} deployment snapshots.</value>
+  </data>
+  <data name="Crash.Complete" xml:space="preserve">
+    <value>Analysis complete.</value>
+  </data>
+  <data name="Crash.MarkedGood" xml:space="preserve">
+    <value>Working baseline saved. Analyze the dump again to refresh the comparison.</value>
+  </data>
+  <data name="Crash.Exported" xml:space="preserve">
+    <value>Report exported: {0}</value>
+  </data>
+  <data name="Crash.Working" xml:space="preserve">
+    <value>Processing…</value>
+  </data>
+  <data name="Crash.Cancelled" xml:space="preserve">
+    <value>Cancelled; the analyzer has stopped.</value>
+  </data>
+  <data name="Crash.Failed" xml:space="preserve">
+    <value>Operation failed: {0}</value>
+  </data>
+  <data name="Crash.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Crash.NotGame" xml:space="preserve">
+    <value>The main module is not confirmed as helldivers2.exe; game mod attribution is unavailable.</value>
+  </data>
+  <data name="Crash.ModClues" xml:space="preserve">
+    <value>Mod-related module clues found; reproduce to confirm.</value>
+  </data>
+  <data name="Crash.Inconclusive" xml:space="preserve">
+    <value>Insufficient evidence to determine whether mods caused the crash.</value>
+  </data>
+  <data name="Crash.Details" xml:space="preserve">
+    <value>Exception: {0}
+Address: {1}
+Main module: {2}
+Dump time: {3}</value>
+  </data>
+  <data name="Crash.ManagedModuleInStack" xml:space="preserve">
+    <value>{0} appears in the crashing thread and matches current deployment filenames: {1}. Filename matching is a clue, not binary identity.</value>
+  </data>
+  <data name="Crash.ManagedModuleLoaded" xml:space="preserve">
+    <value>{0} is loaded and matches deployment filenames: {1}. Loading alone does not establish a cause.</value>
+  </data>
+  <data name="Crash.PossibleHookLoaded" xml:space="preserve">
+    <value>{0} has a common proxy/hook DLL name. It may also be a system DLL; ownership is unknown.</value>
+  </data>
+  <data name="Crash.Ambiguous" xml:space="preserve">
+    <value>Multiple modules share this name; the owner cannot be resolved.</value>
+  </data>
+  <data name="Crash.ScanFrame" xml:space="preserve">
+    <value>The stack contains scan-derived frames, which have lower reliability.</value>
+  </data>
+  <data name="Crash.MissingSymbols" xml:space="preserve">
+    <value>Function symbols or frames are missing. Game resource mods and Lua scripts usually cannot be identified from DLL names alone.</value>
+  </data>
+  <data name="Crash.LaterDeployment" xml:space="preserve">
+    <value>Current deployment is newer than this dump; current DLL ownership is excluded from attribution.</value>
+  </data>
+  <data name="Crash.NoTimestamp" xml:space="preserve">
+    <value>Dump timestamp is missing; deployment history cannot be matched reliably.</value>
+  </data>
+  <data name="Crash.ContextFailed" xml:space="preserve">
+    <value>Deployment context unavailable: {0}</value>
+  </data>
+  <data name="Crash.Deployment" xml:space="preserve">
+    <value>Deployment before the crash: {0} ({1})</value>
+  </data>
+  <data name="Crash.GoodBaseline" xml:space="preserve">
+    <value>Compared with confirmed working deployment: {0}</value>
+  </data>
+  <data name="Crash.PreviousBaseline" xml:space="preserve">
+    <value>Compared with previous completed deployment: {0}</value>
+  </data>
+  <data name="Crash.UnverifiedBaseline" xml:space="preserve">
+    <value>The previous deployment has not been confirmed working; differences only help prioritize tests.</value>
+  </data>
+  <data name="Crash.NoBaseline" xml:space="preserve">
+    <value>No earlier baseline exists. Mark a deployment working after testing it in-game.</value>
+  </data>
+  <data name="Crash.IncompleteDeployment" xml:space="preserve">
+    <value>This deployment was incomplete or still running at the crash time; check deployment errors first.</value>
+  </data>
+  <data name="Crash.NoHistory" xml:space="preserve">
+    <value>No matching deployment snapshot was recorded before this dump. Historical snapshots cannot be reconstructed from the current profile.</value>
+  </data>
+  <data name="Crash.Change" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Crash.ChangeAdded" xml:space="preserve">
+    <value>New / enabled</value>
+  </data>
+  <data name="Crash.ChangeUpdated" xml:space="preserve">
+    <value>Version, hash or file metadata changed</value>
+  </data>
+  <data name="Crash.ChangeOptionsChanged" xml:space="preserve">
+    <value>Options changed</value>
+  </data>
+  <data name="Crash.ChangeOrderChanged" xml:space="preserve">
+    <value>Relative order changed</value>
+  </data>
+  <data name="Crash.ChangeRemoved" xml:space="preserve">
+    <value>Removed / disabled (possible dependency)</value>
+  </data>
+  <data name="Crash.ChangesTitle" xml:space="preserve">
+    <value>Changes to prioritize</value>
+  </data>
+  <data name="Crash.NoChanges" xml:space="preserve">
+    <value>No changes listed. This may mean the baseline is missing or unchanged; it does not rule mods out.</value>
+  </data>
+  <data name="Crash.CluesTitle" xml:space="preserve">
+    <value>Module clues</value>
+  </data>
+  <data name="Crash.NoClues" xml:space="preserve">
+    <value>No attributable module clues. Resource mods may still be involved.</value>
+  </data>
+  <data name="Crash.NextSteps" xml:space="preserve">
+    <value>Suggested reproduction steps</value>
+  </data>
+  <data name="Crash.Steps" xml:space="preserve">
+    <value>1. Reproduce the same scene with a known working deployment or a clean game baseline.
+2. Test newly added or changed mods first. Disable half of the suspects at a time and redeploy; keep required loaders and dependencies together.
+3. Compare repeated crashes and record which combination stops and restores the crash.
+A DLL listed in a dump, a resource conflict or a recent change alone does not prove the cause. Deployments from other tools and later manual edits are not tracked here.</value>
+  </data>
+  <data name="Crash.Stack" xml:space="preserve">
+    <value>Crashing thread (up to 128 frames)</value>
+  </data>
+  <data name="Crash.Modules" xml:space="preserve">
+    <value>Loaded modules</value>
+  </data>
+  <data name="Crash.StatusCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="Crash.StatusDeploying" xml:space="preserve">
+    <value>Deploying</value>
+  </data>
+  <data name="Crash.StatusPartiallyFailed" xml:space="preserve">
+    <value>Partially failed</value>
+  </data>
+  <data name="Crash.StatusFailed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Crash.StatusCancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Crash.StatusInProgressAtCrash" xml:space="preserve">
+    <value>In progress at crash time</value>
+  </data>
+  <data name="Interop.Title" xml:space="preserve">
+    <value>Offline mod interface</value>
+  </data>
+  <data name="DirectDownload.Title" xml:space="preserve">
+    <value>Direct downloads</value>
+  </data>
+  <data name="DirectDownload.Description" xml:space="preserve">
+    <value>Download HTTP/HTTPS links with automatic redirects and file naming. Choose to import into the mod library or save to a folder.</value>
+  </data>
+  <data name="DirectDownload.Link" xml:space="preserve">
+    <value>Download link</value>
+  </data>
+  <data name="DirectDownload.FileName" xml:space="preserve">
+    <value>File name (optional)</value>
+  </data>
+  <data name="DirectDownload.AutoName" xml:space="preserve">
+    <value>Detect from server response or final link</value>
+  </data>
+  <data name="DirectDownload.Destination" xml:space="preserve">
+    <value>Folder for download only</value>
+  </data>
+  <data name="DirectDownload.ChooseFolder" xml:space="preserve">
+    <value>Choose download folder</value>
+  </data>
+  <data name="DirectDownload.Browse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="DirectDownload.Network" xml:space="preserve">
+    <value>Proxy and network</value>
+  </data>
+  <data name="DirectDownload.ProxyUser" xml:space="preserve">
+    <value>Proxy username (optional)</value>
+  </data>
+  <data name="DirectDownload.ProxyPassword" xml:space="preserve">
+    <value>Proxy password (optional)</value>
+  </data>
+  <data name="DirectDownload.ProxyHint" xml:space="preserve">
+    <value>Proxy applies to this tool, including redirects and range requests. Username and password are kept only for this session.</value>
+  </data>
+  <data name="DirectDownload.Save" xml:space="preserve">
+    <value>Save folder and proxy</value>
+  </data>
+  <data name="DirectDownload.Import" xml:space="preserve">
+    <value>Download and import</value>
+  </data>
+  <data name="DirectDownload.Only" xml:space="preserve">
+    <value>Download to folder</value>
+  </data>
+  <data name="DirectDownload.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DirectDownload.Retry" xml:space="preserve">
+    <value>Retry last download</value>
+  </data>
+  <data name="DirectDownload.OpenFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="DirectDownload.ResumeHint" xml:space="preserve">
+    <value>Segment, retry and resume options follow Settings → Downloads. Existing files are saved with a numbered name. Web pages requiring login, JavaScript or CAPTCHA need an actual file link.</value>
+  </data>
+  <data name="DirectDownload.ProxySystem" xml:space="preserve">
+    <value>Use system proxy</value>
+  </data>
+  <data name="DirectDownload.ProxyDirect" xml:space="preserve">
+    <value>No proxy</value>
+  </data>
+  <data name="DirectDownload.ProxyCustom" xml:space="preserve">
+    <value>Custom proxy</value>
+  </data>
+  <data name="DirectDownload.Resolving" xml:space="preserve">
+    <value>Resolving download link…</value>
+  </data>
+  <data name="DirectDownload.Downloading" xml:space="preserve">
+    <value>Downloading file…</value>
+  </data>
+  <data name="DirectDownload.Complete" xml:space="preserve">
+    <value>File download completed.</value>
+  </data>
+  <data name="DirectDownload.Cancelled" xml:space="preserve">
+    <value>Download cancelled. Retry can resume if the server supports it.</value>
+  </data>
+  <data name="DirectDownload.Saved" xml:space="preserve">
+    <value>Folder and proxy settings saved; proxy credentials apply only to this session.</value>
+  </data>
+  <data name="DirectDownload.Failed" xml:space="preserve">
+    <value>Download failed: {0}</value>
+  </data>
+  <data name="DirectDownload.SaveFailed" xml:space="preserve">
+    <value>Save failed: {0}</value>
+  </data>
+  <data name="DirectDownload.InvalidLink" xml:space="preserve">
+    <value>Enter a valid HTTP or HTTPS download link.</value>
+  </data>
+  <data name="DirectDownload.InvalidProxy" xml:space="preserve">
+    <value>Enter an HTTP, HTTPS or SOCKS5 proxy address. Enter credentials in the separate fields.</value>
+  </data>
+  <data name="DirectDownload.InvalidProxyMode" xml:space="preserve">
+    <value>Invalid proxy mode.</value>
+  </data>
+  <data name="DirectDownload.MissingFolder" xml:space="preserve">
+    <value>Choose a download folder.</value>
+  </data>
+  <data name="DirectDownload.ImportUnavailable" xml:space="preserve">
+    <value>Mod import is unavailable.</value>
+  </data>
+  <data name="DirectDownload.HtmlResponse" xml:space="preserve">
+    <value>The link returned a web page instead of a file. Copy the actual file link after completing login, JavaScript redirects or CAPTCHA in your browser.</value>
+  </data>
+  <data name="DirectDownload.ErrorTitle" xml:space="preserve"><value>Download failed.</value></data>
+  <data name="DirectDownload.SaveErrorTitle" xml:space="preserve"><value>Save failed.</value></data>
+  <data name="DirectDownload.OpenBrowser" xml:space="preserve">
+    <value>Open in browser</value>
+  </data>
+  <data name="DirectDownload.BrowserHint" xml:space="preserve">
+    <value>Complete login or verification in your system browser. Then replace the link above with the authorized file URL. You can also download in your browser and import the file here. The manager does not read browser cookies or account passwords.</value>
+  </data>
+  <data name="DirectDownload.ImportBrowserFile" xml:space="preserve">
+    <value>Import a browser download…</value>
+  </data>
+  <data name="DirectDownload.DownloadedArchive" xml:space="preserve">
+    <value>Downloaded mod archive</value>
+  </data>
+  <data name="DirectDownload.BrowserRequired" xml:space="preserve">
+    <value>Complete verification in your browser.</value>
+  </data>
+  <data name="DirectDownload.LoginRequired" xml:space="preserve">
+    <value>This link requires login and verification in your browser. Use the authorized file URL, or download in your browser and import the file.</value>
+  </data>
+  <data name="DirectDownload.AccessDenied" xml:space="preserve">
+    <value>The website denied access to this link. Check your login and download permissions in your browser, or obtain a fresh download URL.</value>
+  </data>
+  <data name="DirectDownload.ExpiredLink" xml:space="preserve">
+    <value>The download link or verification has expired. Obtain a fresh download URL in your browser.</value>
+  </data>
+  <data name="DirectDownload.WebPage" xml:space="preserve">
+    <value>The link returned a web page instead of a file. Complete login or verification in your browser and use the actual file URL.</value>
+  </data>
+  <data name="DirectDownload.ApiResponse" xml:space="preserve">
+    <value>The link returned API data instead of a file. Check the download in your browser and obtain the actual file URL.</value>
+  </data>
+  <data name="DirectDownload.ServerError" xml:space="preserve">
+    <value>The download API returned an error instead of a file. Retry later or check the download in your browser.</value>
+  </data>
+  <data name="DirectDownload.OpenBrowserFailed" xml:space="preserve">
+    <value>Could not open the browser.</value>
+  </data>
+  <data name="DirectDownload.ImportingBrowserFile" xml:space="preserve">
+    <value>Importing the file downloaded by your browser…</value>
+  </data>
+  <data name="DirectDownload.BrowserFileImported" xml:space="preserve">
+    <value>The file downloaded by your browser has been imported into the mod library.</value>
+  </data>
+  <data name="DirectDownload.BrowserFileMissing" xml:space="preserve">
+    <value>The file downloaded by your browser was not found.</value>
+  </data>
+  <data name="DirectDownload.BrowserFileImportFailed" xml:space="preserve">
+    <value>Import failed.</value>
+  </data>
 </root>

@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             x:Class="HD2Mimnt.UI.Views.DirectDownloadView" x:DataType="vm:DirectDownloadViewModel">
+  <StackPanel Classes="section" Spacing="12">
+    <TextBlock Text="{loc:Loc DirectDownload.Title}" Classes="section-title" />
+    <TextBlock Text="{loc:Loc DirectDownload.Description}" Classes="muted" TextWrapping="Wrap" />
+    <StackPanel Spacing="8" IsEnabled="{Binding CanEdit}">
+      <TextBlock Text="{loc:Loc DirectDownload.Link}" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox Name="DirectDownloadLinkInput" Text="{Binding Link}" PlaceholderText="https://example.com/mod.zip" />
+        <Button Name="DirectDownloadBrowserButton" Grid.Column="1" Content="{loc:Loc DirectDownload.OpenBrowser}" Command="{Binding OpenBrowserCommand}" />
+      </Grid>
+      <TextBlock Text="{loc:Loc DirectDownload.FileName}" />
+      <TextBox Text="{Binding FileName}" PlaceholderText="{loc:Loc DirectDownload.AutoName}" />
+      <TextBlock Text="{loc:Loc DirectDownload.Destination}" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox Name="DirectDownloadDestinationInput" Text="{Binding Destination}" PlaceholderText="{loc:Loc DirectDownload.ChooseFolder}" />
+        <Button Grid.Column="1" Content="{loc:Loc DirectDownload.Browse}" Click="BrowseFolder_Click" />
+      </Grid>
+      <Expander Name="DirectDownloadNetworkExpander" Header="{loc:Loc DirectDownload.Network}" HorizontalAlignment="Stretch">
+        <StackPanel Spacing="8">
+          <ComboBox ItemsSource="{Binding ProxyModes}" SelectedItem="{Binding ProxyMode}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <StackPanel Spacing="8" IsVisible="{Binding IsCustomProxy}">
+            <TextBox Name="DirectDownloadProxyAddressInput" Text="{Binding ProxyAddress}" PlaceholderText="http://127.0.0.1:7890 / socks5://127.0.0.1:1080" />
+            <TextBox Text="{Binding ProxyUserName}" PlaceholderText="{loc:Loc DirectDownload.ProxyUser}" />
+            <TextBox Name="DirectDownloadProxyPasswordInput" Text="{Binding ProxyPassword}" PasswordChar="●" PlaceholderText="{loc:Loc DirectDownload.ProxyPassword}" />
+          </StackPanel>
+          <TextBlock Text="{loc:Loc DirectDownload.ProxyHint}" Classes="muted" TextWrapping="Wrap" />
+          <Button Content="{loc:Loc DirectDownload.Save}" Command="{Binding SaveNetworkCommand}" />
+        </StackPanel>
+      </Expander>
+    </StackPanel>
+    <WrapPanel Orientation="Horizontal">
+      <Button Name="DirectDownloadImportButton" Content="{loc:Loc DirectDownload.Import}" Command="{Binding DownloadAndImportCommand}" Classes="accent" Margin="0,0,8,8" />
+      <Button Name="DirectDownloadOnlyButton" Content="{loc:Loc DirectDownload.Only}" Command="{Binding DownloadOnlyCommand}" Margin="0,0,8,8" />
+      <Button Content="{loc:Loc DirectDownload.Cancel}" Command="{Binding CancelCommand}" Margin="0,0,8,8" />
+      <Button Content="{loc:Loc DirectDownload.Retry}" Command="{Binding RetryCommand}" Margin="0,0,0,8" />
+    </WrapPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Text="{Binding ResolvedFileName}" TextWrapping="Wrap" />
+      <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" IsVisible="{Binding IsBusy}" />
+      <TextBlock Text="{Binding ProgressText}" Classes="muted" />
+      <TextBlock Name="DirectDownloadStatus" Text="{loc:LocalizedBinding StatusMessage}" TextWrapping="Wrap" />
+      <TextBlock Name="DirectDownloadErrorDetail" Text="{loc:LocalizedBinding ErrorDetail}" TextWrapping="Wrap" />
+      <StackPanel Spacing="8" IsVisible="{Binding NeedsBrowser}">
+        <TextBlock Name="DirectDownloadBrowserHint" Text="{loc:Loc DirectDownload.BrowserHint}" Classes="muted" TextWrapping="Wrap" />
+        <Button Name="DirectDownloadBrowserImportButton" Content="{loc:Loc DirectDownload.ImportBrowserFile}" Click="ImportBrowserFile_Click" IsEnabled="{Binding CanEdit}" />
+      </StackPanel>
+      <TextBlock Text="{Binding SavedPath}" TextWrapping="Wrap" IsVisible="{Binding HasSavedFile}" />
+      <Button Content="{loc:Loc DirectDownload.OpenFolder}" IsVisible="{Binding HasSavedFile}" Click="OpenFolder_Click" />
+    </StackPanel>
+    <TextBlock Text="{loc:Loc DirectDownload.ResumeHint}" Classes="muted" TextWrapping="Wrap" />
+  </StackPanel>
+</UserControl>

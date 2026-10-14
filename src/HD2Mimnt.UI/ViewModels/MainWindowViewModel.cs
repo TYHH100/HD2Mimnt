@@ -114,6 +114,8 @@ public partial class MainWindowViewModel : ObservableObject
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
     public BrowseModsViewModel? BrowseModsViewModel { get; }
+    public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
+    public DirectDownloadViewModel? DirectDownloadViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -138,7 +140,9 @@ public partial class MainWindowViewModel : ObservableObject
         ImagePreviewService imagePreviewService,
         NexusModsTestService nexusModsTestService,
         ManagerMigrationViewModel? managerMigrationViewModel = null,
-        BrowseModsViewModel? browseModsViewModel = null)
+        BrowseModsViewModel? browseModsViewModel = null,
+        CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
+        DirectDownloadViewModel? directDownloadViewModel = null)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -161,17 +165,26 @@ public partial class MainWindowViewModel : ObservableObject
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
         BrowseModsViewModel = browseModsViewModel;
-        if (BrowseModsViewModel != null)
-            BrowseModsViewModel.ImportDownloadedArchiveAsync = async (archive, token) =>
-            {
-                if (!_libraryViewModel.ImportCompletion.IsCompleted)
-                    throw new InvalidOperationException("已有模组正在导入，请等待完成后重试。");
-                await _libraryViewModel.ImportPathsAsync(new[] { archive }, token);
-                if (_libraryViewModel.Import.SuccessCount > 0) return;
-                token.ThrowIfCancellationRequested();
-                if (_libraryViewModel.Import.RemainingCount > 0) throw new OperationCanceledException();
-                throw new InvalidOperationException(_libraryViewModel.Import.Errors.FirstOrDefault() ?? "模组导入失败。");
-            };
+        CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
+        DirectDownloadViewModel = directDownloadViewModel;
+        MoreViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
+                && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
+                _ = diagnostics.RefreshCommand.ExecuteAsync(null);
+        };
+        async Task ImportDownloadedArchiveAsync(string archive, CancellationToken token)
+        {
+            if (!_libraryViewModel.ImportCompletion.IsCompleted)
+                throw new InvalidOperationException("已有模组正在导入，请等待完成后重试。");
+            await _libraryViewModel.ImportPathsAsync(new[] { archive }, token);
+            if (_libraryViewModel.Import.SuccessCount > 0) return;
+            token.ThrowIfCancellationRequested();
+            if (_libraryViewModel.Import.RemainingCount > 0) throw new OperationCanceledException();
+            throw new InvalidOperationException(_libraryViewModel.Import.Errors.FirstOrDefault() ?? "模组导入失败。");
+        }
+        if (BrowseModsViewModel != null) BrowseModsViewModel.ImportDownloadedArchiveAsync = ImportDownloadedArchiveAsync;
+        if (DirectDownloadViewModel != null) DirectDownloadViewModel.ImportDownloadedArchiveAsync = ImportDownloadedArchiveAsync;
         if (ManagerMigrationViewModel != null)
             ManagerMigrationViewModel.RefreshImportedDataAsync = async () =>
             {
@@ -644,6 +657,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
+        if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {

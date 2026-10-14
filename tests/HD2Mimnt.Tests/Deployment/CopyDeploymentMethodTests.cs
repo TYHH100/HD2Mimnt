@@ -82,7 +82,7 @@ public class CopyDeploymentMethodTests : IDisposable
         var targetFile = Path.Combine(_testTargetDir, "large_test.bin");
 
         // 创建一个 15MB 的文件（大于 10MB 阈值）
-        var largeData = new byte[15 * 1024 * 1024];
+        var largeData = new byte[15 * 1024 * 1024 + 123];
         new Random().NextBytes(largeData);
         await File.WriteAllBytesAsync(sourceFile, largeData);
 
@@ -93,7 +93,7 @@ public class CopyDeploymentMethodTests : IDisposable
         Assert.True(result);
         Assert.True(File.Exists(targetFile));
         var copiedData = await File.ReadAllBytesAsync(targetFile);
-        Assert.Equal(largeData.Length, copiedData.Length);
+        Assert.Equal(largeData, copiedData);
     }
 
     [Fact]
@@ -195,6 +195,39 @@ public class CopyDeploymentMethodTests : IDisposable
             var copiedSize = new FileInfo(targetFile).Length;
             Assert.True(copiedSize < largeData.Length, "File should be incomplete or cleaned up");
         }
+    }
+
+    [Fact]
+    public async Task DeployFile_PreCancelled_ShouldPreserveExistingTarget()
+    {
+        var source = Path.Combine(_testSourceDir, "source.bin");
+        var target = Path.Combine(_testTargetDir, "existing.bin");
+        await File.WriteAllTextAsync(source, "new");
+        await File.WriteAllTextAsync(target, "existing");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.False(await _copyMethod.DeployFileAsync(source, target, cancellationToken: cts.Token));
+        Assert.Equal("existing", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
+    public async Task DeployFile_CancelDuringLargeCopy_ShouldRemovePartialTargetAndKeepSource()
+    {
+        var source = Path.Combine(_testSourceDir, "cancel-progress.bin");
+        var target = Path.Combine(_testTargetDir, "cancel-progress.bin");
+        var content = new byte[15 * 1024 * 1024 + 123];
+        new Random(42).NextBytes(content);
+        await File.WriteAllBytesAsync(source, content);
+        using var cts = new CancellationTokenSource();
+        var progress = new ImmediateProgress<string>(message =>
+        {
+            if (message.Contains('%')) cts.Cancel();
+        });
+
+        Assert.False(await _copyMethod.DeployFileAsync(source, target, progress, cts.Token));
+        Assert.False(File.Exists(target));
+        Assert.Equal(content, await File.ReadAllBytesAsync(source));
     }
 
     [Fact]

@@ -13,6 +13,7 @@ using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
+using HD2Mimnt.Infrastructure.Diagnostics;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
@@ -183,6 +184,10 @@ public partial class App : Avalonia.Application
     private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
     {
         await main.InitializeAsync();
+        var interop = ServiceProvider!.GetRequiredService<OfflineInteropService>();
+        await interop.StartAsync();
+        if (interop.LastError is { } interopError)
+            ServiceProvider!.GetRequiredService<NotificationService>().ShowWarning(interopError, UiLocalization.Current["Interop.Title"]);
         if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
             ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(storageMessage, UiLocalization.Current["Settings.Storage.Title"]);
         if (Program.ProtocolRegistrationError is { } error)
@@ -306,6 +311,11 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IDownloadOptionsProvider>(), storageLocations.DownloadsPath, storageLocations.TempPath));
         services.AddSingleton<DownloadSettingsService>();
         services.AddSingleton<IDownloadOptionsProvider>(sp => sp.GetRequiredService<DownloadSettingsService>());
+        services.AddSingleton<IDirectDownloadClientFactory>(sp => new DirectDownloadClientFactory(
+            sp.GetRequiredService<IDownloadOptionsProvider>(), storageLocations.DownloadsPath, storageLocations.TempPath));
+        services.AddSingleton(sp => new DirectDownloadService(sp.GetRequiredService<IDirectDownloadClientFactory>(),
+            sp.GetRequiredService<IDownloadOptionsProvider>(), sp.GetRequiredService<SettingsService>(), storageLocations.TempPath));
+        services.AddTransient<DirectDownloadViewModel>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("github-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddSingleton(sp => new NexusModsPlatformAdapter(
@@ -329,6 +339,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<DownloadManagerService>(), sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("browse-images"), storageLocations.TempPath));
         services.AddTransient<BrowseModsViewModel>();
         services.AddSingleton<IWebsiteDownloadLauncher, WebsiteDownloadLauncher>();
+        services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
 
         // 应用层
         services.AddSingleton(sp => new ModService(
@@ -380,6 +391,12 @@ public partial class App : Avalonia.Application
 
         // 部署相关（补充缺失的注册）
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
+        services.AddSingleton<ICrashHistoryRepository>(_ => new CrashHistoryRepository(dbPath));
+        services.AddSingleton<CrashDeploymentHistoryService>();
+        services.AddSingleton<IMinidumpAnalyzer>(sp => new MinidumpStackwalkAnalyzer(
+            Path.Combine(AppContext.BaseDirectory, "Tools", "minidump-stackwalk", "minidump-stackwalk.exe"),
+            storageSettings.Current.TempPath, sp.GetService<ILogger<MinidumpStackwalkAnalyzer>>()));
+        services.AddSingleton<CrashDiagnosticsService>();
 
         // 注册三种部署方法
         services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();
@@ -391,7 +408,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<IDeploymentRepository>(),
             sp.GetServices<IDeploymentMethod>(),
-            sp.GetService<ILogger<DeploymentService>>()));
+            sp.GetService<ILogger<DeploymentService>>(),
+            sp.GetRequiredService<CrashDeploymentHistoryService>()));
 
         // 新增核心服务
         services.AddSingleton(sp => new SettingsService(
@@ -414,6 +432,10 @@ public partial class App : Avalonia.Application
             appDataPath,
             sp.GetRequiredService<HD2MimntDbContext>(),
             sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton<HD2Mimnt.Core.Interop.IOfflineInteropSource>(_ =>
+            new HD2Mimnt.Infrastructure.Interop.OfflineInteropSnapshotReader(dbPath));
+        services.AddSingleton(_ => new HD2Mimnt.Infrastructure.Interop.OfflineInteropPublisher(storageSettings.BootstrapPath));
+        services.AddSingleton<OfflineInteropService>();
         services.AddSingleton<IFileLogService>(new FileLogService(appDataPath));
 
         services.AddSingleton(sp => new GameDetectionService(
@@ -474,6 +496,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>()));
         services.AddTransient(sp => new LogViewModel(
             sp.GetRequiredService<IFileLogService>()));
+        services.AddTransient<CrashDiagnosticsViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -498,6 +521,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<NexusModsTestService>(),
             sp.GetRequiredService<ManagerMigrationViewModel>(),
-            sp.GetRequiredService<BrowseModsViewModel>()));
+            sp.GetRequiredService<BrowseModsViewModel>(),
+            sp.GetRequiredService<CrashDiagnosticsViewModel>(),
+            sp.GetRequiredService<DirectDownloadViewModel>()));
     }
 }

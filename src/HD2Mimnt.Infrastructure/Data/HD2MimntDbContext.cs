@@ -147,6 +147,13 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_tasks_status ON Tasks(Status);
             CREATE INDEX IF NOT EXISTS idx_tasks_starttime ON Tasks(StartTime DESC);
 
+            CREATE TABLE IF NOT EXISTS CrashDeploymentSnapshots (
+                SessionId TEXT PRIMARY KEY,
+                StartedUtc TEXT NOT NULL,
+                KnownGood INTEGER NOT NULL DEFAULT 0,
+                SnapshotJson TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS DeploymentRecords (
                 Id TEXT PRIMARY KEY,
                 SessionId TEXT NOT NULL,
@@ -157,6 +164,9 @@ public class HD2MimntDbContext : IDisposable
                 StartTime TEXT NOT NULL,
                 EndTime TEXT,
                 Status TEXT,
+                OptionsSnapshotJson TEXT,
+                DeploymentOrderIndex INTEGER,
+                ModVersion TEXT,
                 FOREIGN KEY (ProfileId) REFERENCES Profiles(Id),
                 FOREIGN KEY (ModId) REFERENCES Mods(Id)
             );
@@ -498,7 +508,10 @@ public class HD2MimntDbContext : IDisposable
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
             ("Profiles", "LuaSeparatorColor", "TEXT NOT NULL DEFAULT ''"),
             ("Profiles", "IsLibraryLayout", "INTEGER NOT NULL DEFAULT 0"),
-            ("Profiles", "DefaultMigrationStateJson", "TEXT NOT NULL DEFAULT '{}'")
+            ("Profiles", "DefaultMigrationStateJson", "TEXT NOT NULL DEFAULT '{}'"),
+            ("DeploymentRecords", "OptionsSnapshotJson", "TEXT"),
+            ("DeploymentRecords", "DeploymentOrderIndex", "INTEGER"),
+            ("DeploymentRecords", "ModVersion", "TEXT")
         })
         {
             using var check = connection.CreateCommand();
