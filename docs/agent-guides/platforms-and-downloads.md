@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- Nexus 请求额度读取最近一次认证 API 响应的 `X-RL-Hourly-*` / `X-RL-Daily-*`，无字段显示未知，不硬编码为已获取额度、不后台轮询。退出/换账号清空内存额度，旧请求回传不能复活；手动刷新使用 v1 `users/validate.json`，429 同样先读额度再报告错误。OAuth 指南静态公钥和 Discovery JWKS 可能不同，使用固定官方地址按 `kid` 验签，不采信 JWT 的外来密钥 URL。来源：[v1 限流](https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0#rate-limiting)、[Discovery](https://users.nexusmods.com/.well-known/openid-configuration)。
+
+- Nexus 正式认证使用 Public Application 的 Authorization Code + PKCE S256：Client ID/回调地址为公开配置，桌面应用不得保存 Client Secret。启动只恢复加密状态，用户操作前按需串行刷新；回调 state/verifier 只驻内存，Access/Refresh Token 仅存 DPAPI 凭据表。无注册 Client ID 不冒用示例应用；个人 Key 保留为开发测试入口，不能替代正式发行认证。429 保留登录并遵守 Retry-After，不能当成授权撤销。来源：[OAuth 指南](https://modding.wiki/en/api/oauth2-guide)、[API 使用规范](https://help.nexusmods.com/article/114-api-acceptable-use-policy)、[RFC 8252](https://www.rfc-editor.org/rfc/rfc8252)。
+
 - “工具 → 直链下载”通过 `DirectDownloadService` 复用 `HttpDownloadService`，按每次任务创建独立代理客户端；解析、HTTP 重定向、分段和回退请求使用同一客户端与 Cookie。最多跟随 20 次 HTTP 跳转；登录、验证码和 JavaScript 页面不当作模组压缩包导入。最终响应的 `filename*` / `filename` 优先于最终 URL，文件名去除路径并处理 Windows 保留名；仅下载遇同名文件自动编号，发布时仍禁止覆盖，防止并发创建目标。导入必须等待现有导入浮窗完成并检查结果，再清理独立源目录；取消后等待下载释放流，支持续传的断点由缓存管理。代理地址可保存，代理账号、密码和完整下载链接不得写入设置或任务历史。来源：[.NET 自动重定向](https://learn.microsoft.com/dotnet/api/system.net.http.httpclienthandler.allowautoredirect)、[SOCKS 代理](https://devblogs.microsoft.com/dotnet/dotnet-6-networking-improvements/#socks-proxy-support)、[Content-Disposition](https://www.rfc-editor.org/rfc/rfc6266)。
 
 - HTTP 200 不代表返回了文件：下载接口可能用 JSON 报告登录、权限或过期错误，例如 `ec=40100`。`DirectDownloadResponseGuard` 在解析、分段和回退时检查响应，最多探测 16 KiB，按常见错误字段识别而不绑定单一网站；探测过的真实文件字节必须完整重放，保留正常 JSON 文件和明确的附件。不要把错误 JSON 保存成无扩展名的 `redirect` 文件再交给解压器，也不把原始响应、授权地址或凭据带入异常历史。来源：[HTTP 状态语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.1)、[Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html)。

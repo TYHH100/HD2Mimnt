@@ -2848,7 +2848,7 @@
     <value>查看模组详情，或输入 N 网链接和编号。</value>
   </data>
   <data name="Browse.AuthHint" xml:space="preserve">
-    <value>最新发布、最近更新、详情和下载需要 N 网密钥，可在“工具 → 开发工具”配置。</value>
+    <value>最新发布、最近更新、详情和下载需要 N 网认证，请在“设置 → 账号”登录。</value>
   </data>
   <data name="Browse.Files" xml:space="preserve">
     <value>可下载文件</value>
@@ -3415,5 +3415,176 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   </data>
   <data name="DirectDownload.BrowserFileImportFailed" xml:space="preserve">
     <value>导入失败。</value>
+  </data>
+  <data name="Nexus.Login" xml:space="preserve">
+    <value>登录 N 网</value>
+  </data>
+  <data name="Nexus.Logout" xml:space="preserve">
+    <value>退出登录</value>
+  </data>
+  <data name="Nexus.ManageAuthorization" xml:space="preserve">
+    <value>管理授权</value>
+  </data>
+  <data name="Nexus.KeyTestingHint" xml:space="preserve">
+    <value>个人 API Key 仅限开发测试或个人使用；公开发行使用已注册的 OAuth 应用。应用测试 Key 会替换当前登录。</value>
+  </data>
+  <data name="Nexus.SignedIn" xml:space="preserve">
+    <value>已登录 N 网：{0}</value>
+  </data>
+  <data name="Nexus.UsingKey" xml:space="preserve">
+    <value>正在使用个人 API Key 测试。</value>
+  </data>
+  <data name="Nexus.SignedOut" xml:space="preserve">
+    <value>尚未登录 N 网。</value>
+  </data>
+  <data name="Nexus.PendingRegistration" xml:space="preserve">
+    <value>OAuth 应用申请中；获批后配置 Client ID 即可登录。</value>
+  </data>
+  <data name="Nexus.Waiting" xml:space="preserve">
+    <value>请在系统浏览器中完成 N 网授权。</value>
+  </data>
+  <data name="Nexus.LoginSuccess" xml:space="preserve">
+    <value>N 网登录成功，凭据已在本机加密保存。</value>
+  </data>
+  <data name="Nexus.Cancelled" xml:space="preserve">
+    <value>N 网登录已取消。</value>
+  </data>
+  <data name="Nexus.LoginFailed" xml:space="preserve">
+    <value>N 网登录失败，请检查网络或本机凭据存储后重试。</value>
+  </data>
+  <data name="Nexus.LoggedOut" xml:space="preserve">
+    <value>已退出 N 网并删除本机保存的凭据。</value>
+  </data>
+  <data name="Nexus.DeleteFailed" xml:space="preserve">
+    <value>凭据删除失败，登录状态保持不变，请重试。</value>
+  </data>
+  <data name="Nexus.BrowserFailed" xml:space="preserve">
+    <value>无法打开系统浏览器，请重试。</value>
+  </data>
+  <data name="Nexus.MissingClientId" xml:space="preserve">
+    <value>尚未配置 Nexus Mods OAuth Client ID，请在应用注册获批后配置。</value>
+  </data>
+  <data name="Nexus.InvalidCallback" xml:space="preserve">
+    <value>OAuth 回调必须是带端口、以 / 结尾的 http://127.0.0.1/ 本机地址。</value>
+  </data>
+  <data name="Nexus.ClientMissing" xml:space="preserve">
+    <value>OAuth 客户端未配置。</value>
+  </data>
+  <data name="Nexus.LoginInProgress" xml:space="preserve">
+    <value>已有 N 网登录正在进行，请先取消或完成登录。</value>
+  </data>
+  <data name="Nexus.ListenerFailed" xml:space="preserve">
+    <value>无法监听 OAuth 本机回调，端口可能被占用。请关闭另一个登录窗口后重试。</value>
+  </data>
+  <data name="Nexus.Denied" xml:space="preserve">
+    <value>N 网授权被拒绝，请重新登录并允许应用访问。</value>
+  </data>
+  <data name="Nexus.Timeout" xml:space="preserve">
+    <value>N 网登录等待超时，请重新登录。</value>
+  </data>
+  <data name="Nexus.AccountMismatch" xml:space="preserve">
+    <value>刷新令牌的账户与原登录账户不同，请重新登录。</value>
+  </data>
+  <data name="Nexus.TokenFailed" xml:space="preserve">
+    <value>N 网令牌请求失败（HTTP {0}）。请稍后重试。</value>
+  </data>
+  <data name="Nexus.TokenRevoked" xml:space="preserve">
+    <value>N 网令牌请求失败（HTTP {0}）。授权可能已撤销，请重新登录。</value>
+  </data>
+  <data name="Nexus.InvalidToken" xml:space="preserve">
+    <value>N 网令牌响应或签名无效，未保存登录信息，请重新登录。</value>
+  </data>
+  <data name="Nexus.SavedConfigMismatch" xml:space="preserve">
+    <value>已保存的 N 网登录与当前应用配置不匹配，请重新登录。</value>
+  </data>
+  <data name="Nexus.AuthChanged" xml:space="preserve">
+    <value>N 网登录状态已更改，请重试操作。</value>
+  </data>
+  <data name="Nexus.LoginRequired" xml:space="preserve">
+    <value>请先在“设置 → 账号”中登录 N 网，或在开发工具应用个人 API Key 测试。</value>
+  </data>
+  <data name="Nexus.RestoreFailed" xml:space="preserve">
+    <value>无法读取已保存的 N 网凭据，请在设置的账号页重新登录，或在开发工具重新填写个人 Key。</value>
+  </data>
+  <data name="Nexus.ApiUnauthorized" xml:space="preserve">
+    <value>服务器未接受当前认证。请在“设置 → 账号”重新登录 N 网；个人 Key 测试请在开发工具重新填写并应用有效密钥。</value>
+  </data>
+  <data name="Nexus.NxmAccountMismatch" xml:space="preserve">
+    <value>临时链接的 N 网账户与当前认证账户不同。请用同一账户登录网页并重新获取链接，或重新登录 N 网。</value>
+  </data>
+  <data name="Nexus.NxmBadRequest" xml:space="preserve">
+    <value>N 网认为临时授权与账户或文件不匹配。请使用当前认证账户重新登录网页，并完整复制所选文件的 nxm:// 链接。</value>
+  </data>
+  <data name="Nexus.ClientIdTesting" xml:space="preserve">
+    <value>OAuth Client ID 测试</value>
+  </data>
+  <data name="Nexus.ClientIdTestingHint" xml:space="preserve">
+    <value>Client ID 是公开配置，保存后立即生效并在重启后保留，然后到设置的账号页登录。留空恢复默认配置；更换已登录的 OAuth 应用前请先退出，无需 Client Secret。</value>
+  </data>
+  <data name="Nexus.ClientIdPlaceholder" xml:space="preserve">
+    <value>填写 Nexus Mods 分配的 Client ID</value>
+  </data>
+  <data name="Nexus.CallbackUriLabel" xml:space="preserve">
+    <value>Callback URI（必须与登记地址完全一致）</value>
+  </data>
+  <data name="Nexus.ApplyClientId" xml:space="preserve">
+    <value>保存并应用 Client ID</value>
+  </data>
+  <data name="Nexus.ClientIdApplied" xml:space="preserve">
+    <value>Client ID 配置已保存并应用，可以到设置的账号页测试登录。</value>
+  </data>
+  <data name="Nexus.ClientIdInvalid" xml:space="preserve">
+    <value>Client ID 不能包含换行或控制字符。</value>
+  </data>
+  <data name="Nexus.ClientIdLogoutFirst" xml:space="preserve">
+    <value>请先在设置的账号页退出 OAuth 登录，再更换 Client ID。</value>
+  </data>
+  <data name="Nexus.ClientIdSaveFailed" xml:space="preserve">
+    <value>Client ID 保存失败，原配置保持不变，请重试。</value>
+  </data>
+  <data name="Accounts.Title" xml:space="preserve">
+    <value>账号</value>
+  </data>
+  <data name="Accounts.AyakaPlaceholder" xml:space="preserve">
+    <value>登录尚未接入；文档当前不可访问，此处预留账号入口。</value>
+  </data>
+  <data name="Accounts.AyakaLogin" xml:space="preserve">
+    <value>登录 Ayaka Mods</value>
+  </data>
+  <data name="Nexus.QuotaHelp" xml:space="preserve">
+    <value>显示最近一次账号 API 响应的额度；未获取表示服务器尚未返回额度。手动刷新，不后台轮询。额度属于 N 网账号，可能与其他应用共享。</value>
+  </data>
+  <data name="Nexus.QuotaUnknown" xml:space="preserve">
+    <value>未获取</value>
+  </data>
+  <data name="Nexus.HourlyQuota" xml:space="preserve">
+    <value>每小时请求剩余 / 上限：{0} / {1}</value>
+  </data>
+  <data name="Nexus.DailyQuota" xml:space="preserve">
+    <value>每日请求剩余 / 上限：{0} / {1}</value>
+  </data>
+  <data name="Nexus.HourlyReset" xml:space="preserve">
+    <value>小时额度重置（本地时间）：{0}</value>
+  </data>
+  <data name="Nexus.DailyReset" xml:space="preserve">
+    <value>每日额度重置（本地时间）：{0}</value>
+  </data>
+  <data name="Nexus.QuotaUpdated" xml:space="preserve">
+    <value>最近更新（本地时间）：{0}</value>
+  </data>
+  <data name="Nexus.RetryAt" xml:space="preserve">
+    <value>允许重试时间（本地时间）：{0}</value>
+  </data>
+  <data name="Nexus.RefreshQuota" xml:space="preserve">
+    <value>刷新请求额度</value>
+  </data>
+  <data name="Nexus.RefreshQuotaOperation" xml:space="preserve">
+    <value>刷新 N 网请求额度</value>
+  </data>
+  <data name="Nexus.PublicKeyRequestFailed" xml:space="preserve">
+    <value>N 网公钥请求失败（HTTP {0}），请稍后重试。</value>
+  </data>
+  <data name="Nexus.AccountTestingHint" xml:space="preserve">
+    <value>仅用于开发测试：打开“工具 → 开发工具”，在“OAuth Client ID 测试”中填写 Nexus Mods 分配的 Client ID，点击“保存并应用 Client ID”，再返回此处登录。个人 API Key 测试也可在同一窗口的“Nexus Mods API 密钥测试”中配置。</value>
   </data>
 </root>

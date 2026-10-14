@@ -452,7 +452,7 @@ public partial class MainWindowViewModel : ObservableObject
         try { await _nexusModsTestService.RestoreApiKeyAsync(); }
         catch
         {
-            _notificationService.ShowWarning("无法读取已保存的 N 网密钥，请在开发工具重新填写并保存。", "N 网认证");
+            _notificationService.ShowWarning("无法读取已保存的 N 网凭据，请在设置的账号页重新登录，或在开发工具重新填写个人 Key。", "N 网认证");
         }
     }
 
@@ -491,6 +491,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (oldValue == 5 && newValue != 5 && BrowseModsViewModel != null)
             _ = BrowseModsViewModel.StopAsync();
+        if (oldValue == 4 && newValue != 4) _ = _settingsViewModel.StopAccountsAsync();
     }
 
     [RelayCommand]
@@ -657,6 +658,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();

@@ -12,8 +12,9 @@ namespace HD2Mimnt.UI.ViewModels;
 public sealed record BrowseFeedChoice(ModBrowseFeed Value, string Label);
 
 public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownloadLauncher website,
-    ImagePreviewService imagePreview) : ObservableObject
+    ImagePreviewService imagePreview, NexusModsAccountViewModel? account = null) : ObservableObject
 {
+    public NexusModsAccountViewModel? Account { get; } = account;
     private CancellationTokenSource? _operation;
     private PendingDownload? _pending;
     private CancellationTokenSource? _previewOperation;
@@ -84,6 +85,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
 
     public async Task EnsureLoadedAsync()
     {
+        Account?.RefreshStatus();
         SelectedFeed ??= Feeds[0];
         if (!HasLoaded && !IsBusy) await RefreshCommand.ExecuteAsync(null);
     }
@@ -345,6 +347,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
 
     public async Task StopAsync()
     {
+        if (Account != null) await Account.StopAsync();
         _operation?.Cancel();
         _previewOperation?.Cancel();
         _fullPreviewOperation?.Cancel();

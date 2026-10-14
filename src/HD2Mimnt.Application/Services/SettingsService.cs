@@ -337,6 +337,7 @@ public static class SettingKeys
     public const string ShowModThumbnails = "Library.ShowThumbnails";
 
     // 下载相关
+    public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";
     public const string DownloadParallelSegments = "Download.ParallelSegments";
     public const string DownloadSegmentSizeMiB = "Download.SegmentSizeMiB";
     public const string DownloadMaxRetries = "Download.MaxRetries";

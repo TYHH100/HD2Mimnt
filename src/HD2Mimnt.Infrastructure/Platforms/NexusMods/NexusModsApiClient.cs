@@ -3,6 +3,8 @@ using HD2Mimnt.Core.Entities;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Net.Http.Json;
+using System.Globalization;
+using System.Net;
 
 namespace HD2Mimnt.Infrastructure.Platforms.NexusMods;
 
@@ -20,6 +22,22 @@ internal sealed class NexusModsApiClient
     private readonly RateLimiter _rateLimiter = new();
     private string? _apiKey;
     private string? _bearerToken;
+    private Func<CancellationToken, Task<string>>? _oauthTokenProvider;
+    private NexusModsRateLimit _rateLimit = new();
+    private int _authenticationRevision;
+    private readonly object _quotaGate = new();
+    public NexusModsRateLimit RateLimit => Volatile.Read(ref _rateLimit);
+    public event EventHandler? RateLimitChanged;
+
+    private void ResetRateLimit()
+    {
+        lock (_quotaGate)
+        {
+            Interlocked.Increment(ref _authenticationRevision);
+            Volatile.Write(ref _rateLimit, new());
+        }
+        RateLimitChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public NexusModsApiClient(HttpClient httpClient, string applicationVersion)
     {
@@ -34,6 +52,8 @@ internal sealed class NexusModsApiClient
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
         _apiKey = apiKey;
         _bearerToken = null;
+        _oauthTokenProvider = null;
+        ResetRateLimit();
     }
 
     /// <summary>Sets an existing signed JWT; this adapter does not issue tokens.</summary>
@@ -42,16 +62,28 @@ internal sealed class NexusModsApiClient
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         _bearerToken = token;
         _apiKey = null;
+        _oauthTokenProvider = null;
+        ResetRateLimit();
     }
 
-    public void ClearApiKey() => _apiKey = null;
+    public void SetOAuthAuthentication(Func<CancellationToken, Task<string>> tokenProvider)
+    {
+        _oauthTokenProvider = tokenProvider;
+        _apiKey = null;
+        _bearerToken = null;
+        ResetRateLimit();
+    }
+
+    public void ClearApiKey() { _apiKey = null; ResetRateLimit(); }
     public void ClearAuthentication()
     {
         _apiKey = null;
         _bearerToken = null;
+        _oauthTokenProvider = null;
+        ResetRateLimit();
     }
 
-    public bool IsAuthenticated => !string.IsNullOrWhiteSpace(_apiKey) || !string.IsNullOrWhiteSpace(_bearerToken);
+    public bool IsAuthenticated => _oauthTokenProvider != null || !string.IsNullOrWhiteSpace(_apiKey) || !string.IsNullOrWhiteSpace(_bearerToken);
 
     public Task<TrendingModsResponse> GetTrendingModsAsync(CancellationToken cancellationToken) =>
         GetDataAsync<TrendingModsResponse>($"/games/{GameDomain}/trending-mods", false, "获取热门模组", cancellationToken);
@@ -93,7 +125,7 @@ internal sealed class NexusModsApiClient
     public void EnsureAuthenticated()
     {
         if (!IsAuthenticated)
-            throw new InvalidOperationException("Nexus Mods 此操作需要 API Key 或 Bearer JWT 认证。");
+            throw new InvalidOperationException("请先在“设置 → 账号”中登录 N 网，或在开发工具应用个人 API Key 测试。");
     }
 
     private HttpRequestMessage CreateApiRequest(HttpMethod method, string path, bool authenticated)
@@ -104,7 +136,9 @@ internal sealed class NexusModsApiClient
         request.Headers.Add("Application-Version", _applicationVersion);
         if (authenticated)
         {
-            if (_apiKey != null) request.Headers.Add("apikey", _apiKey);
+            request.Options.Set(AuthenticationRevisionKey, Volatile.Read(ref _authenticationRevision));
+            if (_oauthTokenProvider != null) request.Options.Set(OAuthProviderKey, _oauthTokenProvider);
+            else if (_apiKey != null) request.Headers.Add("apikey", _apiKey);
             else if (_bearerToken != null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _bearerToken);
         }
         return request;
@@ -137,8 +171,13 @@ internal sealed class NexusModsApiClient
         string? downloadKey = null)
     {
         await _rateLimiter.WaitIfNeededAsync(cancellationToken);
+        if (request.Options.TryGetValue(OAuthProviderKey, out var provider))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await provider(cancellationToken));
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         _rateLimiter.UpdateFromHeaders(response);
+        if ((request.Headers.Authorization != null || request.Headers.Contains("apikey")) &&
+            request.Options.TryGetValue(AuthenticationRevisionKey, out var revision) && revision == Volatile.Read(ref _authenticationRevision))
+            UpdateRateLimit(response, revision);
         if (!response.IsSuccessStatusCode)
         {
             ProblemDetails? problem = null;
@@ -171,5 +210,46 @@ internal sealed class NexusModsApiClient
         }
         return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken)
             ?? throw new JsonException("Nexus Mods API 返回了空响应。");
+    }
+    private static readonly HttpRequestOptionsKey<Func<CancellationToken, Task<string>>> OAuthProviderKey = new("NexusOAuthTokenProvider");
+    private static readonly HttpRequestOptionsKey<int> AuthenticationRevisionKey = new("NexusAuthenticationRevision");
+
+    private void UpdateRateLimit(HttpResponseMessage response, int revision)
+    {
+        string? Header(string name) => response.Headers.TryGetValues(name, out var values) ? values.FirstOrDefault() : null;
+        int? Count(string name) => int.TryParse(Header(name), NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            && value >= 0 ? value : null;
+        DateTimeOffset? Date(string name)
+        {
+            var raw = Header(name);
+            if (DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date)) return date;
+            // v1 文档的 Daily-Reset 时区示例使用 +0000。
+            if (raw is { Length: >= 5 } && raw[^5] is '+' or '-')
+                if (DateTimeOffset.TryParse(raw.Insert(raw.Length - 2, ":"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal, out date)) return date;
+            return null;
+        }
+        var hourlyLimit = Count("X-RL-Hourly-Limit");
+        var hourlyRemaining = Count("X-RL-Hourly-Remaining");
+        var dailyLimit = Count("X-RL-Daily-Limit");
+        var dailyRemaining = Count("X-RL-Daily-Remaining");
+        var hourlyReset = Date("X-RL-Hourly-Reset");
+        var dailyReset = Date("X-RL-Daily-Reset");
+        var retry = response.Headers.RetryAfter;
+        var retryAt = response.StatusCode == HttpStatusCode.TooManyRequests
+            ? retry?.Date ?? (retry?.Delta is { } delta ? DateTimeOffset.UtcNow.Add(delta) : (DateTimeOffset?)null) : null;
+        if (hourlyLimit == null && hourlyRemaining == null && dailyLimit == null && dailyRemaining == null &&
+            hourlyReset == null && dailyReset == null && retryAt == null) return;
+        lock (_quotaGate)
+        {
+            if (revision != _authenticationRevision) return;
+            Volatile.Write(ref _rateLimit, new()
+            {
+                HourlyLimit = hourlyLimit, HourlyRemaining = hourlyRemaining, HourlyReset = hourlyReset,
+                DailyLimit = dailyLimit, DailyRemaining = dailyRemaining, DailyReset = dailyReset,
+                RetryAt = retryAt, UpdatedAt = DateTimeOffset.UtcNow
+            });
+        }
+        RateLimitChanged?.Invoke(this, EventArgs.Empty);
     }
 }

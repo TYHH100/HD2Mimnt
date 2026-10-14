@@ -32,6 +32,7 @@
         <Border Grid.Row="1" Classes="card" Margin="0,0,0,16">
             <StackPanel Spacing="12">
                 <TextBlock Text="{loc:Loc UI.NexusModsAPIKeyTesting}" Classes="section-title" />
+                <TextBlock Text="{loc:Loc Nexus.KeyTestingHint}" Classes="muted" TextWrapping="Wrap"/>
                 <TextBlock Text="{loc:Loc UI.TheKeyIsEncryptedInTheLocalDatabaseAndRestoredAtStartupClearingItAlsoD}"
                            Classes="muted" TextWrapping="Wrap" />
                 <TextBox x:Name="NexusApiKeyInput"
@@ -46,6 +47,20 @@
                             Command="{Binding ClearNexusApiKeyCommand}" />
                 </StackPanel>
                 <TextBlock Text="{loc:LocalizedBinding NexusStatusMessage}" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <Separator />
+                <TextBlock Text="{loc:Loc Nexus.ClientIdTesting}" Classes="section-title" />
+                <TextBlock Text="{loc:Loc Nexus.ClientIdTestingHint}" Classes="muted" TextWrapping="Wrap" />
+                <TextBox x:Name="NexusOAuthClientIdInput"
+                         Text="{Binding NexusOAuthClientId, Mode=TwoWay}"
+                         IsEnabled="{Binding !IsSavingNexusOAuthClientId}"
+                         PlaceholderText="{loc:Loc Nexus.ClientIdPlaceholder}" />
+                <TextBlock Text="{loc:Loc Nexus.CallbackUriLabel}" Classes="muted" />
+                <TextBox x:Name="NexusOAuthCallbackUri" Text="{Binding NexusOAuthRedirectUri, Mode=OneWay}"
+                         IsReadOnly="True" TextWrapping="Wrap" />
+                <Button x:Name="ApplyNexusOAuthClientIdButton" Content="{loc:Loc Nexus.ApplyClientId}"
+                        Classes="accent" Command="{Binding ApplyNexusOAuthClientIdCommand}" />
+                <TextBlock Text="{loc:LocalizedBinding NexusOAuthConfigurationMessage}" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
             </StackPanel>
         </Border>

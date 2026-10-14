@@ -8,7 +8,7 @@
              x:Class="HD2Mimnt.UI.Views.BrowseModsView" x:DataType="vm:BrowseModsViewModel">
   <Grid Margin="24,16,24,20" RowDefinitions="Auto,Auto,*" RowSpacing="12">
     <Border Classes="card" Padding="16,12">
-      <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="4">
             <TextBlock Text="{loc:Loc Browse.Title}" Classes="section-title"/>
@@ -30,6 +30,9 @@
           <Button x:Name="BrowseRefreshButton" Grid.Column="3" Command="{Binding RefreshCommand}" Content="{loc:Loc Browse.LoadList}"/>
           <Button Grid.Column="4" Command="{Binding CancelCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}"/>
         </Grid>
+        <TextBlock Grid.Row="2" x:Name="NexusAccountStatus" DataContext="{Binding Account}"
+                   x:DataType="vm:NexusModsAccountViewModel" Text="{loc:LocalizedBinding Status}"
+                   TextWrapping="Wrap" Classes="caption-text"/>
       </Grid>
     </Border>
     <StackPanel Grid.Row="1" Spacing="6">

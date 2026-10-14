@@ -27,10 +27,10 @@ internal static class ModPlatformErrorFormatter
             HttpStatusCode.Gone when platformError?.Operation == "获取网页授权下载链接" =>
                 "网页临时下载授权已过期。请到 N 网文件页面重新点击“Mod manager download”，粘贴新的 nxm:// 链接后重试。",
             HttpStatusCode.BadRequest when platformError?.Operation == "获取网页授权下载链接" =>
-                "N 网认为临时授权与账户或文件不匹配。请使用 API 密钥所属账户重新登录网页，并完整复制所选文件的 nxm:// 链接。",
+                "N 网认为临时授权与账户或文件不匹配。请使用当前认证账户重新登录网页，并完整复制所选文件的 nxm:// 链接。",
             HttpStatusCode.Forbidden when platformError?.Operation == "获取网页授权下载链接" =>
                 "N 网拒绝当前网页授权。请使用同一账户在文件页面重新点击“Mod manager download”获取临时链接后重试。",
-            HttpStatusCode.Unauthorized when platformError != null => "服务器未接受当前认证。请到“更多 → 开发工具”重新填写并应用 API 密钥，确认密钥有效且未被撤销。",
+            HttpStatusCode.Unauthorized when platformError != null => "服务器未接受当前认证。请在“设置 → 账号”重新登录 N 网；个人 Key 测试请在开发工具重新填写并应用有效密钥。",
             HttpStatusCode.Unauthorized => "下载服务器未接受此下载链接的授权。请重新检查更新以获取新的下载链接后重试。",
             HttpStatusCode.Forbidden when platformError?.Operation == "获取下载链接" =>
                 "N 网拒绝直接提供下载链接。免费账户请启用“网页授权下载”，到文件网页点击“Mod manager download”，再粘贴 nxm:// 临时链接。其他情况请查看下方服务器说明。",

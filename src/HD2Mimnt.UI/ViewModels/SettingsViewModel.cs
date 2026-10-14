@@ -71,7 +71,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
-    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "存储位置", "外观", "缓存" };
+    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "账号", "存储位置", "外观", "缓存" };
+    public NexusModsAccountViewModel? NexusAccount { get; }
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? AppearanceChanged;
@@ -85,9 +86,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
     public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
     public bool IsStorageCategoryVisible => SelectedCategory == "存储位置";
+    public bool IsAccountCategoryVisible => SelectedCategory == "账号";
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
-        UiLocalization? localization = null, StorageSettingsService? storageSettings = null)
+        UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
+        NexusModsAccountViewModel? nexusAccount = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
@@ -96,6 +99,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _downloadSettingsService = new DownloadSettingsService(settingsService);
         _storageSettings = storageSettings;
         _localization = localization;
+        NexusAccount = nexusAccount;
         LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
             .Concat(localization?.Service?.SupportedLanguages ?? new HD2Mimnt.Application.Localization.TranslationCatalog().SupportedLanguages)
             .ToArray();
@@ -153,10 +157,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         if (_localization != null) _localization.PropertyChanged -= OnUiLanguageChanged;
+        NexusAccount?.Dispose();
     }
+
+    public Task StopAccountsAsync() => NexusAccount?.StopAsync() ?? Task.CompletedTask;
 
     partial void OnSelectedCategoryChanged(string value)
     {
+        if (value != "账号") _ = StopAccountsAsync();
         OnPropertyChanged(nameof(IsGameCategoryVisible));
         OnPropertyChanged(nameof(IsProfileCategoryVisible));
         OnPropertyChanged(nameof(IsDeploymentCategoryVisible));
@@ -165,6 +173,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsCacheCategoryVisible));
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
+        OnPropertyChanged(nameof(IsAccountCategoryVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Utilities;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -40,6 +41,18 @@ public partial class DevToolsViewModel : ObservableObject
     private string _nexusStatusMessage = string.Empty;
 
     [ObservableProperty]
+    private string _nexusOAuthClientId = string.Empty;
+
+    [ObservableProperty]
+    private string _nexusOAuthConfigurationMessage = string.Empty;
+
+    public string NexusOAuthRedirectUri => _nexusModsTestService.OAuthRedirectUri;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyNexusOAuthClientIdCommand))]
+    private bool _isSavingNexusOAuthClientId;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ApplyNexusApiKeyCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearNexusApiKeyCommand))]
     private bool _isSavingNexusKey;
@@ -50,15 +63,36 @@ public partial class DevToolsViewModel : ObservableObject
         _testDataService = testDataService;
         _profileService = profileService;
         _nexusModsTestService = nexusModsTestService;
+        NexusOAuthClientId = nexusModsTestService.OAuthClientId;
         RefreshNexusStatus();
     }
 
-    private void RefreshNexusStatus() => NexusStatusMessage = _nexusModsTestService.IsAuthenticated
+    private void RefreshNexusStatus() => NexusStatusMessage = _nexusModsTestService.IsOAuthSignedIn
+        ? $"已登录 N 网：{_nexusModsTestService.UserName}"
+        : _nexusModsTestService.IsAuthenticated
         ? _nexusModsTestService.IsApiKeySaved ? "已配置 N 网认证，密钥已加密保存（尚未验证密钥）。"
             : "已配置 N 网认证（尚未验证密钥）。"
         : "尚未配置 N 网 API 密钥。";
 
     private bool CanChangeNexusKey() => !IsSavingNexusKey;
+    private bool CanChangeNexusClientId() => !IsSavingNexusOAuthClientId;
+
+    [RelayCommand(CanExecute = nameof(CanChangeNexusClientId))]
+    private async Task ApplyNexusOAuthClientIdAsync()
+    {
+        IsSavingNexusOAuthClientId = true;
+        try
+        {
+            await _nexusModsTestService.ApplyOAuthClientIdAsync(NexusOAuthClientId);
+            NexusOAuthClientId = _nexusModsTestService.OAuthClientId;
+            NexusOAuthConfigurationMessage = UiLocalization.Current["Nexus.ClientIdApplied"];
+            RefreshNexusStatus();
+        }
+        catch (ArgumentException) { NexusOAuthConfigurationMessage = UiLocalization.Current["Nexus.ClientIdInvalid"]; }
+        catch (InvalidOperationException ex) { NexusOAuthConfigurationMessage = ex.Message; }
+        catch { NexusOAuthConfigurationMessage = UiLocalization.Current["Nexus.ClientIdSaveFailed"]; }
+        finally { IsSavingNexusOAuthClientId = false; }
+    }
     [RelayCommand(CanExecute = nameof(CanChangeNexusKey))]
     private async Task ApplyNexusApiKeyAsync()
     {

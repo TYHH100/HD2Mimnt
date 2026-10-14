@@ -75,7 +75,7 @@ internal sealed class NexusModsNxmService(NexusModsApiClient api, IHttpDownloadS
     {
         var user = await api.GetLegacyDataAsync<LegacyUser>("/users/validate.json", "验证临时授权所属账户", token);
         if (user.UserId != link.UserId)
-            throw new InvalidOperationException("临时链接的 N 网账户与当前 API 密钥所属账户不同。请用同一账户登录网页并重新获取链接，或更换 API 密钥。");
+            throw new InvalidOperationException("临时链接的 N 网账户与当前认证账户不同。请用同一账户登录网页并重新获取链接，或重新登录 N 网。");
     }
 
     private async Task<PlatformModFile> GetFileAsync(NexusModsNxmLink link, CancellationToken token)

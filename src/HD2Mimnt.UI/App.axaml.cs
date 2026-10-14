@@ -331,7 +331,17 @@ public partial class App : Avalonia.Application
             return registry;
         });
         services.AddSingleton<DownloadManagerService>();
+        services.AddSingleton(NexusModsOAuthConfiguration.Create());
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-oauth", (_, _) =>
+            new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false })
+            { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton<INexusModsOAuthClient>(sp =>
+            new HD2Mimnt.Infrastructure.Platforms.NexusMods.NexusModsOAuthClient(
+                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-oauth"),
+                applicationVersion: typeof(App).Assembly.GetName().Version!.ToString(3)));
         services.AddSingleton<NexusModsTestService>();
+        services.AddSingleton<NexusModsAuthService>(sp => sp.GetRequiredService<NexusModsTestService>());
+        services.AddTransient<NexusModsAccountViewModel>();
         services.AddSingleton<ModLinkService>();
         services.AddSingleton<ModOnlineService>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("browse-images", (_, _) => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) });
@@ -481,7 +491,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<IImageCacheService>(),
             sp.GetRequiredService<UiLocalization>(),
-            sp.GetRequiredService<StorageSettingsService>()));
+            sp.GetRequiredService<StorageSettingsService>(),
+            sp.GetRequiredService<NexusModsAccountViewModel>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(

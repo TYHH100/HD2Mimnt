@@ -513,6 +513,9 @@ public sealed partial class FluentAvaloniaUiTests
     private sealed class BrowseContractHandler : HttpMessageHandler
     {
         public bool SearchError { get; set; }
+        public bool IncludeQuota { get; set; }
+        public bool DelayQuota { get; set; }
+        public bool QuotaCancelled { get; private set; }
         public bool ArchiveStarted { get; private set; }
         public bool Premium { get; set; }
         public bool Supporter { get; set; }
@@ -563,8 +566,24 @@ public sealed partial class FluentAvaloniaUiTests
                 { Content = new StringContent($"{{\"data\":{{\"mods\":{{\"totalCount\":{(empty ? 0 : 21)},\"nodes\":{nodes}}}}}}}", Encoding.UTF8, "application/json") };
             }
             if (path == "/v1/users/validate.json")
-                return new HttpResponseMessage(MembershipStatus)
+            {
+                if (DelayQuota)
+                {
+                    try { await Task.Delay(Timeout.Infinite, cancellationToken); }
+                    catch (OperationCanceledException) { QuotaCancelled = true; throw; }
+                }
+                var response = new HttpResponseMessage(MembershipStatus)
                 { Content = new StringContent(JsonSerializer.Serialize(new { user_id = 1, is_premium = Premium, is_supporter = Supporter }), Encoding.UTF8, "application/json") };
+                if (IncludeQuota)
+                {
+                    response.Headers.Add("X-RL-Hourly-Limit", "100"); response.Headers.Add("X-RL-Hourly-Remaining", MembershipStatus == HttpStatusCode.TooManyRequests ? "0" : "96");
+                    response.Headers.Add("X-RL-Daily-Limit", "2500"); response.Headers.Add("X-RL-Daily-Remaining", MembershipStatus == HttpStatusCode.TooManyRequests ? "0" : "2488");
+                    if (MembershipStatus == HttpStatusCode.TooManyRequests) response.Headers.RetryAfter = new(TimeSpan.FromSeconds(1));
+                    response.Headers.Add("X-RL-Hourly-Reset", "2026-10-14T12:00:00+00:00");
+                    response.Headers.Add("X-RL-Daily-Reset", "2026-10-15 00:00:00 +0000");
+                }
+                return response;
+            }
             if (path.EndsWith("download_link.json"))
             {
                 DownloadQueries.Add(request.RequestUri.Query);

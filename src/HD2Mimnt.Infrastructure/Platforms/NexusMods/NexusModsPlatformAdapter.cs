@@ -39,9 +39,18 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPla
 
     public void SetApiKey(string apiKey) => _api.SetApiKey(apiKey);
     public void SetBearerToken(string token) => _api.SetBearerToken(token);
+    public void SetOAuthAuthentication(Func<CancellationToken, Task<string>> tokenProvider) => _api.SetOAuthAuthentication(tokenProvider);
     public void ClearApiKey() => _api.ClearApiKey();
     public void ClearAuthentication() => _api.ClearAuthentication();
     public bool IsAuthenticated => _api.IsAuthenticated;
+    public NexusModsRateLimit RateLimit => _api.RateLimit;
+    public event EventHandler? RateLimitChanged
+    {
+        add => _api.RateLimitChanged += value;
+        remove => _api.RateLimitChanged -= value;
+    }
+    public async Task RefreshRateLimitAsync(CancellationToken cancellationToken = default)
+        => _ = await _api.GetLegacyDataAsync<JsonElement>("/users/validate.json", "刷新 N 网请求额度", cancellationToken);
 
     public Task<PlatformSearchResult> BrowseAsync(ModBrowseFeed feed, CancellationToken cancellationToken = default)
         => _browse.BrowseAsync(feed, cancellationToken);

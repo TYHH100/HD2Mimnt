@@ -2848,7 +2848,7 @@ Cache: {2}</value>
     <value>View mod details, or enter a Nexus Mods URL or ID.</value>
   </data>
   <data name="Browse.AuthHint" xml:space="preserve">
-    <value>Latest feeds, details and downloads require a Nexus Mods key configured in Tools → Developer tools.</value>
+    <value>Latest feeds, details and downloads require Nexus Mods authentication. Log in from Settings → Accounts.</value>
   </data>
   <data name="Browse.Files" xml:space="preserve">
     <value>Available files</value>
@@ -3415,5 +3415,176 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   </data>
   <data name="DirectDownload.BrowserFileImportFailed" xml:space="preserve">
     <value>Import failed.</value>
+  </data>
+  <data name="Nexus.Login" xml:space="preserve">
+    <value>Log in to Nexus Mods</value>
+  </data>
+  <data name="Nexus.Logout" xml:space="preserve">
+    <value>Log out</value>
+  </data>
+  <data name="Nexus.ManageAuthorization" xml:space="preserve">
+    <value>Manage authorization</value>
+  </data>
+  <data name="Nexus.KeyTestingHint" xml:space="preserve">
+    <value>Personal API keys are for development testing or personal use only. Public releases use the registered OAuth application. Applying a test key replaces the current login.</value>
+  </data>
+  <data name="Nexus.SignedIn" xml:space="preserve">
+    <value>Logged in to Nexus Mods: {0}</value>
+  </data>
+  <data name="Nexus.UsingKey" xml:space="preserve">
+    <value>Using a personal API key for testing.</value>
+  </data>
+  <data name="Nexus.SignedOut" xml:space="preserve">
+    <value>Not logged in to Nexus Mods.</value>
+  </data>
+  <data name="Nexus.PendingRegistration" xml:space="preserve">
+    <value>OAuth registration is pending. Configure the Client ID after approval to enable login.</value>
+  </data>
+  <data name="Nexus.Waiting" xml:space="preserve">
+    <value>Complete Nexus Mods authorization in your system browser.</value>
+  </data>
+  <data name="Nexus.LoginSuccess" xml:space="preserve">
+    <value>Logged in to Nexus Mods. Credentials are encrypted on this computer.</value>
+  </data>
+  <data name="Nexus.Cancelled" xml:space="preserve">
+    <value>Nexus Mods login cancelled.</value>
+  </data>
+  <data name="Nexus.LoginFailed" xml:space="preserve">
+    <value>Nexus Mods login failed. Check the network or local credential storage and retry.</value>
+  </data>
+  <data name="Nexus.LoggedOut" xml:space="preserve">
+    <value>Logged out of Nexus Mods and removed saved credentials from this computer.</value>
+  </data>
+  <data name="Nexus.DeleteFailed" xml:space="preserve">
+    <value>Could not delete credentials. Login is unchanged; please retry.</value>
+  </data>
+  <data name="Nexus.BrowserFailed" xml:space="preserve">
+    <value>Could not open the system browser. Please retry.</value>
+  </data>
+  <data name="Nexus.MissingClientId" xml:space="preserve">
+    <value>The Nexus Mods OAuth Client ID is not configured. Configure it after application registration is approved.</value>
+  </data>
+  <data name="Nexus.InvalidCallback" xml:space="preserve">
+    <value>The OAuth callback must be an http://127.0.0.1/ loopback URL with a port and a trailing slash.</value>
+  </data>
+  <data name="Nexus.ClientMissing" xml:space="preserve">
+    <value>The OAuth client is not configured.</value>
+  </data>
+  <data name="Nexus.LoginInProgress" xml:space="preserve">
+    <value>A Nexus Mods login is already in progress. Cancel or complete it first.</value>
+  </data>
+  <data name="Nexus.ListenerFailed" xml:space="preserve">
+    <value>Could not listen for the local OAuth callback. The port may be in use; close another login window and retry.</value>
+  </data>
+  <data name="Nexus.Denied" xml:space="preserve">
+    <value>Nexus Mods authorization was denied. Log in again and allow application access.</value>
+  </data>
+  <data name="Nexus.Timeout" xml:space="preserve">
+    <value>Nexus Mods login timed out. Please log in again.</value>
+  </data>
+  <data name="Nexus.AccountMismatch" xml:space="preserve">
+    <value>The refreshed token belongs to a different account. Please log in again.</value>
+  </data>
+  <data name="Nexus.TokenFailed" xml:space="preserve">
+    <value>Nexus Mods token request failed (HTTP {0}). Please retry later.</value>
+  </data>
+  <data name="Nexus.TokenRevoked" xml:space="preserve">
+    <value>Nexus Mods token request failed (HTTP {0}). Authorization may have been revoked; please log in again.</value>
+  </data>
+  <data name="Nexus.InvalidToken" xml:space="preserve">
+    <value>The Nexus Mods token response or signature is invalid. Login information was not saved; please log in again.</value>
+  </data>
+  <data name="Nexus.SavedConfigMismatch" xml:space="preserve">
+    <value>The saved Nexus Mods login does not match this application configuration. Please log in again.</value>
+  </data>
+  <data name="Nexus.AuthChanged" xml:space="preserve">
+    <value>Nexus Mods login has changed. Please retry the operation.</value>
+  </data>
+  <data name="Nexus.LoginRequired" xml:space="preserve">
+    <value>Log in to Nexus Mods in Settings → Accounts, or apply a personal API key in Developer Tools for testing.</value>
+  </data>
+  <data name="Nexus.RestoreFailed" xml:space="preserve">
+    <value>Could not read saved Nexus Mods credentials. Log in again in Settings → Accounts, or enter a personal key in Developer Tools.</value>
+  </data>
+  <data name="Nexus.ApiUnauthorized" xml:space="preserve">
+    <value>The server rejected the current authentication. Log in again in Settings → Accounts; for personal key testing, apply a valid key in Developer Tools.</value>
+  </data>
+  <data name="Nexus.NxmAccountMismatch" xml:space="preserve">
+    <value>The temporary link belongs to a different Nexus Mods account. Use the current account in the browser and get a new link, or log in again.</value>
+  </data>
+  <data name="Nexus.NxmBadRequest" xml:space="preserve">
+    <value>Nexus Mods reports that the temporary authorization does not match the account or file. Use the current account in the browser and copy the complete nxm:// link for the selected file.</value>
+  </data>
+  <data name="Nexus.ClientIdTesting" xml:space="preserve">
+    <value>OAuth Client ID testing</value>
+  </data>
+  <data name="Nexus.ClientIdTestingHint" xml:space="preserve">
+    <value>Client ID is public configuration. Save to apply it immediately and keep it after restart, then log in from Settings → Accounts. Leave blank to restore the default configuration. Log out before changing a signed-in OAuth application; no Client Secret is needed.</value>
+  </data>
+  <data name="Nexus.ClientIdPlaceholder" xml:space="preserve">
+    <value>Enter the Client ID issued by Nexus Mods</value>
+  </data>
+  <data name="Nexus.CallbackUriLabel" xml:space="preserve">
+    <value>Callback URI (must match the registered URI exactly)</value>
+  </data>
+  <data name="Nexus.ApplyClientId" xml:space="preserve">
+    <value>Save and apply Client ID</value>
+  </data>
+  <data name="Nexus.ClientIdApplied" xml:space="preserve">
+    <value>Client ID configuration saved and applied. You can test login from Settings → Accounts.</value>
+  </data>
+  <data name="Nexus.ClientIdInvalid" xml:space="preserve">
+    <value>Client ID cannot contain line breaks or control characters.</value>
+  </data>
+  <data name="Nexus.ClientIdLogoutFirst" xml:space="preserve">
+    <value>Log out of OAuth in Settings → Accounts before changing the Client ID.</value>
+  </data>
+  <data name="Nexus.ClientIdSaveFailed" xml:space="preserve">
+    <value>Could not save the Client ID. The previous configuration is unchanged; please retry.</value>
+  </data>
+  <data name="Accounts.Title" xml:space="preserve">
+    <value>Accounts</value>
+  </data>
+  <data name="Accounts.AyakaPlaceholder" xml:space="preserve">
+    <value>Login is not connected yet. The documentation is currently unavailable; this section is reserved for future integration.</value>
+  </data>
+  <data name="Accounts.AyakaLogin" xml:space="preserve">
+    <value>Log in to Ayaka Mods</value>
+  </data>
+  <data name="Nexus.QuotaHelp" xml:space="preserve">
+    <value>Shows quota headers from the latest account API response. Unknown means no headers were received. Refresh manually; no background polling. Quotas belong to the Nexus account and may be shared with other apps.</value>
+  </data>
+  <data name="Nexus.QuotaUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Nexus.HourlyQuota" xml:space="preserve">
+    <value>Hourly requests remaining / limit: {0} / {1}</value>
+  </data>
+  <data name="Nexus.DailyQuota" xml:space="preserve">
+    <value>Daily requests remaining / limit: {0} / {1}</value>
+  </data>
+  <data name="Nexus.HourlyReset" xml:space="preserve">
+    <value>Hourly reset (local time): {0}</value>
+  </data>
+  <data name="Nexus.DailyReset" xml:space="preserve">
+    <value>Daily reset (local time): {0}</value>
+  </data>
+  <data name="Nexus.QuotaUpdated" xml:space="preserve">
+    <value>Last updated (local time): {0}</value>
+  </data>
+  <data name="Nexus.RetryAt" xml:space="preserve">
+    <value>Retry after (local time): {0}</value>
+  </data>
+  <data name="Nexus.RefreshQuota" xml:space="preserve">
+    <value>Refresh quota</value>
+  </data>
+  <data name="Nexus.RefreshQuotaOperation" xml:space="preserve">
+    <value>Refresh Nexus Mods request quota</value>
+  </data>
+  <data name="Nexus.PublicKeyRequestFailed" xml:space="preserve">
+    <value>Could not request Nexus Mods signing keys (HTTP {0}). Please retry later.</value>
+  </data>
+  <data name="Nexus.AccountTestingHint" xml:space="preserve">
+    <value>For development testing only: open Tools → Developer tools, enter the Client ID issued by Nexus Mods under OAuth Client ID testing, select Save and apply Client ID, then return here to log in. Personal API key testing is also available under Nexus Mods API key testing in the same window.</value>
   </data>
 </root>

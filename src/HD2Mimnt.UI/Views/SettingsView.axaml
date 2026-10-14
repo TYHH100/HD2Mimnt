@@ -4,7 +4,7 @@
   <Grid ColumnDefinitions="180,*" Margin="24,16,24,20" ColumnSpacing="24">
     <StackPanel Spacing="12">
       <TextBlock Text="{loc:Loc Settings.Title}" Classes="page-title"/>
-      <ListBox ItemsSource="{Binding SettingsCategories}" SelectedItem="{Binding SelectedCategory}">
+      <ListBox x:Name="SettingsCategoryList" ItemsSource="{Binding SettingsCategories}" SelectedItem="{Binding SelectedCategory}">
         <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" Padding="8,9"/></DataTemplate></ListBox.ItemTemplate>
       </ListBox>
     </StackPanel>
@@ -15,6 +15,40 @@
       </StackPanel>
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="12" Margin="0,0,4,0">
+        <StackPanel IsVisible="{Binding IsAccountCategoryVisible}" Spacing="12">
+          <fa:FASettingsExpander x:Name="NexusAccountSettings" Header="Nexus Mods" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <StackPanel DataContext="{Binding NexusAccount}" x:DataType="vm:NexusModsAccountViewModel" Spacing="12">
+                <TextBlock x:Name="SettingsNexusAccountStatus" Text="{loc:LocalizedBinding Status}" TextWrapping="Wrap"/>
+                <WrapPanel>
+                  <Button x:Name="SettingsNexusLoginButton" Command="{Binding LoginCommand}" Content="{loc:Loc Nexus.Login}" Classes="accent" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusLogoutButton" Command="{Binding LogoutCommand}" Content="{loc:Loc Nexus.Logout}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusCancelLoginButton" Command="{Binding CancelLoginCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusManageAuthorizationButton" Command="{Binding ManageAuthorizationCommand}" Content="{loc:Loc Nexus.ManageAuthorization}" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusAccountTestingHint" Text="{loc:Loc Nexus.AccountTestingHint}"
+                           IsVisible="{Binding !HasAuthentication}" Classes="caption-text" TextWrapping="Wrap"/>
+                <Separator/>
+                <TextBlock Text="Rate Limiting" Classes="section-title"/>
+                <TextBlock Text="{loc:Loc Nexus.QuotaHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusHourlyQuota" Text="{Binding HourlyRateLimitText}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusDailyQuota" Text="{Binding DailyRateLimitText}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding HourlyResetText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding DailyResetText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding RateLimitUpdatedText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding RateLimitRetryText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <Button x:Name="SettingsNexusRefreshQuotaButton" Command="{Binding RefreshRateLimitCommand}" Content="{loc:Loc Nexus.RefreshQuota}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{loc:LocalizedBinding RateLimitMessage}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+          <fa:FASettingsExpander x:Name="AyakaAccountSettings" Header="Ayaka Mods" IsExpanded="True">
+            <fa:FASettingsExpanderItem Description="{loc:Loc Accounts.AyakaPlaceholder}">
+              <fa:FASettingsExpanderItem.Footer><Button Content="{loc:Loc Accounts.AyakaLogin}" IsEnabled="False"/></fa:FASettingsExpanderItem.Footer>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+        </StackPanel>
         <fa:FASettingsExpander Header="{loc:Loc UI.GameDirectory}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsGameCategoryVisible}">
           <fa:FASettingsExpanderItem>
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
@@ -139,7 +173,7 @@
       </ScrollViewer>
       <StackPanel Grid.Row="2" Spacing="8" Margin="0,20,0,0">
         <TextBlock Text="{loc:LocalizedBinding StatusMessage}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullConverter}}"/>
-        <StackPanel Orientation="Horizontal" Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsAccountCategoryVisible}">
           <Button x:Name="SaveSettingsButton" Content="{loc:Loc UI.SaveSettings}" Classes="accent" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsLoading}"/>
           <Button Content="{loc:Loc UI.RestoreDefaults}" Command="{Binding ResetCommand}" IsEnabled="{Binding !IsLoading}"/>
         </StackPanel>

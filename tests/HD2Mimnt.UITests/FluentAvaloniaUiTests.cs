@@ -442,7 +442,7 @@ public sealed partial class FluentAvaloniaUiTests
             library.ModLink!.Open(target);
             await library.ModLink.FetchCommand.ExecuteAsync(null);
             Assert.Contains("获取模组信息失败（HTTP 401）", library.ModLink.Message);
-            Assert.Contains("更多 → 开发工具", library.ModLink.Message);
+            Assert.Contains("浏览模组", library.ModLink.Message);
             Assert.Contains(handler.FailureReason, library.ModLink.Message);
             library.ModLink.CloseCommand.Execute(null);
 
@@ -3459,7 +3459,9 @@ public sealed partial class FluentAvaloniaUiTests
         public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
             HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null,
             HD2Mimnt.Core.Interfaces.IMinidumpAnalyzer? minidumpAnalyzer = null,
-            HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null)
+            HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null,
+            NexusModsOAuthOptions? nexusOAuthOptions = null,
+            HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3474,6 +3476,8 @@ public sealed partial class FluentAvaloniaUiTests
                 if (systemLanguage != null) services.AddSingleton(systemLanguage);
                 if (minidumpAnalyzer != null) services.AddSingleton(minidumpAnalyzer);
                 if (directDownloads != null) services.AddSingleton(directDownloads);
+                if (nexusOAuthOptions != null) services.AddSingleton(nexusOAuthOptions);
+                if (nexusOAuthClient != null) services.AddSingleton(nexusOAuthClient);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
                 if (nexusHandler != null)
                 {

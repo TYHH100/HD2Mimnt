@@ -15,7 +15,7 @@ public sealed class ModLinkService(IPlatformRegistry platforms, ModService mods)
         var platform = platforms.GetPlatform(link.PlatformId)
             ?? throw new InvalidOperationException("N 网平台未注册。");
         if (platform is NexusModsPlatformAdapter nexus && !nexus.IsAuthenticated)
-            throw new InvalidOperationException("请先在“更多 → 开发工具”中应用 N 网 API 密钥。");
+            throw new InvalidOperationException("请先在“设置 → 账号”中登录 N 网，或在开发工具应用个人 API Key 测试。");
 
         var info = await platform.GetModInfoAsync(link.ModId, cancellationToken);
         if (info.Id != link.ModId)
