@@ -59,7 +59,7 @@ public partial class ProfileViewModel : ObservableObject
             || SelectedProfile is not { } profile) return;
         CloseConflictPicker();
         ModSearchText = string.Empty;
-        var group = target.IsBslMember ? _luaSeparator
+        var group = target.IsFixedGroupMember ? _luaSeparator
             : ProfileSeparators.FirstOrDefault(separator => GetSeparatorMembers(separator).Contains(target));
         if (group?.IsCollapsed == true) await ToggleSeparatorAsync(group);
         if (SelectedProfile != profile || !ProfileMods.Contains(target) || !VisibleProfileMods.Contains(target)) return;
@@ -191,8 +191,16 @@ public partial class ProfileViewModel : ObservableObject
         {
             await SuppressLocalChangeAsync(() => _profileService.SetModsEnabledAsync(profile.Id,
                 selected.Select(mod => mod.ModId).ToArray(), enabled));
+            var loaderStates = enabled && selected.Any(mod => mod.IsBslLoader)
+                ? (await _profileService.GetProfileByIdAsync(profile.Id))?.Mods.ToDictionary(mod => mod.ModId, mod => mod.Enabled)
+                : null;
             if (ReferenceEquals(SelectedProfile, profile))
+            {
                 foreach (var mod in selected) mod.Enabled = enabled;
+                if (loaderStates != null)
+                    foreach (var mod in ProfileMods)
+                        if (loaderStates.TryGetValue(mod.ModId, out var savedEnabled)) mod.Enabled = savedEnabled;
+            }
         }
         catch (Exception ex) { _notificationService.ShowError($"批量更新模组状态失败: {ex.Message}", "配置文件"); }
         finally { IsBatchModOperationRunning = false; }
@@ -396,6 +404,17 @@ public partial class ProfileViewModel : ObservableObject
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key == SettingKeys.ProfilesLockLoaders)
+        {
+            void Reload()
+            {
+                if (SelectedProfile != null) _ = LoadProfileModsAsync(SelectedProfile.Id);
+                DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Reload();
+            else Dispatcher.UIThread.Post(Reload);
+            return;
+        }
         if (e.Key != SettingKeys.DefaultDeploymentOrder) return;
         void Apply()
         {
@@ -412,7 +431,12 @@ public partial class ProfileViewModel : ObservableObject
 
     private void ArrangeBslDisplay()
     {
-        var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+        {
+            ProfileMods = new ObservableCollection<ProfileModViewModel>(ProfileMods.OrderBy(mod => mod.Order));
+            return;
+        }
+        var normal = ProfileMods.Where(mod => !mod.IsFixedGroupMember).ToList();
         var dependencies = ProfileMods.Where(mod => mod.BslRole == BslModRole.Dependency).OrderBy(mod => mod.Order).ToList();
         var loaders = ProfileMods.Where(mod => mod.IsBslLoader).OrderBy(mod => mod.Order).ToList();
         var smoothBoot = ProfileMods.Where(mod => mod.BslRole == BslModRole.SmoothBoot).OrderBy(mod => mod.Order).ToList();
@@ -611,8 +635,8 @@ public partial class ProfileViewModel : ObservableObject
             }
         }
         var separator = _luaSeparator;
-        separator.GroupModCount = ProfileMods.Count(mod => mod.IsBslMember);
-        var fixedRows = ProfileMods.Where(mod => mod.IsBslMember
+        separator.GroupModCount = ProfileMods.Count(mod => mod.IsFixedGroupMember);
+        var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember
             && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
         var rows = new List<ProfileModViewModel>();
         if (_bottomToTop)
@@ -633,7 +657,7 @@ public partial class ProfileViewModel : ObservableObject
     }
 
     private int GetLuaGroupBoundary(IEnumerable<ProfileModViewModel> mods)
-        => mods.TakeWhile(mod => mod.IsBslMember == _bottomToTop).Count();
+        => mods.TakeWhile(mod => mod.IsFixedGroupMember == _bottomToTop).Count();
 
     [RelayCommand]
     private void OpenAddSeparator(ProfileModViewModel? target)
@@ -641,7 +665,7 @@ public partial class ProfileViewModel : ObservableObject
         if (SelectedProfile == null || IsProfileModsLoading) return;
         _separatorProfileId = SelectedProfile.Id;
         _editingSeparatorId = null;
-        var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        var normal = ProfileMods.Where(mod => !mod.IsFixedGroupMember).ToList();
         _newSeparatorOrder = target is { IsUserSeparator: true } ? target.Order
             : target != null && normal.Contains(target) ? normal.IndexOf(target) : normal.Count;
         SeparatorName = string.Empty;
@@ -748,7 +772,7 @@ public partial class ProfileViewModel : ObservableObject
 
     private List<ProfileModViewModel> BuildOrdinaryRows()
     {
-        var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        var normal = ProfileMods.Where(mod => !mod.IsFixedGroupMember).ToList();
         var rows = new List<ProfileModViewModel>();
         var separators = ProfileSeparators.OrderBy(row => row.Order).ToArray();
         var next = 0;
@@ -765,11 +789,11 @@ public partial class ProfileViewModel : ObservableObject
         => separator.IsUserSeparator
             ? BuildOrdinaryRows().SkipWhile(row => row != separator).Skip(1).TakeWhile(row => !row.IsUserSeparator)
                 .Take(separator.MemberCount ?? int.MaxValue).ToList()
-            : ProfileMods.Where(row => row.IsBslMember).ToList();
+            : ProfileMods.Where(row => row.IsFixedGroupMember).ToList();
 
     private void AdjustSeparatorPositionsAfterRemoval(IReadOnlyCollection<ProfileModViewModel> removed)
     {
-        var normal = ProfileMods.Where(mod => !mod.IsBslMember).ToList();
+        var normal = ProfileMods.Where(mod => !mod.IsFixedGroupMember).ToList();
         foreach (var separator in ProfileSeparators.Where(row => row.MemberCount != null || row.IsCollapsed))
         {
             var members = GetSeparatorMembers(separator);
@@ -845,6 +869,7 @@ public partial class ProfileViewModel : ObservableObject
         {
             _bottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
                 == DeploymentOrder.BottomToTop.ToString();
+            var lockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             var profile = await _profileService.GetProfileByIdAsync(profileId, cancellationToken);
             if (profile == null)
             {
@@ -870,6 +895,7 @@ public partial class ProfileViewModel : ObservableObject
                         Enabled = profileMod.Enabled,
                         Order = profileMod.Order,
                         BslRole = BslProfilePolicy.Role(mod),
+                        LoaderLockEnabled = lockLoaders,
                         HasLuaResources = mod.ResourceTypeIds?.Contains(0xa14e8dfa2cd117e2UL) == true,
                         ModPath = mod.Path,
                         ThumbnailPath = mod.ThumbnailPath
@@ -895,7 +921,7 @@ public partial class ProfileViewModel : ObservableObject
             RenumberProfileMods();
             ApplyModFilter();
             IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
-            _ = LoadProfileModIconsAsync();
+            _ = LoadProfileModIconsAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -929,11 +955,12 @@ public partial class ProfileViewModel : ObservableObject
     }
 
     /// <summary>按库页同样的模式后台加载卡片缩略图；已加载或无缩略图的项自动跳过。</summary>
-    private async Task LoadProfileModIconsAsync()
+    private async Task LoadProfileModIconsAsync(CancellationToken cancellationToken)
     {
-        foreach (var mod in ProfileMods.Take(80))
+        foreach (var mod in ProfileMods.ToArray())
         {
-            await mod.LoadIconAsync();
+            if (cancellationToken.IsCancellationRequested) return;
+            await mod.LoadIconAsync(cancellationToken);
         }
     }
 
@@ -1364,7 +1391,8 @@ public partial class ProfileViewModel : ObservableObject
         var insertIndex = Math.Clamp(targetPosition - 1, 0, others.Count);
         Guid? anchor = insertIndex < others.Count ? others[insertIndex].ModId : null;
         // 分隔符前一组的末尾使用分隔符锚点，不能借用另一组首项的 ID。
-        if (moving.All(mod => mod.IsBslMember == _bottomToTop)
+        if (_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true)
+            && moving.All(mod => mod.IsFixedGroupMember == _bottomToTop)
             && insertIndex == GetLuaGroupBoundary(others))
             anchor = Guid.Empty;
 
@@ -1494,7 +1522,7 @@ public partial class ProfileViewModel : ObservableObject
             // 展开后仍允许向可见成员范围内插入模组。
             if (!separator.IsCollapsed && !movingSet.Contains(separator.ModId)
                 && originalInsertIndex > start && originalInsertIndex <= start + 1 + members.Count)
-                members.UnionWith(moving.Where(row => !row.IsSeparator && !row.IsBslMember).Select(row => row.ModId));
+                members.UnionWith(moving.Where(row => !row.IsSeparator && !row.IsFixedGroupMember).Select(row => row.ModId));
         }
 
         // 落点换算为"anchor 之前的非拖动项数量"，anchor 本身也在拖动集中时视为放到末尾
@@ -1527,10 +1555,10 @@ public partial class ProfileViewModel : ObservableObject
 
         foreach (var (separator, members) in boundedMembers)
             separator.MemberCount = newOrder.SkipWhile(row => row != separator).Skip(1)
-                .TakeWhile(row => !row.IsSeparator && !row.IsBslMember && members.Contains(row.ModId)).Count();
+                .TakeWhile(row => !row.IsSeparator && !row.IsFixedGroupMember && members.Contains(row.ModId)).Count();
         ProfileMods = new ObservableCollection<ProfileModViewModel>(newOrder.Where(row => !row.IsSeparator));
         var ordinaryCount = 0;
-        foreach (var row in newOrder.Where(row => !row.IsBslMember))
+        foreach (var row in newOrder.Where(row => !row.IsFixedGroupMember))
         {
             if (row.IsUserSeparator) row.Order = ordinaryCount;
             else ordinaryCount++;
@@ -1558,9 +1586,11 @@ public partial class ProfileViewModel : ObservableObject
 
     private List<Guid> CanonicalModIds()
     {
+        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+            return ProfileMods.Select(mod => mod.ModId).ToList();
         var dependencies = ProfileMods.Where(mod => mod.BslRole == BslModRole.Dependency);
         if (_bottomToTop) dependencies = dependencies.Reverse();
-        return ProfileMods.Where(mod => !mod.IsBslMember).Concat(dependencies)
+        return ProfileMods.Where(mod => !mod.IsFixedGroupMember).Concat(dependencies)
             .Concat(ProfileMods.Where(mod => mod.IsBslLoader).OrderBy(mod => mod.Order))
             .Concat(ProfileMods.Where(mod => mod.BslRole == BslModRole.SmoothBoot).OrderBy(mod => mod.Order))
             .Select(mod => mod.ModId).ToList();
@@ -1573,13 +1603,16 @@ public partial class ProfileViewModel : ObservableObject
         var expandedIds = ExpandMovingRows(ids);
         if (anchor is { } target && expandedIds.Contains(target)) return false;
         var moving = rows.Where(mod => expandedIds.Contains(mod.ModId)).ToList();
-        if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag) || moving.Select(mod => mod.IsBslMember).Distinct().Count() != 1)
+        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+            return moving.Count > 0 && moving.All(mod => mod.CanDrag)
+                && (anchor == null || rows.Any(row => row.ModId == anchor));
+        if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag) || moving.Select(mod => mod.IsFixedGroupMember).Distinct().Count() != 1)
             return false;
-        var beforeSeparator = moving[0].IsBslMember == _bottomToTop;
+        var beforeSeparator = moving[0].IsFixedGroupMember == _bottomToTop;
         if (beforeSeparator && anchor == null || !beforeSeparator && anchor == Guid.Empty) return false;
         // 两种部署方向都以分隔符为边界，不能借另一组的卡片越过分隔符。
         if (beforeSeparator && anchor is { } id
-            && rows.Any(mod => mod.ModId == id && mod.IsBslMember != moving[0].IsBslMember)) return false;
+            && rows.Any(mod => mod.ModId == id && mod.IsFixedGroupMember != moving[0].IsFixedGroupMember)) return false;
         if (anchor is { } validAnchor && validAnchor != Guid.Empty && rows.All(row => row.ModId != validAnchor)) return false;
         var others = rows.Where(mod => !expandedIds.Contains(mod.ModId)).ToList();
         var index = anchor == Guid.Empty ? GetLuaGroupBoundary(others)
@@ -1593,7 +1626,7 @@ public partial class ProfileViewModel : ObservableObject
     private List<ProfileModViewModel> GetSortableRows()
     {
         var ordinary = BuildOrdinaryRows();
-        var fixedRows = ProfileMods.Where(mod => mod.IsBslMember);
+        var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember);
         return (_bottomToTop ? fixedRows.Concat(ordinary) : ordinary.Concat(fixedRows)).ToList();
     }
 
@@ -1713,13 +1746,15 @@ public partial class ProfileModViewModel : ObservableObject
     public bool IsExpanded => !IsCollapsed;
     public BslModRole BslRole { get; init; }
     public bool IsBslMember => BslRole != BslModRole.None;
+    public bool LoaderLockEnabled { get; init; } = true;
+    public bool IsFixedGroupMember => LoaderLockEnabled && IsBslMember;
     public bool IsBslLoader => BslProfilePolicy.IsLoader(BslRole);
     public bool IsSmoothBoot => BslRole == BslModRole.SmoothBoot;
     public bool IsLuaDependency => BslRole == BslModRole.Dependency;
     public bool HasLuaResources { get; init; }
     public bool IsLuaMod => HasLuaResources || IsBslMember;
     public string PriorityLabel => IsSmoothBoot ? "SmoothBoot · 最高优先级" : IsBslLoader ? "BSL / MDL · 固定在依赖之后" : "依赖加载器";
-    public bool CanSelect => !IsSeparator && !IsBslLoader && !IsSmoothBoot;
+    public bool CanSelect => !IsSeparator && (!LoaderLockEnabled || !IsBslLoader && !IsSmoothBoot);
     public bool CanDrag => CanSelect || IsUserSeparator;
 
     [ObservableProperty]

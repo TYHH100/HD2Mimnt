@@ -51,6 +51,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _enableAnimations = true;
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private bool _autoCheckConflicts;
+    [ObservableProperty] private bool _lockLoaders = true;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -71,7 +72,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
-    public IEnumerable<string> SettingsCategories { get; } = new[] { "游戏", "配置文件", "部署", "模组库", "下载", "账号", "存储位置", "外观", "缓存" };
     public NexusModsAccountViewModel? NexusAccount { get; }
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
@@ -105,6 +105,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             .ToArray();
         if (_localization != null) _localization.PropertyChanged += OnUiLanguageChanged;
         SynchronizeLanguage();
+        LoadEntryVisibility();
+        LoadLogSettings();
     }
 
     partial void OnSelectedLanguageCodeChanged(string value)
@@ -164,6 +166,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCategoryChanged(string value)
     {
+        OnPropertyChanged(nameof(IsLogCategoryVisible));
         if (value != "账号") _ = StopAccountsAsync();
         OnPropertyChanged(nameof(IsGameCategoryVisible));
         OnPropertyChanged(nameof(IsProfileCategoryVisible));
@@ -174,6 +177,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
+        OnPropertyChanged(nameof(IsEntriesCategoryVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
@@ -188,11 +192,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             SynchronizeLanguage();
+            LoadEntryVisibility();
             LoadStoragePaths();
+            LoadLogSettings();
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
+            LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
@@ -222,8 +229,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task SaveAsync()
     {
+        if (IsLogCategoryVisible)
+        {
+            await SaveLogSettingsAsync();
+            return;
+        }
         try
         {
+            if (IsEntriesCategoryVisible)
+            {
+                await SaveEntryVisibilityAsync();
+                StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Entries.Saved"];
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             if (IsStorageCategoryVisible)
             {
                 if (_storageSettings == null) throw new InvalidOperationException("存储设置服务未初始化。");
@@ -310,6 +329,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private async Task SaveProfilePreferencesAsync()
     {
+        await _settingsService.SetSettingAsync(SettingKeys.ProfilesLockLoaders, LockLoaders);
         await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
         await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, AutoCheckConflicts);
         AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
@@ -343,6 +363,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ResetAsync()
     {
+        if (IsLogCategoryVisible)
+        {
+            await _settingsService.ResetCategoryAsync("Diagnostics");
+            LoadLogSettings();
+            StatusMessage = "日志设置已恢复默认值";
+            return;
+        }
+        if (IsEntriesCategoryVisible)
+        {
+            await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, Array.Empty<string>());
+            LoadEntryVisibility();
+            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Entries.Reset"];
+            return;
+        }
         if (IsStorageCategoryVisible && _storageSettings != null)
         {
             AppDataPath = _storageSettings.Defaults.AppDataPath;

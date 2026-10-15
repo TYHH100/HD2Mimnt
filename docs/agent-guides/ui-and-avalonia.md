@@ -26,6 +26,8 @@
 
 - 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，显示在模组库右侧。来源：https://github.com/amwx/FluentAvalonia
 
+- “设置 → 入口自定义”将隐藏项保存为 `UI.HiddenEntries` 中的稳定英文 ID，显示标签继续本地化；保存独立于游戏路径验证，恢复默认只恢复入口显示。顶部“设置”和设置分类“入口自定义”始终保留，隐藏仅影响入口显示，不停用功能或改变导航 Tag。设置分类刷新 ItemsSource 时先保存当前分类，刷新后恢复仍可见的分类，否则回到入口自定义，避免 ListBox 清空 SelectedItem 导致空白页。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
+
 - UI 只通过 Application 服务访问模组、配置文件和部署数据；不要在 View 或 ViewModel 中直接访问 SQLite、部署实现或复制文件。
 
 - Avalonia 的 `ObservableCollection` 和控件状态只能在 UI 上下文更新。后台筛选/排序先计算普通 `List`，回到 UI 上下文后再替换集合。
@@ -49,6 +51,8 @@
 - 模态弹窗即使复用 `card` 样式，也必须显式使用不透明的主题背景（如 `{DynamicResource Surface2Brush}`），避免受卡片透明度设置影响而透出底层文字；验证低透明度及深浅主题切换。来源：https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
 
 - 图片占位图标的可见性使用 `ObjectConverters.IsNull` 判断图片对象；不要将 `!Icon` 与 `NotNullConverter` 组合，布尔结果仍然非空，会导致占位图标覆盖已加载图片。来源：https://docs.avaloniaui.net/docs/reference/built-in-data-binding-converters
+
+- 模组缩略图不能只加载列表前 50/80 项，除非同时实现滚动和筛选后的补加载；当前按完整数据源快照异步加载，配置切换时取消旧队列，库刷新时停止旧数据源队列。文件暂不可读或解码失败不能永久缓存 null，否则刷新仍然缺图；`IconBitmap` 等派生绑定属性必须随 `Icon` 通知。回归覆盖超过原限制的列表、加载时无搜索结果，以及文件独占占用后恢复读取。来源：https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd 、https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/generators/observableproperty
 
 - 拖放排序预览必须与 Drop 共用插入位置计算，覆盖层设置 IsHitTestVisible=False 且不参与列表布局；DragLeave 可能从子控件冒泡，只有指针真正离开列表视口才隐藏预览，避免鼠标跨过文字/图片时闪烁。取消、完成、DataContext 变化和视图卸载都要恢复拖动源透明度。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 

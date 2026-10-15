@@ -4,6 +4,7 @@ using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Platforms.NexusMods;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 // Preserve the public namespace so existing callers need no migration.
 namespace HD2Mimnt.Infrastructure.Platforms;
@@ -25,12 +26,12 @@ public class NexusModsPlatformAdapter : BasePlatformAdapter, IModFileDownloadPla
         PlatformCapabilities.RateLimit;
 
     public NexusModsPlatformAdapter(HttpClient httpClient, IHttpDownloadService? downloader = null,
-        string? applicationVersion = null) : base(httpClient)
+        string? applicationVersion = null, ILogger<NexusModsPlatformAdapter>? logger = null) : base(httpClient)
     {
         var version = applicationVersion ??
             (System.Reflection.Assembly.GetEntryAssembly() ?? typeof(NexusModsPlatformAdapter).Assembly)
             .GetName().Version!.ToString();
-        _api = new NexusModsApiClient(httpClient, version);
+        _api = new NexusModsApiClient(httpClient, version, logger);
         var downloadService = downloader ?? new HttpDownloadService(httpClient);
         _files = new NexusModsFileService(_api, downloadService);
         _nxm = new NexusModsNxmService(_api, downloadService);

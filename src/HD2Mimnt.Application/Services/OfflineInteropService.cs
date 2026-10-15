@@ -118,7 +118,8 @@ public sealed class OfflineInteropService : IAsyncDisposable
                 profile.IsActive, profile.Mods.OrderBy(item => item.Order).Select(item => new OfflineProfileModV1(
                     item.ModId, item.Enabled, item.Order, State(ProfileModOptionResolver.ResolveEffective(
                         byId.GetValueOrDefault(item.ModId)?.Manifest, item.OptionsJson)))).ToArray(),
-                BslProfilePolicy.DeploymentSequence(profile, byId, direction).Select(item => item.ModId).ToArray())).ToArray();
+                BslProfilePolicy.DeploymentSequence(profile, byId, direction,
+                    _settings.GetSetting(SettingKeys.ProfilesLockLoaders, true)).Select(item => item.ModId).ToArray())).ToArray();
             var deployments = data.Deployments.Select(ProjectDeployment).ToArray();
             var snapshot = new OfflineRuntimeV1("hd2mimnt-runtime", 1, 0, Guid.NewGuid().ToString("D"),
                 DateTimeOffset.UtcNow, typeof(OfflineInteropService).Assembly.GetName().Version?.ToString() ?? "UNKNOWN",

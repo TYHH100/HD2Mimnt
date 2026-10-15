@@ -325,6 +325,7 @@ public static class SettingKeys
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
+    public const string ProfilesLockLoaders = "Profiles.LockLoaders";
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
@@ -346,6 +347,7 @@ public static class SettingKeys
 
     // UI 相关
     public const string Language = "UI.Language";
+    public const string HiddenEntries = "UI.HiddenEntries";
     public const string Theme = "UI.Theme";
     public const string ListDensity = "UI.ListDensity";
     public const string BackgroundImagePath = "UI.BackgroundImagePath";

@@ -33,11 +33,11 @@
         <StaticResource x:Key="NavigationViewContentBackground" ResourceKey="ContentFillBrush"/>
       </fa:FANavigationView.Resources>
       <fa:FANavigationView.MenuItems>
-        <fa:FANavigationViewItem Content="{loc:Loc UI.Profiles}" IconSource="Folder" Tag="0"/>
-        <fa:FANavigationViewItem Content="{loc:Loc UI.Library}" IconSource="Library" Tag="1"/>
-        <fa:FANavigationViewItem Content="{loc:Loc Browse.Title}" IconSource="Globe" Tag="5"/>
-        <fa:FANavigationViewItem Content="{loc:Loc UI.Conflicts}" IconSource="Important" Tag="2"/>
-        <fa:FANavigationViewItem Content="{loc:Loc UI.Tools}" IconSource="Repair" Tag="3"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Profiles}" IconSource="Folder" Tag="0" IsVisible="{Binding SettingsViewModel.ShowProfilesEntry}"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Library}" IconSource="Library" Tag="1" IsVisible="{Binding SettingsViewModel.ShowLibraryEntry}"/>
+        <fa:FANavigationViewItem Content="{loc:Loc Browse.Title}" IconSource="Globe" Tag="5" IsVisible="{Binding SettingsViewModel.ShowBrowseEntry}"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Conflicts}" IconSource="Important" Tag="2" IsVisible="{Binding SettingsViewModel.ShowConflictsEntry}"/>
+        <fa:FANavigationViewItem Content="{loc:Loc UI.Tools}" IconSource="Repair" Tag="3" IsVisible="{Binding SettingsViewModel.ShowToolsEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc Settings.Title}" IconSource="Settings" Tag="4"/>
       </fa:FANavigationView.MenuItems>
       <fa:FANavigationView.PaneFooter>

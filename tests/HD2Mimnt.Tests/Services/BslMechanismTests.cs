@@ -205,6 +205,45 @@ public sealed class BslMechanismTests : IDisposable
     [Theory]
     [InlineData(DeploymentOrder.TopToBottom)]
     [InlineData(DeploymentOrder.BottomToTop)]
+    public async Task UnlockedLoaders_ShouldKeepManualOrderThroughReloadDeploymentAndRelocking(DeploymentOrder direction)
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, false);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),
+            new[] { new CopyDeploymentMethod() }, settingsService: settings);
+        var normal = await AddModAsync("普通");
+        var dependency = await AddModAsync("依赖", BslModRole.Dependency);
+        var loader = await AddModAsync("Loader", BslModRole.Loader);
+        var smooth = await AddModAsync("SmoothBoot", BslModRole.SmoothBoot);
+        var manual = new[] { smooth, loader, normal, dependency };
+        foreach (var mod in manual)
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var id = await service.CreateProfileAsync("手动顺序");
+        await service.SetModsEnabledAsync(id, manual.Select(mod => mod.Id).ToArray(), true);
+        await service.ReorderProfileRowsAsync(id, manual.Select(mod => mod.Id).ToArray(), manual.Select(mod => mod.Id).ToArray());
+        var saved = (await service.GetProfileByIdAsync(id))!;
+        Assert.Equal(manual.Select(mod => mod.Id), saved.Mods.Select(mod => mod.ModId));
+        await service.SetModEnabledAsync(id, loader.Id, false);
+        Assert.False((await service.GetProfileByIdAsync(id))!.Mods.Single(mod => mod.ModId == loader.Id).Enabled);
+        await service.SetModEnabledAsync(id, loader.Id, true);
+        var game = Path.Combine(_root, "manual-game");
+        Directory.CreateDirectory(game);
+        var result = await deployment.DeployProfileAsync(id, DeploymentMethod.Copy, direction, game);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        var expected = direction == DeploymentOrder.TopToBottom ? manual : manual.Reverse().ToArray();
+        for (var index = 0; index < expected.Length; index++)
+            Assert.Equal(expected[index].Name, await File.ReadAllTextAsync(Path.Combine(game, $"data/9ba626afa44a3aa3.patch_{index}")));
+
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
+        saved = (await service.GetProfileByIdAsync(id))!;
+        Assert.Equal(new[] { normal.Id, dependency.Id, loader.Id, smooth.Id }, saved.Mods.Select(mod => mod.ModId));
+        Assert.All(saved.Mods, mod => Assert.True(mod.Enabled));
+    }
+
+    [Theory]
+    [InlineData(DeploymentOrder.TopToBottom)]
+    [InlineData(DeploymentOrder.BottomToTop)]
     public async Task DeployBothDirections_ShouldAssignHighestPatchToLoader(DeploymentOrder direction)
     {
         var normal1 = await AddModAsync("普通一");

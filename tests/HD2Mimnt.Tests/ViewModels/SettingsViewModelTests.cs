@@ -23,14 +23,42 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task EntryVisibility_ShouldSaveIndependentlyPersistAndResetOnlyEntries()
+    {
+        using var vm = CreateViewModel("invalid-game-path");
+        vm.SelectedCategory = "入口自定义";
+        await _settingsService.SetSettingAsync(SettingKeys.Theme, "Light");
+        foreach (var entry in vm.NavigationEntries.Concat(vm.SettingsEntries)) entry.IsVisible = false;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ShowBrowseEntry);
+        Assert.Equal(new[] { "入口自定义" }, vm.SettingsCategories);
+        Assert.True(vm.IsEntriesCategoryVisible);
+        var saved = new SettingsService(_rootDirectory);
+        Assert.Equal(vm.NavigationEntries.Count + vm.SettingsEntries.Count, saved.GetSetting(SettingKeys.HiddenEntries, Array.Empty<string>()).Length);
+        using var reopened = new SettingsViewModel(saved, _gameDetectionService, new NotificationService(), _imageCache.Object);
+        Assert.False(reopened.ShowProfilesEntry);
+        Assert.False(reopened.ShowToolsEntry);
+        Assert.Equal("入口自定义", reopened.SelectedCategory);
+
+        await vm.ResetCommand.ExecuteAsync(null);
+        Assert.All(vm.NavigationEntries.Concat(vm.SettingsEntries), entry => Assert.True(entry.IsVisible));
+        Assert.True(vm.ShowBrowseEntry);
+        Assert.Contains("缓存", vm.SettingsCategories);
+        Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
+    }
+
+    [Fact]
     public async Task ProfilePreferences_ShouldDefaultOffSaveWithoutGamePathAndReset()
     {
         var vm = CreateViewModel("invalid-game-path");
         await vm.LoadAsync();
         Assert.False(vm.AutoCheckConflicts);
+        Assert.True(vm.LockLoaders);
         vm.GamePath = "invalid-game-path";
         vm.SelectedCategory = "配置文件";
         vm.AutoCheckConflicts = true;
+        vm.LockLoaders = false;
         bool? applied = null;
         vm.AutoCheckConflictsChanged += (_, enabled) => applied = enabled;
         await vm.SaveCommand.ExecuteAsync(null);
@@ -38,11 +66,13 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal("配置文件设置已保存", vm.StatusMessage);
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
+        Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true));
         await vm.LoadAsync();
         Assert.True(vm.AutoCheckConflicts);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.AutoCheckConflicts);
         Assert.False(applied);
+        Assert.True(vm.LockLoaders);
     }
 
     [Fact]

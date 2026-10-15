@@ -378,9 +378,11 @@ public partial class LibraryViewModel : ObservableObject
     /// </summary>
     private async Task LoadIconsAsync()
     {
-        // 只加载可见的模组图标
-        foreach (var mod in FilteredMods.Take(50))
+        // 加载完整数据源，筛选、排序和滚动后出现的卡片也需要图片。
+        var mods = _allMods;
+        foreach (var mod in mods.ToArray())
         {
+            if (!ReferenceEquals(mods, _allMods)) return;
             await mod.LoadIconAsync();
         }
     }

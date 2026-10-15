@@ -39,10 +39,10 @@ public static class BslProfilePolicy
         }
     }
 
-    public static bool Normalize(Profile profile, IReadOnlyDictionary<Guid, Mod> mods)
+    public static bool Normalize(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, bool lockLoaders = true)
     {
         var ordered = profile.Mods.OrderBy(item => item.Order)
-            .OrderBy(item => mods.TryGetValue(item.ModId, out var mod) ? PriorityRank(Role(mod)) : 0).ToList();
+            .OrderBy(item => lockLoaders && mods.TryGetValue(item.ModId, out var mod) ? PriorityRank(Role(mod)) : 0).ToList();
         var changed = false;
         for (var i = 0; i < ordered.Count; i++)
         {
@@ -69,10 +69,12 @@ public static class BslProfilePolicy
         return changed;
     }
 
-    public static List<ProfileMod> DeploymentSequence(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, DeploymentOrder direction)
+    public static List<ProfileMod> DeploymentSequence(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, DeploymentOrder direction, bool lockLoaders = true)
     {
         BslModRole GetRole(ProfileMod item) => mods.TryGetValue(item.ModId, out var mod) ? Role(mod) : BslModRole.None;
         var enabled = profile.Mods.Where(item => item.Enabled).OrderBy(item => item.Order).ToList();
+        if (!lockLoaders)
+            return direction == DeploymentOrder.BottomToTop ? enabled.AsEnumerable().Reverse().ToList() : enabled;
         var normal = enabled.Where(item => GetRole(item) == BslModRole.None);
         if (direction == DeploymentOrder.BottomToTop) normal = normal.Reverse();
         return normal.Concat(enabled.Where(item => GetRole(item) == BslModRole.Dependency))

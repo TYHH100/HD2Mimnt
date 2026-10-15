@@ -18,6 +18,7 @@ public class DeploymentService
     private readonly ILogger<DeploymentService>? _logger;
     private readonly Dictionary<DeploymentMethod, IDeploymentMethod> _deploymentMethods;
     private readonly CrashDeploymentHistoryService? _crashHistory;
+    private readonly SettingsService? _settingsService;
     public event EventHandler? DeploymentsChanged;
     private void RaiseDeploymentsChanged() => DeploymentsChanged?.Invoke(this, EventArgs.Empty);
 
@@ -27,13 +28,15 @@ public class DeploymentService
         IDeploymentRepository deploymentRepository,
         IEnumerable<IDeploymentMethod> deploymentMethods,
         ILogger<DeploymentService>? logger = null,
-        CrashDeploymentHistoryService? crashHistory = null)
+        CrashDeploymentHistoryService? crashHistory = null,
+        SettingsService? settingsService = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
         _deploymentRepository = deploymentRepository;
         _logger = logger;
         _crashHistory = crashHistory;
+        _settingsService = settingsService;
 
         // 注册所有部署方法
         _deploymentMethods = new Dictionary<DeploymentMethod, IDeploymentMethod>();
@@ -381,7 +384,8 @@ public class DeploymentService
                 .Select(item => item.ModId), cancellationToken)).ToDictionary(mod => mod.Id);
             foreach (var mod in modsById.Values)
                 await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
-            var orderedMods = BslProfilePolicy.DeploymentSequence(profile, modsById, order);
+            var orderedMods = BslProfilePolicy.DeploymentSequence(profile, modsById, order,
+                _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true);
             result.TotalMods = orderedMods.Count;
             var plans = new List<(Mod Mod, List<PatchDeploymentPlanner.FileEntry> Files)>();
             var nextIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

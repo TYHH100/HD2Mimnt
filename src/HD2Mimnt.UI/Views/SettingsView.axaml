@@ -15,6 +15,43 @@
       </StackPanel>
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="12" Margin="0,0,4,0">
+        <fa:FASettingsExpander Header="{loc:Loc Logs.Recording}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsLogCategoryVisible}">
+          <fa:FASettingsExpanderItem Description="{loc:Loc Logs.RecordingHelp}">
+            <StackPanel Spacing="12">
+              <ComboBox x:Name="LogRecordingLevelInput" ItemsSource="{Binding LogRecordingLevels}" SelectedItem="{Binding LogRecordingLevel, Mode=TwoWay}" MinWidth="180" HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding .}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Text="{loc:Loc Logs.PrivacyHelp}" Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <StackPanel IsVisible="{Binding IsEntriesCategoryVisible}" Spacing="12">
+          <TextBlock Text="{loc:Loc Settings.Entries.Help}" TextWrapping="Wrap" Classes="page-subtitle"/>
+          <fa:FASettingsExpander Header="{loc:Loc Settings.Entries.Navigation}" IconSource="Setting" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <ItemsControl x:Name="NavigationEntryOptions" ItemsSource="{Binding NavigationEntries}">
+                <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:EntryVisibilityOption">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,8">
+                    <TextBlock Text="{loc:LocalizedBinding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsVisible, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+          <fa:FASettingsExpander Header="{loc:Loc Settings.Entries.Categories}" IconSource="Setting" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <ItemsControl x:Name="SettingsEntryOptions" ItemsSource="{Binding SettingsEntries}">
+                <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:EntryVisibilityOption">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,8">
+                    <TextBlock Text="{loc:LocalizedBinding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsVisible, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+        </StackPanel>
         <StackPanel IsVisible="{Binding IsAccountCategoryVisible}" Spacing="12">
           <fa:FASettingsExpander x:Name="NexusAccountSettings" Header="Nexus Mods" IsExpanded="True">
             <fa:FASettingsExpanderItem>
@@ -65,6 +102,9 @@
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ApplyProfileWhenSelected}" Description="{loc:Loc UI.WhenOffRightClickAProfileAndChooseSetAsCurrent}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

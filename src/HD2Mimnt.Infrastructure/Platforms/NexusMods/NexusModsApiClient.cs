@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Net.Http.Json;
 using System.Globalization;
 using System.Net;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Infrastructure.Platforms.NexusMods;
 
@@ -18,6 +19,7 @@ internal sealed class NexusModsApiClient
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
     private readonly HttpClient _httpClient;
+    private readonly ILogger? _logger;
     private readonly string _applicationVersion;
     private readonly RateLimiter _rateLimiter = new();
     private string? _apiKey;
@@ -39,10 +41,11 @@ internal sealed class NexusModsApiClient
         RateLimitChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public NexusModsApiClient(HttpClient httpClient, string applicationVersion)
+    public NexusModsApiClient(HttpClient httpClient, string applicationVersion, ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationVersion);
         _httpClient = httpClient;
+        _logger = logger;
         _applicationVersion = applicationVersion;
     }
 
@@ -174,6 +177,12 @@ internal sealed class NexusModsApiClient
         if (request.Options.TryGetValue(OAuthProviderKey, out var provider))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await provider(cancellationToken));
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (_logger?.IsEnabled(LogLevel.Debug) == true)
+        {
+            var requestKey = request.Headers.TryGetValues("apikey", out var keys) ? keys.SingleOrDefault() : null;
+            await NexusModsResponseLog.WriteAsync(_logger, request, response, operation,
+                new[] { requestKey, request.Headers.Authorization?.Parameter, downloadKey }, cancellationToken);
+        }
         _rateLimiter.UpdateFromHeaders(response);
         if ((request.Headers.Authorization != null || request.Headers.Contains("apikey")) &&
             request.Options.TryGetValue(AuthenticationRevisionKey, out var revision) && revision == Volatile.Read(ref _authenticationRevision))

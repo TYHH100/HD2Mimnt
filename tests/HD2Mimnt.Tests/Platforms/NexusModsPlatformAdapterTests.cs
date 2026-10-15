@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Tests.Platforms;
 
@@ -24,6 +25,99 @@ public class NexusModsPlatformAdapterTests : IDisposable
     }
 
     public void Dispose() => _client.Dispose();
+
+    [Fact]
+    public async Task Api_DebugLog_ShouldPreserveResponseDiagnosticsAndRedactSecrets()
+    {
+        var logger = new ResponseLogger();
+        var platform = new NexusModsPlatformAdapter(_client, applicationVersion: "0.1.0", logger: logger);
+        platform.SetApiKey("test-key");
+        _handler.Routes[(HttpMethod.Get, Api + "/games/helldivers2/mods/123")] = () =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("""{"title":"Forbidden","detail":"Mod not available: 17374; test-key; echoed response-secret","status":403,"nested":{"access_token":"response-secret","email":"private@example.com","user_id":789},"download_url":"https://cdn.example.com/path-secret?signature=signed-secret","items":[{"refresh_token":"refresh-secret"}]}""", Encoding.UTF8, "application/problem+json")
+            };
+            response.Headers.Add("Set-Cookie", "session=cookie-secret");
+            response.Headers.Add("X-RL-Hourly-Remaining", "99");
+            response.Headers.Location = new Uri("https://cdn.example.com/path-secret?key=location-secret");
+            return response;
+        };
+        var error = await Assert.ThrowsAsync<PlatformRequestException>(() => platform.GetModInfoAsync("123"));
+        Assert.Contains("Mod not available: 17374", error.ServerReason);
+        var log = Assert.Single(logger.Messages);
+        Assert.Contains("403", log);
+        Assert.Contains("Mod not available: 17374", log);
+        Assert.Contains("application/problem+json", log);
+        Assert.Contains("X-RL-Hourly-Remaining", log);
+        Assert.Contains("99", log);
+        foreach (var secret in new[] { "test-key", "response-secret", "refresh-secret", "private@example.com", "789", "cookie-secret", "path-secret", "signed-secret", "location-secret" })
+            Assert.DoesNotContain(secret, log);
+    }
+
+    [Theory]
+    [InlineData("403", true)]
+    [InlineData("\"403\"", true)]
+    [InlineData("\"oauth-auth-code\"", false)]
+    public async Task Api_DebugLog_ShouldPreserveHttpErrorCodeButRedactAuthorizationCodes(string code, bool preserve)
+    {
+        var logger = new ResponseLogger();
+        var platform = new NexusModsPlatformAdapter(_client, applicationVersion: "0.1.0", logger: logger);
+        platform.SetApiKey("test-key");
+        _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
+            "{\"code\":" + code + ",\"message\":\"Mod not available: 17373\",\"nested\":{\"code\":\"private-code\"}}",
+            HttpStatusCode.Forbidden);
+        await Assert.ThrowsAsync<PlatformRequestException>(() => platform.GetModInfoAsync("123"));
+        var log = Assert.Single(logger.Messages);
+        Assert.Contains(preserve ? "\"code\":" + code : "\"code\":\"[REDACTED]\"", log);
+        Assert.Contains("Mod not available: 17373", log);
+        Assert.DoesNotContain("oauth-auth-code", log);
+        Assert.DoesNotContain("private-code", log);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Api_DebugLog_ShouldRespectLevelAndPreserveSuccessfulParsing(bool debugEnabled)
+    {
+        var logger = new ResponseLogger { Enabled = debugEnabled };
+        var platform = new NexusModsPlatformAdapter(_client, applicationVersion: "0.1.0", logger: logger);
+        platform.SetApiKey("test-key");
+        SetupMod();
+        Assert.Equal("Test Mod", (await platform.GetModInfoAsync("123")).Name);
+        Assert.Equal(debugEnabled ? 1 : 0, logger.Messages.Count);
+        if (debugEnabled) Assert.Contains("Test Mod", logger.Messages[0]);
+    }
+
+    [Fact]
+    public async Task Api_DebugLog_ShouldSanitizeNonJsonErrorsAndBearerEcho()
+    {
+        var logger = new ResponseLogger();
+        var platform = new NexusModsPlatformAdapter(_client, applicationVersion: "0.1.0", logger: logger);
+        platform.SetBearerToken("bearer-secret");
+        _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
+            "<html>Not published bearer-secret token=unknown-secret private@example.com https://cdn.example.com/path?key=url-secret</html>",
+            HttpStatusCode.Forbidden, "text/html");
+        await Assert.ThrowsAsync<PlatformRequestException>(() => platform.GetModInfoAsync("123"));
+        var log = Assert.Single(logger.Messages);
+        Assert.Contains("Not published", log);
+        foreach (var secret in new[] { "bearer-secret", "unknown-secret", "private@example.com", "url-secret" })
+            Assert.DoesNotContain(secret, log);
+    }
+
+    private sealed class ResponseLogger : ILogger<NexusModsPlatformAdapter>
+    {
+        public bool Enabled { get; init; } = true;
+        public List<string> Messages { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => Enabled && logLevel == LogLevel.Debug;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Assert.Equal(LogLevel.Debug, logLevel);
+            Messages.Add(formatter(state, exception));
+        }
+    }
 
     [Fact]
     public void WebsiteDownload_ShouldUseWebsiteFileIdAndExposeOnlyPublicProtocolTarget()
@@ -284,6 +378,16 @@ public class NexusModsPlatformAdapterTests : IDisposable
         Assert.Equal("获取模组信息", error.Operation);
         Assert.Contains("Access denied", error.Message);
         Assert.Contains("This file is unavailable.", error.Message);
+    }
+
+    [Fact]
+    public async Task Api_Error_ShouldPreserveUnavailableModMessage()
+    {
+        _handler.Json(HttpMethod.Get, "/games/helldivers2/mods/123",
+            """{"message":"Mod not available: 17374"}""", HttpStatusCode.Forbidden);
+        var error = await Assert.ThrowsAsync<PlatformRequestException>(() => _platform.GetModInfoAsync("123"));
+        Assert.Equal(HttpStatusCode.Forbidden, error.StatusCode);
+        Assert.Equal("Mod not available: 17374", error.ServerReason);
     }
 
     [Fact]

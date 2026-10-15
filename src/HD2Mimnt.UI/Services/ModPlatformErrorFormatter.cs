@@ -24,6 +24,12 @@ internal static class ModPlatformErrorFormatter
             : UiLocalization.Current.Format("Browse.OperationError", Text(operation));
         var guidance = http.StatusCode switch
         {
+            HttpStatusCode.Forbidden when platformError?.PlatformName == "Nexus Mods" &&
+                HasReason(platformError, "Not published", "has not published it yet") =>
+                "此模组尚未发布。请稍后重试，或在 N 网查看发布状态。",
+            HttpStatusCode.Forbidden when platformError?.PlatformName == "Nexus Mods" &&
+                HasReason(platformError, "Mod not available") =>
+                "N 网返回此模组目前不可用。请在 N 网查看状态并稍后重试；API 未说明具体原因。",
             HttpStatusCode.Gone when platformError?.Operation == "获取网页授权下载链接" =>
                 "网页临时下载授权已过期。请到 N 网文件页面重新点击“Mod manager download”，粘贴新的 nxm:// 链接后重试。",
             HttpStatusCode.BadRequest when platformError?.Operation == "获取网页授权下载链接" =>
@@ -52,4 +58,7 @@ internal static class ModPlatformErrorFormatter
             : UiLocalization.Current["UI.TheServerDidNotProvideASpecificReason"];
         return heading + "\n" + Text(guidance) + reason;
     }
+
+    private static bool HasReason(PlatformRequestException error, params string[] phrases) =>
+        phrases.Any(phrase => error.ServerReason?.Contains(phrase, StringComparison.OrdinalIgnoreCase) == true);
 }

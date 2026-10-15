@@ -3587,4 +3587,38 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Nexus.AccountTestingHint" xml:space="preserve">
     <value>僅用於開發測試：開啟「工具 → 開發工具」，在「OAuth Client ID 測試」中填寫 Nexus Mods 分配的 Client ID，點擊「儲存並套用 Client ID」，再返回此處登入。個人 API Key 測試也可在同一視窗的「Nexus Mods API 金鑰測試」中設定。</value>
   </data>
+  <data name="Settings.Entries.Title" xml:space="preserve"><value>入口自訂</value></data>
+  <data name="Settings.Entries.Help" xml:space="preserve"><value>選擇要顯示的頂部導覽和設定分類，儲存後立即生效。「設定」和「入口自訂」始終保留。隱藏入口只影響顯示，相關功能仍可執行。</value></data>
+  <data name="Settings.Entries.Navigation" xml:space="preserve"><value>頂部導覽</value></data>
+  <data name="Settings.Entries.Categories" xml:space="preserve"><value>設定分類</value></data>
+  <data name="Settings.Entries.Saved" xml:space="preserve"><value>入口顯示設定已儲存並生效</value></data>
+  <data name="Settings.Entries.Reset" xml:space="preserve"><value>已恢復顯示全部入口</value></data>
+  <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>鎖定載入器</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>預設開啟：固定 Lua 相依、BSL/MDL 和 SmoothBoot 分組及位置。關閉後可像一般模組一樣選取和排序，部署遵循儲存的順序；BSL 與 MDL 仍為二選一。</value></data>
+  <data name="Browse.ModNotPublished" xml:space="preserve"><value>此模組尚未發布。請稍後重試，或在 N 網查看發布狀態。</value></data>
+  <data name="Browse.ModUnavailable" xml:space="preserve"><value>N 網回應此模組目前無法使用。請在 N 網查看狀態並稍後重試；API 未說明具體原因。</value></data>
+  <data name="Logs.Help" xml:space="preserve"><value>選取日誌查看完整內容；篩選僅影響顯示。記錄層級在「設定 → 日誌」中設定。</value></data>
+  <data name="Logs.DisplayLevel" xml:space="preserve"><value>顯示層級（含以上）</value></data>
+  <data name="Logs.RecentLimit" xml:space="preserve"><value>最近筆數</value></data>
+  <data name="Logs.Search" xml:space="preserve"><value>搜尋日誌</value></data>
+  <data name="Logs.SearchHint" xml:space="preserve"><value>內容、來源或狀態碼</value></data>
+  <data name="Logs.CopyVisible" xml:space="preserve"><value>複製篩選結果</value></data>
+  <data name="Logs.ExportAll" xml:space="preserve"><value>匯出完整日誌</value></data>
+  <data name="Logs.Detail" xml:space="preserve"><value>日誌詳情</value></data>
+  <data name="Logs.CopySelected" xml:space="preserve"><value>複製目前日誌</value></data>
+  <data name="Logs.Recording" xml:space="preserve"><value>日誌記錄</value></data>
+  <data name="Logs.RecordingHelp" xml:space="preserve"><value>預設記錄警告及以上層級。儲存後立即生效並在重新啟動後保留；排查 API 回應時可暫時選擇偵錯（Debug）。</value></data>
+  <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API 回應在寫入日誌前去識別化。較詳細的層級會增加日誌量；完成排查後建議恢復警告。</value></data>
+  <data name="Logs.Saved" xml:space="preserve"><value>日誌設定已儲存並生效</value></data>
+  <data name="Logs.SaveFailed" xml:space="preserve"><value>儲存日誌設定失敗：{0}</value></data>
+  <data name="Logs.Reset" xml:space="preserve"><value>日誌設定已恢復預設值</value></data>
+  <data name="Logs.Count" xml:space="preserve"><value>顯示 {0} / {1} 筆日誌（最新在前）</value></data>
+  <data name="Logs.Category" xml:space="preserve"><value>日誌</value></data>
+  <data name="Logs.Level.Trace" xml:space="preserve"><value>追蹤（Trace）</value></data>
+  <data name="Logs.Level.Debug" xml:space="preserve"><value>偵錯（Debug）</value></data>
+  <data name="Logs.Level.Information" xml:space="preserve"><value>資訊（Information）</value></data>
+  <data name="Logs.Level.Warning" xml:space="preserve"><value>警告（Warning）</value></data>
+  <data name="Logs.Level.Error" xml:space="preserve"><value>錯誤（Error）</value></data>
+  <data name="Logs.Level.Critical" xml:space="preserve"><value>嚴重（Critical）</value></data>
+  <data name="Logs.Level.None" xml:space="preserve"><value>關閉（None）</value></data>
 </root>

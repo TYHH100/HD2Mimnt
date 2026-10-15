@@ -27,15 +27,44 @@ public sealed class FileLogService : IFileLogService
         return Task.Run<IReadOnlyList<string>>(() =>
         {
             if (!File.Exists(LogFilePath)) return Array.Empty<string>();
-            var lines = new Queue<string>(maxLines);
-            foreach (var line in File.ReadLines(LogFilePath))
+            using var stream = new FileStream(LogFilePath, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            // Read backwards from the tail: bounded bytes as well as bounded rows.
+            const int byteLimit = 8 * 1024 * 1024;
+            var blocks = new List<byte[]>();
+            var position = stream.Length;
+            var bytesRead = 0;
+            var lineBreaks = 0;
+            while (position > 0 && bytesRead < byteLimit && lineBreaks <= maxLines)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (lines.Count == maxLines) lines.Dequeue();
-                lines.Enqueue(line);
+                var length = (int)Math.Min(64 * 1024, Math.Min(position, byteLimit - bytesRead));
+                position -= length;
+                stream.Position = position;
+                var block = new byte[length];
+                var read = 0;
+                while (read < length)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var count = stream.Read(block, read, length - read);
+                    if (count == 0) break;
+                    read += count;
+                }
+                if (read != length) Array.Resize(ref block, read);
+                lineBreaks += block.Count(value => value == (byte)'\n');
+                blocks.Add(block);
+                bytesRead += length;
             }
-
-            return lines.ToArray();
+            blocks.Reverse();
+            var text = System.Text.Encoding.UTF8.GetString(blocks.SelectMany(block => block).ToArray());
+            if (position > 0)
+            {
+                var boundary = text.IndexOf('\n');
+                text = boundary >= 0 ? text[(boundary + 1)..] : string.Empty;
+            }
+            var lines = text.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
+            if (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
+            return lines.TakeLast(maxLines).ToArray();
         }, cancellationToken);
     }
 

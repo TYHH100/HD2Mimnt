@@ -6,7 +6,10 @@
         <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" Padding="8,9" /></DataTemplate></ListBox.ItemTemplate>
       </ListBox>
     </StackPanel>
-    <ScrollViewer Grid.Column="1">
+    <Grid Grid.Column="1" IsVisible="{Binding MoreViewModel.IsLogsVisible}">
+      <views:LogView DataContext="{Binding LogViewModel}"/>
+    </Grid>
+    <ScrollViewer Grid.Column="1" IsVisible="{Binding !MoreViewModel.IsLogsVisible}">
       <StackPanel MaxWidth="880" Spacing="0">
         <StackPanel IsVisible="{Binding MoreViewModel.IsTutorialVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.FeatureTutorial}" Classes="section-title"/>
@@ -23,9 +26,6 @@
           <views:BackupView DataContext="{Binding BackupViewModel}" />
         </StackPanel>
 
-        <StackPanel IsVisible="{Binding MoreViewModel.IsLogsVisible}">
-          <views:LogView DataContext="{Binding LogViewModel}" />
-        </StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsMigrationVisible}"><views:ManagerMigrationView DataContext="{Binding ManagerMigrationViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsCrashDiagnosticsVisible}"><views:CrashDiagnosticsView DataContext="{Binding CrashDiagnosticsViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsDirectDownloadVisible}"><views:DirectDownloadView DataContext="{Binding DirectDownloadViewModel}"/></StackPanel>

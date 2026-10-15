@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- “设置 → 配置文件 → 锁定加载器”保存为 `Profiles.LockLoaders`，缺省为 true。开启时沿用固定分组、不可选加载器和优先级规则；关闭时 Lua 依赖、BSL/MDL、SmoothBoot 按普通模组选择、拖动和数字定位，用户分隔符也按全部成员计数。ProfileService 不能在读取或保存时偷偷恢复固定排序；部署、冲突和离线接口共用带开关参数的 `BslProfilePolicy.DeploymentSequence`，关闭时对完整启用列表应用部署方向。BSL/MDL 互斥和部署依赖校验继续生效，批量切换加载器后回填全部启用状态。重新开启后按原规则归组，切换开关需刷新配置卡片并使旧冲突结果失效。新增服务依赖同步修改 App 的手动 DI 工厂。来源：https://learn.microsoft.com/dotnet/core/extensions/dependency-injection 、https://github.com/CowboyBingus/BingusSharedLoader/blob/main/docs/AUTHORING.md
+
 - 离线接口固定留在 BootstrapPath 的 `interop` 目录，不能跟可迁移数据库一起搬走；旧主版本由保留的适配器持续生成。库、配置与部署必须从独立只读事务取得，后台不共享 UI 的 SQLite 连接；部署选项/版本读取当时快照，旧 null 不得用当前配置补造。预登记目标不等于已部署文件，导出需核对实际存在并列出缺失目标。契约见[离线模组接口](../features/OFFLINE_MOD_INTERFACE.md)。来源：https://www.sqlite.org/isolation.html 、https://semver.org/
 
 - 文件复制部署按模组在一次事务中预登记全部目标，再开始写文件，不能每个文件单独提交 SQLite，也不能复制完后补登记。占位文件独立记录为 Copy；批量登记失败必须回滚且不写目标，复制取消后保留记录供清理。批量预登记可能包含尚未写入的目标，测试不能再假定取消后仅有一条文件记录。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/bulk-insert

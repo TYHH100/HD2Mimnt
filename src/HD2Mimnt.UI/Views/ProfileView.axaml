@@ -261,7 +261,7 @@
                       <TextBlock Text="{loc:Loc UI.Enabled}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding Enabled}"/>
                       <TextBlock Text="{loc:Loc UI.Disabled}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !Enabled}"/>
                       <TextBlock Text="{loc:Loc UI.HasOptions}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding HasOptions}"/>
-                      <TextBlock Text="{loc:LocalizedBinding PriorityLabel}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsBslMember}"/>
+                      <TextBlock Text="{loc:LocalizedBinding PriorityLabel}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsFixedGroupMember}"/>
                       <TextBlock Text="{loc:Loc UI.FixedPosition}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !CanDrag}"/>
                     </StackPanel>
 

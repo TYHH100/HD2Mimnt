@@ -273,12 +273,14 @@ public partial class App : Avalonia.Application
         Directory.CreateDirectory(storageLocations.TempPath);
         services.AddSingleton(storageSettings);
 
-        // 日志（可选）
+        var diagnosticLogSettings = new DiagnosticLogSettings();
+        services.AddSingleton(diagnosticLogSettings);
+        // 筛选只读内存快照，避免记录设置日志时重新获取设置锁。
         services.AddLogging(builder =>
         {
             builder.AddConsole();
             builder.AddProvider(new FileLogProvider(Path.Combine(appDataPath, "Logs", "application.log")));
-            builder.SetMinimumLevel(LogLevel.Information);
+            builder.AddFilter((_, level) => diagnosticLogSettings.IsEnabled(level));
         });
 
         // 基础设施层
@@ -320,7 +322,8 @@ public partial class App : Avalonia.Application
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("github-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddSingleton(sp => new NexusModsPlatformAdapter(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-api"),
-            sp.GetRequiredService<IHttpDownloadService>(), typeof(App).Assembly.GetName().Version!.ToString(3)));
+            sp.GetRequiredService<IHttpDownloadService>(), typeof(App).Assembly.GetName().Version!.ToString(3),
+            sp.GetRequiredService<ILogger<NexusModsPlatformAdapter>>()));
         services.AddSingleton(sp => new GitHubPlatformAdapter(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("github-api"), sp.GetRequiredService<IHttpDownloadService>()));
         services.AddSingleton<IPlatformRegistry>(sp =>
@@ -362,7 +365,8 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
-            sp.GetRequiredService<IModRepository>()));
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<SettingsService>()));
 
         // 外部管理器迁移：读取器只读源数据，实际复制和落库由 Application 服务完成。
         services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
@@ -419,13 +423,19 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IDeploymentRepository>(),
             sp.GetServices<IDeploymentMethod>(),
             sp.GetService<ILogger<DeploymentService>>(),
-            sp.GetRequiredService<CrashDeploymentHistoryService>()));
+            sp.GetRequiredService<CrashDeploymentHistoryService>(),
+            sp.GetRequiredService<SettingsService>()));
 
         // 新增核心服务
-        services.AddSingleton(sp => new SettingsService(
+        services.AddSingleton(sp =>
+        {
+            var settings = new SettingsService(
             sp.GetRequiredService<ISettingsRepository>(),
             appDataPath,
-            sp.GetService<ILogger<SettingsService>>()));
+            sp.GetService<ILogger<SettingsService>>());
+            diagnosticLogSettings.Attach(settings);
+            return settings;
+        });
 
         services.AddSingleton<ISystemLanguageProvider, SystemLanguageProvider>();
         services.AddSingleton<TranslationCatalog>();

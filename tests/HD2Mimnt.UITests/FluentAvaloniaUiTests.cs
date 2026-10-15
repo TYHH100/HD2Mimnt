@@ -442,7 +442,7 @@ public sealed partial class FluentAvaloniaUiTests
             library.ModLink!.Open(target);
             await library.ModLink.FetchCommand.ExecuteAsync(null);
             Assert.Contains("获取模组信息失败（HTTP 401）", library.ModLink.Message);
-            Assert.Contains("浏览模组", library.ModLink.Message);
+            Assert.Contains("设置 → 账号", library.ModLink.Message);
             Assert.Contains(handler.FailureReason, library.ModLink.Message);
             library.ModLink.CloseCommand.Execute(null);
 

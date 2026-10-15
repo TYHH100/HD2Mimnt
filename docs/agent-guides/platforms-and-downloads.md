@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- Nexus API 排障先查看实际响应：`NexusModsPlatformAdapter` 分类的 Debug 日志记录 v1/v2/v3 API 的操作、无查询参数的请求路径、状态、响应头和完整响应体（包含非 JSON 错误页）。记录级别由“设置 → 日志”统一配置，所有构建默认警告；排查时手动保存为 Debug 后立即生效。所有日志参数必须先脱敏：凭据字段、Cookie、账户敏感字段、下载地址及正文中的凭据回显；不记录请求认证头、NXM 查询参数或压缩包内容。日志响应体缓冲后仍用于正常解析，不能消费后丢失。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[ReadAsStringAsync 缓冲行为](https://learn.microsoft.com/dotnet/api/system.net.http.httpcontent.readasstringasync)。
+
+- Nexus HTTP 403 先结合 API 返回原因解释：`Mod not available` 只说明模组目前不可用，界面不推测未发布或审核状态，也不能直接归因为密钥、Premium 或网页授权问题；`Not published` 则提示尚未发布。保留服务端原始说明，建议查看网页状态、稍后由用户重试；无明确原因时保留通用访问提示。来源：[HTTP 403 语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.4)、[Nexus API](https://api-docs.nexusmods.com/)。
+
 - Nexus 请求额度读取最近一次认证 API 响应的 `X-RL-Hourly-*` / `X-RL-Daily-*`，无字段显示未知，不硬编码为已获取额度、不后台轮询。退出/换账号清空内存额度，旧请求回传不能复活；手动刷新使用 v1 `users/validate.json`，429 同样先读额度再报告错误。OAuth 指南静态公钥和 Discovery JWKS 可能不同，使用固定官方地址按 `kid` 验签，不采信 JWT 的外来密钥 URL。来源：[v1 限流](https://app.swaggerhub.com/apis-docs/NexusMods/nexus-mods_public_api_params_in_form_data/1.0#rate-limiting)、[Discovery](https://users.nexusmods.com/.well-known/openid-configuration)。
 
 - Nexus 正式认证使用 Public Application 的 Authorization Code + PKCE S256：Client ID/回调地址为公开配置，桌面应用不得保存 Client Secret。启动只恢复加密状态，用户操作前按需串行刷新；回调 state/verifier 只驻内存，Access/Refresh Token 仅存 DPAPI 凭据表。无注册 Client ID 不冒用示例应用；个人 Key 保留为开发测试入口，不能替代正式发行认证。429 保留登录并遵守 Retry-After，不能当成授权撤销。来源：[OAuth 指南](https://modding.wiki/en/api/oauth2-guide)、[API 使用规范](https://help.nexusmods.com/article/114-api-acceptable-use-policy)、[RFC 8252](https://www.rfc-editor.org/rfc/rfc8252)。

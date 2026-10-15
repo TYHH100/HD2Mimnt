@@ -21,6 +21,14 @@ public partial class LogView : UserControl
                 viewModel.CopyRequested += OnCopyRequested;
             }
         };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            if (DataContext is LogViewModel viewModel)
+            {
+                viewModel.ExportRequested -= OnExportRequested;
+                viewModel.CopyRequested -= OnCopyRequested;
+            }
+        };
     }
 
     private async void OnExportRequested(object? sender, EventArgs e)
@@ -39,6 +47,6 @@ public partial class LogView : UserControl
     private async void OnCopyRequested(object? sender, EventArgs e)
     {
         if (DataContext is not LogViewModel viewModel || TopLevel.GetTopLevel(this) is not TopLevel owner || owner.Clipboard is null) return;
-        await owner.Clipboard.SetTextAsync(viewModel.GetRecentText());
+        await owner.Clipboard.SetTextAsync(e is CopyLogEventArgs entry ? entry.Text : viewModel.GetRecentText());
     }
 }

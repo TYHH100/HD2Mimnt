@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 日志记录级别在“设置 → 日志”保存到 SQLite，默认 Warning，显示筛选不改变记录级别。`ILogger` 筛选只读取 `DiagnosticLogSettings` 的内存快照，禁止在筛选回调读取 SettingsService/SQLite，避免设置服务记录日志时重入设置锁。读取日志从尾部限制条数和字节数，允许共享写入；多行堆栈合并为同一条，级别判断来自记录头，不搜索正文中的“错误”字样。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[FileShare](https://learn.microsoft.com/dotnet/api/system.io.fileshare)。
+
 - Headless 实际点击验证在工具栏、弹窗等改变布局后，应先排空 Dispatcher、更新布局并调用 `CaptureRenderedFrame` 刷新合成命中场景，再执行 `InputHitTest` 和鼠标输入。单独 `UpdateLayout` 或 `RenderTargetBitmap.Render` 可能显示新位置却命中旧场景，不能据此误改业务绑定。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless/HeadlessWindowExtensions.cs
 
 - 导入、部署、清理等耗时操作必须可取消并保持 UI 可响应；临时解压目录和测试目录必须在流程结束后清理。

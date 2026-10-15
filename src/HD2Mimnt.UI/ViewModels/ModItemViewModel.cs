@@ -152,6 +152,7 @@ public partial class ModItemViewModel : ObservableObject
 
     // 图标
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IconBitmap))]
     private Bitmap? _icon;
 
     [ObservableProperty]
@@ -218,7 +219,7 @@ public partial class ModItemViewModel : ObservableObject
     /// 缩略图解码缓存：同一文件在库刷新/筛选切换间只解码一次（缩略图本身由 ThumbnailService 生成，
     /// 尺寸固定，解码到 256px 宽足够列表与详情面板显示）。
     /// </summary>
-    private static readonly ConcurrentDictionary<string, Bitmap?> IconDecodeCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, Bitmap> IconDecodeCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 异步加载图标
@@ -232,20 +233,22 @@ public partial class ModItemViewModel : ObservableObject
         try
         {
             var bitmap = await Task.Run(() =>
-                IconDecodeCache.GetOrAdd(ThumbnailPath, static path =>
+            {
+                if (IconDecodeCache.TryGetValue(ThumbnailPath, out var cached)) return cached;
+                try
                 {
-                    try
-                    {
-                        if (!File.Exists(path)) return null;
-                        using var stream = File.OpenRead(path);
-                        return Bitmap.DecodeToWidth(stream, 256);
-                    }
-                    catch
-                    {
-                        // 解码失败缓存 null，避免每次刷新重复读盘
-                        return null;
-                    }
-                }), cancellationToken);
+                    using var stream = File.OpenRead(ThumbnailPath);
+                    var decoded = Bitmap.DecodeToWidth(stream, 256);
+                    var shared = IconDecodeCache.GetOrAdd(ThumbnailPath, decoded);
+                    if (!ReferenceEquals(shared, decoded)) decoded.Dispose();
+                    return shared;
+                }
+                catch
+                {
+                    // 文件暂不可读或正在生成时允许后续重试，不能永久缓存失败。
+                    return null;
+                }
+            }, cancellationToken);
 
             if (bitmap != null)
             {
