@@ -52,6 +52,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private bool _autoCheckConflicts;
     [ObservableProperty] private bool _lockLoaders = true;
+    [ObservableProperty] private bool _autoAddImportedMods;
+    [ObservableProperty] private bool _importAutoClose;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -73,6 +75,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
     public NexusModsAccountViewModel? NexusAccount { get; }
+    public AyakaModsAccountViewModel? AyakaAccount { get; }
     public event EventHandler<string>? ThemeChanged;
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? AppearanceChanged;
@@ -90,7 +93,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
-        NexusModsAccountViewModel? nexusAccount = null)
+        NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
@@ -100,6 +103,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageSettings = storageSettings;
         _localization = localization;
         NexusAccount = nexusAccount;
+        AyakaAccount = ayakaAccount;
         LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
             .Concat(localization?.Service?.SupportedLanguages ?? new HD2Mimnt.Application.Localization.TranslationCatalog().SupportedLanguages)
             .ToArray();
@@ -162,7 +166,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         NexusAccount?.Dispose();
     }
 
-    public Task StopAccountsAsync() => NexusAccount?.StopAsync() ?? Task.CompletedTask;
+    public async Task StopAccountsAsync()
+    {
+        var nexus = NexusAccount?.StopAsync() ?? Task.CompletedTask;
+        var ayaka = AyakaAccount?.StopAsync() ?? Task.CompletedTask;
+        await Task.WhenAll(nexus, ayaka);
+    }
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -200,6 +209,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
             LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
+            AutoAddImportedMods = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false);
+            ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
@@ -281,6 +292,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowSuccess(StatusMessage, "设置");
                 return;
             }
+            if (IsLibraryCategoryVisible)
+            {
+                await SaveLibraryPreferencesAsync();
+                StatusMessage = "设置已保存";
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             var gamePath = GamePath.Trim();
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -306,7 +324,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
                 (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString());
             await _settingsService.SetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, CheckBeforeDeploy);
-            await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
+            await SaveLibraryPreferencesAsync();
             await _settingsService.SetSettingAsync(SettingKeys.Theme, Theme);
             await _settingsService.SetSettingAsync(SettingKeys.ListDensity, ListDensity);
             await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, BackgroundImagePath);
@@ -327,8 +345,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         finally { IsLoading = false; }
     }
 
+    private async Task SaveLibraryPreferencesAsync()
+    {
+        await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
+        await _settingsService.SetSettingAsync(SettingKeys.ImportAutoClose, ImportAutoClose);
+    }
+
     private async Task SaveProfilePreferencesAsync()
     {
+        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, AutoAddImportedMods);
         await _settingsService.SetSettingAsync(SettingKeys.ProfilesLockLoaders, LockLoaders);
         await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
         await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, AutoCheckConflicts);

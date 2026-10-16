@@ -4,6 +4,12 @@
 
 ## 易错点与正确做法
 
+- 创建页导出 7z 使用随包 `Tools/7zip/7za.exe`，保留原版许可证及来源说明，并检查构建／发布输出；不能只改后缀或依赖用户安装 7-Zip。仅暂存生成的清单和 UTF-8 文件列表，不复制整个源模组；按所选 LZMA2 档位压缩，非零退出码（含跳过文件警告）不可发布。取消时终止并等待子进程，再清理本次暂存和临时包；真实 7z 测试覆盖重导入、各档位、文件占用及取消。来源：[7-Zip](https://www.7-zip.org/)、[许可证](../../src/HD2Mimnt.Infrastructure/Tools/7zip/License.txt)。
+
+- 创建页的格式选择必须贯通打开、预览、保存和 ZIP 导出；Legacy 省略 `Version`，`Options` 写相对目录字符串数组，校验所选目录，不校验隐藏的 V1 草稿。两种格式的内存草稿切换时保留各自内容，打开清单后按真实格式恢复；不能只改 UI 标签或把旧格式写成 V1 对象数组。来源：[旧版创建页面](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)。
+
+- `manifest.json` 必须保持旧管理器原有标准，自定义作者、网站、模组版本、标签、默认启用和未知扩展字段写到同目录 `hd2mimnt.json`，不得增加扩展引用字段。使用 `ManifestPackage` 分离／合并和双文件保存，文件读取走 `ManifestParser.ParseFromFile[Async]`，不能只解析标准清单字符串而遗漏扩展。创建、导入、迁移、反向导出和开发测试数据共用这一边界；部署／清理排除扩展文件，加载器依赖检测仍读取原扩展声明。来源：[创建说明](../features/MOD_CREATION.md)、[旧版 V1 定义](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Models/V1ModManifest.cs)。
+
 - V1 父选项只有 `SubOptions` 时可以不写 `Include`，按启用状态收集所选子选项的目录，不能因此丢弃整份清单的映射并只检查根目录；独立叶选项缺少 `Include` 与显式空数组仍区分。导入和迁移的预览优先读取清单 `IconPath`，以迁入后的模组目录解析并保存库内路径；来源管理器未额外提供图片字段时也要保留清单图片。历史预览为空或失效时按相同规则回填，保留仍有效的自定义封面。来源：已复现的白鲸、Plum、Beacon 等 9 份清单及 42 个缺少预览字段的迁移记录；[.NET 相对路径解析](https://learn.microsoft.com/dotnet/api/system.io.path.getfullpath#system-io-path-getfullpath(system-string-system-string))。
 
 - 清单的可选字段类型异常不能让已解析的名称、选项和图片一起丢失：GUID 先按字符串检查，Nexus ModId 先检查 JSON 类型再尝试读取整数，非法或超范围值只忽略该可选字段。`Include: null` 与字段缺失一致，只有数组才构成映射，不能变成 `Include: []` 的明确无文件语义。来源：[JsonElement.TryGetInt32 类型及范围要求](https://learn.microsoft.com/dotnet/api/system.text.json.jsonelement.trygetint32)。
@@ -18,7 +24,7 @@
 
 - 来源默认配置映射到目标已有 `IsDefault` 配置，保留目标 ID、名称、默认保护和活动状态；HD2MM 认固定默认 GUID，Arsenal 认 `default` 键，Echelon 版本 2 只认唯一 `Default` 名称，不能猜第一份或活动配置。合并保留无关成员及分隔符，重算剩余成员范围；成员、选项、分隔符及迁移快照标记在同一事务提交，重复快照保留用户后续编辑，失败不能先留下成功标记。来源更新后替换它先前迁入的成员及分隔符，不能把新旧内容快照同时留在默认配置中启用；旧库模组副本仍保留。来源：[默认配置合并策略](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://learn.microsoft.com/dotnet/standard/data/sqlite/transactions
 
-- 迁移清单时保留未知包元数据；`Version` 只保存格式、`ModVersion` 保存模组版本，Legacy 不写 `Version`。缺少 `Include` 与显式 `Include: []` 语义不同，不能序列化成相同结果。Echelon 按集合的真实文件路径复制到独立目录，有选项时只部署被引用集合，无选项才部署全部集合；选项排列须同时转换选择索引。来源：[来源格式及验证范围](../features/EXTERNAL_MANAGER_MIGRATION.md)
+- 迁移清单时将未知包元数据保留在独立扩展 JSON；`Version` 只保存格式、`ModVersion` 在扩展中保存模组版本，Legacy 不写 `Version`。缺少 `Include` 与显式 `Include: []` 语义不同，不能序列化成相同结果。Echelon 按集合的真实文件路径复制到独立目录，有选项时只部署被引用集合，无选项才部署全部集合；选项排列须同时转换选择索引。来源：[来源格式及验证范围](../features/EXTERNAL_MANAGER_MIGRATION.md)
 
 - 源部署方向与目标不同时转换完整分隔符成员范围；固定 Lua 成员归入现有固定区域，库分隔符用独立禁用配置保留组织关系。自定义排序导致分组成员不连续时报告不兼容并跳过配置，不能悄悄扩大分组。HD2MM 源库用只读短连接，禁止把源设置中的凭据写入迁移记录或日志。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/connection-strings 、[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)
 

@@ -24,6 +24,7 @@ public class PlatformModInfo
     /// Gets or sets the author name.
     /// </summary>
     public string Author { get; set; } = string.Empty;
+    public string? AuthorUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the version string.

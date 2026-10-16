@@ -30,14 +30,22 @@ public class ManifestParser
                 return null;
             }
 
-            var json = File.ReadAllText(filePath);
-            return ParseFromJson(json);
+            return ParseFromJson(ManifestPackage.Read(filePath,
+                error => _logger?.LogWarning(error, "读取 HD2Mimnt 扩展元数据失败，使用标准清单: {Path}", filePath)).ToJsonString());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to parse manifest from file: {Path}", filePath);
             return null;
         }
+    }
+
+    public async Task<ModManifest?> ParseFromFileAsync(string filePath, CancellationToken token = default)
+    {
+        if (!File.Exists(filePath)) return null;
+        var root = await ManifestPackage.ReadAsync(filePath, token,
+            error => _logger?.LogWarning(error, "读取 HD2Mimnt 扩展元数据失败，使用标准清单: {Path}", filePath));
+        return ParseFromJson(root.ToJsonString());
     }
 
     /// <summary>
@@ -100,6 +108,7 @@ public class ManifestParser
             Description = description,
             Version = version,
             Author = author,
+            AuthorUrl = AuthorWebsite.Normalize(GetStringProperty(root, "AuthorUrl")),
             IconPath = iconPath,
             ManifestVersion = manifestVersion
         };
@@ -162,13 +171,15 @@ public class ManifestParser
     /// <summary>
     /// 保存清单到文件
     /// </summary>
-    public void SaveToFile(ModManifest manifest, string filePath)
+    public void SaveToFile(ModManifest manifest, string filePath, System.Text.Json.Nodes.JsonObject? original = null)
     {
         var options = new JsonWriterOptions { Indented = true };
-        using var stream = File.Create(filePath);
-        using var writer = new Utf8JsonWriter(stream, options);
-
-        WriteManifest(writer, manifest);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, options))
+            WriteManifest(writer, manifest);
+        var combined = ManifestPackage.Parse(System.Text.Encoding.UTF8.GetString(stream.ToArray()));
+        if (original != null) combined = ManifestPackage.PreserveUnknownExtensions(combined, original);
+        ManifestPackage.Save(filePath, combined);
     }
 
     private void WriteManifest(Utf8JsonWriter writer, ModManifest manifest)
@@ -191,6 +202,8 @@ public class ManifestParser
         {
             writer.WriteString("Author", manifest.Author);
         }
+        if (AuthorWebsite.Normalize(manifest.AuthorUrl) is { } authorUrl)
+            writer.WriteString("AuthorUrl", authorUrl);
 
         if (!string.IsNullOrEmpty(manifest.IconPath))
         {

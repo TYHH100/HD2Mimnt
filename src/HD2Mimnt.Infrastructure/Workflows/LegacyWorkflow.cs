@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Services;
 
 namespace HD2Mimnt.Infrastructure.Workflows;
 
@@ -87,6 +88,9 @@ public class LegacyWorkflow : IWorkflow
                     var content = await File.ReadAllTextAsync(manifestPath, cancellationToken);
                     var doc = JsonDocument.Parse(content);
                     var root = doc.RootElement;
+
+                    if (root.TryGetProperty("Guid", out _) || root.TryGetProperty("Name", out _))
+                        return await new ManifestParser().ParseFromFileAsync(manifestPath, cancellationToken);
 
                     var manifest = new ModManifest
                     {
@@ -259,7 +263,7 @@ public class LegacyWorkflow : IWorkflow
         var files = Directory.GetFiles(modPath, "*.*", SearchOption.AllDirectories);
 
         // 排除 manifest 文件
-        var excludedFiles = new[] { "manifest.json", "mod.json", "README.md", "readme.txt" };
+        var excludedFiles = new[] { "manifest.json", ManifestPackage.MetadataFileName, "mod.json", "README.md", "readme.txt" };
 
         foreach (var file in files)
         {
@@ -297,7 +301,7 @@ public class LegacyWorkflow : IWorkflow
 
         // Legacy Mod 清理所有已部署的文件
         var files = Directory.GetFiles(modPath, "*.*", SearchOption.AllDirectories);
-        var excludedFiles = new[] { "manifest.json", "mod.json", "README.md", "readme.txt" };
+        var excludedFiles = new[] { "manifest.json", ManifestPackage.MetadataFileName, "mod.json", "README.md", "readme.txt" };
 
         foreach (var file in files)
         {

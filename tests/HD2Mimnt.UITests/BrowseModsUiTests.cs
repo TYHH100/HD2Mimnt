@@ -213,6 +213,11 @@ public sealed partial class FluentAvaloniaUiTests
                 Assert.NotNull(importSource);
                 Assert.False(Directory.Exists(Path.GetDirectoryName(importSource)));
                 var installed = Assert.Single(await scope.Services.GetRequiredService<IModRepository>().GetAllAsync());
+                Assert.Equal("nexusmods", installed.PlatformLink!.PlatformId);
+                Assert.Equal("123", installed.PlatformLink.ModId);
+                Assert.Equal(vm.SelectedFile!.Version, installed.PlatformLink.InstalledVersion);
+                Assert.Equal(vm.Details!.Author, installed.PlatformLink.Author);
+                Assert.Equal(vm.SelectedFile.WebsiteFileId, installed.PlatformLink.InstalledWebsiteFileId);
                 Assert.Equal("downloaded mod patch", await File.ReadAllTextAsync(Path.Combine(installed.Path, "0123456789abcdef.patch_0")));
                 if (result == "success")
                 {
@@ -381,14 +386,16 @@ public sealed partial class FluentAvaloniaUiTests
                     "BrowseDownloadButton", "BrowseDownloadAndImportButton", "BrowsePreviewCoverButton", "BrowseImagesWebsiteButton" })
                 {
                     var button = view.FindControl<Button>(name)!;
+                    button.BringIntoView(); Layout();
                     var edge = button.TranslatePoint(new Point(button.Bounds.Width, button.Bounds.Height), window)!.Value;
                     Assert.InRange(edge.X, 0, window.Bounds.Width); Assert.InRange(edge.Y, 0, window.Bounds.Height);
                 }
                 Assert.Equal("HD2Mimnt Test Server Result", vm.Mods[0].Info.Name);
                 var hint = view.FindControl<TextBlock>("BrowseDownloadHint")!;
+                hint.BringIntoView(); Layout();
                 var hintEdge = hint.TranslatePoint(new Point(hint.Bounds.Width, hint.Bounds.Height), view)!.Value;
-                Assert.InRange(hintEdge.Y, 0, view.Bounds.Height);
                 Capture(window, theme.ToString(), "browse-search-" + language);
+                Assert.InRange(hintEdge.Y, 0, view.Bounds.Height);
             }
             input.Text = "不存在"; Layout(); input.Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
@@ -444,6 +451,10 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.NotNull(importSource); Assert.False(Directory.Exists(Path.GetDirectoryName(importSource)));
             var installed = Assert.Single(await scope.Services.GetRequiredService<IModRepository>().GetAllAsync());
             Assert.Equal("premium patch", await File.ReadAllTextAsync(Path.Combine(installed.Path, "0123456789abcdef.patch_0")));
+            Assert.Null(installed.PlatformLink!.InstalledFileVersionId);
+            Assert.Equal(vm.SelectedFile!.WebsiteFileId, installed.PlatformLink.InstalledWebsiteFileId);
+            Assert.Equal(vm.SelectedFile.Version, installed.PlatformLink.InstalledVersion);
+            Assert.Equal(vm.Details!.Author, installed.PlatformLink.Author);
             Assert.Empty(scope.WebsiteLauncher.Urls); Assert.Null(handler.ArchiveApiKey);
             Assert.All(handler.DownloadQueries, query => Assert.Equal("", query));
             Assert.DoesNotContain(handler.Paths, path => path.StartsWith("/v3/") && !path.EndsWith("trending-mods"));

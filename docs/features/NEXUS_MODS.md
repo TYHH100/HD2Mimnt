@@ -37,7 +37,7 @@ IModPlatform platform = registry.GetPlatform("nexusmods")!;
 var mod = await platform.GetModInfoAsync("123");
 ```
 
-后续 A 网建立自己的平台目录、客户端及模型，实现 `IModPlatform` 后注册到同一 `PlatformRegistry`。Application 和 UI 按平台 ID 调用，不依赖 N 网内部 API 模型或路由；各网站认证与配置由各自模块管理。
+A 网已建立独立平台目录、客户端及模型，实现 `IModPlatform` 后注册到同一 `PlatformRegistry`，详见 [Ayaka Mods](AYAKA_MODS.md)。Application 和 UI 按平台 ID 调用，不依赖 N 网内部 API 模型或路由；各网站认证与配置由各自模块管理。
 
 ## 现有功能的映射
 
@@ -53,7 +53,7 @@ var mod = await platform.GetModInfoAsync("123");
 
 保留现有 `IModPlatform` 接口；调用方传入网站上的游戏范围模组 ID（例如 `123`）。全局 ID 存在 `PlatformModInfo.Metadata["nexus_global_mod_id"]` 中，不能与网站 ID 混用。`PlatformModFile.Id` 是文件**版本**的全局 ID。
 
-详情模型不提供作者、摘要、版本号、下载次数或日期，文件版本模型不提供存档大小及描述：这些字段保留空值/零值，零大小表示未知。签名地址只在下载时获取，不缓存为永久地址。没有把上传、集合编辑等写入接口扩展为管理器功能。
+v3 详情模型不提供作者、摘要、版本号、下载次数或日期；模组浏览详情使用 v1 补充，保存手动关联时也通过 v1 获取作者。作者与上传者一致才使用 API 提供的上传者主页。文件版本模型不提供存档大小及描述：这些字段保留空值/零值，零大小表示未知。签名地址只在下载时获取，不缓存为永久地址。首次下载自动保存所选文件的来源、安装版本和作者到独立 JSON，见[来源元数据与真实响应核对](MOD_SOURCE_METADATA.md)。没有把上传、集合编辑等写入接口扩展为管理器功能。
 
 ## 认证与错误
 
@@ -100,7 +100,7 @@ Token endpoint 采用 form-urlencoded，校验官方公钥的 RS256 签名、签
 
 ## 设置账号与请求额度
 
-“设置 → 账号”集中管理 Nexus Mods 登录、取消、退出与网站授权；与浏览页、开发工具复用同一认证状态。Ayaka Mods 根据当前开发阶段仅预留禁用的登录按钮和未接入说明，不尝试读取网站 Cookie 或模拟登录。
+“设置 → 账号”集中管理 Nexus Mods 登录、取消、退出与网站授权；与浏览页、开发工具复用同一认证状态。Ayaka Mods 的独立工具密钥与 Public Client OAuth2 配置见 [A 网接入](AYAKA_MODS.md)，不读取网站 Cookie 或模拟登录。
 
 Rate Limiting 从最近一次认证 API 响应解析 `X-RL-Hourly-Limit/Remaining/Reset` 和 `X-RL-Daily-Limit/Remaining/Reset`，显示小时/每日剩余次数、上限、重置时间及最近更新时间。未提供或无效的字段显示“未获取”；不以文档默认值制造实时额度。额度只驻内存，更换认证/退出后清空，旧请求返回不能恢复上一账号额度。429 响应也先更新额度，展示 `Retry-After` 时间并继续遵守服务器退避。
 
@@ -161,7 +161,7 @@ Rate Limiting 从最近一次认证 API 响应解析 `X-RL-Hourly-Limit/Remainin
 
 ## 模组库页面关联
 
-模组卡片右键选择“模组链接…”，输入 `https://www.nexusmods.com/helldivers2/mods/16633` 形式的地址，点击“获取信息”后预览并“保存关联”。只接受 Nexus Mods 官方主域名或 www 主机、Helldivers 2 页面和正整数页面编号；移除查询参数和片段，保存规范 HTTPS 页面地址。A 网等待文档恢复后单独接入，当前不猜测其路由或 API。
+模组卡片右键选择“模组链接…”，输入 `https://www.nexusmods.com/helldivers2/mods/16633` 形式的地址，点击“获取信息”后预览并“保存关联”。N 网解析只接受官方主域名或 www 主机、Helldivers 2 页面和正整数页面编号；移除查询参数和片段，保存规范 HTTPS 页面地址。[A 网链接](AYAKA_MODS.md)由独立解析器处理，获取信息时核对游戏 119。
 
 API 查询由用户点击发起，复用开发工具保存或启动时恢复的密钥。详情提供远端名称及全局模组 ID，版本由活动文件版本接口取得；API 未提供的名称或版本显示未知，不猜测作者、摘要等字段，也不修改本地名称、作者和已安装版本。查询失败或取消、修改输入、关闭弹窗都不会覆盖已有绑定。
 

@@ -49,10 +49,11 @@ public sealed class EchelonReader : IExternalManagerReader
             var onDiskPath = Path.Combine(path, "manifest.json");
             if (File.Exists(onDiskPath))
             {
-                using var onDisk = await MigrationJson.ReadAsync(onDiskPath, cancellationToken);
+                using var onDisk = JsonDocument.Parse((await ManifestPackage.ReadAsync(onDiskPath, cancellationToken)).ToJsonString());
                 var metadata = new ManifestParser().ParseFromJsonElement(onDisk.RootElement);
                 if (Guid.TryParse(onDisk.RootElement.Get("Guid").Text(), out var guid)) manifest.Guid = guid;
                 manifest.Author = metadata.Author;
+                manifest.AuthorUrl = metadata.AuthorUrl;
                 manifest.Version = metadata.Version;
                 manifest.NexusData = metadata.NexusData;
                 manifest.IconPath = metadata.IconPath;

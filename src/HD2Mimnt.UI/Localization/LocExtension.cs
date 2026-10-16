@@ -9,10 +9,12 @@ namespace HD2Mimnt.UI.Localization;
 public sealed class LocExtension(string key) : MarkupExtension
 {
     public string Key { get; set; } = key;
-    public override object ProvideValue(IServiceProvider serviceProvider) => new MultiBinding
+    public override object ProvideValue(IServiceProvider serviceProvider) => CreateBinding(Key);
+
+    public static BindingBase CreateBinding(string key) => new MultiBinding
     {
         Mode = BindingMode.OneWay,
-        Converter = new ResourceTextConverter(Key),
+        Converter = new ResourceTextConverter(key),
         Bindings = { new Binding(nameof(UiLocalization.Revision)) { Source = UiLocalization.Current } }
     };
 

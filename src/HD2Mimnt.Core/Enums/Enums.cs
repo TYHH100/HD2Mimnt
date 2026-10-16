@@ -11,7 +11,8 @@ public enum ModSource
     Archive,
     NexusMods,
     Workshop,
-    Manual
+    Manual,
+    AyakaMods
 }
 
 /// <summary>

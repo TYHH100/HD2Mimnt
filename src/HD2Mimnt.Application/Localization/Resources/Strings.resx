@@ -2839,13 +2839,16 @@ Cache: {2}</value>
     <value>No matching mods.</value>
   </data>
   <data name="Browse.LinkPlaceholder" xml:space="preserve">
-    <value>Mod URL or ID</value>
+    <value>Mod page URL or ID</value>
   </data>
   <data name="Browse.OpenLink" xml:space="preserve">
     <value>Open</value>
   </data>
   <data name="Browse.SelectHint" xml:space="preserve">
     <value>View mod details, or enter a Nexus Mods URL or ID.</value>
+  </data>
+  <data name="Ayaka.SelectHint" xml:space="preserve">
+    <value>View mod details, or enter an Ayaka Mods URL or ID.</value>
   </data>
   <data name="Browse.AuthHint" xml:space="preserve">
     <value>Latest feeds, details and downloads require Nexus Mods authentication. Log in from Settings → Accounts.</value>
@@ -3545,9 +3548,6 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Accounts.Title" xml:space="preserve">
     <value>Accounts</value>
   </data>
-  <data name="Accounts.AyakaPlaceholder" xml:space="preserve">
-    <value>Login is not connected yet. The documentation is currently unavailable; this section is reserved for future integration.</value>
-  </data>
   <data name="Accounts.AyakaLogin" xml:space="preserve">
     <value>Log in to Ayaka Mods</value>
   </data>
@@ -3621,4 +3621,308 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Logs.Level.Error" xml:space="preserve"><value>Error</value></data>
   <data name="Logs.Level.Critical" xml:space="preserve"><value>Critical</value></data>
   <data name="Logs.Level.None" xml:space="preserve"><value>None</value></data>
+  <data name="Ayaka.KeyTitle" xml:space="preserve">
+    <value>Ayaka Mods API Key testing</value>
+  </data>
+  <data name="Ayaka.KeyHelp" xml:space="preserve">
+    <value>For development, save and apply the staff-issued read-only tool key in Tools → Developer tools. Keys are encrypted locally and restored at startup. This is tool authorization, not player login.</value>
+  </data>
+  <data name="Ayaka.KeyPlaceholder" xml:space="preserve">
+    <value>Paste the Ayaka Mods API key</value>
+  </data>
+  <data name="Ayaka.KeyConfigured" xml:space="preserve">
+    <value>Ayaka Mods tool key configured (not yet validated).</value>
+  </data>
+  <data name="Ayaka.KeyMissing" xml:space="preserve">
+    <value>Ayaka Mods tool key is not configured.</value>
+  </data>
+  <data name="Ayaka.KeyApplied" xml:space="preserve">
+    <value>Ayaka Mods key encrypted, saved and applied.</value>
+  </data>
+  <data name="Ayaka.RestoreFailed" xml:space="preserve">
+    <value>Unable to restore the Ayaka Mods key. Apply it again in Developer tools.</value>
+  </data>
+  <data name="Ayaka.InvalidKey" xml:space="preserve">
+    <value>Enter a valid API key without control characters.</value>
+  </data>
+  <data name="Ayaka.SaveFailed" xml:space="preserve">
+    <value>Unable to change the Ayaka Mods key. The previous key remains active.</value>
+  </data>
+  <data name="Ayaka.BrowseHelp" xml:space="preserve">
+    <value>AyakaMods · Helldivers 2. Download in your browser; download and import waits for the local file. Keyword search is not documented; use the feeds or a mod link.</value>
+  </data>
+  <data name="Ayaka.ListScope" xml:space="preserve">
+    <value>Ayaka Mods · Helldivers 2: {0} mods, page {1}.</value>
+  </data>
+  <data name="Ayaka.LoadList" xml:space="preserve">
+    <value>Ayaka Mods · Helldivers 2 · Click Load list.</value>
+  </data>
+  <data name="Ayaka.ApiMissingKey" xml:space="preserve">
+    <value>Save and apply the Ayaka Mods API key in Tools → Developer tools first.</value>
+  </data>
+  <data name="Ayaka.ApiUnauthorized" xml:space="preserve">
+    <value>Ayaka Mods rejected the key. Apply a valid Ayaka Mods API key in Tools → Developer tools.</value>
+  </data>
+  <data name="Ayaka.ApiForbidden" xml:space="preserve">
+    <value>Ayaka Mods denied access. Check the key has read access to this game and endpoint and that the mod is visible to guests.</value>
+  </data>
+  <data name="Ayaka.Downloading" xml:space="preserve">
+    <value>Downloading the selected file through the Ayaka Mods API…</value>
+  </data>
+  <data name="Ayaka.CheckDownloadAccess" xml:space="preserve">
+    <value>Checking Ayaka Mods download access…</value>
+  </data>
+  <data name="Ayaka.Browsing" xml:space="preserve">
+    <value>Browse Ayaka Mods</value>
+  </data>
+  <data name="Ayaka.LinkIdentified" xml:space="preserve">
+    <value>Ayaka Mods · Helldivers 2 · mod {0} identified. Fetch its information.</value>
+  </data>
+  <data name="Platforms.GettingMod" xml:space="preserve">
+    <value>Fetching mod information…</value>
+  </data>
+  <data name="Platforms.CheckFiles" xml:space="preserve">
+    <value>Checking file versions…</value>
+  </data>
+  <data name="Platforms.NoHostedFiles" xml:space="preserve">
+    <value>No hosted files are available for download. Visit the source website.</value>
+  </data>
+  <data name="Platforms.LinkPreview" xml:space="preserve">
+    <value>Platform: {0}
+Game: {1}
+Mod ID: {2}
+Name: {3}
+Latest version: {4}
+{5}</value>
+  </data>
+  <data name="Platforms.LinkSummary" xml:space="preserve">
+    <value>{0} · {1} · {2}
+{3}
+Latest version: {4}</value>
+  </data>
+  <data name="Ayaka.DownloadHint" xml:space="preserve">
+    <value>Download Ayaka files in your browser. Match the selected attachment automatically or choose it manually; the original file is kept.</value>
+  </data>
+  <data name="Ayaka.OAuth.SignedIn" xml:space="preserve">
+    <value>Signed in to Ayaka OAuth.</value>
+  </data>
+  <data name="Ayaka.OAuth.SignedOut" xml:space="preserve">
+    <value>Signed out of Ayaka OAuth.</value>
+  </data>
+  <data name="Ayaka.OAuth.NotConfigured" xml:space="preserve">
+    <value>Ayaka OAuth Client ID is not configured.</value>
+  </data>
+  <data name="Ayaka.OAuth.RestoreFailed" xml:space="preserve">
+    <value>Could not restore Ayaka OAuth credentials. Sign in again.</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdSaved" xml:space="preserve">
+    <value>Ayaka public Client ID saved and applied.</value>
+  </data>
+  <data name="Ayaka.OAuth.InvalidClientId" xml:space="preserve">
+    <value>Client ID must not contain line breaks or control characters.</value>
+  </data>
+  <data name="Ayaka.OAuth.SaveFailed" xml:space="preserve">
+    <value>Could not save Ayaka OAuth state. Try again.</value>
+  </data>
+  <data name="Ayaka.OAuth.BrowserPrompt" xml:space="preserve">
+    <value>Complete Ayaka sign-in and consent in your system browser…</value>
+  </data>
+  <data name="Ayaka.OAuth.LoginSucceeded" xml:space="preserve">
+    <value>Signed in to Ayaka OAuth. Credentials are encrypted on this device.</value>
+  </data>
+  <data name="Ayaka.OAuth.Cancelled" xml:space="preserve">
+    <value>Ayaka sign-in cancelled.</value>
+  </data>
+  <data name="Ayaka.OAuth.LoginFailed" xml:space="preserve">
+    <value>Ayaka OAuth sign-in failed. Try again.</value>
+  </data>
+  <data name="Ayaka.OAuth.LoggedOut" xml:space="preserve">
+    <value>Signed out of Ayaka OAuth and removed local tokens.</value>
+  </data>
+  <data name="Ayaka.OAuth.Logout" xml:space="preserve">
+    <value>Sign out of Ayaka</value>
+  </data>
+  <data name="Ayaka.OAuth.Help" xml:space="preserve">
+    <value>Register a Public Client with an administrator and configure its Client ID in Developer Tools. OAuth prepares user identity actions; browsing and downloads use the tool key.</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdTitle" xml:space="preserve">
+    <value>Ayaka Mods OAuth2 configuration</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdHelp" xml:space="preserve">
+    <value>Enter the registered Public Client ID and give the exact callback URI below to the administrator. Uses a random loopback port and PKCE; no Client Secret is required.</value>
+  </data>
+  <data name="BrowserDownload.Open" xml:space="preserve">
+    <value>Download in browser</value>
+  </data>
+  <data name="BrowserDownload.ChooseFile" xml:space="preserve">
+    <value>Choose downloaded file…</value>
+  </data>
+  <data name="BrowserDownload.WatchFolder" xml:space="preserve">
+    <value>Watching downloads folder: {0}</value>
+  </data>
+  <data name="Ayaka.OpenWebsite" xml:space="preserve">
+    <value>Open Ayaka Mods</value>
+  </data>
+  <data name="BrowserDownload.Busy" xml:space="preserve">
+    <value>A browser download is already waiting. Complete or cancel it first.</value>
+  </data>
+  <data name="BrowserDownload.ArchiveRequired" xml:space="preserve">
+    <value>Choose a fully downloaded mod archive.</value>
+  </data>
+  <data name="BrowserDownload.SizeMismatch" xml:space="preserve">
+    <value>The file size does not match the selected attachment. Check the version and that the download is complete.</value>
+  </data>
+  <data name="BrowserDownload.Timeout" xml:space="preserve">
+    <value>Waiting for the browser download timed out. Try again or choose the downloaded file.</value>
+  </data>
+  <data name="BrowserDownload.Unavailable" xml:space="preserve">
+    <value>Browser download handoff is unavailable.</value>
+  </data>
+  <data name="BrowserDownload.WaitImport" xml:space="preserve">
+    <value>Download the selected attachment in your browser: {0}. It will be imported automatically; you can also choose the downloaded file.</value>
+  </data>
+  <data name="BrowserDownload.WaitUpdate" xml:space="preserve">
+    <value>Download the selected attachment in your browser: {0}. It will update automatically; you can also choose the downloaded file.</value>
+  </data>
+  <data name="BrowserDownload.OpenHint" xml:space="preserve">
+    <value>Download the selected attachment in your browser: {0}.</value>
+  </data>
+  <data name="Ayaka.BrowserUpdateHint" xml:space="preserve">
+    <value>Ayaka files download in your browser. Download and update waits for the selected attachment and replaces the existing mod.</value>
+  </data>
+  <data name="BrowserDownload.SelectOperation" xml:space="preserve">
+    <value>Choose browser download</value>
+  </data>
+  <data name="Ayaka.BrowserUnsupported" xml:space="preserve">
+    <value>This platform does not use browser file handoff.</value>
+  </data>
+  <data name="Ayaka.FileUnavailable" xml:space="preserve">
+    <value>The selected Ayaka file is no longer available. Check again.</value>
+  </data>
+  <data name="Ayaka.ApiDownloadToggle" xml:space="preserve">
+    <value>Download Ayaka files directly via API (testing)</value>
+  </data>
+  <data name="Ayaka.ApiDownloadToggleHelp" xml:space="preserve">
+    <value>Use the API for Ayaka downloads in Browse mods. Uncheck to restore browser downloads. Applies to this app session only.</value>
+  </data>
+  <data name="Ayaka.ApiBrowseHelp" xml:space="preserve">
+    <value>AyakaMods · Helldivers 2. Developer testing: API downloads enabled. Keyword search is not documented; use the feeds or a mod link.</value>
+  </data>
+  <data name="Ayaka.ApiDownloadHint" xml:space="preserve">
+    <value>Developer testing: download the selected file via the Ayaka API and show any returned error.</value>
+  </data>
+  <data name="Metadata.OpenSource" xml:space="preserve">
+    <value>Open source website</value>
+  </data>
+  <data name="Metadata.OpenAuthor" xml:space="preserve">
+    <value>Open author homepage</value>
+  </data>
+  <data name="Metadata.SaveAuthor" xml:space="preserve">
+    <value>Save author homepage</value>
+  </data>
+  <data name="Metadata.AuthorHelp" xml:space="preserve">
+    <value>For Afdian and other platforms, enter an author homepage. This opens the website without API update checks.</value>
+  </data>
+  <data name="Metadata.AuthorOnly" xml:space="preserve">
+    <value>Author homepage saved; open the website to view releases.</value>
+  </data>
+  <data name="Metadata.CheckUpdates" xml:space="preserve">
+    <value>Check and update mod…</value>
+  </data>
+  <data name="Metadata.Summary" xml:space="preserve">
+    <value>{0} · {1}
+{2}
+Author: {3}
+Installed version: {4}
+Latest available version: {5}
+Installed file: {6}
+Last checked: {7}</value>
+  </data>
+  <data name="Metadata.SourceName" xml:space="preserve">
+    <value>Author homepage</value>
+  </data>
+  <data name="BrowserDownload.Started" xml:space="preserve">
+    <value>Download started in your browser: {0}.</value>
+  </data>
+  <data name="BrowserDownload.WaitingImport" xml:space="preserve">
+    <value>Download started in your browser: {0}. Import will continue automatically when it finishes; you can also choose a downloaded file.</value>
+  </data>
+  <data name="BrowserDownload.WaitingUpdate" xml:space="preserve">
+    <value>Download started in your browser: {0}. The update will continue automatically when it finishes; you can also choose a downloaded file.</value>
+  </data>
+  <data name="UI.ModDetailReadFailed" xml:space="preserve">
+    <value>Failed to read mod details: {0}</value>
+  </data>
+  <data name="Creator.Title" xml:space="preserve"><value>Create Mod</value></data>
+  <data name="Creator.Intro" xml:space="preserve"><value>Choose a new or legacy manifest, edit mod details, and export a complete mod package.</value></data>
+  <data name="Creator.ManifestFormat" xml:space="preserve"><value>Manifest format</value></data>
+  <data name="Creator.FormatV1" xml:space="preserve"><value>New manifest (V1)</value></data>
+  <data name="Creator.FormatLegacy" xml:space="preserve"><value>Legacy manifest</value></data>
+  <data name="Creator.LegacyHint" xml:space="preserve"><value>Legacy manifests use directories as mutually exclusive options. Click Add option to select folders; each directory path becomes an option name.</value></data>
+  <data name="Creator.New" xml:space="preserve"><value>New</value></data>
+  <data name="Creator.Open" xml:space="preserve"><value>Open manifest</value></data>
+  <data name="Creator.Save" xml:space="preserve"><value>Save manifest and metadata</value></data>
+  <data name="Creator.Export" xml:space="preserve"><value>Export mod archive</value></data>
+  <data name="Creator.ArchiveFormat" xml:space="preserve"><value>Archive format</value></data>
+  <data name="Creator.CompressionLevel" xml:space="preserve"><value>Compression level</value></data>
+  <data name="Creator.CompressionStore" xml:space="preserve"><value>Store</value></data>
+  <data name="Creator.CompressionFast" xml:space="preserve"><value>Fast</value></data>
+  <data name="Creator.CompressionNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="Creator.CompressionHigh" xml:space="preserve"><value>High</value></data>
+  <data name="Creator.CompressionUltra" xml:space="preserve"><value>Ultra</value></data>
+  <data name="Creator.CompressionHint" xml:space="preserve"><value>Higher levels usually produce smaller files but take more time and memory. 7z uses LZMA2 solid compression.</value></data>
+  <data name="Creator.SevenZipMissing" xml:space="preserve"><value>The bundled 7-Zip tool is missing. Extract the complete application package again.</value></data>
+  <data name="Creator.ArchiveFormatRequired" xml:space="preserve"><value>Save the mod archive as a .7z or .zip file.</value></data>
+  <data name="Creator.Basic" xml:space="preserve"><value>Basic info</value></data>
+  <data name="Creator.SourceDirectory" xml:space="preserve"><value>Mod source folder</value></data>
+  <data name="Creator.Browse" xml:space="preserve"><value>Browse</value></data>
+  <data name="Creator.SourceHint" xml:space="preserve"><value>Choose or paste the mod root folder. The folder name, first image and options are filled automatically. Press Enter to apply a typed path. Export archives outside this folder.</value></data>
+  <data name="Creator.Name" xml:space="preserve"><value>Mod name *</value></data>
+  <data name="Creator.Author" xml:space="preserve"><value>Author</value></data>
+  <data name="Creator.Version" xml:space="preserve"><value>Mod version</value></data>
+  <data name="Creator.Cover" xml:space="preserve"><value>Cover image (relative path)</value></data>
+  <data name="Creator.Description" xml:space="preserve"><value>Description</value></data>
+  <data name="Creator.Options" xml:space="preserve"><value>Options</value></data>
+  <data name="Creator.AddOption" xml:space="preserve"><value>Add option</value></data>
+  <data name="Creator.Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="Creator.OptionsHint" xml:space="preserve"><value>Each option can be enabled independently. Sub-options are mutually exclusive variants. No options means all mod patches are deployed.</value></data>
+  <data name="Creator.OptionName" xml:space="preserve"><value>Option name *</value></data>
+  <data name="Creator.DefaultEnabled" xml:space="preserve"><value>Enabled by default (indeterminate uses the manager default)</value></data>
+  <data name="Creator.OptionImage" xml:space="preserve"><value>Preview image (relative path)</value></data>
+  <data name="Creator.HasMapping" xml:space="preserve"><value>Specify included folders</value></data>
+  <data name="Creator.AddDirectory" xml:space="preserve"><value>Choose directories</value></data>
+  <data name="Creator.MappingHint" xml:space="preserve"><value>One relative folder per line; use . for the root. Only patches directly in these folders are included. Checked with no paths means no files; unchecked omits Include (a parent may rely on its sub-options; unmapped leaves can deploy all files).</value></data>
+  <data name="Creator.AddSubOption" xml:space="preserve"><value>Add variant</value></data>
+  <data name="Creator.SubOptionName" xml:space="preserve"><value>Variant name *</value></data>
+  <data name="Creator.Preview" xml:space="preserve"><value>JSON preview</value></data>
+  <data name="Creator.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Creator.Ready" xml:space="preserve"><value>Choose a source folder and fill in the mod information.</value></data>
+  <data name="Creator.Discard" xml:space="preserve"><value>There are changes that have not been saved or exported. Discard them?</value></data>
+  <data name="Creator.Opened" xml:space="preserve"><value>Opened: {0}</value></data>
+  <data name="Creator.Saved" xml:space="preserve"><value>Manifest and separate metadata JSON saved: {0}</value></data>
+  <data name="Creator.Exported" xml:space="preserve"><value>Mod archive exported: {0}</value></data>
+  <data name="Creator.Working" xml:space="preserve"><value>Processing…</value></data>
+  <data name="Creator.Cancelled" xml:space="preserve"><value>Cancelled. Temporary files have been cleaned up.</value></data>
+  <data name="Creator.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="Creator.InvalidManifest" xml:space="preserve"><value>The manifest is not valid JSON.</value></data>
+  <data name="Creator.NameRequired" xml:space="preserve"><value>Enter a mod name.</value></data>
+  <data name="Creator.DirectoryRequired" xml:space="preserve"><value>Choose an existing mod source folder.</value></data>
+  <data name="Creator.OptionNameRequired" xml:space="preserve"><value>Each option and variant needs a name.</value></data>
+  <data name="Creator.RelativePathRequired" xml:space="preserve"><value>Choose a file or folder inside the mod source folder.</value></data>
+  <data name="Creator.SaveInSource" xml:space="preserve"><value>Save as manifest.json directly in the mod source folder so relative paths remain valid.</value></data>
+  <data name="Creator.ArchiveOutsideSource" xml:space="preserve"><value>Export archives outside the mod source folder.</value></data>
+  <data name="Creator.LinkedFilesUnsupported" xml:space="preserve"><value>The source contains linked files or folders. Use ordinary files when exporting.</value></data>
+  <data name="Creator.DragToReorder" xml:space="preserve"><value>Drag to reorder</value></data>
+  <data name="Creator.AuthorWebsite" xml:space="preserve"><value>Author website (optional)</value></data>
+  <data name="Creator.AuthorWebsiteHint" xml:space="preserve"><value>Use any HTTP/HTTPS author page. Leave blank to hide “Open author page” from the context menu.</value></data>
+  <data name="Creator.InvalidAuthorUrl" xml:space="preserve"><value>Enter a valid HTTP or HTTPS author website without embedded login details, or leave it blank.</value></data>
+  <data name="Creator.BaseFiles" xml:space="preserve"><value>Base files</value></data>
+  <data name="UI.DeleteModFiles" xml:space="preserve"><value>Delete mod files</value></data>
+  <data name="Creator.ManagerPreview" xml:space="preserve"><value>Manager preview</value></data>
+  <data name="Creator.RefreshPreview" xml:space="preserve"><value>Refresh preview</value></data>
+  <data name="Creator.ExportScreenshot" xml:space="preserve"><value>Export full screenshot (expand all)</value></data>
+  <data name="Settings.Profiles.AutoAddImportedMods" xml:space="preserve"><value>Automatically add new mods to the active profile</value></data>
+  <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>After import, add and enable mods in the active profile. If no profile is active, keep them in the library.</value></data>
+  <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>Close the import card after completion</value></data>
+  <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>Close after all mods import successfully. Keep results open on failure or cancellation.</value></data>
 </root>

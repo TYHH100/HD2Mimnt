@@ -51,7 +51,10 @@ public class NexusModsPlatformAdapterTests : IDisposable
         Assert.Contains("application/problem+json", log);
         Assert.Contains("X-RL-Hourly-Remaining", log);
         Assert.Contains("99", log);
-        foreach (var secret in new[] { "test-key", "response-secret", "refresh-secret", "private@example.com", "789", "cookie-secret", "path-secret", "signed-secret", "location-secret" })
+        Assert.Contains("\"user_id\":789", log);
+        Assert.Contains("private@example.com", log);
+        Assert.Contains("https://cdn.example.com/path-secret?signature=[REDACTED]", log);
+        foreach (var secret in new[] { "test-key", "response-secret", "refresh-secret", "cookie-secret", "signed-secret", "location-secret" })
             Assert.DoesNotContain(secret, log);
     }
 
@@ -101,7 +104,9 @@ public class NexusModsPlatformAdapterTests : IDisposable
         await Assert.ThrowsAsync<PlatformRequestException>(() => platform.GetModInfoAsync("123"));
         var log = Assert.Single(logger.Messages);
         Assert.Contains("Not published", log);
-        foreach (var secret in new[] { "bearer-secret", "unknown-secret", "private@example.com", "url-secret" })
+        Assert.Contains("private@example.com", log);
+        Assert.Contains("https://cdn.example.com/path?key=[REDACTED]", log);
+        foreach (var secret in new[] { "bearer-secret", "unknown-secret", "url-secret" })
             Assert.DoesNotContain(secret, log);
     }
 

@@ -2839,13 +2839,16 @@
     <value>沒有符合的模組。</value>
   </data>
   <data name="Browse.LinkPlaceholder" xml:space="preserve">
-    <value>模組連結或編號</value>
+    <value>模組頁面連結或編號</value>
   </data>
   <data name="Browse.OpenLink" xml:space="preserve">
     <value>開啟</value>
   </data>
   <data name="Browse.SelectHint" xml:space="preserve">
     <value>查看模組詳情，或輸入 N 網連結和編號。</value>
+  </data>
+  <data name="Ayaka.SelectHint" xml:space="preserve">
+    <value>查看模組詳情，或輸入 A 網連結和編號。</value>
   </data>
   <data name="Browse.AuthHint" xml:space="preserve">
     <value>最新發佈、最近更新、詳情和下載需要 N 網驗證，請在「設定 → 帳號」登入。</value>
@@ -3545,9 +3548,6 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Accounts.Title" xml:space="preserve">
     <value>帳號</value>
   </data>
-  <data name="Accounts.AyakaPlaceholder" xml:space="preserve">
-    <value>登入尚未接入；文件目前無法存取，此處預留帳號入口。</value>
-  </data>
   <data name="Accounts.AyakaLogin" xml:space="preserve">
     <value>登入 Ayaka Mods</value>
   </data>
@@ -3621,4 +3621,308 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Logs.Level.Error" xml:space="preserve"><value>錯誤（Error）</value></data>
   <data name="Logs.Level.Critical" xml:space="preserve"><value>嚴重（Critical）</value></data>
   <data name="Logs.Level.None" xml:space="preserve"><value>關閉（None）</value></data>
+  <data name="Ayaka.KeyTitle" xml:space="preserve">
+    <value>Ayaka Mods API Key 測試</value>
+  </data>
+  <data name="Ayaka.KeyHelp" xml:space="preserve">
+    <value>開發階段請在「工具 → 開發工具」儲存並套用管理員發放的唯讀工具金鑰。金鑰在本機加密儲存，啟動時還原。這是工具授權，不代表使用者登入。</value>
+  </data>
+  <data name="Ayaka.KeyPlaceholder" xml:space="preserve">
+    <value>貼上 Ayaka Mods API key</value>
+  </data>
+  <data name="Ayaka.KeyConfigured" xml:space="preserve">
+    <value>已設定 A 網工具金鑰（尚未驗證）。</value>
+  </data>
+  <data name="Ayaka.KeyMissing" xml:space="preserve">
+    <value>尚未設定 A 網工具金鑰。</value>
+  </data>
+  <data name="Ayaka.KeyApplied" xml:space="preserve">
+    <value>A 網金鑰已加密儲存並套用。</value>
+  </data>
+  <data name="Ayaka.RestoreFailed" xml:space="preserve">
+    <value>無法還原 A 網金鑰，請在開發工具重新填寫並套用。</value>
+  </data>
+  <data name="Ayaka.InvalidKey" xml:space="preserve">
+    <value>請輸入有效的 API 金鑰，不能包含換行或控制字元。</value>
+  </data>
+  <data name="Ayaka.SaveFailed" xml:space="preserve">
+    <value>無法變更 A 網金鑰，原金鑰仍保持不變。</value>
+  </data>
+  <data name="Ayaka.BrowseHelp" xml:space="preserve">
+    <value>AyakaMods · Helldivers 2。透過瀏覽器下載；下載並匯入會等待本機檔案。公開 API 未提供關鍵字搜尋，請使用清單或模組連結。</value>
+  </data>
+  <data name="Ayaka.ListScope" xml:space="preserve">
+    <value>A 網 Helldivers 2：共 {0} 項，第 {1} 頁。</value>
+  </data>
+  <data name="Ayaka.LoadList" xml:space="preserve">
+    <value>A 網 · Helldivers 2 · 點選載入清單。</value>
+  </data>
+  <data name="Ayaka.ApiMissingKey" xml:space="preserve">
+    <value>請先在「工具 → 開發工具」儲存並套用 A 網 API Key。</value>
+  </data>
+  <data name="Ayaka.ApiUnauthorized" xml:space="preserve">
+    <value>A 網未接受目前金鑰。請在「工具 → 開發工具」重新填寫並套用有效的 A 網 API Key。</value>
+  </data>
+  <data name="Ayaka.ApiForbidden" xml:space="preserve">
+    <value>A 網拒絕存取。請確認金鑰具有此遊戲及介面的讀取權限，且模組仍對訪客開放。</value>
+  </data>
+  <data name="Ayaka.Downloading" xml:space="preserve">
+    <value>正在透過 A 網 API 下載所選檔案…</value>
+  </data>
+  <data name="Ayaka.CheckDownloadAccess" xml:space="preserve">
+    <value>正在檢查 A 網下載權限…</value>
+  </data>
+  <data name="Ayaka.Browsing" xml:space="preserve">
+    <value>瀏覽 A 網模組</value>
+  </data>
+  <data name="Ayaka.LinkIdentified" xml:space="preserve">
+    <value>已識別 A 網 · Helldivers 2 · 模組 {0}，點選取得資訊。</value>
+  </data>
+  <data name="Platforms.GettingMod" xml:space="preserve">
+    <value>正在取得模組資訊…</value>
+  </data>
+  <data name="Platforms.CheckFiles" xml:space="preserve">
+    <value>正在檢查檔案版本…</value>
+  </data>
+  <data name="Platforms.NoHostedFiles" xml:space="preserve">
+    <value>沒有可下載的託管檔案，請查看來源網頁。</value>
+  </data>
+  <data name="Platforms.LinkPreview" xml:space="preserve">
+    <value>平台：{0}
+遊戲：{1}
+模組編號：{2}
+名稱：{3}
+最新可用版本：{4}
+{5}</value>
+  </data>
+  <data name="Platforms.LinkSummary" xml:space="preserve">
+    <value>{0} · {1} · {2}
+{3}
+最新可用版本：{4}</value>
+  </data>
+  <data name="Ayaka.DownloadHint" xml:space="preserve">
+    <value>A 網透過瀏覽器下載。自動比對所選附件，或手動選擇已下載的檔案；保留原始檔案。</value>
+  </data>
+  <data name="Ayaka.OAuth.SignedIn" xml:space="preserve">
+    <value>已登入 A 網 OAuth 帳戶。</value>
+  </data>
+  <data name="Ayaka.OAuth.SignedOut" xml:space="preserve">
+    <value>尚未登入 A 網 OAuth 帳戶。</value>
+  </data>
+  <data name="Ayaka.OAuth.NotConfigured" xml:space="preserve">
+    <value>尚未設定 A 網 OAuth Client ID。</value>
+  </data>
+  <data name="Ayaka.OAuth.RestoreFailed" xml:space="preserve">
+    <value>無法還原 A 網 OAuth 憑證，請重新登入。</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdSaved" xml:space="preserve">
+    <value>A 網公開 Client ID 已儲存並套用。</value>
+  </data>
+  <data name="Ayaka.OAuth.InvalidClientId" xml:space="preserve">
+    <value>Client ID 不能包含換行或控制字元。</value>
+  </data>
+  <data name="Ayaka.OAuth.SaveFailed" xml:space="preserve">
+    <value>無法儲存 A 網 OAuth 狀態，請重試。</value>
+  </data>
+  <data name="Ayaka.OAuth.BrowserPrompt" xml:space="preserve">
+    <value>請在系統瀏覽器完成 A 網登入及授權…</value>
+  </data>
+  <data name="Ayaka.OAuth.LoginSucceeded" xml:space="preserve">
+    <value>A 網 OAuth 登入成功，憑證已在本機加密儲存。</value>
+  </data>
+  <data name="Ayaka.OAuth.Cancelled" xml:space="preserve">
+    <value>已取消 A 網登入。</value>
+  </data>
+  <data name="Ayaka.OAuth.LoginFailed" xml:space="preserve">
+    <value>A 網 OAuth 登入失敗，請重試。</value>
+  </data>
+  <data name="Ayaka.OAuth.LoggedOut" xml:space="preserve">
+    <value>已登出 A 網 OAuth 並刪除本機權杖。</value>
+  </data>
+  <data name="Ayaka.OAuth.Logout" xml:space="preserve">
+    <value>登出 A 網帳戶</value>
+  </data>
+  <data name="Ayaka.OAuth.Help" xml:space="preserve">
+    <value>需向管理員註冊 Public Client，並在開發工具設定 Client ID。OAuth 用於使用者身分操作；瀏覽和下載繼續使用工具金鑰。</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdTitle" xml:space="preserve">
+    <value>Ayaka Mods OAuth2 設定</value>
+  </data>
+  <data name="Ayaka.OAuth.ClientIdHelp" xml:space="preserve">
+    <value>填寫管理員註冊的 Public Client ID，並將下方回呼 URI 原樣交給管理員。使用隨機本機連接埠及 PKCE，無需 Client Secret。</value>
+  </data>
+  <data name="BrowserDownload.Open" xml:space="preserve">
+    <value>在瀏覽器下載</value>
+  </data>
+  <data name="BrowserDownload.ChooseFile" xml:space="preserve">
+    <value>選擇已下載的檔案…</value>
+  </data>
+  <data name="BrowserDownload.WatchFolder" xml:space="preserve">
+    <value>監視下載資料夾：{0}</value>
+  </data>
+  <data name="Ayaka.OpenWebsite" xml:space="preserve">
+    <value>開啟 A 網</value>
+  </data>
+  <data name="BrowserDownload.Busy" xml:space="preserve">
+    <value>已有瀏覽器下載正在等待，請先完成或取消。</value>
+  </data>
+  <data name="BrowserDownload.ArchiveRequired" xml:space="preserve">
+    <value>請選擇已下載完成的模組壓縮檔。</value>
+  </data>
+  <data name="BrowserDownload.SizeMismatch" xml:space="preserve">
+    <value>檔案大小與所選附件不一致，請確認版本及下載是否完成。</value>
+  </data>
+  <data name="BrowserDownload.Timeout" xml:space="preserve">
+    <value>等待瀏覽器下載逾時，請重新操作或選擇已下載的檔案。</value>
+  </data>
+  <data name="BrowserDownload.Unavailable" xml:space="preserve">
+    <value>瀏覽器下載接管無法使用。</value>
+  </data>
+  <data name="BrowserDownload.WaitImport" xml:space="preserve">
+    <value>請在瀏覽器下載所選附件：{0}。完成後將自動匯入；也可以選擇已下載的檔案。</value>
+  </data>
+  <data name="BrowserDownload.WaitUpdate" xml:space="preserve">
+    <value>請在瀏覽器下載所選附件：{0}。完成後將自動更新；也可以選擇已下載的檔案。</value>
+  </data>
+  <data name="BrowserDownload.OpenHint" xml:space="preserve">
+    <value>請在瀏覽器下載所選附件：{0}。</value>
+  </data>
+  <data name="Ayaka.BrowserUpdateHint" xml:space="preserve">
+    <value>A 網檔案由瀏覽器下載；點擊下載並更新後，將等待所選附件並取代原模組。</value>
+  </data>
+  <data name="BrowserDownload.SelectOperation" xml:space="preserve">
+    <value>選擇瀏覽器下載檔案</value>
+  </data>
+  <data name="Ayaka.BrowserUnsupported" xml:space="preserve">
+    <value>此平台不使用瀏覽器檔案接管。</value>
+  </data>
+  <data name="Ayaka.FileUnavailable" xml:space="preserve">
+    <value>所選 A 網檔案已無法使用，請重新檢查。</value>
+  </data>
+  <data name="Ayaka.ApiDownloadToggle" xml:space="preserve">
+    <value>透過 API 直接下載 A 網檔案（測試）</value>
+  </data>
+  <data name="Ayaka.ApiDownloadToggleHelp" xml:space="preserve">
+    <value>勾選後，瀏覽模組中的 A 網下載使用 API；取消勾選恢復瀏覽器下載。僅本次執行生效。</value>
+  </data>
+  <data name="Ayaka.ApiBrowseHelp" xml:space="preserve">
+    <value>AyakaMods · Helldivers 2。已開啟開發測試：透過 API 下載。公開 API 未提供關鍵字搜尋，請使用清單或模組連結。</value>
+  </data>
+  <data name="Ayaka.ApiDownloadHint" xml:space="preserve">
+    <value>開發測試：透過 A 網 API 下載所選檔案，失敗時顯示實際錯誤。</value>
+  </data>
+  <data name="Metadata.OpenSource" xml:space="preserve">
+    <value>開啟來源網頁</value>
+  </data>
+  <data name="Metadata.OpenAuthor" xml:space="preserve">
+    <value>開啟作者主頁</value>
+  </data>
+  <data name="Metadata.SaveAuthor" xml:space="preserve">
+    <value>儲存作者主頁</value>
+  </data>
+  <data name="Metadata.AuthorHelp" xml:space="preserve">
+    <value>愛發電等其他平台可填寫作者主頁，儲存後支援直接跳轉，不透過 API 檢查更新。</value>
+  </data>
+  <data name="Metadata.AuthorOnly" xml:space="preserve">
+    <value>已儲存作者主頁，可開啟網頁查看發布資訊。</value>
+  </data>
+  <data name="Metadata.CheckUpdates" xml:space="preserve">
+    <value>檢查和更新模組…</value>
+  </data>
+  <data name="Metadata.Summary" xml:space="preserve">
+    <value>{0} · {1}
+{2}
+作者：{3}
+已安裝版本：{4}
+最新可用版本：{5}
+已安裝檔案：{6}
+上次檢查：{7}</value>
+  </data>
+  <data name="Metadata.SourceName" xml:space="preserve">
+    <value>作者主頁</value>
+  </data>
+  <data name="BrowserDownload.Started" xml:space="preserve">
+    <value>已在瀏覽器發起下載：{0}。</value>
+  </data>
+  <data name="BrowserDownload.WaitingImport" xml:space="preserve">
+    <value>已在瀏覽器發起下載：{0}。完成後將自動匯入；也可以選擇已下載的檔案。</value>
+  </data>
+  <data name="BrowserDownload.WaitingUpdate" xml:space="preserve">
+    <value>已在瀏覽器發起下載：{0}。完成後將自動更新；也可以選擇已下載的檔案。</value>
+  </data>
+  <data name="UI.ModDetailReadFailed" xml:space="preserve">
+    <value>讀取詳情失敗：{0}</value>
+  </data>
+  <data name="Creator.Title" xml:space="preserve"><value>模組建立</value></data>
+  <data name="Creator.Intro" xml:space="preserve"><value>選擇新檔案或舊檔案，編輯模組資訊並匯出完整模組包。</value></data>
+  <data name="Creator.ManifestFormat" xml:space="preserve"><value>檔案格式</value></data>
+  <data name="Creator.FormatV1" xml:space="preserve"><value>新檔案（V1）</value></data>
+  <data name="Creator.FormatLegacy" xml:space="preserve"><value>舊檔案（Legacy）</value></data>
+  <data name="Creator.LegacyHint" xml:space="preserve"><value>舊檔案使用目錄作為互斥選項。點擊「新增選項」勾選資料夾，目錄路徑即選項名稱。</value></data>
+  <data name="Creator.New" xml:space="preserve"><value>新增</value></data>
+  <data name="Creator.Open" xml:space="preserve"><value>開啟清單</value></data>
+  <data name="Creator.Save" xml:space="preserve"><value>儲存清單與擴充</value></data>
+  <data name="Creator.Export" xml:space="preserve"><value>打包匯出模組</value></data>
+  <data name="Creator.ArchiveFormat" xml:space="preserve"><value>壓縮格式</value></data>
+  <data name="Creator.CompressionLevel" xml:space="preserve"><value>壓縮等級</value></data>
+  <data name="Creator.CompressionStore" xml:space="preserve"><value>不壓縮</value></data>
+  <data name="Creator.CompressionFast" xml:space="preserve"><value>快速</value></data>
+  <data name="Creator.CompressionNormal" xml:space="preserve"><value>標準</value></data>
+  <data name="Creator.CompressionHigh" xml:space="preserve"><value>高壓縮</value></data>
+  <data name="Creator.CompressionUltra" xml:space="preserve"><value>極限壓縮</value></data>
+  <data name="Creator.CompressionHint" xml:space="preserve"><value>等級越高，通常體積越小，耗時及記憶體用量也越高。7z 使用 LZMA2 固實壓縮。</value></data>
+  <data name="Creator.SevenZipMissing" xml:space="preserve"><value>缺少隨程式附帶的 7-Zip 工具，請重新解壓縮完整的程式包。</value></data>
+  <data name="Creator.ArchiveFormatRequired" xml:space="preserve"><value>請將模組包儲存為 .7z 或 .zip 檔案。</value></data>
+  <data name="Creator.Basic" xml:space="preserve"><value>基本資訊</value></data>
+  <data name="Creator.SourceDirectory" xml:space="preserve"><value>模組來源目錄</value></data>
+  <data name="Creator.Browse" xml:space="preserve"><value>瀏覽</value></data>
+  <data name="Creator.SourceHint" xml:space="preserve"><value>選擇或貼上模組根目錄，自動填入資料夾名稱、第一張圖片及選項結構；手動輸入路徑後可按 Enter 識別。壓縮包請匯出到此目錄之外。</value></data>
+  <data name="Creator.Name" xml:space="preserve"><value>模組名稱 *</value></data>
+  <data name="Creator.Author" xml:space="preserve"><value>作者</value></data>
+  <data name="Creator.Version" xml:space="preserve"><value>模組版本</value></data>
+  <data name="Creator.Cover" xml:space="preserve"><value>封面圖片（相對路徑）</value></data>
+  <data name="Creator.Description" xml:space="preserve"><value>描述</value></data>
+  <data name="Creator.Options" xml:space="preserve"><value>選項與子選項</value></data>
+  <data name="Creator.AddOption" xml:space="preserve"><value>新增選項</value></data>
+  <data name="Creator.Remove" xml:space="preserve"><value>刪除</value></data>
+  <data name="Creator.OptionsHint" xml:space="preserve"><value>每個選項可獨立啟用，子選項為互斥變體。不新增選項時部署全部模組補丁。</value></data>
+  <data name="Creator.OptionName" xml:space="preserve"><value>選項名稱 *</value></data>
+  <data name="Creator.DefaultEnabled" xml:space="preserve"><value>預設啟用（不確定狀態沿用管理器預設值）</value></data>
+  <data name="Creator.OptionImage" xml:space="preserve"><value>預覽圖片（相對路徑）</value></data>
+  <data name="Creator.HasMapping" xml:space="preserve"><value>指定包含目錄</value></data>
+  <data name="Creator.AddDirectory" xml:space="preserve"><value>選擇目錄</value></data>
+  <data name="Creator.MappingHint" xml:space="preserve"><value>每行一個相對目錄，用 . 表示根目錄；只包含目錄直屬補丁。勾選但留空表示無檔案；取消勾選則不寫 Include（父選項可由子選項提供映射，葉選項缺少映射可能回退全量部署）。</value></data>
+  <data name="Creator.AddSubOption" xml:space="preserve"><value>新增子選項</value></data>
+  <data name="Creator.SubOptionName" xml:space="preserve"><value>子選項名稱 *</value></data>
+  <data name="Creator.Preview" xml:space="preserve"><value>JSON 預覽</value></data>
+  <data name="Creator.Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="Creator.Ready" xml:space="preserve"><value>選擇來源目錄並填寫模組資訊。</value></data>
+  <data name="Creator.Discard" xml:space="preserve"><value>目前有未儲存或匯出的修改，是否放棄？</value></data>
+  <data name="Creator.Opened" xml:space="preserve"><value>已開啟：{0}</value></data>
+  <data name="Creator.Saved" xml:space="preserve"><value>清單及獨立擴充 JSON 已儲存：{0}</value></data>
+  <data name="Creator.Exported" xml:space="preserve"><value>模組包已匯出：{0}</value></data>
+  <data name="Creator.Working" xml:space="preserve"><value>正在處理…</value></data>
+  <data name="Creator.Cancelled" xml:space="preserve"><value>已取消，暫存檔案已清理。</value></data>
+  <data name="Creator.Failed" xml:space="preserve"><value>操作失敗：{0}</value></data>
+  <data name="Creator.InvalidManifest" xml:space="preserve"><value>清單不是有效的 JSON。</value></data>
+  <data name="Creator.NameRequired" xml:space="preserve"><value>請填寫模組名稱。</value></data>
+  <data name="Creator.DirectoryRequired" xml:space="preserve"><value>請選擇存在的模組來源目錄。</value></data>
+  <data name="Creator.OptionNameRequired" xml:space="preserve"><value>每個選項和子選項都需要名稱。</value></data>
+  <data name="Creator.RelativePathRequired" xml:space="preserve"><value>請選擇模組來源目錄內的檔案或目錄。</value></data>
+  <data name="Creator.SaveInSource" xml:space="preserve"><value>請將清單儲存為模組來源目錄根部的 manifest.json，以保持相對路徑有效。</value></data>
+  <data name="Creator.ArchiveOutsideSource" xml:space="preserve"><value>請將壓縮包匯出到模組來源目錄之外。</value></data>
+  <data name="Creator.LinkedFilesUnsupported" xml:space="preserve"><value>來源目錄包含連結檔案或目錄，請使用一般檔案匯出。</value></data>
+  <data name="Creator.DragToReorder" xml:space="preserve"><value>拖曳排序</value></data>
+  <data name="Creator.AuthorWebsite" xml:space="preserve"><value>作者網站（選填）</value></data>
+  <data name="Creator.AuthorWebsiteHint" xml:space="preserve"><value>支援任意 HTTP/HTTPS 作者首頁；留空時右鍵選單隱藏「開啟作者首頁」。</value></data>
+  <data name="Creator.InvalidAuthorUrl" xml:space="preserve"><value>請填寫有效且不含登入資訊的 HTTP 或 HTTPS 作者網站，或留空。</value></data>
+  <data name="Creator.BaseFiles" xml:space="preserve"><value>基礎檔案</value></data>
+  <data name="UI.DeleteModFiles" xml:space="preserve"><value>刪除模組檔案</value></data>
+  <data name="Creator.ManagerPreview" xml:space="preserve"><value>管理器預覽</value></data>
+  <data name="Creator.RefreshPreview" xml:space="preserve"><value>重新整理預覽</value></data>
+  <data name="Creator.ExportScreenshot" xml:space="preserve"><value>匯出長截圖（展開全部）</value></data>
+  <data name="Settings.Profiles.AutoAddImportedMods" xml:space="preserve"><value>新增模組自動加入目前啟用的設定檔</value></data>
+  <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>匯入後自動加入並啟用模組；沒有啟用的設定檔時，僅保留在模組庫。</value></data>
+  <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>匯入完成後自動關閉浮動卡片</value></data>
+  <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部匯入成功後關閉；失敗或取消時保留結果。</value></data>
 </root>

@@ -8,12 +8,13 @@
         Closing="OnClosing" Title="{loc:LocalizedBinding Title}"
         Width="1280" Height="800" MinWidth="960" MinHeight="600">
   <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+1" Command="{Binding NavigateToProfilesCommand}"/>
-    <KeyBinding Gesture="Ctrl+2" Command="{Binding NavigateToLibraryCommand}"/>
-    <KeyBinding Gesture="Ctrl+3" Command="{Binding NavigateToConflictsCommand}"/>
-    <KeyBinding Gesture="Ctrl+4" Command="{Binding NavigateToToolsCommand}"/>
-    <KeyBinding Gesture="Ctrl+5" Command="{Binding NavigateToSettingsCommand}"/>
-    <KeyBinding Gesture="Ctrl+6" Command="{Binding NavigateToBrowseCommand}"/>
+    <KeyBinding Gesture="Ctrl+D1" Command="{Binding NavigateToProfilesCommand}"/>
+    <KeyBinding Gesture="Ctrl+D2" Command="{Binding NavigateToLibraryCommand}"/>
+    <KeyBinding Gesture="Ctrl+D3" Command="{Binding NavigateToConflictsCommand}"/>
+    <KeyBinding Gesture="Ctrl+D4" Command="{Binding NavigateToToolsCommand}"/>
+    <KeyBinding Gesture="Ctrl+D5" Command="{Binding NavigateToSettingsCommand}"/>
+    <KeyBinding Gesture="Ctrl+D6" Command="{Binding NavigateToBrowseCommand}"/>
+    <KeyBinding Gesture="Ctrl+D7" Command="{Binding NavigateToModCreationCommand}"/>
     <KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
   </Window.KeyBindings>
   <Grid>
@@ -36,6 +37,7 @@
         <fa:FANavigationViewItem Content="{loc:Loc UI.Profiles}" IconSource="Folder" Tag="0" IsVisible="{Binding SettingsViewModel.ShowProfilesEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Library}" IconSource="Library" Tag="1" IsVisible="{Binding SettingsViewModel.ShowLibraryEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc Browse.Title}" IconSource="Globe" Tag="5" IsVisible="{Binding SettingsViewModel.ShowBrowseEntry}"/>
+        <fa:FANavigationViewItem Content="{loc:Loc Creator.Title}" IconSource="Edit" Tag="6" IsVisible="{Binding SettingsViewModel.ShowModCreationEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Conflicts}" IconSource="Important" Tag="2" IsVisible="{Binding SettingsViewModel.ShowConflictsEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc UI.Tools}" IconSource="Repair" Tag="3" IsVisible="{Binding SettingsViewModel.ShowToolsEntry}"/>
         <fa:FANavigationViewItem Content="{loc:Loc Settings.Title}" IconSource="Settings" Tag="4"/>
@@ -63,13 +65,14 @@
       <Border Background="{DynamicResource ContentFillBrush}">
         <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
         <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
-          <TabControl.Styles><Style Selector="TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
+          <TabControl.Styles><Style Selector="TabControl#PageHost > TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
           <TabItem><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
           <TabItem><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
           <TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
           <TabItem><views:MoreView/></TabItem>
           <TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
           <TabItem><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
+          <TabItem><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
         </TabControl>
       </Border>
     </fa:FANavigationView>

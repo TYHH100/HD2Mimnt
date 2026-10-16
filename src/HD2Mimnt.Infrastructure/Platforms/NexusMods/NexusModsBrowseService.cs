@@ -104,6 +104,10 @@ internal sealed class NexusModsBrowseService(NexusModsApiClient api)
         return new()
         {
             Id = id, Name = mod.Name ?? "", Author = mod.Author ?? "", Version = mod.Version ?? "",
+            AuthorUrl = !string.IsNullOrWhiteSpace(mod.Author) && mod.Author == mod.UploadedBy
+                && Uri.TryCreate(mod.UploadedUsersProfileUrl, UriKind.Absolute, out var authorUri)
+                && authorUri.Scheme == "https" && authorUri.Host == "www.nexusmods.com" && authorUri.UserInfo.Length == 0
+                    ? authorUri.AbsoluteUri : null,
             Description = PlainText(mod.Description ?? mod.Summary ?? ""), ThumbnailUrl = mod.PictureUrl ?? "",
             UpdatedAt = mod.UpdatedTimestamp > 0 ? DateTimeOffset.FromUnixTimeSeconds(mod.UpdatedTimestamp).UtcDateTime : null,
             Metadata = new() { ["mod_page_url"] = $"https://www.nexusmods.com/helldivers2/mods/{id}" }
@@ -119,6 +123,8 @@ internal sealed class NexusModsBrowseService(NexusModsApiClient api)
         public long ModId { get; init; }
         public string? Name { get; init; }
         public string? Author { get; init; }
+        public string? UploadedBy { get; init; }
+        public string? UploadedUsersProfileUrl { get; init; }
         public string? Summary { get; init; }
         public string? Description { get; init; }
         public string? PictureUrl { get; init; }

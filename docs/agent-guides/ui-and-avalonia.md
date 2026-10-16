@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- 模组创建的源目录自动填充须经过 Application 后台扫描，按目录分别取名称、直属第一张图片和 Include；空草稿才生成选项，已有清单和手动填写值不被扫描覆盖。自动生成选项时保留根目录补丁的 `.` 映射。Include 选择使用程序内目录勾选树，独立保存对话框选择，确认后替换路径、取消不写回；回归粘贴路径、勾选回显、取消、清空及保存后的实际清单。来源：[旧版创建逻辑](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)、[Avalonia TreeView](https://docs.avaloniaui.net/docs/reference/controls/treeview)。
+
+- 配置页模组的详情、文件位置、来源及作者入口不能使用 `CanSelect` / `CanDrag` 作总开关；加载器锁定只限制选择与排序。右键按操作分别判断权限，双击详情先于拖动权限判断，忽略按钮/开关及 Ctrl/Shift 手势；详情中的启用和移除作用于正在查看的配置，Escape 优先关闭详情。“删除模组文件”与模组库共用 `ModService.DeleteModAsync` 和删除确认，右键与详情共用异步命令流程；删除后等待模组库列表和搜索索引刷新完成，不能只更新配置成员或留下未等待的刷新任务。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://docs.avaloniaui.net/docs/concepts/input/routed-events 、https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/generators/relaycommand
+
 - 模组选项的子选项直接由选项头部展开；有/无子选项复用同一头部模板，勾选框固定在最右侧对齐，展开箭头放在其左侧预留槽位。Expander 头部内的图片预览要在 PointerPressed 阻止父按钮捕获，只有 Tapped.Handled 会来不及阻止展开状态切换。回归实际点击标题、箭头、勾选框与图片，并检查深浅主题、最小窗口和长名称下的勾选框坐标。来源：https://github.com/amwx/FluentAvalonia/blob/master/src/FluentAvalonia/Styling/ControlThemes/BasicControls/ExpanderStyles.axaml 、https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
 - 虚拟化模组列表的 ItemsControl 不要使用顶部负 Margin 抵消卡片间距。Avalonia 12.0.3 的 VirtualizingStackPanel 根据有效视口与估算行高定位；负边距会让滚动条归零时的面板视口起点仍大于 0，连续 ScrollIntoView 后滚轮返回顶部可能保留位置误差，裁切分隔符甚至普通卡片。保留非负列表边距，由卡片自身控制间距；跳转只调用 ItemsControl.ScrollIntoView，由虚拟化面板完成实现与布局，不重复 BringIntoView。回归必须实际用滚轮逐步返回顶部，检查首行位置及目标完整可见，并覆盖有/无分隔符；直接设置 Offset=0 无法代替该路径。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/VirtualizingStackPanel.cs
@@ -24,11 +28,13 @@
 
 - 弹出通知的计时器随视图挂载/卸载启动和停止，横幅收起不能删除通知历史；后台通知事件先派发到 UI 线程。Avalonia 位移动画使用已创建的 `TranslateTransform` 和 `TranslateTransform.X`，不要直接对 `RenderTransform` 写关键帧，否则可能编译通过但运行时报无 Animator；必须用 Headless 实际显示通知验证。来源：https://docs.avaloniaui.net/docs/guides/graphics-and-animation/keyframe-animations
 
-- 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，显示在模组库右侧。来源：https://github.com/amwx/FluentAvalonia
+- 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，“模组创建”为 6、Ctrl+7，显示在模组库和浏览模组之后。数字快捷键的 XAML Gesture 必须写 Ctrl+D1 等枚举名，不能写 Ctrl+1：当前 KeyGesture 会将纯数字按枚举整数解析（例如 7 变成 Pause）。隐藏主页面标签的样式限定为 TabControl#PageHost > TabItem，不能用宽泛 TabItem 选择器，否则页面内部的编辑标签也会被隐藏；教程打开时还需在导航 RelayCommand 的 CanExecute 阻止快捷导航：窗口 KeyBinding 可能早于 KeyDown 隧道处理，单靠事件 Handled 不足以拦截。教程自身通过内部导航方法切换页面。回归使用真实按键和内部标签点击。来源：https://github.com/amwx/FluentAvalonia 、https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Input/KeyGesture.cs 、https://docs.avaloniaui.net/docs/reference/styles/style-selector-syntax
 
 - “设置 → 入口自定义”将隐藏项保存为 `UI.HiddenEntries` 中的稳定英文 ID，显示标签继续本地化；保存独立于游戏路径验证，恢复默认只恢复入口显示。顶部“设置”和设置分类“入口自定义”始终保留，隐藏仅影响入口显示，不停用功能或改变导航 Tag。设置分类刷新 ItemsSource 时先保存当前分类，刷新后恢复仍可见的分类，否则回到入口自定义，避免 ListBox 清空 SelectedItem 导致空白页。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
 
 - UI 只通过 Application 服务访问模组、配置文件和部署数据；不要在 View 或 ViewModel 中直接访问 SQLite、部署实现或复制文件。
+
+- 导出完整选项截图时复用管理器的 `ModOptionsSelector`，在独立控件中按无限高度测量并展开全部子项，不能截取 ScrollViewer 视口或修改屏幕预览的折叠状态。渲染前关闭 `Expander.ContentTransition` 与控件 `Transitions`，避免把半透明渐显中间帧写入 PNG；验证末项图片完整且不透明。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Expander.cs
 
 - Avalonia 的 `ObservableCollection` 和控件状态只能在 UI 上下文更新。后台筛选/排序先计算普通 `List`，回到 UI 上下文后再替换集合。
 
@@ -53,6 +59,8 @@
 - 图片占位图标的可见性使用 `ObjectConverters.IsNull` 判断图片对象；不要将 `!Icon` 与 `NotNullConverter` 组合，布尔结果仍然非空，会导致占位图标覆盖已加载图片。来源：https://docs.avaloniaui.net/docs/reference/built-in-data-binding-converters
 
 - 模组缩略图不能只加载列表前 50/80 项，除非同时实现滚动和筛选后的补加载；当前按完整数据源快照异步加载，配置切换时取消旧队列，库刷新时停止旧数据源队列。文件暂不可读或解码失败不能永久缓存 null，否则刷新仍然缺图；`IconBitmap` 等派生绑定属性必须随 `Icon` 通知。回归覆盖超过原限制的列表、加载时无搜索结果，以及文件独占占用后恢复读取。来源：https://learn.microsoft.com/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd 、https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/generators/observableproperty
+
+- 模组创建页排序必须移动原有选项对象，并通知草稿变更和 JSON 预览；只改界面顺序会让保存和 ZIP 导出失序，重建对象会丢失绑定在对象上的扩展字段。选项行可拖动，子选项仅从手柄启动且限制在所属选项内，输入框保留文本选择。预览和松开共用移除源项前的插入槽位，向下移动只扣减一次源项索引；原位、Escape、越界、捕获丢失及页面卸载均不提交，并清理透明度和插入线。回归实际拖动两级列表、双向滚轮和保存／ZIP 内清单顺序。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.move
 
 - 拖放排序预览必须与 Drop 共用插入位置计算，覆盖层设置 IsHitTestVisible=False 且不参与列表布局；DragLeave 可能从子控件冒泡，只有指针真正离开列表视口才隐藏预览，避免鼠标跨过文字/图片时闪烁。取消、完成、DataContext 变化和视图卸载都要恢复拖动源透明度。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 

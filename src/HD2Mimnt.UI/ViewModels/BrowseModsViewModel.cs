@@ -6,14 +6,58 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI.Services;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.ViewModels;
 
 public sealed record BrowseFeedChoice(ModBrowseFeed Value, string Label);
+public sealed record BrowsePlatformChoice(string Id, string Name);
 
 public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownloadLauncher website,
-    ImagePreviewService imagePreview, NexusModsAccountViewModel? account = null) : ObservableObject
+    ImagePreviewService imagePreview, NexusModsAccountViewModel? account = null,
+    BrowserDownloadHandoffService? browserDownloads = null) : ObservableObject
 {
+    public IReadOnlyList<BrowsePlatformChoice> Platforms { get; } = new[]
+    { new BrowsePlatformChoice("nexusmods", "Nexus Mods"), new BrowsePlatformChoice("ayakamods", "Ayaka Mods") };
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAyaka), nameof(IsNexus), nameof(PlatformTitle), nameof(CanSearch), nameof(HasPagination), nameof(DownloadHint), nameof(DownloadButtonText), nameof(WebsiteButtonText), nameof(UseBrowserDownload), nameof(BrowseHelp), nameof(SelectHint))]
+    private BrowsePlatformChoice? _selectedPlatform;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UseBrowserDownload), nameof(DownloadHint), nameof(DownloadButtonText), nameof(BrowseHelp))]
+    private bool _useAyakaApiDownload;
+    public bool IsAyaka => SelectedPlatform?.Id == "ayakamods";
+    public bool IsNexus => !IsAyaka;
+    public bool UseBrowserDownload => IsAyaka && !UseAyakaApiDownload;
+    public string PlatformTitle => $"{(IsAyaka ? "Ayaka Mods" : "Nexus Mods")} · Helldivers 2";
+    public string BrowseHelp => UiLocalization.Current[UseAyakaApiDownload ? "Ayaka.ApiBrowseHelp" : "Ayaka.BrowseHelp"];
+    public string DownloadHint => UiLocalization.Current[IsAyaka ? UseAyakaApiDownload ? "Ayaka.ApiDownloadHint" : "Ayaka.DownloadHint" : "Browse.DownloadHint"];
+    public string DownloadButtonText => UiLocalization.Current[UseBrowserDownload ? "BrowserDownload.Open" : "Browse.Download"];
+    public string WebsiteButtonText => UiLocalization.Current[IsAyaka ? "Ayaka.OpenWebsite" : "Browse.OpenWebsite"];
+    public string SelectHint => UiLocalization.Current[IsAyaka ? "Ayaka.SelectHint" : "Browse.SelectHint"];
+    public string BrowserDownloadsDirectory => browserDownloads?.DownloadsDirectory ?? "";
+    private BrowserDownloadSession? _browserSession;
+    public bool CanSearch => !IsAyaka && !IsBusy;
+    public bool HasPagination => IsSearchResults || (IsAyaka && HasLoaded);
+    public Task PlatformChange { get; private set; } = Task.CompletedTask;
+    private readonly SemaphoreSlim _platformGate = new(1, 1);
+    partial void OnSelectedPlatformChanged(BrowsePlatformChoice? value)
+    {
+        if (value != null && value.Id != service.PlatformId) PlatformChange = ChangePlatformAsync(value);
+    }
+    private async Task ChangePlatformAsync(BrowsePlatformChoice value)
+    {
+        await _platformGate.WaitAsync();
+        try
+        {
+            await CloseAsync();
+            if (SelectedPlatform != value) return;
+            service.SelectPlatform(value.Id);
+            Details = null; Files = Array.Empty<PlatformModFile>(); SelectedFile = null; SelectedMod = null;
+            _searchResult = null; IsSearchResults = false; SearchText = ModLink = "";
+            ScopeDescription = IsAyaka ? "A 网 · Helldivers 2 · 点击加载列表。" : "N 网热门前 5 项。";
+        }
+        finally { _platformGate.Release(); }
+    }
     public NexusModsAccountViewModel? Account { get; } = account;
     private CancellationTokenSource? _operation;
     private PendingDownload? _pending;
@@ -26,6 +70,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     private string _searchedText = "";
     private PlatformSearchResult? _searchResult;
     public Func<string, CancellationToken, Task>? ImportDownloadedArchiveAsync { get; set; }
+    public Func<string, ModPlatformLink, CancellationToken, Task>? ImportPlatformArchiveAsync { get; set; }
     private IReadOnlyList<BrowseModCardViewModel> _loaded = Array.Empty<BrowseModCardViewModel>();
     public Task Completion { get; private set; } = Task.CompletedTask;
     public IReadOnlyList<BrowseFeedChoice> Feeds { get; } = new[]
@@ -38,6 +83,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanPreviousPage), nameof(CanNextPage))]
+    [NotifyPropertyChangedFor(nameof(HasPagination))]
     private bool _isSearchResults;
     [ObservableProperty] private string _modLink = "";
     [ObservableProperty] private IReadOnlyList<BrowseModCardViewModel> _mods = Array.Empty<BrowseModCardViewModel>();
@@ -55,6 +101,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     [ObservableProperty] private string _scopeDescription = "N 网热门前 5 项。";
     [ObservableProperty] private bool _hasLoaded;
     [ObservableProperty] private bool _isWaitingForWebsite;
+    [ObservableProperty] private bool _isWaitingForBrowser;
     [ObservableProperty] private double _progress;
     [ObservableProperty] private bool _isIndeterminate;
     [ObservableProperty] private bool _isLoadingImage;
@@ -67,24 +114,27 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyPropertyChangedFor(nameof(CanDownloadAndImport))]
     [NotifyPropertyChangedFor(nameof(CanPreviousPage), nameof(CanNextPage))]
+    [NotifyPropertyChangedFor(nameof(CanSearch))]
     private bool _isBusy;
 
     public bool CanDownload => !IsBusy && Details != null && SelectedFile?.WebsiteFileId != null;
-    public bool CanDownloadAndImport => CanDownload && ImportDownloadedArchiveAsync != null;
+    public bool CanDownloadAndImport => CanDownload && (ImportPlatformArchiveAsync != null || ImportDownloadedArchiveAsync != null);
     public string SuggestedFileName => SelectedFile?.FileName is { Length: > 0 } name ? Path.GetFileName(name) : "mod-download.zip";
     public bool HasDetails => Details != null;
     public bool HasMessage => !string.IsNullOrWhiteSpace(Message);
     public bool HasNoResults => HasLoaded && Mods.Count == 0;
     public object DisplayMessage => (object?)_displayError ?? Message;
-    public bool CanPreviousPage => !IsBusy && IsSearchResults && _searchResult?.Page > 1;
-    public bool CanNextPage => !IsBusy && IsSearchResults && _searchResult?.HasNextPage == true;
+    public bool CanPreviousPage => !IsBusy && HasPagination && _searchResult?.Page > 1;
+    public bool CanNextPage => !IsBusy && HasPagination && _searchResult?.HasNextPage == true;
     partial void OnMessageChanged(string value) => _displayError = null;
     partial void OnDetailsChanged(PlatformModInfo? value) => OnPropertyChanged(nameof(HasDetails));
-    partial void OnHasLoadedChanged(bool value) => OnPropertyChanged(nameof(HasNoResults));
+    partial void OnHasLoadedChanged(bool value)
+    { OnPropertyChanged(nameof(HasNoResults)); OnPropertyChanged(nameof(HasPagination)); }
     partial void OnModsChanged(IReadOnlyList<BrowseModCardViewModel> value) => OnPropertyChanged(nameof(HasNoResults));
 
     public async Task EnsureLoadedAsync()
     {
+        SelectedPlatform ??= Platforms[0];
         Account?.RefreshStatus();
         SelectedFeed ??= Feeds[0];
         if (!HasLoaded && !IsBusy) await RefreshCommand.ExecuteAsync(null);
@@ -92,7 +142,8 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
 
     private bool CanStart() => !IsBusy;
     [RelayCommand(CanExecute = nameof(CanStart))]
-    private Task RefreshAsync() => RunAsync(async token =>
+    private Task RefreshAsync() => LoadFeedPageAsync(1);
+    private Task LoadFeedPageAsync(int page) => RunAsync(async token =>
     {
         await StopPreviewsAsync();
         await StopFullPreviewAsync();
@@ -106,14 +157,19 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         SelectedMod = null;
         ReleaseImages();
         HasLoaded = false;
-        ScopeDescription = feed switch
+        ScopeDescription = IsAyaka ? "A 网 · Helldivers 2 · 点击加载列表。" : feed switch
         {
             ModBrowseFeed.LatestAdded => "N 网最新发布 10 项。",
             ModBrowseFeed.LatestUpdated => "N 网最近更新 10 项。",
             _ => "N 网热门前 5 项。"
         };
-        var result = await service.BrowseAsync(feed, token);
+        var result = await service.BrowsePageAsync(feed, page, token);
         token.ThrowIfCancellationRequested();
+        if (IsAyaka)
+        {
+            _searchResult = result;
+            ScopeDescription = $"A 网 Helldivers 2：共 {result.TotalCount} 项，第 {result.Page} 页。";
+        }
         _loaded = result.Mods.Select(info => new BrowseModCardViewModel(info)).ToArray();
         HasLoaded = true;
         Mods = _loaded;
@@ -124,10 +180,12 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     private Task SearchAsync() => SearchPageAsync(SearchText.Trim(), 1);
 
     [RelayCommand]
-    private Task PreviousPageAsync() => CanPreviousPage ? SearchPageAsync(_searchedText, _searchResult!.Page - 1) : Task.CompletedTask;
+    private Task PreviousPageAsync() => !CanPreviousPage ? Task.CompletedTask : IsAyaka
+        ? LoadFeedPageAsync(_searchResult!.Page - 1) : SearchPageAsync(_searchedText, _searchResult!.Page - 1);
 
     [RelayCommand]
-    private Task NextPageAsync() => CanNextPage ? SearchPageAsync(_searchedText, _searchResult!.Page + 1) : Task.CompletedTask;
+    private Task NextPageAsync() => !CanNextPage ? Task.CompletedTask : IsAyaka
+        ? LoadFeedPageAsync(_searchResult!.Page + 1) : SearchPageAsync(_searchedText, _searchResult!.Page + 1);
 
     private Task SearchPageAsync(string query, int page) => RunAsync(async token =>
     {
@@ -196,7 +254,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     [RelayCommand]
     private void OpenWebsite()
     {
-        try { website.Open(Details is { } mod ? service.GetModPageUrl(mod.Id) : "https://www.nexusmods.com/helldivers2/mods/"); }
+        try { website.Open(Details is { } mod ? service.GetModPageUrl(mod.Id) : service.HomePageUrl); }
         catch (Exception ex) { SetError(ex, "打开 N 网"); }
     }
 
@@ -204,7 +262,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     private void OpenImagesWebsite()
     {
         if (Details is not { } mod) return;
-        try { website.Open(service.GetModPageUrl(mod.Id) + "?tab=images"); }
+        try { website.Open(service.GetModPageUrl(mod.Id) + (IsAyaka ? "" : "?tab=images")); }
         catch (Exception ex) { SetError(ex, "打开 N 网"); }
     }
 
@@ -246,7 +304,10 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     public void CancelImagePreview() => _fullPreviewOperation?.Cancel();
 
     public Task DownloadAsync(string destination)
-        => StartDownloadAsync(destination, import: false);
+    {
+        if (UseBrowserDownload) { OpenBrowserDownload(); return Task.CompletedTask; }
+        return StartDownloadAsync(destination, import: false);
+    }
 
     [RelayCommand]
     private Task DownloadAndImportAsync()
@@ -257,11 +318,36 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         if (!CanDownload) return Task.CompletedTask;
         var modId = Details!.Id;
         var file = SelectedFile!;
+        var sourceLink = service.CreateSourceLink(Details, file);
+        var useBrowser = UseBrowserDownload;
+        Task ImportArchiveAsync(string archive, CancellationToken token)
+            => ImportDownloadedArchiveAsync != null ? ImportDownloadedArchiveAsync(archive, token)
+                : (ImportPlatformArchiveAsync ?? throw new InvalidOperationException("模组导入不可用。"))(archive, sourceLink, token);
         return RunAsync(async token =>
         {
+            if (useBrowser)
+            {
+                using var session = await (browserDownloads ?? throw new InvalidOperationException("浏览器下载接管不可用。"))
+                    .StartAsync(file, token);
+                _browserSession = session;
+                IsWaitingForBrowser = true;
+                Message = $"已在浏览器发起下载：{file.FileName}。完成后将自动导入；也可以选择已下载的文件。";
+                try
+                {
+                    website.Open(service.GetWebsiteDownloadUrl(modId, file));
+                    var source = await session.WaitForFileAsync(token);
+                    IsWaitingForBrowser = false;
+                    Message = "下载完成，正在导入模组…";
+                    await BrowserDownloadHandoffService.UseFileAsync(source, file,
+                        ImportArchiveAsync, token);
+                    Message = "浏览器下载的文件已导入模组库。";
+                }
+                finally { _browserSession = null; IsWaitingForBrowser = false; }
+                return;
+            }
             try
             {
-                Message = "正在检查 N 网会员状态…";
+                Message = IsAyaka ? "正在检查 A 网下载权限…" : "正在检查 N 网会员状态…";
                 var premium = await service.HasDirectDownloadAccessAsync(token);
                 token.ThrowIfCancellationRequested();
                 string? input = null;
@@ -276,7 +362,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                     token.ThrowIfCancellationRequested();
                 }
                 IsWaitingForWebsite = false;
-                Message = premium ? "Premium 会员：正在通过 API 下载所选文件…" : "正在下载所选文件…";
+                Message = IsAyaka ? "正在通过 A 网 API 下载所选文件…" : premium ? "Premium 会员：正在通过 API 下载所选文件…" : "正在下载所选文件…";
                 var downloading = true;
                 var progress = new InlineProgress<DownloadProgress>(value => Dispatcher.UIThread.Post(() =>
                     {
@@ -286,13 +372,12 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                     }));
                 if (import)
                 {
-                    var importArchive = ImportDownloadedArchiveAsync!;
                     await service.DownloadAndImportAsync(modId, file, input, async (archive, importToken) =>
                     {
                         downloading = false;
                         Message = "下载完成，正在导入模组…";
                         IsIndeterminate = true;
-                        await importArchive(archive, importToken);
+                        await ImportArchiveAsync(archive, importToken);
                     }, progress, token);
                     Message = "模组已下载并导入模组库。";
                 }
@@ -304,6 +389,31 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
             }
             finally { _pending = null; IsWaitingForWebsite = false; }
         });
+    }
+
+    [RelayCommand]
+    public void OpenBrowserDownload()
+    {
+        if (!IsAyaka || !CanDownload) return;
+        try
+        {
+            website.Open(service.GetWebsiteDownloadUrl(Details!.Id, SelectedFile!));
+            Message = $"已在浏览器发起下载：{SelectedFile!.FileName}。";
+        }
+        catch (Exception ex) { SetError(ex, "打开模组网页"); }
+    }
+
+    public async Task SelectBrowserFileAsync(string path)
+    {
+        if (!IsWaitingForBrowser || _browserSession is not { } session || _operation is not { } operation) return;
+        try { await session.SelectFileAsync(path, operation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (ReferenceEquals(_browserSession, session)) SetError(ex, "选择浏览器下载文件"); }
+    }
+
+    partial void OnSelectedFileChanged(PlatformModFile? value)
+    {
+        if (IsWaitingForBrowser) _operation?.Cancel();
     }
 
     public bool TryReceiveProtocolLink(string input)
@@ -330,7 +440,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         IsIndeterminate = true;
         try { await action(cts.Token); }
         catch (OperationCanceledException) { Message = "操作已取消。"; }
-        catch (Exception ex) { SetError(ex, "浏览 N 网模组"); }
+        catch (Exception ex) { SetError(ex, IsAyaka ? "浏览 A 网模组" : "浏览 N 网模组"); }
         finally { _operation = null; IsBusy = false; IsIndeterminate = false; }
     }
 

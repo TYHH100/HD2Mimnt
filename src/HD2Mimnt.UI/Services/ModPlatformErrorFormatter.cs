@@ -36,6 +36,8 @@ internal static class ModPlatformErrorFormatter
                 "N 网认为临时授权与账户或文件不匹配。请使用当前认证账户重新登录网页，并完整复制所选文件的 nxm:// 链接。",
             HttpStatusCode.Forbidden when platformError?.Operation == "获取网页授权下载链接" =>
                 "N 网拒绝当前网页授权。请使用同一账户在文件页面重新点击“Mod manager download”获取临时链接后重试。",
+            HttpStatusCode.Unauthorized when platformError?.PlatformName == "Ayaka Mods" => "A 网未接受当前密钥。请在“工具 → 开发工具”重新填写并应用有效的 A 网 API Key。",
+            HttpStatusCode.Forbidden when platformError?.PlatformName == "Ayaka Mods" => "A 网拒绝访问。请确认密钥具有此游戏及接口的读取权限，且模组仍对访客开放。",
             HttpStatusCode.Unauthorized when platformError != null => "服务器未接受当前认证。请在“设置 → 账号”重新登录 N 网；个人 Key 测试请在开发工具重新填写并应用有效密钥。",
             HttpStatusCode.Unauthorized => "下载服务器未接受此下载链接的授权。请重新检查更新以获取新的下载链接后重试。",
             HttpStatusCode.Forbidden when platformError?.Operation == "获取下载链接" =>

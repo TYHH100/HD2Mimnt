@@ -156,7 +156,7 @@ internal static class ExternalExportSupport
     internal static async Task SaveManifestAsync(ExternalMigrationMod mod, string target, CancellationToken token, Guid? nativeGuid = null)
     {
         var path = Path.Combine(target, "manifest.json");
-        var original = await ReadObjectAsync(path, token);
+        var original = File.Exists(path) ? await ManifestPackage.ReadAsync(path, token) : new JsonObject();
         var manifest = JsonSerializer.Deserialize<ModManifest>(JsonSerializer.Serialize(mod.Manifest))!;
         if (nativeGuid.HasValue)
         {
@@ -169,11 +169,7 @@ internal static class ExternalExportSupport
             await CopyFileAsync(mod.ImagePath, Path.Combine(target, image), token);
             manifest.IconPath = image;
         }
-        new ManifestParser().SaveToFile(manifest, path);
-        var rewritten = await ReadObjectAsync(path, token);
-        var known = new HashSet<string>(["Version", "ModVersion", "Guid", "Name", "Description", "Author", "IconPath", "Category", "Tags", "Options", "NexusData"], StringComparer.OrdinalIgnoreCase);
-        foreach (var property in original.Where(property => !known.Contains(property.Key))) rewritten[property.Key] = property.Value?.DeepClone();
-        await File.WriteAllTextAsync(path, rewritten.ToJsonString(JsonOptions), token);
+        new ManifestParser().SaveToFile(manifest, path, original);
     }
 }
 

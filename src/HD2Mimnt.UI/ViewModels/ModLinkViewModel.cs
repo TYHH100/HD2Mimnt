@@ -14,6 +14,7 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private string _targetName = string.Empty;
     [ObservableProperty] private string _url = string.Empty;
+    [ObservableProperty] private string _authorUrl = string.Empty;
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private bool _isFetching;
     [ObservableProperty] private bool _isSaving;
@@ -24,8 +25,8 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
     private ModPlatformLink? _preview;
 
     public bool HasPreview => Preview != null;
-    public string PreviewText => Preview is { } link
-        ? $"平台：Nexus Mods（N 网）\n游戏：{link.GameDomain}\n模组编号：{link.ModId}\n名称：{link.Name ?? "API 未提供"}\n最新可用版本：{link.LatestVersion ?? "API 未提供"}\n{link.Url}"
+    public string PreviewText => Preview is { SupportsUpdates: false } ? "已保存作者主页，可打开网页查看发布信息。" : Preview is { } link
+        ? $"平台：{(link.PlatformId == "ayakamods" ? "Ayaka Mods（A 网）" : "Nexus Mods（N 网）")}\n游戏：{link.GameDomain}\n模组编号：{link.ModId}\n名称：{link.Name ?? "API 未提供"}\n最新可用版本：{link.LatestVersion ?? "API 未提供"}\n{link.Url}"
         : string.Empty;
 
     public void Open(ModItemViewModel mod)
@@ -34,6 +35,7 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
         _target = mod;
         TargetName = mod.Name;
         Url = mod.PlatformLink?.Url ?? string.Empty;
+        AuthorUrl = mod.AuthorPageUrl;
         Preview = mod.PlatformLink;
         Message = string.Empty;
         IsOpen = true;
@@ -47,7 +49,8 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
         try
         {
             var link = service.Parse(value);
-            Message = $"已识别 N 网 · Helldivers 2 · 模组 {link.ModId}，点击获取信息。";
+            Message = link.PlatformId == "ayakamods" ? $"已识别 A 网 · Helldivers 2 · 模组 {link.ModId}，点击获取信息。"
+                : $"已识别 N 网 · Helldivers 2 · 模组 {link.ModId}，点击获取信息。";
         }
         catch (ArgumentException ex) { Message = ex.Message; }
     }
@@ -68,7 +71,7 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
         _fetchCts = cts;
         IsFetching = true;
         Preview = null;
-        Message = "正在从 N 网获取模组信息…";
+        Message = "正在获取模组信息…";
         try
         {
             var result = await service.FetchAsync(Url, cts.Token);
@@ -91,7 +94,23 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
 
     private static string FormatError(Exception ex) => ModPlatformErrorFormatter.Format(ex, "获取模组信息");
 
-    private bool CanSave() => IsOpen && Preview != null && !IsFetching && !IsSaving;
+    private bool CanSaveAuthorPage() => IsOpen && !IsFetching && !IsSaving;
+    [RelayCommand(CanExecute = nameof(CanSaveAuthorPage))]
+    private async Task SaveAuthorPageAsync()
+    {
+        if (_target == null) return;
+        IsSaving = true;
+        try
+        {
+            var saved = await service.SaveAuthorPageAsync(_target.Id, AuthorUrl);
+            _target.ApplyPlatformLink(saved);
+            IsOpen = false;
+        }
+        catch (Exception ex) { Message = FormatError(ex); }
+        finally { IsSaving = false; }
+    }
+
+    private bool CanSave() => IsOpen && Preview?.SupportsUpdates == true && !IsFetching && !IsSaving;
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
@@ -108,13 +127,22 @@ public partial class ModLinkViewModel(ModLinkService service) : ObservableObject
         finally { IsSaving = false; }
     }
 
-    partial void OnIsFetchingChanged(bool value) => SaveCommand.NotifyCanExecuteChanged();
+    partial void OnIsFetchingChanged(bool value)
+    {
+        SaveCommand.NotifyCanExecuteChanged();
+        SaveAuthorPageCommand.NotifyCanExecuteChanged();
+    }
     partial void OnIsSavingChanged(bool value)
     {
         SaveCommand.NotifyCanExecuteChanged();
+        SaveAuthorPageCommand.NotifyCanExecuteChanged();
         CloseCommand.NotifyCanExecuteChanged();
     }
-    partial void OnIsOpenChanged(bool value) => SaveCommand.NotifyCanExecuteChanged();
+    partial void OnIsOpenChanged(bool value)
+    {
+        SaveCommand.NotifyCanExecuteChanged();
+        SaveAuthorPageCommand.NotifyCanExecuteChanged();
+    }
 
     private bool CanClose() => !IsSaving;
     [RelayCommand(CanExecute = nameof(CanClose))]

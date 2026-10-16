@@ -11,7 +11,7 @@ public static class NexusModsLinkParser
             uri.Scheme is not ("https" or "http") || !uri.IsDefaultPort ||
             !string.IsNullOrEmpty(uri.UserInfo) ||
             uri.Host.ToLowerInvariant() is not ("www.nexusmods.com" or "nexusmods.com"))
-            throw new ArgumentException("当前仅支持 Nexus Mods 的模组页面链接；A 网待文档恢复后接入。");
+            throw new ArgumentException("请输入 Nexus Mods 或 Ayaka Mods 的模组页面链接。");
 
         var path = uri.AbsolutePath.TrimEnd('/').Split('/');
         if (path.Length != 4 || !path[1].Equals("helldivers2", StringComparison.OrdinalIgnoreCase) ||

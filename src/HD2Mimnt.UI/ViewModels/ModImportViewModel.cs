@@ -7,7 +7,7 @@ using HD2Mimnt.Core.Entities;
 
 namespace HD2Mimnt.UI.ViewModels;
 
-public partial class ModImportViewModel(ModService modService) : ObservableObject
+public partial class ModImportViewModel(ModService modService, SettingsService? settingsService = null) : ObservableObject
 {
     private CancellationTokenSource? _cancellation;
     private int _fileGeneration;
@@ -80,7 +80,7 @@ public partial class ModImportViewModel(ModService modService) : ObservableObjec
         _cancellation?.Cancel();
     }
 
-    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null)
     {
         if (IsImporting) return Task.CompletedTask;
         var sources = paths.Where(path => !string.IsNullOrWhiteSpace(path))
@@ -90,11 +90,11 @@ public partial class ModImportViewModel(ModService modService) : ObservableObjec
         TotalCount = sources.Count;
         IsOpen = IsImporting = true;
         _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Completion = RunAsync(sources, _cancellation.Token);
+        Completion = RunAsync(sources, _cancellation.Token, sourceLink);
         return Completion;
     }
 
-    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token)
+    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink)
     {
         var cancelled = false;
         try
@@ -125,7 +125,7 @@ public partial class ModImportViewModel(ModService modService) : ObservableObjec
                 });
                 try
                 {
-                    await Task.Run(() => modService.ImportModAsync(source, token, progress), token);
+                    await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink), token);
                     SuccessCount++;
                     FileProgress = 100;
                 }
@@ -152,6 +152,9 @@ public partial class ModImportViewModel(ModService modService) : ObservableObjec
             IsImporting = IsCancelling = false;
             _cancellation?.Dispose();
             _cancellation = null;
+            if (!cancelled && !token.IsCancellationRequested && FailedCount == 0 && Errors.Count == 0
+                && settingsService?.GetSetting(SettingKeys.ImportAutoClose, false) == true)
+                IsOpen = false;
         }
     }
 

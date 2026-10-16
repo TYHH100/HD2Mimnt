@@ -59,7 +59,7 @@ public sealed class Helldivers2ModManagerReader : IExternalManagerReader
             {
                 try
                 {
-                    using var document = JsonDocument.Parse(File.ReadAllText(path), new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+                    using var document = JsonDocument.Parse(ManifestPackage.Read(path).ToJsonString());
                     manifest = new ManifestParser().ParseFromJsonElement(document.RootElement);
                     Guid.TryParse(document.RootElement.Get("Guid").Text(), out declared);
                     if (Guid.TryParse(document.RootElement.Get("HD2MimntOriginalGuid").Text(), out var originalGuid)) manifest.Guid = originalGuid;

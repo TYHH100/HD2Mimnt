@@ -55,6 +55,8 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync();
         Assert.False(vm.AutoCheckConflicts);
         Assert.True(vm.LockLoaders);
+        Assert.False(vm.AutoAddImportedMods);
+        vm.AutoAddImportedMods = true;
         vm.GamePath = "invalid-game-path";
         vm.SelectedCategory = "配置文件";
         vm.AutoCheckConflicts = true;
@@ -66,12 +68,14 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal("配置文件设置已保存", vm.StatusMessage);
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false));
         Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true));
         await vm.LoadAsync();
         Assert.True(vm.AutoCheckConflicts);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.AutoCheckConflicts);
         Assert.False(applied);
+        Assert.False(vm.AutoAddImportedMods);
         Assert.True(vm.LockLoaders);
     }
 

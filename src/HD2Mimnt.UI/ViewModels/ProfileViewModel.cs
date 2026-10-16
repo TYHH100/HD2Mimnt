@@ -388,7 +388,7 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null)
     {
         _profileService = profileService;
         _modService = modService;
@@ -396,6 +396,7 @@ public partial class ProfileViewModel : ObservableObject
         _confirmationService = confirmationService;
         _settingsService = settingsService;
         _imagePreview = imagePreview;
+        _deploymentService = deploymentService;
         _modSelection = new(() => VisibleProfileMods, () => ProfileMods.Where(mod => mod.IsSelected),
             ApplyModSelection, (mod, focused) => mod.IsFocused = focused, mod => mod.CanSelect);
         _profileMods.CollectionChanged += OnProfileModsCollectionChanged;
@@ -805,6 +806,7 @@ public partial class ProfileViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
+        CloseDetailPanel();
         ClearModSelection();
         IsAddModOpen = false;
         CloseConflictPicker();
@@ -856,6 +858,7 @@ public partial class ProfileViewModel : ObservableObject
 
     private async Task LoadProfileModsAsync(Guid profileId)
     {
+        CloseDetailPanel();
         _profileModsCts?.Cancel();
         _profileModsCts?.Dispose();
         _profileModsCts = new CancellationTokenSource();
@@ -891,7 +894,8 @@ public partial class ProfileViewModel : ObservableObject
                         ProfileId = profileMod.ProfileId,
                         ModId = profileMod.ModId,
                         ModName = mod.Name,
-                        ModVersion = mod.Version,
+                        ModVersion = mod.PlatformLink?.InstalledVersion ?? mod.Version,
+                        SourceInfo = new ModItemViewModel(mod),
                         Enabled = profileMod.Enabled,
                         Order = profileMod.Order,
                         BslRole = BslProfilePolicy.Role(mod),
@@ -1012,8 +1016,8 @@ public partial class ProfileViewModel : ObservableObject
                 {
                     Id = mod.Id,
                     Name = mod.Name,
-                    Version = mod.Version,
-                    Author = mod.Author
+                    Version = mod.PlatformLink?.InstalledVersion ?? mod.Version,
+                    Author = mod.PlatformLink?.Author ?? mod.Author
                 })
                 .ToList();
 
@@ -1697,6 +1701,7 @@ public partial class ProfileItemViewModel : ObservableObject
 
 public partial class ProfileModViewModel : ObservableObject
 {
+    public ModItemViewModel? SourceInfo { get; init; }
     [ObservableProperty]
     private bool _isConflictLocation;
 
@@ -1800,6 +1805,11 @@ public partial class ProfileModViewModel : ObservableObject
     [ObservableProperty]
     private Bitmap? _icon;
 
+    partial void OnIconChanged(Bitmap? value)
+    {
+        if (SourceInfo != null) SourceInfo.Icon = value;
+    }
+
     private bool _isLoadingIcon;
 
     public string PositionText => Position.ToString("00");
@@ -1868,8 +1878,9 @@ public sealed record ConflictModTarget(Guid ModId, string ModName);
 /// 模组选项覆盖层（应用内模态弹窗）：展示 v1 选项卡片（独立开关 + 带图片的子选项多选一）
 /// 或 v0 互斥选择列表。任何改动立即经 ProfileViewModel 持久化到当前 Profile。
 /// </summary>
-public partial class ProfileModOptionsDialogViewModel : ObservableObject
+public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOptionsSelection
 {
+    System.Windows.Input.ICommand IModOptionsSelection.ToggleOptionCommand => ToggleOptionCommand;
     private readonly ProfileViewModel _owner;
 
     public ProfileModViewModel TargetMod { get; }
@@ -1993,6 +2004,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject
     }
 
     public void Close() => _owner.CloseModOptions();
+    public void ShowImagePreview(Bitmap? image, string? title) => _owner.ShowImagePreview(image, title);
 
     /// <summary>把覆盖层当前的选择收集为可持久化状态。</summary>
     internal ProfileModOptionsState BuildOptionsState()

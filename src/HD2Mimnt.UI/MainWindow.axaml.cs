@@ -104,7 +104,7 @@ public partial class MainWindow : Window
             _viewModel.Tutorial.CloseCommand.Execute(null);
             e.Handled = true;
         }
-        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is >= Key.D1 and <= Key.D6)
+        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is >= Key.D1 and <= Key.D7)
             e.Handled = true;
     }
 
@@ -128,6 +128,7 @@ public partial class MainWindow : Window
             case 3: _viewModel.NavigateToToolsCommand.Execute(null); break;
             case 4: _viewModel.NavigateToSettingsCommand.Execute(null); break;
             case 5: _viewModel.NavigateToBrowseCommand.Execute(null); break;
+            case 6: _viewModel.NavigateToModCreationCommand.Execute(null); break;
         }
     }
 

@@ -237,16 +237,19 @@ public partial class LibraryViewModel : ObservableObject
         SettingsService? settingsService = null,
         ModLinkService? modLinkService = null,
         ModOnlineService? modOnlineService = null,
-        IWebsiteDownloadLauncher? websiteLauncher = null)
+        IWebsiteDownloadLauncher? websiteLauncher = null,
+        BrowserDownloadHandoffService? browserDownloads = null)
     {
         _modService = modService;
-        Import = new ModImportViewModel(modService);
+        Import = new ModImportViewModel(modService, settingsService);
         ModLink = modLinkService == null ? null : new ModLinkViewModel(modLinkService);
         ModOnline = modOnlineService == null ? null : new ModOnlineViewModel(modOnlineService, async () =>
         {
             await LoadModsAsync();
-            await _searchService.BuildIndexAsync();
-        }, websiteLauncher);
+            if (SelectedModDetail is { } detail && await _modService.GetModByIdAsync(detail.Id) is { } saved)
+                detail.ApplyPlatformLink(saved);
+            await searchService.BuildIndexAsync();
+        }, websiteLauncher, browserDownloads);
         _searchService = searchService;
         _profileService = profileService;
         _notificationService = notificationService;
@@ -971,14 +974,14 @@ public partial class LibraryViewModel : ObservableObject
     /// <summary>
     /// 导入模组
     /// </summary>
-    public Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    public Task ImportPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null)
     {
         if (!ImportCompletion.IsCompleted) return Task.CompletedTask;
-        ImportCompletion = ImportAndRefreshAsync(paths, cancellationToken);
+        ImportCompletion = ImportAndRefreshAsync(paths, cancellationToken, sourceLink);
         return ImportCompletion;
     }
 
-    private async Task ImportAndRefreshAsync(IEnumerable<string> paths, CancellationToken cancellationToken)
+    private async Task ImportAndRefreshAsync(IEnumerable<string> paths, CancellationToken cancellationToken, ModPlatformLink? sourceLink)
     {
         var sourcePaths = paths.Where(p => !string.IsNullOrWhiteSpace(p))
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -987,7 +990,7 @@ public partial class LibraryViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            await Import.ImportAsync(sourcePaths, cancellationToken);
+            await Import.ImportAsync(sourcePaths, cancellationToken, sourceLink);
             await LoadModsAsync();
             if (Import.FailedCount > 0 || Import.RemainingCount > 0)
                 _notificationService.ShowWarning($"{Import.ResultText}，未完成 {Import.RemainingCount} 个", Import.Step);
@@ -1151,6 +1154,7 @@ public partial class LibraryViewModel : ObservableObject
         mod.RemoveFromProfileCommand = new RelayCommand(async () => await RemoveModFromProfileAsync(mod));
         mod.DeleteCommand = new RelayCommand(async () => await DeleteModDetailAsync(mod));
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
+        mod.CheckUpdatesCommand = ModOnline == null ? null : new AsyncRelayCommand(() => ModOnline.OpenAsync(mod));
         if (string.IsNullOrWhiteSpace(mod.Hash))
         {
             var cancellation = new CancellationTokenSource();

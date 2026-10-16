@@ -4,7 +4,17 @@
 
 ## 易错点与正确做法
 
-- Nexus API 排障先查看实际响应：`NexusModsPlatformAdapter` 分类的 Debug 日志记录 v1/v2/v3 API 的操作、无查询参数的请求路径、状态、响应头和完整响应体（包含非 JSON 错误页）。记录级别由“设置 → 日志”统一配置，所有构建默认警告；排查时手动保存为 Debug 后立即生效。所有日志参数必须先脱敏：凭据字段、Cookie、账户敏感字段、下载地址及正文中的凭据回显；不记录请求认证头、NXM 查询参数或压缩包内容。日志响应体缓冲后仍用于正常解析，不能消费后丢失。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[ReadAsStringAsync 缓冲行为](https://learn.microsoft.com/dotnet/api/system.net.http.httpcontent.readasstringasync)。
+- 平台来源元数据存入模组库外层 `.hd2mimnt-metadata/{ModId:N}.json`，保留数据库兼容镜像，不写进模组内容目录或重写 manifest；版本/作者读取优先使用来源记录，安装文件版本与远端默认版本分开。下载任务开始时固定来源上下文，覆盖浏览器/API、首次导入/更新和手动 DI 链。元数据变化使用 `MetadataChanged`，不得复用会失效冲突缓存的 `ModsChanged`。2026-10-15 只读响应确认 A 网详情字段为 `version`，版本列表为 `version_string`，作者主页为 `User.view_url`；N 网 v3 详情无作者，需 v1 补充，上传者与作者不一致时不冒认主页。详见[来源元数据与响应核对](../features/MOD_SOURCE_METADATA.md)。来源：[A 网接口](https://docs.ayakamods.com/endpoints/)、[N 网 API](https://api-docs.nexusmods.com/)。
+
+- A 网 UI 默认通过系统浏览器下载，无 NXM 回调；开发工具可对浏览页单独开启本次运行的 API 下载测试，任务开始时固定模式、执行中禁用切换、失败不自动回退。只在用户明确开始“下载并导入/更新”后由 Application `BrowserDownloadHandoffService` 等待系统下载目录中新出现的附件，匹配名称/已知大小并等待稳定、排除临时文件和写锁。旧文件、多个候选或未知元数据交给用户手选，自定义保存目录也走手选。取消/离页/关闭需等待清理；源文件属于用户，任何结果均不得删除。更新仍复用原 Mod 替换并重新校验绑定和附件；测试使用隔离下载目录，并从 App 的真实 DI 工厂验证浏览页和 Library 的手动构造链，避免可选参数漏传导致其中一处显示服务不可用。官方“只读 Guest key”仍描述下载能力，不能把只读等同于无下载权限。参考：[A 网指南](https://docs.ayakamods.com/mod-manager-guide/)、[浏览器接管参考项目](https://github.com/katsyk/DemocracyDefenderModManager)、[系统下载目录](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)。
+
+- A/N 网响应日志共用 `Platforms/PlatformResponseLog` 的脱敏逻辑，分别使用各自适配器分类，不引用另一平台内部实现。仅密钥和机密信息脱敏，保留完整请求 URL、普通查询参数（尤其下载 `file`、列表排序/分页）、公开账号字段、响应下载 URL 及重定向路径。签名 URL 只隐藏凭据/签名值，不隐藏整条链接；编码过的凭据参数也要处理。根级 HTTP code 和 A 网 `errors[].code` 是诊断字段，不应误当授权码删掉；OAuth code/state/verifier、工具 key、Bearer、Cookie、密码仍须隐藏。A 网元数据及下载错误在 Debug 下记录正文；压缩包和重定向只记响应信息。新增日志须同时验证普通参数可见、错误页/解析/下载字节不受影响、所有日志参数无明文凭据。操作入口见 [A 网 Debug 排障](../features/AYAKA_MODS.md#debug-排障)。来源：[A 网下载端点](https://docs.ayakamods.com/endpoints/#versions--downloads)、[.NET 日志](https://learn.microsoft.com/dotnet/core/extensions/logging)、[HttpContent 缓冲](https://learn.microsoft.com/dotnet/api/system.net.http.httpcontent.readasstringasync)。
+
+- A 网工具 key 与用户 OAuth 分开：列表/下载继续 `XF-Api-Key`，Public Client 用户身份采用 PKCE S256 和数字 loopback 随机端口，不套用 N 网 JWT 契约、不使用 `XF-Api-User`。OAuth 凭据独立 DPAPI 保存，退出仅清本机令牌；无注册 Client ID 不冒用示例。来源：[A 网认证](https://docs.ayakamods.com/authentication/)。
+
+- A 网列表限定 `mod-games/119/mods/`，`mods/?game_id=` 无效；不假造关键词搜索。保留的 API 下载必须重新校验所选版本/附件并从 API 下载端点开始，不能保存/复用原始存储 URL；重定向不转发 key。列表/详情合理缓存，单分段下载；批量检查用 `mod_ids`（最多 100），不逐模组激进并发。文档未完整定义的版本字段需真实只读响应确认，模拟 fixture 不能视作线上验收。实现与边界见 [A 网接入](../features/AYAKA_MODS.md)。来源：[端点](https://docs.ayakamods.com/endpoints/)、[管理器指南](https://docs.ayakamods.com/mod-manager-guide/)、[使用规范](https://docs.ayakamods.com/acceptable-use/)。
+
+- Nexus API 排障先查看实际响应：`NexusModsPlatformAdapter` 分类的 Debug 日志记录 v1/v2/v3 API 的操作、完整请求 URL（保留普通查询参数）、状态、响应头和完整响应体（包含非 JSON 错误页）。记录级别由“设置 → 日志”统一配置，所有构建默认警告；排查时手动保存为 Debug 后立即生效。所有日志参数必须先隐藏凭据字段、Cookie、签名参数及正文中的凭据回显；不记录请求认证头、NXM 临时凭据或压缩包内容。日志响应体缓冲后仍用于正常解析，不能消费后丢失。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[ReadAsStringAsync 缓冲行为](https://learn.microsoft.com/dotnet/api/system.net.http.httpcontent.readasstringasync)。
 
 - Nexus HTTP 403 先结合 API 返回原因解释：`Mod not available` 只说明模组目前不可用，界面不推测未发布或审核状态，也不能直接归因为密钥、Premium 或网页授权问题；`Not published` 则提示尚未发布。保留服务端原始说明，建议查看网页状态、稍后由用户重试；无明确原因时保留通用访问提示。来源：[HTTP 403 语义](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.4)、[Nexus API](https://api-docs.nexusmods.com/)。
 
@@ -30,7 +40,7 @@
 
 - Nexus Mods v3 以 `docs/references/nexus_openapi.yaml` 为契约：网站 `game_scoped_id`、模组全局 `id`、文件 `id` 和文件版本 `id` 不可混用。读取接口用 `data` 包装，但 `download-repacked` 的 POST 响应直接返回 `download_url`；下载优先活动主版本，API 凭据不能放入共享默认头并随签名下载地址发送。热门接口仅前 5 项，不能称为全站搜索；详情不含版本号，更新检查须查询文件版本，空版本不能制造更新提示。来源：https://api-docs.nexusmods.com/
 
-- 模组平台字段新增或用于关联时，须同时核对 Core 实体、SQLite 补列、Repository 的 INSERT/UPDATE/读取与参数绑定；实体存在 `PlatformId` 等属性不代表已持久化。N 网页面编号用于更新/下载调用，全局 ID 仅用于其 API 内部路由；规范页面与 API 信息保存在 Mod 行内，删模组时一起删除，不保存签名下载地址或密钥。回归须覆盖数据库重开、旧库补列、删除及更新/下载读取。来源：https://api-docs.nexusmods.com/
+- 模组平台字段新增或用于关联时，须同时核对 Core 实体、SQLite 补列、Repository 的 INSERT/UPDATE/读取与参数绑定；实体存在 `PlatformId` 等属性不代表已持久化。N 网页面编号用于更新/下载调用，全局 ID 仅用于其 API 内部路由；规范页面与 API 信息保存到独立来源 JSON 和 Mod 行兼容镜像，删模组时一起删除，不保存签名下载地址或密钥。JSON 读取使用 `FileShare.Delete`，让原子替换及后台清理不被读流锁住；失败回滚同时清理临时文件和空目录。回归须覆盖数据库重开、旧库补列、删除及更新/下载读取。来源：[Nexus API](https://api-docs.nexusmods.com/)、[FileShare](https://learn.microsoft.com/dotnet/api/system.io.fileshare)。
 
 - N 网个人 API Key 仅用于开发测试或个人使用；计划面向普通用户公开提供 API 功能时，有可演示的测试构建后联系官方注册应用，不能把个人 Key 输入入口当作正式应用认证。API 请求同时携带稳定的 `Application-Name` 和从当前 UI 程序集读取的 `Application-Version`，不能漏版本头、硬编码旧版本或冒充其它应用；用户 Key 不上传开发者服务器，使用须由用户操作发起。来源：https://help.nexusmods.com/article/114-api-acceptable-use-policy
 

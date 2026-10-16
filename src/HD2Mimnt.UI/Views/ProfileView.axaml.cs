@@ -66,6 +66,7 @@ public partial class ProfileView : UserControl
         DetachedFromVisualTree += (_, _) =>
         {
             ClearSortPreview();
+            (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
             _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
             SubscribeConflictNavigation(null);
         };
@@ -112,7 +113,7 @@ public partial class ProfileView : UserControl
     private void ModCard_ContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is not Border { DataContext: ProfileModViewModel mod } card
-            || DataContext is not ProfileViewModel vm || (!mod.CanDrag && !mod.IsSeparator)) return;
+            || DataContext is not ProfileViewModel vm) return;
 
         ShowModContextMenu(card, mod, vm);
         e.Handled = true;
@@ -132,23 +133,41 @@ public partial class ProfileView : UserControl
             return;
         }
 
-        AppContextMenu.Show(new List<object>
+        var modEntries = new List<object>
         {
-            new ContextMenuItem("在此处添加分组分隔符", vm.OpenAddSeparatorCommand, "Add")
-            {
-                CommandParameter = mod
-            },
-            AppContextMenu.Separator,
-            new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
-            {
-                CommandParameter = mod
-            },
-            AppContextMenu.Separator,
-            new ContextMenuItem("打开文件位置", vm.OpenModLocationCommand, "Folder")
+            new ContextMenuItem("查看详情", vm.ShowModDetailCommand, "Info")
             {
                 CommandParameter = mod
             }
-        }, card);
+        };
+        if (mod.CanDrag)
+        {
+            modEntries.Add(AppContextMenu.Separator);
+            if (!mod.IsFixedGroupMember)
+                modEntries.Add(new ContextMenuItem("在此处添加分组分隔符", vm.OpenAddSeparatorCommand, "Add")
+                {
+                    CommandParameter = mod
+                });
+            modEntries.Add(new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
+            {
+                CommandParameter = mod
+            });
+        }
+        modEntries.Add(AppContextMenu.Separator);
+        modEntries.Add(new ContextMenuItem("打开文件位置", vm.OpenModLocationCommand, "Folder")
+        {
+            CommandParameter = mod
+        });
+        if (mod.SourceInfo is { HasPlatformLink: true } source)
+            modEntries.Add(new ContextMenuItem("打开来源网页", source.OpenSourcePageCommand, "Globe"));
+        if (mod.SourceInfo is { HasAuthorPage: true } author)
+            modEntries.Add(new ContextMenuItem("打开作者主页", author.OpenAuthorPageCommand, "Globe"));
+        modEntries.Add(AppContextMenu.Separator);
+        modEntries.Add(new ContextMenuItem("删除模组文件", vm.DeleteModCommand, "Clean", isDanger: true)
+        {
+            CommandParameter = mod
+        });
+        AppContextMenu.Show(modEntries, card);
     }
 
     private void ProfileList_PointerPressed(object? sender, PointerPressedEventArgs e)
@@ -243,10 +262,17 @@ public partial class ProfileView : UserControl
         _modPressedArgs = null;
         if (sender is not Border card || card.DataContext is not ProfileModViewModel mod) return;
         if (DataContext is not ProfileViewModel vm) return;
-        if (!mod.CanDrag) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         // 命中开关/按钮等交互控件时不进入选择与拖拽逻辑
         if (IsInteractiveSource(e.Source as Visual, card)) return;
+        if (!mod.IsSeparator && e.ClickCount >= 2
+            && !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            vm.ShowModDetailCommand.Execute(mod);
+            e.Handled = true;
+            return;
+        }
+        if (!mod.CanDrag) return;
         ModItemsControl.Focus();
 
         if (mod.IsUserSeparator)
@@ -296,7 +322,8 @@ public partial class ProfileView : UserControl
         }
         if (e.Handled) return;
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen) return;
+            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
+            || vm.IsDetailPanelOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
         if (e.Key == Key.Escape)
@@ -337,6 +364,12 @@ public partial class ProfileView : UserControl
         vm.ClearModSelectionCommand.Execute(null);
     }
 
+    private void OnDetailBackgroundPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is ProfileViewModel vm) vm.CloseDetailPanelCommand.Execute(null);
+        e.Handled = true;
+    }
+
     private void ModList_ContextReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Right)
@@ -346,7 +379,7 @@ public partial class ProfileView : UserControl
         var card = new[] { source }.Concat(source.GetVisualAncestors()).OfType<Border>()
             .FirstOrDefault(border => border.Classes.Contains("mod-card") || border.Classes.Contains("profile-separator"));
         if (card?.DataContext is not ProfileModViewModel mod
-            || DataContext is not ProfileViewModel vm || (!mod.CanDrag && !mod.IsSeparator)) return;
+            || DataContext is not ProfileViewModel vm) return;
 
         ShowModContextMenu(card, mod, vm);
         e.Handled = true;
@@ -704,33 +737,6 @@ public partial class ProfileView : UserControl
     {
         foreach (var (control, opacity) in _dimmedDragSources) control.Opacity = opacity;
         _dimmedDragSources.Clear();
-    }
-
-    // 图片位于 Expander 的头部按钮内，先阻止按钮捕获按下，避免预览同时改变展开状态。
-    private void OptionPreview_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (sender is Control control && e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
-            e.Handled = true;
-    }
-
-    /// <summary>子选项行点击：同卡片内互斥多选一，选中后立即持久化。</summary>
-    private void SubChoice_Tapped(object? sender, TappedEventArgs e)
-    {
-        if (sender is Control { DataContext: ProfileModSubOptionChoiceViewModel choice }
-            && DataContext is ProfileViewModel { ModOptionsDialog: { } dialog })
-        {
-            dialog.SelectSubOption(choice);
-        }
-    }
-
-    /// <summary>v0 互斥选项行点击：列表内单选，选中后立即持久化。</summary>
-    private void LegacyChoice_Tapped(object? sender, TappedEventArgs e)
-    {
-        if (sender is Control { DataContext: ProfileModLegacyChoiceViewModel choice }
-            && DataContext is ProfileViewModel { ModOptionsDialog: { } dialog })
-        {
-            dialog.SelectLegacyChoice(choice);
-        }
     }
 
     /// <summary>

@@ -133,6 +133,10 @@
             <TextBlock Text="{loc:Loc UI.ModLink}" FontSize="16" FontWeight="SemiBold" />
             <TextBlock Text="{loc:LocalizedBinding PlatformLink}" TextWrapping="Wrap" />
             <TextBox Text="{Binding PlatformLinkUrl, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" />
+            <Button x:Name="OpenModSourcePageButton" Content="{loc:Loc Metadata.OpenSource}" Command="{Binding OpenSourcePageCommand}" />
+            <TextBox Text="{Binding AuthorPageUrl, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" IsVisible="{Binding HasAuthorPage}" />
+            <Button x:Name="OpenModAuthorPageButton" Content="{loc:Loc Metadata.OpenAuthor}" Command="{Binding OpenAuthorPageCommand}" IsVisible="{Binding HasAuthorPage}" />
+            <Button x:Name="CheckModUpdatesButton" Content="{loc:Loc Metadata.CheckUpdates}" Command="{Binding CheckUpdatesCommand}" IsVisible="{Binding CanCheckUpdates}" />
           </StackPanel>
         </Border>
 

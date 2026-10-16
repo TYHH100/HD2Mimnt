@@ -13,7 +13,8 @@ public sealed class ModOnlineService(IModRepository repository, IPlatformRegistr
     StorageSettingsService? storage = null)
 {
     public string GetWebsiteDownloadUrl(ModPlatformLink link, PlatformModFile file)
-        => GetProtocolPlatform(GetPlatform(link)).GetWebsiteDownloadUrl(link.ModId, file);
+        => link.PlatformId == "ayakamods" ? $"https://ayakamods.com/mods/{Uri.EscapeDataString(link.ModId)}/download"
+            : GetProtocolPlatform(GetPlatform(link)).GetWebsiteDownloadUrl(link.ModId, file);
 
     public void ValidateProtocolTarget(ModPlatformLink link, PlatformModFile file, string protocolLink)
     {
@@ -91,11 +92,30 @@ public sealed class ModOnlineService(IModRepository repository, IPlatformRegistr
         }
     }
 
+    /// <summary>Replace from an explicitly selected browser download; the source belongs to the user.</summary>
+    public async Task<ModReplacementResult> UpdateFromBrowserFileAsync(Guid id, ModPlatformLink link, PlatformModFile file,
+        string path, IProgress<ModImportProgress>? progress = null, CancellationToken token = default)
+    {
+        if (link.PlatformId != "ayakamods") throw new NotSupportedException("此平台不使用浏览器文件接管。");
+        if (string.IsNullOrWhiteSpace(file.Version)) throw new InvalidOperationException("所选文件未提供版本号，无法更新；可以单独下载压缩包。");
+        var bound = await GetBoundModAsync(id, token);
+        if (bound.PlatformId != link.PlatformId || bound.PlatformModId != link.ModId)
+            throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
+        var visible = await GetPlatform(link).GetFilesAsync(link.ModId, cancellationToken: token);
+        if (!visible.Any(candidate => candidate.Id == file.Id && candidate.Version == file.Version && candidate.Size == file.Size))
+            throw new InvalidOperationException("所选 A 网文件已不可用，请重新检查。");
+        ModReplacementResult? result = null;
+        await BrowserDownloadHandoffService.UseFileAsync(path, file, async (source, cancellation) =>
+            result = await Task.Run(() => mods.ReplaceFromArchiveAsync(id, source, link, file,
+                cancellation, progress), cancellation), token);
+        return result!;
+    }
+
     private async Task<Mod> GetBoundModAsync(Guid id, CancellationToken cancellationToken)
     {
-        var mod = await repository.GetByIdAsync(id, cancellationToken)
+        var mod = await mods.GetModByIdAsync(id, cancellationToken)
             ?? throw new KeyNotFoundException("模组已删除。");
-        if (mod.PlatformLink == null || mod.PlatformId != mod.PlatformLink.PlatformId || mod.PlatformModId != mod.PlatformLink.ModId)
+        if (mod.PlatformLink is not { SupportsUpdates: true } || mod.PlatformId != mod.PlatformLink.PlatformId || mod.PlatformModId != mod.PlatformLink.ModId)
             throw new InvalidOperationException("请先通过右键菜单保存模组链接。");
         return mod;
     }

@@ -9,8 +9,16 @@ public sealed record BrowsedModDetails(PlatformModInfo Mod, IReadOnlyList<Platfo
 public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManagerService downloads, HttpClient? images = null,
     string? tempDirectory = null)
 {
-    private IModPlatform Platform => platforms.GetPlatform("nexusmods")
-        ?? throw new InvalidOperationException("N 网平台未注册。");
+    public string PlatformId { get; private set; } = "nexusmods";
+    public void SelectPlatform(string id)
+    {
+        if (id is not ("nexusmods" or "ayakamods") || platforms.GetPlatform(id) is not IModBrowsePlatform)
+            throw new ArgumentException("此平台不支持模组浏览。");
+        PlatformId = id;
+    }
+    private IModPlatform Platform => platforms.GetPlatform(PlatformId)
+        ?? throw new InvalidOperationException("模组平台未注册。");
+    public string HomePageUrl => PlatformId == "ayakamods" ? "https://ayakamods.com/games/helldivers-2.119/" : "https://www.nexusmods.com/helldivers2/mods/";
     private IModBrowsePlatform Browser => Platform as IModBrowsePlatform
         ?? throw new NotSupportedException("此平台不支持模组浏览。");
     private IModProtocolDownloadPlatform Protocol => Platform as IModProtocolDownloadPlatform
@@ -19,21 +27,26 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
     public Task<PlatformSearchResult> BrowseAsync(ModBrowseFeed feed, CancellationToken token = default)
         => Browser.BrowseAsync(feed, token);
 
+    public Task<PlatformSearchResult> BrowsePageAsync(ModBrowseFeed feed, int page, CancellationToken token)
+        => Platform is HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsPlatformAdapter ayaka
+            ? ayaka.BrowsePageAsync(feed, page, token) : BrowseAsync(feed, token);
+
     public Task<PlatformSearchResult> SearchAsync(string query, int page, CancellationToken token)
         => Browser.SearchBrowseAsync(new() { Query = query, Page = page, PageSize = 20 }, token);
 
     public async Task<BrowsedModDetails> GetDetailsAsync(string modId, CancellationToken token = default)
     {
         var mod = await Browser.GetBrowseDetailsAsync(modId, token);
-        var files = await Protocol.GetProtocolFilesAsync(modId, token);
+        var files = Platform is IModProtocolDownloadPlatform protocol
+            ? await protocol.GetProtocolFilesAsync(modId, token) : await Platform.GetFilesAsync(modId, cancellationToken: token);
         return new(mod, files);
     }
 
     public string GetModPageUrl(string modId)
     {
         if (!long.TryParse(modId, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) || id <= 0)
-            throw new ArgumentException("N 网模组编号无效。");
-        return $"https://www.nexusmods.com/helldivers2/mods/{id}";
+            throw new ArgumentException("模组编号无效。");
+        return PlatformId == "ayakamods" ? $"https://ayakamods.com/mods/{id}/" : $"https://www.nexusmods.com/helldivers2/mods/{id}";
     }
 
     public string ParseModId(string input)
@@ -41,8 +54,18 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
         input = input.Trim();
         if (long.TryParse(input, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) && id > 0)
             return id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return HD2Mimnt.Infrastructure.Platforms.NexusMods.NexusModsLinkParser.Parse(input).ModId;
+        return PlatformId == "ayakamods"
+            ? HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsLinkParser.Parse(input).ModId
+            : HD2Mimnt.Infrastructure.Platforms.NexusMods.NexusModsLinkParser.Parse(input).ModId;
     }
+
+    public ModPlatformLink CreateSourceLink(PlatformModInfo mod, PlatformModFile file)
+        => new(PlatformId, "helldivers2", mod.Id, GetModPageUrl(mod.Id),
+            Name: mod.Name, GlobalModId: mod.Metadata.GetValueOrDefault("nexus_global_mod_id")?.ToString(),
+            InstalledFileVersionId: PlatformId == "nexusmods" && file.Id.StartsWith("nexus-v1-file:", StringComparison.Ordinal) ? null : file.Id,
+            InstalledWebsiteFileId: file.WebsiteFileId,
+            InstalledVersion: string.IsNullOrWhiteSpace(file.Version) ? null : file.Version,
+            Author: string.IsNullOrWhiteSpace(mod.Author) ? null : mod.Author, AuthorUrl: mod.AuthorUrl);
 
     public async Task<byte[]?> GetPreviewAsync(string url, CancellationToken token)
     {
@@ -62,7 +85,8 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
         return data.ToArray();
     }
 
-    public string GetWebsiteDownloadUrl(string modId, PlatformModFile file) => Protocol.GetWebsiteDownloadUrl(modId, file);
+    public string GetWebsiteDownloadUrl(string modId, PlatformModFile file) => PlatformId == "ayakamods"
+        ? GetModPageUrl(modId).TrimEnd('/') + "/download" : Protocol.GetWebsiteDownloadUrl(modId, file);
 
     public Task<bool> HasDirectDownloadAccessAsync(CancellationToken token)
         => Platform is IModDownloadAccessPlatform access ? access.HasDirectDownloadAccessAsync(token)
@@ -99,8 +123,8 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
     public async Task DownloadAsync(string modId, PlatformModFile file, string? input, string destination,
         IProgress<DownloadProgress>? progress = null, CancellationToken token = default)
     {
-        // 两种方式都使用列表中的同一个网站文件编号，不换成 v3 默认主文件。
-        _ = Protocol.GetWebsiteDownloadUrl(modId, file);
+        // N 网的两种方式使用相同网站文件编号；A 网按不可变版本/附件身份下载。
+        if (Platform is IModProtocolDownloadPlatform protocol) _ = protocol.GetWebsiteDownloadUrl(modId, file);
         if (input != null)
         {
             ValidateProtocolTarget(modId, file, input);
@@ -108,7 +132,7 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
             if (resolved.Id != file.Id) throw new InvalidOperationException("网页授权文件与所选文件不一致。");
         }
         token.ThrowIfCancellationRequested();
-        var taskId = downloads.EnqueueDownload("nexusmods", modId, destination, file.Id, progress, input, file.Name);
+        var taskId = downloads.EnqueueDownload(PlatformId, modId, destination, file.Id, progress, input, file.Name);
         using var registration = token.Register(() => downloads.CancelDownload(taskId));
         await downloads.WaitForDownloadAsync(taskId);
         var task = downloads.GetDownloadTask(taskId)!;

@@ -4,6 +4,7 @@ using System.Text;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using ManifestPackage = HD2Mimnt.Core.Services.ManifestPackage;
 using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Deployment;
@@ -89,6 +90,18 @@ public sealed class BslMechanismTests : IDisposable
         Assert.Equal(BslModRole.Dependency, await BslModDetector.DetectAsync(mod));
         await File.WriteAllTextAsync(provenance, "{\"requires\":{\"shared_loader_api\":false}}");
         Assert.Equal(BslModRole.None, await BslModDetector.DetectAsync(mod));
+    }
+
+    [Fact]
+    public async Task DetectRequirement_ShouldReadSeparateMetadataAfterManifestConversion()
+    {
+        var mod = await AddModAsync("普通模组");
+        var path = Path.Combine(mod.Path, "manifest.json");
+        var combined = ManifestPackage.Parse("""{"Version":1,"Name":"普通模组","requires":{"shared_loader_api":1}}""");
+        combined["Guid"] = Guid.NewGuid().ToString();
+        await ManifestPackage.SaveAsync(path, combined);
+        Assert.Null(ManifestPackage.Parse(await File.ReadAllTextAsync(path))["requires"]);
+        Assert.Equal(BslModRole.Dependency, await BslModDetector.DetectAsync(mod));
     }
 
     [Fact]

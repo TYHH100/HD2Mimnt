@@ -1,7 +1,8 @@
-﻿using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
+using HD2Mimnt.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -18,6 +19,9 @@ public class ModService
     private readonly ILogger<ModService>? _logger;
     private readonly DeploymentService? _deploymentService;
     private readonly string _storageDirectory;
+    private readonly ModMetadataStore _metadata;
+    private readonly SettingsService? _settingsService;
+    private readonly ProfileService? _profileService;
     private readonly SemaphoreSlim _hashGate = new(1, 1);
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
@@ -49,10 +53,15 @@ public class ModService
         string storageDirectory,
         ILogger<ModService>? logger = null,
         DeploymentService? deploymentService = null,
-        string? tempDirectory = null)
+        string? tempDirectory = null,
+        SettingsService? settingsService = null,
+        ProfileService? profileService = null)
     {
         _modRepository = modRepository;
+        _settingsService = settingsService;
+        _profileService = profileService;
         _storageDirectory = storageDirectory;
+        _metadata = new ModMetadataStore(storageDirectory, logger);
         _logger = logger;
         _deploymentService = deploymentService;
 
@@ -67,6 +76,7 @@ public class ModService
 
     /// <summary>模组库发生增删后触发，供 UI 层联动刷新各页面。</summary>
     public event EventHandler? ModsChanged;
+    public event EventHandler? MetadataChanged;
 
     private void RaiseModsChanged() => ModsChanged?.Invoke(this, EventArgs.Empty);
 
@@ -80,14 +90,17 @@ public class ModService
         {
             var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已不存在，无法保存链接。");
-            mod.PlatformLink = link;
-            mod.PlatformId = link.PlatformId;
-            mod.PlatformModId = link.ModId;
-            mod.PlatformVersion = link.LatestVersion;
-            mod.NexusModId = link.PlatformId == "nexusmods" ? int.Parse(link.ModId) : null;
+            await LoadSourceAsync(mod, cancellationToken);
+            var previous = mod.PlatformLink;
+            if (previous?.PlatformId == link.PlatformId && previous.ModId == link.ModId && link.SupportsUpdates)
+                link = link with { InstalledVersion = link.InstalledVersion ?? previous.InstalledVersion,
+                    InstalledFileVersionId = previous.InstalledFileVersionId, InstalledWebsiteFileId = previous.InstalledWebsiteFileId,
+                    AuthorUrl = link.AuthorUrl ?? previous.AuthorUrl };
+            ModMetadataStore.Apply(mod, link);
             mod.LastUpdateCheck = null;
             mod.ModifiedAt = DateTime.UtcNow;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
+            await SaveLinkedModAsync(mod, cancellationToken);
+            MetadataChanged?.Invoke(this, EventArgs.Empty);
             return mod;
         }
         finally { _mutationGate.Release(); }
@@ -117,6 +130,7 @@ public class ModService
             {
                 var original = await _modRepository.GetByIdAsync(id, cancellationToken)
                     ?? throw new KeyNotFoundException("模组已删除，无法更新。");
+                await LoadSourceAsync(original, cancellationToken);
                 if (original.PlatformId != expectedLink.PlatformId || original.PlatformModId != expectedLink.ModId)
                     throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
 
@@ -144,17 +158,19 @@ public class ModService
                 original.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
                 original.ThumbnailPath = newThumbnail ?? oldThumbnail;
                 original.ModifiedAt = DateTime.UtcNow;
-                original.Source = ModSource.NexusMods;
+                original.Source = expectedLink.PlatformId switch
+                { "nexusmods" => ModSource.NexusMods, "ayakamods" => ModSource.AyakaMods, _ => original.Source };
                 original.PlatformLink = (original.PlatformLink ?? expectedLink) with
                 {
                     InstalledFileVersionId = installedWebsiteFileId == null ? file.Id : null,
-                    InstalledWebsiteFileId = installedWebsiteFileId
+                    InstalledWebsiteFileId = installedWebsiteFileId ?? file.WebsiteFileId,
+                    InstalledVersion = file.Version
                 };
                 original.Status = ModStatus.Ready;
                 progress?.Report(new(99, "保存更新", original.Name, true));
                 // 提交阶段不接受半途取消；此处失败时旧目录仍然完整。
                 cancellationToken.ThrowIfCancellationRequested();
-                await _modRepository.UpdateAsync(original, CancellationToken.None);
+                await SaveLinkedModAsync(original, CancellationToken.None);
                 committed = true;
 
                 string? cleanupWarning = null;
@@ -196,12 +212,14 @@ public class ModService
         {
             var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已删除。");
+            await LoadSourceAsync(mod, cancellationToken);
             if (mod.PlatformId != expectedLink.PlatformId || mod.PlatformModId != expectedLink.ModId)
                 throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
             mod.LastUpdateCheck = DateTime.UtcNow;
             mod.PlatformVersion = latestVersion;
             mod.PlatformLink = (mod.PlatformLink ?? expectedLink) with { LatestVersion = latestVersion, RetrievedAt = mod.LastUpdateCheck };
-            await _modRepository.UpdateAsync(mod, cancellationToken);
+            await SaveLinkedModAsync(mod, cancellationToken);
+            MetadataChanged?.Invoke(this, EventArgs.Empty);
             return mod;
         }
         finally { _mutationGate.Release(); }
@@ -248,6 +266,7 @@ public class ModService
     private async Task BackfillMissingManifestAsync(Mod mod, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        await LoadSourceAsync(mod, cancellationToken);
         if (mod.ResourceTypeIds == null)
         {
             await _importService.PopulateResourceTypesAsync(mod, cancellationToken);
@@ -327,6 +346,7 @@ public class ModService
 
         // 从数据库删除
         await _modRepository.DeleteAsync(id, cancellationToken);
+        await _metadata.WriteAsync(id, null, CancellationToken.None);
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
         RaiseModsChanged();
@@ -377,9 +397,9 @@ public class ModService
     /// 从文件夹或 ZIP 导入 Mod
     /// </summary>
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null)
+        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null)
     {
-        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress);
+        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress, sourceLink);
 
         // 已落库即视为导入成功；缩略图失败或此时取消不能把成功项统计为失败。
         progress?.Report(new(95, "生成缩略图", "准备模组预览", true));
@@ -399,6 +419,7 @@ public class ModService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { _logger?.LogWarning(ex, "模组已导入，但缩略图生成失败: {ModId}", modId); }
 
+        await AddImportedModsToActiveProfileAsync(new[] { modId });
         progress?.Report(new(100, "添加完成", Path.GetFileName(sourcePath)));
         RaiseModsChanged();
         return modId;
@@ -409,7 +430,8 @@ public class ModService
     /// </summary>
     public async Task<IEnumerable<Guid>> ImportModsAsync(IEnumerable<string> sourcePaths, CancellationToken cancellationToken = default)
     {
-        var importedIds = await _importService.ImportModsAsync(sourcePaths, cancellationToken);
+        var importedIds = (await _importService.ImportModsAsync(sourcePaths, cancellationToken)).ToArray();
+        await AddImportedModsToActiveProfileAsync(importedIds);
         if (importedIds.Any())
         {
             RaiseModsChanged();
@@ -418,9 +440,43 @@ public class ModService
         return importedIds;
     }
 
+    private async Task AddImportedModsToActiveProfileAsync(IReadOnlyCollection<Guid> modIds)
+    {
+        if (modIds.Count == 0 || _profileService == null
+            || _settingsService?.GetSetting(SettingKeys.ProfilesAutoAddImportedMods, false) != true) return;
+        try
+        {
+            var profile = await _profileService.GetActiveProfileAsync();
+            if (profile != null)
+                await _profileService.SetModsEnabledAsync(profile.Id, modIds, true);
+        }
+        catch (Exception ex)
+        {
+            RaiseModsChanged();
+            throw new InvalidOperationException("模组已保留在模组库，但自动加入当前配置文件失败：" + ex.Message, ex);
+        }
+    }
+
     #endregion
 
     #region Search and Filter
+
+    private async Task LoadSourceAsync(Mod mod, CancellationToken token)
+    {
+        if (await _metadata.ReadAsync(mod.Id, token) is { } source) ModMetadataStore.Apply(mod, source);
+    }
+
+    private async Task SaveLinkedModAsync(Mod mod, CancellationToken token)
+    {
+        var previous = await _metadata.ReadAsync(mod.Id, token);
+        await _metadata.WriteAsync(mod.Id, mod.PlatformLink, token);
+        try { await _modRepository.UpdateAsync(mod, token); }
+        catch
+        {
+            await _metadata.WriteAsync(mod.Id, previous, CancellationToken.None);
+            throw;
+        }
+    }
 
     public async Task<IEnumerable<Mod>> SearchModsAsync(string query, CancellationToken cancellationToken = default)
     {

@@ -19,7 +19,7 @@
     </Design.DataContext>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
         <!-- Title -->
         <TextBlock Grid.Row="0"
@@ -65,6 +65,33 @@
             </StackPanel>
         </Border>
 
+        <Border Grid.Row="6" Classes="card" Margin="0,16,0,0">
+            <StackPanel Spacing="12">
+            <StackPanel DataContext="{Binding AyakaAccount}" x:DataType="vm:AyakaModsAccountViewModel" Spacing="12">
+                <TextBlock Text="{loc:Loc Ayaka.KeyTitle}" Classes="section-title"/>
+                <TextBlock Text="{loc:Loc Ayaka.KeyHelp}" Classes="muted" TextWrapping="Wrap"/>
+                <TextBox x:Name="AyakaApiKeyInput" Text="{Binding ApiKey, Mode=TwoWay}" PasswordChar="●"
+                         IsEnabled="{Binding !IsBusy}" PlaceholderText="{loc:Loc Ayaka.KeyPlaceholder}"/>
+                <WrapPanel>
+                    <Button x:Name="ApplyAyakaApiKeyButton" Content="{loc:Loc UI.SaveAndApplyKey}" Command="{Binding ApplyApiKeyCommand}" Classes="accent" Margin="0,0,8,8"/>
+                    <Button x:Name="ClearAyakaApiKeyButton" Content="{loc:Loc UI.ClearKey}" Command="{Binding ClearApiKeyCommand}" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <TextBlock Text="{loc:LocalizedBinding Status}" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                <Separator/>
+                <TextBlock Text="{loc:Loc Ayaka.OAuth.ClientIdTitle}" Classes="section-title"/>
+                <TextBlock Text="{loc:Loc Ayaka.OAuth.ClientIdHelp}" TextWrapping="Wrap" Classes="muted"/>
+                <TextBox x:Name="AyakaOAuthClientIdInput" Text="{Binding ClientId, Mode=TwoWay}" IsEnabled="{Binding !IsLoggingIn}"/>
+                <TextBox x:Name="AyakaOAuthRedirectUri" Text="{Binding RedirectUri, Mode=OneWay}" IsReadOnly="True"/>
+                <Button x:Name="ApplyAyakaOAuthClientIdButton" Command="{Binding ApplyClientIdCommand}" Content="{loc:Loc Nexus.ApplyClientId}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{loc:LocalizedBinding OAuthStatus}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Separator/>
+            <CheckBox x:Name="AyakaApiDownloadToggle" Content="{loc:Loc Ayaka.ApiDownloadToggle}"
+                      IsChecked="{Binding BrowseMods.UseAyakaApiDownload, Mode=TwoWay}" IsEnabled="{Binding !BrowseMods.IsBusy}"/>
+            <TextBlock Text="{loc:Loc Ayaka.ApiDownloadToggleHelp}" TextWrapping="Wrap" Classes="muted"/>
+            </StackPanel>
+        </Border>
         <!-- Mod Count Input -->
         <Border Grid.Row="2"
                Background="Transparent"

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -116,6 +117,7 @@ public partial class MainWindowViewModel : ObservableObject
     public BrowseModsViewModel? BrowseModsViewModel { get; }
     public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
+    public ModCreationViewModel? ModCreationViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -142,7 +144,8 @@ public partial class MainWindowViewModel : ObservableObject
         ManagerMigrationViewModel? managerMigrationViewModel = null,
         BrowseModsViewModel? browseModsViewModel = null,
         CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
-        DirectDownloadViewModel? directDownloadViewModel = null)
+        DirectDownloadViewModel? directDownloadViewModel = null,
+        ModCreationViewModel? modCreationViewModel = null)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -167,24 +170,29 @@ public partial class MainWindowViewModel : ObservableObject
         BrowseModsViewModel = browseModsViewModel;
         CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
         DirectDownloadViewModel = directDownloadViewModel;
+        ModCreationViewModel = modCreationViewModel;
         MoreViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
                 && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
                 _ = diagnostics.RefreshCommand.ExecuteAsync(null);
         };
-        async Task ImportDownloadedArchiveAsync(string archive, CancellationToken token)
+        async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {
             if (!_libraryViewModel.ImportCompletion.IsCompleted)
                 throw new InvalidOperationException("已有模组正在导入，请等待完成后重试。");
-            await _libraryViewModel.ImportPathsAsync(new[] { archive }, token);
+            await _libraryViewModel.ImportPathsAsync(new[] { archive }, token, sourceLink);
             if (_libraryViewModel.Import.SuccessCount > 0) return;
             token.ThrowIfCancellationRequested();
             if (_libraryViewModel.Import.RemainingCount > 0) throw new OperationCanceledException();
             throw new InvalidOperationException(_libraryViewModel.Import.Errors.FirstOrDefault() ?? "模组导入失败。");
         }
-        if (BrowseModsViewModel != null) BrowseModsViewModel.ImportDownloadedArchiveAsync = ImportDownloadedArchiveAsync;
-        if (DirectDownloadViewModel != null) DirectDownloadViewModel.ImportDownloadedArchiveAsync = ImportDownloadedArchiveAsync;
+        if (BrowseModsViewModel != null)
+        {
+            BrowseModsViewModel.ImportPlatformArchiveAsync = (archive, source, token) => ImportArchiveAsync(archive, token, source);
+        }
+        if (DirectDownloadViewModel != null)
+            DirectDownloadViewModel.ImportDownloadedArchiveAsync = (archive, token) => ImportArchiveAsync(archive, token);
         if (ManagerMigrationViewModel != null)
             ManagerMigrationViewModel.RefreshImportedDataAsync = async () =>
             {
@@ -195,6 +203,13 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
             {
+                NavigateToProfilesCommand.NotifyCanExecuteChanged();
+                NavigateToLibraryCommand.NotifyCanExecuteChanged();
+                NavigateToConflictsCommand.NotifyCanExecuteChanged();
+                NavigateToToolsCommand.NotifyCanExecuteChanged();
+                NavigateToSettingsCommand.NotifyCanExecuteChanged();
+                NavigateToBrowseCommand.NotifyCanExecuteChanged();
+                NavigateToModCreationCommand.NotifyCanExecuteChanged();
                 if (Tutorial.IsOpen)
                 {
                     _tutorialOriginPage = SelectedTabIndex;
@@ -221,6 +236,12 @@ public partial class MainWindowViewModel : ObservableObject
         NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
+        _profileViewModel.ModDeleted += () => _libraryViewModel.InitializeAsync();
+        _profileViewModel.ModUpdatesRequested += (_, mod) =>
+        {
+            NavigateToLibrary();
+            _libraryViewModel.OpenModOnlineCommand.Execute(mod);
+        };
         _profileViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(ProfileViewModel.SelectedProfile))
@@ -245,6 +266,8 @@ public partial class MainWindowViewModel : ObservableObject
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
         _modService.ModsChanged += OnModsChanged;
+        _modService.MetadataChanged += (_, _) => ApplyOnUiThread(async () =>
+            await _profileViewModel.RefreshAfterProfilesChangedAsync());
         _profileService.ProfilesChanged += OnProfilesChanged;
         _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
     }
@@ -268,6 +291,7 @@ public partial class MainWindowViewModel : ObservableObject
             case 3: NavigateToTools(); break;
             case 4: NavigateToSettings(); break;
             case 5: NavigateToBrowseCommand.Execute(null); break;
+            case 6: NavigateToModCreation(); break;
         }
     }
 
@@ -449,6 +473,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private async Task RestoreNexusCredentialsAsync()
     {
+        if (_settingsViewModel.AyakaAccount != null) await _settingsViewModel.AyakaAccount.RestoreAsync();
         try { await _nexusModsTestService.RestoreApiKeyAsync(); }
         catch
         {
@@ -462,7 +487,9 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentProfileName = activeProfile?.Name ?? "No Profile";
     }
 
-    [RelayCommand]
+    private bool CanNavigate() => !Tutorial.IsOpen;
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
     {
         SelectedTabIndex = 0;
@@ -470,7 +497,7 @@ public partial class MainWindowViewModel : ObservableObject
         StatusBarText = "配置文件";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToLibrary()
     {
         SelectedTabIndex = 1;
@@ -478,7 +505,15 @@ public partial class MainWindowViewModel : ObservableObject
         StatusBarText = "模组库";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToModCreation()
+    {
+        SelectedTabIndex = 6;
+        CurrentView = ModCreationViewModel;
+        StatusBarText = "模组创建";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private async Task NavigateToBrowseAsync()
     {
         SelectedTabIndex = 5;
@@ -494,7 +529,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (oldValue == 4 && newValue != 4) _ = _settingsViewModel.StopAccountsAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToConflicts()
     {
         SyncConflictProfile();
@@ -528,14 +563,14 @@ public partial class MainWindowViewModel : ObservableObject
         StatusBarText = "任务中心";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToSettings()
     {
         SelectedTabIndex = 4;
         StatusBarText = "设置";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToTools()
     {
         SelectedTabIndex = 3;
@@ -605,10 +640,14 @@ public partial class MainWindowViewModel : ObservableObject
             if (browse.IsLoadingImage) { browse.CancelImagePreview(); return; }
             if (browse.IsBusy) { browse.CancelCommand.Execute(null); return; }
         }
+        if (SelectedTabIndex == 6 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+            ModCreationViewModel?.CancelSorting();
 
         if (SelectedTabIndex == 0 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
         {
-            if (_profileViewModel.IsConflictPickerOpen)
+            if (_profileViewModel.IsDetailPanelOpen)
+                _profileViewModel.CloseDetailPanelCommand.Execute(null);
+            else if (_profileViewModel.IsConflictPickerOpen)
                 _profileViewModel.CloseConflictPickerCommand.Execute(null);
             else if (_profileViewModel.IsMoveToPositionDialogOpen)
                 _profileViewModel.CancelMoveToPositionCommand.Execute(null);
@@ -658,6 +697,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        if (ModCreationViewModel != null)
+        {
+            await ModCreationViewModel.StopAsync();
+            if (!await ModCreationViewModel.ConfirmDiscardAsync()) return false;
+        }
+        await _profileViewModel.CloseModDetailAsync();
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
@@ -779,7 +824,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void OpenDevTools()
     {
-        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService, _nexusModsTestService);
+        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService, _nexusModsTestService)
+        { AyakaAccount = _settingsViewModel.AyakaAccount, BrowseMods = BrowseModsViewModel };
         var devToolsWindow = new DevToolsWindow
         {
             DataContext = devToolsViewModel

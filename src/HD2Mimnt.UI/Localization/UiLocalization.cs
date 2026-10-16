@@ -79,8 +79,13 @@ public sealed class UiLocalization : INotifyPropertyChanged, IDisposable
         if (value is null || ReferenceEquals(value, AvaloniaProperty.UnsetValue)) return string.Empty;
         if (value is HD2Mimnt.UI.Services.ModPlatformErrorMessage error) return error.Localize();
         if (value is ModPlatformLink link)
-            return Format("UI.NexusModsLatestAvailableVersion", link.GameDomain, link.ModId,
-                link.Name ?? this["Platform.NoApiName"], link.LatestVersion ?? this["Shell.Unknown"]);
+            return link.SupportsUpdates
+                ? Format("Metadata.Summary", link.PlatformId == "ayakamods" ? "Ayaka Mods" : "Nexus Mods", link.ModId,
+                    link.Name ?? this["Platform.NoApiName"], link.Author ?? this["Shell.Unknown"],
+                    link.InstalledVersion ?? this["Shell.Unknown"], link.LatestVersion ?? this["Shell.Unknown"],
+                    link.InstalledFileVersionId ?? link.InstalledWebsiteFileId ?? this["Shell.Unknown"],
+                    link.RetrievedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? this["Shell.Unknown"])
+                : this["Metadata.AuthorOnly"];
         var source = value.ToString() ?? string.Empty;
         if (OptionKeys.TryGetValue(source, out var optionKey)) return this[optionKey];
         if (_sources.TryGetValue(source.Replace("\r\n", "\n"), out var key)) return this[key];

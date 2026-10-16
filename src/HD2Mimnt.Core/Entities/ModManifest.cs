@@ -11,6 +11,8 @@ public class ModManifest
     public string Description { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
+    /// <summary>可选作者网站，保存到独立扩展 JSON。</summary>
+    public string? AuthorUrl { get; set; }
     public string? IconPath { get; set; }
     public string? Category { get; set; }
     public List<string> Tags { get; set; } = new();

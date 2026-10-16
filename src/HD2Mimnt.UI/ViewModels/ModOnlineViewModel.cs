@@ -8,13 +8,15 @@ using HD2Mimnt.UI.Services;
 namespace HD2Mimnt.UI.ViewModels;
 
 public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> refresh,
-    IWebsiteDownloadLauncher? websiteLauncher = null) : ObservableObject
+    IWebsiteDownloadLauncher? websiteLauncher = null, BrowserDownloadHandoffService? browserDownloads = null) : ObservableObject
 {
     private Guid _modId;
     private ModPlatformLink? _link;
+    private ModItemViewModel? _target;
     private CancellationTokenSource? _operation;
     private volatile bool _isImporting;
     private PendingAuthorization? _pendingAuthorization;
+    private BrowserDownloadSession? _browserSession;
     private readonly IWebsiteDownloadLauncher _websiteLauncher = websiteLauncher ?? new WebsiteDownloadLauncher();
     public Task Completion { get; private set; } = Task.CompletedTask;
     [ObservableProperty] private bool _isOpen;
@@ -28,6 +30,10 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     [NotifyCanExecuteChangedFor(nameof(UpdateCommand))]
     private bool _useWebsiteAuthorization = true;
     [ObservableProperty] private bool _isWaitingForWebsite;
+    [ObservableProperty] private bool _isWaitingForBrowser;
+    public bool IsAyaka => _link?.PlatformId == "ayakamods";
+    public string DownloadButtonText => IsAyaka ? "在浏览器下载" : "下载压缩包…";
+    public string BrowserDownloadsDirectory => browserDownloads?.DownloadsDirectory ?? "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyCanExecuteChangedFor(nameof(CheckCommand))]
@@ -43,6 +49,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
 
     public bool CanDownload => !IsBusy && SelectedFile != null &&
         (!UseWebsiteAuthorization || !string.IsNullOrWhiteSpace(SelectedFile.WebsiteFileId));
+    public bool SupportsWebsiteAuthorization => _link?.PlatformId == "nexusmods";
     public string VersionMessage => SelectedFile is not { } file ? "没有可下载文件。" :
         string.IsNullOrWhiteSpace(file.Version) || string.IsNullOrWhiteSpace(LocalVersion) ? "版本信息不足，无法判断更新。" :
         _link?.InstalledFileVersionId == file.Id ? "已安装所选文件版本。" :
@@ -57,7 +64,11 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     {
         if (IsBusy) return;
         _modId = mod.Id;
+        _target = mod;
         _link = mod.PlatformLink;
+        OnPropertyChanged(nameof(SupportsWebsiteAuthorization));
+        OnPropertyChanged(nameof(IsAyaka));
+        OnPropertyChanged(nameof(DownloadButtonText));
         if (_link?.PlatformId != "nexusmods") UseWebsiteAuthorization = false;
         TargetName = mod.Name;
         LocalVersion = mod.Version;
@@ -72,13 +83,15 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     [RelayCommand(CanExecute = nameof(CanCheck))]
     private Task CheckAsync() => RunAsync("检查更新", async token =>
     {
-        Message = "正在检查 N 网文件版本…";
+        Message = "正在检查文件版本…";
         var result = await service.CheckAsync(_modId, token, UseWebsiteAuthorization);
         _link = result.Mod.PlatformLink;
-        LocalVersion = result.Mod.Version;
+        _target?.ApplyPlatformLink(result.Mod);
+        LocalVersion = result.Mod.PlatformLink?.InstalledVersion ?? result.Mod.Version;
         Files = result.Files;
         SelectedFile = Files.FirstOrDefault();
-        Message = Files.Count == 0 ? "N 网没有可下载的活动文件。" : UseWebsiteAuthorization
+        Message = Files.Count == 0 ? "没有可下载的托管文件，请查看来源网页。" : IsAyaka
+            ? "A 网文件由浏览器下载；点击下载并更新后，将等待所选附件并替换原模组。" : UseWebsiteAuthorization
             ? "选择文件后点击下载或更新，将自动打开该文件的 N 网网页。"
             : "已获取文件列表，默认选择主文件。";
     });
@@ -132,6 +145,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     partial void OnSelectedFileChanged(PlatformModFile? value)
     {
         if (_pendingAuthorization is { } pending && value?.Id != pending.File.Id) _operation?.Cancel();
+        if (IsWaitingForBrowser) _operation?.Cancel();
     }
 
     private bool CanUpdate() => CanDownload && !string.IsNullOrWhiteSpace(SelectedFile?.Version);
@@ -142,10 +156,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
         var link = _link!;
         return RunAsync("下载更新包", async token =>
         {
-            var authorized = await AuthorizeAsync(link, file, token);
-            Message = "正在下载更新包…";
-            var result = await service.UpdateAsync(_modId, link, authorized.File, DownloadReporter(token),
-                new InlineProgress<ModImportProgress>(p =>
+            var importProgress = new InlineProgress<ModImportProgress>(p =>
                 {
                     _isImporting = true;
                     Publish(token, () =>
@@ -154,9 +165,32 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
                         IsIndeterminate = p.IsIndeterminate;
                         Message = p.Step + " · " + p.Detail;
                     });
-                }), token, authorized.ProtocolLink);
+                });
+            ModReplacementResult result;
+            if (IsAyaka)
+            {
+                using var session = await (browserDownloads ?? throw new InvalidOperationException("浏览器下载接管不可用。"))
+                    .StartAsync(file, token);
+                _browserSession = session; IsWaitingForBrowser = true;
+                Message = $"已在浏览器发起下载：{file.FileName}。完成后将自动更新；也可以选择已下载的文件。";
+                try
+                {
+                    _websiteLauncher.Open(service.GetWebsiteDownloadUrl(link, file));
+                    var source = await session.WaitForFileAsync(token);
+                    IsWaitingForBrowser = false;
+                    Message = "正在导入浏览器下载的文件…";
+                    result = await service.UpdateFromBrowserFileAsync(_modId, link, file, source, importProgress, token);
+                }
+                finally { _browserSession = null; IsWaitingForBrowser = false; }
+            }
+            else
+            {
+                var authorized = await AuthorizeAsync(link, file, token);
+                Message = "正在下载更新包…";
+                result = await service.UpdateAsync(_modId, link, authorized.File, DownloadReporter(token), importProgress, token, authorized.ProtocolLink);
+            }
             _link = result.Mod.PlatformLink;
-            LocalVersion = result.Mod.Version;
+            LocalVersion = result.Mod.PlatformLink?.InstalledVersion ?? result.Mod.Version;
             OnPropertyChanged(nameof(VersionMessage));
             await refresh();
             Message = "模组已替换，请检查模组选项。" + (result.DeploymentWasCleaned ? "旧部署已清理，请重新部署。" : "")
@@ -167,6 +201,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     public Task DownloadAsync(string path)
     {
         if (!CanDownload || _link == null) return Task.CompletedTask;
+        if (IsAyaka) { OpenBrowserDownload(); return Task.CompletedTask; }
         var file = SelectedFile!;
         var link = _link;
         return RunAsync("下载压缩包", async token =>
@@ -176,6 +211,25 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             await service.DownloadAsync(_modId, link, authorized.File, path, DownloadReporter(token), token, authorized.ProtocolLink);
             Message = "压缩包已保存：" + path;
         });
+    }
+
+    public void OpenBrowserDownload()
+    {
+        if (!IsAyaka || !CanDownload || _link == null) return;
+        try
+        {
+            _websiteLauncher.Open(service.GetWebsiteDownloadUrl(_link, SelectedFile!));
+            Message = $"已在浏览器发起下载：{SelectedFile!.FileName}。";
+        }
+        catch (Exception ex) { Message = ModPlatformErrorFormatter.Format(ex, "打开模组网页"); }
+    }
+
+    public async Task SelectBrowserFileAsync(string path)
+    {
+        if (!IsWaitingForBrowser || _browserSession is not { } session || _operation is not { } operation) return;
+        try { await session.SelectFileAsync(path, operation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { if (ReferenceEquals(_browserSession, session)) Message = ex.Message; }
     }
 
     private IProgress<DownloadProgress> DownloadReporter(CancellationToken token) =>

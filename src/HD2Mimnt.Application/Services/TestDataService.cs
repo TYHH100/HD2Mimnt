@@ -1,5 +1,5 @@
 using HD2Mimnt.Core.Entities;
-using System.Text.Json;
+using HD2Mimnt.Core.Services;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -30,19 +30,14 @@ public sealed class TestDataService
             Directory.CreateDirectory(mod.Path);
             try
             {
-                var manifest = new
+                var manifest = new System.Text.Json.Nodes.JsonObject
                 {
-                    name = mod.Name,
-                    version = mod.Version,
-                    author = mod.Author,
-                    description = mod.Description,
-                    category = mod.Category.ToString(),
-                    tags = mod.Tags
+                    ["Version"] = 1, ["Guid"] = Guid.NewGuid().ToString(), ["Name"] = mod.Name,
+                    ["ModVersion"] = mod.Version, ["Author"] = mod.Author, ["Description"] = mod.Description,
+                    ["Category"] = mod.Category.ToString(),
+                    ["Tags"] = new System.Text.Json.Nodes.JsonArray(mod.Tags.Select(tag => (System.Text.Json.Nodes.JsonNode?)System.Text.Json.Nodes.JsonValue.Create(tag)).ToArray())
                 };
-                await File.WriteAllTextAsync(
-                    Path.Combine(mod.Path, "manifest.json"),
-                    JsonSerializer.Serialize(manifest),
-                    cancellationToken);
+                await ManifestPackage.SaveAsync(Path.Combine(mod.Path, "manifest.json"), manifest, cancellationToken);
 
                 await _modService.ImportModAsync(mod.Path, cancellationToken);
                 completed++;

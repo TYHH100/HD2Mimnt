@@ -326,6 +326,7 @@ public static class SettingKeys
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
     public const string ProfilesLockLoaders = "Profiles.LockLoaders";
+    public const string ProfilesAutoAddImportedMods = "Profiles.AutoAddImportedMods";
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
@@ -336,6 +337,7 @@ public static class SettingKeys
     // 模组库相关
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";
+    public const string ImportAutoClose = "Library.ImportAutoClose";
 
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";

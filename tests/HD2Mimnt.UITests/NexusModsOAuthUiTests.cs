@@ -19,7 +19,7 @@ namespace HD2Mimnt.Tests.UI;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
-    public async Task Settings_Accounts_ShouldLoginShowLiveQuotaKeepAyakaPlaceholderAndCancelOnLeaving()
+    public async Task Settings_Accounts_ShouldLoginShowLiveQuotaAndAyakaToolKeyStatusAndCancelOnLeaving()
     {
         using var handler = new BrowseContractHandler { IncludeQuota = true };
         var oauth = new TestOAuthClient();
@@ -70,7 +70,8 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal("/v1/users/validate.json", handler.Paths[0]);
             var ayaka = view.FindControl<FluentAvalonia.UI.Controls.FASettingsExpander>("AyakaAccountSettings")!;
             Assert.True(ayaka.IsEffectivelyVisible);
-            Assert.False(ayaka.GetVisualDescendants().OfType<Button>().Last().IsEnabled);
+            Assert.Contains("尚未配置", view.FindControl<TextBlock>("SettingsAyakaStatus")!.Text);
+            Assert.NotNull(view.FindControl<Button>("SettingsAyakaClearKeyButton")!.Command);
             var localization = scope.Services.GetRequiredService<ILocalizationService>();
             foreach (var variant in new[] { ThemeVariant.Dark, ThemeVariant.Light })
             foreach (var language in new[] { "zh-CN", "zh-TW", "en-US" })

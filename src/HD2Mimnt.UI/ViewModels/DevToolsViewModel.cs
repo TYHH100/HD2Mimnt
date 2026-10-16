@@ -14,6 +14,8 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class DevToolsViewModel : ObservableObject
 {
+    public AyakaModsAccountViewModel? AyakaAccount { get; init; }
+    public BrowseModsViewModel? BrowseMods { get; init; }
     private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
     private readonly NexusModsTestService _nexusModsTestService;

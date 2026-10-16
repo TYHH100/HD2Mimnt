@@ -634,7 +634,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.False(view.FindControl<Button>("SaveModLinkButton")!.IsEffectivelyEnabled);
             Click("FetchModLinkButton");
             await dialog.FetchCommand.ExecutionTask!;
-            Assert.Contains("API 密钥", dialog.Message);
+            Assert.Contains("设置 → 账号", dialog.Message);
             Assert.Empty(handler.Requests);
             await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("ui-mod-link-key");
             Click("FetchModLinkButton");
@@ -732,6 +732,7 @@ public sealed partial class FluentAvaloniaUiTests
             var json = path switch
             {
                 "/v1/games/helldivers2/mods/16633/files.json" => """{"files":[{"file_id":456,"category_id":1,"name":"Main","version":"2.0","uploaded_timestamp":1},{"file_id":457,"category_id":3,"name":"Optional","version":"3.0","uploaded_timestamp":2}]}""",
+                "/v1/games/helldivers2/mods/16633.json" => """{"mod_id":16633,"name":"API mod title","author":"API author","version":"2.0"}""",
                 "/v1/users/validate.json" => """{"user_id":789,"is_premium":false}""",
                 "/v1/games/helldivers2/mods/16633/files/457.json" => """{"file_id":457,"category_id":3,"name":"Optional","version":"3.0","size_kb":1}""",
                 "/v1/games/helldivers2/mods/16633/files/457/download_link.json" => """[{"URI":"https://cdn.example.com/free.zip"}]""",
@@ -1143,7 +1144,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Contains("chip", chip.Classes);
             var row = Assert.IsType<StackPanel>(chip.GetVisualParent());
             Assert.Same(chip, row.Children[0]);
-            Assert.Equal("v1.0.0", Assert.Single(row.Children[1].GetVisualDescendants().OfType<TextBlock>()).Text);
+            Assert.Equal("v1.0.0", Assert.Single(row.Children.OfType<Border>().ElementAt(1).GetVisualDescendants().OfType<TextBlock>()).Text);
 
             // 真实鼠标事件右键标题，并实际点击弹出菜单。
             var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == mods[0].ModName);
@@ -2276,6 +2277,7 @@ public sealed partial class FluentAvaloniaUiTests
     public async Task ModImport_Cancel_ShouldRetainCompletedModsAndRemainingCount()
     {
         await using var scope = await UiScope.CreateAsync();
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.ImportAutoClose, true);
         var library = scope.Services.GetRequiredService<MainWindowViewModel>().LibraryViewModel;
         var sources = new[] { "first", "second" }.Select(name => Path.Combine(scope.Root, name)).ToArray();
         foreach (var source in sources)
@@ -2292,6 +2294,7 @@ public sealed partial class FluentAvaloniaUiTests
         Dispatcher.UIThread.RunJobs();
         Assert.False(library.Import.IsImporting);
         Assert.Equal("添加已取消", library.Import.Step);
+        Assert.True(library.Import.IsOpen);
         Assert.Equal(1, library.Import.SuccessCount);
         Assert.Equal(1, library.Import.ProcessedCount);
         Assert.Equal(1, library.Import.RemainingCount);
@@ -3461,7 +3464,9 @@ public sealed partial class FluentAvaloniaUiTests
             HD2Mimnt.Core.Interfaces.IMinidumpAnalyzer? minidumpAnalyzer = null,
             HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null,
             NexusModsOAuthOptions? nexusOAuthOptions = null,
-            HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null)
+            HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null, HttpMessageHandler? ayakaHandler = null,
+            AyakaModsOAuthOptions? ayakaOAuthOptions = null, HD2Mimnt.Core.Interfaces.IAyakaModsOAuthClient? ayakaOAuthClient = null,
+            HttpMessageHandler? ayakaDownloadHandler = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3473,11 +3478,14 @@ public sealed partial class FluentAvaloniaUiTests
                     .Invoke(Avalonia.Application.Current, new object[] { services });
                 services.AddSingleton<IWebsiteDownloadLauncher>(scope.WebsiteLauncher);
                 services.AddSingleton<IBrowserLauncher>(scope.WebsiteLauncher);
+                services.AddSingleton(new BrowserDownloadHandoffService(Path.Combine(scope._root, "BrowserDownloads"), TimeSpan.FromMilliseconds(20)));
                 if (systemLanguage != null) services.AddSingleton(systemLanguage);
                 if (minidumpAnalyzer != null) services.AddSingleton(minidumpAnalyzer);
                 if (directDownloads != null) services.AddSingleton(directDownloads);
                 if (nexusOAuthOptions != null) services.AddSingleton(nexusOAuthOptions);
                 if (nexusOAuthClient != null) services.AddSingleton(nexusOAuthClient);
+                if (ayakaOAuthOptions != null) services.AddSingleton(ayakaOAuthOptions);
+                if (ayakaOAuthClient != null) services.AddSingleton(ayakaOAuthClient);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
                 if (nexusHandler != null)
                 {
@@ -3485,6 +3493,13 @@ public sealed partial class FluentAvaloniaUiTests
                     services.AddKeyedSingleton<HttpClient>("downloads", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
                     services.AddKeyedSingleton<HttpClient>("browse-images", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));
                 }
+                if (ayakaHandler != null)
+                    services.AddKeyedSingleton<HttpClient>("ayaka-api", (_, _) => new HttpClient(ayakaHandler, disposeHandler: false));
+                if (ayakaDownloadHandler != null)
+                    services.AddSingleton(sp => new HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsPlatformAdapter(
+                        sp.GetRequiredKeyedService<HttpClient>("ayaka-api"),
+                        resumeDirectory: Path.Combine(scope._root, "ApiDownloads"), tempDirectory: Path.Combine(scope._root, "ApiTemp"),
+                        downloadTransport: ayakaDownloadHandler));
                 scope.Services = services.BuildServiceProvider();
             }
             finally { Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", originalPath); }

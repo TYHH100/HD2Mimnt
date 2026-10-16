@@ -104,6 +104,7 @@ public sealed class Hd2ArsenalReader : IExternalManagerReader
                 using var original = JsonDocument.Parse(File.ReadAllText(Path.Combine(path, "manifest.json")), new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
                 if (Guid.TryParse(original.RootElement.Get("Guid").Text(), out var guid)) manifest.Guid = guid;
                 manifest.Author = onDisk.Author;
+                manifest.AuthorUrl = onDisk.AuthorUrl;
                 manifest.Version = onDisk.Version;
                 manifest.NexusData = onDisk.NexusData;
             }

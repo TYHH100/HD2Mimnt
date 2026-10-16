@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Views.ModCreationView" x:DataType="vm:ModCreationViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="12">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{loc:Loc Creator.Title}" Classes="section-title"/>
+      <TextBlock Text="{loc:Loc Creator.Intro}" Classes="muted" TextWrapping="Wrap"/>
+      <WrapPanel IsEnabled="{Binding CanEdit}">
+        <TextBlock Text="{loc:Loc Creator.ManifestFormat}" VerticalAlignment="Center" Margin="0,0,16,4"/>
+        <RadioButton Name="CreationV1Format" GroupName="CreationFormat" Content="{loc:Loc Creator.FormatV1}"
+                     IsChecked="{Binding IsV1Manifest}" Margin="0,0,20,4"/>
+        <RadioButton Name="CreationLegacyFormat" GroupName="CreationFormat" Content="{loc:Loc Creator.FormatLegacy}"
+                     IsChecked="{Binding IsLegacyManifest}" Margin="0,0,0,4"/>
+      </WrapPanel>
+      <WrapPanel IsEnabled="{Binding CanEdit}">
+        <TextBlock Text="{loc:Loc Creator.ArchiveFormat}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+        <ComboBox Name="CreationArchiveFormat" SelectedIndex="{Binding SelectedArchiveFormatIndex}" MinWidth="85" Margin="0,0,20,4">
+          <ComboBoxItem Content="7z"/>
+          <ComboBoxItem Content="ZIP"/>
+        </ComboBox>
+        <TextBlock Text="{loc:Loc Creator.CompressionLevel}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+        <ComboBox Name="CreationCompressionLevel" SelectedIndex="{Binding SelectedCompressionIndex}" MinWidth="180" Margin="0,0,0,4"
+                  ToolTip.Tip="{loc:Loc Creator.CompressionHint}">
+          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionStore}"/></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionFast}"/></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionNormal}"/></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionHigh}"/></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionUltra}"/></ComboBoxItem>
+        </ComboBox>
+      </WrapPanel>
+      <WrapPanel IsEnabled="{Binding CanEdit}">
+        <Button Content="{loc:Loc Creator.New}" Command="{Binding NewCommand}" Margin="0,0,8,4"/>
+        <Button Content="{loc:Loc Creator.Open}" Click="Open_Click" Margin="0,0,8,4"/>
+        <Button Content="{loc:Loc Creator.Save}" Click="Save_Click" Margin="0,0,8,4"/>
+        <Button Name="ExportModArchiveButton" Content="{loc:Loc Creator.Export}" Click="Export_Click" Classes="accent" Margin="0,0,0,4"/>
+      </WrapPanel>
+    </StackPanel>
+    <TabControl Grid.Row="1" IsEnabled="{Binding CanEdit}" Name="CreationTabs" SelectionChanged="CreationTabs_SelectionChanged">
+      <TabItem>
+        <TabItem.Header><TextBlock Text="{loc:Loc Creator.Basic}" FontSize="14"/></TabItem.Header>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="12" Margin="0,12,12,12">
+            <Border Classes="card" Padding="20">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{loc:Loc Creator.SourceDirectory}"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox Name="CreationSourceInput" Text="{Binding SourceDirectory}" LostFocus="Source_LostFocus" KeyDown="Source_KeyDown"/>
+                  <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Source_Click"/>
+                </Grid>
+                <TextBlock Text="{loc:Loc Creator.SourceHint}" Classes="muted" TextWrapping="Wrap"/>
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="8">
+                  <TextBlock Text="{loc:Loc Creator.Name}"/>
+                  <TextBlock Grid.Column="1" Text="{loc:Loc Creator.Author}"/>
+                  <TextBox Name="CreationNameInput" Grid.Row="1" Text="{Binding ModName}"/>
+                  <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Author}"/>
+                  <TextBlock Grid.Row="2" Text="{loc:Loc Creator.Version}"/>
+                  <TextBlock Grid.Row="2" Grid.Column="1" Text="{loc:Loc Creator.Cover}"/>
+                  <TextBox Grid.Row="3" Text="{Binding ModVersion}"/>
+                  <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Text="{Binding IconPath}"/>
+                    <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Image_Click"/>
+                  </Grid>
+                </Grid>
+                <TextBlock Text="{loc:Loc Creator.AuthorWebsite}"/>
+                <TextBox Name="CreationAuthorUrlInput" Text="{Binding AuthorUrl}" PlaceholderText="https://"/>
+                <TextBlock Text="{loc:Loc Creator.AuthorWebsiteHint}" Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:Loc Creator.Description}"/>
+                <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="88"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem>
+        <TabItem.Header><TextBlock Text="{loc:Loc Creator.Options}" FontSize="14"/></TabItem.Header>
+        <Grid>
+        <Grid IsVisible="{Binding IsLegacyManifest}" RowDefinitions="Auto,Auto,*" RowSpacing="12" Margin="0,12,0,0">
+          <TextBlock Text="{loc:Loc Creator.LegacyHint}" Classes="muted" TextWrapping="Wrap"/>
+          <WrapPanel Grid.Row="1">
+            <Button Name="AddCreationLegacyOptionButton" Content="{loc:Loc Creator.AddOption}" Click="LegacyInclude_Click" Margin="0,0,8,4"/>
+            <Button Content="{loc:Loc Creator.Remove}" Command="{Binding RemoveLegacyOptionCommand}" Margin="0,0,0,4"/>
+          </WrapPanel>
+          <ListBox Name="CreationLegacyOptionList" Grid.Row="2" ItemsSource="{Binding LegacyOptions}" SelectedItem="{Binding SelectedLegacyOption}"/>
+        </Grid>
+        <Grid IsVisible="{Binding IsV1Manifest}" ColumnDefinitions="210,*" ColumnSpacing="16" Margin="0,12,0,0">
+          <Grid RowDefinitions="Auto,*" RowSpacing="8">
+            <WrapPanel>
+              <Button Name="AddCreationOptionButton" Content="{loc:Loc Creator.AddOption}" Command="{Binding AddOptionCommand}" Margin="0,0,8,4"/>
+              <Button Content="{loc:Loc Creator.Remove}" Command="{Binding RemoveOptionCommand}" Margin="0,0,0,4"/>
+            </WrapPanel>
+            <ListBox Name="CreationOptionList" Grid.Row="1" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}">
+              <ListBox.ItemTemplate><DataTemplate x:DataType="vm:ModCreationOptionViewModel">
+                <Grid ColumnDefinitions="28,*" MinHeight="28">
+                  <Border Classes="creation-sort-handle" Background="Transparent" Cursor="SizeAll" ToolTip.Tip="{loc:Loc Creator.DragToReorder}">
+                    <controls:UtilityIcon Kind="ListOrdered" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding Name}"/>
+                </Grid>
+              </DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+          <ScrollViewer Name="CreationOptionsScroll" Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,12,12">
+              <TextBlock Text="{loc:Loc Creator.OptionsHint}" Classes="muted" TextWrapping="Wrap"/>
+              <ContentControl Content="{Binding SelectedOption}">
+                <ContentControl.ContentTemplate><DataTemplate x:DataType="vm:ModCreationOptionViewModel">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="{loc:Loc Creator.OptionName}"/>
+                    <TextBox Name="CreationOptionNameInput" Text="{Binding Name}"/>
+                    <TextBox Text="{Binding Description}" PlaceholderText="{loc:Loc Creator.Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"/>
+                    <CheckBox Content="{loc:Loc Creator.DefaultEnabled}" IsChecked="{Binding DefaultEnabled}" IsThreeState="True"/>
+                    <TextBlock Text="{loc:Loc Creator.OptionImage}"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBox Text="{Binding ImagePath}"/>
+                      <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Image_Click"/>
+                    </Grid>
+                    <CheckBox Content="{loc:Loc Creator.HasMapping}" IsChecked="{Binding HasIncludeMapping}"/>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding HasIncludeMapping}">
+                      <TextBox Text="{Binding IncludePaths}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="68"/>
+                      <Button Name="CreationSelectDirectoriesButton" Grid.Column="1" Content="{loc:Loc Creator.AddDirectory}" Click="Include_Click" VerticalAlignment="Top"/>
+                    </Grid>
+                    <TextBlock Text="{loc:Loc Creator.MappingHint}" Classes="muted" TextWrapping="Wrap"/>
+                    <Button Name="AddCreationSubOptionButton" Content="{loc:Loc Creator.AddSubOption}" Command="{Binding AddSubOptionCommand}"/>
+                    <ItemsControl Name="CreationSubOptionList" ItemsSource="{Binding SubOptions}">
+                      <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:ModCreationSubOptionViewModel">
+                        <Border Classes="card" Padding="16" Margin="0,0,0,10">
+                          <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="8">
+                              <Border Classes="creation-sort-handle" Background="Transparent" Cursor="SizeAll" ToolTip.Tip="{loc:Loc Creator.DragToReorder}">
+                                <controls:UtilityIcon Kind="ListOrdered" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                              </Border>
+                              <TextBox Grid.Column="1" Text="{Binding Name}" PlaceholderText="{loc:Loc Creator.SubOptionName}"/>
+                              <Button Grid.Column="2" Content="{loc:Loc Creator.Remove}" Command="{ReflectionBinding $parent[UserControl].DataContext.SelectedOption.RemoveSubOptionCommand}" CommandParameter="{Binding}"/>
+                            </Grid>
+                            <TextBox Text="{Binding Description}" PlaceholderText="{loc:Loc Creator.Description}" TextWrapping="Wrap"/>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                              <TextBox Text="{Binding ImagePath}" PlaceholderText="{loc:Loc Creator.OptionImage}"/>
+                              <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Image_Click"/>
+                            </Grid>
+                            <CheckBox Content="{loc:Loc Creator.HasMapping}" IsChecked="{Binding HasIncludeMapping}"/>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsEnabled="{Binding HasIncludeMapping}">
+                              <TextBox Text="{Binding IncludePaths}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"/>
+                              <Button Grid.Column="1" Content="{loc:Loc Creator.AddDirectory}" Click="Include_Click" VerticalAlignment="Top"/>
+                            </Grid>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </DataTemplate></ContentControl.ContentTemplate>
+              </ContentControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+        </Grid>
+      </TabItem>
+      <TabItem>
+        <TabItem.Header><TextBlock Text="{loc:Loc Creator.Preview}" FontSize="14"/></TabItem.Header>
+        <TabControl Margin="0,12,0,0">
+          <TabItem Header="manifest.json">
+            <TextBox Name="CreationJsonPreview" Text="{Binding JsonPreview, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                     FontFamily="Consolas" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+          </TabItem>
+          <TabItem Header="hd2mimnt.json">
+            <TextBox Name="CreationMetadataPreview" Text="{Binding MetadataPreview, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                     FontFamily="Consolas" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+          </TabItem>
+        </TabControl>
+      </TabItem>
+      <TabItem Name="CreationManagerPreviewTab">
+        <TabItem.Header><TextBlock Text="{loc:Loc Creator.ManagerPreview}" FontSize="14"/></TabItem.Header>
+        <Grid RowDefinitions="Auto,*" RowSpacing="12" Margin="0,12,0,0">
+          <WrapPanel>
+            <Button Name="RefreshCreationPreviewButton" Content="{loc:Loc Creator.RefreshPreview}" Click="RefreshPreview_Click" Margin="0,0,8,4"/>
+            <Button Name="ExportCreationScreenshotButton" Content="{loc:Loc Creator.ExportScreenshot}" Click="Screenshot_Click" Margin="0,0,0,4"/>
+          </WrapPanel>
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <controls:ModCreationPreview Name="CreationManagerPreview" DataContext="{Binding ManagerPreview}"/>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+    </TabControl>
+    <Canvas Name="CreationScreenshotHost" Grid.RowSpan="3" Width="0" Height="0" ClipToBounds="True" IsHitTestVisible="False"/>
+    <StackPanel Grid.Row="2" Spacing="6">
+      <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="True"/>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock Name="CreationStatusText" Text="{loc:LocalizedBinding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        <Button Grid.Column="1" Content="{loc:Loc Creator.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
+      </Grid>
+    </StackPanel>
+    <Canvas Name="CreationSortLayer" Grid.RowSpan="3" IsHitTestVisible="False" ClipToBounds="True">
+      <Border Name="CreationSortMarker" IsVisible="False" Height="3" CornerRadius="1.5" Background="{DynamicResource AccentBrush}"/>
+    </Canvas>
+  </Grid>
+</UserControl>

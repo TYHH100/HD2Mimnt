@@ -49,8 +49,10 @@ await localization.SetLanguageAsync(LanguageCodes.Automatic);
 - 设置事件在持久化成功且释放设置闸门后发布，防止监听者重新读设置时死锁；重置和重载同样发布实际变化。服务构造读取已加载的内存设置，禁止在 UI 启动阶段同步等待异步读取。
 - 自动模式保存 `auto`，不能把检测结果写成手动语言，否则下次系统语言变化将无法继续跟随。界面语言使用稳定代码，语言的本地名称只作显示。
 - Avalonia 12 的绑定类型使用 `BindingBase`，不沿用旧 `IBinding`。静态文案也通过 `Revision` 的 MultiBinding 刷新，不能只假定索引器 `Item[]` 通知会让已有控件重读资源；用实际语言控件切换后断言已有标签。
+- 代码创建弹窗的静态文案使用 `LocExtension.CreateBinding(资源键)`；不要先取译文再传给 `TextBinding` 反查资源键，相同中文或英文可能命中其他资源，切换语言后出现错误文案。沿用上述 `Revision` 刷新机制，回归已打开弹窗的三语标题和按钮。来源：[Avalonia MultiBinding](https://docs.avaloniaui.net/docs/concepts/data-binding/multibinding)。
 - 自定义扩展创建反射绑定时用 `ReflectionBindingExtension.ProvideValue(serviceProvider)` 保留 `$parent` 的解析上下文。这类路径不需要编译绑定的 `((vm:类型)DataContext)` 转型；直接从父控件 DataContext 访问属性，防止自定义扩展字符串中的类型前缀无法解析。
 - ComboBox 初始化选中值时可能短暂回写空值，过滤这次过渡，避免持久化空代码或生成误报；真实写入失败必须提示并回滚。资源模板匹配接受 CRLF/LF 差异，但不修改捕获到的用户参数或路径。
+- 动态翻译的 `ComboBoxItem` 使用内层 `TextBlock Text="{loc:Loc ...}"`；直接绑定字符串 `Content` 时，Avalonia 12 的已选展示可能保留选择时的字符串，语言切换后属性已更新但画面仍旧。验证实际选中区域的截图，不只检查 `SelectedItem.Content`。来源：[ComboBox.UpdateSelectionBoxItem](https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/ComboBox.cs)。
 - 英文长说明在最小窗口可能挤掉列表；限制辅助说明的展示高度并用完整悬停提示，检查三语、深浅主题和最小尺寸，不只验证编译成功。
 
 - 多段 HTTP 错误不能只把整段字符串交给模板匹配：保存异常和操作对象，展示时分别翻译操作、状态模板、建议及来源标签，并通过 `Revision` 重新格式化。服务端原始诊断保持原文，不能对其递归替换；运行时切换要检查已有错误。

@@ -12,9 +12,14 @@
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="4">
             <TextBlock Text="{loc:Loc Browse.Title}" Classes="section-title"/>
-            <TextBlock Text="Nexus Mods · Helldivers 2" Classes="caption-text"/>
+            <TextBlock Text="{Binding PlatformTitle}" Classes="caption-text"/>
           </StackPanel>
-          <Button Grid.Column="1" Command="{Binding OpenWebsiteCommand}" Content="{loc:Loc Browse.OpenWebsite}" VerticalAlignment="Center"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <ComboBox x:Name="BrowsePlatformSelector" ItemsSource="{Binding Platforms}" SelectedItem="{Binding SelectedPlatform}" IsEnabled="{Binding !IsBusy}" MinWidth="140" VerticalAlignment="Center">
+              <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:BrowsePlatformChoice"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button x:Name="BrowseOpenWebsiteButton" Command="{Binding OpenWebsiteCommand}" Content="{loc:LocalizedBinding WebsiteButtonText}" VerticalAlignment="Center"/>
+          </StackPanel>
         </Grid>
         <Grid Grid.Row="1" ColumnDefinitions="180,*,Auto,Auto,Auto" ColumnSpacing="10">
           <ComboBox x:Name="BrowseFeedSelector" ItemsSource="{Binding Feeds}" SelectedItem="{Binding SelectedFeed}"
@@ -23,21 +28,22 @@
               <DataTemplate x:DataType="vm:BrowseFeedChoice"><TextBlock Text="{loc:LocalizedBinding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <TextBox x:Name="BrowseSearchInput" Grid.Column="1" Text="{Binding SearchText}" PlaceholderText="{loc:Loc Browse.SearchPlaceholder}">
+          <TextBox x:Name="BrowseSearchInput" Grid.Column="1" Text="{Binding SearchText}" PlaceholderText="{loc:Loc Browse.SearchPlaceholder}" IsEnabled="{Binding CanSearch}">
             <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}"/></TextBox.KeyBindings>
           </TextBox>
-          <Button x:Name="BrowseSearchButton" Grid.Column="2" Command="{Binding SearchCommand}" Content="{loc:Loc Browse.Search}"/>
+          <Button x:Name="BrowseSearchButton" Grid.Column="2" Command="{Binding SearchCommand}" Content="{loc:Loc Browse.Search}" IsEnabled="{Binding CanSearch}"/>
           <Button x:Name="BrowseRefreshButton" Grid.Column="3" Command="{Binding RefreshCommand}" Content="{loc:Loc Browse.LoadList}"/>
           <Button Grid.Column="4" Command="{Binding CancelCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}"/>
         </Grid>
         <TextBlock Grid.Row="2" x:Name="NexusAccountStatus" DataContext="{Binding Account}"
                    x:DataType="vm:NexusModsAccountViewModel" Text="{loc:LocalizedBinding Status}"
-                   TextWrapping="Wrap" Classes="caption-text"/>
+                   TextWrapping="Wrap" Classes="caption-text" IsVisible="{Binding $parent[UserControl].((vm:BrowseModsViewModel)DataContext).IsNexus}"/>
+        <TextBlock Grid.Row="2" Text="{loc:LocalizedBinding BrowseHelp}" IsVisible="{Binding IsAyaka}" TextWrapping="Wrap" Classes="caption-text"/>
       </Grid>
     </Border>
     <StackPanel Grid.Row="1" Spacing="6">
       <TextBlock x:Name="BrowseScopeText" Text="{loc:LocalizedBinding ScopeDescription}" Classes="caption-text" TextWrapping="Wrap"/>
-      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSearchResults}">
+      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasPagination}">
         <Button x:Name="BrowsePreviousPageButton" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding CanPreviousPage}" Content="{loc:Loc Browse.PreviousPage}"/>
         <Button x:Name="BrowseNextPageButton" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanNextPage}" Content="{loc:Loc Browse.NextPage}"/>
       </StackPanel>
@@ -45,6 +51,10 @@
       <TextBlock Text="{loc:Loc Browse.LoadingImage}" IsVisible="{Binding IsLoadingImage}" Classes="caption-text"/>
       <TextBlock x:Name="BrowseStatusText" Text="{loc:LocalizedBinding DisplayMessage}" TextWrapping="Wrap" MaxHeight="80"
                  IsVisible="{Binding HasMessage}" ToolTip.Tip="{loc:LocalizedBinding DisplayMessage}"/>
+      <StackPanel IsVisible="{Binding IsWaitingForBrowser}" Spacing="4">
+        <TextBlock Text="{loc:LocalizedBinding BrowserDownloadsDirectory, FormatKey=BrowserDownload.WatchFolder}" Classes="caption-text" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding BrowserDownloadsDirectory}"/>
+        <Button x:Name="BrowseChooseBrowserFileButton" Content="{loc:Loc BrowserDownload.ChooseFile}" Click="ChooseBrowserFile_Click" HorizontalAlignment="Left"/>
+      </StackPanel>
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="*,360" ColumnSpacing="12">
       <Grid>
@@ -80,59 +90,58 @@
             <TextBox x:Name="BrowseModLinkInput" Text="{Binding ModLink}" PlaceholderText="{loc:Loc Browse.LinkPlaceholder}"/>
             <Button x:Name="BrowseOpenLinkButton" Grid.Column="1" Command="{Binding OpenLinkCommand}" Content="{loc:Loc Browse.OpenLink}"/>
           </Grid>
-          <Grid Grid.Row="1">
-            <StackPanel IsVisible="{Binding !HasDetails}" VerticalAlignment="Center" Spacing="10">
-              <controls:UtilityIcon Kind="Globe" Width="32" Height="32" HorizontalAlignment="Center"/>
-              <TextBlock Text="{loc:Loc Browse.SelectHint}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
-              <TextBlock Text="{loc:Loc Browse.AuthHint}" Classes="caption-text" TextWrapping="Wrap"/>
-            </StackPanel>
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="6" IsVisible="{Binding HasDetails}">
-              <StackPanel Spacing="2">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                  <TextBlock Text="{Binding Details.Name}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding Details.Name}" VerticalAlignment="Center"/>
-                  <Button x:Name="BrowsePreviewCoverButton" Grid.Column="1" Command="{Binding PreviewCoverCommand}" CommandParameter="{Binding Details}"
-                          Content="{loc:Loc Browse.PreviewCover}"/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Text="{Binding Details.Author}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Grid.Column="1" Text="{Binding Details.Version}" Classes="caption-text" Margin="8,0,0,0"/>
-                </Grid>
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+              <StackPanel IsVisible="{Binding !HasDetails}" VerticalAlignment="Center" Spacing="10">
+                <controls:UtilityIcon Kind="Globe" Width="32" Height="32" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="BrowseSelectHint" Text="{loc:LocalizedBinding SelectHint}" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+                <TextBlock Text="{loc:Loc Browse.AuthHint}" IsVisible="{Binding IsNexus}" Classes="caption-text" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:Loc Ayaka.BrowseHelp}" IsVisible="{Binding IsAyaka}" Classes="caption-text" TextWrapping="Wrap"/>
               </StackPanel>
-              <ScrollViewer Grid.Row="1">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="{Binding Details.Description}" TextWrapping="Wrap"/>
+              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6" IsVisible="{Binding HasDetails}">
+                <StackPanel Spacing="2">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                    <TextBlock Text="{Binding Details.Name}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding Details.Name}" VerticalAlignment="Center"/>
+                    <Button x:Name="BrowsePreviewCoverButton" Grid.Column="1" Command="{Binding PreviewCoverCommand}" CommandParameter="{Binding Details}"
+                            Content="{loc:Loc Browse.PreviewCover}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Details.Author}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Details.Version}" Classes="caption-text" Margin="8,0,0,0"/>
+                  </Grid>
                 </StackPanel>
-              </ScrollViewer>
-              <StackPanel Grid.Row="2" Spacing="6">
-                <TextBlock Text="{loc:Loc Browse.Files}" FontWeight="SemiBold"/>
-                <ComboBox x:Name="BrowseFileSelector" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
-                          HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}" MaxDropDownHeight="240">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="core:PlatformModFile">
-                      <StackPanel>
-                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                        <TextBlock Text="{Binding Version}" Classes="caption-text"/>
-                      </StackPanel>
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <Button x:Name="BrowseDownloadButton" Content="{loc:Loc Browse.Download}" IsEnabled="{Binding CanDownload}"
-                          Click="Download_Click" HorizontalAlignment="Stretch"/>
-                  <Button x:Name="BrowseDownloadAndImportButton" Grid.Column="1" Classes="accent" Content="{loc:Loc Browse.DownloadAndImport}"
-                          Command="{Binding DownloadAndImportCommand}" IsEnabled="{Binding CanDownloadAndImport}" HorizontalAlignment="Stretch"/>
-                </Grid>
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                  <Button Command="{Binding OpenWebsiteCommand}" Content="{loc:Loc Browse.OpenModPage}" HorizontalAlignment="Stretch"/>
-                  <Button x:Name="BrowseImagesWebsiteButton" Grid.Column="1" Command="{Binding OpenImagesWebsiteCommand}"
-                          Content="{loc:Loc Browse.OpenImagesWebsite}" HorizontalAlignment="Stretch"/>
-                </Grid>
-                <TextBlock x:Name="BrowseDownloadHint" Text="{loc:Loc Browse.DownloadHint}" Classes="caption-text" TextTrimming="CharacterEllipsis"
-                           ToolTip.Tip="{loc:Loc Browse.DownloadHint}"/>
-              </StackPanel>
+                <TextBlock Grid.Row="1" Text="{Binding Details.Description}" TextWrapping="Wrap"/>
+                <StackPanel Grid.Row="2" Spacing="6">
+                  <TextBlock Text="{loc:Loc Browse.Files}" FontWeight="SemiBold"/>
+                  <ComboBox x:Name="BrowseFileSelector" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
+                            HorizontalAlignment="Stretch" IsEnabled="{Binding !IsBusy}" MaxDropDownHeight="240">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="core:PlatformModFile">
+                        <StackPanel>
+                          <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                          <TextBlock Text="{Binding Version}" Classes="caption-text"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button x:Name="BrowseDownloadButton" Content="{loc:LocalizedBinding DownloadButtonText}" IsEnabled="{Binding CanDownload}"
+                            Click="Download_Click" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="BrowseDownloadAndImportButton" Grid.Column="1" Classes="accent" Content="{loc:Loc Browse.DownloadAndImport}"
+                            Command="{Binding DownloadAndImportCommand}" IsEnabled="{Binding CanDownloadAndImport}" HorizontalAlignment="Stretch"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Command="{Binding OpenWebsiteCommand}" Content="{loc:Loc Browse.OpenModPage}" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="BrowseImagesWebsiteButton" Grid.Column="1" Command="{Binding OpenImagesWebsiteCommand}"
+                            Content="{loc:Loc Browse.OpenImagesWebsite}" HorizontalAlignment="Stretch"/>
+                  </Grid>
+                  <TextBlock x:Name="BrowseDownloadHint" Text="{loc:LocalizedBinding DownloadHint}" Classes="caption-text" TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{loc:LocalizedBinding DownloadHint}"/>
+                </StackPanel>
+              </Grid>
             </Grid>
-          </Grid>
+          </ScrollViewer>
         </Grid>
       </Border>
     </Grid>

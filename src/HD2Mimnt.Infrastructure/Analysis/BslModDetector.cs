@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Services;
 
 namespace HD2Mimnt.Infrastructure.Analysis;
 
@@ -56,7 +57,9 @@ public static partial class BslModDetector
             if (!Path.GetFileName(path).EndsWith("manifest.json", StringComparison.OrdinalIgnoreCase)) continue;
             using var stream = File.OpenRead(path);
             if (stream.Length > 1024 * 1024) continue;
-            using var doc = JsonDocument.Parse(stream);
+            using var doc = Path.GetFileName(path).Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
+                ? JsonDocument.Parse(ManifestPackage.Read(path, _ => { }).ToJsonString())
+                : JsonDocument.Parse(stream);
             if (doc.RootElement.ValueKind != JsonValueKind.Object) continue;
             // 特殊身份优先于 Description 中的通用依赖声明，不受 JSON 字段顺序影响。
             foreach (var property in doc.RootElement.EnumerateObject())

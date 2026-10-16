@@ -81,8 +81,21 @@
             </fa:FASettingsExpanderItem>
           </fa:FASettingsExpander>
           <fa:FASettingsExpander x:Name="AyakaAccountSettings" Header="Ayaka Mods" IsExpanded="True">
-            <fa:FASettingsExpanderItem Description="{loc:Loc Accounts.AyakaPlaceholder}">
-              <fa:FASettingsExpanderItem.Footer><Button Content="{loc:Loc Accounts.AyakaLogin}" IsEnabled="False"/></fa:FASettingsExpanderItem.Footer>
+            <fa:FASettingsExpanderItem>
+              <StackPanel DataContext="{Binding AyakaAccount}" x:DataType="vm:AyakaModsAccountViewModel" Spacing="10">
+                <TextBlock x:Name="SettingsAyakaOAuthStatus" Text="{loc:LocalizedBinding OAuthStatus}" TextWrapping="Wrap"/>
+                <WrapPanel>
+                  <Button x:Name="SettingsAyakaLoginButton" Command="{Binding LoginCommand}" Content="{loc:Loc Accounts.AyakaLogin}" Classes="accent" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsAyakaLogoutButton" Command="{Binding LogoutCommand}" Content="{loc:Loc Ayaka.OAuth.Logout}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsAyakaCancelLoginButton" Command="{Binding CancelLoginCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsLoggingIn}" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <TextBlock Text="{loc:Loc Ayaka.OAuth.Help}" TextWrapping="Wrap" Classes="caption-text"/>
+                <Separator/>
+                <TextBlock x:Name="SettingsAyakaStatus" Text="{loc:LocalizedBinding Status}" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:Loc Ayaka.KeyHelp}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                <Button x:Name="SettingsAyakaClearKeyButton" Command="{Binding ClearApiKeyCommand}" Content="{loc:Loc UI.ClearKey}" HorizontalAlignment="Left"/>
+              </StackPanel>
             </fa:FASettingsExpanderItem>
           </fa:FASettingsExpander>
         </StackPanel>
@@ -102,6 +115,9 @@
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoAddImportedModsToggle" IsChecked="{Binding AutoAddImportedMods}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -124,6 +140,9 @@
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

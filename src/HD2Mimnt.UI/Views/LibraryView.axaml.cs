@@ -218,7 +218,11 @@ public partial class LibraryView : UserControl
             new ContextMenuItem("模组链接…", vm.OpenModLinkCommand, "Globe") { CommandParameter = mod },
         };
 
-        if (mod.PlatformLink != null && vm.ModOnline != null)
+        if (mod.HasPlatformLink)
+            entries.Add(new ContextMenuItem("打开来源网页", mod.OpenSourcePageCommand, "Globe"));
+        if (mod.HasAuthorPage)
+            entries.Add(new ContextMenuItem("打开作者主页", mod.OpenAuthorPageCommand, "Globe"));
+        if (mod.CanCheckUpdates && vm.ModOnline != null)
         {
             entries.Add(new ContextMenuItem("检查和更新模组…", vm.OpenModOnlineCommand, "Refresh") { CommandParameter = mod });
         }
@@ -299,6 +303,7 @@ public partial class LibraryView : UserControl
     {
         if (DataContext is not LibraryViewModel { ModOnline: { CanDownload: true } online } ||
             TopLevel.GetTopLevel(this) is not { } owner) return;
+        if (online.IsAyaka) { online.OpenBrowserDownload(); return; }
         var selected = online.SelectedFile;
         var suggestedName = online.SuggestedDownloadFileName;
         var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -312,5 +317,21 @@ public partial class LibraryView : UserControl
         });
         if (online.IsOpen && ReferenceEquals(selected, online.SelectedFile) && file?.TryGetLocalPath() is { } path)
             await online.DownloadAsync(path);
+    }
+
+    private async void OnChooseOnlineBrowserFileClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not LibraryViewModel { ModOnline: { IsWaitingForBrowser: true } online } ||
+            TopLevel.GetTopLevel(this) is not { } owner) return;
+        var selected = online.SelectedFile;
+        var completion = online.Completion;
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = UiLocalization.Current["BrowserDownload.ChooseFile"], AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(UiLocalization.Current.Translate("模组压缩包"))
+                { Patterns = ["*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.bz2", "*.xz"] }]
+        });
+        if (online.IsOpen && online.IsWaitingForBrowser && ReferenceEquals(completion, online.Completion) && ReferenceEquals(selected, online.SelectedFile) &&
+            files.FirstOrDefault()?.TryGetLocalPath() is { } path) await online.SelectBrowserFileAsync(path);
     }
 }

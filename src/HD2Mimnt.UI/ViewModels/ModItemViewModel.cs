@@ -4,8 +4,11 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Resources;
+using HD2Mimnt.Core.Services;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using HD2Mimnt.UI.Services;
+using HD2Mimnt.UI.Localization;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -41,13 +44,18 @@ public partial class ModItemViewModel : ObservableObject
     // 基础信息
     public Guid Id => _mod.Id;
     public string Name => _mod.Name;
-    public string Version => _mod.Version;
-    public string Author => _mod.Author;
+    public string Version => PlatformLink?.InstalledVersion ?? _mod.Version;
+    public string Author => PlatformLink?.Author ?? _mod.Author;
     public string Description => _mod.Description;
     public ModPlatformLink? PlatformLink => _mod.PlatformLink;
     public bool HasPlatformLink => PlatformLink != null;
-    public string PlatformLinkSummary => PlatformLink is { } link
-        ? $"Nexus Mods · {link.GameDomain} · {link.ModId}\n{link.Name ?? "API 未提供名称"}\n最新可用版本：{link.LatestVersion ?? "未知"}" : string.Empty;
+    public bool CanCheckUpdates => PlatformLink?.SupportsUpdates == true;
+    public bool HasAuthorPage => !string.IsNullOrWhiteSpace(AuthorPageUrl);
+    public string SourceName => PlatformLink?.PlatformId switch
+    { "ayakamods" => "Ayaka Mods", "nexusmods" => "Nexus Mods", _ => "作者主页" };
+    public string AuthorPageUrl => AuthorWebsite.Normalize(PlatformLink?.AuthorUrl)
+        ?? AuthorWebsite.Normalize(_mod.Manifest?.AuthorUrl) ?? string.Empty;
+    public string PlatformLinkSummary => UiLocalization.Current.Translate(PlatformLink);
     public string PlatformLinkUrl => PlatformLink?.Url ?? string.Empty;
 
     public void ApplyPlatformLink(Mod saved)
@@ -63,6 +71,14 @@ public partial class ModItemViewModel : ObservableObject
         OnPropertyChanged(nameof(HasPlatformLink));
         OnPropertyChanged(nameof(PlatformLinkSummary));
         OnPropertyChanged(nameof(PlatformLinkUrl));
+        OnPropertyChanged(nameof(Version));
+        OnPropertyChanged(nameof(Author));
+        OnPropertyChanged(nameof(CanCheckUpdates));
+        OnPropertyChanged(nameof(HasAuthorPage));
+        OnPropertyChanged(nameof(SourceName));
+        OnPropertyChanged(nameof(AuthorPageUrl));
+        OpenSourcePageCommand.NotifyCanExecuteChanged();
+        OpenAuthorPageCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ModifiedAtDisplay));
     }
     public string Path => _mod.Path;
@@ -164,13 +180,25 @@ public partial class ModItemViewModel : ObservableObject
     public IRelayCommand? DeleteCommand { get; set; }
     public IRelayCommand? OpenFolderCommand { get; set; }
     public IRelayCommand? CloseDetailPanelCommand { get; set; }
+    public IAsyncRelayCommand? CheckUpdatesCommand { get; set; }
+    public IRelayCommand OpenSourcePageCommand { get; }
+    public IRelayCommand OpenAuthorPageCommand { get; }
 
-    public ModItemViewModel(Mod mod)
+    public ModItemViewModel(Mod mod, IBrowserLauncher? browser = null)
     {
         _mod = mod;
 
         // Initialize commands
         OpenFolderCommand = new RelayCommand(OpenFolder);
+        var launcher = browser ?? new SystemBrowserLauncher();
+        OpenSourcePageCommand = new RelayCommand(() => OpenPage(PlatformLinkUrl, launcher), () => HasPlatformLink);
+        OpenAuthorPageCommand = new RelayCommand(() => OpenPage(AuthorPageUrl, launcher), () => HasAuthorPage);
+    }
+
+    private static void OpenPage(string url, IBrowserLauncher browser)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" && string.IsNullOrEmpty(uri.UserInfo))
+            browser.Open(uri.AbsoluteUri);
     }
 
     partial void OnIsEnabledChanged(bool value)

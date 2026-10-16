@@ -12,6 +12,7 @@ public partial class SettingsViewModel
         new EntryVisibilityOption("navigation.profiles", "配置文件"),
         new EntryVisibilityOption("navigation.library", "模组库"),
         new EntryVisibilityOption("navigation.browse", "浏览模组"),
+        new EntryVisibilityOption("navigation.mod-creation", "模组创建"),
         new EntryVisibilityOption("navigation.conflicts", "冲突"),
         new EntryVisibilityOption("navigation.tools", "工具")
     };
@@ -33,6 +34,7 @@ public partial class SettingsViewModel
     public bool ShowProfilesEntry => !_hiddenEntries.Contains("navigation.profiles");
     public bool ShowLibraryEntry => !_hiddenEntries.Contains("navigation.library");
     public bool ShowBrowseEntry => !_hiddenEntries.Contains("navigation.browse");
+    public bool ShowModCreationEntry => !_hiddenEntries.Contains("navigation.mod-creation");
     public bool ShowConflictsEntry => !_hiddenEntries.Contains("navigation.conflicts");
     public bool ShowToolsEntry => !_hiddenEntries.Contains("navigation.tools");
     public bool IsEntriesCategoryVisible => SelectedCategory == "入口自定义";
@@ -51,6 +53,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(ShowProfilesEntry));
         OnPropertyChanged(nameof(ShowLibraryEntry));
         OnPropertyChanged(nameof(ShowBrowseEntry));
+        OnPropertyChanged(nameof(ShowModCreationEntry));
         OnPropertyChanged(nameof(ShowConflictsEntry));
         OnPropertyChanged(nameof(ShowToolsEntry));
         OnPropertyChanged(nameof(SettingsCategories));

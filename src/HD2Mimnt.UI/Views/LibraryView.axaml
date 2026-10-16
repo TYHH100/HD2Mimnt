@@ -123,7 +123,13 @@
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
                                 <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
-                                    <Border Classes="chip"><TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="12" Classes="muted"/></Border>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Button Classes="chip" Command="{Binding OpenSourcePageCommand}"
+                                                IsVisible="{Binding HasPlatformLink}" ToolTip.Tip="{loc:LocalizedBinding PlatformLink}">
+                                            <TextBlock Text="{loc:LocalizedBinding SourceName}" FontSize="12" Classes="muted"/>
+                                        </Button>
+                                        <Border Classes="chip"><TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="12" Classes="muted"/></Border>
+                                    </StackPanel>
                                     <Border Grid.Column="1" Classes="chip" MaxWidth="200" HorizontalAlignment="Left" ToolTip.Tip="{loc:LocalizedBinding ResourceTypeDetails, TranslateParts=True}">
                                         <TextBlock Text="{loc:LocalizedBinding CategoryDisplay, TranslateParts=True}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis"/>
                                     </Border>
@@ -214,6 +220,10 @@
             <ProgressBar IsVisible="{Binding IsFetching}" IsIndeterminate="True" />
             <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" Classes="muted" />
             <TextBlock Text="{loc:LocalizedBinding PreviewText}" IsVisible="{Binding HasPreview}" TextWrapping="Wrap" />
+            <TextBlock Text="{loc:Loc Metadata.AuthorHelp}" Classes="muted" TextWrapping="Wrap" />
+            <TextBox x:Name="ModAuthorUrlInput" Text="{Binding AuthorUrl, Mode=TwoWay}" IsEnabled="{Binding !IsSaving}"
+                     PlaceholderText="https://afdian.com/a/…" />
+            <Button x:Name="SaveModAuthorPageButton" Content="{loc:Loc Metadata.SaveAuthor}" Command="{Binding SaveAuthorPageCommand}" />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
               <Button x:Name="CloseModLinkButton" Content="{loc:Loc Common.Cancel}" Command="{Binding CloseCommand}" />
               <Button x:Name="SaveModLinkButton" Content="{loc:Loc UI.SaveLink}" Classes="accent" Command="{Binding SaveCommand}" />
@@ -233,7 +243,7 @@
             <TextBlock Text="{loc:Loc UI.ModUpdatesAndDownloads}" Classes="section-title" />
             <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextWrapping="Wrap" />
             <TextBlock Text="{loc:LocalizedBinding LocalVersion, FormatKey=UI.LocalVersion}" />
-            <StackPanel Orientation="Horizontal" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding SupportsWebsiteAuthorization}">
               <TextBlock Text="{loc:Loc UI.BrowserDownloadAuthorizationFreeAccounts}" VerticalAlignment="Center" />
               <ToggleSwitch x:Name="WebsiteAuthorizationToggle" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"
                             IsChecked="{Binding UseWebsiteAuthorization}" IsEnabled="{Binding !IsBusy}" />
@@ -250,17 +260,24 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Text="{loc:LocalizedBinding VersionMessage}" TextWrapping="Wrap" />
+            <StackPanel IsVisible="{Binding SupportsWebsiteAuthorization}">
             <TextBlock Text="{loc:Loc UI.DownloadOrUpdateOpensTheSelectedFilePageConfirmTheDownloadThereAndOpen}"
                        IsVisible="{Binding UseWebsiteAuthorization}" TextWrapping="Wrap" Classes="muted" />
             <TextBlock Text="{loc:Loc UI.BrowserAuthorizationIsOffDirectAPIDownloadLinksRequireTheAppropriateAc}" IsVisible="{Binding !UseWebsiteAuthorization}"
                        TextWrapping="Wrap" Classes="muted" />
+            </StackPanel>
+            <TextBlock Text="{loc:Loc Ayaka.DownloadHint}" IsVisible="{Binding IsAyaka}" Classes="muted" TextWrapping="Wrap"/>
             <TextBlock Text="{loc:Loc UI.UpdatingReplacesTheLibraryModAndPreservesItsNameTagsAndProfileLinksExi}"
                        Classes="muted" TextWrapping="Wrap" />
             <ProgressBar IsVisible="{Binding IsBusy}" Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}" />
             <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" />
+            <StackPanel IsVisible="{Binding IsWaitingForBrowser}" Spacing="6">
+              <TextBlock Text="{loc:LocalizedBinding BrowserDownloadsDirectory, FormatKey=BrowserDownload.WatchFolder}" Classes="muted" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding BrowserDownloadsDirectory}"/>
+              <Button x:Name="OnlineChooseBrowserFileButton" Content="{loc:Loc BrowserDownload.ChooseFile}" Click="OnChooseOnlineBrowserFileClicked" HorizontalAlignment="Left"/>
+            </StackPanel>
             <WrapPanel HorizontalAlignment="Right">
               <Button x:Name="CheckOnlineModButton" Content="{loc:Loc UI.CheckUpdates}" Command="{Binding CheckCommand}" Margin="4" />
-              <Button x:Name="DownloadOnlineModButton" Content="{loc:Loc UI.DownloadArchive}" IsEnabled="{Binding CanDownload}" Click="OnDownloadOnlineClicked" Margin="4" />
+              <Button x:Name="DownloadOnlineModButton" Content="{loc:LocalizedBinding DownloadButtonText}" IsEnabled="{Binding CanDownload}" Click="OnDownloadOnlineClicked" Margin="4" />
               <Button x:Name="UpdateOnlineModButton" Content="{loc:Loc UI.DownloadAndUpdate}" Classes="accent" Command="{Binding UpdateCommand}" Margin="4" />
               <Button Content="{loc:Loc UI.CancelOperation}" IsVisible="{Binding IsBusy}" Command="{Binding CancelCommand}" Margin="4" />
               <Button Content="{loc:Loc Common.Close}" Command="{Binding CloseCommand}" Margin="4" />

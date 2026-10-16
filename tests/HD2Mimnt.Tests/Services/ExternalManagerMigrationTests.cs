@@ -82,7 +82,8 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         Assert.True(result.IsComplete, string.Join(";", result.Issues));
         Assert.Equal(2, result.ImportedMods);
         Assert.Equal(2, result.ImportedProfiles);
-        Assert.Equal(2, notifications);
+        // 迁移前初始化刷新一次，每个成功导入的配置再刷新一次。
+        Assert.Equal(3, notifications);
         Assert.Equal("two", plan.Profiles[0].SourceId);
         var one = (await _profileRepository.GetByIdAsync(result.ProfileIds["one"]))!;
         Assert.Equal("战斗 (2)", one.Name);
@@ -335,8 +336,12 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
     public async Task Export_AllManagers_RoundTripPreservesProfilesOptionsGroupsAndPriority(ExternalManagerKind manager, bool reverse)
     {
         var a = SourceMod("a"); var b = SourceMod("b"); var legacy = SourceMod("legacy", legacy: true);
+        a.Manifest.AuthorUrl = "https://afdian.com/a/example";
         var loader = SourceMod("loader", Guid.Parse("612eaf70-d682-43c7-9efd-16dcc695f977"));
         a.Manifest.Options = [new() { Name = "配件", Include = null, SubOptions = [new() { Name = "红", Include = ["red"] }, new() { Name = "蓝", Include = ["blue"] }] }];
+        var originalPackage = ManifestPackage.Parse("""{"Version":1,"Name":"a","CustomPackage":7,"Options":[{"Name":"配件","CustomOption":8,"SubOptions":[{"Name":"红","CustomSub":9},{"Name":"蓝"}]}]}""");
+        originalPackage["Guid"] = a.Manifest.Guid.ToString();
+        WriteFile(Path.Combine(a.SourcePath, "manifest.json"), originalPackage.ToJsonString());
         WriteFile(Path.Combine(a.SourcePath, "red", "1234567890abcde1.patch_0"), "red");
         WriteFile(Path.Combine(a.SourcePath, "blue", "1234567890abcde2.patch_0"), "blue");
         WriteFile(Path.Combine(a.SourcePath, "blue", "unused", "1234567890abcde5.patch_0"), "unselected nested variant");
@@ -372,6 +377,16 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         var current = back.Profiles.Single(item => item.SourceId == result.ProfileIds[imported.ProfileIds["p"].ToString()].ToString());
         Assert.True(current.WasActive);
         var aId = result.ModIds[imported.ModIds["a"].ToString()].ToString();
+        var exportedA = back.Mods.Single(mod => mod.SourceId == aId);
+        Assert.Equal(a.Manifest.AuthorUrl, exportedA.Manifest.AuthorUrl);
+        var exportedManifestPath = Path.Combine(exportedA.SourcePath, "manifest.json");
+        var exportedStandard = ManifestPackage.Parse(await File.ReadAllTextAsync(exportedManifestPath));
+        Assert.Null(exportedStandard["AuthorUrl"]); Assert.Null(exportedStandard["ModVersion"]);
+        Assert.Null(exportedStandard["CustomPackage"]); Assert.Null(exportedStandard["Options"]![0]!["DefaultEnabled"]);
+        var exportedCombined = await ManifestPackage.ReadAsync(exportedManifestPath);
+        Assert.Equal(7, exportedCombined["CustomPackage"]!.GetValue<int>());
+        Assert.Equal(8, exportedCombined["Options"]![0]!["CustomOption"]!.GetValue<int>());
+        Assert.Equal(9, exportedCombined["Options"]![0]!["SubOptions"]![0]!["CustomSub"]!.GetValue<int>());
         var bId = result.ModIds[imported.ModIds["b"].ToString()].ToString();
         var legacyId = result.ModIds[imported.ModIds["legacy"].ToString()].ToString();
         var aState = current.Mods.Single(item => item.SourceModId == aId);
@@ -864,7 +879,11 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         var imported = (await _modRepository.GetByIdAsync(result.ModIds["metadata"]))!;
         Assert.StartsWith(imported.Path, imported.ThumbnailPath);
         Assert.Equal("image data", File.ReadAllText(imported.ThumbnailPath));
-        using var original = JsonDocument.Parse(File.ReadAllText(Path.Combine(imported.Path, "manifest.json")));
+        var manifestPath = Path.Combine(imported.Path, "manifest.json");
+        using var standard = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        Assert.False(standard.RootElement.TryGetProperty("extra", out _));
+        Assert.False(standard.RootElement.TryGetProperty("provenance", out _));
+        using var original = JsonDocument.Parse((await ManifestPackage.ReadAsync(manifestPath)).ToJsonString());
         Assert.True(original.RootElement.GetProperty("extra").GetProperty("test").GetBoolean());
         Assert.Equal("BingusSharedLoader", original.RootElement.GetProperty("provenance").GetProperty("requires")[0].GetString());
         Assert.Contains("盔甲", imported.Tags);

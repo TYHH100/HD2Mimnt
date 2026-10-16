@@ -9,6 +9,7 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Application.Localization;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
@@ -320,6 +321,23 @@ public partial class App : Avalonia.Application
         services.AddTransient<DirectDownloadViewModel>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("nexus-api", (_, _) => new System.Net.Http.HttpClient());
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("github-api", (_, _) => new System.Net.Http.HttpClient());
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("ayaka-api", (_, _) =>
+            new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton(sp => new HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsPlatformAdapter(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("ayaka-api"), sp.GetRequiredService<IDownloadOptionsProvider>(),
+            storageLocations.DownloadsPath, storageLocations.TempPath,
+            logger: sp.GetRequiredService<ILogger<HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsPlatformAdapter>>()));
+        services.AddSingleton<AyakaModsAuthService>();
+        services.AddSingleton(new AyakaModsOAuthOptions
+        { ClientId = Environment.GetEnvironmentVariable("HD2MIMNT_AYAKA_CLIENT_ID")?.Trim() ?? "" });
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("ayaka-oauth", (_, _) =>
+            new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton<IAyakaModsOAuthClient>(sp => new HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsOAuthClient(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("ayaka-oauth")));
+        services.AddSingleton<AyakaModsOAuthService>();
+        services.AddSingleton<AyakaModsAccountViewModel>();
         services.AddSingleton(sp => new NexusModsPlatformAdapter(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("nexus-api"),
             sp.GetRequiredService<IHttpDownloadService>(), typeof(App).Assembly.GetName().Version!.ToString(3),
@@ -331,6 +349,7 @@ public partial class App : Avalonia.Application
             var registry = new PlatformRegistry();
             registry.RegisterPlatform(sp.GetRequiredService<NexusModsPlatformAdapter>());
             registry.RegisterPlatform(sp.GetRequiredService<GitHubPlatformAdapter>());
+            registry.RegisterPlatform(sp.GetRequiredService<HD2Mimnt.Infrastructure.Platforms.AyakaMods.AyakaModsPlatformAdapter>());
             return registry;
         });
         services.AddSingleton<DownloadManagerService>();
@@ -347,10 +366,13 @@ public partial class App : Avalonia.Application
         services.AddTransient<NexusModsAccountViewModel>();
         services.AddSingleton<ModLinkService>();
         services.AddSingleton<ModOnlineService>();
+        services.AddSingleton(_ => new BrowserDownloadHandoffService(HD2Mimnt.Infrastructure.BrowserDownloadsDirectory.GetPath()));
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("browse-images", (_, _) => new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) });
         services.AddSingleton(sp => new ModBrowseService(sp.GetRequiredService<IPlatformRegistry>(),
             sp.GetRequiredService<DownloadManagerService>(), sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("browse-images"), storageLocations.TempPath));
         services.AddTransient<BrowseModsViewModel>();
+        services.AddSingleton<ModCreationService>();
+        services.AddTransient<ModCreationViewModel>();
         services.AddSingleton<IWebsiteDownloadLauncher, WebsiteDownloadLauncher>();
         services.AddSingleton<IBrowserLauncher, SystemBrowserLauncher>();
 
@@ -359,7 +381,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IModRepository>(),
             modsStoragePath,
             sp.GetService<ILogger<ModService>>(),
-            sp.GetRequiredService<DeploymentService>(), storageLocations.TempPath));
+            sp.GetRequiredService<DeploymentService>(), storageLocations.TempPath,
+            sp.GetRequiredService<SettingsService>(), sp.GetRequiredService<ProfileService>()));
         services.AddSingleton(sp => new TestDataService(
             sp.GetRequiredService<ModService>()));
 
@@ -480,7 +503,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ModLinkService>(),
             sp.GetRequiredService<ModOnlineService>(),
-            sp.GetRequiredService<IWebsiteDownloadLauncher>()));
+            sp.GetRequiredService<IWebsiteDownloadLauncher>(),
+            sp.GetRequiredService<BrowserDownloadHandoffService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -488,7 +512,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<IConfirmationService>(),
             sp.GetRequiredService<SettingsService>(),
-            sp.GetRequiredService<ImagePreviewService>()));
+            sp.GetRequiredService<ImagePreviewService>(),
+            sp.GetRequiredService<DeploymentService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -502,7 +527,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IImageCacheService>(),
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
-            sp.GetRequiredService<NexusModsAccountViewModel>()));
+            sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(
@@ -544,6 +569,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ManagerMigrationViewModel>(),
             sp.GetRequiredService<BrowseModsViewModel>(),
             sp.GetRequiredService<CrashDiagnosticsViewModel>(),
-            sp.GetRequiredService<DirectDownloadViewModel>()));
+            sp.GetRequiredService<DirectDownloadViewModel>(),
+            sp.GetRequiredService<ModCreationViewModel>()));
     }
 }

@@ -4,6 +4,7 @@ using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
 using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Archive;
+using HD2Mimnt.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -41,13 +42,24 @@ public class ModImportService
     /// 从文件夹或 ZIP 文件导入 Mod
     /// </summary>
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null)
+        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null)
     {
         var mod = await PrepareModAsync(sourcePath, cancellationToken, progress);
         var saved = false;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (sourceLink != null)
+            {
+                ModMetadataStore.Apply(mod, sourceLink);
+                mod.Source = sourceLink.PlatformId switch
+                {
+                    "nexusmods" => ModSource.NexusMods,
+                    "ayakamods" => ModSource.AyakaMods,
+                    _ => mod.Source
+                };
+                await new ModMetadataStore(_modsStoragePath, _logger).WriteAsync(mod.Id, sourceLink, cancellationToken);
+            }
             progress?.Report(new(90, "保存模组", mod.Name, true));
             await _modRepository.AddAsync(mod, cancellationToken);
             saved = true;
@@ -56,6 +68,8 @@ public class ModImportService
         }
         finally
         {
+            if (!saved && sourceLink != null)
+                await new ModMetadataStore(_modsStoragePath, _logger).WriteAsync(mod.Id, null, CancellationToken.None);
             if (!saved && Directory.Exists(mod.Path)) Directory.Delete(mod.Path, true);
         }
     }
@@ -115,6 +129,7 @@ public class ModImportService
                 }
             }
 
+            var hasParsedManifest = manifest != null;
             // 无 manifest 时按旧版管理器语义推断：有子目录时把子目录名作为互斥选项（下拉选择）
             manifest ??= InferManifestFromDirectory(modRootPath, fallbackName);
 
@@ -148,15 +163,18 @@ public class ModImportService
             targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
             Directory.CreateDirectory(targetPath);
             if (migration == null)
+            {
                 await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
+                if (hasParsedManifest) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
+                mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
+            }
             else
             {
                 await CopyMigratedDirectoryAsync(migration, targetPath, cancellationToken);
                 var manifestPath = Path.Combine(targetPath, "manifest.json");
                 System.Text.Json.Nodes.JsonObject? original = null;
                 if (File.Exists(manifestPath))
-                    original = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(manifestPath, cancellationToken),
-                        documentOptions: new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip }) as System.Text.Json.Nodes.JsonObject;
+                    original = await ManifestPackage.ReadAsync(manifestPath, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(migration.ImagePath))
                 {
                     if (!File.Exists(migration.ImagePath)) throw new FileNotFoundException("源预览图不存在", migration.ImagePath);
@@ -167,14 +185,7 @@ public class ModImportService
                 }
                 manifest!.Tags = migration.Tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 mod.Tags = manifest.Tags;
-                _manifestParser.SaveToFile(manifest, manifestPath);
-                if (original != null)
-                {
-                    var normalized = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(manifestPath, cancellationToken))!.AsObject();
-                    var controlled = new HashSet<string>(["Version", "ModVersion", "Guid", "Name", "Description", "Author", "IconPath", "Category", "Tags", "Options", "NexusData"], StringComparer.OrdinalIgnoreCase);
-                    foreach (var property in original.Where(property => !controlled.Contains(property.Key))) normalized[property.Key] = property.Value?.DeepClone();
-                    await File.WriteAllTextAsync(manifestPath, normalized.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), cancellationToken);
-                }
+                _manifestParser.SaveToFile(manifest, manifestPath, original);
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             mod.Path = targetPath;
@@ -291,14 +302,30 @@ public class ModImportService
 
         try
         {
-            var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-            return _manifestParser.ParseFromJson(json);
+            return await _manifestParser.ParseFromFileAsync(manifestPath, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "读取 manifest.json 失败: {ManifestPath}", manifestPath);
             return null;
         }
+    }
+
+    private async Task NormalizeStoredManifestAsync(string directory, ModManifest manifest, CancellationToken token)
+    {
+        var path = Path.Combine(directory, "manifest.json");
+        var original = ManifestPackage.Parse(await File.ReadAllTextAsync(path, token));
+        // 已符合标准的包保持原字节及内容哈希；仅转换仍内嵌扩展的库副本。
+        if (System.Text.Json.Nodes.JsonNode.DeepEquals(original, ManifestPackage.Separate(original).Manifest)) return;
+        var combined = await ManifestPackage.ReadAsync(path, token,
+            error => _logger?.LogWarning(error, "扩展元数据不可用，保留清单中的兼容字段: {Path}", path));
+        foreach (var key in combined.Select(pair => pair.Key).Where(key => key.Equals("Guid", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("Version", StringComparison.OrdinalIgnoreCase) || key.Equals("ModVersion", StringComparison.OrdinalIgnoreCase)).ToArray())
+            combined.Remove(key);
+        combined["Guid"] = manifest.Guid.ToString();
+        if (manifest.ManifestVersion == ManifestVersion.V1) combined["Version"] = 1;
+        combined["ModVersion"] = manifest.Version;
+        await ManifestPackage.SaveAsync(path, combined, token);
     }
 
     /// <summary>
