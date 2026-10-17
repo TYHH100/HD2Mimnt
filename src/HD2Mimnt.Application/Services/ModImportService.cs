@@ -21,19 +21,23 @@ public class ModImportService
     private readonly IArchiveExtractor _archiveExtractor;
     private readonly string _tempDirectory;
     private readonly ManifestParser _manifestParser = new();
+    private readonly SettingsService? _settingsService;
+    private readonly SemaphoreSlim _importGate = new(1, 1);
+    private readonly Dictionary<(string Path, string Hash), string> _duplicateFingerprints = new();
 
     public ModImportService(
         IModRepository modRepository,
         string modsStoragePath,
         ILogger<ModImportService>? logger = null,
         IArchiveExtractor? archiveExtractor = null,
-        string? tempDirectory = null)
+        string? tempDirectory = null, SettingsService? settingsService = null)
     {
         _modRepository = modRepository;
         _modsStoragePath = modsStoragePath;
         _logger = logger;
         _archiveExtractor = archiveExtractor ?? new SharpCompressArchiveExtractor();
         _tempDirectory = tempDirectory ?? Path.GetTempPath();
+        _settingsService = settingsService;
 
         Directory.CreateDirectory(_modsStoragePath);
     }
@@ -42,12 +46,18 @@ public class ModImportService
     /// 从文件夹或 ZIP 文件导入 Mod
     /// </summary>
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null)
+        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
+        Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
-        var mod = await PrepareModAsync(sourcePath, cancellationToken, progress);
+        var mod = await PrepareModAsync(sourcePath, cancellationToken, progress, confirmHd2Ir: confirmHd2Ir);
         var saved = false;
+        var entered = false;
         try
         {
+            await _importGate.WaitAsync(cancellationToken);
+            entered = true;
+            if (_settingsService?.GetSetting(SettingKeys.AllowDuplicateImports, false) != true)
+                await RejectDuplicateAsync(mod, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (sourceLink != null)
             {
@@ -68,15 +78,71 @@ public class ModImportService
         }
         finally
         {
+            if (entered) { _duplicateFingerprints.Clear(); _importGate.Release(); }
             if (!saved && sourceLink != null)
                 await new ModMetadataStore(_modsStoragePath, _logger).WriteAsync(mod.Id, null, CancellationToken.None);
             if (!saved && Directory.Exists(mod.Path)) Directory.Delete(mod.Path, true);
         }
     }
 
+    private async Task RejectDuplicateAsync(Mod prepared, CancellationToken token)
+    {
+        foreach (var existing in await _modRepository.GetAllAsync(token))
+        {
+            token.ThrowIfCancellationRequested();
+            if (Directory.Exists(existing.Path) && await IsSameContentAsync(prepared, existing, token))
+                throw new InvalidOperationException($"模组库中已存在相同内容：{existing.Name}。如需独立副本，请在设置中开启“允许重复导入”。");
+            foreach (var version in await new ModVersionStore(_modsStoragePath).ReadAsync(existing.Id, token))
+            {
+                if (Directory.Exists(version.Content.Path) && await IsSameContentAsync(prepared, version.Content, token))
+                    throw new InvalidOperationException($"此内容已保存在 {existing.Name} 的本地版本中，请在模组详情中切换版本。");
+            }
+        }
+    }
+
+    private async Task<bool> IsSameContentAsync(Mod prepared, Mod existing, CancellationToken token)
+    {
+        if (!string.IsNullOrWhiteSpace(existing.Hash) && existing.Hash == prepared.Hash) return true;
+        // 旧包规范化会生成清单 GUID；HD2IR 映射还包含随机 ID/时间。
+        // 比较作者元数据和完整文件指纹，排除这些运行时身份，普通 Hash 保持原有语义。
+        static async Task<string> MetadataAsync(string root, CancellationToken ct)
+        {
+            var path = Path.Combine(root, "manifest.json");
+            if (!File.Exists(path)) return "";
+            var manifest = await ManifestPackage.ReadAsync(path, ct);
+            foreach (var key in manifest.Select(p => p.Key).Where(k => k.Equals("Guid", StringComparison.OrdinalIgnoreCase)).ToArray()) manifest.Remove(key);
+            static System.Text.Json.Nodes.JsonNode? Sort(System.Text.Json.Nodes.JsonNode? node) => node switch
+            {
+                System.Text.Json.Nodes.JsonObject obj => new System.Text.Json.Nodes.JsonObject(obj.OrderBy(p => p.Key, StringComparer.Ordinal)
+                    .Select(p => KeyValuePair.Create(p.Key, Sort(p.Value)))),
+                System.Text.Json.Nodes.JsonArray array => new System.Text.Json.Nodes.JsonArray(array.Select(Sort).ToArray()),
+                _ => node?.DeepClone()
+            };
+            return Sort(manifest)!.ToJsonString();
+        }
+        var metadata = await MetadataAsync(prepared.Path, token);
+        if (metadata != await MetadataAsync(existing.Path, token)) return false;
+        if (metadata.Length == 0 && prepared.WorkflowType != Hd2IrIntegrationService.Workflow && !string.IsNullOrWhiteSpace(existing.Hash)) return false;
+        async Task<string> Fingerprint(Mod mod)
+        {
+            if (_duplicateFingerprints.TryGetValue((mod.Path, mod.Hash), out var cached)) return cached;
+            var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, includeFile: path =>
+            {
+                var relative = Path.GetRelativePath(mod.Path, path);
+                return !relative.Equals(Hd2IrIntegrationService.MetadataFile, StringComparison.OrdinalIgnoreCase)
+                    && (metadata.Length == 0 || (!relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
+                        && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase)));
+            });
+            _duplicateFingerprints[(mod.Path, mod.Hash)] = hash;
+            return hash;
+        }
+        return await Fingerprint(prepared) == await Fingerprint(existing);
+    }
+
     /// <summary>准备独立副本，不落库；调用方取得成功结果后负责保留或清理。</summary>
     internal async Task<Mod> PrepareModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, ExternalMigrationMod? migration = null)
+        IProgress<ModImportProgress>? progress = null, ExternalMigrationMod? migration = null,
+        Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new(0, "检查源文件", Path.GetFileName(sourcePath)));
@@ -88,6 +154,7 @@ public class ModImportService
         }
 
         string tempExtractPath = Path.Combine(_tempDirectory, $"hd2mimnt_import_{Guid.NewGuid()}");
+        string hd2IrWorkspace = Path.Combine(_tempDirectory, $"hd2mimnt_hd2ir_{Guid.NewGuid():N}");
         string? modRootPath = null;
         string fallbackName;
         bool isArchiveFile = false;
@@ -113,11 +180,21 @@ public class ModImportService
                 fallbackName = Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             }
 
+            Hd2IrIntegrationService.Prepared? hd2Ir = null;
+            if (migration == null)
+            {
+                progress?.Report(new(15, "识别 HD2IR 组件", "检查嵌套压缩包和部署映射", true));
+                hd2Ir = await new Hd2IrIntegrationService(_archiveExtractor).PrepareAsync(modRootPath,
+                    Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                    hd2IrWorkspace, confirmHd2Ir, cancellationToken);
+                if (hd2Ir != null) modRootPath = hd2Ir.Root;
+            }
+
             // 读取 manifest：真实模组压缩包常带一层同名子文件夹，根目录没有时向下查找
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new(20, "读取模组清单", "识别模组信息和选项", true));
-            var manifest = migration == null ? await ReadManifestAsync(modRootPath, cancellationToken)
-                : System.Text.Json.JsonSerializer.Deserialize<ModManifest>(System.Text.Json.JsonSerializer.Serialize(migration.Manifest));
+            var manifest = hd2Ir?.Manifest ?? (migration == null ? await ReadManifestAsync(modRootPath, cancellationToken)
+                : System.Text.Json.JsonSerializer.Deserialize<ModManifest>(System.Text.Json.JsonSerializer.Serialize(migration.Manifest)));
             if (manifest == null)
             {
                 var nestedRoot = FindManifestRoot(modRootPath);
@@ -158,6 +235,14 @@ public class ModImportService
                 // manifest（含 v0/v1 选项定义）必须落库，配置文件的模组选项功能依赖它
                 Manifest = manifest
             };
+            if (hd2Ir != null)
+            {
+                mod.WorkflowType = Hd2IrIntegrationService.Workflow;
+                mod.LogicalMod = hd2Ir.LogicalMod;
+                hd2Ir.LogicalMod.Id = mod.Id;
+                await File.WriteAllTextAsync(Path.Combine(modRootPath, Hd2IrIntegrationService.MetadataFile),
+                    System.Text.Json.JsonSerializer.Serialize(hd2Ir.LogicalMod), cancellationToken);
+            }
 
             // 复制 Mod 到存储目录
             targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
@@ -165,7 +250,7 @@ public class ModImportService
             if (migration == null)
             {
                 await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
-                if (hasParsedManifest) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
+                if (hasParsedManifest && hd2Ir == null) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             else
@@ -212,6 +297,11 @@ public class ModImportService
         }
         finally
         {
+            if (Directory.Exists(hd2IrWorkspace))
+            {
+                try { Directory.Delete(hd2IrWorkspace, true); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IR 临时目录失败: {TempPath}", hd2IrWorkspace); }
+            }
             // 取消或失败时移除尚未落库的副本，保留已成功导入的模组。
             if (!saved && targetPath != null && Directory.Exists(targetPath))
             {

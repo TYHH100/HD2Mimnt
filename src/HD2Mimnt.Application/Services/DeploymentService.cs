@@ -390,6 +390,11 @@ public class DeploymentService
             var plans = new List<(Mod Mod, List<PatchDeploymentPlanner.FileEntry> Files)>();
             var nextIndexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var skippedNames = new List<string>();
+            var nativeTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var trackedNativeTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var previous in await GetLatestDeploymentsAsync(cancellationToken))
+                foreach (var file in await GetDeploymentFilesAsync(previous.Id, cancellationToken))
+                    trackedNativeTargets.Add(Path.GetFullPath(file.TargetPath));
 
             // 在清理旧部署前按配置快照展开选项并检查方法，错误设置不能破坏现有部署。
             foreach (var profileMod in orderedMods)
@@ -399,7 +404,16 @@ public class DeploymentService
                 var files = mod != null && Directory.Exists(mod.Path)
                     ? await Task.Run(() => PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken), cancellationToken)
                     : new List<string>();
-                if (mod == null || files.Count == 0)
+                var nativeFiles = mod?.WorkflowType == Hd2IrIntegrationService.Workflow
+                    ? await Hd2IrIntegrationService.GetNativeFilesAsync(mod, profileMod.OptionsJson, cancellationToken) : [];
+                foreach (var file in nativeFiles)
+                {
+                    var target = Path.GetFullPath(Path.Combine(gameDirectory, file.FileName));
+                    if (!nativeTargets.Add(target)) throw new InvalidOperationException($"HD2IR 组件目标重复：{file.FileName}，请在配置选项中只启用一份。");
+                    if (Path.Exists(target) && !trackedNativeTargets.Contains(target))
+                        throw new IOException($"HD2IR 目标已存在且不属于当前部署：{file.FileName}，请先备份并处理原有文件。");
+                }
+                if (mod == null || files.Count + nativeFiles.Count == 0)
                 {
                     result.SkippedMods++;
                     skippedNames.Add(mod?.Name ?? profileMod.ModId.ToString());
@@ -409,14 +423,30 @@ public class DeploymentService
                 {
                     Stage = "Preparing", Message = $"检查部署兼容性：{mod.Name}", TotalMods = result.TotalMods
                 });
-                foreach (var sourceDirectory in files.Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase))
+                foreach (var sourceDirectory in files.Concat(nativeFiles.Select(file => file.SourcePath!))
+                    .Select(Path.GetDirectoryName).Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     var compatibility = await deploymentMethod.CheckCompatibilityAsync(sourceDirectory!, targetDirectory, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!compatibility.CanDeploy)
                         throw new InvalidOperationException($"{mod.Name} 无法使用 {method} 部署：{compatibility.ErrorMessage}");
                 }
-                plans.Add((mod, PatchDeploymentPlanner.BuildFiles(files, nextIndexes)));
+                var plannedFiles = await Task.Run(() =>
+                {
+                    var planned = PatchDeploymentPlanner.BuildFiles(files, nextIndexes, cancellationToken);
+                    foreach (var file in planned)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!PatchDeploymentPlanner.TryParseTarget(file.FileName, out _, out _, out var suffix) || suffix.Length != 0)
+                            continue;
+                        var source = new FileInfo(file.SourcePath!);
+                        if (!source.Exists || source.Length == 0)
+                            throw new InvalidDataException($"补丁主文件不存在或为空：{file.SourcePath}");
+                    }
+                    return planned;
+                }, cancellationToken);
+                plannedFiles.AddRange(nativeFiles);
+                plans.Add((mod, plannedFiles));
             }
 
             var enabledLoaders = orderedMods.Count(item => modsById.TryGetValue(item.ModId, out var mod)
@@ -474,7 +504,7 @@ public class DeploymentService
                     {
                         Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = mod.Id,
                         SourcePath = file.SourcePath ?? string.Empty,
-                        TargetPath = Path.Combine(targetDirectory, file.FileName),
+                        TargetPath = Path.GetFullPath(Path.Combine(file.RelativeToGameRoot ? gameDirectory : targetDirectory, file.FileName)),
                         Method = (file.SourcePath == null ? DeploymentMethod.Copy : method).ToString()
                     }).ToList(), cancellationToken);
                     var hasFailure = false;
@@ -482,7 +512,7 @@ public class DeploymentService
                     foreach (var file in files)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        var target = Path.Combine(targetDirectory, file.FileName);
+                        var target = Path.GetFullPath(Path.Combine(file.RelativeToGameRoot ? gameDirectory : targetDirectory, file.FileName));
                         progress?.Report(new DeploymentProgress
                         {
                             Stage = "Deploying", Message = $"正在部署 {mod.Name}：{done}/{files.Count}，{file.FileName}",
@@ -499,6 +529,10 @@ public class DeploymentService
                         {
                             var success = await deploymentMethod.DeployFileAsync(file.SourcePath, target, null, cancellationToken);
                             cancellationToken.ThrowIfCancellationRequested();
+                            if (success && !file.RelativeToGameRoot
+                                && PatchDeploymentPlanner.TryParseTarget(file.FileName, out _, out _, out var suffix) && suffix.Length == 0
+                                && new FileInfo(target).Length == 0)
+                                throw new InvalidDataException($"部署后的补丁主文件为空：{target}");
                             hasFailure |= !success;
                         }
                         done++;

@@ -11,6 +11,35 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
 {
     private CancellationTokenSource? _cancellation;
     private int _fileGeneration;
+    private TaskCompletionSource? _hd2IrConfirmation;
+
+    [ObservableProperty] private Hd2IrImportPreview? _pendingHd2Ir;
+    public bool HasPendingHd2Ir => PendingHd2Ir != null;
+    partial void OnPendingHd2IrChanged(Hd2IrImportPreview? value) => OnPropertyChanged(nameof(HasPendingHd2Ir));
+
+    [RelayCommand]
+    private void ConfirmHd2Ir() => _hd2IrConfirmation?.TrySetResult();
+
+    private async Task ConfirmHd2IrAsync(Hd2IrImportPreview preview, CancellationToken token)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _hd2IrConfirmation = completion;
+            PendingHd2Ir = preview;
+            Step = "确认 HD2IR 组件组合";
+            IsIndeterminate = false;
+        });
+        try { await completion.Task.WaitAsync(token); }
+        finally
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                PendingHd2Ir = null;
+                _hd2IrConfirmation = null;
+            });
+        }
+    }
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty]
@@ -125,7 +154,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
                 });
                 try
                 {
-                    await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink), token);
+                    await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
                     SuccessCount++;
                     FileProgress = 100;
                 }

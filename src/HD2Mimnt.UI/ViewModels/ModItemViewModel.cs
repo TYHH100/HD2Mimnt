@@ -39,7 +39,15 @@ public static class ModCategoryText
 /// </summary>
 public partial class ModItemViewModel : ObservableObject
 {
-    private readonly Mod _mod;
+    private Mod _mod;
+    [ObservableProperty] private ModVersionsViewModel? _localVersions;
+
+    public void ApplyContent(Mod saved)
+    {
+        _mod = saved;
+        IsDeployed = false;
+        OnPropertyChanged(string.Empty);
+    }
 
     // 基础信息
     public Guid Id => _mod.Id;
@@ -47,6 +55,9 @@ public partial class ModItemViewModel : ObservableObject
     public string Version => PlatformLink?.InstalledVersion ?? _mod.Version;
     public string Author => PlatformLink?.Author ?? _mod.Author;
     public string Description => _mod.Description;
+    public bool IsHd2Ir => _mod.WorkflowType == "HD2IR";
+    public IReadOnlyList<string> Hd2IrComponents => _mod.LogicalMod?.Components
+        .Select(component => $"{component.Name} · {component.DeployableFiles.Count}").ToArray() ?? [];
     public ModPlatformLink? PlatformLink => _mod.PlatformLink;
     public bool HasPlatformLink => PlatformLink != null;
     public bool CanCheckUpdates => PlatformLink?.SupportsUpdates == true;

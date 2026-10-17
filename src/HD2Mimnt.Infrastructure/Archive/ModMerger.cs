@@ -57,6 +57,7 @@ public class ModMerger : IModMerger
         }
 
         _logger?.LogInformation("合并完成: {Decision}, 生成 {Count} 个逻辑模组", result.Decision, result.LogicalMods.Count);
+        result.RequiredConfirmation = result.Decision == MergeDecision.ManualConfirmation;
 
         return result;
     }

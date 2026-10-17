@@ -390,6 +390,11 @@ public partial class ProfileViewModel : ObservableObject
 
     public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null)
     {
+        LocalVersions = new(modService, confirmationService, async () =>
+        {
+            await RefreshAfterProfilesChangedAsync();
+            if (ModContentChanged != null) await ModContentChanged();
+        });
         _profileService = profileService;
         _modService = modService;
         _notificationService = notificationService;

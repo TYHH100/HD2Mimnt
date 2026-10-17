@@ -240,7 +240,7 @@ public sealed class ModImportServiceTests : IDisposable
         var reports = new List<ModImportProgress>();
         var id = await CreateService().ImportModAsync(zip, progress: new InlineProgress(reports.Add));
         var mod = (await _modRepository.GetByIdAsync(id))!;
-        Assert.Equal(new[] { "检查源文件", "解压模组", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
+        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IR 组件", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
             reports.Select(p => p.Step).Distinct());
         Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
         Assert.Contains(reports, p => p.Step == "解压模组" && p.IsIndeterminate);
@@ -256,8 +256,11 @@ public sealed class ModImportServiceTests : IDisposable
         var folder = Path.Combine(_tempDirectory, "same-folder");
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "body.patch"), "content");
-        var archiveId = await CreateService().ImportModAsync(zip);
-        var folderId = await CreateService().ImportModAsync(folder);
+        var duplicateSettings = new SettingsService(Path.Combine(_tempDirectory, "duplicate-settings"));
+        await duplicateSettings.SetSettingAsync(SettingKeys.AllowDuplicateImports, true);
+        var duplicateImporter = new ModImportService(_modRepository, _storageDirectory, tempDirectory: _tempDirectory, settingsService: duplicateSettings);
+        var archiveId = await duplicateImporter.ImportModAsync(zip);
+        var folderId = await duplicateImporter.ImportModAsync(folder);
         var archiveMod = (await _modRepository.GetByIdAsync(archiveId))!;
         var folderMod = (await _modRepository.GetByIdAsync(folderId))!;
         Assert.Equal(archiveMod.Hash, folderMod.Hash);
@@ -332,7 +335,7 @@ public sealed class ModImportServiceTests : IDisposable
     private sealed class TrackingExtractor : IArchiveExtractor
     {
         public string? Destination { get; private set; }
-        public bool IsArchiveFile(string path) => true;
+        public bool IsArchiveFile(string path) => new SharpCompressArchiveExtractor().IsArchiveFile(path);
         public Task ExtractToDirectoryAsync(string archivePath, string destinationDirectory, CancellationToken cancellationToken = default)
         {
             Destination = destinationDirectory;

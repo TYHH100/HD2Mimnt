@@ -47,6 +47,15 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <StackPanel Spacing="8" IsVisible="{Binding Import.HasPendingHd2Ir}">
+              <TextBlock Text="{loc:Loc Hd2Ir.MergeDescription}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding Import.PendingHd2Ir.Reason}" Classes="caption-text" TextWrapping="Wrap"/>
+              <ItemsControl ItemsSource="{Binding Import.PendingHd2Ir.Components}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
         <StackPanel Grid.Row="2" Spacing="12">
@@ -55,6 +64,8 @@
             <Button Content="{loc:Loc UI.ChooseFolder}" Click="OnSelectFolder" IsVisible="{Binding Import.CanSelect}"/>
             <Button Content="{loc:Loc UI.ChooseArchives}" Classes="accent" Click="OnSelectArchives" IsVisible="{Binding Import.CanSelect}"/>
             <Button Content="{loc:Loc UI.CancelImport}" Command="{Binding Import.CancelCommand}" IsVisible="{Binding Import.IsImporting}"/>
+            <Button x:Name="ConfirmHd2IrImportButton" Content="{loc:Loc Hd2Ir.ConfirmImport}" Classes="accent"
+                    Command="{Binding Import.ConfirmHd2IrCommand}" IsVisible="{Binding Import.HasPendingHd2Ir}" IsEnabled="{Binding !Import.IsCancelling}"/>
             <Button Content="{loc:Loc UI.Done}" Command="{Binding Import.CloseCommand}" IsVisible="{Binding Import.HasResult}"/>
           </StackPanel>
         </StackPanel>

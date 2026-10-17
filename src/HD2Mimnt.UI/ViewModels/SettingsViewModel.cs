@@ -6,6 +6,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Core.Localization;
 using HD2Mimnt.UI.Localization;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -18,6 +19,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly DownloadSettingsService _downloadSettingsService;
     private readonly StorageSettingsService? _storageSettings;
     private readonly UiLocalization? _localization;
+    private readonly IConfirmationService? _confirmationService;
     private bool _syncingLanguage;
     private readonly SemaphoreSlim _languageGate = new(1, 1);
     private int _pendingLanguageChanges;
@@ -54,6 +56,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _lockLoaders = true;
     [ObservableProperty] private bool _autoAddImportedMods;
     [ObservableProperty] private bool _importAutoClose;
+    [ObservableProperty] private bool _keepModVersions;
+    [ObservableProperty] private bool _allowDuplicateImports;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -93,7 +97,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
-        NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null)
+        NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
+        IConfirmationService? confirmationService = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
@@ -102,6 +107,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _downloadSettingsService = new DownloadSettingsService(settingsService);
         _storageSettings = storageSettings;
         _localization = localization;
+        _confirmationService = confirmationService;
         NexusAccount = nexusAccount;
         AyakaAccount = ayakaAccount;
         LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
@@ -211,6 +217,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             AutoAddImportedMods = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false);
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
+            KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
+            AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
@@ -349,6 +357,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
         await _settingsService.SetSettingAsync(SettingKeys.ImportAutoClose, ImportAutoClose);
+        await _settingsService.SetSettingAsync(SettingKeys.KeepModVersions, KeepModVersions);
+        await _settingsService.SetSettingAsync(SettingKeys.AllowDuplicateImports, AllowDuplicateImports);
+    }
+
+    [RelayCommand]
+    private async Task ToggleKeepModVersionsAsync()
+    {
+        // 切换控件会先切换自身状态；等待确认期间立即恢复已确认的值。
+        OnPropertyChanged(nameof(KeepModVersions));
+        if (!KeepModVersions && (_confirmationService == null || !await _confirmationService.ConfirmAsync(
+                "保留模组历史版本", "开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项并重新部署。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？")))
+        {
+            OnPropertyChanged(nameof(KeepModVersions));
+            return;
+        }
+        KeepModVersions = !KeepModVersions;
     }
 
     private async Task SaveProfilePreferencesAsync()

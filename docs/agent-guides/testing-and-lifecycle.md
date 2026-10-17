@@ -34,6 +34,8 @@
 
 - `Microsoft.Data.Sqlite` 的异步 API 实际同步执行，设置写事务在后台线程使用短连接；启动加载直接同步读取，禁止用 `Wait()` 等待会回到 UI 调度器的异步方法。短连接禁用连接池，避免备份恢复/目录搬迁时留下文件占用。数据库失败测试使用 SQLite 事务/触发器制造写入错误，不能再锁 `settings.json`。启动定位用的 `storage-locations.json` 负责在数据库打开前定位数据目录，不属于应用偏好设置。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/async 、https://learn.microsoft.com/dotnet/standard/data/sqlite/connection-strings
 
+- 设置的同步读取不能等待跨越数据库 `await` 的写入闸门：保存续体等待 UI 线程、配置页刷新在 UI 线程等待读锁时会死锁。读操作使用最近一次提交的只读字典快照，写入/重置/恢复仍串行，数据库成功后整体发布新快照，再释放闸门并通知；失败不发布。回归用受控挂起写入验证读取立即返回旧值，并覆盖成功、失败及实际部署方式保存后的分类点击。来源：https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios
+
 - 日志页面只能读取有限的尾部记录，文件日志读取要允许共享写入；不要一次性把整个日志文件加载进 UI 内存。
 
 - 插件 manifest 的解析和校验属于 `IPluginService`，View 只负责文件选择和权限确认，不要在 code-behind 中复制安装逻辑。

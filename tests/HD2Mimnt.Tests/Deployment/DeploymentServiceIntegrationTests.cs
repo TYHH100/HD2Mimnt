@@ -655,21 +655,143 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Equal("first", File.ReadAllText(Path.Combine(first.Path, "0123456789abcdef.patch_7")));
     }
 
-    [Fact]
-    public async Task DeployProfile_ShouldPreserveDirectoryIndexUnionPlaceholders()
+    [Theory]
+    [InlineData(18)]
+    [InlineData(32)]
+    public async Task DeployProfile_MultipleBundles_ShouldAllocateOnlyTheirOwnIndexes(int secondIndex)
     {
-        var mod = await AddPatchModAsync("union", "aaaaaaaaaaaaaaaa.patch_8");
-        File.WriteAllText(Path.Combine(mod.Path, "bbbbbbbbbbbbbbbb.patch_2.stream"), "stream");
+        var mod = await AddPatchModAsync("multi-bundle", "9ba626afa44a3aa3.patch_32");
+        File.WriteAllText(Path.Combine(mod.Path, $"f9ced2d898787705.patch_{secondIndex}"), "second bundle");
+        File.WriteAllText(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_32.gpu_resources"), "gpu");
         var profile = await AddPatchProfileAsync(mod);
         var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
             DeploymentOrder.TopToBottom, _testTargetDir);
         Assert.Equal(DeploymentStatus.Completed, result.Status);
         var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(6, Directory.GetFiles(data).Length);
+        Assert.Equal("multi-bundle", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("second bundle", File.ReadAllText(Path.Combine(data, "f9ced2d898787705.patch_0")));
+        Assert.Equal("gpu", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_0.gpu_resources")));
+        Assert.Equal(0, new FileInfo(Path.Combine(data, "9ba626afa44a3aa3.patch_0.stream")).Length);
+        var record = Assert.Single(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
+        var files = (await _deploymentService.GetDeploymentFilesAsync(record.Id)).ToList();
+        Assert.Equal(6, files.Count);
+        Assert.All(files.Where(file => !file.TargetPath.EndsWith(".stream") && !file.TargetPath.EndsWith(".gpu_resources")),
+            file => Assert.False(string.IsNullOrEmpty(file.SourcePath)));
+    }
+
+    [Fact]
+    public async Task DeployProfile_SparseIndexes_ShouldCompactInNumericOrderAndContinueAcrossMods()
+    {
+        var first = await AddPatchModAsync("first", "9ba626afa44a3aa3.patch_32");
+        File.WriteAllText(Path.Combine(first.Path, "9ba626afa44a3aa3.patch_18"), "eighteen");
+        File.WriteAllText(Path.Combine(first.Path, "9ba626afa44a3aa3.patch_18.stream"), "stream18");
+        var second = await AddPatchModAsync("second", "9ba626afa44a3aa3.patch_7");
+        File.WriteAllText(Path.Combine(second.Path, "f9ced2d898787705.patch_1"), "other");
+        var profile = await AddPatchProfileAsync(first, second);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        var data = Path.Combine(_testTargetDir, "data");
         Assert.Equal(12, Directory.GetFiles(data).Length);
-        Assert.Equal(0, new FileInfo(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")).Length);
-        Assert.Equal("union", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_1")));
-        Assert.Equal("stream", File.ReadAllText(Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_0.stream")));
-        Assert.Equal(0, new FileInfo(Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_1.stream")).Length);
+        Assert.Equal("eighteen", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("stream18", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_0.stream")));
+        Assert.Equal("first", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_1")));
+        Assert.Equal("second", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_2")));
+        Assert.Equal("other", File.ReadAllText(Path.Combine(data, "f9ced2d898787705.patch_0")));
+    }
+
+    [Theory]
+    [InlineData(".stream")]
+    [InlineData(".gpu_resources")]
+    [InlineData("")]
+    public async Task DeployProfile_MissingOrEmptyBase_ShouldFailBeforeCleaningPreviousDeployment(string suffix)
+    {
+        var previousMod = await AddPatchModAsync("previous", "aaaaaaaaaaaaaaaa.patch_7");
+        var profile = await AddPatchProfileAsync(previousMod);
+        var previous = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, previous.Status);
+        var invalid = await AddPatchModAsync("invalid", $"bbbbbbbbbbbbbbbb.patch_18{suffix}");
+        if (suffix.Length == 0)
+            File.WriteAllText(Path.Combine(invalid.Path, "bbbbbbbbbbbbbbbb.patch_18"), string.Empty);
+        await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, invalid.Id);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("bbbbbbbbbbbbbbbb.patch_18", result.ErrorMessage);
+        Assert.Equal(0, result.FilesDeleted);
+        Assert.NotEmpty(await _deploymentService.GetDeploymentsBySessionIdAsync(previous.SessionId));
+        Assert.Empty(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(3, Directory.GetFiles(data).Length);
+        Assert.Equal("previous", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_SelectedDirectories_ShouldKeepIndependentTripletsAndIgnoreUnselectedFiles()
+    {
+        var mod = await AddPatchModAsync("options", "aaaaaaaaaaaaaaaa.patch_99");
+        File.WriteAllText(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_99"), string.Empty);
+        foreach (var directory in new[] { "first", "second", "unused" })
+            Directory.CreateDirectory(Path.Combine(mod.Path, directory));
+        File.WriteAllText(Path.Combine(mod.Path, "first", "aaaaaaaaaaaaaaaa.patch_32"), "first option");
+        File.WriteAllText(Path.Combine(mod.Path, "second", "aaaaaaaaaaaaaaaa.patch_18"), "second option");
+        File.WriteAllText(Path.Combine(mod.Path, "unused", "bbbbbbbbbbbbbbbb.patch_1.stream"), "unused orphan");
+        mod.Manifest = new ModManifest
+        {
+            ManifestVersion = ManifestVersion.V1,
+            Options = [new ModOption { Name = "selected", Include = ["first", "second"] },
+                new ModOption { Name = "unused", Include = ["unused"], DefaultEnabled = false }]
+        };
+        await _modRepository.UpdateAsync(mod);
+        var profile = await AddPatchProfileAsync(mod);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal(6, Directory.GetFiles(data).Length);
+        Assert.Equal("first option", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")));
+        Assert.Equal("second option", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_1")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DeployProfile_MethodReportsSuccessWithoutValidBase_ShouldFailAndRemainTracked(bool createEmptyTarget)
+    {
+        var mod = await AddPatchModAsync("invalid-target", "aaaaaaaaaaaaaaaa.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var method = new Mock<HD2Mimnt.Core.Interfaces.IDeploymentMethod>();
+        method.SetupGet(item => item.Name).Returns("Copy");
+        method.Setup(item => item.CheckCompatibilityAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, (string?)null));
+        method.Setup(item => item.DeployFileAsync(It.IsAny<string>(), It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .Returns((string source, string target, IProgress<string>? progress, CancellationToken token) =>
+            {
+                if (createEmptyTarget) File.WriteAllText(target, string.Empty);
+                return Task.FromResult(true);
+            });
+        var service = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository, [method.Object]);
+
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
+        Assert.Equal(0, result.CompletedMods);
+        Assert.Equal(1, result.FailedMods);
+        var record = Assert.Single(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+        Assert.Equal(DeploymentStatus.Failed.ToString(), record.Status);
+        Assert.Equal(3, (await service.GetDeploymentFilesAsync(record.Id)).Count());
+        await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
+        Assert.Empty(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
     }
 
     [Fact]

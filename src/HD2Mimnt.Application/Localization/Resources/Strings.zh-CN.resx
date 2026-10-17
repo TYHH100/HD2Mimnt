@@ -3925,4 +3925,31 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>导入后自动加入并启用模组；没有启用的配置文件时，仅保留在模组库。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>导入完成后自动关闭悬浮卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
+  <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>这些组件将作为一个模组导入，可在配置选项中分别启停。</value></data>
+  <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>合并添加</value></data>
+  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IR 组件</value></data>
+  <data name="Hd2Ir.DeploymentDescription" xml:space="preserve"><value>在配置选项中选择组件；骨骼文件部署到 bin/HD2IndependentRig，资源补丁部署到 data。</value></data>
+  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>确认 HD2IR 组件组合</value></data>
+  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>识别 HD2IR 组件</value></data>
+  <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>检查嵌套压缩包和部署映射</value></data>
+  <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>保留模组历史版本</value></data>
+  <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>更新时保留之前的完整版本，可在详情中切换；会额外占用磁盘空间。保存后生效。</value></data>
+  <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>允许重复导入</value></data>
+  <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>默认关闭：阻止库内或历史版本中已有的相同内容重复入库。开启后允许独立副本；已有重复项不会自动删除。</value></data>
+  <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
+  <data name="Versions.Help" xml:space="preserve"><value>可从压缩包更新此模组，或切换已保留的版本。当前版本见下方模组信息。</value></data>
+  <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用压缩包更新…</value></data>
+  <data name="Versions.Switch" xml:space="preserve"><value>切换到所选版本</value></data>
+  <data name="Versions.Delete" xml:space="preserve"><value>删除所选历史版本</value></data>
+  <data name="Versions.EnableTitle" xml:space="preserve"><value>保留模组历史版本</value></data>
+  <data name="Versions.EnableWarning" xml:space="preserve"><value>开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项并重新部署。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？</value></data>
+  <data name="Versions.SwitchTitle" xml:space="preserve"><value>切换本地版本</value></data>
+  <data name="Versions.SwitchWarning" xml:space="preserve"><value>切换将清理此模组的旧部署，保留当前版本供再次切换。配置中的启用状态和顺序保持不变；请检查模组选项并重新部署。确定切换吗？</value></data>
+  <data name="Versions.DeleteTitle" xml:space="preserve"><value>删除本地版本</value></data>
+  <data name="Versions.DeleteWarning" xml:space="preserve"><value>将永久删除所选历史版本的文件以释放空间，当前版本不受影响。确定删除吗？</value></data>
+  <data name="Versions.Changed" xml:space="preserve"><value>版本已切换，请检查模组选项并重新部署。</value></data>
+  <data name="Versions.Cancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="Versions.Duplicate" xml:space="preserve"><value>模组库中已存在相同内容：{0}。如需独立副本，请在设置中开启“允许重复导入”。</value></data>
+  <data name="Versions.DuplicateHistory" xml:space="preserve"><value>此内容已保存在 {0} 的本地版本中，请在模组详情中切换版本。</value></data>
+  <data name="Versions.Empty" xml:space="preserve"><value>暂无历史版本。在“设置 → 模组库”开启版本保留后，更新时即可保存旧版本。</value></data>
 </root>

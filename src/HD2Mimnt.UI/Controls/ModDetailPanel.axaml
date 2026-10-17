@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
              x:Class="HD2Mimnt.UI.Controls.ModDetailPanel"
              x:DataType="vm:ModItemViewModel">
@@ -128,6 +129,9 @@
         </Border>
 
         <!-- Basic Info -->
+        <Border Classes="section" IsVisible="{Binding LocalVersions, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <controls:ModVersionsPanel DataContext="{Binding LocalVersions}"/>
+        </Border>
         <Border Classes="section" IsVisible="{Binding HasPlatformLink}">
           <StackPanel Spacing="8">
             <TextBlock Text="{loc:Loc UI.ModLink}" FontSize="16" FontWeight="SemiBold" />
@@ -156,6 +160,15 @@
 
             <TextBlock Text="{loc:Loc UI.Description}" Classes="detail-label"/>
             <TextBlock Text="{Binding Description}" Classes="detail-value"/>
+            <StackPanel IsVisible="{Binding IsHd2Ir}" Spacing="6" Margin="0,0,0,16">
+              <TextBlock Text="{loc:Loc Hd2Ir.Components}" Classes="detail-label"/>
+              <TextBlock Text="{loc:Loc Hd2Ir.DeploymentDescription}" TextWrapping="Wrap" Classes="caption-text"/>
+              <ItemsControl ItemsSource="{Binding Hd2IrComponents}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
 
             <TextBlock Text="{loc:Loc UI.Tags}"
                        Classes="detail-label"

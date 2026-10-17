@@ -237,6 +237,7 @@ public partial class MainWindowViewModel : ObservableObject
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
         _profileViewModel.ModDeleted += () => _libraryViewModel.InitializeAsync();
+        _profileViewModel.ModContentChanged += () => _libraryViewModel.InitializeAsync();
         _profileViewModel.ModUpdatesRequested += (_, mod) =>
         {
             NavigateToLibrary();
@@ -703,6 +704,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (!await ModCreationViewModel.ConfirmDiscardAsync()) return false;
         }
         await _profileViewModel.CloseModDetailAsync();
+        await _libraryViewModel.LocalVersions.StopAsync();
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();

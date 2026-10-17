@@ -36,6 +36,9 @@ public class Mod
     /// </summary>
     public ModManifest? Manifest { get; set; }
 
+    /// <summary>Application 从独立组件元数据加载，数据库仍使用统一的 Mod/Profile 身份。</summary>
+    public LogicalMod? LogicalMod { get; set; }
+
     /// <summary>
     /// 是否包含脚本（需要安全审核）
     /// </summary>

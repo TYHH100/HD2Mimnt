@@ -15,8 +15,6 @@ public static class PatchResourceIndexReader
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        // 部署占位文件不含资源。
-        if (stream.Length == 0) return Array.Empty<PatchResourceEntry>();
         Span<byte> header = stackalloc byte[72];
         if (stream.Length < header.Length) throw new InvalidDataException("补丁头部不完整");
         stream.ReadExactly(header);

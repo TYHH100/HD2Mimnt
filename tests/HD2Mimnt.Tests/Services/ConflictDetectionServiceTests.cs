@@ -197,6 +197,27 @@ public sealed class ConflictDetectionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Scan_MultipleBundlesWithDifferentIndexes_ShouldUseIndependentTargetNumbers()
+    {
+        var first = AddMod();
+        var second = AddMod();
+        WritePatch(Path.Combine(first.Path, "9ba626afa44a3aa3.patch_32"), 1);
+        WritePatch(Path.Combine(first.Path, "f9ced2d898787705.patch_18"), 2);
+        WritePatch(Path.Combine(second.Path, "9ba626afa44a3aa3.patch_7"), 1);
+        WritePatch(Path.Combine(second.Path, "f9ced2d898787705.patch_7"), 2);
+
+        var result = await _scanner.ScanProfileAsync(_profile.Id);
+
+        Assert.Empty(result.Warnings);
+        Assert.Equal(2, result.Groups.Count);
+        Assert.All(result.Groups, group =>
+        {
+            Assert.EndsWith(".patch_0", group.Owners[0].TargetFileName);
+            Assert.EndsWith(".patch_1", group.Owners[1].TargetFileName);
+        });
+    }
+
+    [Fact]
     public async Task Scan_ShouldReportBrokenPatchesWithoutHidingReadableConflicts()
     {
         var first = AddMod();
@@ -209,9 +230,10 @@ public sealed class ConflictDetectionServiceTests : IDisposable
         Directory.Delete(missing.Path);
         var result = await _scanner.ScanProfileAsync(_profile.Id);
         Assert.Single(result.Groups);
-        Assert.Equal(2, result.Warnings.Count);
+        Assert.Equal(3, result.Warnings.Count);
         Assert.Equal(1, result.SkippedModCount);
         Assert.Contains(result.Warnings, warning => warning.ModName == first.Name && warning.FilePath.EndsWith("cccccccccccccccc.patch_0"));
+        Assert.Contains(result.Warnings, warning => warning.ModName == first.Name && warning.FilePath.EndsWith("dddddddddddddddd.patch_0"));
     }
 
     [Fact]

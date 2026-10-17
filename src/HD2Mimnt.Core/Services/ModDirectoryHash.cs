@@ -9,12 +9,13 @@ namespace HD2Mimnt.Core.Services;
 public static class ModDirectoryHash
 {
     public static async Task<string> CalculateAsync(string directory, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null)
+        IProgress<ModImportProgress>? progress = null, Func<string, bool>? includeFile = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException($"模组目录不存在: {directory}");
         progress?.Report(new(84, "计算哈希", "准备计算模组内容 SHA-256", true));
         var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Where(path => includeFile?.Invoke(path) != false)
             .Select(path => (Path: path, Relative: Path.GetRelativePath(directory, path).Replace('\\', '/')))
             .OrderBy(file => file.Relative, StringComparer.Ordinal).ToArray();
         long totalBytes = 0;

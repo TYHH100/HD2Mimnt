@@ -3925,4 +3925,31 @@ Last checked: {7}</value>
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>After import, add and enable mods in the active profile. If no profile is active, keep them in the library.</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>Close the import card after completion</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>Close after all mods import successfully. Keep results open on failure or cancellation.</value></data>
+  <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>These components will be imported as one mod. You can enable each component in profile options.</value></data>
+  <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>Import together</value></data>
+  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IR components</value></data>
+  <data name="Hd2Ir.DeploymentDescription" xml:space="preserve"><value>Select components in profile options. Rig files deploy to bin/HD2IndependentRig; resource patches deploy to data.</value></data>
+  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>Confirm HD2IR component combination</value></data>
+  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>Detect HD2IR components</value></data>
+  <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>Inspect nested archives and deployment mappings</value></data>
+  <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>Keep mod version history</value></data>
+  <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>Keep complete previous versions when updating. Uses additional disk space. Save to apply.</value></data>
+  <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>Allow duplicate imports</value></data>
+  <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>Off by default: reject identical content already in the library or version history. Enable to import separate copies. Existing duplicates are kept.</value></data>
+  <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>
+  <data name="Versions.Help" xml:space="preserve"><value>Update this mod from an archive, or switch to a saved version. The current version is shown below in the mod details.</value></data>
+  <data name="Versions.UpdateArchive" xml:space="preserve"><value>Update from archive…</value></data>
+  <data name="Versions.Switch" xml:space="preserve"><value>Switch to selected version</value></data>
+  <data name="Versions.Delete" xml:space="preserve"><value>Delete selected history</value></data>
+  <data name="Versions.EnableTitle" xml:space="preserve"><value>Keep mod version history</value></data>
+  <data name="Versions.EnableWarning" xml:space="preserve"><value>When enabled, archive and online updates keep the complete previous files so you can switch local versions in mod details. Every version uses additional disk space, which grows with updates and is not cleaned automatically. After switching, review options and redeploy. Disabling only stops saving new versions; existing versions can still be switched or deleted manually. Enable this feature?</value></data>
+  <data name="Versions.SwitchTitle" xml:space="preserve"><value>Switch local version</value></data>
+  <data name="Versions.SwitchWarning" xml:space="preserve"><value>Switching clears this mod’s deployed files and keeps the current version for switching back. Profile enablement and order are preserved. Review mod options and redeploy afterwards. Switch now?</value></data>
+  <data name="Versions.DeleteTitle" xml:space="preserve"><value>Delete local version</value></data>
+  <data name="Versions.DeleteWarning" xml:space="preserve"><value>Permanently delete the selected historical files to free disk space? The current version is unaffected.</value></data>
+  <data name="Versions.Changed" xml:space="preserve"><value>Version changed. Review mod options and redeploy.</value></data>
+  <data name="Versions.Cancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+  <data name="Versions.Duplicate" xml:space="preserve"><value>Identical content already exists: {0}. Enable “Allow duplicate imports” in settings if you need a separate copy.</value></data>
+  <data name="Versions.DuplicateHistory" xml:space="preserve"><value>This content is already saved in the local versions of {0}. Switch versions in mod details.</value></data>
+  <data name="Versions.Empty" xml:space="preserve"><value>No saved versions yet. Enable version history in Library settings to keep previous versions on update.</value></data>
 </root>

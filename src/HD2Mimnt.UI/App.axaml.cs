@@ -527,7 +527,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IImageCacheService>(),
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
-            sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>()));
+            sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
+            sp.GetRequiredService<IConfirmationService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(

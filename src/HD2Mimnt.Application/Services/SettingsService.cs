@@ -14,6 +14,7 @@ public class SettingsService
     private readonly string _legacySettingsPath;
     private readonly ISettingsRepository _repository;
     private readonly ILogger<SettingsService>? _logger;
+    // 已发布的字典只读；写入成功后整体替换，读取不等待可能需要 UI 续体的持久化闸门。
     private Dictionary<string, object> _settings;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
@@ -39,29 +40,15 @@ public class SettingsService
 
     /// <summary>同步读取内存设置，供启动期服务构造使用；不要同步等待异步读取。</summary>
     public T GetSetting<T>(string key, T defaultValue)
-    {
-        _lock.Wait();
-        try { return ReadSetting(key, defaultValue); }
-        finally { _lock.Release(); }
-    }
+        => ReadSetting(Volatile.Read(ref _settings), key, defaultValue);
 
     /// <summary>异步获取设置值。</summary>
-    public async Task<T> GetSettingAsync<T>(string key, T defaultValue)
-    {
-        await _lock.WaitAsync();
-        try
-        {
-            return ReadSetting(key, defaultValue);
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
+    public Task<T> GetSettingAsync<T>(string key, T defaultValue)
+        => Task.FromResult(GetSetting(key, defaultValue));
 
-    private T ReadSetting<T>(string key, T defaultValue)
+    private T ReadSetting<T>(IReadOnlyDictionary<string, object> settings, string key, T defaultValue)
     {
-        if (!_settings.TryGetValue(key, out var value)) return defaultValue;
+        if (!settings.TryGetValue(key, out var value)) return defaultValue;
         try
         {
             if (value is JsonElement jsonElement) return jsonElement.Deserialize<T>() ?? defaultValue;
@@ -84,20 +71,10 @@ public class SettingsService
         await _lock.WaitAsync();
         try
         {
-            var hadOldValue = _settings.TryGetValue(key, out var existing);
-            var oldValue = existing;
-            _settings[key] = value!;
-
-            try
-            {
-                await SaveSettingsAsync(new[] { key }, Array.Empty<string>());
-            }
-            catch
-            {
-                if (hadOldValue) _settings[key] = oldValue!;
-                else _settings.Remove(key);
-                throw;
-            }
+            var oldValue = _settings.GetValueOrDefault(key);
+            var next = new Dictionary<string, object>(_settings) { [key] = value! };
+            await SaveSettingsAsync(next, new[] { key }, Array.Empty<string>());
+            Volatile.Write(ref _settings, next);
 
             change = new SettingChangedEventArgs
             {
@@ -119,18 +96,8 @@ public class SettingsService
     /// <summary>
     /// 批量获取所有设置
     /// </summary>
-    public async Task<Dictionary<string, object>> GetAllSettingsAsync()
-    {
-        await _lock.WaitAsync();
-        try
-        {
-            return new Dictionary<string, object>(_settings);
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
+    public Task<Dictionary<string, object>> GetAllSettingsAsync()
+        => Task.FromResult(new Dictionary<string, object>(Volatile.Read(ref _settings)));
 
     /// <summary>Publishes a related group of settings together, with one write and rollback on failure.</summary>
     public async Task SetSettingsAsync(IReadOnlyDictionary<string, object> values)
@@ -139,17 +106,17 @@ public class SettingsService
         await _lock.WaitAsync();
         try
         {
-            var previous = new Dictionary<string, object>(_settings);
+            var next = new Dictionary<string, object>(_settings);
             foreach (var (key, value) in values)
             {
                 changes.Add(new SettingChangedEventArgs
                 {
                     Key = key, OldValue = _settings.GetValueOrDefault(key), NewValue = value
                 });
-                _settings[key] = value;
+                next[key] = value;
             }
-            try { await SaveSettingsAsync(values.Keys, Array.Empty<string>()); }
-            catch { _settings = previous; throw; }
+            await SaveSettingsAsync(next, values.Keys, Array.Empty<string>());
+            Volatile.Write(ref _settings, next);
         }
         finally { _lock.Release(); }
         foreach (var change in changes) SettingChanged?.Invoke(this, change);
@@ -164,18 +131,11 @@ public class SettingsService
         await _lock.WaitAsync();
         try
         {
-            var previous = new Dictionary<string, object>(_settings);
-            _settings.Clear();
-            try
-            {
-                await _repository.ResetAsync(null);
-            }
-            catch
-            {
-                _settings = previous;
-                throw;
-            }
-            changes = FindChanges(previous, _settings);
+            var previous = _settings;
+            var next = new Dictionary<string, object>();
+            await _repository.ResetAsync(null);
+            Volatile.Write(ref _settings, next);
+            changes = FindChanges(previous, next);
             _logger?.LogInformation("所有设置已重置为默认值");
         }
         finally
@@ -198,19 +158,13 @@ public class SettingsService
                 .Where(k => k.StartsWith(category + ".", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            var previous = new Dictionary<string, object>(_settings);
-            foreach (var key in keysToRemove) _settings.Remove(key);
+            var previous = _settings;
+            var next = new Dictionary<string, object>(previous);
+            foreach (var key in keysToRemove) next.Remove(key);
 
-            try
-            {
-                await _repository.ResetAsync(category);
-            }
-            catch
-            {
-                _settings = previous;
-                throw;
-            }
-            changes = FindChanges(previous, _settings);
+            await _repository.ResetAsync(category);
+            Volatile.Write(ref _settings, next);
+            changes = FindChanges(previous, next);
             _logger?.LogInformation("分类设置已重置: {Category}", category);
         }
         finally
@@ -238,7 +192,7 @@ public class SettingsService
 
             var loaded = _repository.ReadAll().ToDictionary(pair => pair.Key,
                 pair => (object)JsonSerializer.Deserialize<JsonElement>(pair.Value));
-            _settings = loaded;
+            Volatile.Write(ref _settings, loaded);
             // 标记与导入在同一事务提交。即使删除失败，重置后也不会重新导入旧值。
             try
             {
@@ -297,11 +251,12 @@ public class SettingsService
     /// <summary>
     /// 只提交本次变更的键，避免其他服务实例的设置被旧内存快照覆盖。
     /// </summary>
-    private async Task SaveSettingsAsync(IEnumerable<string> updatedKeys, IReadOnlyCollection<string> removedKeys)
+    private async Task SaveSettingsAsync(IReadOnlyDictionary<string, object> settings,
+        IEnumerable<string> updatedKeys, IReadOnlyCollection<string> removedKeys)
     {
         try
         {
-            var values = updatedKeys.ToDictionary(key => key, key => JsonSerializer.Serialize(_settings[key]));
+            var values = updatedKeys.ToDictionary(key => key, key => JsonSerializer.Serialize(settings[key]));
             await _repository.ApplyAsync(values, removedKeys);
             _logger?.LogDebug("设置已保存到数据库");
         }
@@ -338,6 +293,8 @@ public static class SettingKeys
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";
     public const string ImportAutoClose = "Library.ImportAutoClose";
+    public const string KeepModVersions = "Library.KeepModVersions";
+    public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
 
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";

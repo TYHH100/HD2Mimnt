@@ -38,4 +38,4 @@
 
 - 部署清理的最终进度消息要带 SessionId，便于任务中心把结果与失败恢复记录对应起来；测试断言应同时覆盖前缀和会话标识。
 
-- 游戏路径是安装根目录，补丁部署目标固定为其 `data` 子目录。只读取根目录或选中 Include 目录直属的合法补丁，不能递归部署未选变体或复制 manifest/预览图。三元组按资源前缀和配置顺序从 0 重编号，保留目录原编号并集的空文件占位语义；占位文件必须先解除旧链接再创建，且所有目标在写入前登记，以支持取消后的清理。旧版 HD2PhysBone 兼容骨骼功能已废弃。来源：https://learn.microsoft.com/windows/win32/fileio/hard-links-and-junctions
+- 游戏路径是安装根目录，补丁部署目标固定为其 `data` 子目录。只读取根目录或选中 Include 目录直属的合法补丁，不能递归部署未选变体或复制 manifest/预览图。每个资源前缀只按自己的原编号数值排序，再按配置顺序从 0 连续重编号；禁止跨 bundle 取原编号并集，否则不同编号（如 A.patch_32 / B.patch_18）会产生没有来源的空 base。缺失或零字节 base 必须在清理旧部署前拒绝；仅缺失的 `.stream` / `.gpu_resources` 可以补空占位。写入后再次检查 base 非零，冲突扫描也须把空 base 报为损坏，不能视为无资源的合法占位。占位文件必须先解除旧链接再创建，且所有目标在写入前登记，以支持取消后的清理。回归见 `DeploymentServiceIntegrationTests` 和 `ConflictDetectionServiceTests`。旧版 HD2PhysBone 兼容骨骼功能已废弃。依据：2026-10-17 用户报告与源码核查；来源：https://learn.microsoft.com/dotnet/api/system.io.fileinfo.length 、https://learn.microsoft.com/windows/win32/fileio/hard-links-and-junctions

@@ -33,6 +33,7 @@ public partial class LibraryViewModel : ObservableObject
     }
 
     private readonly ModService _modService;
+    public ModVersionsViewModel LocalVersions { get; }
     private readonly SearchService _searchService;
     private readonly ProfileService _profileService;
     private readonly NotificationService _notificationService;
@@ -241,13 +242,18 @@ public partial class LibraryViewModel : ObservableObject
         BrowserDownloadHandoffService? browserDownloads = null)
     {
         _modService = modService;
+        LocalVersions = new(modService, confirmationService, async () =>
+        {
+            await LoadModsAsync();
+            await searchService.BuildIndexAsync();
+        });
         Import = new ModImportViewModel(modService, settingsService);
         ModLink = modLinkService == null ? null : new ModLinkViewModel(modLinkService);
         ModOnline = modOnlineService == null ? null : new ModOnlineViewModel(modOnlineService, async () =>
         {
             await LoadModsAsync();
             if (SelectedModDetail is { } detail && await _modService.GetModByIdAsync(detail.Id) is { } saved)
-                detail.ApplyPlatformLink(saved);
+                detail.ApplyContent(saved);
             await searchService.BuildIndexAsync();
         }, websiteLauncher, browserDownloads);
         _searchService = searchService;
@@ -1144,6 +1150,9 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void ShowModDetail(ModItemViewModel mod)
     {
+        if (LocalVersions.IsBusy) return;
+        mod.LocalVersions = LocalVersions;
+        LocalVersions.Open(mod);
         _detailHashCts?.Cancel();
         if (SelectedModDetail != null) SelectedModDetail.IsCalculatingHash = false;
         SelectedModDetail = mod;
@@ -1195,6 +1204,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void CloseDetailPanel()
     {
+        LocalVersions.Cancel();
         _detailHashCts?.Cancel();
         IsDetailPanelOpen = false;
         SelectedModDetail = null;

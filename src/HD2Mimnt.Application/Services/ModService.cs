@@ -11,7 +11,7 @@ namespace HD2Mimnt.Application.Services;
 /// Mod 管理服务
 /// 协调 Mod 的导入、删除、搜索等操作
 /// </summary>
-public class ModService
+public partial class ModService
 {
     private readonly IModRepository _modRepository;
     private readonly ModImportService _importService;
@@ -67,7 +67,7 @@ public class ModService
 
         // 初始化子服务
         var thumbnailsPath = Path.Combine(storageDirectory, "thumbnails");
-        _importService = new ModImportService(_modRepository, storageDirectory, tempDirectory: tempDirectory);
+        _importService = new ModImportService(_modRepository, storageDirectory, tempDirectory: tempDirectory, settingsService: settingsService);
         _thumbnailService = new ThumbnailService(thumbnailsPath, null);
 
     // 确保存储目录存在
@@ -107,17 +107,29 @@ public class ModService
     }
 
     /// <summary>新内容在独立目录准备；数据库提交成功后才删除旧内容，保留原 ID 和配置关联。</summary>
-    public async Task<ModReplacementResult> ReplaceFromArchiveAsync(Guid id, string archivePath,
+    public Task<ModReplacementResult> ReplaceFromArchiveAsync(Guid id, string archivePath,
         ModPlatformLink expectedLink, PlatformModFile file, CancellationToken cancellationToken = default,
         IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(file.Version);
+        return ReplaceArchiveCoreAsync(id, archivePath, expectedLink, file, cancellationToken, progress, installedWebsiteFileId);
+    }
+
+    public Task<ModReplacementResult> UpdateFromLocalArchiveAsync(Guid id, string archivePath,
+        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null)
+        => ReplaceArchiveCoreAsync(id, archivePath, null, null, cancellationToken, progress, null);
+
+    private async Task<ModReplacementResult> ReplaceArchiveCoreAsync(Guid id, string archivePath,
+        ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
+        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId)
+    {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
         var committed = false;
         string? newThumbnail = null;
         try
         {
-            if (!Directory.EnumerateFiles(prepared.Path, "*", SearchOption.AllDirectories).Any(path =>
+            if ((expectedLink != null || prepared.WorkflowType != Hd2IrIntegrationService.Workflow)
+                && !Directory.EnumerateFiles(prepared.Path, "*", SearchOption.AllDirectories).Any(path =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     return PatchDeploymentPlanner.TryParseTarget(path, out _, out _, out var suffix) && suffix.Length == 0;
@@ -131,9 +143,15 @@ public class ModService
                 var original = await _modRepository.GetByIdAsync(id, cancellationToken)
                     ?? throw new KeyNotFoundException("模组已删除，无法更新。");
                 await LoadSourceAsync(original, cancellationToken);
-                if (original.PlatformId != expectedLink.PlatformId || original.PlatformModId != expectedLink.ModId)
+                if (expectedLink != null && (original.PlatformId != expectedLink.PlatformId || original.PlatformModId != expectedLink.ModId))
                     throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
+                if (prepared.Hash == original.Hash && prepared.Version == original.Version && file == null)
+                    return new(original, false, null);
 
+                var history = new ModVersionStore(_storageDirectory);
+                var previousVersions = await history.ReadAsync(id, cancellationToken);
+                var keepPrevious = _settingsService?.GetSetting(SettingKeys.KeepModVersions, false) == true;
+                var oldSnapshot = ModVersionStore.Clone(original);
                 var oldPath = original.Path;
                 var oldThumbnail = original.ThumbnailPath;
                 var wasDeployed = _deploymentService != null &&
@@ -147,8 +165,10 @@ public class ModService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 original.Path = prepared.Path;
-                original.Version = file.Version;
+                original.Version = file?.Version ?? prepared.Version;
                 original.Manifest = prepared.Manifest;
+                original.WorkflowType = prepared.WorkflowType;
+                original.LogicalMod = prepared.LogicalMod;
                 original.Size = prepared.Size;
                 original.Hash = prepared.Hash;
                 original.Category = prepared.Category;
@@ -156,28 +176,37 @@ public class ModService
                 original.ContainsScripts = prepared.ContainsScripts;
                 original.BslRole = bslRole;
                 original.BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion;
-                original.ThumbnailPath = newThumbnail ?? oldThumbnail;
+                original.ThumbnailPath = newThumbnail ?? prepared.ThumbnailPath;
                 original.ModifiedAt = DateTime.UtcNow;
-                original.Source = expectedLink.PlatformId switch
+                original.Source = expectedLink?.PlatformId switch
                 { "nexusmods" => ModSource.NexusMods, "ayakamods" => ModSource.AyakaMods, _ => original.Source };
-                original.PlatformLink = (original.PlatformLink ?? expectedLink) with
+                if ((original.PlatformLink ?? expectedLink) is { } sourceLink)
+                    original.PlatformLink = sourceLink with
                 {
-                    InstalledFileVersionId = installedWebsiteFileId == null ? file.Id : null,
-                    InstalledWebsiteFileId = installedWebsiteFileId ?? file.WebsiteFileId,
-                    InstalledVersion = file.Version
+                    InstalledFileVersionId = installedWebsiteFileId == null ? file?.Id : null,
+                    InstalledWebsiteFileId = installedWebsiteFileId ?? file?.WebsiteFileId,
+                    InstalledVersion = original.Version
                 };
                 original.Status = ModStatus.Ready;
                 progress?.Report(new(99, "保存更新", original.Name, true));
                 // 提交阶段不接受半途取消；此处失败时旧目录仍然完整。
                 cancellationToken.ThrowIfCancellationRequested();
-                await SaveLinkedModAsync(original, CancellationToken.None);
+                if (keepPrevious)
+                    await history.WriteAsync(id, previousVersions.Append(new LocalModVersion(Guid.NewGuid(), DateTime.UtcNow, oldSnapshot)).ToList(), CancellationToken.None);
+                try { await SaveLinkedModAsync(original, CancellationToken.None); }
+                catch
+                {
+                    if (keepPrevious) await history.WriteAsync(id, previousVersions, CancellationToken.None);
+                    throw;
+                }
                 committed = true;
 
                 string? cleanupWarning = null;
                 try
                 {
-                    if (IsManagedModDirectory(oldPath) && Directory.Exists(oldPath)) Directory.Delete(oldPath, true);
-                    if (newThumbnail != null && oldThumbnail != newThumbnail)
+                    if (!keepPrevious && IsManagedModDirectory(oldPath) && Directory.Exists(oldPath)) Directory.Delete(oldPath, true);
+                    if (!keepPrevious && newThumbnail != null && oldThumbnail != newThumbnail
+                        && !previousVersions.Any(v => v.Content.ThumbnailPath == oldThumbnail))
                         await _thumbnailService.DeleteThumbnailFileAsync(oldThumbnail, CancellationToken.None);
                 }
                 catch (Exception ex)
@@ -281,6 +310,8 @@ public class ModService
         try
         {
             var changed = false;
+            if (mod.WorkflowType == Hd2IrIntegrationService.Workflow)
+                mod.LogicalMod = await Hd2IrIntegrationService.ReadAsync(mod, cancellationToken);
             if (mod.Manifest == null)
             {
                 // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义。
@@ -326,6 +357,8 @@ public class ModService
         if (_deploymentService != null)
             await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+
+        await DeleteSavedVersionsCoreAsync(id, cancellationToken);
 
         // 删除物理文件
         if (Directory.Exists(mod.Path))
@@ -397,9 +430,10 @@ public class ModService
     /// 从文件夹或 ZIP 导入 Mod
     /// </summary>
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null)
+        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
+        Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
-        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress, sourceLink);
+        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir);
 
         // 已落库即视为导入成功；缩略图失败或此时取消不能把成功项统计为失败。
         progress?.Report(new(95, "生成缩略图", "准备模组预览", true));

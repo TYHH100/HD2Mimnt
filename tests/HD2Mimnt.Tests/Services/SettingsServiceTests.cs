@@ -1,6 +1,8 @@
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
+using Moq;
 using System.Text.Json;
 
 namespace HD2Mimnt.Tests.Services;
@@ -8,6 +10,65 @@ namespace HD2Mimnt.Tests.Services;
 public sealed class SettingsServiceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"hd2mimnt-settings-events-{Guid.NewGuid():N}");
+
+    [Theory]
+    [InlineData("single", false)]
+    [InlineData("batch", false)]
+    [InlineData("category", false)]
+    [InlineData("all", false)]
+    [InlineData("single", true)]
+    [InlineData("batch", true)]
+    [InlineData("category", true)]
+    [InlineData("all", true)]
+    public async Task GetSetting_PendingWrite_ShouldReadCommittedSnapshotWithoutWaiting(string operation, bool failWrite)
+    {
+        var pendingWrite = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var repository = new Mock<ISettingsRepository>();
+        repository.Setup(repo => repo.IsLegacyMigrationComplete()).Returns(true);
+        repository.Setup(repo => repo.ReadAll()).Returns(new Dictionary<string, string>
+        { [SettingKeys.Theme] = "\"Dark\"" });
+        async Task PersistAsync()
+        {
+            await pendingWrite.Task;
+            if (failWrite) throw new IOException("测试写入失败");
+        }
+        repository.Setup(repo => repo.ApplyAsync(It.IsAny<IReadOnlyDictionary<string, string>>(),
+            It.IsAny<IReadOnlyCollection<string>>())).Returns(PersistAsync);
+        repository.Setup(repo => repo.ResetAsync(It.IsAny<string?>())).Returns(PersistAsync);
+        var service = new SettingsService(repository.Object, _root);
+        var notifications = 0;
+        service.SettingChanged += (_, _) => notifications++;
+        var write = operation switch
+        {
+            "single" => service.SetSettingAsync(SettingKeys.Theme, "Light"),
+            "batch" => service.SetSettingsAsync(new Dictionary<string, object> { [SettingKeys.Theme] = "Light" }),
+            "category" => service.ResetCategoryAsync("UI"),
+            _ => service.ResetToDefaultAsync()
+        };
+        var read = Task.Run(() => service.GetSetting(SettingKeys.Theme, "default"));
+        try
+        {
+            // 写入保持挂起，模拟保存等待 UI 续体时配置页同步读设置的情况。
+            Assert.Equal("Dark", await read.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.Equal("Dark", await service.GetSettingAsync(SettingKeys.Theme, "default")
+                .WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.Equal("\"Dark\"", JsonSerializer.Serialize(
+                (await service.GetAllSettingsAsync().WaitAsync(TimeSpan.FromSeconds(2)))[SettingKeys.Theme]));
+            Assert.Equal(0, notifications);
+        }
+        finally
+        {
+            pendingWrite.TrySetResult();
+            if (failWrite) await Assert.ThrowsAsync<IOException>(() => write);
+            else await write;
+            await read;
+        }
+
+        var expected = failWrite ? "Dark" : operation is "category" or "all" ? "default" : "Light";
+        Assert.Equal(expected, service.GetSetting(SettingKeys.Theme, "default"));
+        Assert.Equal(expected, await service.GetSettingAsync(SettingKeys.Theme, "default"));
+        Assert.Equal(failWrite ? 0 : 1, notifications);
+    }
 
     [Fact]
     public async Task SetSettingAsync_Notification_ShouldAllowReentrantRead()

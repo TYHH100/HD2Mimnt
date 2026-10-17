@@ -1448,6 +1448,65 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task DeploymentSettings_ShouldSaveAllMethodsAndKeepNavigationResponsive()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await main.ProfileViewModel.LoadProfilesAsync();
+        await main.SettingsViewModel.LoadAsync();
+        var game = Path.Combine(scope.Root, "Helldivers 2");
+        foreach (var name in new[] { "data", "tools", "bin" }) Directory.CreateDirectory(Path.Combine(game, name));
+        File.WriteAllText(Path.Combine(game, "bin", "helldivers2.exe"), string.Empty);
+        var vm = main.SettingsViewModel;
+        vm.GamePath = game;
+        vm.AutoDetectGame = false;
+        main.SelectedTabIndex = 4;
+        vm.SelectedCategory = "部署";
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                window.CaptureRenderedFrame()?.Dispose();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<SettingsView>().Single();
+            var input = view.FindControl<ComboBox>("DeploymentMethodInput")!;
+            var save = view.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "保存设置");
+            foreach (var method in Enum.GetValues<HD2Mimnt.Core.Enums.DeploymentMethod>())
+            {
+                input.SelectedItem = method;
+                Layout();
+                Assert.Equal(method, vm.DefaultDeploymentMethod);
+                Assert.True(save.IsEffectivelyEnabled);
+                var point = save.TranslatePoint(new Point(save.Bounds.Width / 2, save.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                Assert.NotNull(vm.SaveCommand.ExecutionTask);
+                await vm.SaveCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.Equal("设置已保存", vm.StatusMessage);
+                Assert.Equal(method.ToString(), settings.GetSetting(SettingKeys.DefaultDeploymentMethod, ""));
+                main.NotificationPanelViewModel.DismissAllToasts();
+                // 保存期间触发的配置刷新完成后，分类仍可通过实际鼠标切换。
+                Layout();
+                var category = view.GetVisualDescendants().OfType<ListBoxItem>()
+                    .Single(item => item.DataContext as string == "游戏");
+                point = category.TranslatePoint(new Point(category.Bounds.Width / 2, category.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                Assert.Equal("游戏", vm.SelectedCategory);
+                vm.SelectedCategory = "部署";
+                Layout();
+            }
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task ProfileDeploymentButton_ShouldUseSelectedProfileAndSavedMethodAndGameDataDirectory()
     {
         var confirmation = new RecordingConfirmation();

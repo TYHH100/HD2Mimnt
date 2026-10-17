@@ -8,6 +8,8 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class ProfileViewModel
 {
     private readonly DeploymentService? _deploymentService;
+    public ModVersionsViewModel LocalVersions { get; }
+    public event Func<Task>? ModContentChanged;
     private CancellationTokenSource? _detailLoadCts;
     private Task _detailLoadTask = Task.CompletedTask;
 
@@ -23,9 +25,12 @@ public partial class ProfileViewModel
     [RelayCommand]
     private void ShowModDetail(ProfileModViewModel? profileMod)
     {
+        if (LocalVersions.IsBusy) return;
         if (profileMod is not { IsSeparator: false, SourceInfo: { } detail }
             || !ProfileMods.Contains(profileMod)) return;
         CloseDetailPanel();
+        detail.LocalVersions = LocalVersions;
+        LocalVersions.Open(detail);
         detail.IsInCurrentProfile = true;
         detail.IsEnabled = profileMod.Enabled;
         detail.Order = profileMod.Order;
@@ -100,6 +105,7 @@ public partial class ProfileViewModel
     [RelayCommand]
     private void CloseDetailPanel()
     {
+        LocalVersions.Cancel();
         _detailLoadCts?.Cancel();
         if (SelectedModDetail != null) SelectedModDetail.IsCalculatingHash = false;
         SelectedModDetail = null;
@@ -110,6 +116,7 @@ public partial class ProfileViewModel
     {
         CloseDetailPanel();
         await _detailLoadTask;
+        await LocalVersions.StopAsync();
     }
 
     [RelayCommand]

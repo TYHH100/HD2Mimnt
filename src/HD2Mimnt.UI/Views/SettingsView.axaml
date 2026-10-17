@@ -140,6 +140,12 @@
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.KeepVersions}" Description="{loc:Loc Settings.Library.KeepVersionsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="KeepModVersionsToggle" IsChecked="{Binding KeepModVersions, Mode=OneWay}" Command="{Binding ToggleKeepModVersionsCommand}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.AllowDuplicates}" Description="{loc:Loc Settings.Library.AllowDuplicatesHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AllowDuplicateImportsToggle" IsChecked="{Binding AllowDuplicateImports}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

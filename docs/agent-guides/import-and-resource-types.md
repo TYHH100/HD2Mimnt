@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- 重复导入不能只比较 ZIP 文件名或常规目录 Hash：旧包规范化会生成清单 GUID，HD2IR 映射含运行时 ID/时间。保留原 Hash 契约，另按作者元数据和完整文件内容判断重复，排除生成身份；检查与落库串行，拒绝后清理准备副本。版本保留与重复导入是两个独立默认关闭的选项；更新/切换统一走 ModService，保持 Mod/Profile 身份并在失败时恢复版本索引。见[本地版本说明](../features/MOD_VERSION_HISTORY.md)。来源：[SHA256](https://learn.microsoft.com/dotnet/api/system.security.cryptography.sha256)、[File.Move](https://learn.microsoft.com/dotnet/api/system.io.file.move)。
+
+- HD2IR 分类结果不等于可部署文件：前端通过 Application 生成库内独立副本和组件映射，组件选择复用配置选项，骨骼与补丁统一登记到原部署追踪；不能只保存 LogicalMod 名称就报告导入成功。作者双文件清单保持原字节，组件映射放独立元数据。嵌套组合需要确认时不得静默合并，更新包不能当作角色包部署。回归原包移除后的部署、独立配置选择及取消清理，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。来源：[Avalonia UI 线程](https://docs.avaloniaui.net/docs/guides/development-guides/accessing-the-ui-thread)、[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)。
+
 - 创建页导出 7z 使用随包 `Tools/7zip/7za.exe`，保留原版许可证及来源说明，并检查构建／发布输出；不能只改后缀或依赖用户安装 7-Zip。仅暂存生成的清单和 UTF-8 文件列表，不复制整个源模组；按所选 LZMA2 档位压缩，非零退出码（含跳过文件警告）不可发布。取消时终止并等待子进程，再清理本次暂存和临时包；真实 7z 测试覆盖重导入、各档位、文件占用及取消。来源：[7-Zip](https://www.7-zip.org/)、[许可证](../../src/HD2Mimnt.Infrastructure/Tools/7zip/License.txt)。
 
 - 创建页的格式选择必须贯通打开、预览、保存和 ZIP 导出；Legacy 省略 `Version`，`Options` 写相对目录字符串数组，校验所选目录，不校验隐藏的 V1 草稿。两种格式的内存草稿切换时保留各自内容，打开清单后按真实格式恢复；不能只改 UI 标签或把旧格式写成 V1 对象数组。来源：[旧版创建页面](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)。

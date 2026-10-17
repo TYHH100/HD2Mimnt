@@ -120,7 +120,7 @@ public class ConflictDetectionService
                     if (selection.Scope == OptionDeployScope.InvalidSelection)
                         throw new InvalidDataException("模组选项无效");
                     files = PatchDeploymentPlanner.BuildFiles(
-                        PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken), nextIndexes);
+                        PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken), nextIndexes, cancellationToken);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
                 {

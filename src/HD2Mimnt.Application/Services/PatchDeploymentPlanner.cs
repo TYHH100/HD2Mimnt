@@ -10,7 +10,7 @@ internal static partial class PatchDeploymentPlanner
     [GeneratedRegex(@"^([a-z0-9]{16})\.patch_([0-9]+)(\.(?:stream|gpu_resources))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PatchNameRegex();
 
-    internal sealed record FileEntry(string? SourcePath, string FileName);
+    internal sealed record FileEntry(string? SourcePath, string FileName, bool RelativeToGameRoot = false);
 
     internal static bool TryParseTarget(string path, out string prefix, out int index, out string suffix)
     {
@@ -54,22 +54,26 @@ internal static partial class PatchDeploymentPlanner
         return files;
     }
 
-    internal static List<FileEntry> BuildFiles(IReadOnlyList<string> selectedFiles, Dictionary<string, int> nextIndexes)
+    internal static List<FileEntry> BuildFiles(IReadOnlyList<string> selectedFiles, Dictionary<string, int> nextIndexes,
+        CancellationToken cancellationToken = default)
     {
         var result = new List<FileEntry>();
         foreach (var directory in selectedFiles.GroupBy(Path.GetDirectoryName, StringComparer.OrdinalIgnoreCase))
         {
             var matches = directory.Select(file => (File: file, Match: PatchNameRegex().Match(Path.GetFileName(file)))).ToList();
-            // 保留旧版每个目录中所有前缀共用原编号并集的占位语义。
-            var indexes = matches.Select(item => int.Parse(item.Match.Groups[2].Value, CultureInfo.InvariantCulture))
-                .Distinct().Order().ToList();
             foreach (var resource in matches.GroupBy(item => item.Match.Groups[1].Value.ToLowerInvariant()))
             {
+                // 原编号只属于当前资源前缀，不能为其它 bundle 的编号创建空主文件。
+                var indexes = resource.Select(item => int.Parse(item.Match.Groups[2].Value, CultureInfo.InvariantCulture))
+                    .Distinct().Order();
                 var next = nextIndexes.GetValueOrDefault(resource.Key);
                 foreach (var originalIndex in indexes)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var triplet = resource.Where(item => int.Parse(item.Match.Groups[2].Value, CultureInfo.InvariantCulture) == originalIndex)
                         .ToDictionary(item => item.Match.Groups[3].Value, item => item.File, StringComparer.OrdinalIgnoreCase);
+                    if (!triplet.ContainsKey(""))
+                        throw new InvalidDataException($"补丁缺少主文件：{Path.Combine(directory.Key!, $"{resource.Key}.patch_{originalIndex}")}");
                     foreach (var suffix in new[] { "", ".gpu_resources", ".stream" })
                         result.Add(new FileEntry(triplet.GetValueOrDefault(suffix), $"{resource.Key}.patch_{next}{suffix}"));
                     next++;

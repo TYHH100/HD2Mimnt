@@ -103,7 +103,7 @@ public class ArchiveImportService
             result.MergeResult = mergeResult;
 
             // Check if user confirmation is needed
-            if (mergeResult.RequiredConfirmation && !_configuration.AutoMergeHighConfidence)
+            if (mergeResult.RequiredConfirmation && _configuration.PromptForLowConfidenceMerge)
             {
                 result.RequiresUserConfirmation = true;
                 result.Success = false;
