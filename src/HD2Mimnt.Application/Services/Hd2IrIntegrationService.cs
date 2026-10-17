@@ -9,7 +9,7 @@ namespace HD2Mimnt.Application.Services;
 /// <summary>将后端组件模型接到现有 Mod/Profile 流程，映射只写入库内独立元数据。</summary>
 internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
 {
-    internal const string Workflow = "HD2IR";
+    internal const string Workflow = "HD2IAS";
     internal const string MetadataFile = ".hd2mimnt-hd2ir.json";
     private readonly Hd2IrDetector _detector = new();
 
@@ -49,16 +49,16 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
                 else if (GetNativeTarget(relative) is { } target)
                     native.Add((file, target));
             }
-            AddCandidate(native, ComponentType.HD2IR, package.Name, package.Node);
+            AddCandidate(native, ComponentType.HD2IAS, package.Name, package.Node);
             AddCandidate(patches, ComponentType.Model, package.Name, package.Node);
         }
         if (candidates.Count == 0)
-            throw new InvalidDataException("已识别 HD2IR，但没有可映射的组件文件。请检查 bin/HD2IndependentRig 目录或配套补丁。");
+            throw new InvalidDataException("已识别 HD2IAS，但没有可映射的组件文件。请检查 bin/HD2IndependentRig 目录或配套补丁。");
 
         var merge = await new ModMerger().MergeAsync(candidates, token);
         if (merge.Decision == MergeDecision.ManualConfirmation)
         {
-            if (confirm == null) throw new InvalidOperationException("此 HD2IR 组件组合需要在导入浮窗中确认后添加。");
+            if (confirm == null) throw new InvalidOperationException("此 HD2IAS 组件组合需要在导入浮窗中确认后添加。");
             await confirm(new(sourceName, candidates.Select(c => $"{c.ComponentType} · {c.Name}").ToArray(), merge.Reason), token);
             token.ThrowIfCancellationRequested();
         }
@@ -218,7 +218,7 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
 
     internal static async Task<LogicalMod> ReadAsync(Mod mod, CancellationToken token)
         => JsonSerializer.Deserialize<LogicalMod>(await File.ReadAllTextAsync(Path.Combine(mod.Path, MetadataFile), token))
-            ?? throw new InvalidDataException("HD2IR 组件元数据无效，请重新导入模组。");
+            ?? throw new InvalidDataException("HD2IAS 组件元数据无效，请重新导入模组。");
 
     internal static async Task<List<PatchDeploymentPlanner.FileEntry>> GetNativeFilesAsync(Mod mod, string? optionsJson, CancellationToken token)
     {
@@ -232,7 +232,7 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
             if (!file.TargetPath.StartsWith("bin/HD2IndependentRig/", StringComparison.OrdinalIgnoreCase)
                 || !selected.Contains(Path.GetDirectoryName(file.SourcePath)!.Replace('\\', '/'))) continue;
             var source = ResolveWithin(mod.Path, file.SourcePath);
-            if (!File.Exists(source)) throw new FileNotFoundException("HD2IR 组件文件缺失，请重新导入。", source);
+            if (!File.Exists(source)) throw new FileNotFoundException("HD2IAS 组件文件缺失，请重新导入。", source);
             // 目标必须仍符合导入时的显式映射。
             var target = file.TargetPath.Replace('\\', '/');
             ResolveWithin(Path.Combine(mod.Path, "bin", "HD2IndependentRig"), target["bin/HD2IndependentRig/".Length..]);
@@ -245,7 +245,7 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
     {
         var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
         var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relative));
-        if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("HD2IR 文件映射超出目标目录。");
+        if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("HD2IAS 文件映射超出目标目录。");
         return fullPath;
     }
 }

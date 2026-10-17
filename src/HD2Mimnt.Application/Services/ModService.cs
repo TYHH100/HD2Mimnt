@@ -121,7 +121,7 @@ public partial class ModService
 
     private async Task<ModReplacementResult> ReplaceArchiveCoreAsync(Guid id, string archivePath,
         ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
-        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId)
+        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false)
     {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
         var committed = false;
@@ -145,7 +145,8 @@ public partial class ModService
                 await LoadSourceAsync(original, cancellationToken);
                 if (expectedLink != null && (original.PlatformId != expectedLink.PlatformId || original.PlatformModId != expectedLink.ModId))
                     throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
-                if (prepared.Hash == original.Hash && prepared.Version == original.Version && file == null)
+                // 修复缺失的 HD2IAS data 时，数据库中的旧哈希不能证明库文件仍然存在。
+                if (!forceReplacement && prepared.Hash == original.Hash && prepared.Version == original.Version && file == null)
                     return new(original, false, null);
 
                 var history = new ModVersionStore(_storageDirectory);

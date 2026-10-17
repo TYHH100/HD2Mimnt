@@ -183,7 +183,7 @@ public class ModImportService
             Hd2IrIntegrationService.Prepared? hd2Ir = null;
             if (migration == null)
             {
-                progress?.Report(new(15, "识别 HD2IR 组件", "检查嵌套压缩包和部署映射", true));
+                progress?.Report(new(15, "识别 HD2IAS 组件", "检查嵌套压缩包和部署映射", true));
                 hd2Ir = await new Hd2IrIntegrationService(_archiveExtractor).PrepareAsync(modRootPath,
                     Path.GetFileName(sourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
                     hd2IrWorkspace, confirmHd2Ir, cancellationToken);
@@ -300,7 +300,7 @@ public class ModImportService
             if (Directory.Exists(hd2IrWorkspace))
             {
                 try { Directory.Delete(hd2IrWorkspace, true); }
-                catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IR 临时目录失败: {TempPath}", hd2IrWorkspace); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IAS 临时目录失败: {TempPath}", hd2IrWorkspace); }
             }
             // 取消或失败时移除尚未落库的副本，保留已成功导入的模组。
             if (!saved && targetPath != null && Directory.Exists(targetPath))

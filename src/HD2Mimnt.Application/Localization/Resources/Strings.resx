@@ -3927,10 +3927,10 @@ Last checked: {7}</value>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>Close after all mods import successfully. Keep results open on failure or cancellation.</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>These components will be imported as one mod. You can enable each component in profile options.</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>Import together</value></data>
-  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IR components</value></data>
+  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS components</value></data>
   <data name="Hd2Ir.DeploymentDescription" xml:space="preserve"><value>Select components in profile options. Rig files deploy to bin/HD2IndependentRig; resource patches deploy to data.</value></data>
-  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>Confirm HD2IR component combination</value></data>
-  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>Detect HD2IR components</value></data>
+  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>Confirm HD2IAS component combination</value></data>
+  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>Detect HD2IAS components</value></data>
   <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>Inspect nested archives and deployment mappings</value></data>
   <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>Keep mod version history</value></data>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>Keep complete previous versions when updating. Uses additional disk space. Save to apply.</value></data>
@@ -3952,4 +3952,82 @@ Last checked: {7}</value>
   <data name="Versions.Duplicate" xml:space="preserve"><value>Identical content already exists: {0}. Enable “Allow duplicate imports” in settings if you need a separate copy.</value></data>
   <data name="Versions.DuplicateHistory" xml:space="preserve"><value>This content is already saved in the local versions of {0}. Switch versions in mod details.</value></data>
   <data name="Versions.Empty" xml:space="preserve"><value>No saved versions yet. Enable version history in Library settings to keep previous versions on update.</value></data>
+  <data name="IAS.Title" xml:space="preserve"><value>HD2IAS management</value></data>
+  <data name="IAS.Description" xml:space="preserve"><value>Install a downloaded or local HD2IAS runtime package. Matching system data is added to the mod library, updating an existing entry automatically. Deploy it through a profile. Native is the default route.</value></data>
+  <data name="IAS.Package" xml:space="preserve"><value>HD2IAS package</value></data>
+  <data name="IAS.PackagePath" xml:space="preserve"><value>Select an HD2IAS update ZIP</value></data>
+  <data name="IAS.Browse" xml:space="preserve"><value>Select package</value></data>
+  <data name="IAS.GamePath" xml:space="preserve"><value>Game directory (from Settings)</value></data>
+  <data name="IAS.Route" xml:space="preserve"><value>Route to inspect</value></data>
+  <data name="IAS.Inspect" xml:space="preserve"><value>Inspect package and installation</value></data>
+  <data name="IAS.Working" xml:space="preserve"><value>Checking package files and game fingerprints…</value></data>
+  <data name="IAS.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="IAS.Cancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+  <data name="IAS.Complete" xml:space="preserve"><value>Inspection complete. No game files were changed.</value></data>
+  <data name="IAS.PackageInvalid" xml:space="preserve"><value>Package verification failed: files are missing or do not match the manifest.</value></data>
+  <data name="IAS.SelectPackage" xml:space="preserve"><value>Select a package, then inspect it. Set the game directory in Settings to compare the installation.</value></data>
+  <data name="IAS.PackageSummary" xml:space="preserve"><value>Runtime: {0} · Foundation: {1} · Appearance source: {2}</value></data>
+  <data name="IAS.RuntimeMatches" xml:space="preserve"><value>Runtime matches {0} {1}.</value></data>
+  <data name="IAS.InstallationNotChecked" xml:space="preserve"><value>Installation: UNKNOWN (game directory not configured).</value></data>
+  <data name="IAS.InstallationAbsent" xml:space="preserve"><value>No manifest-listed runtime files found.</value></data>
+  <data name="IAS.InstallationIncompleteOrUnknown" xml:space="preserve"><value>Installation: UNKNOWN (incomplete, modified, or a different version).</value></data>
+  <data name="IAS.NoGame" xml:space="preserve"><value>Game compatibility has not been checked.</value></data>
+  <data name="IAS.Compatible" xml:space="preserve"><value>Game fingerprints match the selected runtime.</value></data>
+  <data name="IAS.Incompatible" xml:space="preserve"><value>Game fingerprints are missing or do not match. Automatic deployment is unavailable.</value></data>
+  <data name="IAS.DataNotVerified" xml:space="preserve"><value>Manage data as a normal mod: add it to profiles, enable or disable it, and adjust its order. Runtime installation does not deploy data. Keep one compatible MDL or BSL loader in the profile.</value></data>
+  <data name="IAS.GameChecks" xml:space="preserve"><value>Game compatibility fingerprints</value></data>
+  <data name="IAS.RuntimeChecks" xml:space="preserve"><value>Runtime files (selected route)</value></data>
+  <data name="IAS.FoundationChecks" xml:space="preserve"><value>Foundation files</value></data>
+  <data name="IAS.PackageChecks" xml:space="preserve"><value>Package SHA-256 verification</value></data>
+  <data name="IAS.Identity" xml:space="preserve"><value>Expected system Lua module and identity</value></data>
+  <data name="IAS.Notes" xml:space="preserve"><value>Package update notes and required actions</value></data>
+  <data name="IAS.FileMissing" xml:space="preserve"><value>Missing</value></data>
+  <data name="IAS.FileMatch" xml:space="preserve"><value>Matches</value></data>
+  <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>Recognized older hash</value></data>
+  <data name="IAS.FileUnknown" xml:space="preserve"><value>Unknown / mismatch</value></data>
+  <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua route</value></data>
+  <data name="IAS.NativeRoute" xml:space="preserve"><value>Native route</value></data>
+  <data name="IAS.Generate" xml:space="preserve"><value>Generate system data ZIP</value></data>
+  <data name="IAS.Generating" xml:space="preserve"><value>Building and validating the system Lua package…</value></data>
+  <data name="IAS.Generated" xml:space="preserve"><value>System data ZIP generated and verified: {0}</value></data>
+  <data name="IAS.OnlineUpdates" xml:space="preserve"><value>Official update packages</value></data>
+  <data name="IAS.UpdateSource" xml:space="preserve"><value>Official GitHub update history · Native is selected by default.</value></data>
+  <data name="IAS.RefreshVersions" xml:space="preserve"><value>Check versions</value></data>
+  <data name="IAS.DownloadUpdate" xml:space="preserve"><value>Download and inspect</value></data>
+  <data name="IAS.CheckingUpdates" xml:space="preserve"><value>Reading the official update history…</value></data>
+  <data name="IAS.Downloading" xml:space="preserve"><value>Downloading and verifying the update package…</value></data>
+  <data name="IAS.VersionsReady" xml:space="preserve"><value>Found {0} versions. The highest version is selected; download it or choose another version.</value></data>
+  <data name="IAS.NoVersions" xml:space="preserve"><value>No version numbers were found in the official update history.</value></data>
+  <data name="IAS.DownloadProgress" xml:space="preserve"><value>Downloaded {0} / {1} MiB</value></data>
+  <data name="IAS.UpdateRateLimited" xml:space="preserve"><value>The update server received too many requests. Try again later or select a local update ZIP.</value></data>
+  <data name="IAS.RefreshInstallation" xml:space="preserve"><value>Refresh installed version</value></data>
+  <data name="IAS.ReadingInstallation" xml:space="preserve"><value>Reading the installed build record and configuration files…</value></data>
+  <data name="IAS.BuildRead" xml:space="preserve"><value>Build record: {0} · Route: {1}. File integrity is checked separately.</value></data>
+  <data name="IAS.BuildNotChecked" xml:space="preserve"><value>Set the game directory to read the installed build record.</value></data>
+  <data name="IAS.BuildMissing" xml:space="preserve"><value>bin/HD2IndependentRig.build.json was not found. Installed version is unknown.</value></data>
+  <data name="IAS.BuildInvalid" xml:space="preserve"><value>The installed build record is unreadable or unsupported. Installed version is unknown.</value></data>
+  <data name="IAS.BuildContents" xml:space="preserve"><value>Installed build record contents</value></data>
+  <data name="IAS.ConfigUserSettings" xml:space="preserve"><value>User settings · preserve</value></data>
+  <data name="IAS.ConfigSystemCatalog" xml:space="preserve"><value>System catalog · verify hashes</value></data>
+  <data name="IAS.ConfigUnclassified" xml:space="preserve"><value>Unclassified INI · preserve</value></data>
+  <data name="IAS.FilePlan" xml:space="preserve"><value>File handling plan (no files changed)</value></data>
+  <data name="IAS.ActionSkipUnchanged" xml:space="preserve"><value>Hash matches · skip</value></data>
+  <data name="IAS.ActionPreserveSettings" xml:space="preserve"><value>Preserve existing settings</value></data>
+  <data name="IAS.ActionCreate" xml:space="preserve"><value>Missing · installation needed</value></data>
+  <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>Recognized older file · update needed</value></data>
+  <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>Recognized retired file · removal needed</value></data>
+  <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>Unknown or invalid · automatic replacement blocked</value></data>
+  <data name="IAS.Install" xml:space="preserve"><value>Install runtime and update data mod</value></data>
+  <data name="IAS.Installing" xml:space="preserve"><value>Installing runtime and updating the data mod in the library…</value></data>
+  <data name="IAS.Installed" xml:space="preserve"><value>Runtime installed; data saved to the mod library: {0}. Deploy it through a profile.</value></data>
+  <data name="IAS.OperationLog" xml:space="preserve"><value>Installation progress and log</value></data>
+  <data name="IAS.Uninstall" xml:space="preserve"><value>Uninstall HD2IAS runtime</value></data>
+  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>Remove the HD2IAS system files whose hashes match the manager's installation records? dxgi.dll, user settings and the library data mod will be kept. Externally modified files will also be kept and listed in the log.</value></data>
+  <data name="IAS.Uninstalling" xml:space="preserve"><value>Backing up and uninstalling the HD2IAS runtime…</value></data>
+  <data name="IAS.Uninstalled" xml:space="preserve"><value>The registered HD2IAS runtime files have been uninstalled. dxgi.dll, user settings and the data mod were kept.</value></data>
+  <data name="IAS.UninstalledModified" xml:space="preserve"><value>Removed the verified runtime files. These modified files were kept and need manual review: {0}. dxgi.dll, user settings and the data mod were kept.</value></data>
+  <data name="IAS.RuntimeRequired" xml:space="preserve"><value>The library contains HD2IAS data, but the HD2IAS runtime is missing or incomplete in the current game directory. Install the system runtime package, then deploy data through a profile.</value></data>
+  <data name="IAS.GoInstall" xml:space="preserve"><value>Install HD2IAS</value></data>
+  <data name="IAS.DataRequired" xml:space="preserve"><value>HD2IAS data is missing or invalid in the mod library. Select the matching runtime package and install or repair it to generate data in the library, then deploy it through a profile.</value></data>
+  <data name="IAS.GoRepairData" xml:space="preserve"><value>Repair HD2IAS data</value></data>
 </root>

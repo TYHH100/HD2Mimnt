@@ -124,7 +124,7 @@
                                 <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Border Classes="chip" IsVisible="{Binding IsHd2Ir}"><TextBlock Text="HD2IR" FontSize="12" Classes="accent-text"/></Border>
+                                        <Border Classes="chip" IsVisible="{Binding IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
                                         <Button Classes="chip" Command="{Binding OpenSourcePageCommand}"
                                                 IsVisible="{Binding HasPlatformLink}" ToolTip.Tip="{loc:LocalizedBinding PlatformLink}">
                                             <TextBlock Text="{loc:LocalizedBinding SourceName}" FontSize="12" Classes="muted"/>

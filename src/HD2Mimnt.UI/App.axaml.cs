@@ -544,6 +544,26 @@ public partial class App : Avalonia.Application
         services.AddTransient(sp => new LogViewModel(
             sp.GetRequiredService<IFileLogService>()));
         services.AddTransient<CrashDiagnosticsViewModel>();
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader, HD2Mimnt.Infrastructure.Hd2IAS.PackageManifestReader>();
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASRuntimeInspector, HD2Mimnt.Infrastructure.Hd2IAS.RuntimeCompatibilityChecker>();
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler, HD2Mimnt.Infrastructure.Hd2IAS.LuaCompilerValidator>();
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("hd2ias-updates", (_, _) =>
+            new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource>(sp =>
+            new HD2Mimnt.Infrastructure.Hd2IAS.GitHubUpdateSource(
+                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("hd2ias-updates"),
+                sp.GetRequiredService<IHttpDownloadService>()));
+        services.AddSingleton(sp => new HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDeploymentStore(Path.Combine(storageLocations.AppDataPath, "HD2IAS"),
+            Path.Combine(storageLocations.CachePath, "HD2IAS"), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader>()));
+        services.AddSingleton(sp => new Hd2IASIntegrationService(
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader>(),
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2IASRuntimeInspector>(),
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler>(),
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource>(),
+            Path.Combine(storageLocations.CachePath, "HD2IAS"),
+            sp.GetRequiredService<HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDeploymentStore>(),
+            sp.GetRequiredService<IDeploymentRepository>(), sp.GetRequiredService<ModService>()));
+        services.AddTransient<Hd2IASManagementViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -571,6 +591,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<BrowseModsViewModel>(),
             sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
-            sp.GetRequiredService<ModCreationViewModel>()));
+            sp.GetRequiredService<ModCreationViewModel>(),
+            sp.GetRequiredService<Hd2IASManagementViewModel>()));
     }
 }

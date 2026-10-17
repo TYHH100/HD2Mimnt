@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- HD2IAS data 的清单 GUID / sidecar 只能证明库条目身份，不能证明主补丁仍存在。状态检测须回读库内真实资源；未部署、停用和空 stream/GPU 伴随文件不能误报。缺文件仍保留身份供原位修复，同版本修复不能被旧数据库哈希的“未变化”分支跳过。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户反馈 data 缺失没有提示；格式来源：[官方发布仓库](https://github.com/Estecsky/HD2-Integrated-Armor-System)。
+
+- HD2IAS 系统 Lua 生成按运行包所选路线的模板与正文构建，分别验证原文件、规范化正文和最终源码哈希。用户提供的 1.4.0 Lua 样本是 184 字节索引之后的源码 envelope（版本 2），不能套用 Wwise 回调字节码的 192 字节布局；编译检查仅 loadbuffer，不运行系统 Lua。身份取清单声明并由最终源码哈希约束，自定义追踪放独立 sidecar。运行时匹配不代表已安装 data 包有效；运行时不能混入普通 HD2IR 角色导入，生成的纯 data 则通过 ModService 作为常规模组入库和更新，不直接部署游戏。按清单身份、sidecar 或严格单资源模块入口匹配原条目，更新保留 ID 与配置引用，不能按名称覆盖。格式及双路线离线验证见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)。来源：[Lua C API](https://www.lua.org/manual/5.1/manual.html#luaL_loadbuffer)、[官方版本包](https://github.com/Estecsky/HD2-Integrated-Armor-System)。
+
 - 重复导入不能只比较 ZIP 文件名或常规目录 Hash：旧包规范化会生成清单 GUID，HD2IR 映射含运行时 ID/时间。保留原 Hash 契约，另按作者元数据和完整文件内容判断重复，排除生成身份；检查与落库串行，拒绝后清理准备副本。版本保留与重复导入是两个独立默认关闭的选项；更新/切换统一走 ModService，保持 Mod/Profile 身份并在失败时恢复版本索引。见[本地版本说明](../features/MOD_VERSION_HISTORY.md)。来源：[SHA256](https://learn.microsoft.com/dotnet/api/system.security.cryptography.sha256)、[File.Move](https://learn.microsoft.com/dotnet/api/system.io.file.move)。
 
 - HD2IR 分类结果不等于可部署文件：前端通过 Application 生成库内独立副本和组件映射，组件选择复用配置选项，骨骼与补丁统一登记到原部署追踪；不能只保存 LogicalMod 名称就报告导入成功。作者双文件清单保持原字节，组件映射放独立元数据。嵌套组合需要确认时不得静默合并，更新包不能当作角色包部署。回归原包移除后的部署、独立配置选择及取消清理，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。来源：[Avalonia UI 线程](https://docs.avaloniaui.net/docs/guides/development-guides/accessing-the-ui-thread)、[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)。

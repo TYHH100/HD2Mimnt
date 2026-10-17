@@ -320,7 +320,7 @@ public class HD2MimntDbContext : IDisposable
                 DELETE FROM ModsFTS WHERE rowid=old.rowid;
             END;
 
-            -- Logical Mods table (HD2IR nested archive support)
+            -- Logical Mods table (HD2IAS nested archive support)
             CREATE TABLE IF NOT EXISTS LogicalMods (
                 Id TEXT PRIMARY KEY,
                 Name TEXT NOT NULL,

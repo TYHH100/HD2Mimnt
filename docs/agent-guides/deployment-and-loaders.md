@@ -4,6 +4,12 @@
 
 ## 易错点与正确做法
 
+- HD2IAS 卸载与安装复用同一备份/事务恢复流程，只移除管理器登记且实际哈希仍匹配的系统文件。`dxgi.dll` 始终保留，不能因它曾列入 HD2IAS 清单就删除 ReShade；退役清理也不能删除它。用户 INI、未知或外部修改文件及普通 data 模组保留。卸载提交须留下可识别的完成记录，恢复不能把已成功卸载的文件装回来。库中存在真实 HD2IAS data、运行时缺失或不完整时给本地安装提示，不能只看模组名称或 build.json，更不能因此自动联网安装。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户明确要求；来源：[官方运行包](https://github.com/Estecsky/HD2-Integrated-Armor-System)。
+
+- HD2IAS 降级不能仅依赖旧包的 `previous_sha256`，旧包不含未来版本哈希。覆盖校验须接受活动安装记录中同路径且实际哈希完全一致的系统文件；外部修改后仍拦截，不能按版本声明放行。`HD2IndependentRig.build.json` 是系统元数据，须同步部署并参与备份回滚，不能作为用户配置永久保留。仅对这个已知源文件补 `bin/HD2IndependentRig.build.json` 目标，其它 `target=null` 仍不部署。旧未分类记录不提供所有权，必要时用当前活动版本的已校验缓存包补足构建记录的认可哈希。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户提供的 1.4.2 / 1.4.5 包及降级报错；来源：[官方更新目录](https://github.com/Estecsky/HD2-Integrated-Armor-System/tree/main/updates)。
+
+- HD2IAS 本机版本读取 `bin/HD2IndependentRig.build.json`（`HD2IndependentRigBuild1`），JSON 的版本与路线声明不能代替实际载荷哈希校验。`HD2IndependentRig` 下现有 `runtime.ini`、`free_parts_selections.ini`、`physics_control.ini` 保存运行选项或用户选择，未知 INI 也保留；`helmet_manifest.ini`、`transmog_manifest.ini` 属于系统目录清单，仍校验哈希。文件处理计划中哈希相同标记跳过，认可旧哈希可规划更新，来源未知不能自动覆盖。覆盖式安装须先校验并暂存完整载荷、备份真实旧文件、持久化变更日志，再写目标并发布独立活动记录；失败或取消恢复真实旧状态，不删除整个 bin。复用 CopyDeploymentMethod 时须在返回后检查 CancellationToken，其取消路径可能返回 false，不能把取消误报为复制失败。运行时独立管理，生成的纯 data 则按用户最新要求通过 ModService 加入模组库；已有模块更新原 ID 并保留配置引用。data 不直接写游戏、不预留特殊 patch_0，复用普通配置部署和重编号。当前覆盖式流程待用户真机测试，先卸后装暂不启用。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，来源：[官方更新记录](https://raw.githubusercontent.com/Estecsky/HD2-Integrated-Armor-System/refs/heads/main/UPDATE_HISTORY.txt)及用户提供的 1.4.4 包和本机配置样本。
+
 - “设置 → 配置文件 → 锁定加载器”保存为 `Profiles.LockLoaders`，缺省为 true。开启时沿用固定分组、不可选加载器和优先级规则；关闭时 Lua 依赖、BSL/MDL、SmoothBoot 按普通模组选择、拖动和数字定位，用户分隔符也按全部成员计数。ProfileService 不能在读取或保存时偷偷恢复固定排序；部署、冲突和离线接口共用带开关参数的 `BslProfilePolicy.DeploymentSequence`，关闭时对完整启用列表应用部署方向。BSL/MDL 互斥和部署依赖校验继续生效，批量切换加载器后回填全部启用状态。重新开启后按原规则归组，切换开关需刷新配置卡片并使旧冲突结果失效。新增服务依赖同步修改 App 的手动 DI 工厂。来源：https://learn.microsoft.com/dotnet/core/extensions/dependency-injection 、https://github.com/CowboyBingus/BingusSharedLoader/blob/main/docs/AUTHORING.md
 
 - 离线接口固定留在 BootstrapPath 的 `interop` 目录，不能跟可迁移数据库一起搬走；旧主版本由保留的适配器持续生成。库、配置与部署必须从独立只读事务取得，后台不共享 UI 的 SQLite 连接；部署选项/版本读取当时快照，旧 null 不得用当前配置补造。预登记目标不等于已部署文件，导出需核对实际存在并列出缺失目标。契约见[离线模组接口](../features/OFFLINE_MOD_INTERFACE.md)。来源：https://www.sqlite.org/isolation.html 、https://semver.org/

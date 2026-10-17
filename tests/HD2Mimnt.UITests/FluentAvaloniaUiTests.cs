@@ -3525,7 +3525,10 @@ public sealed partial class FluentAvaloniaUiTests
             NexusModsOAuthOptions? nexusOAuthOptions = null,
             HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null, HttpMessageHandler? ayakaHandler = null,
             AyakaModsOAuthOptions? ayakaOAuthOptions = null, HD2Mimnt.Core.Interfaces.IAyakaModsOAuthClient? ayakaOAuthClient = null,
-            HttpMessageHandler? ayakaDownloadHandler = null)
+            HttpMessageHandler? ayakaDownloadHandler = null,
+            HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader? iasPackages = null,
+            HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler? iasCompiler = null,
+            HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource? iasUpdates = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3546,6 +3549,9 @@ public sealed partial class FluentAvaloniaUiTests
                 if (ayakaOAuthOptions != null) services.AddSingleton(ayakaOAuthOptions);
                 if (ayakaOAuthClient != null) services.AddSingleton(ayakaOAuthClient);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
+                if (iasPackages != null) services.AddSingleton(iasPackages);
+                if (iasCompiler != null) services.AddSingleton(iasCompiler);
+                if (iasUpdates != null) services.AddSingleton(iasUpdates);
                 if (nexusHandler != null)
                 {
                     services.AddKeyedSingleton<HttpClient>("nexus-api", (_, _) => new HttpClient(nexusHandler, disposeHandler: false));

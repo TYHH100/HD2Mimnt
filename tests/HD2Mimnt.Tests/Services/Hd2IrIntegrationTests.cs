@@ -39,7 +39,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         File.Delete(source);
         Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_root, "temp")));
         var mod = (await _mods.GetByIdAsync(id))!;
-        Assert.Equal("HD2IR", mod.WorkflowType);
+        Assert.Equal("HD2IAS", mod.WorkflowType);
         Assert.Equal(2, mod.Manifest!.Options!.Count);
         var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
         var full = await CreateProfile(id, [true, true]);
@@ -113,7 +113,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var id = await _import.ImportModAsync(archive);
         var mod = (await _mods.GetByIdAsync(id))!;
         Assert.Equal("Hero", mod.Name);
-        Assert.Equal("HD2IR", mod.WorkflowType);
+        Assert.Equal("HD2IAS", mod.WorkflowType);
         Assert.Single(mod.Manifest!.Options!);
     }
 

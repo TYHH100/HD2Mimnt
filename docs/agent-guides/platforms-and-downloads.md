@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- HD2IAS 更新优先直连官方 Raw，连接失败才顺序尝试用户指定的公益源；不能并发竞速或后台高频探测。版本列表缓存 15 分钟，已校验 ZIP 复用，下载单连接且不自动重试。同主机公益源请求至少间隔 2 秒，失败冷却 5 分钟；429 立即停止，不能轮换源规避限流。缓存包重新验证后才能复用；缓存损坏时先保留旧文件，下载校验成功后再替换。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md#备用下载与请求频率)，来源为用户指定的 [gitproxy](https://api.gitproxy.dev/)、[gh-proxy](https://gh-proxy.com/)、[fastgit](https://fastgit.cc/) 和[官方 Raw](https://raw.githubusercontent.com/Estecsky/HD2-Integrated-Armor-System/refs/heads/main/UPDATE_HISTORY.txt)。
+
 - 平台来源元数据存入模组库外层 `.hd2mimnt-metadata/{ModId:N}.json`，保留数据库兼容镜像，不写进模组内容目录或重写 manifest；版本/作者读取优先使用来源记录，安装文件版本与远端默认版本分开。下载任务开始时固定来源上下文，覆盖浏览器/API、首次导入/更新和手动 DI 链。元数据变化使用 `MetadataChanged`，不得复用会失效冲突缓存的 `ModsChanged`。2026-10-15 只读响应确认 A 网详情字段为 `version`，版本列表为 `version_string`，作者主页为 `User.view_url`；N 网 v3 详情无作者，需 v1 补充，上传者与作者不一致时不冒认主页。详见[来源元数据与响应核对](../features/MOD_SOURCE_METADATA.md)。来源：[A 网接口](https://docs.ayakamods.com/endpoints/)、[N 网 API](https://api-docs.nexusmods.com/)。
 
 - A 网 UI 默认通过系统浏览器下载，无 NXM 回调；开发工具可对浏览页单独开启本次运行的 API 下载测试，任务开始时固定模式、执行中禁用切换、失败不自动回退。只在用户明确开始“下载并导入/更新”后由 Application `BrowserDownloadHandoffService` 等待系统下载目录中新出现的附件，匹配名称/已知大小并等待稳定、排除临时文件和写锁。旧文件、多个候选或未知元数据交给用户手选，自定义保存目录也走手选。取消/离页/关闭需等待清理；源文件属于用户，任何结果均不得删除。更新仍复用原 Mod 替换并重新校验绑定和附件；测试使用隔离下载目录，并从 App 的真实 DI 工厂验证浏览页和 Library 的手动构造链，避免可选参数漏传导致其中一处显示服务不可用。官方“只读 Guest key”仍描述下载能力，不能把只读等同于无下载权限。参考：[A 网指南](https://docs.ayakamods.com/mod-manager-guide/)、[浏览器接管参考项目](https://github.com/katsyk/DemocracyDefenderModManager)、[系统下载目录](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)。

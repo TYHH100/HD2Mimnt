@@ -3927,10 +3927,10 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>这些组件将作为一个模组导入，可在配置选项中分别启停。</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>合并添加</value></data>
-  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IR 组件</value></data>
+  <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS 组件</value></data>
   <data name="Hd2Ir.DeploymentDescription" xml:space="preserve"><value>在配置选项中选择组件；骨骼文件部署到 bin/HD2IndependentRig，资源补丁部署到 data。</value></data>
-  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>确认 HD2IR 组件组合</value></data>
-  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>识别 HD2IR 组件</value></data>
+  <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>确认 HD2IAS 组件组合</value></data>
+  <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>识别 HD2IAS 组件</value></data>
   <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>检查嵌套压缩包和部署映射</value></data>
   <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>保留模组历史版本</value></data>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>更新时保留之前的完整版本，可在详情中切换；会额外占用磁盘空间。保存后生效。</value></data>
@@ -3952,4 +3952,82 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Versions.Duplicate" xml:space="preserve"><value>模组库中已存在相同内容：{0}。如需独立副本，请在设置中开启“允许重复导入”。</value></data>
   <data name="Versions.DuplicateHistory" xml:space="preserve"><value>此内容已保存在 {0} 的本地版本中，请在模组详情中切换版本。</value></data>
   <data name="Versions.Empty" xml:space="preserve"><value>暂无历史版本。在“设置 → 模组库”开启版本保留后，更新时即可保存旧版本。</value></data>
+  <data name="IAS.Title" xml:space="preserve"><value>HD2IAS 管理</value></data>
+  <data name="IAS.Description" xml:space="preserve"><value>下载或选择 HD2IAS 运行包后安装。匹配路线的系统 data 会自动加入模组库；已有条目自动更新，之后通过配置文件正常部署。默认 Native 路线。</value></data>
+  <data name="IAS.Package" xml:space="preserve"><value>HD2IAS 运行包</value></data>
+  <data name="IAS.PackagePath" xml:space="preserve"><value>选择 HD2IAS 更新 ZIP</value></data>
+  <data name="IAS.Browse" xml:space="preserve"><value>选择运行包</value></data>
+  <data name="IAS.GamePath" xml:space="preserve"><value>游戏目录（来自设置）</value></data>
+  <data name="IAS.Route" xml:space="preserve"><value>检查的路线</value></data>
+  <data name="IAS.Inspect" xml:space="preserve"><value>检查运行包与安装状态</value></data>
+  <data name="IAS.Working" xml:space="preserve"><value>正在校验运行包文件与游戏指纹…</value></data>
+  <data name="IAS.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="IAS.Cancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="IAS.Complete" xml:space="preserve"><value>检查完成，未修改游戏文件。</value></data>
+  <data name="IAS.PackageInvalid" xml:space="preserve"><value>运行包校验失败：文件缺失或与清单不匹配。</value></data>
+  <data name="IAS.SelectPackage" xml:space="preserve"><value>选择运行包后开始检查。在设置中配置游戏目录即可比对安装状态。</value></data>
+  <data name="IAS.PackageSummary" xml:space="preserve"><value>运行包：{0} · Foundation：{1} · 外观能力：{2}</value></data>
+  <data name="IAS.RuntimeMatches" xml:space="preserve"><value>运行时文件匹配 {0} {1}。</value></data>
+  <data name="IAS.InstallationNotChecked" xml:space="preserve"><value>安装状态：UNKNOWN（未配置游戏目录）。</value></data>
+  <data name="IAS.InstallationAbsent" xml:space="preserve"><value>未找到清单列出的运行时文件。</value></data>
+  <data name="IAS.InstallationIncompleteOrUnknown" xml:space="preserve"><value>安装状态：UNKNOWN（文件不完整、已修改或版本不同）。</value></data>
+  <data name="IAS.NoGame" xml:space="preserve"><value>尚未检查游戏兼容性。</value></data>
+  <data name="IAS.Compatible" xml:space="preserve"><value>游戏指纹与所选运行包匹配。</value></data>
+  <data name="IAS.Incompatible" xml:space="preserve"><value>游戏指纹缺失或不匹配，不能自动部署。</value></data>
+  <data name="IAS.DataNotVerified" xml:space="preserve"><value>data 按普通模组管理，可加入配置、启用或停用并排序。安装运行包不会直接部署 data；请在配置中保留一份兼容的 MDL 或 BSL 加载器。</value></data>
+  <data name="IAS.GameChecks" xml:space="preserve"><value>游戏兼容性指纹</value></data>
+  <data name="IAS.RuntimeChecks" xml:space="preserve"><value>运行时文件（所选路线）</value></data>
+  <data name="IAS.FoundationChecks" xml:space="preserve"><value>Foundation 文件</value></data>
+  <data name="IAS.PackageChecks" xml:space="preserve"><value>运行包 SHA-256 校验</value></data>
+  <data name="IAS.Identity" xml:space="preserve"><value>预期系统 Lua 模块与身份</value></data>
+  <data name="IAS.Notes" xml:space="preserve"><value>运行包更新说明与必要操作</value></data>
+  <data name="IAS.FileMissing" xml:space="preserve"><value>缺失</value></data>
+  <data name="IAS.FileMatch" xml:space="preserve"><value>匹配</value></data>
+  <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>认可的旧哈希</value></data>
+  <data name="IAS.FileUnknown" xml:space="preserve"><value>未知／不匹配</value></data>
+  <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua 路线</value></data>
+  <data name="IAS.NativeRoute" xml:space="preserve"><value>Native 路线</value></data>
+  <data name="IAS.Generate" xml:space="preserve"><value>生成系统 data ZIP</value></data>
+  <data name="IAS.Generating" xml:space="preserve"><value>正在生成并验证系统 Lua 包…</value></data>
+  <data name="IAS.Generated" xml:space="preserve"><value>系统 data ZIP 已生成并通过验证：{0}</value></data>
+  <data name="IAS.OnlineUpdates" xml:space="preserve"><value>官方更新包</value></data>
+  <data name="IAS.UpdateSource" xml:space="preserve"><value>官方 GitHub 更新记录 · 默认选择 Native 路线。</value></data>
+  <data name="IAS.RefreshVersions" xml:space="preserve"><value>检查版本</value></data>
+  <data name="IAS.DownloadUpdate" xml:space="preserve"><value>下载并检查</value></data>
+  <data name="IAS.CheckingUpdates" xml:space="preserve"><value>正在读取官方更新记录…</value></data>
+  <data name="IAS.Downloading" xml:space="preserve"><value>正在下载并校验更新包…</value></data>
+  <data name="IAS.VersionsReady" xml:space="preserve"><value>找到 {0} 个版本，已选择最高版本；可下载或选择其他版本。</value></data>
+  <data name="IAS.NoVersions" xml:space="preserve"><value>官方更新记录中未找到版本号。</value></data>
+  <data name="IAS.DownloadProgress" xml:space="preserve"><value>已下载 {0} / {1} MiB</value></data>
+  <data name="IAS.UpdateRateLimited" xml:space="preserve"><value>更新服务器请求过于频繁，请稍后重试，或选择本地更新 ZIP。</value></data>
+  <data name="IAS.RefreshInstallation" xml:space="preserve"><value>刷新本机版本</value></data>
+  <data name="IAS.ReadingInstallation" xml:space="preserve"><value>正在读取本机构建记录与配置文件…</value></data>
+  <data name="IAS.BuildRead" xml:space="preserve"><value>构建记录：{0} · 路线：{1}。文件完整性另行校验。</value></data>
+  <data name="IAS.BuildNotChecked" xml:space="preserve"><value>配置游戏目录后即可读取本机构建记录。</value></data>
+  <data name="IAS.BuildMissing" xml:space="preserve"><value>未找到 bin/HD2IndependentRig.build.json，已安装版本未知。</value></data>
+  <data name="IAS.BuildInvalid" xml:space="preserve"><value>本机构建记录无法读取或格式不受支持，已安装版本未知。</value></data>
+  <data name="IAS.BuildContents" xml:space="preserve"><value>本机构建记录内容</value></data>
+  <data name="IAS.ConfigUserSettings" xml:space="preserve"><value>用户设置 · 保留</value></data>
+  <data name="IAS.ConfigSystemCatalog" xml:space="preserve"><value>系统目录清单 · 校验哈希</value></data>
+  <data name="IAS.ConfigUnclassified" xml:space="preserve"><value>未分类 INI · 保留</value></data>
+  <data name="IAS.FilePlan" xml:space="preserve"><value>文件处理计划（尚未修改文件）</value></data>
+  <data name="IAS.ActionSkipUnchanged" xml:space="preserve"><value>哈希一致 · 跳过</value></data>
+  <data name="IAS.ActionPreserveSettings" xml:space="preserve"><value>保留现有设置</value></data>
+  <data name="IAS.ActionCreate" xml:space="preserve"><value>缺失 · 需要安装</value></data>
+  <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>认可的旧文件 · 需要更新</value></data>
+  <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>认可的退役文件 · 需要清理</value></data>
+  <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>来源未知或校验失败 · 阻止自动替换</value></data>
+  <data name="IAS.Install" xml:space="preserve"><value>安装运行包并更新 data 模组</value></data>
+  <data name="IAS.Installing" xml:space="preserve"><value>正在安装运行包并更新模组库中的 data…</value></data>
+  <data name="IAS.Installed" xml:space="preserve"><value>运行包已安装，data 已保存到模组库：{0}。请通过配置文件部署。</value></data>
+  <data name="IAS.OperationLog" xml:space="preserve"><value>安装进度与日志</value></data>
+  <data name="IAS.Uninstall" xml:space="preserve"><value>卸载 HD2IAS 运行时</value></data>
+  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>确定卸载管理器已登记且哈希匹配的 HD2IAS 系统文件吗？dxgi.dll、用户设置及模组库中的 data 会保留。已被外部修改的文件也会保留并列入日志。</value></data>
+  <data name="IAS.Uninstalling" xml:space="preserve"><value>正在备份并卸载 HD2IAS 运行时…</value></data>
+  <data name="IAS.Uninstalled" xml:space="preserve"><value>HD2IAS 已登记的运行时文件已卸载。dxgi.dll、用户设置和 data 模组已保留。</value></data>
+  <data name="IAS.UninstalledModified" xml:space="preserve"><value>已卸载确认归属的运行时文件；以下文件被修改，已保留，请手动检查：{0}。dxgi.dll、用户设置和 data 模组已保留。</value></data>
+  <data name="IAS.RuntimeRequired" xml:space="preserve"><value>模组库中存在 HD2IAS data，但当前游戏目录的 HD2IAS 运行时缺失或不完整。请安装系统运行包，再通过配置文件部署 data。</value></data>
+  <data name="IAS.GoInstall" xml:space="preserve"><value>前往安装 HD2IAS</value></data>
+  <data name="IAS.DataRequired" xml:space="preserve"><value>模组库中的 HD2IAS data 缺失或无效。请选择匹配的运行包，执行安装或修复以生成库内 data，再通过配置文件部署。</value></data>
+  <data name="IAS.GoRepairData" xml:space="preserve"><value>前往修复 HD2IAS data</value></data>
 </root>

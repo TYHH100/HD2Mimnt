@@ -33,7 +33,7 @@ public class ComponentDetector : IComponentDetector
 
     public async Task<DetectionResult> DetectComponentAsync(ArchiveNode node, CancellationToken cancellationToken = default)
     {
-        // First check if it's HD2IR
+        // First check if it's HD2IAS
         var hd2IrResult = await _hd2IrDetector.DetectAsync(node, cancellationToken);
         if (hd2IrResult.IsHd2Ir)
         {
@@ -130,7 +130,7 @@ public class ComponentDetector : IComponentDetector
 
     public IEnumerable<string> GetPatternsForType(ComponentType componentType)
     {
-        if (componentType == ComponentType.HD2IR)
+        if (componentType == ComponentType.HD2IAS)
         {
             return _hd2IrDetector.GetHd2IrPatterns();
         }

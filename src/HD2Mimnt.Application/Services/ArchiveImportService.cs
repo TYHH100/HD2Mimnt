@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>
-/// Archive import service for handling nested archives and HD2IR content
+/// Archive import service for handling nested archives and HD2IAS content
 /// </summary>
 public class ArchiveImportService
 {

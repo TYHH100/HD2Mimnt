@@ -33,7 +33,7 @@ public class Hd2IrDetectorTests
 
         // Assert
         Assert.True(result.IsHd2Ir);
-        Assert.Equal(ComponentType.HD2IR, result.ComponentType);
+        Assert.Equal(ComponentType.HD2IAS, result.ComponentType);
         Assert.Equal(DetectionConfidence.Absolute, result.Confidence);
         Assert.Contains(".hd2irpack.zip", result.Reason);
     }
@@ -54,7 +54,7 @@ public class Hd2IrDetectorTests
 
         // Assert
         Assert.True(result.IsHd2Ir);
-        Assert.Equal(ComponentType.HD2IR, result.ComponentType);
+        Assert.Equal(ComponentType.HD2IAS, result.ComponentType);
         Assert.Equal(DetectionConfidence.High, result.Confidence);
         Assert.Contains("HD2IndependentRig", result.Reason);
     }
@@ -76,7 +76,7 @@ public class Hd2IrDetectorTests
 
         // Assert
         Assert.True(result.IsHd2Ir);
-        Assert.Equal(ComponentType.HD2IR, result.ComponentType);
+        Assert.Equal(ComponentType.HD2IAS, result.ComponentType);
         Assert.Equal(DetectionConfidence.High, result.Confidence);
     }
 
@@ -95,7 +95,7 @@ public class Hd2IrDetectorTests
 
         // Assert
         Assert.True(result.IsHd2Ir);
-        Assert.Equal(ComponentType.HD2IR, result.ComponentType);
+        Assert.Equal(ComponentType.HD2IAS, result.ComponentType);
         Assert.Equal(DetectionConfidence.Medium, result.Confidence);
     }
 

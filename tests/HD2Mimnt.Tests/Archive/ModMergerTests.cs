@@ -40,10 +40,10 @@ public class ModMergerTests
         {
             new()
             {
-                ComponentType = ComponentType.HD2IR,
+                ComponentType = ComponentType.HD2IAS,
                 Name = "AIRI.hd2irpack.zip",
                 SourceNode = new ArchiveNode { Name = "AIRI.hd2irpack.zip" },
-                DetectionResult = new DetectionResult { ComponentType = ComponentType.HD2IR, Confidence = DetectionConfidence.High },
+                DetectionResult = new DetectionResult { ComponentType = ComponentType.HD2IAS, Confidence = DetectionConfidence.High },
                 Size = 1000000
             }
         };
@@ -66,10 +66,10 @@ public class ModMergerTests
         {
             new()
             {
-                ComponentType = ComponentType.HD2IR,
+                ComponentType = ComponentType.HD2IAS,
                 Name = "AIRI.hd2irpack.zip",
                 SourceNode = new ArchiveNode { Name = "AIRI.hd2irpack.zip", Parent = parentNode },
-                DetectionResult = new DetectionResult { ComponentType = ComponentType.HD2IR, Confidence = DetectionConfidence.High },
+                DetectionResult = new DetectionResult { ComponentType = ComponentType.HD2IAS, Confidence = DetectionConfidence.High },
                 Size = 1000000
             },
             new()
@@ -88,7 +88,7 @@ public class ModMergerTests
         // Assert
         Assert.Single(result.LogicalMods);
         Assert.Equal(2, result.LogicalMods[0].Components.Count);
-        Assert.Contains(result.LogicalMods[0].Components, c => c.Type == ComponentType.HD2IR);
+        Assert.Contains(result.LogicalMods[0].Components, c => c.Type == ComponentType.HD2IAS);
         Assert.Contains(result.LogicalMods[0].Components, c => c.Type == ComponentType.Model);
     }
 
@@ -101,7 +101,7 @@ public class ModMergerTests
         {
             new()
             {
-                ComponentType = ComponentType.HD2IR,
+                ComponentType = ComponentType.HD2IAS,
                 Name = "AIRI.hd2irpack.zip",
                 SourceNode = new ArchiveNode { Name = "AIRI.hd2irpack.zip", Parent = parentNode },
                 DetectionResult = new DetectionResult()
@@ -131,7 +131,7 @@ public class ModMergerTests
         {
             new()
             {
-                ComponentType = ComponentType.HD2IR,
+                ComponentType = ComponentType.HD2IAS,
                 Name = "AIRI.hd2irpack.zip",
                 SourceNode = new ArchiveNode { Name = "AIRI.hd2irpack.zip", Parent = parentNode },
                 DetectionResult = new DetectionResult { Confidence = DetectionConfidence.High }

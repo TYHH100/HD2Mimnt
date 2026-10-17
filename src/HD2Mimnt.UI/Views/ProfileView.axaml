@@ -221,7 +221,7 @@
                       <Border Classes="chip">
                         <TextBlock Text="{Binding ModVersion, StringFormat='v{0}'}" FontSize="12" Classes="muted"/>
                       </Border>
-                      <Border Classes="chip" IsVisible="{Binding SourceInfo.IsHd2Ir}"><TextBlock Text="HD2IR" FontSize="12" Classes="accent-text"/></Border>
+                      <Border Classes="chip" IsVisible="{Binding SourceInfo.IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
                       <Border Classes="chip" IsVisible="{Binding IsLuaMod}">
                         <TextBlock Text="Lua Mods" FontSize="12" Classes="accent-text"/>
                       </Border>

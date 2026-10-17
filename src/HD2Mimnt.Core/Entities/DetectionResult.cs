@@ -10,7 +10,7 @@ public class DetectionResult
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// Is this HD2IR content?
+    /// Is this HD2IAS content?
     /// </summary>
     public bool IsHd2Ir { get; set; }
 

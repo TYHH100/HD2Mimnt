@@ -27,7 +27,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         {
             _hd2IrConfirmation = completion;
             PendingHd2Ir = preview;
-            Step = "确认 HD2IR 组件组合";
+            Step = "确认 HD2IAS 组件组合";
             IsIndeterminate = false;
         });
         try { await completion.Task.WaitAsync(token); }

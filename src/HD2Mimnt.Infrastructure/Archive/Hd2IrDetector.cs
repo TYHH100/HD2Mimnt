@@ -6,13 +6,13 @@ using Microsoft.Extensions.Logging;
 namespace HD2Mimnt.Infrastructure.Archive;
 
 /// <summary>
-/// HD2IR content detector implementation
+/// HD2IAS content detector implementation
 /// </summary>
 public class Hd2IrDetector : IHd2IrDetector
 {
     private readonly ILogger<Hd2IrDetector>? _logger;
 
-    // HD2IR 特征文件扩展名
+    // HD2IAS 特征文件扩展名
     private static readonly string[] Hd2IrExtensions = new[]
     {
         ".hd2preview",
@@ -22,14 +22,14 @@ public class Hd2IrDetector : IHd2IrDetector
         ".hd2shared"
     };
 
-    // HD2IR 特征路径
+    // HD2IAS 特征路径
     private static readonly string[] Hd2IrPaths = new[]
     {
         "HD2IndependentRig",
         "bin/HD2IndependentRig"
     };
 
-    // HD2IR 特征文件名
+    // HD2IAS 特征文件名
     private static readonly string[] Hd2IrFileNames = new[]
     {
         "difference.ini",
@@ -68,7 +68,7 @@ public class Hd2IrDetector : IHd2IrDetector
         if (paths.Any(p => p.EndsWith(".hd2irpack.zip", StringComparison.OrdinalIgnoreCase)))
         {
             result.IsHd2Ir = true;
-            result.ComponentType = ComponentType.HD2IR;
+            result.ComponentType = ComponentType.HD2IAS;
             result.Confidence = DetectionConfidence.Absolute;
             reasons.Add("文件扩展名匹配 .hd2irpack.zip");
             result.DetectedFiles.AddRange(paths.Where(p => p.EndsWith(".hd2irpack.zip", StringComparison.OrdinalIgnoreCase)));
@@ -81,38 +81,38 @@ public class Hd2IrDetector : IHd2IrDetector
         if (hd2IrPathMatches.Any())
         {
             result.IsHd2Ir = true;
-            result.ComponentType = ComponentType.HD2IR;
+            result.ComponentType = ComponentType.HD2IAS;
             if (result.Confidence < DetectionConfidence.High)
                 result.Confidence = DetectionConfidence.High;
             reasons.Add($"包含 HD2IndependentRig 路径结构 ({hd2IrPathMatches.Count} 个文件)");
             result.DetectedStructure.AddRange(hd2IrPathMatches.Take(5));
         }
 
-        // Priority 3: HD2IR characteristic file extensions
+        // Priority 3: HD2IAS characteristic file extensions
         var extensionMatches = paths.Where(p => Hd2IrExtensions.Any(ext =>
             p.EndsWith(ext, StringComparison.OrdinalIgnoreCase))).ToList();
 
         if (extensionMatches.Any())
         {
             result.IsHd2Ir = true;
-            result.ComponentType = ComponentType.HD2IR;
+            result.ComponentType = ComponentType.HD2IAS;
             if (result.Confidence < DetectionConfidence.High)
                 result.Confidence = DetectionConfidence.High;
-            reasons.Add($"包含 HD2IR 特征文件扩展名: {string.Join(", ", extensionMatches.Select(Path.GetExtension).Distinct().Take(3))}");
+            reasons.Add($"包含 HD2IAS 特征文件扩展名: {string.Join(", ", extensionMatches.Select(Path.GetExtension).Distinct().Take(3))}");
             result.DetectedFiles.AddRange(extensionMatches.Take(10));
         }
 
-        // Priority 4: HD2IR configuration files
+        // Priority 4: HD2IAS configuration files
         var configMatches = paths.Where(p => Hd2IrFileNames.Any(name =>
             Path.GetFileName(p).Equals(name, StringComparison.OrdinalIgnoreCase))).ToList();
 
         if (configMatches.Any())
         {
             result.IsHd2Ir = true;
-            result.ComponentType = ComponentType.HD2IR;
+            result.ComponentType = ComponentType.HD2IAS;
             if (result.Confidence < DetectionConfidence.Medium)
                 result.Confidence = DetectionConfidence.Medium;
-            reasons.Add($"包含 HD2IR 配置文件: {string.Join(", ", configMatches.Select(Path.GetFileName))}");
+            reasons.Add($"包含 HD2IAS 配置文件: {string.Join(", ", configMatches.Select(Path.GetFileName))}");
             result.DetectedFiles.AddRange(configMatches);
         }
 
@@ -120,7 +120,7 @@ public class Hd2IrDetector : IHd2IrDetector
 
         if (result.IsHd2Ir)
         {
-            _logger?.LogInformation("检测到 HD2IR 内容, 置信度: {Confidence}, 原因: {Reason}",
+            _logger?.LogInformation("检测到 HD2IAS 内容, 置信度: {Confidence}, 原因: {Reason}",
                 result.Confidence, result.Reason);
         }
 

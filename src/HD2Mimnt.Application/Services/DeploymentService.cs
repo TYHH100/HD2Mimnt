@@ -409,9 +409,9 @@ public class DeploymentService
                 foreach (var file in nativeFiles)
                 {
                     var target = Path.GetFullPath(Path.Combine(gameDirectory, file.FileName));
-                    if (!nativeTargets.Add(target)) throw new InvalidOperationException($"HD2IR 组件目标重复：{file.FileName}，请在配置选项中只启用一份。");
+                    if (!nativeTargets.Add(target)) throw new InvalidOperationException($"HD2IAS 组件目标重复：{file.FileName}，请在配置选项中只启用一份。");
                     if (Path.Exists(target) && !trackedNativeTargets.Contains(target))
-                        throw new IOException($"HD2IR 目标已存在且不属于当前部署：{file.FileName}，请先备份并处理原有文件。");
+                        throw new IOException($"HD2IAS 目标已存在且不属于当前部署：{file.FileName}，请先备份并处理原有文件。");
                 }
                 if (mod == null || files.Count + nativeFiles.Count == 0)
                 {

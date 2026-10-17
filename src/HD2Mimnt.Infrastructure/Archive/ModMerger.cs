@@ -85,12 +85,12 @@ public class ModMerger : IModMerger
             return true;
         }
 
-        // Check if there's HD2IR + Model combination (common pattern)
-        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IR);
+        // Check if there's HD2IAS + Model combination (common pattern)
+        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IAS);
         var hasModel = candidates.Any(c => c.ComponentType == ComponentType.Model);
         if (hasHd2Ir && hasModel)
         {
-            _logger?.LogDebug("检测到 HD2IR + 模型组合，建议合并");
+            _logger?.LogDebug("检测到 HD2IAS + 模型组合，建议合并");
             return true;
         }
 
@@ -125,8 +125,8 @@ public class ModMerger : IModMerger
             score += 2;
         }
 
-        // HD2IR + Model pattern: +2
-        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IR);
+        // HD2IAS + Model pattern: +2
+        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IAS);
         var hasModel = candidates.Any(c => c.ComponentType == ComponentType.Model);
         if (hasHd2Ir && hasModel)
         {
@@ -275,11 +275,11 @@ public class ModMerger : IModMerger
             reasons.Add("名称相似");
         }
 
-        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IR);
+        var hasHd2Ir = candidates.Any(c => c.ComponentType == ComponentType.HD2IAS);
         var hasModel = candidates.Any(c => c.ComponentType == ComponentType.Model);
         if (hasHd2Ir && hasModel)
         {
-            reasons.Add("HD2IR+模型组合");
+            reasons.Add("HD2IAS+模型组合");
         }
 
         reasons.Add($"置信度: {confidence}");

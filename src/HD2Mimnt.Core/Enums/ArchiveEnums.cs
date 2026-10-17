@@ -19,7 +19,7 @@ public enum ArchiveType
 public enum ComponentType
 {
     Unknown,
-    HD2IR,
+    HD2IAS,
     Model,
     Texture,
     Material,

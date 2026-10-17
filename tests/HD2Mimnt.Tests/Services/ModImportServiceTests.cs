@@ -240,7 +240,7 @@ public sealed class ModImportServiceTests : IDisposable
         var reports = new List<ModImportProgress>();
         var id = await CreateService().ImportModAsync(zip, progress: new InlineProgress(reports.Add));
         var mod = (await _modRepository.GetByIdAsync(id))!;
-        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IR 组件", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
+        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IAS 组件", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
             reports.Select(p => p.Step).Distinct());
         Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
         Assert.Contains(reports, p => p.Step == "解压模组" && p.IsIndeterminate);

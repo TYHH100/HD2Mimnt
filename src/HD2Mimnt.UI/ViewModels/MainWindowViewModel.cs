@@ -37,6 +37,8 @@ public partial class MainWindowViewModel : ObservableObject
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
     private string? _tutorialOriginToolsCategory;
+    private string? _iasMissingNotifiedPath;
+    private string? _iasDataMissingNotifiedPath;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
@@ -118,6 +120,7 @@ public partial class MainWindowViewModel : ObservableObject
     public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
     public ModCreationViewModel? ModCreationViewModel { get; }
+    public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -145,7 +148,8 @@ public partial class MainWindowViewModel : ObservableObject
         BrowseModsViewModel? browseModsViewModel = null,
         CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
         DirectDownloadViewModel? directDownloadViewModel = null,
-        ModCreationViewModel? modCreationViewModel = null)
+        ModCreationViewModel? modCreationViewModel = null,
+        Hd2IASManagementViewModel? hd2IASManagementViewModel = null)
     {
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
@@ -171,11 +175,20 @@ public partial class MainWindowViewModel : ObservableObject
         CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
         DirectDownloadViewModel = directDownloadViewModel;
         ModCreationViewModel = modCreationViewModel;
+        Hd2IASManagementViewModel = hd2IASManagementViewModel;
+        if (Hd2IASManagementViewModel != null)
+            Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
         MoreViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
                 && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
                 _ = diagnostics.RefreshCommand.ExecuteAsync(null);
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2IASVisible
+                && Hd2IASManagementViewModel is { } ias)
+            {
+                ias.Invalidate();
+                if (!ias.IsBusy) _ = ias.RefreshInstallationCommand.ExecuteAsync(null);
+            }
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {
@@ -305,7 +318,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnGameStatusChanged(object? sender, GameStatusChangedEventArgs e)
     {
-        ApplyOnUiThread(() =>
+        ApplyOnUiThread(async () =>
         {
             GameDetected = e.NewStatus == Application.Services.GameStatus.Found;
             GamePath = e.GameInfo.Path;
@@ -317,7 +330,29 @@ public partial class MainWindowViewModel : ObservableObject
                 Application.Services.GameStatus.Checking => "Checking...",
                 _ => "Unknown"
             };
+            if (e.NewStatus != Application.Services.GameStatus.Checking && Hd2IASManagementViewModel != null)
+                await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         });
+    }
+
+    private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
+    {
+        if (Hd2IASManagementViewModel is not { } ias) return;
+        var localizer = Localization.UiLocalization.Current;
+        NotifyRequirement(ias.NeedsRuntimeInstallation, ref _iasMissingNotifiedPath, ias.RuntimeRequiredMessage, "IAS.GoInstall");
+        NotifyRequirement(ias.NeedsDataGeneration, ref _iasDataMissingNotifiedPath, ias.DataRequiredMessage, "IAS.GoRepairData");
+
+        void NotifyRequirement(bool required, ref string? notifiedPath, string message, string actionKey)
+        {
+            if (!required) { notifiedPath = null; return; }
+            if (string.Equals(notifiedPath, ias.GamePath, StringComparison.OrdinalIgnoreCase)) return;
+            notifiedPath = ias.GamePath;
+            _notificationService.ShowWithAction(NotificationLevel.Warning, message, localizer[actionKey], () =>
+            {
+                MoreViewModel.SelectedCategory = "HD2IAS 管理";
+                NavigateToTools();
+            }, localizer["IAS.Title"]);
+        }
     }
 
     private void OnNotificationAdded(object? sender, Notification e)
@@ -405,6 +440,8 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _conflictsViewModel.InvalidateResults();
             await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            if (Hd2IASManagementViewModel != null)
+                await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         });
     }
 
@@ -467,6 +504,8 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateCurrentProfile();
 
         // 显示欢迎通知
+        if (Hd2IASManagementViewModel != null)
+            await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
         StatusBarText = "Application initialized";
@@ -708,6 +747,7 @@ public partial class MainWindowViewModel : ObservableObject
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
+        if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {
@@ -725,6 +765,7 @@ public partial class MainWindowViewModel : ObservableObject
         var runningTasks = await _taskService.GetRunningTasksAsync();
         if (!runningTasks.Any())
         {
+            if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
             await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
             return true;
@@ -735,6 +776,7 @@ public partial class MainWindowViewModel : ObservableObject
             $"当前仍有 {runningTasks.Count()} 个后台任务运行中。退出可能中断正在进行的操作，确定退出吗？");
         if (canClose)
         {
+            if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
             await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
         }

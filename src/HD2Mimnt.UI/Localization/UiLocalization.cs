@@ -128,6 +128,7 @@ public sealed class UiLocalization : INotifyPropertyChanged, IDisposable
 
     private static readonly IReadOnlyDictionary<string, string> OptionKeys = new Dictionary<string, string>
     {
+        ["lua"] = "IAS.LuaRoute", ["native"] = "IAS.NativeRoute",
         ["Dark"] = "Options.Dark", ["Light"] = "Options.Light", ["System"] = "Options.System",
         ["Comfortable"] = "Options.Comfortable", ["Compact"] = "Options.Compact",
         ["Copy"] = "Options.Copy", ["HardLink"] = "Options.HardLink", ["SymbolicLink"] = "Options.SymbolicLink",

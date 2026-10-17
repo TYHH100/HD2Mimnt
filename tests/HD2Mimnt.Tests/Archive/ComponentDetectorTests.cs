@@ -84,7 +84,7 @@ public class ComponentDetectorTests
 
         // Assert
         Assert.True(result.IsHd2Ir);
-        Assert.Equal(ComponentType.HD2IR, result.ComponentType);
+        Assert.Equal(ComponentType.HD2IAS, result.ComponentType);
         Assert.True(result.Confidence >= DetectionConfidence.High);
     }
 
@@ -103,7 +103,7 @@ public class ComponentDetectorTests
     public void GetPatternsForType_HD2IR_ShouldReturnHd2IrPatterns()
     {
         // Act
-        var patterns = _detector.GetPatternsForType(ComponentType.HD2IR).ToList();
+        var patterns = _detector.GetPatternsForType(ComponentType.HD2IAS).ToList();
 
         // Assert
         Assert.NotEmpty(patterns);
