@@ -50,6 +50,9 @@
             </Ellipse>
             <TextBlock Text="{loc:LocalizedBinding GameStatus}" Classes="caption-text" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
+          <Button x:Name="OpenDeploymentProgressButton" IsVisible="{Binding LibraryViewModel.IsDeploying}"
+                  Command="{Binding LibraryViewModel.OpenDeploymentProgressCommand}"
+                  Content="{loc:LocalizedBinding LibraryViewModel.DeploymentTitle}"/>
           <Grid>
             <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="{loc:Loc UI.OpenTaskCenter}"><controls:UtilityIcon Kind="Tasks"/></Button>
             <fa:FAInfoBadge Value="{Binding RunningTaskCount}" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}"
@@ -108,6 +111,41 @@
       </Border>
     </Border>
     <controls:ImagePreviewOverlay Grid.RowSpan="2" DataContext="{Binding ImagePreview}" ZIndex="300"/>
+    <Border Grid.RowSpan="2" IsVisible="{Binding LibraryViewModel.IsDeploymentProgressOpen}"
+            Background="{DynamicResource OverlayScrimBrush}" ZIndex="340">
+      <Border x:Name="DeploymentOperationSurface" Background="{DynamicResource Surface2Brush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="{DynamicResource OverlayCornerRadius}" Padding="24" Margin="24"
+              MaxWidth="560" MaxHeight="520" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="20">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:LocalizedBinding LibraryViewModel.DeploymentTitle}" Classes="section-title" VerticalAlignment="Center"/>
+            <Button x:Name="CloseDeploymentProgressButton" Grid.Column="1" Classes="icon-button"
+                    Command="{Binding LibraryViewModel.CloseDeploymentProgressCommand}" ToolTip.Tip="{loc:Loc Common.Close}">
+              <controls:UtilityIcon Kind="Close"/>
+            </Button>
+          </Grid>
+          <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="16">
+              <TextBlock Text="{loc:LocalizedBinding LibraryViewModel.DeploymentMessage}" FontWeight="SemiBold"
+                         TextWrapping="Wrap" MaxHeight="96" TextTrimming="CharacterEllipsis"/>
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock x:Name="DeploymentFileCount" Text="{Binding LibraryViewModel.DeploymentFileCount}"/>
+                  <TextBlock Grid.Column="1" Text="{Binding LibraryViewModel.DeploymentProgress, StringFormat={}{0:0}%}"
+                             Classes="caption-text" IsVisible="{Binding !LibraryViewModel.IsDeploymentIndeterminate}"/>
+                </Grid>
+                <ProgressBar x:Name="DeploymentProgressBar" Minimum="0" Maximum="100"
+                             Value="{Binding LibraryViewModel.DeploymentProgress}"
+                             IsIndeterminate="{Binding LibraryViewModel.IsDeploymentIndeterminate}"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+          <Button x:Name="CancelDeploymentButton" Grid.Row="2" Command="{Binding LibraryViewModel.CancelDeploymentCommand}"
+                  Content="{loc:Loc Common.Cancel}" HorizontalAlignment="Right"/>
+        </Grid>
+      </Border>
+    </Border>
     <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
     <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"
             IsHitTestVisible="False" IsVisible="False" ZIndex="400">

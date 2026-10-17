@@ -288,14 +288,6 @@
       </Border>
     </Grid>
 
-    <!-- 部署遮罩（部署由配置文件页触发，仅在其进行中切到本页时展示） -->
-    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsDeploying}" ZIndex="90">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-            <ProgressBar IsIndeterminate="True" Width="260"/>
-            <TextBlock Text="{loc:LocalizedBinding DeploymentMessage}" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
-        </StackPanel>
-    </Border>
-
     <!-- 加入配置文件弹窗：勾选目标配置文件，可多选批量加入 -->
     <Grid IsVisible="{Binding IsAddToProfileDialogOpen}" ZIndex="110">
         <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnAddToProfileBackgroundPressed"/>

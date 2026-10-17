@@ -4022,7 +4022,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.Installed" xml:space="preserve"><value>运行包已安装，data 已保存到模组库：{0}。请通过配置文件部署。</value></data>
   <data name="IAS.OperationLog" xml:space="preserve"><value>安装进度与日志</value></data>
   <data name="IAS.Uninstall" xml:space="preserve"><value>卸载 HD2IAS 运行时</value></data>
-  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>确定卸载管理器已登记且哈希匹配的 HD2IAS 系统文件吗？dxgi.dll、用户设置及模组库中的 data 会保留。已被外部修改的文件也会保留并列入日志。</value></data>
+  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>确定卸载管理器已登记且哈希匹配的 HD2IAS 系统文件吗？dxgi.dll、用户设置及模组库中的 data 会保留。ReShade.ini 中指向 HD2IAS 的字体引用将恢复或清空，其他设置不变。已被外部修改的文件也会保留并列入日志。</value></data>
   <data name="IAS.Uninstalling" xml:space="preserve"><value>正在备份并卸载 HD2IAS 运行时…</value></data>
   <data name="IAS.Uninstalled" xml:space="preserve"><value>HD2IAS 已登记的运行时文件已卸载。dxgi.dll、用户设置和 data 模组已保留。</value></data>
   <data name="IAS.UninstalledModified" xml:space="preserve"><value>已卸载确认归属的运行时文件；以下文件被修改，已保留，请手动检查：{0}。dxgi.dll、用户设置和 data 模组已保留。</value></data>

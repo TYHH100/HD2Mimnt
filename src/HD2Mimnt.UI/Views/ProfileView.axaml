@@ -406,21 +406,6 @@
       </StackPanel>
     </Border>
 
-    <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2" ZIndex="40"
-            DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryViewModel}"
-            x:DataType="vm:LibraryViewModel" IsVisible="{Binding IsDeploying}"
-            Background="{DynamicResource OverlayScrimBrush}">
-      <Border Name="DeploymentOperationSurface" Classes="card" Background="{DynamicResource Surface2Brush}" Width="520" Padding="24"
-              HorizontalAlignment="Center" VerticalAlignment="Center">
-        <StackPanel Spacing="16">
-          <TextBlock Text="{loc:Loc UI.DeploymentActions}" Classes="section-title"/>
-          <ProgressBar IsIndeterminate="True"/>
-          <TextBlock Text="{loc:LocalizedBinding DeploymentMessage}" TextWrapping="Wrap"/>
-          <Button Command="{Binding CancelDeploymentCommand}" HorizontalAlignment="Right" Content="{loc:Loc Common.Cancel}"/>
-        </StackPanel>
-      </Border>
-    </Border>
-
     <!-- ══ 模组选项覆盖层（应用内模态弹窗：v1 选项卡片+子选项多选一 / v0 互斥单选，带预览图）══ -->
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
             IsVisible="{Binding IsModOptionsDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="20">

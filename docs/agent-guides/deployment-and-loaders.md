@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- HD2IAS 卸载不能只保留 ReShade 注入器而删除仍被配置引用的字体。删除运行文件前，定点恢复/清空 ReShade.ini 中指向当前 `HD2IndependentRig/fonts/` 的字体设置，保留用户自定义字体和其它配置；配置修改也须参加同一备份与失败/取消回滚。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户卸载后的字体缺失反馈；来源：[ReShade 字体选择实现](https://github.com/crosire/reshade/blob/v6.6.2/source/runtime_gui.cpp)、[许可证](https://github.com/crosire/reshade/blob/v6.6.2/LICENSE.md)。
+
 - HD2IAS 卸载与安装复用同一备份/事务恢复流程，只移除管理器登记且实际哈希仍匹配的系统文件。`dxgi.dll` 始终保留，不能因它曾列入 HD2IAS 清单就删除 ReShade；退役清理也不能删除它。用户 INI、未知或外部修改文件及普通 data 模组保留。卸载提交须留下可识别的完成记录，恢复不能把已成功卸载的文件装回来。库中存在真实 HD2IAS data、运行时缺失或不完整时给本地安装提示，不能只看模组名称或 build.json，更不能因此自动联网安装。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户明确要求；来源：[官方运行包](https://github.com/Estecsky/HD2-Integrated-Armor-System)。
 
 - HD2IAS 降级不能仅依赖旧包的 `previous_sha256`，旧包不含未来版本哈希。覆盖校验须接受活动安装记录中同路径且实际哈希完全一致的系统文件；外部修改后仍拦截，不能按版本声明放行。`HD2IndependentRig.build.json` 是系统元数据，须同步部署并参与备份回滚，不能作为用户配置永久保留。仅对这个已知源文件补 `bin/HD2IndependentRig.build.json` 目标，其它 `target=null` 仍不部署。旧未分类记录不提供所有权，必要时用当前活动版本的已校验缓存包补足构建记录的认可哈希。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户提供的 1.4.2 / 1.4.5 包及降级报错；来源：[官方更新目录](https://github.com/Estecsky/HD2-Integrated-Armor-System/tree/main/updates)。

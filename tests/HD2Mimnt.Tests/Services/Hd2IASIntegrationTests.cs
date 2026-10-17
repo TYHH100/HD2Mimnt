@@ -222,7 +222,7 @@ public sealed partial class Hd2IASIntegrationTests : IDisposable
 
     private string CreatePackage(string schema = "HD2RuntimeDistribution1", string luaRoute = "lua",
         string target = "bin/addon64", bool duplicate = false, bool corrupt = false, bool missing = false,
-        string version = "1.4.4", string addonSuffix = "", bool includeBuild = false, string? previousBuildVersion = null)
+        string version = "1.4.4", string addonSuffix = "", bool includeBuild = false, string? previousBuildVersion = null, bool includeFont = false)
     {
         Directory.CreateDirectory(_root);
         var path = Path.Combine(_root, $"package-{Guid.NewGuid():N}.zip");
@@ -258,8 +258,10 @@ public sealed partial class Hd2IASIntegrationTests : IDisposable
         {
             schema = "HD2SystemFoundation2", version = "1.1.3", game_exe_sha256 = Hash("game"), bundle_database_sha256 = Hash("database"),
             files = new[] { new { path = "bin/HD2IndependentRig/runtime.ini", sha256 = Hash("ini") } }
+                .Concat(includeFont ? new[] { new { path = "bin/HD2IndependentRig/fonts/NotoSansCJKsc-Regular.otf", sha256 = Hash("font") } } : []).ToArray()
         });
         Add("Foundation/bin/HD2IndependentRig/runtime.ini", "ini");
+        if (includeFont) Add("Foundation/bin/HD2IndependentRig/fonts/NotoSansCJKsc-Regular.otf", "font");
         AddJson("app/update_notes.json", new { version, notes = "Update instructions", manual_actions = new[] { "Regenerate on route change" } });
         if (duplicate) Add("runtimepackage/ADDON64", "duplicate");
         return path;

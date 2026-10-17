@@ -670,6 +670,11 @@ public partial class MainWindowViewModel : ObservableObject
             else _libraryViewModel.Import.CloseCommand.Execute(null);
             return;
         }
+        if (_libraryViewModel.IsDeploymentProgressOpen)
+        {
+            _libraryViewModel.CloseDeploymentProgressCommand.Execute(null);
+            return;
+        }
         if (_imagePreview.IsOpen)
         {
             _imagePreview.Close();
@@ -737,6 +742,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        await _libraryViewModel.CancelDeploymentAndWaitAsync();
         if (ModCreationViewModel != null)
         {
             await ModCreationViewModel.StopAsync();

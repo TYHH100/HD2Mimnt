@@ -184,13 +184,20 @@ public sealed partial class Hd2IASDeploymentStore(string storagePath, string? up
     }
 
     private async Task CommitAsync(string game, Installation installation, IReadOnlyList<Change> changes,
-        IProgress<string>? progress, string operation, CancellationToken token)
+        IProgress<string>? progress, string operation, CancellationToken token, IReadOnlyDictionary<string, byte[]>? preparedFiles = null)
     {
         var root = Root(game); var directory = Path.Combine(root, "versions", installation.Revision);
         var committed = false; var journalWritten = false;
         try
         {
             Directory.CreateDirectory(directory);
+            if (preparedFiles != null)
+                foreach (var (relative, contents) in preparedFiles)
+                {
+                    var staged = Target(Path.Combine(directory, "payload"), relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(staged)!);
+                    await File.WriteAllBytesAsync(staged, contents, token);
+                }
             await WriteJsonAsync(Path.Combine(directory, "installation.json"), installation, token);
             foreach (var change in changes.Where(change => change.Before != null))
             {

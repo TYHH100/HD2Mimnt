@@ -4022,7 +4022,7 @@ Last checked: {7}</value>
   <data name="IAS.Installed" xml:space="preserve"><value>Runtime installed; data saved to the mod library: {0}. Deploy it through a profile.</value></data>
   <data name="IAS.OperationLog" xml:space="preserve"><value>Installation progress and log</value></data>
   <data name="IAS.Uninstall" xml:space="preserve"><value>Uninstall HD2IAS runtime</value></data>
-  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>Remove the HD2IAS system files whose hashes match the manager's installation records? dxgi.dll, user settings and the library data mod will be kept. Externally modified files will also be kept and listed in the log.</value></data>
+  <data name="IAS.UninstallConfirm" xml:space="preserve"><value>Remove the HD2IAS system files whose hashes match the manager's installation records? dxgi.dll, user settings and the library data mod will be kept. Font references to HD2IAS in ReShade.ini will be restored or cleared, leaving other settings unchanged. Externally modified files will also be kept and listed in the log.</value></data>
   <data name="IAS.Uninstalling" xml:space="preserve"><value>Backing up and uninstalling the HD2IAS runtime…</value></data>
   <data name="IAS.Uninstalled" xml:space="preserve"><value>The registered HD2IAS runtime files have been uninstalled. dxgi.dll, user settings and the data mod were kept.</value></data>
   <data name="IAS.UninstalledModified" xml:space="preserve"><value>Removed the verified runtime files. These modified files were kept and need manual review: {0}. dxgi.dll, user settings and the data mod were kept.</value></data>

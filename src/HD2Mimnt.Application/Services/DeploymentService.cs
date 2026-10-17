@@ -108,7 +108,8 @@ public class DeploymentService
     /// </summary>
     public async Task<(int FilesDeleted, int RecordsDeleted)> PreDeploymentCleanupAsync(
         IProgress<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<DeploymentCleanupProgress>? fileProgress = null)
     {
         progress?.Report("开始 Pre-Deployment Cleanup...");
 
@@ -135,6 +136,21 @@ public class DeploymentService
 
         progress?.Report($"找到 {deploymentList.Count} 个部署记录");
 
+        var totalFiles = deploymentList.Sum(record => record.Files.Count);
+        var processedFiles = 0;
+        var progressClock = System.Diagnostics.Stopwatch.StartNew();
+        fileProgress?.Report(new(0, totalFiles));
+        void FileProcessed()
+        {
+            processedFiles++;
+            // 大批量小文件不能为每个文件向 UI 队列追加回调。
+            if (processedFiles == totalFiles || progressClock.ElapsedMilliseconds >= 100)
+            {
+                fileProgress?.Report(new(processedFiles, totalFiles));
+                progressClock.Restart();
+            }
+        }
+
         // 3. 遍历每个部署记录，清理其文件
         int totalFilesDeleted = 0;
         int totalRecordsDeleted = 0;
@@ -142,10 +158,12 @@ public class DeploymentService
 
         foreach (var deployment in deploymentList)
         {
-            var (filesDeleted, recordDeleted) = await CleanupDeploymentAsync(
+            var (filesDeleted, recordDeleted) = await CleanupDeploymentFilesAsync(
                 deployment.Id,
+                true,
                 progress,
-                cancellationToken);
+                cancellationToken,
+                FileProcessed);
 
             totalFilesDeleted += filesDeleted;
             totalRecordsDeleted += recordDeleted ? 1 : 0;
@@ -178,14 +196,16 @@ public class DeploymentService
         => await CleanupDeploymentFilesAsync(deploymentId, true, progress, cancellationToken);
 
     private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesAsync(
-        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken)
+        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken,
+        Action? fileProcessed = null)
     {
-        try { return await CleanupDeploymentFilesCoreAsync(deploymentId, deleteRecord, progress, cancellationToken); }
+        try { return await CleanupDeploymentFilesCoreAsync(deploymentId, deleteRecord, progress, cancellationToken, fileProcessed); }
         finally { RaiseDeploymentsChanged(); }
     }
 
     private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesCoreAsync(
-        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken)
+        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken,
+        Action? fileProcessed)
     {
         var deployment = await _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
         if (deployment == null)
@@ -215,6 +235,7 @@ public class DeploymentService
             {
                 allFilesCleaned = false;
                 _logger?.LogError("文件部署方法无效或未注册: {Method}, {TargetPath}", methodName, file.TargetPath);
+                fileProcessed?.Invoke();
                 continue;
             }
 
@@ -240,6 +261,7 @@ public class DeploymentService
                 allFilesCleaned = false;
                 _logger?.LogError(ex, "清理文件异常: {TargetPath}", file.TargetPath);
             }
+            fileProcessed?.Invoke();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -784,6 +806,8 @@ public class DeploymentService
 /// <summary>
 /// 部署进度
 /// </summary>
+public sealed record DeploymentCleanupProgress(int ProcessedFiles, int TotalFiles);
+
 public class DeploymentProgress
 {
     public string Stage { get; set; } = string.Empty;

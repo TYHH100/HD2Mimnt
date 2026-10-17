@@ -166,7 +166,31 @@ public partial class LibraryViewModel : ObservableObject
     private bool _isDeploying;
 
     [ObservableProperty]
+    private bool _isDeploymentProgressOpen;
+
+    [ObservableProperty]
+    private string _deploymentTitle = "部署模组";
+
+    [RelayCommand]
+    private void OpenDeploymentProgress()
+    {
+        if (IsDeploying) IsDeploymentProgressOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseDeploymentProgress() => IsDeploymentProgressOpen = false;
+
+    [ObservableProperty]
     private string _deploymentMessage = string.Empty;
+
+    [ObservableProperty]
+    private double _deploymentProgress;
+
+    [ObservableProperty]
+    private bool _isDeploymentIndeterminate = true;
+
+    [ObservableProperty]
+    private string _deploymentFileCount = string.Empty;
 
     private CancellationTokenSource? _deploymentCts;
 
@@ -1031,6 +1055,9 @@ public partial class LibraryViewModel : ObservableObject
     {
         if (IsDeploying) return;
         IsDeploying = true;
+        ResetDeploymentProgress();
+        DeploymentTitle = "部署模组";
+        IsDeploymentProgressOpen = true;
         _deploymentCts = new CancellationTokenSource();
         var deploymentCts = _deploymentCts;
         try
@@ -1093,6 +1120,7 @@ public partial class LibraryViewModel : ObservableObject
             _deploymentCts = null;
             deploymentCts.Dispose();
             IsDeploying = false;
+            IsDeploymentProgressOpen = false;
             DeploymentMessage = string.Empty;
         }
     }
@@ -1106,14 +1134,31 @@ public partial class LibraryViewModel : ObservableObject
         {
             return;
         }
+        if (IsDeploying) return;
 
         IsDeploying = true;
+        ResetDeploymentProgress();
+        DeploymentTitle = "清理部署";
+        IsDeploymentProgressOpen = true;
         _deploymentCts = new CancellationTokenSource();
+        var deploymentCts = _deploymentCts;
         DeploymentMessage = "正在清理部署文件...";
         try
         {
-            var result = await _deploymentService.PreDeploymentCleanupAsync(
-                new Progress<string>(message => DeploymentMessage = message), _deploymentCts.Token);
+            var progress = new Progress<string>(message =>
+            {
+                if (ReferenceEquals(_deploymentCts, deploymentCts) && !deploymentCts.IsCancellationRequested)
+                    DeploymentMessage = message;
+            });
+            var fileProgress = new Progress<DeploymentCleanupProgress>(value =>
+            {
+                if (!ReferenceEquals(_deploymentCts, deploymentCts) || deploymentCts.IsCancellationRequested) return;
+                IsDeploymentIndeterminate = value.TotalFiles == 0;
+                DeploymentProgress = value.TotalFiles > 0 ? 100.0 * value.ProcessedFiles / value.TotalFiles : 0;
+                DeploymentFileCount = $"{value.ProcessedFiles:N0} / {value.TotalFiles:N0}";
+            });
+            var result = await Task.Run(() => _deploymentService.PreDeploymentCleanupAsync(
+                progress, deploymentCts.Token, fileProgress));
             _notificationService.ShowSuccess($"已清理 {result.FilesDeleted} 个文件", "清理完成");
             await LoadModsAsync();
         }
@@ -1127,11 +1172,27 @@ public partial class LibraryViewModel : ObservableObject
         }
         finally
         {
-            IsDeploying = false;
-            DeploymentMessage = string.Empty;
-            _deploymentCts.Dispose();
             _deploymentCts = null;
+            deploymentCts.Dispose();
+            IsDeploying = false;
+            IsDeploymentProgressOpen = false;
+            DeploymentMessage = string.Empty;
+            ResetDeploymentProgress();
         }
+    }
+
+    private void ResetDeploymentProgress()
+    {
+        DeploymentProgress = 0;
+        IsDeploymentIndeterminate = true;
+        DeploymentFileCount = string.Empty;
+    }
+
+    public async Task CancelDeploymentAndWaitAsync()
+    {
+        _deploymentCts?.Cancel();
+        if (DeployCommand.ExecutionTask is { } deployment) await deployment;
+        if (CleanupCommand.ExecutionTask is { } cleanup) await cleanup;
     }
 
     [RelayCommand]

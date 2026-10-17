@@ -10,6 +10,8 @@
 
 - 导入、部署、清理等耗时操作必须可取消并保持 UI 可响应；临时解压目录和测试目录必须在流程结束后清理。
 
+- `async` 和 `Task.Yield()` 不会把同步文件删除移到后台，UI 调用的部署清理须显式在后台执行；进度通过捕获 UI 上下文的 `Progress<T>` 回传，文件级更新限频，结束后的旧回调用本次操作标识拦截。部署/清理采用与导入一致的居中进度浮窗，不改成底部进度条；关闭浮窗仅收起显示，后台继续执行，顶部入口可重新打开，取消和退出须等待执行体结束再释放令牌和服务。回归用暂停的同步清理验证浮窗、收起后 UI 实际输入、跨页重新打开、取消保留追踪与重试。来源：[异步场景与 Task.Run](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios)、[Progress<T> 上下文](https://learn.microsoft.com/dotnet/api/system.progress-1)。
+
 - 修改后先顺序执行 `dotnet build HD2Mimnt.slnx --no-restore` 和相关测试；共享 SQLite 输出的测试程序集已禁用类级并行，避免全局池清理互相干扰。
 
 - 仅在实际需要时添加文档和测试，不用占位页面或“Coming Soon”文案冒充完成。

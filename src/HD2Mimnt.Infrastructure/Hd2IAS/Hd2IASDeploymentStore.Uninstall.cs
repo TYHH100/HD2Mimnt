@@ -1,10 +1,12 @@
 using HD2Mimnt.Core.Hd2IAS;
+using System.Security.Cryptography;
 
 namespace HD2Mimnt.Infrastructure.Hd2IAS;
 
 public sealed partial class Hd2IASDeploymentStore
 {
     private static bool PreserveOnUninstall(string target) => target.Equals("bin/dxgi.dll", StringComparison.OrdinalIgnoreCase)
+        || target.Equals("bin/ReShade.ini", StringComparison.OrdinalIgnoreCase)
         || InstalledBuildReader.PreserveExisting(target);
 
     public async Task<IReadOnlyList<string>> GetMissingFilesAsync(string game, CancellationToken token = default)
@@ -53,8 +55,24 @@ public sealed partial class Hd2IASDeploymentStore
             inventory.Add(new(relative, current, null, "RemoveRecognized"));
         }
         var removed = changes.Select(change => change.Target).ToArray();
+        Dictionary<string, byte[]>? preparedFiles = null;
+        const string reShadeConfig = "bin/ReShade.ini";
+        var configPath = Target(game, reShadeConfig);
+        if (File.Exists(configPath))
+        {
+            var contents = await File.ReadAllBytesAsync(configPath, token);
+            if (ReShadeFontCleaner.Clean(contents, game) is { } cleaned)
+            {
+                var before = Convert.ToHexStringLower(SHA256.HashData(contents));
+                var after = Convert.ToHexStringLower(SHA256.HashData(cleaned));
+                preparedFiles = new() { [reShadeConfig] = cleaned };
+                changes.Insert(0, new(reShadeConfig, before, after));
+                inventory.Add(new(reShadeConfig, before, after, "RestoreReShadeFont"));
+                progress?.Report("清理 ReShade 的 HD2IAS 字体引用");
+            }
+        }
         var installation = previous with { Revision = Guid.NewGuid().ToString("N"), Files = [], Inventory = inventory, IsUninstalled = true };
-        await CommitAsync(game, installation, changes, progress, "卸载", token);
+        await CommitAsync(game, installation, changes, progress, "卸载", token, preparedFiles);
         return new(removed, preserved, modified);
     }
 }

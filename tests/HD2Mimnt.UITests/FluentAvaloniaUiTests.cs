@@ -1570,8 +1570,7 @@ public sealed partial class FluentAvaloniaUiTests
                 window.MouseUp(point, MouseButton.Left);
                 for (var attempt = 0; attempt < 100 && !confirmation.PendingConfirmation; attempt++) await Task.Delay(10);
                 Assert.True(confirmation.PendingConfirmation);
-                var surface = window.GetVisualDescendants().OfType<ProfileView>().Single()
-                    .FindControl<Border>("DeploymentOperationSurface")!;
+                var surface = window.FindControl<Border>("DeploymentOperationSurface")!;
                 foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
                 {
                     app.RequestedThemeVariant = theme;
@@ -3528,7 +3527,8 @@ public sealed partial class FluentAvaloniaUiTests
             HttpMessageHandler? ayakaDownloadHandler = null,
             HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader? iasPackages = null,
             HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler? iasCompiler = null,
-            HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource? iasUpdates = null)
+            HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource? iasUpdates = null,
+            HD2Mimnt.Core.Interfaces.IDeploymentMethod? deploymentMethod = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3549,6 +3549,7 @@ public sealed partial class FluentAvaloniaUiTests
                 if (ayakaOAuthOptions != null) services.AddSingleton(ayakaOAuthOptions);
                 if (ayakaOAuthClient != null) services.AddSingleton(ayakaOAuthClient);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
+                if (deploymentMethod != null) services.AddSingleton(deploymentMethod);
                 if (iasPackages != null) services.AddSingleton(iasPackages);
                 if (iasCompiler != null) services.AddSingleton(iasCompiler);
                 if (iasUpdates != null) services.AddSingleton(iasUpdates);
