@@ -129,7 +129,9 @@ public class ModImportService
             var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, includeFile: path =>
             {
                 var relative = Path.GetRelativePath(mod.Path, path);
+                // 生成身份（组件映射、组件选项树）不参与重复判定；标准清单/扩展清单在旧包规范化时同样排除。
                 return !relative.Equals(Hd2IrIntegrationService.MetadataFile, StringComparison.OrdinalIgnoreCase)
+                    && !relative.Equals(Hd2IrIntegrationService.OptionsFile, StringComparison.OrdinalIgnoreCase)
                     && (metadata.Length == 0 || (!relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
                         && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase)));
             });

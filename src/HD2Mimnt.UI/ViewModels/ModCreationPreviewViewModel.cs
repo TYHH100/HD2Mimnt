@@ -22,12 +22,26 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
     public IReadOnlyList<ProfileModLegacyChoiceViewModel> LegacyChoices { get; }
     public ICommand ToggleOptionCommand { get; }
 
+    // 创建预览只展示本次草稿的清单，不生成组件分组，也不保存到任何配置。
+    public bool HasGroups => false;
+    public bool ShowGroupList => false;
+    public bool ShowOptionList => !IsLegacyMode;
+    public bool IsGroupPage => false;
+    public IReadOnlyList<ProfileModOptionGroupViewModel> GroupCards => Array.Empty<ProfileModOptionGroupViewModel>();
+    public IReadOnlyList<ProfileModOptionCardViewModel> VisibleOptionCards => OptionCards;
+    public ICommand OpenGroupCommand { get; }
+    public ICommand ToggleGroupCommand { get; }
+    public ICommand ReturnCommand { get; }
+
     public ModCreationPreviewViewModel(ModManifest manifest, ImagePreviewService? imagePreview)
     {
         _imagePreview = imagePreview;
         Name = manifest.Name; Author = manifest.Author; Description = manifest.Description;
         IsLegacyMode = manifest.ManifestVersion == ManifestVersion.Legacy;
         ToggleOptionCommand = new RelayCommand<ProfileModOptionCardViewModel>(card => { if (card != null) card.IsEnabled = !card.IsEnabled; });
+        OpenGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
+        ToggleGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
+        ReturnCommand = new RelayCommand(() => { });
         LegacyChoices = IsLegacyMode ? (manifest.LegacyOptions ?? []).Select((name, index) =>
             new ProfileModLegacyChoiceViewModel { Name = name, IsSelected = index == 0 }).ToList() : [];
         OptionCards = IsLegacyMode ? [] : (manifest.Options ?? []).Select(option =>
@@ -51,7 +65,8 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
             var bytes = await service.ReadPreviewImageAsync(root, path, token);
             if (bytes == null) continue;
             Bitmap bitmap;
-            try { bitmap = await Task.Run(() => { using var stream = new MemoryStream(bytes); return new Bitmap(stream); }, token); }
+            // 创建预览卡片同样只显示 40～64 像素，按 128 像素宽解码，避免大预览图整张进内存。
+            try { bitmap = await Task.Run(() => { using var stream = new MemoryStream(bytes); return Bitmap.DecodeToWidth(stream, ProfileModImageHolderViewModel.CardImageDecodeWidth); }, token); }
             catch (Exception error) when (error is not OperationCanceledException) { continue; }
             _owned.Add(bitmap); token.ThrowIfCancellationRequested(); set(bitmap);
         }

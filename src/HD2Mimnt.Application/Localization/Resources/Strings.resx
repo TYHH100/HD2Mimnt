@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -745,6 +745,15 @@ Deny: do not install this plugin</value>
   </data>
   <data name="UI.DeploymentActions" xml:space="preserve">
     <value>Deployment actions</value>
+  </data>
+  <data name="UI.Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="UI.Configure" xml:space="preserve">
+    <value>Configure</value>
+  </data>
+  <data name="UI.SaveAndReturn" xml:space="preserve">
+    <value>Save and return</value>
   </data>
   <data name="UI.ModOptions" xml:space="preserve">
     <value>Mod options</value>

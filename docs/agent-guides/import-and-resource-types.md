@@ -23,6 +23,8 @@
 
 - HD2IR 分类结果不等于可部署文件：前端通过 Application 生成库内独立副本和组件映射，组件选择复用配置选项，骨骼与补丁统一登记到原部署追踪；不能只保存 LogicalMod 名称就报告导入成功。作者双文件清单保持原字节，组件映射放独立元数据。嵌套组合需要确认时不得静默合并，更新包不能当作角色包部署。回归原包移除后的部署、独立配置选择及取消清理，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。来源：[Avalonia UI 线程](https://docs.avaloniaui.net/docs/guides/development-guides/accessing-the-ui-thread)、[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)。
 
+- HD2IAS 角色导入的最外层名称必须是导入的压缩包名或文件夹名，内层作者清单名称只用于组件标题，不能覆盖库条目名。外层封面按包层级从外到内解析（该包清单 `IconPath`，其次根级 preview / cover / thumbnail / icon 图片），内层组件图片只作组件卡片预览。生成的组件分组与选项树写入管理器自有 `.hd2mimnt-options.json` 并投影到数据库清单；作者 `manifest.json` 保持原字节，不能把生成选项写回作者清单。配置页一级列组件、二级配置组件内选项与子选项，保存后回到一级；没有生成分组的普通模组保持单级列表。来源：用户 2026-10-18 反馈与本轮回归，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。
+
 - 创建页导出 7z 使用随包 `Tools/7zip/7za.exe`，保留原版许可证及来源说明，并检查构建／发布输出；不能只改后缀或依赖用户安装 7-Zip。仅暂存生成的清单和 UTF-8 文件列表，不复制整个源模组；按所选 LZMA2 档位压缩，非零退出码（含跳过文件警告）不可发布。取消时终止并等待子进程，再清理本次暂存和临时包；真实 7z 测试覆盖重导入、各档位、文件占用及取消。来源：[7-Zip](https://www.7-zip.org/)、[许可证](../../src/HD2Mimnt.Infrastructure/Tools/7zip/License.txt)。
 
 - 创建页的格式选择必须贯通打开、预览、保存和 ZIP 导出；Legacy 省略 `Version`，`Options` 写相对目录字符串数组，校验所选目录，不校验隐藏的 V1 草稿。两种格式的内存草稿切换时保留各自内容，打开清单后按真实格式恢复；不能只改 UI 标签或把旧格式写成 V1 对象数组。来源：[旧版创建页面](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)。

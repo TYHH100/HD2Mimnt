@@ -1,4 +1,4 @@
-﻿using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
@@ -311,14 +311,38 @@ public partial class ModService
         try
         {
             var changed = false;
+            // 生成的分组/选项树只来自管理器自有 JSON；作者 manifest.json 保持原样。
+            var options = mod.WorkflowType == Hd2IrIntegrationService.Workflow
+                ? await Hd2IrIntegrationService.ReadOptionsAsync(mod, cancellationToken) : null;
             if (mod.WorkflowType == Hd2IrIntegrationService.Workflow)
                 mod.LogicalMod = await Hd2IrIntegrationService.ReadAsync(mod, cancellationToken);
             if (mod.Manifest == null)
             {
-                // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义。
-                mod.Manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
-                    ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
-                changed = mod.Manifest != null;
+                if (options != null)
+                {
+                    mod.Manifest = new ModManifest
+                    {
+                        Name = mod.Name, Version = options.Version ?? mod.Version,
+                        Description = options.Description ?? mod.Description, Author = options.Author ?? mod.Author,
+                        ManifestVersion = ManifestVersion.V1, IconPath = options.IconPath,
+                        Options = options.Options, OptionGroups = options.OptionGroups
+                    };
+                    changed = true;
+                }
+                else
+                {
+                    // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义。
+                    mod.Manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
+                        ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
+                    changed = mod.Manifest != null;
+                }
+            }
+            else if (options?.OptionGroups is { Count: > 0 } groups && mod.Manifest.OptionGroups is not { Count: > 0 })
+            {
+                // 旧版本导入的 HD2IAS 条目补上组件分组，使两级选项页可用；选项映射沿用生成结果。
+                mod.Manifest.OptionGroups = groups;
+                if (options.Options is { Count: > 0 }) mod.Manifest.Options = options.Options;
+                changed = true;
             }
 
             if (!File.Exists(mod.ThumbnailPath)

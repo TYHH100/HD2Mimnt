@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -745,6 +745,15 @@
   </data>
   <data name="UI.DeploymentActions" xml:space="preserve">
     <value>部署操作</value>
+  </data>
+  <data name="UI.Back" xml:space="preserve">
+    <value>返回</value>
+  </data>
+  <data name="UI.Configure" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="UI.SaveAndReturn" xml:space="preserve">
+    <value>儲存並返回</value>
   </data>
   <data name="UI.ModOptions" xml:space="preserve">
     <value>模組選項</value>

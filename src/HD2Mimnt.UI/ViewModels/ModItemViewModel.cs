@@ -1,11 +1,10 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Resources;
 using HD2Mimnt.Core.Services;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Localization;
@@ -257,13 +256,8 @@ public partial class ModItemViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 缩略图解码缓存：同一文件在库刷新/筛选切换间只解码一次（缩略图本身由 ThumbnailService 生成，
-    /// 尺寸固定，解码到 256px 宽足够列表与详情面板显示）。
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, Bitmap> IconDecodeCache = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// 异步加载图标
+    /// 异步加载图标。缩略图同样由库页/配置页共享解码缓存（弱引用，不永久占内存），
+    /// 避免页面刷新时重复解码同一张图。
     /// </summary>
     public async Task LoadIconAsync(CancellationToken cancellationToken = default)
     {
@@ -273,28 +267,10 @@ public partial class ModItemViewModel : ObservableObject
         IsLoadingIcon = true;
         try
         {
-            var bitmap = await Task.Run(() =>
-            {
-                if (IconDecodeCache.TryGetValue(ThumbnailPath, out var cached)) return cached;
-                try
-                {
-                    using var stream = File.OpenRead(ThumbnailPath);
-                    var decoded = Bitmap.DecodeToWidth(stream, 256);
-                    var shared = IconDecodeCache.GetOrAdd(ThumbnailPath, decoded);
-                    if (!ReferenceEquals(shared, decoded)) decoded.Dispose();
-                    return shared;
-                }
-                catch
-                {
-                    // 文件暂不可读或正在生成时允许后续重试，不能永久缓存失败。
-                    return null;
-                }
-            }, cancellationToken);
-
-            if (bitmap != null)
-            {
-                Icon = bitmap;
-            }
+            Icon = await ModImageCache.DecodeAsync(ThumbnailPath, 256, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch
         {

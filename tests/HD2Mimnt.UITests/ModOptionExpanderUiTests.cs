@@ -11,6 +11,7 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI;
+using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -141,6 +142,216 @@ public sealed partial class FluentAvaloniaUiTests
             window.DataContext = null;
             window.Close();
             app.RequestedThemeVariant = originalTheme;
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ModOptionsDialog_CloseReleasesDecodedImages()
+    {
+        // 反复打开选项弹窗不能累积原生位图内存：关闭时取消未完成解码并释放已加载图片。
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        Directory.CreateDirectory(Path.Combine(mod.Path, "images"));
+        // 用 1024×1024 原图模拟 HD2IAS 的 4K 预览图：卡片只显示 40～64 像素，不能按原图尺寸解码。
+        var imagePath = Path.Combine(mod.Path, "images", "option.png");
+        using (var image = new System.Drawing.Bitmap(1024, 1024))
+        {
+            using var graphics = System.Drawing.Graphics.FromImage(image);
+            graphics.Clear(System.Drawing.Color.SteelBlue);
+            image.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new()
+                {
+                    Name = "材质", GroupId = "g0", Image = "images/option.png",
+                    SubOptions = new List<ModSubOption> { new() { Name = "A", Image = "images/option.png" } }
+                },
+                new() { Name = "模型", GroupId = "g0", Image = "images/option.png" }
+            },
+            OptionGroups = new List<ModOptionGroup>
+            {
+                new() { Id = "g0", Name = "组件", Image = "images/option.png" }
+            }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        await dialog.LoadImagesAsync();
+        // 卡片图片按 128 像素宽解码，1024 原图不能整张进内存。
+        Assert.All(dialog.OptionCards, card =>
+        {
+            Assert.NotNull(card.Image);
+            Assert.True(card.Image!.PixelSize.Width <= 128, card.Image.PixelSize.ToString());
+        });
+        Assert.All(dialog.OptionCards[0].SubOptions, sub =>
+        {
+            Assert.NotNull(sub.Image);
+            Assert.True(sub.Image!.PixelSize.Width <= 128, sub.Image.PixelSize.ToString());
+        });
+        var groupImage = Assert.Single(dialog.GroupCards).Image;
+        Assert.NotNull(groupImage);
+        Assert.True(groupImage!.PixelSize.Width <= 128, groupImage.PixelSize.ToString());
+
+        vm.CloseModOptionsCommand.Execute(null);
+
+        Assert.All(dialog.OptionCards, card => Assert.True(card.IsDisposed));
+        Assert.All(dialog.OptionCards, card => Assert.Null(card.Image));
+        Assert.All(dialog.OptionCards[0].SubOptions, sub => Assert.Null(sub.Image));
+        Assert.Null(Assert.Single(dialog.GroupCards).Image);
+
+        // 再次打开/关闭仍可正常解码并释放，不残留上一轮位图。
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var reopened = vm.ModOptionsDialog!;
+        await reopened.LoadImagesAsync();
+        Assert.All(reopened.OptionCards, card => Assert.NotNull(card.Image));
+        vm.CloseModOptionsCommand.Execute(null);
+        Assert.All(reopened.OptionCards, card => Assert.Null(card.Image));
+    }
+
+    [AvaloniaFact]
+    public async Task ModOptionsGroups_FirstLevelOpensSecondLevelAndSavesBackToFirstLevel()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new() { Name = "系统", GroupId = "g0", Include = new List<string> { "rig" } },
+                new()
+                {
+                    Name = "外观", GroupId = "g1", Include = new List<string>(),
+                    SubOptions = new List<ModSubOption> { new() { Name = "A" }, new() { Name = "B" } }
+                }
+            },
+            OptionGroups = new List<ModOptionGroup>
+            {
+                new() { Id = "g0", Name = "系统组件" },
+                new() { Id = "g1", Name = "外观组件", Description = "材质与模型" }
+            }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        Assert.True(dialog.HasGroups);
+        Assert.True(dialog.ShowGroupList);
+        Assert.False(dialog.IsGroupPage);
+        Assert.Equal(new[] { "系统组件", "外观组件" }, dialog.GroupCards.Select(group => group.Name));
+        Assert.False(dialog.GroupCards[0].CanOpen);
+        Assert.True(dialog.GroupCards[1].CanOpen);
+
+        var selector = new ModOptionsSelector { DataContext = dialog };
+        var window = new Window { Content = selector, Width = 720, Height = 640 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                using var frame = window.CaptureRenderedFrame();
+            }
+            Layout();
+            // 一级：两个组件卡片各带一个开关。
+            Assert.Equal(2, selector.GetVisualDescendants().OfType<CheckBox>()
+                .Count(control => control.IsEffectivelyVisible));
+
+            dialog.OpenGroupCommand.Execute(dialog.GroupCards[1]);
+            Layout();
+            Assert.True(dialog.IsGroupPage);
+            Assert.Single(dialog.VisibleOptionCards);
+            Assert.Equal("外观", dialog.VisibleOptionCards[0].Name);
+            Assert.Equal(1, selector.GetVisualDescendants().OfType<CheckBox>()
+                .Count(control => control.IsEffectivelyVisible));
+
+            dialog.SelectSubOption(dialog.VisibleOptionCards[0].SubOptions[1]);
+            dialog.ReturnToGroupsCommand.Execute(null);
+            Layout();
+            Assert.False(dialog.IsGroupPage);
+            Assert.True(dialog.ShowGroupList);
+
+            // 保存后回到一级且选择已持久化到当前配置。
+            bool saved = false;
+            for (var i = 0; i < 100 && !saved; i++)
+            {
+                var profile = await scope.Services.GetRequiredService<ProfileService>()
+                    .GetProfileByIdAsync(vm.SelectedProfile!.Id);
+                var state = ProfileModOptionsState.FromJson(
+                    profile!.Mods.Single(item => item.ModId == mod.Id).OptionsJson);
+                saved = state.OptionSelections is { Count: > 1 } && state.OptionSelections[1] == 1;
+                if (!saved) await Task.Delay(10);
+            }
+            Assert.True(saved);
+        }
+        finally
+        {
+            vm.CloseModOptions();
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ModOptionsDialog_PreviewOriginalIsDecodedOnDemandAndReleased()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        Directory.CreateDirectory(Path.Combine(mod.Path, "images"));
+        var imagePath = Path.Combine(mod.Path, "images", "option.png");
+        using (var image = new System.Drawing.Bitmap(1024, 1024))
+        {
+            using var graphics = System.Drawing.Graphics.FromImage(image);
+            graphics.Clear(System.Drawing.Color.SteelBlue);
+            image.Save(imagePath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption> { new() { Name = "材质", Image = "images/option.png" } }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        await dialog.LoadImagesAsync();
+        var card = dialog.OptionCards[0];
+        Assert.NotNull(card.Image);
+        Assert.True(card.Image!.PixelSize.Width <= 128, card.Image.PixelSize.ToString());
+        try
+        {
+            // 点击卡片图片才按原图尺寸解码；关闭弹窗后覆盖层随之关闭并释放。
+            dialog.ShowImagePreview(card.Image, card.Name);
+            for (var i = 0; i < 400 && !main.ImagePreview.IsOpen; i++) await Task.Delay(10);
+            Assert.True(main.ImagePreview.IsOpen);
+            var preview = main.ImagePreview.Image;
+            Assert.NotNull(preview);
+            Assert.Equal(1024, preview!.PixelSize.Width);
+            vm.CloseModOptionsCommand.Execute(null);
+            Assert.False(main.ImagePreview.IsOpen);
+        }
+        finally
+        {
+            main.ImagePreview.Close();
+            vm.CloseModOptions();
         }
     }
 }

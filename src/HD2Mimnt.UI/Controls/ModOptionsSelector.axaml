@@ -27,6 +27,35 @@
                   ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
       </Grid>
     </DataTemplate>
+    <!-- 一级组件卡片：进入二级页配置该组件的选项与子选项。 -->
+    <DataTemplate x:Key="ModOptionGroupTemplate" x:DataType="vm:ProfileModOptionGroupViewModel">
+      <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="12">
+        <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                PointerPressed="OptionPreview_PointerPressed" Tapped="PreviewImage_Tapped"
+                Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+          <Panel>
+            <TextBlock Text="{loc:Loc UI.NoPreview}" Classes="caption-text" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
+            <Image Source="{Binding Image}" Width="64" Height="64" Stretch="Uniform"/>
+          </Panel>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
+                    Tapped="GroupCard_Tapped" Cursor="Hand">
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+                     IsVisible="{Binding HasDescription}"/>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="secondary" VerticalAlignment="Center" Content="{loc:Loc UI.Configure}"
+                Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).OpenGroupCommand}"
+                CommandParameter="{Binding}" IsVisible="{Binding CanOpen}"/>
+        <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
+                  IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                  Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).ToggleGroupCommand}"
+                  CommandParameter="{Binding}"
+                  ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
+      </Grid>
+    </DataTemplate>
   </UserControl.Resources>
 
 <UserControl.Styles>
@@ -49,9 +78,21 @@
   </Style>
 </UserControl.Styles>
             <StackPanel>
-              <!-- v1：选项卡片（独立开关 + 子选项多选一） -->
-              <ItemsControl ItemsSource="{Binding OptionCards}"
-                            IsVisible="{Binding !IsLegacyMode}">
+              <!-- 一级：HD2IAS 组件列表（进入二级页配置组件内选项） -->
+              <ItemsControl ItemsSource="{Binding GroupCards}" IsVisible="{Binding ShowGroupList}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileModOptionGroupViewModel">
+                    <Border Classes="option-card" Margin="0,6">
+                      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ModOptionGroupTemplate}"
+                                      HorizontalContentAlignment="Stretch"/>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- v1：选项卡片（独立开关 + 子选项多选一）；组件页只显示当前组件选项 -->
+              <ItemsControl ItemsSource="{Binding VisibleOptionCards}"
+                            IsVisible="{Binding ShowOptionList}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:ProfileModOptionCardViewModel">
                     <Border Classes="option-card" Margin="0,6">

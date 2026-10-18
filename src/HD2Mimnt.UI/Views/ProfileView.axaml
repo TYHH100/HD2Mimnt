@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
@@ -434,12 +434,17 @@
         <Grid RowDefinitions="Auto,*,Auto">
           <!-- 标题栏 -->
           <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,12">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="2">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Button x:Name="ModOptionsBackButton" Grid.Column="0" Classes="icon-button" VerticalAlignment="Center"
+                      Margin="0,0,8,0" Command="{Binding ModOptionsDialog.ReturnToGroupsCommand}"
+                      IsVisible="{Binding ModOptionsDialog.IsGroupPage}" ToolTip.Tip="{loc:Loc UI.Back}">
+                <controls:UtilityIcon Kind="Back"/>
+              </Button>
+              <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="{loc:Loc UI.ModOptions}" Classes="section-title"/>
                 <TextBlock Text="{Binding ModOptionsDialog.Title}" Classes="caption-text" TextTrimming="CharacterEllipsis"/>
               </StackPanel>
-              <Button Grid.Column="1" Classes="icon-button" VerticalAlignment="Center"
+              <Button Grid.Column="2" Classes="icon-button" VerticalAlignment="Center"
                       Command="{Binding CloseModOptionsCommand}" ToolTip.Tip="{loc:Loc Common.Close}">
                 <controls:UtilityIcon Kind="Close"/>
               </Button>
@@ -455,8 +460,13 @@
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Classes="caption-text" TextWrapping="Wrap" VerticalAlignment="Center" MaxWidth="460"
                          Text="{loc:Loc UI.UncheckedOptionsAreExcludedFromDeploymentOptionsWithVariantsDeployOnly}"/>
-              <Button Grid.Column="1" Classes="accent" Command="{Binding CloseModOptionsCommand}"
-                      VerticalAlignment="Center" Content="{loc:Loc UI.Done}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button x:Name="ModOptionsSaveAndReturnButton" Classes="secondary"
+                        Command="{Binding ModOptionsDialog.ReturnToGroupsCommand}"
+                        IsVisible="{Binding ModOptionsDialog.IsGroupPage}"
+                        Content="{loc:Loc UI.SaveAndReturn}"/>
+                <Button Classes="accent" Command="{Binding CloseModOptionsCommand}" Content="{loc:Loc UI.Done}"/>
+              </StackPanel>
             </Grid>
           </Border>
         </Grid>

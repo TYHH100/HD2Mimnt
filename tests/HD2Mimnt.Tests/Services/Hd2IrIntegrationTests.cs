@@ -115,6 +115,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         Assert.Equal("Hero", mod.Name);
         Assert.Equal("HD2IAS", mod.WorkflowType);
         Assert.Single(mod.Manifest!.Options!);
+        Assert.Single(mod.Manifest.OptionGroups!);
     }
 
     [Fact]
@@ -131,9 +132,15 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         await File.WriteAllBytesAsync(Path.Combine(source, "cover.png"), [1, 2, 3]);
         var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
         var mod = (await _mods.GetByIdAsync(id))!;
-        Assert.Equal("Original", mod.Name);
+        // 最外层名称是导入的文件夹名，内层作者清单名称只作为组件标题。
+        Assert.Equal("with-options", mod.Name);
+        Assert.Contains("with-options", await File.ReadAllTextAsync(Path.Combine(mod.Path, ".hd2mimnt-hd2ir.json")));
         Assert.Equal(json, await File.ReadAllTextAsync(Path.Combine(mod.Path, "components", "1", "manifest.json")));
         Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest!.IconPath!)));
+        Assert.StartsWith("preview/", mod.Manifest.IconPath);
+        Assert.Equal(2, mod.Manifest.OptionGroups!.Count);
+        Assert.All(mod.Manifest.Options!, option => Assert.False(string.IsNullOrWhiteSpace(option.GroupId)));
+        Assert.True(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
         Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest.Options![1].SubOptions![0].Image!)));
         var profile = await CreateProfile(id, [true, true]);
         var stored = (await _profiles.GetByIdAsync(profile))!;
@@ -144,6 +151,43 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         Assert.Equal("B", await File.ReadAllTextAsync(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
         Assert.False(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_1")));
     }
+
+    [Fact]
+    public async Task NestedModelOptions_UseOuterNameAndCoverAndStoreGroupsInOwnJson()
+    {
+        // 外层文件夹名 + 根级预览图；模型压缩包内自带清单、选项、子选项与图片。
+        var source = Path.Combine(_root, "Armor Pack");
+        Directory.CreateDirectory(Path.Combine(source, "bin", "HD2IndependentRig"));
+        await File.WriteAllTextAsync(Path.Combine(source, "bin", "HD2IndependentRig", "hero.rigbin"), "rig");
+        await File.WriteAllBytesAsync(Path.Combine(source, "cover.png"), [9, 8, 7]);
+        var model = Path.Combine(_root, "model-source");
+        Directory.CreateDirectory(Path.Combine(model, "A")); Directory.CreateDirectory(Path.Combine(model, "B"));
+        await File.WriteAllTextAsync(Path.Combine(model, "A", "0123456789abcdef.patch_0"), "A");
+        await File.WriteAllTextAsync(Path.Combine(model, "B", "0123456789abcdef.patch_0"), "B");
+        const string json = """{"Version":1,"Name":"Inner Model","IconPath":"inner.png","Options":[{"Name":"Variant","SubOptions":[{"Name":"A","Include":["A"]},{"Name":"B","Include":["B"]}]}]}""";
+        await File.WriteAllTextAsync(Path.Combine(model, "manifest.json"), json);
+        await File.WriteAllBytesAsync(Path.Combine(model, "inner.png"), [1]);
+        ZipFile.CreateFromDirectory(model, Path.Combine(source, "model.zip"));
+
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var mod = (await _mods.GetByIdAsync(id))!;
+        Assert.Equal("Armor Pack", mod.Name);
+        Assert.StartsWith("preview/", mod.Manifest!.IconPath);
+        Assert.True(mod.Manifest.IconPath.EndsWith("cover.png", StringComparison.OrdinalIgnoreCase), $"actual={mod.Manifest.IconPath}");
+        Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest.IconPath)));
+        // 一级组件分组：系统组件 + 模型；模型组带作者选项/子选项。
+        Assert.Equal(2, mod.Manifest.OptionGroups!.Count);
+        var modelGroup = Assert.Single(mod.Manifest.OptionGroups, group => group.Name.Contains("Inner Model"));
+        var modelOptions = mod.Manifest.Options!.Where(option => option.GroupId == modelGroup.Id).ToList();
+        var variant = Assert.Single(modelOptions);
+        Assert.Equal(2, variant.SubOptions!.Count);
+        // 作者清单原字节保留，生成的选项树保存到管理器自有 JSON。
+        Assert.Equal(json, await File.ReadAllTextAsync(Path.Combine(mod.Path, "components", "1", "manifest.json")));
+        var optionsJson = await File.ReadAllTextAsync(Path.Combine(mod.Path, ".hd2mimnt-options.json"));
+        Assert.Contains("optionGroups", optionsJson);
+        Assert.Contains("Inner Model", optionsJson);
+    }
+
 
     [Fact]
     public async Task UpdatePackage_IsNotImportedAsCharacterMod()

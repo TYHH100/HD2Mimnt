@@ -400,6 +400,39 @@ public class ProfileModOptionsTests : IDisposable
         Assert.Equal(OptionDeployScope.InvalidSelection, plan.Scope);
     }
 
+    [Fact]
+    public async Task ModManifest_GeneratedComponentGroups_RoundTripAndKeepFlatDeployPlan()
+    {
+        // HD2IAS 导入生成的一级组件分组与扁平选项：分组只用于配置页导航，
+        // 选项的 Include 映射与部署规则保持原有语义。
+        var manifest = new ModManifest
+        {
+            Name = "Generated",
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new() { Name = "系统", GroupId = "g0", Include = new List<string> { "rig" } },
+                new() { Name = "外观", GroupId = "g1", Include = new List<string> { "A" } }
+            },
+            OptionGroups = new List<ModOptionGroup>
+            {
+                new() { Id = "g0", Name = "系统组件" },
+                new() { Id = "g1", Name = "外观组件", Image = "preview/cover.png" }
+            }
+        };
+        var mod = await CreateModAsync("Grouped", manifest);
+
+        var loaded = await _modRepository.GetByIdAsync(mod.Id);
+
+        Assert.Equal(new[] { "系统组件", "外观组件" }, loaded!.Manifest!.OptionGroups!.Select(group => group.Name));
+        Assert.Equal("preview/cover.png", loaded.Manifest.OptionGroups[1].Image);
+        Assert.All(loaded.Manifest.Options!, option => Assert.False(string.IsNullOrWhiteSpace(option.GroupId)));
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(loaded.Manifest,
+            new ProfileModOptionsState { OptionToggles = new List<bool> { true, false } });
+        Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
+        Assert.Equal(new[] { "rig" }, plan.Directories);
+    }
+
     // ── 部署集成：选项选择真正决定部署哪些文件 ──
 
     [Theory]

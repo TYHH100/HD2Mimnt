@@ -29,9 +29,31 @@ public class ModManifest
     public List<ModOption>? Options { get; set; }
 
     /// <summary>
+    /// 组件分组（仅由 HD2IAS 角色包导入生成，保存到管理器自有 JSON 与数据库，
+    /// 不写入作者 manifest.json）。用于把同一组件的选项组织到二级配置页。
+    /// </summary>
+    public List<ModOptionGroup>? OptionGroups { get; set; }
+
+    /// <summary>
     /// Nexus Mods 数据
     /// </summary>
     public NexusData? NexusData { get; set; }
+}
+
+/// <summary>
+/// 管理器生成的组件分组：一级配置页展示一个组件，其选项在二级页配置。
+/// 只存在于 HD2Mimnt 自有元数据中，标准 manifest.json 不包含该结构。
+/// </summary>
+public class ModOptionGroup
+{
+    /// <summary>分组标识；<see cref="ModOption.GroupId"/> 指向它。</summary>
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>组件预览图相对路径（仅展示用，位于模组目录内）。</summary>
+    public string? Image { get; set; }
 }
 
 public enum ManifestVersion
@@ -61,6 +83,9 @@ public class ModOption
 
     /// <summary>选项预览图相对路径（仅展示用）</summary>
     public string? Image { get; set; }
+
+    /// <summary>所属组件分组（HD2IAS 角色包导入生成）；null 表示不属于任何分组。</summary>
+    public string? GroupId { get; set; }
 
     public List<ModSubOption>? SubOptions { get; set; }
 }
