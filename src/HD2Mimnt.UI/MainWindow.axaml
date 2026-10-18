@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:HD2Mimnt.UI.ViewModels"
         xmlns:views="using:HD2Mimnt.UI.Views"
@@ -146,6 +146,7 @@
         </Grid>
       </Border>
     </Border>
+    <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="2" DataContext="{Binding Compatibility}" ZIndex="360"/>
     <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
     <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"
             IsHitTestVisible="False" IsVisible="False" ZIndex="400">

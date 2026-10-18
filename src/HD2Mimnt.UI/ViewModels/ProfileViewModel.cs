@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
@@ -388,8 +388,9 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null)
     {
+        Compatibility = compatibility;
         LocalVersions = new(modService, confirmationService, async () =>
         {
             await RefreshAfterProfilesChangedAsync();
@@ -900,7 +901,7 @@ public partial class ProfileViewModel : ObservableObject
                         ModId = profileMod.ModId,
                         ModName = mod.Name,
                         ModVersion = mod.PlatformLink?.InstalledVersion ?? mod.Version,
-                        SourceInfo = new ModItemViewModel(mod),
+                        SourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) },
                         Enabled = profileMod.Enabled,
                         Order = profileMod.Order,
                         BslRole = BslProfilePolicy.Role(mod),

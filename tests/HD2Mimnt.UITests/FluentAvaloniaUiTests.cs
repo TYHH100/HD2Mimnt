@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.IO.Compression;
 using Avalonia;
 using Avalonia.Controls;
@@ -3528,7 +3528,9 @@ public sealed partial class FluentAvaloniaUiTests
             HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader? iasPackages = null,
             HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler? iasCompiler = null,
             HD2Mimnt.Core.Hd2IAS.IHd2IASUpdateSource? iasUpdates = null,
-            HD2Mimnt.Core.Interfaces.IDeploymentMethod? deploymentMethod = null)
+            HD2Mimnt.Core.Interfaces.IDeploymentMethod? deploymentMethod = null,
+            HD2Mimnt.Core.Interfaces.ICompatibilityResourceNames? compatibilityNames = null,
+            HD2Mimnt.Core.Interfaces.IModCompatibilityAnalyzer? compatibilityAnalyzer = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3550,6 +3552,8 @@ public sealed partial class FluentAvaloniaUiTests
                 if (ayakaOAuthClient != null) services.AddSingleton(ayakaOAuthClient);
                 if (confirmation != null) services.AddSingleton<IConfirmationService>(confirmation);
                 if (deploymentMethod != null) services.AddSingleton(deploymentMethod);
+                if (compatibilityNames != null) services.AddSingleton(compatibilityNames);
+                if (compatibilityAnalyzer != null) services.AddSingleton(compatibilityAnalyzer);
                 if (iasPackages != null) services.AddSingleton(iasPackages);
                 if (iasCompiler != null) services.AddSingleton(iasCompiler);
                 if (iasUpdates != null) services.AddSingleton(iasUpdates);

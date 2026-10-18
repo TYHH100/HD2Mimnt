@@ -24,6 +24,8 @@
 
 - BenchmarkDotNet 会生成额外产物；基准完成后清理临时目录，并在报告中记录实际数据集规模和测量边界。
 
+- 大数据性能验收不能只看测试通过、托管堆或全场平均/P95：图片需使用独立路径并等待实际解码，记录进程私有内存、分阶段输入延迟与最大停顿；Headless 截图耗时不能换算为桌面 FPS。批量写测试每轮交替状态，避免测成无变化操作；SQL 压力与 UI 联合测试需确认负载持续覆盖操作。复现与边界见[1 万模组实测](../reports/large-library-performance-2026-10-17.md)。来源：[SQLite 异步限制](https://learn.microsoft.com/dotnet/standard/data/sqlite/async)、[进程私有内存](https://learn.microsoft.com/dotnet/api/system.diagnostics.process.privatememorysize64)。
+
 - UI 大数据验收使用 `HD2MIMNT_DATA_PATH` 隔离目录；开发工具测试模组必须有稳定的 `HD2Mimnt Test ` 名称前缀，清理时按前缀匹配，不能按用户模组路径或模糊目录名删除；导入源目录必须在每项完成或失败后清理。
 
 - 性能采样脚本默认输出到 `%TEMP%\HD2MimntPerformance`；短时启动样本只能验证采样链，长时验收必须记录持续时间、采样间隔、数据集和 UI 操作范围，完成后删除临时输出。

@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -3889,6 +3889,8 @@ Last checked: {7}</value>
   <data name="Creator.OptionName" xml:space="preserve"><value>Option name *</value></data>
   <data name="Creator.DefaultEnabled" xml:space="preserve"><value>Enabled by default (indeterminate uses the manager default)</value></data>
   <data name="Creator.OptionImage" xml:space="preserve"><value>Preview image (relative path)</value></data>
+  <data name="Creator.ViewImage" xml:space="preserve"><value>View image</value></data>
+  <data name="Creator.ImageUnavailable" xml:space="preserve"><value>Unable to read the image. Check that it is inside the source directory and the path is correct.</value></data>
   <data name="Creator.HasMapping" xml:space="preserve"><value>Specify included folders</value></data>
   <data name="Creator.AddDirectory" xml:space="preserve"><value>Choose directories</value></data>
   <data name="Creator.MappingHint" xml:space="preserve"><value>One relative folder per line; use . for the root. Only patches directly in these folders are included. Checked with no paths means no files; unchecked omits Include (a parent may rely on its sub-options; unmapped leaves can deploy all files).</value></data>
@@ -4030,4 +4032,122 @@ Last checked: {7}</value>
   <data name="IAS.GoInstall" xml:space="preserve"><value>Install HD2IAS</value></data>
   <data name="IAS.DataRequired" xml:space="preserve"><value>HD2IAS data is missing or invalid in the mod library. Select the matching runtime package and install or repair it to generate data in the library, then deploy it through a profile.</value></data>
   <data name="IAS.GoRepairData" xml:space="preserve"><value>Repair HD2IAS data</value></data>
+  <data name="Compatibility.Title" xml:space="preserve"><value>Model compatibility check &amp; repair</value></data>
+  <data name="Compatibility.Open" xml:space="preserve"><value>Open compatibility check</value></data>
+  <data name="Compatibility.LibraryScope" xml:space="preserve"><value>All library mods</value></data>
+  <data name="Compatibility.SelectionScope" xml:space="preserve"><value>Selected mods</value></data>
+  <data name="Compatibility.ProfileScope" xml:space="preserve"><value>Profile: {0}</value></data>
+  <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} mods · {1} model checks passed · {2} need attention · {3} unconfirmed · {4} check failures · {5} need no model check</value></data>
+  <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} patches · {3} Units · {4:yyyy-MM-dd HH:mm:ss}</value></data>
+  <data name="Compatibility.ScopeHelp" xml:space="preserve"><value>Compares model Unit versions in each variant. Lua, skeletons, animations and audio are excluded. TOC and GPU diagnostics are retained for details and repair validation; they do not indicate a version mismatch.</value></data>
+  <data name="Compatibility.DetailHelp" xml:space="preserve"><value>Inspect this mod, preview repairs and manage repair backups.</value></data>
+  <data name="Compatibility.ResultHelp" xml:space="preserve"><value>Compares models with the current game by resource ID. Models without a reference are listed separately. Format warnings remain in the details and do not override matching versions.</value></data>
+  <data name="Compatibility.CheckTab" xml:space="preserve"><value>Check results</value></data>
+  <data name="Compatibility.RepairTab" xml:space="preserve"><value>Repair preview</value></data>
+  <data name="Compatibility.BackupsTab" xml:space="preserve"><value>Backups</value></data>
+  <data name="Compatibility.Check" xml:space="preserve"><value>Check again</value></data>
+  <data name="Compatibility.Checking" xml:space="preserve"><value>Checking mods…</value></data>
+  <data name="Compatibility.CheckComplete" xml:space="preserve"><value>Check complete.</value></data>
+  <data name="Compatibility.RefreshNames" xml:space="preserve"><value>Update armor names</value></data>
+  <data name="Compatibility.CopyReport" xml:space="preserve"><value>Copy report</value></data>
+  <data name="Compatibility.Copied" xml:space="preserve"><value>Report copied.</value></data>
+  <data name="Compatibility.Metadata" xml:space="preserve"><value>Metadata</value></data>
+  <data name="Compatibility.Companions" xml:space="preserve"><value>Recover stream/GPU</value></data>
+  <data name="Compatibility.Units" xml:space="preserve"><value>Unit / layout</value></data>
+  <data name="Compatibility.Materials" xml:space="preserve"><value>Material migration</value></data>
+  <data name="Compatibility.Lod" xml:space="preserve"><value>LOD strategy</value></data>
+  <data name="Compatibility.Lod.Automatic" xml:space="preserve"><value>Automatic (recommended)</value></data>
+  <data name="Compatibility.Lod.PreserveMod" xml:space="preserve"><value>Preserve mod LOD</value></data>
+  <data name="Compatibility.Lod.UseGameReference" xml:space="preserve"><value>Use game LOD</value></data>
+  <data name="Compatibility.Lod.Mixed" xml:space="preserve"><value>Choose per Unit</value></data>
+  <data name="Compatibility.MixedHelp" xml:space="preserve"><value>For this mod: checked Units retain mod LOD; unchecked Units use the game reference.</value></data>
+  <data name="Compatibility.PreviewSelected" xml:space="preserve"><value>Preview this mod</value></data>
+  <data name="Compatibility.PreviewScope" xml:space="preserve"><value>Preview all in scope</value></data>
+  <data name="Compatibility.Previewing" xml:space="preserve"><value>Building repair preview…</value></data>
+  <data name="Compatibility.PreviewComplete" xml:space="preserve"><value>Preview complete. Only plans without blockers can be applied.</value></data>
+  <data name="Compatibility.RepairSelected" xml:space="preserve"><value>Repair this mod</value></data>
+  <data name="Compatibility.RepairScope" xml:space="preserve"><value>Repair previewed mods</value></data>
+  <data name="Compatibility.Repair" xml:space="preserve"><value>Confirm compatibility repair</value></data>
+  <data name="Compatibility.ConfirmRepair" xml:space="preserve"><value>Apply {1} previewed actions to {0} mods? Original files are backed up automatically. Redeploy afterwards to update the game.</value></data>
+  <data name="Compatibility.Repairing" xml:space="preserve"><value>Repairing mods…</value></data>
+  <data name="Compatibility.RepairComplete" xml:space="preserve"><value>{0} mods repaired; {1} failed. Redeploy changed mods to update the game.</value></data>
+  <data name="Compatibility.BackupHelp" xml:space="preserve"><value>Select a mod and refresh its history. Restore one file or roll back all files to the selected time.</value></data>
+  <data name="Compatibility.RefreshBackups" xml:space="preserve"><value>Refresh history</value></data>
+  <data name="Compatibility.Restore" xml:space="preserve"><value>Restore file</value></data>
+  <data name="Compatibility.Rollback" xml:space="preserve"><value>Roll back to time</value></data>
+  <data name="Compatibility.ConfirmRestore" xml:space="preserve"><value>Restore the selected file backup? The current file is backed up first. Redeploy afterwards.</value></data>
+  <data name="Compatibility.ConfirmRollback" xml:space="preserve"><value>Roll back this mod to the selected backup time? Current files are backed up first. Redeploy afterwards.</value></data>
+  <data name="Compatibility.Restored" xml:space="preserve"><value>Restore complete. Redeploy the mod to update the game.</value></data>
+  <data name="Compatibility.RestoreFailed" xml:space="preserve"><value>Restore failed. Review the operation details.</value></data>
+  <data name="Compatibility.DeleteBackup" xml:space="preserve"><value>Delete backup</value></data>
+  <data name="Compatibility.ConfirmDeleteBackup" xml:space="preserve"><value>Permanently delete the selected backup?</value></data>
+  <data name="Compatibility.CleanBackups" xml:space="preserve"><value>Keep latest 3 / file</value></data>
+  <data name="Compatibility.ConfirmCleanBackups" xml:space="preserve"><value>Delete older backups and retain the latest 3 for each file?</value></data>
+  <data name="Compatibility.BackupValid" xml:space="preserve"><value>Checksum valid; restorable</value></data>
+  <data name="Compatibility.Canceled" xml:space="preserve"><value>Canceled. Any committed changes and recovery details remain visible.</value></data>
+  <data name="Compatibility.Stale" xml:space="preserve"><value>Mod contents changed. Check again before previewing repairs.</value></data>
+  <data name="Compatibility.Compatible" xml:space="preserve"><value>Model versions match</value></data>
+  <data name="Compatibility.Incompatible" xml:space="preserve"><value>Model version mismatch</value></data>
+  <data name="Compatibility.Unknown" xml:space="preserve"><value>Unconfirmed</value></data>
+  <data name="Compatibility.Error" xml:space="preserve"><value>Check failed</value></data>
+  <data name="Compatibility.NotApplicable" xml:space="preserve"><value>No model check needed</value></data>
+  <data name="Compatibility.Scope" xml:space="preserve"><value>Check scope</value></data>
+  <data name="Compatibility.NoModels" xml:space="preserve"><value>No model Units found. Lua, skeletons, animations and audio are outside this check and will not receive model repairs.</value></data>
+  <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>Unconfirmed: {0}</value></data>
+  <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>game directory is not configured</value></data>
+  <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>current game references could not be read</value></data>
+  <data name="Compatibility.Reason.NoComparableUnits" xml:space="preserve"><value>no comparable game models found; these may be custom models</value></data>
+  <data name="Compatibility.Reason.ModelDataUnreadable" xml:space="preserve"><value>model versions could not be read; see file read details</value></data>
+  <data name="Compatibility.ComparisonCoverage" xml:space="preserve"><value>Compared {0}/{1} model Units; {2} without usable references were excluded from version comparison.</value></data>
+  <data name="Compatibility.Unchecked" xml:space="preserve"><value>Not checked</value></data>
+  <data name="Compatibility.Issue" xml:space="preserve"><value>Diagnostic</value></data>
+  <data name="Compatibility.Source" xml:space="preserve"><value>Reference and armor name sources</value></data>
+  <data name="Compatibility.Blocked" xml:space="preserve"><value>Blocked</value></data>
+  <data name="Compatibility.Warning" xml:space="preserve"><value>Warning</value></data>
+  <data name="Compatibility.Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="Compatibility.No" xml:space="preserve"><value>No</value></data>
+  <data name="Compatibility.PatchDetails" xml:space="preserve"><value>{0} · {1:N0} B
+TOC valid: {2} · Payload ranges valid: {3} · stream present: {4} · GPU present: {5}</value></data>
+  <data name="Compatibility.UnitDetails" xml:space="preserve"><value>{0}
+Version: {1} → {2} · {3}
+Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
+  <data name="Compatibility.Reference.Found" xml:space="preserve"><value>Game reference found</value></data>
+  <data name="Compatibility.Reference.Missing" xml:space="preserve"><value>Game reference missing</value></data>
+  <data name="Compatibility.Reference.Ambiguous" xml:space="preserve"><value>Game reference ambiguous</value></data>
+  <data name="Compatibility.Reference.Error" xml:space="preserve"><value>Game reference error</value></data>
+  <data name="Compatibility.State.NoAction" xml:space="preserve"><value>No supported repair actions.</value></data>
+  <data name="Compatibility.State.Repairable" xml:space="preserve"><value>Ready to repair after confirmation.</value></data>
+  <data name="Compatibility.State.Blocked" xml:space="preserve"><value>Repair blocked; see the plan.</value></data>
+  <data name="Compatibility.State.Repaired" xml:space="preserve"><value>Repaired; redeploy this mod.</value></data>
+  <data name="Compatibility.State.Failed" xml:space="preserve"><value>Operation failed.</value></data>
+  <data name="Compatibility.Reference.Unknown" xml:space="preserve"><value>No game reference</value></data>
+  <data name="Compatibility.Action.EntryIndex" xml:space="preserve"><value>Resource entry index</value></data>
+  <data name="Compatibility.Action.TypeResourceCount" xml:space="preserve"><value>Resource type count</value></data>
+  <data name="Compatibility.Action.ResourceTypeId" xml:space="preserve"><value>Resource type ID</value></data>
+  <data name="Compatibility.Action.TypeAlignment" xml:space="preserve"><value>Resource type alignment</value></data>
+  <data name="Compatibility.Action.MainDataOffset" xml:space="preserve"><value>Main data offset</value></data>
+  <data name="Compatibility.Action.UnitDataSize" xml:space="preserve"><value>Unit data size</value></data>
+  <data name="Compatibility.Action.CompanionRecovery" xml:space="preserve"><value>Recover companion file</value></data>
+  <data name="Compatibility.Action.MaterialMigration" xml:space="preserve"><value>Material migration</value></data>
+  <data name="Compatibility.Action.UnitMigration" xml:space="preserve"><value>Unit migration</value></data>
+  <data name="Settings.Compatibility.Title" xml:space="preserve"><value>Compatibility</value></data>
+  <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>Check mod compatibility on startup</value></data>
+  <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>Off by default. After saving, the next startup checks the library in the background. Open results from the notification. No automatic repairs.</value></data>
+  <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>Allow batch repair</value></data>
+  <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>Off by default. Shows the batch repair button in repair previews. Execution still requires confirmation.</value></data>
+  <data name="Settings.Compatibility.Help" xml:space="preserve"><value>Changes apply after saving. Individual checks, previews and repairs remain available in the library, profiles and mod details.</value></data>
+  <data name="Settings.Compatibility.Saved" xml:space="preserve"><value>Compatibility settings saved</value></data>
+  <data name="Settings.Compatibility.Reset" xml:space="preserve"><value>Compatibility settings reset to defaults</value></data>
+  <data name="Settings.Compatibility.ShowResults" xml:space="preserve"><value>View check results</value></data>
+  <data name="Settings.Compatibility.Data.Title" xml:space="preserve"><value>Game reference data</value></data>
+  <data name="Settings.Compatibility.Data.Help" xml:space="preserve"><value>Build and save an index from the configured game folder for reuse across restarts. Archive changes are detected at startup, on opening this page and during compatibility reads; stale indexes rebuild automatically. Full game resources are not copied. Armor names update on demand daily or manually.</value></data>
+  <data name="Settings.Compatibility.Data.NotLoaded" xml:space="preserve"><value>Reading cache status</value></data>
+  <data name="Settings.Compatibility.Data.State.Missing" xml:space="preserve"><value>Not built</value></data>
+  <data name="Settings.Compatibility.Data.State.Ready" xml:space="preserve"><value>Saved and ready to reuse</value></data>
+  <data name="Settings.Compatibility.Data.State.Stale" xml:space="preserve"><value>Outdated; rebuild required</value></data>
+  <data name="Settings.Compatibility.Data.State.Unavailable" xml:space="preserve"><value>Game folder unavailable</value></data>
+  <data name="Settings.Compatibility.Data.Status" xml:space="preserve"><value>{0} · Built {1}&#10;{2:N0} packages · {3:N0} Units&#10;{4}</value></data>
+  <data name="Settings.Compatibility.Data.Build" xml:space="preserve"><value>Build and save / Rebuild</value></data>
+  <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>Game reference index built and saved</value></data>
+  <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>Names updated: {0:N0} resources, {1:N0} archives</value></data>
 </root>

@@ -1,0 +1,187 @@
+{
+  "Source": "all-performance",
+  "Started": "2026-10-17T21:16:53.7233485+08:00",
+  "Finished": "2026-10-17T21:20:32.3562760+08:00",
+  "Counters": {
+    "total": 27,
+    "executed": 27,
+    "passed": 27,
+    "failed": 0,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0,
+    "inconclusive": 0,
+    "passedButRunAborted": 0,
+    "notRunnable": 0,
+    "notExecuted": 0,
+    "disconnected": 0,
+    "warning": 0,
+    "completed": 0,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "Tests": [
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ConflictScanPerformanceTests.ScanLargeProfile_FirstAndRepeatedPass(modCount: 1000, resourcesPerMod: 1000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:04.9770267",
+      "Output": "mods=1000, resources=1000000, pass=1, cached=0, scan_ms=813.1, allocated_MiB=321.4, presentation_ms=214.5\r\nmods=1000, resources=1000000, pass=2, cached=1000, scan_ms=632.3, allocated_MiB=278.7, presentation_ms=161.6"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.MemoryStability_RepeatedOperations",
+      "Outcome": "Passed",
+      "Duration": "00:00:01.7299482",
+      "Output": "Memory growth after 5 iterations: 87KB\r\nBefore: 16632KB, After: 16720KB\r\n✓ Memory stability verified"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.SearchService_Search_Performance(modCount: 1000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.8465698",
+      "Output": "Search tests completed for 1000 mods"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.GeneratePerformanceReport",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.0025132",
+      "Output": "# Performance Test Results\r\n\r\n**Test Date**: 2026-10-17 13:19:58\r\n**Duration**: 0.00 seconds\r\n**Environment**: Windows 11, .NET 10, 12 cores\r\n\r\n## Results\r\n\r\n| Operation | Scale | Time (ms) | Results | Memory Δ (KB) |\r\n|-----------|------:|----------:|--------:|--------------:|"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.DeleteFromLibrary_RemovesFromAllProfiles",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.3058289",
+      "Output": "✓ Delete from library removes from all profiles"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModRepository_GetAllMods_Performance(modCount: 8000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:07.4527576",
+      "Output": "GetAllMods(8000): GetAllMods                     | Scale:   8000 | Time:   1207ms | Results:   8000 | Memory Δ:     6842KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.Search_FindsCorrectResults",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.8297560",
+      "Output": "✓ Search found 63 correct results"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModService_GetStatistics_Performance(modCount: 8000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:06.4314240",
+      "Output": "GetStatistics(8000): GetStatistics                  | Scale:   8000 | Time:     75ms | Results:   8000 | Memory Δ:     6726KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.LargeLibraryServicePerformanceTests.TenThousandMods_RealRepositoriesAndOneHundredThousandSqlStatements",
+      "Outcome": "Passed",
+      "Duration": "00:01:29.0954028",
+      "Output": "repository_get_all_10000: 84.91, 87.83, 92.01, 79.07, 94.74, 75.23, 86.89 ms\r\nrepository_get_by_ids_10000: 161.93, 145.84, 119.92, 151.99, 146.72, 133.96, 140.05 ms\r\nservice_get_all_with_sidecars: 6807.31, 6691.68, 6697.67, 6873.69, 6776.65, 6767.02, 6726.38 ms\r\nprofiles_12_memberships_21000: 41.85, 37.79, 33.17, 39.02, 31.09, 34.21, 43.37 ms\r\nprofile_normalize_10000: 163.21, 146.30, 163.87, 173.61, 162.50, 160.47, 144.33 ms\r\nsearch_build_index_10000: 2505.56, 2731.73, 2567.59, 2380.87, 2414.61, 2457.79, 2420.25 ms\r\nsearch_common_5000_results: 70.94, 76.56, 57.74, 58.99, 56.76, 61.07, 57.02 ms\r\nstatistics_10000: 101.09, 102.46, 94.67, 96.83, 88.06, 95.51, 115.46 ms\r\nprofile_toggle_1000: 305.52, 291.48, 272.35, 274.91, 270.34, 273.40, 261.32 ms"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.RemoveFromProfile_DoesNotDeleteFromLibrary",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.0969185",
+      "Output": "✓ Remove from profile does not delete from library"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModRepository_GetAllMods_Performance(modCount: 5000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:04.5941320",
+      "Output": "GetAllMods(5000): GetAllMods                     | Scale:   5000 | Time:    732ms | Results:   5000 | Memory Δ:     -763KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModRepository_GetAllMods_Performance(modCount: 10000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:09.4696871",
+      "Output": "GetAllMods(10000): GetAllMods                     | Scale:  10000 | Time:   1494ms | Results:  10000 | Memory Δ:    -7752KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.SearchService_Search_Performance(modCount: 10000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:08.1428977",
+      "Output": "Search tests completed for 10000 mods"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModRepository_GetAllMods_Performance(modCount: 100)",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.1623326",
+      "Output": "GetAllMods(100): GetAllMods                     | Scale:    100 | Time:     16ms | Results:    100 | Memory Δ:      393KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModRepository_GetAllMods_Performance(modCount: 1000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.9403332",
+      "Output": "GetAllMods(1000): GetAllMods                     | Scale:   1000 | Time:    143ms | Results:   1000 | Memory Δ:    -4370KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ProfileService_BulkOperations_Performance(modCount: 1000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:01.2491912",
+      "Output": "Profile bulk operations completed"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.BulkEnableDisable_WorksCorrectly",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.3289685",
+      "Output": "✓ Bulk enable/disable works correctly"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.SearchService_Search_Performance(modCount: 8000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:06.5184729",
+      "Output": "Search tests completed for 8000 mods"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModService_GetStatistics_Performance(modCount: 5000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:03.9628706",
+      "Output": "GetStatistics(5000): GetStatistics                  | Scale:   5000 | Time:     34ms | Results:   5000 | Memory Δ:      701KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.ProfileStateIsolation_MultipleProfiles",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.1255081",
+      "Output": "✓ Profile state isolation verified"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ProfileService_BulkOperations_Performance(modCount: 5000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:04.3596839",
+      "Output": "Profile bulk operations completed"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.SearchService_Search_Performance(modCount: 5000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:04.0084395",
+      "Output": "Search tests completed for 5000 mods"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ConflictScanPerformanceTests.ScanLargeProfile_FirstAndRepeatedPass(modCount: 5000, resourcesPerMod: 200)",
+      "Outcome": "Passed",
+      "Duration": "00:00:18.8368010",
+      "Output": "mods=5000, resources=1000000, pass=1, cached=0, scan_ms=2816.3, allocated_MiB=365.6, presentation_ms=363.7\r\nmods=5000, resources=1000000, pass=2, cached=5000, scan_ms=1932.4, allocated_MiB=308.8, presentation_ms=201.4"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ModService_GetStatistics_Performance(modCount: 1000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.8247154",
+      "Output": "GetStatistics(1000): GetStatistics                  | Scale:   1000 | Time:      7ms | Results:   1000 | Memory Δ:    -6523KB"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.CoreE2ETests.EmptyLibrary_HandlesCorrectly",
+      "Outcome": "Passed",
+      "Duration": "00:00:00.0838376",
+      "Output": "✓ Empty library handled correctly"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ConflictScanPerformanceTests.ScanLargeProfile_FirstAndRepeatedPass(modCount: 10000, resourcesPerMod: 100)",
+      "Outcome": "Passed",
+      "Duration": "00:00:35.7643464",
+      "Output": "mods=10000, resources=1000000, pass=1, cached=0, scan_ms=4993.6, allocated_MiB=420.3, presentation_ms=230.0\r\nmods=10000, resources=1000000, pass=2, cached=0, scan_ms=4967.2, allocated_MiB=419.7, presentation_ms=276.4"
+    },
+    {
+      "Name": "HD2Mimnt.PerformanceTests.ServicePerformanceTests.ProfileService_BulkOperations_Performance(modCount: 8000)",
+      "Outcome": "Passed",
+      "Duration": "00:00:06.6331745",
+      "Output": "Profile bulk operations completed"
+    }
+  ]
+}

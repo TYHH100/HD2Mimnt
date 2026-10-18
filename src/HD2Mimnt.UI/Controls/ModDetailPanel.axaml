@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -196,6 +196,13 @@
           </StackPanel>
         </Border>
 
+        <Border Classes="section" IsVisible="{Binding CheckCompatibilityCommand, Converter={StaticResource NotNullConverter}}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc Compatibility.Title}" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{loc:Loc Compatibility.DetailHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            <Button x:Name="CheckDetailCompatibilityButton" Content="{loc:Loc Compatibility.Open}" Command="{Binding CheckCompatibilityCommand}" HorizontalAlignment="Stretch"/>
+          </StackPanel>
+        </Border>
         <!-- File Info -->
         <Border Classes="section">
           <StackPanel>

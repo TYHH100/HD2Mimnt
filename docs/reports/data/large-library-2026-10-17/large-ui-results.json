@@ -1,0 +1,31 @@
+{
+  "Source": "large-ui",
+  "Started": "2026-10-17T21:13:09.6406662+08:00",
+  "Finished": "2026-10-17T21:15:04.9446423+08:00",
+  "Counters": {
+    "total": 1,
+    "executed": 1,
+    "passed": 1,
+    "failed": 0,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0,
+    "inconclusive": 0,
+    "passedButRunAborted": 0,
+    "notRunnable": 0,
+    "notExecuted": 0,
+    "disconnected": 0,
+    "warning": 0,
+    "completed": 0,
+    "inProgress": 0,
+    "pending": 0
+  },
+  "Tests": [
+    {
+      "Name": "HD2Mimnt.Tests.UI.FluentAvaloniaUiTests.LargeLibrary_TenThousandImagesWithSqlFlood_MeasureResponsiveness",
+      "Outcome": "Passed",
+      "Duration": "00:01:52.8363078",
+      "Output": ""
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
@@ -16,6 +16,10 @@ namespace HD2Mimnt.UI.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
+    public ModCompatibilityViewModel? Compatibility { get; }
+    public Task StartupCompatibilityTask { get; private set; } = Task.CompletedTask;
+    private bool _startupCompatibilityStarted;
+    private bool _closingCompatibility;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly ProfileViewModel _profileViewModel;
     private readonly GameDetectionService _gameDetectionService;
@@ -149,8 +153,33 @@ public partial class MainWindowViewModel : ObservableObject
         CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
         DirectDownloadViewModel? directDownloadViewModel = null,
         ModCreationViewModel? modCreationViewModel = null,
-        Hd2IASManagementViewModel? hd2IASManagementViewModel = null)
+        Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null)
     {
+        Compatibility = compatibility;
+        if (Compatibility != null)
+        {
+            Compatibility.ContentChanged += async () =>
+            {
+                conflictsViewModel.InvalidateResults();
+                await libraryViewModel.InitializeAsync();
+                await profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
+            modService.ModsChanged += (_, _) =>
+            {
+                // 自己提交的变更由 ContentChanged 等待刷新，避免排队回调误使新结果失效。
+                if (!Compatibility.IsMutating) ApplyOnUiThread(Compatibility.Invalidate);
+            };
+            Compatibility.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(ModCompatibilityViewModel.IsOpen))
+                {
+                    NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+                    NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+                    NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+                    NavigateToModCreationCommand.NotifyCanExecuteChanged();
+                }
+            };
+        }
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
         _conflictsViewModel = conflictsViewModel;
@@ -435,6 +464,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnModsChanged(object? sender, EventArgs e)
     {
+        if (Compatibility?.IsMutating == true) return;
         // 模组增删后联动刷新配置文件页（库页自行重载）
         ApplyOnUiThread(async () =>
         {
@@ -509,6 +539,17 @@ public partial class MainWindowViewModel : ObservableObject
         _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
         StatusBarText = "Application initialized";
+        if (!_startupCompatibilityStarted)
+        {
+            _startupCompatibilityStarted = true;
+            StartupCompatibilityTask = RunStartupCompatibilityAsync();
+        }
+    }
+
+    private async Task RunStartupCompatibilityAsync()
+    {
+        await _settingsViewModel.UpdateStaleCompatibilityDataAsync();
+        if (!_closingCompatibility) await _libraryViewModel.CheckCompatibilityOnStartupAsync();
     }
 
     private async Task RestoreNexusCredentialsAsync()
@@ -527,7 +568,7 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentProfileName = activeProfile?.Name ?? "No Profile";
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen;
+    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -653,6 +694,7 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (Compatibility?.IsOpen == true) { Compatibility.CloseCommand.Execute(null); return; }
         if (_libraryViewModel.ModOnline?.IsOpen == true)
         {
             _libraryViewModel.ModOnline.CloseCommand.Execute(null);
@@ -742,6 +784,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task<bool> CanCloseAsync()
     {
+        _closingCompatibility = true;
+        await _settingsViewModel.StopCompatibilityDataAsync();
+        if (Compatibility != null) await Compatibility.StopAsync();
+        await StartupCompatibilityTask;
+        _closingCompatibility = false;
         await _libraryViewModel.CancelDeploymentAndWaitAsync();
         if (ModCreationViewModel != null)
         {

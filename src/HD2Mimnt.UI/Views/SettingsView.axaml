@@ -15,6 +15,32 @@
       </StackPanel>
       <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="12" Margin="0,0,4,0">
+        <fa:FASettingsExpander x:Name="CompatibilitySettings" Header="{loc:Loc Settings.Compatibility.Title}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsCompatibilityCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Startup}" Description="{loc:Loc Settings.Compatibility.StartupHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityStartupToggle" IsChecked="{Binding CompatibilityCheckOnStartup, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Batch}" Description="{loc:Loc Settings.Compatibility.BatchHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityBatchToggle" IsChecked="{Binding CompatibilityEnableBatchRepair, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Description="{loc:Loc Settings.Compatibility.Help}"/>
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="10">
+              <TextBlock Text="{loc:Loc Settings.Compatibility.Data.Title}" Classes="section-title"/>
+              <TextBlock Text="{loc:Loc Settings.Compatibility.Data.Help}" TextWrapping="Wrap" Classes="caption-text"/>
+              <TextBlock x:Name="CompatibilityDataStatus" Text="{Binding CompatibilityDataStatusText}" TextWrapping="Wrap"/>
+              <WrapPanel IsEnabled="{Binding !IsCompatibilityDataBusy}">
+                <Button x:Name="BuildCompatibilityDataButton" Content="{loc:Loc Settings.Compatibility.Data.Build}" Command="{Binding BuildCompatibilityDataCommand}" Margin="0,0,8,6"/>
+                <Button x:Name="RefreshCompatibilityNamesButton" Content="{loc:Loc Compatibility.RefreshNames}" Command="{Binding RefreshCompatibilityNamesCommand}" Margin="0,0,0,6"/>
+              </WrapPanel>
+              <StackPanel IsVisible="{Binding IsCompatibilityDataBusy}" Spacing="8">
+                <ProgressBar IsIndeterminate="True"/>
+                <TextBlock Text="{Binding CompatibilityDataProgress}"/>
+                <Button x:Name="CancelCompatibilityDataButton" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCompatibilityDataCommand}" HorizontalAlignment="Left"/>
+              </StackPanel>
+              <TextBlock Text="{loc:LocalizedBinding CompatibilityDataMessage}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc Logs.Recording}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsLogCategoryVisible}">
           <fa:FASettingsExpanderItem Description="{loc:Loc Logs.RecordingHelp}">
             <StackPanel Spacing="12">

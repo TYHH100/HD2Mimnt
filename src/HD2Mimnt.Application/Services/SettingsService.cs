@@ -296,6 +296,10 @@ public static class SettingKeys
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
 
+    // 兼容性：耗时的启动检查需要用户明确开启。
+    public const string CompatibilityCheckOnStartup = "Compatibility.CheckOnStartup";
+    public const string CompatibilityEnableBatchRepair = "Compatibility.EnableBatchRepair";
+
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";
     public const string DownloadParallelSegments = "Download.ParallelSegments";

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
@@ -14,6 +15,7 @@ public partial class ModCreationViewModel : ObservableObject
     private readonly ModCreationService _service;
     private readonly IConfirmationService _confirmation;
     private readonly ImagePreviewService? _imagePreview;
+    private Bitmap? _editingPreviewImage;
     [ObservableProperty] private ModCreationPreviewViewModel? _managerPreview;
     private string? _managerPreviewStamp;
     private string PreviewStamp => SourceDirectory + "\n" + JsonPreview + "\n" + MetadataPreview;
@@ -196,6 +198,7 @@ public partial class ModCreationViewModel : ObservableObject
 
     private void Apply(ModCreationDocument document)
     {
+        CloseEditingImagePreview();
         var oldPreview = ManagerPreview; ManagerPreview = null; oldPreview?.Dispose();
         _loading = true;
         try
@@ -343,6 +346,34 @@ public partial class ModCreationViewModel : ObservableObject
         SetStatus("Creator.Ready");
     });
 
+    public Task PreviewImageAsync(string? path, string? title) => RunAsync(async token =>
+    {
+        if (_imagePreview == null) return;
+        var bytes = await _service.ReadPreviewImageAsync(SourceDirectory, path, token)
+            ?? throw new InvalidDataException("Creator.ImageUnavailable");
+        Bitmap? image = await Task.Run(() =>
+        {
+            using var stream = new MemoryStream(bytes);
+            return new Bitmap(stream);
+        }, token);
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            _imagePreview.Show(image, title, ownsImage: true);
+            _editingPreviewImage = image;
+            image = null;
+            SetStatus("Creator.Ready");
+        }
+        finally { image?.Dispose(); }
+    });
+
+    private void CloseEditingImagePreview()
+    {
+        if (_editingPreviewImage != null && ReferenceEquals(_imagePreview?.Image, _editingPreviewImage))
+            _imagePreview!.Close();
+        _editingPreviewImage = null;
+    }
+
     private async Task<ModCreationPreviewViewModel> CreateManagerPreviewAsync(CancellationToken token)
     {
         var preview = new ModCreationPreviewViewModel(Snapshot().Manifest, _imagePreview);
@@ -380,6 +411,7 @@ public partial class ModCreationViewModel : ObservableObject
     [RelayCommand] private void Cancel() => _operation?.Cancel();
     public async Task StopAsync()
     { CancelSorting(); _sourceDelay?.Cancel(); _operation?.Cancel(); await _sourceCompletion; await _completion;
+        CloseEditingImagePreview();
         var preview = ManagerPreview; ManagerPreview = null; preview?.Dispose(); }
 }
 

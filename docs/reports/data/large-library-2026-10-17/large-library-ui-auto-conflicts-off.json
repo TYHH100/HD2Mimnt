@@ -1,0 +1,2922 @@
+{
+  "DateUtc": "2026-10-17T13:54:05.551315Z",
+  "Runtime": "10.0.12",
+  "Mods": 10000,
+  "IndependentImagePaths": 10000,
+  "ImageWidth": 256,
+  "ImageHeight": 256,
+  "AutomaticChecking": false,
+  "Patches": 10000,
+  "Resources": 1000000,
+  "AutomaticScansStarted": 0,
+  "AutomaticScansCompleted": 0,
+  "Scans": [],
+  "DispatcherWhileScanningMs": {
+    "Count": 0,
+    "P50": 0,
+    "P95": 0,
+    "P99": 0,
+    "Max": 0,
+    "Over50": 0,
+    "Over100": 0
+  },
+  "ImageContent": "seeded noise PNG, identical bytes at 10000 separate paths",
+  "Actions": [
+    {
+      "Name": "main_initialize",
+      "ElapsedMs": 36003.342,
+      "AllocatedMiB": 1025.2303009033203
+    },
+    {
+      "Name": "all_20000_icons_ready",
+      "ElapsedMs": 4594.0725,
+      "AllocatedMiB": 71.591552734375
+    },
+    {
+      "Name": "trigger_library_recheck",
+      "ElapsedMs": 637.1634,
+      "AllocatedMiB": 111.30029296875
+    },
+    {
+      "Name": "library_search_Armor",
+      "ElapsedMs": 448.8549,
+      "AllocatedMiB": 21.207496643066406
+    },
+    {
+      "Name": "library_search_Perf 09999",
+      "ElapsedMs": 24.9734,
+      "AllocatedMiB": 2.0847549438476562
+    },
+    {
+      "Name": "library_search_no_match_here",
+      "ElapsedMs": 7.1956,
+      "AllocatedMiB": 1.1724777221679688
+    },
+    {
+      "Name": "library_search_",
+      "ElapsedMs": 39.0427,
+      "AllocatedMiB": 4.689109802246094
+    },
+    {
+      "Name": "library_sort_descending",
+      "ElapsedMs": 33.0884,
+      "AllocatedMiB": 5.330535888671875
+    },
+    {
+      "Name": "library_select_all",
+      "ElapsedMs": 425.4062,
+      "AllocatedMiB": 11.923828125
+    },
+    {
+      "Name": "library_clear_selection",
+      "ElapsedMs": 60.7997,
+      "AllocatedMiB": 6.114173889160156
+    },
+    {
+      "Name": "trigger_profile_recheck",
+      "ElapsedMs": 582.5832,
+      "AllocatedMiB": 110.60794830322266
+    },
+    {
+      "Name": "profile_search_Armor",
+      "ElapsedMs": 54.8205,
+      "AllocatedMiB": 9.427001953125
+    },
+    {
+      "Name": "profile_search_Perf 09999",
+      "ElapsedMs": 9.0821,
+      "AllocatedMiB": 2.16424560546875
+    },
+    {
+      "Name": "profile_search_no_match_here",
+      "ElapsedMs": 8.2816,
+      "AllocatedMiB": 0.5590667724609375
+    },
+    {
+      "Name": "profile_search_",
+      "ElapsedMs": 34.4611,
+      "AllocatedMiB": 8.963691711425781
+    },
+    {
+      "Name": "profile_select_all",
+      "ElapsedMs": 666.3581,
+      "AllocatedMiB": 13.507675170898438
+    },
+    {
+      "Name": "profile_clear_selection",
+      "ElapsedMs": 511.6126,
+      "AllocatedMiB": 11.050956726074219
+    },
+    {
+      "Name": "profile_refresh",
+      "ElapsedMs": 6890.1562,
+      "AllocatedMiB": 205.22470092773438
+    },
+    {
+      "Name": "profile_refreshed_icons_ready",
+      "ElapsedMs": 15674.7348,
+      "AllocatedMiB": 263.4275817871094
+    }
+  ],
+  "Frames": {
+    "library_scroll": {
+      "FrameWorkMs": {
+        "Count": 180,
+        "P50": 18.3602,
+        "P95": 34.2894,
+        "P99": 54.5134,
+        "Max": 76.7606,
+        "Over50": 3,
+        "Over100": 0
+      },
+      "FrameWorkWhileScanningMs": {
+        "Count": 0,
+        "P50": 0,
+        "P95": 0,
+        "P99": 0,
+        "Max": 0,
+        "Over50": 0,
+        "Over100": 0
+      },
+      "MaxRealizedContainers": 8,
+      "LastIndex": 9999,
+      "SqlFloodStillRunningAtEnd": true
+    },
+    "profile_scroll": {
+      "FrameWorkMs": {
+        "Count": 180,
+        "P50": 20.3569,
+        "P95": 43.0455,
+        "P99": 68.9193,
+        "Max": 98.2443,
+        "Over50": 3,
+        "Over100": 0
+      },
+      "FrameWorkWhileScanningMs": {
+        "Count": 0,
+        "P50": 0,
+        "P95": 0,
+        "P99": 0,
+        "Max": 0,
+        "Over50": 0,
+        "Over100": 0
+      },
+      "MaxRealizedContainers": 8,
+      "LastIndex": 9999,
+      "SqlFloodStillRunningAtEnd": true
+    }
+  },
+  "DispatcherLatencyMs": {
+    "Count": 2115,
+    "P50": 0.025,
+    "P95": 2.8718,
+    "P99": 14.4986,
+    "Max": 25342.9544,
+    "Over50": 13,
+    "Over100": 10
+  },
+  "PhaseLatencyMs": {
+    "all_20000_icons_ready": {
+      "Count": 168,
+      "P50": 0.0213,
+      "P95": 0.6014,
+      "P99": 1.1958,
+      "Max": 14.9278,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_clear_selection": {
+      "Count": 2,
+      "P50": 4.3813,
+      "P95": 495.6926,
+      "P99": 495.6926,
+      "Max": 495.6926,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "main_initialize": {
+      "Count": 418,
+      "P50": 0.0188,
+      "P95": 0.0612,
+      "P99": 0.1262,
+      "Max": 25342.9544,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_refresh": {
+      "Count": 3,
+      "P50": 0.0721,
+      "P95": 6889.7288,
+      "P99": 6889.7288,
+      "Max": 6889.7288,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "library_sort_descending": {
+      "Count": 2,
+      "P50": 2.2718,
+      "P95": 6.2171,
+      "P99": 6.2171,
+      "Max": 6.2171,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_Armor": {
+      "Count": 4,
+      "P50": 5.8846,
+      "P95": 276.6046,
+      "P99": 276.6046,
+      "Max": 276.6046,
+      "Over50": 2,
+      "Over100": 2
+    },
+    "library_scroll": {
+      "Count": 353,
+      "P50": 0.2046,
+      "P95": 4.3575,
+      "P99": 10.9192,
+      "Max": 33.0367,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_clear_selection": {
+      "Count": 2,
+      "P50": 2.2519,
+      "P95": 66.1883,
+      "P99": 66.1883,
+      "Max": 66.1883,
+      "Over50": 1,
+      "Over100": 0
+    },
+    "profile_search_Perf 09999": {
+      "Count": 3,
+      "P50": 6.139,
+      "P95": 9.0703,
+      "P99": 9.0703,
+      "Max": 9.0703,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_select_all": {
+      "Count": 3,
+      "P50": 6.4114,
+      "P95": 392.9688,
+      "P99": 392.9688,
+      "Max": 392.9688,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_search_Armor": {
+      "Count": 1,
+      "P50": 54.5629,
+      "P95": 54.5629,
+      "P99": 54.5629,
+      "Max": 54.5629,
+      "Over50": 1,
+      "Over100": 0
+    },
+    "steady_state": {
+      "Count": 180,
+      "P50": 0.0245,
+      "P95": 0.0426,
+      "P99": 0.0945,
+      "Max": 0.3072,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_Perf 09999": {
+      "Count": 4,
+      "P50": 0.0137,
+      "P95": 0.0346,
+      "P99": 0.0346,
+      "Max": 0.0346,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_no_match_here": {
+      "Count": 3,
+      "P50": 0.0446,
+      "P95": 7.1507,
+      "P99": 7.1507,
+      "Max": 7.1507,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_search_no_match_here": {
+      "Count": 3,
+      "P50": 0.016,
+      "P95": 0.0342,
+      "P99": 0.0342,
+      "Max": 0.0342,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_select_all": {
+      "Count": 3,
+      "P50": 4.8457,
+      "P95": 666.0594,
+      "P99": 666.0594,
+      "Max": 666.0594,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_scroll": {
+      "Count": 364,
+      "P50": 0.2425,
+      "P95": 8.1793,
+      "P99": 14.4986,
+      "Max": 52.9655,
+      "Over50": 1,
+      "Over100": 0
+    },
+    "trigger_library_recheck": {
+      "Count": 6,
+      "P50": 4.4041,
+      "P95": 637.1641,
+      "P99": 637.1641,
+      "Max": 637.1641,
+      "Over50": 2,
+      "Over100": 2
+    },
+    "library_search_": {
+      "Count": 3,
+      "P50": 5.3684,
+      "P95": 38.8139,
+      "P99": 38.8139,
+      "Max": 38.8139,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_refreshed_icons_ready": {
+      "Count": 582,
+      "P50": 0.0211,
+      "P95": 0.2392,
+      "P99": 0.3391,
+      "Max": 2.155,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "trigger_profile_recheck": {
+      "Count": 6,
+      "P50": 4.4873,
+      "P95": 582.5749,
+      "P99": 582.5749,
+      "Max": 582.5749,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_search_": {
+      "Count": 2,
+      "P50": 0.0281,
+      "P95": 34.1289,
+      "P99": 34.1289,
+      "Max": 34.1289,
+      "Over50": 0,
+      "Over100": 0
+    }
+  },
+  "MemorySamples": [
+    {
+      "Phase": "initialization",
+      "IsScanning": false,
+      "WorkingMiB": 96.73046875,
+      "PrivateMiB": 39.26171875,
+      "ManagedMiB": 7.2945556640625
+    },
+    {
+      "Phase": "initialization",
+      "IsScanning": false,
+      "WorkingMiB": 108.30859375,
+      "PrivateMiB": 45.1015625,
+      "ManagedMiB": 12.341445922851562
+    },
+    {
+      "Phase": "initialization",
+      "IsScanning": false,
+      "WorkingMiB": 116.86328125,
+      "PrivateMiB": 51.828125,
+      "ManagedMiB": 13.06500244140625
+    },
+    {
+      "Phase": "initialization",
+      "IsScanning": false,
+      "WorkingMiB": 128.046875,
+      "PrivateMiB": 59.39453125,
+      "ManagedMiB": 20.53032684326172
+    },
+    {
+      "Phase": "initialization",
+      "IsScanning": false,
+      "WorkingMiB": 135.6328125,
+      "PrivateMiB": 62.875,
+      "ManagedMiB": 19.540481567382812
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 149.27734375,
+      "PrivateMiB": 74.16015625,
+      "ManagedMiB": 21.982528686523438
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 159.94140625,
+      "PrivateMiB": 84.5390625,
+      "ManagedMiB": 39.28575897216797
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 170.98046875,
+      "PrivateMiB": 95.3046875,
+      "ManagedMiB": 43.191619873046875
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 175.79296875,
+      "PrivateMiB": 98.73046875,
+      "ManagedMiB": 48.12376403808594
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 173.7265625,
+      "PrivateMiB": 94.5390625,
+      "ManagedMiB": 41.93359375
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 174.14453125,
+      "PrivateMiB": 95.3515625,
+      "ManagedMiB": 46.9625244140625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 175.7734375,
+      "PrivateMiB": 96.76953125,
+      "ManagedMiB": 43.176185607910156
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 173.91796875,
+      "PrivateMiB": 94.45703125,
+      "ManagedMiB": 39.172943115234375
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 173.6796875,
+      "PrivateMiB": 94.6875,
+      "ManagedMiB": 44.239356994628906
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 174.72265625,
+      "PrivateMiB": 95.23828125,
+      "ManagedMiB": 40.15840148925781
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 172.34375,
+      "PrivateMiB": 93.12890625,
+      "ManagedMiB": 45.04827117919922
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 171.43359375,
+      "PrivateMiB": 92.2109375,
+      "ManagedMiB": 41.57527160644531
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 172.8203125,
+      "PrivateMiB": 93.76171875,
+      "ManagedMiB": 47.050071716308594
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 174.5,
+      "PrivateMiB": 95.22265625,
+      "ManagedMiB": 43.49755096435547
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 167.92578125,
+      "PrivateMiB": 88.5703125,
+      "ManagedMiB": 39.98741149902344
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 168.98828125,
+      "PrivateMiB": 90.25390625,
+      "ManagedMiB": 45.12653350830078
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 165.890625,
+      "PrivateMiB": 86.19140625,
+      "ManagedMiB": 46.44279479980469
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 170.5234375,
+      "PrivateMiB": 91.35546875,
+      "ManagedMiB": 42.86162567138672
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 167.265625,
+      "PrivateMiB": 87.11328125,
+      "ManagedMiB": 39.31250762939453
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 168.83984375,
+      "PrivateMiB": 90.25390625,
+      "ManagedMiB": 44.46636962890625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 168.359375,
+      "PrivateMiB": 89.14453125,
+      "ManagedMiB": 40.832923889160156
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 167.8671875,
+      "PrivateMiB": 88.80859375,
+      "ManagedMiB": 46.02565002441406
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 167.48828125,
+      "PrivateMiB": 88.43359375,
+      "ManagedMiB": 42.212745666503906
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 167.15234375,
+      "PrivateMiB": 87.58203125,
+      "ManagedMiB": 47.37389373779297
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 166.19140625,
+      "PrivateMiB": 86.8046875,
+      "ManagedMiB": 43.74871826171875
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 169.30078125,
+      "PrivateMiB": 89.53125,
+      "ManagedMiB": 39.825103759765625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 163.8984375,
+      "PrivateMiB": 84.21875,
+      "ManagedMiB": 45.25811004638672
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 170.95703125,
+      "PrivateMiB": 90.66796875,
+      "ManagedMiB": 50.87110137939453
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 199.390625,
+      "PrivateMiB": 119.35546875,
+      "ManagedMiB": 65.96096801757812
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 201.82421875,
+      "PrivateMiB": 120.84765625,
+      "ManagedMiB": 67.39155578613281
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 213.6171875,
+      "PrivateMiB": 132.16015625,
+      "ManagedMiB": 73.82304382324219
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 210.4375,
+      "PrivateMiB": 127.51171875,
+      "ManagedMiB": 74.50556945800781
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 211.0078125,
+      "PrivateMiB": 127.671875,
+      "ManagedMiB": 72.9361343383789
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 213.2734375,
+      "PrivateMiB": 132.78515625,
+      "ManagedMiB": 73.60478973388672
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 210.69140625,
+      "PrivateMiB": 128.546875,
+      "ManagedMiB": 79.23120880126953
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 216.80859375,
+      "PrivateMiB": 135.4140625,
+      "ManagedMiB": 76.41881561279297
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 232.60546875,
+      "PrivateMiB": 151.9453125,
+      "ManagedMiB": 91.38509368896484
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 244.71875,
+      "PrivateMiB": 162.47265625,
+      "ManagedMiB": 87.93307495117188
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 241.0234375,
+      "PrivateMiB": 156.9765625,
+      "ManagedMiB": 93.95279693603516
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 245.10546875,
+      "PrivateMiB": 161.734375,
+      "ManagedMiB": 90.9787368774414
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 239.703125,
+      "PrivateMiB": 155.375,
+      "ManagedMiB": 96.03890228271484
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 243.609375,
+      "PrivateMiB": 159.8203125,
+      "ManagedMiB": 90.69133758544922
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 242.16015625,
+      "PrivateMiB": 157.89453125,
+      "ManagedMiB": 92.81805419921875
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 245.53125,
+      "PrivateMiB": 162.0546875,
+      "ManagedMiB": 88.68429565429688
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 241.49609375,
+      "PrivateMiB": 158.01953125,
+      "ManagedMiB": 93.58043670654297
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 241.58203125,
+      "PrivateMiB": 157.38671875,
+      "ManagedMiB": 89.59283447265625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 244.3984375,
+      "PrivateMiB": 160.4375,
+      "ManagedMiB": 94.18502807617188
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 241.46484375,
+      "PrivateMiB": 157.484375,
+      "ManagedMiB": 90.01519012451172
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 241.8828125,
+      "PrivateMiB": 157.93359375,
+      "ManagedMiB": 94.8707046508789
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 243.84375,
+      "PrivateMiB": 160.06640625,
+      "ManagedMiB": 90.97808837890625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 243.8515625,
+      "PrivateMiB": 160.0703125,
+      "ManagedMiB": 96.09696960449219
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 242.1875,
+      "PrivateMiB": 157.890625,
+      "ManagedMiB": 91.65177917480469
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 243.4453125,
+      "PrivateMiB": 159.91796875,
+      "ManagedMiB": 96.44694519042969
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 244.7734375,
+      "PrivateMiB": 161.76171875,
+      "ManagedMiB": 92.65721893310547
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 242.9609375,
+      "PrivateMiB": 159.1171875,
+      "ManagedMiB": 98.10445404052734
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 237.0546875,
+      "PrivateMiB": 153.875,
+      "ManagedMiB": 94.05883026123047
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 239.43359375,
+      "PrivateMiB": 156.46875,
+      "ManagedMiB": 90.23681640625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 233.0625,
+      "PrivateMiB": 148.359375,
+      "ManagedMiB": 94.55443572998047
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 236.265625,
+      "PrivateMiB": 152.46875,
+      "ManagedMiB": 99.69734954833984
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 238.4921875,
+      "PrivateMiB": 155.0078125,
+      "ManagedMiB": 95.40906524658203
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 234.37890625,
+      "PrivateMiB": 150.03515625,
+      "ManagedMiB": 99.49286651611328
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 236.73046875,
+      "PrivateMiB": 153.1953125,
+      "ManagedMiB": 95.32064056396484
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 240.05859375,
+      "PrivateMiB": 156.4375,
+      "ManagedMiB": 91.03385162353516
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 239.03515625,
+      "PrivateMiB": 154.5625,
+      "ManagedMiB": 95.74134063720703
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 254.73828125,
+      "PrivateMiB": 171.10546875,
+      "ManagedMiB": 118.59937286376953
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 283.36328125,
+      "PrivateMiB": 199.5234375,
+      "ManagedMiB": 136.64795684814453
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 283.92578125,
+      "PrivateMiB": 200.234375,
+      "ManagedMiB": 141.721435546875
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 284.90234375,
+      "PrivateMiB": 202.18359375,
+      "ManagedMiB": 138.27875518798828
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 283.1640625,
+      "PrivateMiB": 199.65625,
+      "ManagedMiB": 142.9464340209961
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 284.4375,
+      "PrivateMiB": 201.6953125,
+      "ManagedMiB": 138.53712463378906
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 285.74609375,
+      "PrivateMiB": 202.84765625,
+      "ManagedMiB": 144.31046295166016
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 284.046875,
+      "PrivateMiB": 200.05078125,
+      "ManagedMiB": 140.07923126220703
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 285.9140625,
+      "PrivateMiB": 202.5546875,
+      "ManagedMiB": 135.83126068115234
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 287.37890625,
+      "PrivateMiB": 204.8671875,
+      "ManagedMiB": 140.53809356689453
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 284.53515625,
+      "PrivateMiB": 200.90234375,
+      "ManagedMiB": 136.4085693359375
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 285.64453125,
+      "PrivateMiB": 203.20703125,
+      "ManagedMiB": 141.3107147216797
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 285.16796875,
+      "PrivateMiB": 202.1875,
+      "ManagedMiB": 137.21168518066406
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 282.3828125,
+      "PrivateMiB": 198.8984375,
+      "ManagedMiB": 141.730712890625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.609375,
+      "PrivateMiB": 195.2109375,
+      "ManagedMiB": 137.5559844970703
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.75390625,
+      "PrivateMiB": 195.10546875,
+      "ManagedMiB": 142.2318344116211
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 277.94921875,
+      "PrivateMiB": 194.62890625,
+      "ManagedMiB": 138.11641693115234
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.4140625,
+      "PrivateMiB": 195.37890625,
+      "ManagedMiB": 142.93919372558594
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 277.43359375,
+      "PrivateMiB": 193.78125,
+      "ManagedMiB": 138.4171371459961
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 281.02734375,
+      "PrivateMiB": 198.87890625,
+      "ManagedMiB": 142.8912353515625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 277.2421875,
+      "PrivateMiB": 194.10546875,
+      "ManagedMiB": 138.70088958740234
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.2421875,
+      "PrivateMiB": 194.90234375,
+      "ManagedMiB": 143.42317962646484
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.0703125,
+      "PrivateMiB": 194.09375,
+      "ManagedMiB": 139.22339630126953
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 278.11328125,
+      "PrivateMiB": 194.3828125,
+      "ManagedMiB": 144.03035736083984
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 280.0859375,
+      "PrivateMiB": 197.66015625,
+      "ManagedMiB": 139.5952606201172
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 277.86328125,
+      "PrivateMiB": 194.1953125,
+      "ManagedMiB": 144.23954010009766
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 285.82421875,
+      "PrivateMiB": 202.89453125,
+      "ManagedMiB": 152.9919662475586
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 300.46875,
+      "PrivateMiB": 216.17578125,
+      "ManagedMiB": 121.32206726074219
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 380.33984375,
+      "PrivateMiB": 296.5078125,
+      "ManagedMiB": 126.94083404541016
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 463.42578125,
+      "PrivateMiB": 379.56640625,
+      "ManagedMiB": 123.15296173095703
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 545.58203125,
+      "PrivateMiB": 462.6796875,
+      "ManagedMiB": 128.15532684326172
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 628.14453125,
+      "PrivateMiB": 546,
+      "ManagedMiB": 124.76848602294922
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 709,
+      "PrivateMiB": 627.6796875,
+      "ManagedMiB": 129.76220703125
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 787.21484375,
+      "PrivateMiB": 706.4296875,
+      "ManagedMiB": 126.14042663574219
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 868.421875,
+      "PrivateMiB": 786.46875,
+      "ManagedMiB": 129.1426544189453
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 949.9453125,
+      "PrivateMiB": 868.7578125,
+      "ManagedMiB": 124.27022552490234
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1030.171875,
+      "PrivateMiB": 949.98046875,
+      "ManagedMiB": 129.19153594970703
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1110.859375,
+      "PrivateMiB": 1031.87890625,
+      "ManagedMiB": 125.27978515625
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1192.32421875,
+      "PrivateMiB": 1114.51171875,
+      "ManagedMiB": 130.3083038330078
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1269.828125,
+      "PrivateMiB": 1193.21875,
+      "ManagedMiB": 126.22781372070312
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1351.53125,
+      "PrivateMiB": 1276.125,
+      "ManagedMiB": 131.41410064697266
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1433.265625,
+      "PrivateMiB": 1359.2890625,
+      "ManagedMiB": 127.7487564086914
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1515.796875,
+      "PrivateMiB": 1443.21875,
+      "ManagedMiB": 123.8586654663086
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1599.7734375,
+      "PrivateMiB": 1528.60546875,
+      "ManagedMiB": 128.9002456665039
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1681.44921875,
+      "PrivateMiB": 1611.70703125,
+      "ManagedMiB": 125.03533172607422
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1766.484375,
+      "PrivateMiB": 1698.25,
+      "ManagedMiB": 129.95530700683594
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1847.63671875,
+      "PrivateMiB": 1780.49609375,
+      "ManagedMiB": 126.18456268310547
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 1929.29296875,
+      "PrivateMiB": 1863.5703125,
+      "ManagedMiB": 131.31187438964844
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2010.51171875,
+      "PrivateMiB": 1946.3359375,
+      "ManagedMiB": 127.63744354248047
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2093.94140625,
+      "PrivateMiB": 2030.73046875,
+      "ManagedMiB": 132.60323333740234
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2177.38671875,
+      "PrivateMiB": 2115.08203125,
+      "ManagedMiB": 128.8702163696289
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2253.8359375,
+      "PrivateMiB": 2192.61328125,
+      "ManagedMiB": 125.20429992675781
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2337.3125,
+      "PrivateMiB": 2277.2421875,
+      "ManagedMiB": 130.10382843017578
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2417.265625,
+      "PrivateMiB": 2358.296875,
+      "ManagedMiB": 126.58721160888672
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2501.98046875,
+      "PrivateMiB": 2444.02734375,
+      "ManagedMiB": 131.5748062133789
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2582.6015625,
+      "PrivateMiB": 2525.765625,
+      "ManagedMiB": 133.21158599853516
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2666.12109375,
+      "PrivateMiB": 2610.1328125,
+      "ManagedMiB": 133.5179443359375
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2738.8203125,
+      "PrivateMiB": 2684.00390625,
+      "ManagedMiB": 126.85765075683594
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2821.296875,
+      "PrivateMiB": 2767.6796875,
+      "ManagedMiB": 128.72399139404297
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2905.17578125,
+      "PrivateMiB": 2852.515625,
+      "ManagedMiB": 130.6327667236328
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 2980.859375,
+      "PrivateMiB": 2929.2890625,
+      "ManagedMiB": 133.84445190429688
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3061.41796875,
+      "PrivateMiB": 3010.640625,
+      "ManagedMiB": 135.60897064208984
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3140.87890625,
+      "PrivateMiB": 3091.640625,
+      "ManagedMiB": 128.98967742919922
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3223.51953125,
+      "PrivateMiB": 3175.53515625,
+      "ManagedMiB": 130.65099334716797
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3308.92578125,
+      "PrivateMiB": 3262.09375,
+      "ManagedMiB": 133.77742767333984
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3391.26953125,
+      "PrivateMiB": 3345.4609375,
+      "ManagedMiB": 135.4148178100586
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3475.2734375,
+      "PrivateMiB": 3430.86328125,
+      "ManagedMiB": 136.93502807617188
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3556.41015625,
+      "PrivateMiB": 3513.16796875,
+      "ManagedMiB": 138.37662506103516
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3639.0625,
+      "PrivateMiB": 3597.9765625,
+      "ManagedMiB": 133.17377471923828
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3722.65625,
+      "PrivateMiB": 3683.41796875,
+      "ManagedMiB": 136.55870819091797
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3804.91015625,
+      "PrivateMiB": 3767.05859375,
+      "ManagedMiB": 137.81523895263672
+    },
+    {
+      "Phase": "main_initialize",
+      "IsScanning": false,
+      "WorkingMiB": 3885.76953125,
+      "PrivateMiB": 3849.234375,
+      "ManagedMiB": 139.6376495361328
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 3954.31640625,
+      "PrivateMiB": 3918.0703125,
+      "ManagedMiB": 139.2933578491211
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4039.12890625,
+      "PrivateMiB": 4004.3359375,
+      "ManagedMiB": 134.8245849609375
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4123.01171875,
+      "PrivateMiB": 4088.73828125,
+      "ManagedMiB": 138.9279556274414
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4210.015625,
+      "PrivateMiB": 4177.2421875,
+      "ManagedMiB": 135.55694580078125
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4289.92578125,
+      "PrivateMiB": 4258.515625,
+      "ManagedMiB": 139.7378387451172
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4378.12109375,
+      "PrivateMiB": 4347.73046875,
+      "ManagedMiB": 143.82390594482422
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4460.71484375,
+      "PrivateMiB": 4431.8984375,
+      "ManagedMiB": 139.0574493408203
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4549.12890625,
+      "PrivateMiB": 4521.84375,
+      "ManagedMiB": 143.23968505859375
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4632.2578125,
+      "PrivateMiB": 4606.03125,
+      "ManagedMiB": 138.49109649658203
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4720.9453125,
+      "PrivateMiB": 4696.015625,
+      "ManagedMiB": 143.52457427978516
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4803.0546875,
+      "PrivateMiB": 4779.578125,
+      "ManagedMiB": 138.8865737915039
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4889.74609375,
+      "PrivateMiB": 4867.74609375,
+      "ManagedMiB": 143.16688537597656
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 4971.87890625,
+      "PrivateMiB": 4951.30078125,
+      "ManagedMiB": 138.46377563476562
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5060.6015625,
+      "PrivateMiB": 5041.5390625,
+      "ManagedMiB": 142.50343322753906
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5146.5,
+      "PrivateMiB": 5128.86328125,
+      "ManagedMiB": 137.81705474853516
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5207.41015625,
+      "PrivateMiB": 5190.78515625,
+      "ManagedMiB": 141.78765869140625
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5249.49609375,
+      "PrivateMiB": 5233.58203125,
+      "ManagedMiB": 145.61155700683594
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5293.16015625,
+      "PrivateMiB": 5277.7421875,
+      "ManagedMiB": 140.7564697265625
+    },
+    {
+      "Phase": "trigger_library_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5308.60546875,
+      "PrivateMiB": 5293.859375,
+      "ManagedMiB": 149.21173095703125
+    },
+    {
+      "Phase": "trigger_library_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5330.296875,
+      "PrivateMiB": 5314.96875,
+      "ManagedMiB": 158.2062530517578
+    },
+    {
+      "Phase": "trigger_library_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5347.03515625,
+      "PrivateMiB": 5331.828125,
+      "ManagedMiB": 178.94803619384766
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5349.12109375,
+      "PrivateMiB": 5333.1796875,
+      "ManagedMiB": 182.4550323486328
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5346.0546875,
+      "PrivateMiB": 5329.76953125,
+      "ManagedMiB": 124.04301452636719
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5347.03515625,
+      "PrivateMiB": 5330.31640625,
+      "ManagedMiB": 121.63195037841797
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5347.25390625,
+      "PrivateMiB": 5330.31640625,
+      "ManagedMiB": 121.64469146728516
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5347.49609375,
+      "PrivateMiB": 5330.3515625,
+      "ManagedMiB": 121.7274398803711
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5351.6640625,
+      "PrivateMiB": 5330.359375,
+      "ManagedMiB": 120.00576782226562
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5349.890625,
+      "PrivateMiB": 5330.359375,
+      "ManagedMiB": 119.89307403564453
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.3203125,
+      "PrivateMiB": 5330.359375,
+      "ManagedMiB": 120.22953033447266
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5353.62890625,
+      "PrivateMiB": 5330.91796875,
+      "ManagedMiB": 119.71089172363281
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.046875,
+      "PrivateMiB": 5330.91796875,
+      "ManagedMiB": 120.08712768554688
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.40234375,
+      "PrivateMiB": 5330.921875,
+      "ManagedMiB": 120.15291595458984
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.859375,
+      "PrivateMiB": 5330.92578125,
+      "ManagedMiB": 122.65707397460938
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.01171875,
+      "PrivateMiB": 5313.7109375,
+      "ManagedMiB": 120.86131286621094
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.375,
+      "PrivateMiB": 5313.73828125,
+      "ManagedMiB": 119.5537338256836
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.62109375,
+      "PrivateMiB": 5309.6796875,
+      "ManagedMiB": 120.85398864746094
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.7265625,
+      "PrivateMiB": 5309.7421875,
+      "ManagedMiB": 121.73544311523438
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.79296875,
+      "PrivateMiB": 5309.7421875,
+      "ManagedMiB": 119.9567642211914
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5331.15625,
+      "PrivateMiB": 5306.2734375,
+      "ManagedMiB": 121.12744140625
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5331.2265625,
+      "PrivateMiB": 5306.2734375,
+      "ManagedMiB": 123.12784576416016
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5335.29296875,
+      "PrivateMiB": 5310.34765625,
+      "ManagedMiB": 121.74296569824219
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5335.2890625,
+      "PrivateMiB": 5310.34765625,
+      "ManagedMiB": 121.81660461425781
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.33203125,
+      "PrivateMiB": 5313.2578125,
+      "ManagedMiB": 123.24079895019531
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.34375,
+      "PrivateMiB": 5313.2578125,
+      "ManagedMiB": 123.87265014648438
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.3359375,
+      "PrivateMiB": 5313.2578125,
+      "ManagedMiB": 123.26132202148438
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.375,
+      "PrivateMiB": 5313.2578125,
+      "ManagedMiB": 123.70331573486328
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5338.3828125,
+      "PrivateMiB": 5313.2578125,
+      "ManagedMiB": 125.08171081542969
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.3984375,
+      "PrivateMiB": 5309.15625,
+      "ManagedMiB": 125.09439849853516
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.41796875,
+      "PrivateMiB": 5309.1953125,
+      "ManagedMiB": 125.79389953613281
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5342.99609375,
+      "PrivateMiB": 5317.875,
+      "ManagedMiB": 119.08888244628906
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5336.82421875,
+      "PrivateMiB": 5313.8125,
+      "ManagedMiB": 119.52183532714844
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5334.95703125,
+      "PrivateMiB": 5309.74609375,
+      "ManagedMiB": 121.74624633789062
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5339.015625,
+      "PrivateMiB": 5313.80859375,
+      "ManagedMiB": 120.5072021484375
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5339.0234375,
+      "PrivateMiB": 5313.81640625,
+      "ManagedMiB": 121.83373260498047
+    },
+    {
+      "Phase": "library_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5339.04296875,
+      "PrivateMiB": 5313.8125,
+      "ManagedMiB": 122.0553970336914
+    },
+    {
+      "Phase": "library_search_Armor",
+      "IsScanning": false,
+      "WorkingMiB": 5335.04296875,
+      "PrivateMiB": 5309.75390625,
+      "ManagedMiB": 120.07464599609375
+    },
+    {
+      "Phase": "library_search_Armor",
+      "IsScanning": false,
+      "WorkingMiB": 5335.25390625,
+      "PrivateMiB": 5309.7578125,
+      "ManagedMiB": 127.20806121826172
+    },
+    {
+      "Phase": "library_search_Perf 09999",
+      "IsScanning": false,
+      "WorkingMiB": 5335.26953125,
+      "PrivateMiB": 5309.71484375,
+      "ManagedMiB": 121.62285614013672
+    },
+    {
+      "Phase": "library_sort_descending",
+      "IsScanning": false,
+      "WorkingMiB": 5339.54296875,
+      "PrivateMiB": 5313.8203125,
+      "ManagedMiB": 124.36100769042969
+    },
+    {
+      "Phase": "library_select_all",
+      "IsScanning": false,
+      "WorkingMiB": 5335.5703125,
+      "PrivateMiB": 5309.7578125,
+      "ManagedMiB": 123.7878189086914
+    },
+    {
+      "Phase": "library_clear_selection",
+      "IsScanning": false,
+      "WorkingMiB": 5335.59765625,
+      "PrivateMiB": 5309.76171875,
+      "ManagedMiB": 127.34993743896484
+    },
+    {
+      "Phase": "trigger_profile_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5341.1796875,
+      "PrivateMiB": 5315.34765625,
+      "ManagedMiB": 139.2584457397461
+    },
+    {
+      "Phase": "trigger_profile_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5348.0234375,
+      "PrivateMiB": 5322.22265625,
+      "ManagedMiB": 157.10262298583984
+    },
+    {
+      "Phase": "trigger_profile_recheck",
+      "IsScanning": false,
+      "WorkingMiB": 5355.51953125,
+      "PrivateMiB": 5329.80078125,
+      "ManagedMiB": 168.5475845336914
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5356.97265625,
+      "PrivateMiB": 5334.86328125,
+      "ManagedMiB": 122.61907196044922
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5361.08203125,
+      "PrivateMiB": 5335.1328125,
+      "ManagedMiB": 123.51690673828125
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5357.1328125,
+      "PrivateMiB": 5331.06640625,
+      "ManagedMiB": 127.1318130493164
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5353.39453125,
+      "PrivateMiB": 5327.0078125,
+      "ManagedMiB": 128.66883850097656
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5353.84375,
+      "PrivateMiB": 5327.0078125,
+      "ManagedMiB": 130.8561248779297
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5351.32421875,
+      "PrivateMiB": 5324.5234375,
+      "ManagedMiB": 126.28118896484375
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.58203125,
+      "PrivateMiB": 5328.58203125,
+      "ManagedMiB": 123.85003662109375
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.7578125,
+      "PrivateMiB": 5328.58203125,
+      "ManagedMiB": 122.86402893066406
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5358.6953125,
+      "PrivateMiB": 5332.59765625,
+      "ManagedMiB": 123.64985656738281
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.63671875,
+      "PrivateMiB": 5325.265625,
+      "ManagedMiB": 132.3049774169922
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.64453125,
+      "PrivateMiB": 5325.265625,
+      "ManagedMiB": 125.79657745361328
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.65625,
+      "PrivateMiB": 5325.3046875,
+      "ManagedMiB": 125.64127349853516
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.63671875,
+      "PrivateMiB": 5325.3046875,
+      "ManagedMiB": 126.67438507080078
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.63671875,
+      "PrivateMiB": 5325.3046875,
+      "ManagedMiB": 126.91838836669922
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.32421875,
+      "PrivateMiB": 5325.3046875,
+      "ManagedMiB": 121.85789489746094
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5350.5078125,
+      "PrivateMiB": 5325.3046875,
+      "ManagedMiB": 127.88862609863281
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5356.69921875,
+      "PrivateMiB": 5329.3671875,
+      "ManagedMiB": 121.45762634277344
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5348.62890625,
+      "PrivateMiB": 5321.24609375,
+      "ManagedMiB": 121.32061004638672
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5348.82421875,
+      "PrivateMiB": 5321.75,
+      "ManagedMiB": 120.18006896972656
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5352.9375,
+      "PrivateMiB": 5325.76953125,
+      "ManagedMiB": 126.27000427246094
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5353.421875,
+      "PrivateMiB": 5326.34765625,
+      "ManagedMiB": 122.27838897705078
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5353.67578125,
+      "PrivateMiB": 5326.34765625,
+      "ManagedMiB": 125.26213073730469
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5359.2578125,
+      "PrivateMiB": 5332.01953125,
+      "ManagedMiB": 123.49136352539062
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.2734375,
+      "PrivateMiB": 5327.953125,
+      "ManagedMiB": 126.3567123413086
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.28515625,
+      "PrivateMiB": 5327.953125,
+      "ManagedMiB": 123.74163055419922
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.29296875,
+      "PrivateMiB": 5327.953125,
+      "ManagedMiB": 126.40489959716797
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5351.23828125,
+      "PrivateMiB": 5323.89453125,
+      "ManagedMiB": 122.92139434814453
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5355.2890625,
+      "PrivateMiB": 5327.953125,
+      "ManagedMiB": 128.0140380859375
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.83203125,
+      "PrivateMiB": 5327.375,
+      "ManagedMiB": 124.19577026367188
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.83203125,
+      "PrivateMiB": 5327.375,
+      "ManagedMiB": 129.7848892211914
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.83203125,
+      "PrivateMiB": 5327.4140625,
+      "ManagedMiB": 127.5332260131836
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.89453125,
+      "PrivateMiB": 5327.4140625,
+      "ManagedMiB": 127.84187316894531
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.89453125,
+      "PrivateMiB": 5327.4140625,
+      "ManagedMiB": 122.54634857177734
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5350.84375,
+      "PrivateMiB": 5323.35546875,
+      "ManagedMiB": 129.04824829101562
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.8828125,
+      "PrivateMiB": 5327.4140625,
+      "ManagedMiB": 124.28479766845703
+    },
+    {
+      "Phase": "profile_scroll",
+      "IsScanning": false,
+      "WorkingMiB": 5354.88671875,
+      "PrivateMiB": 5327.4140625,
+      "ManagedMiB": 122.1530532836914
+    },
+    {
+      "Phase": "profile_search_Armor",
+      "IsScanning": false,
+      "WorkingMiB": 5350.7578125,
+      "PrivateMiB": 5323.35546875,
+      "ManagedMiB": 121.09274291992188
+    },
+    {
+      "Phase": "profile_search_",
+      "IsScanning": false,
+      "WorkingMiB": 5350.87890625,
+      "PrivateMiB": 5323.31640625,
+      "ManagedMiB": 126.9886703491211
+    },
+    {
+      "Phase": "profile_select_all",
+      "IsScanning": false,
+      "WorkingMiB": 5350.8828125,
+      "PrivateMiB": 5323.31640625,
+      "ManagedMiB": 131.500732421875
+    },
+    {
+      "Phase": "profile_select_all",
+      "IsScanning": false,
+      "WorkingMiB": 5350.99609375,
+      "PrivateMiB": 5323.31640625,
+      "ManagedMiB": 125.68184661865234
+    },
+    {
+      "Phase": "profile_select_all",
+      "IsScanning": false,
+      "WorkingMiB": 5351.08203125,
+      "PrivateMiB": 5323.31640625,
+      "ManagedMiB": 122.54241180419922
+    },
+    {
+      "Phase": "profile_clear_selection",
+      "IsScanning": false,
+      "WorkingMiB": 5351.05859375,
+      "PrivateMiB": 5323.3125,
+      "ManagedMiB": 128.03346252441406
+    },
+    {
+      "Phase": "profile_clear_selection",
+      "IsScanning": false,
+      "WorkingMiB": 5351.05859375,
+      "PrivateMiB": 5323.3125,
+      "ManagedMiB": 124.76060485839844
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5351.0859375,
+      "PrivateMiB": 5323.35546875,
+      "ManagedMiB": 135.46430206298828
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.1171875,
+      "PrivateMiB": 5332.33203125,
+      "ManagedMiB": 157.23847198486328
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.11328125,
+      "PrivateMiB": 5332.33203125,
+      "ManagedMiB": 161.5599365234375
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.109375,
+      "PrivateMiB": 5332.33203125,
+      "ManagedMiB": 157.93968963623047
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.109375,
+      "PrivateMiB": 5332.33203125,
+      "ManagedMiB": 162.40972137451172
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.75390625,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 157.5160675048828
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.75390625,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 161.93140411376953
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.7734375,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 157.41741180419922
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.77734375,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 161.60712432861328
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.78515625,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 156.99855041503906
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.80078125,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 161.41500091552734
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.8125,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 156.9278793334961
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.8671875,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 161.35174560546875
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.875,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 157.02262115478516
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.875,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 161.49280548095703
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.8828125,
+      "PrivateMiB": 5332.94921875,
+      "ManagedMiB": 157.08606719970703
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.8359375,
+      "PrivateMiB": 5332.875,
+      "ManagedMiB": 161.53875732421875
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.84765625,
+      "PrivateMiB": 5332.875,
+      "ManagedMiB": 156.93096923828125
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5360.84765625,
+      "PrivateMiB": 5332.875,
+      "ManagedMiB": 161.76771545410156
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.33203125,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 160.30445098876953
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.33203125,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 164.7108154296875
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.37890625,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 160.25284576416016
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.37890625,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 164.65921783447266
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.38671875,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 160.1606903076172
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.44140625,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 164.4353790283203
+    },
+    {
+      "Phase": "profile_refresh",
+      "IsScanning": false,
+      "WorkingMiB": 5362.44140625,
+      "PrivateMiB": 5335.80859375,
+      "ManagedMiB": 159.72612762451172
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5381.27734375,
+      "PrivateMiB": 5354.75,
+      "ManagedMiB": 178.8346939086914
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5422.43359375,
+      "PrivateMiB": 5396.56640625,
+      "ManagedMiB": 177.39979553222656
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5462.69921875,
+      "PrivateMiB": 5437.6875,
+      "ManagedMiB": 180.84947967529297
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5506.46484375,
+      "PrivateMiB": 5482.17578125,
+      "ManagedMiB": 175.36003875732422
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5550.84375,
+      "PrivateMiB": 5527.30859375,
+      "ManagedMiB": 178.9174041748047
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5592.4375,
+      "PrivateMiB": 5569.61328125,
+      "ManagedMiB": 182.3412094116211
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5632.2578125,
+      "PrivateMiB": 5609.86328125,
+      "ManagedMiB": 177.54288482666016
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5677.42578125,
+      "PrivateMiB": 5655.53515625,
+      "ManagedMiB": 182.35486602783203
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5718.30859375,
+      "PrivateMiB": 5697.0546875,
+      "ManagedMiB": 178.29288482666016
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5763.6484375,
+      "PrivateMiB": 5743.21484375,
+      "ManagedMiB": 183.1123275756836
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5805.734375,
+      "PrivateMiB": 5786.00390625,
+      "ManagedMiB": 178.79808807373047
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5846.80859375,
+      "PrivateMiB": 5827.77734375,
+      "ManagedMiB": 183.8370819091797
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5889.24609375,
+      "PrivateMiB": 5870.87109375,
+      "ManagedMiB": 179.65379333496094
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5932.390625,
+      "PrivateMiB": 5916.22265625,
+      "ManagedMiB": 178.43987274169922
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 5974.91015625,
+      "PrivateMiB": 5959.2734375,
+      "ManagedMiB": 183.1484146118164
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6017.765625,
+      "PrivateMiB": 6002.8828125,
+      "ManagedMiB": 178.86167907714844
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6059.91796875,
+      "PrivateMiB": 6045.671875,
+      "ManagedMiB": 183.4069595336914
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6102.06640625,
+      "PrivateMiB": 6089.7421875,
+      "ManagedMiB": 181.8464584350586
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6143.5078125,
+      "PrivateMiB": 6131.76953125,
+      "ManagedMiB": 186.28213500976562
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6188.109375,
+      "PrivateMiB": 6177.1640625,
+      "ManagedMiB": 181.89783477783203
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6229.4765625,
+      "PrivateMiB": 6218.93359375,
+      "ManagedMiB": 186.37250518798828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6271.3046875,
+      "PrivateMiB": 6261.47265625,
+      "ManagedMiB": 181.97754669189453
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6312.87109375,
+      "PrivateMiB": 6303.75390625,
+      "ManagedMiB": 186.3818588256836
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6353.73828125,
+      "PrivateMiB": 6345.2890625,
+      "ManagedMiB": 182.11214447021484
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6398.93359375,
+      "PrivateMiB": 6391.21875,
+      "ManagedMiB": 186.75173950195312
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6438.76171875,
+      "PrivateMiB": 6431.72265625,
+      "ManagedMiB": 182.3413314819336
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6481.734375,
+      "PrivateMiB": 6475.5546875,
+      "ManagedMiB": 186.94095611572266
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6527.40234375,
+      "PrivateMiB": 6521.90234375,
+      "ManagedMiB": 182.48754119873047
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6572.03125,
+      "PrivateMiB": 6567.30078125,
+      "ManagedMiB": 186.95310974121094
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6613.92578125,
+      "PrivateMiB": 6610.14453125,
+      "ManagedMiB": 182.5326919555664
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6654.2890625,
+      "PrivateMiB": 6651.09375,
+      "ManagedMiB": 187.08535766601562
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6699.30859375,
+      "PrivateMiB": 6698.5,
+      "ManagedMiB": 185.64392852783203
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6741.375,
+      "PrivateMiB": 6741.05078125,
+      "ManagedMiB": 190.07981872558594
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6783.69140625,
+      "PrivateMiB": 6784.09375,
+      "ManagedMiB": 185.47262573242188
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6822.7578125,
+      "PrivateMiB": 6823.6015625,
+      "ManagedMiB": 190.0096435546875
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6867.09765625,
+      "PrivateMiB": 6868.7734375,
+      "ManagedMiB": 194.2806396484375
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6909.96484375,
+      "PrivateMiB": 6912.38671875,
+      "ManagedMiB": 189.75746154785156
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6952.59375,
+      "PrivateMiB": 6955.68359375,
+      "ManagedMiB": 193.88692474365234
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 6994.15234375,
+      "PrivateMiB": 6997.96875,
+      "ManagedMiB": 189.32318878173828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7034.1171875,
+      "PrivateMiB": 7038.72265625,
+      "ManagedMiB": 193.80381774902344
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7076.70703125,
+      "PrivateMiB": 7081.80078125,
+      "ManagedMiB": 189.22014617919922
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7119.84375,
+      "PrivateMiB": 7125.62890625,
+      "ManagedMiB": 193.54512786865234
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7161.44140625,
+      "PrivateMiB": 7167.9140625,
+      "ManagedMiB": 188.84270477294922
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7206.02734375,
+      "PrivateMiB": 7213.2890625,
+      "ManagedMiB": 193.12925720214844
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7248.34765625,
+      "PrivateMiB": 7256.3359375,
+      "ManagedMiB": 188.60303497314453
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7291.203125,
+      "PrivateMiB": 7299.91015625,
+      "ManagedMiB": 192.8028564453125
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7333.54296875,
+      "PrivateMiB": 7342.98046875,
+      "ManagedMiB": 188.2658462524414
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7375.8828125,
+      "PrivateMiB": 7386.03515625,
+      "ManagedMiB": 192.47413635253906
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7416.94921875,
+      "PrivateMiB": 7427.5703125,
+      "ManagedMiB": 188.00659942626953
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7460.0078125,
+      "PrivateMiB": 7471.390625,
+      "ManagedMiB": 192.37750244140625
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7499.6328125,
+      "PrivateMiB": 7511.390625,
+      "ManagedMiB": 187.79894256591797
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7544.03515625,
+      "PrivateMiB": 7556.046875,
+      "ManagedMiB": 191.93657684326172
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7587.9296875,
+      "PrivateMiB": 7600.69140625,
+      "ManagedMiB": 187.27909088134766
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7626.5546875,
+      "PrivateMiB": 7639.41015625,
+      "ManagedMiB": 191.39254760742188
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7669.6328125,
+      "PrivateMiB": 7683.25,
+      "ManagedMiB": 195.40471649169922
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7712.25390625,
+      "PrivateMiB": 7726.58203125,
+      "ManagedMiB": 190.70307159423828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7753.30859375,
+      "PrivateMiB": 7768.09375,
+      "ManagedMiB": 194.8484649658203
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7794.87890625,
+      "PrivateMiB": 7810.3828125,
+      "ManagedMiB": 190.3097686767578
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7840.49609375,
+      "PrivateMiB": 7856.875,
+      "ManagedMiB": 194.3686981201172
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "IsScanning": false,
+      "WorkingMiB": 7874.0625,
+      "PrivateMiB": 7890.76171875,
+      "ManagedMiB": 189.41796875
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7877.6796875,
+      "PrivateMiB": 7894.45703125,
+      "ManagedMiB": 193.18233489990234
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7877.75,
+      "PrivateMiB": 7894.45703125,
+      "ManagedMiB": 188.06182098388672
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7878.453125,
+      "PrivateMiB": 7895.265625,
+      "ManagedMiB": 191.99842834472656
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7878.46875,
+      "PrivateMiB": 7895.265625,
+      "ManagedMiB": 195.85519409179688
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7878.47265625,
+      "PrivateMiB": 7895.265625,
+      "ManagedMiB": 190.80597686767578
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7878.74609375,
+      "PrivateMiB": 7895.265625,
+      "ManagedMiB": 194.6871337890625
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7879.35546875,
+      "PrivateMiB": 7895.81640625,
+      "ManagedMiB": 189.50509643554688
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.37109375,
+      "PrivateMiB": 7896.88671875,
+      "ManagedMiB": 193.32435607910156
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.37109375,
+      "PrivateMiB": 7896.88671875,
+      "ManagedMiB": 188.2273712158203
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.6875,
+      "PrivateMiB": 7897.43359375,
+      "ManagedMiB": 191.99175262451172
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.9140625,
+      "PrivateMiB": 7897.43359375,
+      "ManagedMiB": 195.91261291503906
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.9140625,
+      "PrivateMiB": 7897.39453125,
+      "ManagedMiB": 190.7779998779297
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7880.9765625,
+      "PrivateMiB": 7897.39453125,
+      "ManagedMiB": 194.5108184814453
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.51171875,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 189.2728042602539
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.51953125,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 193.07610321044922
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.58203125,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 187.79877471923828
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.64453125,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 191.53174591064453
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.64453125,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 195.34244537353516
+    },
+    {
+      "Phase": "steady_state",
+      "IsScanning": false,
+      "WorkingMiB": 7881.70703125,
+      "PrivateMiB": 7897.984375,
+      "ManagedMiB": 190.1975860595703
+    }
+  ],
+  "SqlFlood": {
+    "Statements": 1025093,
+    "Writes": 51258,
+    "ElapsedMs": 93145.8237,
+    "StatementsPerSecond": 11005.247137121238,
+    "Workers": [
+      {
+        "Worker": 0,
+        "Statements": 250621,
+        "Writes": 12532,
+        "Rows": 238089,
+        "LatencyMs": {
+          "Count": 250621,
+          "P50": 0.0222,
+          "P95": 0.5898,
+          "P99": 0.7931,
+          "Max": 2869.3067,
+          "Over50": 242,
+          "Over100": 242
+        }
+      },
+      {
+        "Worker": 1,
+        "Statements": 240630,
+        "Writes": 12032,
+        "Rows": 228598,
+        "LatencyMs": {
+          "Count": 240630,
+          "P50": 0.0225,
+          "P95": 0.6041,
+          "P99": 0.8134,
+          "Max": 1244.1384,
+          "Over50": 251,
+          "Over100": 251
+        }
+      },
+      {
+        "Worker": 2,
+        "Statements": 262521,
+        "Writes": 13127,
+        "Rows": 249394,
+        "LatencyMs": {
+          "Count": 262521,
+          "P50": 0.0223,
+          "P95": 0.5894,
+          "P99": 0.7935,
+          "Max": 1241.5785,
+          "Over50": 249,
+          "Over100": 249
+        }
+      },
+      {
+        "Worker": 3,
+        "Statements": 271321,
+        "Writes": 13567,
+        "Rows": 257754,
+        "LatencyMs": {
+          "Count": 271321,
+          "P50": 0.0223,
+          "P95": 0.5893,
+          "P99": 0.8006,
+          "Max": 1574.2299,
+          "Over50": 260,
+          "Over100": 260
+        }
+      }
+    ]
+  },
+  "Gen0": 408,
+  "Gen1": 214,
+  "Gen2": 80
+}

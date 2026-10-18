@@ -1,0 +1,17 @@
+# 兼容性检查参考来源
+
+本模块参考 TYHH100 的 Helldivers2ModManager 中 `Services/VersionCheck/VersionCheckService.cs`、`VersionCheckRepairService.cs`、`VersionCheckShared.cs`、`VersionCheckAssistedRepairService.cs` 和 `GameUnitReferenceReader.cs` 的格式研究。`CompatibilityResourceTransforms.cs` 选择性适配其已知材质、LOD 和 Legacy Layout 转换算法，保留本文件及 Apache 2.0 全文。未引入旧管理器运行程序集、模型预览、动画库或 UI。
+
+2026-10-18 修改说明：检查、完整 Unit 定位缓存、调用内 DSAR 解码缓存、伴随来源验证、批量编排、事务发布及回滚由 HD2Mimnt 重新实现。转换增加精确 schema 匹配、对齐和结果复检；自动策略逐 Unit 决策，保留版本已匹配的作者 LOD，拒绝未知新版本降级。旧管理器作为格式及已知规则参考，不沿用扫描和缓存流程。
+
+游戏参考 Unit 的内部结束位置采用旧版的范围语义，接受 TOC 条目内结束记录之后的尾部数据；不要求内部结束位置恰好等于整个条目的尺寸。仍校验结束位置下界、读取范围、LOD 范围及参考歧义，并保留现有索引与按需随机读取流程。
+
+- 项目：https://github.com/TYHH100/Helldivers2ModManager
+- 原项目许可证：[Apache License 2.0](LICENSE.txt)。保留原许可证全文；未引入旧管理器运行程序集或 UI。
+- 本地参考路径：`D:/TYHH10-git/Helldivers2ModManager/`。
+- 本地仓库 HEAD：`65448e7e89ca8a19f1b8864d48758cd5e96cfdd1`（读取的文件以本地工作区为准）。
+
+旧管理器注释还列出 [hd2-repatcher](https://github.com/RaidingForPants/hd2-repatcher) 和 [HD2SDK-CommunityEdition](https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition) 作为补丁格式研究来源。本次未复制这两个项目的源文件或发布物。
+
+
+前端接入仅参考 Components/VersionCheckDetailOverlay.* 的检查、预览与备份交互语义，使用当前 Avalonia 布局及 Application 门面重新编写；未复制 WPF 视图或运行程序集。

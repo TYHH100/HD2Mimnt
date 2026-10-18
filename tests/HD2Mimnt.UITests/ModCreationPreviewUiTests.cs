@@ -20,6 +20,80 @@ namespace HD2Mimnt.Tests.UI;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
+    public async Task ModCreationImages_ShouldOpenSharedPreviewForCoverOptionAndSubOption()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync(); main.NavigateToModCreationCommand.Execute(null);
+        var vm = main.ModCreationViewModel!;
+        var source = Path.Combine(scope.Root, "editor-images"); Directory.CreateDirectory(source);
+        foreach (var (file, width, height) in new[] { ("cover.png", 16, 16), ("option.png", 24, 12), ("child.png", 12, 24) })
+        {
+            using var image = new System.Drawing.Bitmap(width, height);
+            using var graphics = System.Drawing.Graphics.FromImage(image);
+            graphics.Clear(System.Drawing.Color.Red);
+            image.Save(Path.Combine(source, file), System.Drawing.Imaging.ImageFormat.Png);
+        }
+        vm.SourceDirectory = source; await vm.InitializeSourceAsync();
+        vm.ModName = "图片确认"; vm.IconPath = "cover.png";
+        vm.AddOptionCommand.Execute(null);
+        var option = vm.SelectedOption!; option.Name = "选项图"; option.ImagePath = "option.png";
+        option.AddSubOptionCommand.Execute(null);
+        var child = option.SubOptions.Single(); child.Name = "子选项图"; child.ImagePath = "child.png";
+        vm.IsDirty = false; var originalJson = vm.JsonPreview;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 800 };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            void Click(Control control)
+            {
+                control.BringIntoView(); Layout();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                Assert.Contains(control, (window.InputHitTest(point) as Visual)!.GetSelfAndVisualAncestors());
+                window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left); Layout();
+            }
+            async Task WaitForImage()
+            {
+                for (var i = 0; i < 200 && vm.IsBusy; i++) { await Task.Delay(20); Layout(); }
+                Assert.False(vm.IsBusy, vm.StatusMessage); Layout();
+            }
+            Layout(); main.NotificationPanelViewModel.DismissAllToasts(); Layout();
+            var view = window.GetVisualDescendants().OfType<ModCreationView>().Single();
+            var tabs = view.FindControl<TabControl>("CreationTabs")!;
+            foreach (var (buttonName, tab, size, title) in new[]
+            {
+                ("CreationCoverPreviewButton", 0, new PixelSize(16, 16), vm.ModName),
+                ("CreationOptionPreviewButton", 1, new PixelSize(24, 12), option.Name),
+                ("CreationSubOptionPreviewButton", 1, new PixelSize(12, 24), child.Name)
+            })
+            {
+                tabs.SelectedIndex = tab; Layout();
+                var button = view.GetVisualDescendants().OfType<Button>().Single(item => item.Name == buttonName);
+                Click(button); await WaitForImage();
+                Assert.True(main.ImagePreview.IsOpen);
+                Assert.Equal(title, main.ImagePreview.Title);
+                Assert.Equal(size, main.ImagePreview.Image!.PixelSize);
+                var overlay = window.GetVisualDescendants().OfType<ImagePreviewOverlay>().Single();
+                Assert.Same(main.ImagePreview, overlay.DataContext);
+                Assert.True(overlay.FindControl<Border>("Root")!.IsEffectivelyVisible);
+                window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                window.KeyRelease(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null); Layout();
+                Assert.False(main.ImagePreview.IsOpen); Assert.Null(main.ImagePreview.Image);
+            }
+            Assert.False(vm.IsDirty); Assert.Equal(originalJson, vm.JsonPreview);
+            child.ImagePath = "missing.png";
+            Click(view.GetVisualDescendants().OfType<Button>().Single(item => item.Name == "CreationSubOptionPreviewButton"));
+            await WaitForImage(); Assert.False(main.ImagePreview.IsOpen);
+            Assert.Contains(UiLocalization.Current["Creator.ImageUnavailable"], vm.StatusMessage);
+            await vm.PreviewImageAsync("cover.png", vm.ModName);
+            Assert.True(main.ImagePreview.IsOpen);
+            await vm.StopAsync(); Assert.False(main.ImagePreview.IsOpen);
+        }
+        finally { await vm.StopAsync(); main.ImagePreview.Close(); window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task ModCreationPreview_ShouldSelectWithoutEditingAndExportAllChildren()
     {
         await using var scope = await UiScope.CreateAsync();

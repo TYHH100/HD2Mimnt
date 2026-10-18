@@ -1,4 +1,4 @@
-using HD2Mimnt.UI.Localization;
+﻿using HD2Mimnt.UI.Localization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -140,6 +140,7 @@ public partial class ProfileView : UserControl
                 CommandParameter = mod
             }
         };
+        if (vm.Compatibility != null) modEntries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         if (mod.CanDrag)
         {
             modEntries.Add(AppContextMenu.Separator);
@@ -322,7 +323,7 @@ public partial class ProfileView : UserControl
         }
         if (e.Handled) return;
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
+            || vm.Compatibility?.IsOpen == true || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
             || vm.IsDetailPanelOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;

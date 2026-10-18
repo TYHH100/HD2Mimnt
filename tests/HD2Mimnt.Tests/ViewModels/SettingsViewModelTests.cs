@@ -23,6 +23,26 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task CompatibilityCategory_SavesWithoutGamePathPersistsAndResetsOnlyItsOwnSettings()
+    {
+        await _settingsService.SetSettingAsync(SettingKeys.Theme, "Light");
+        using var vm = CreateViewModel("Z:/missing/game");
+        await vm.LoadAsync(); vm.SelectedCategory = "兼容性";
+        Assert.Contains("兼容性", vm.SettingsCategories); Assert.True(vm.IsCompatibilityCategoryVisible);
+        Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
+        vm.CompatibilityCheckOnStartup = true; vm.CompatibilityEnableBatchRepair = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        var reopened = new SettingsService(_rootDirectory);
+        Assert.True(reopened.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false));
+        Assert.True(reopened.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false));
+        using var reloaded = new SettingsViewModel(reopened, _gameDetectionService, new NotificationService(), _imageCache.Object);
+        await reloaded.LoadAsync(); Assert.True(reloaded.CompatibilityCheckOnStartup); Assert.True(reloaded.CompatibilityEnableBatchRepair);
+        await vm.ResetCommand.ExecuteAsync(null);
+        Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
+        Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
+    }
+
+    [Fact]
     public async Task EntryVisibility_ShouldSaveIndependentlyPersistAndResetOnlyEntries()
     {
         using var vm = CreateViewModel("invalid-game-path");

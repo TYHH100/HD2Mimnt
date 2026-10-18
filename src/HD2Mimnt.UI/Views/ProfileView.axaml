@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
@@ -55,6 +55,9 @@
         <!-- 底部：检查冲突 + 排序/部署顺序提示（旧版底部工具区） -->
         <StackPanel DockPanel.Dock="Bottom" Spacing="2">
           <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
+          <Button x:Name="CheckProfileCompatibilityButton" Classes="side-nav" Command="{Binding CheckProfileCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}">
+            <StackPanel Orientation="Horizontal" Spacing="10"><controls:UtilityIcon Kind="Repair" Width="16" Height="16"/><TextBlock Text="{loc:Loc Compatibility.Title}" TextTrimming="CharacterEllipsis"/></StackPanel>
+          </Button>
           <Button x:Name="ScanProfileConflictsButton" Classes="side-nav" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ScanProfileConflictsCommand}">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <controls:UtilityIcon Kind="Warning" Width="16" Height="16" VerticalAlignment="Center"/>
@@ -120,6 +123,7 @@
         </Border>
         <Button Content="{loc:Loc UI.SelectAllClearAll}" Command="{Binding ToggleSelectAllModsCommand}" Classes="secondary" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.InvertSelection}" Command="{Binding InvertModSelectionCommand}" Classes="secondary" Margin="0,0,8,4"/>
+        <Button x:Name="CheckSelectedCompatibilityButton" Content="{loc:Loc Compatibility.Title}" Command="{Binding CheckSelectedCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.Enable}" Command="{Binding BatchEnableModsCommand}" Classes="secondary" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.Disable}" Command="{Binding BatchDisableModsCommand}" Classes="secondary" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.RemoveFromProfile.40200d7e}" Command="{Binding RemoveSelectedModsCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.RemoveSelectedModsFromTheProfileBeingViewed}"/>
@@ -201,6 +205,22 @@
                               Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).OpenConflictNavigationCommand}"
                               CommandParameter="{Binding}">
                         <controls:UtilityIcon Kind="Warning" Width="14" Height="14" Foreground="{DynamicResource WarningBrush}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Button>
+                    </Border>
+                    <Border x:Name="ProfileCompatibilityBadge" Width="20" Height="20" CornerRadius="10" ZIndex="1"
+                            Background="{DynamicResource WarningBackgroundBrush}"
+                            BorderBrush="{DynamicResource CardFillBrush}" BorderThickness="1"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,20,0"
+                            IsVisible="{Binding SourceInfo.CompatibilityBadge.HasWarning}" AutomationProperties.Name="{loc:Loc Compatibility.Title}">
+                      <ToolTip.Tip>
+                        <TextBlock Text="{Binding SourceInfo.CompatibilityBadge.Tooltip}" MaxWidth="420" TextWrapping="Wrap"/>
+                      </ToolTip.Tip>
+                      <Button x:Name="OpenProfileCompatibilityButton" Classes="icon-button" Width="18" Height="18" MinWidth="0"
+                              Padding="0" CornerRadius="9" Background="Transparent" Cursor="Hand" AutomationProperties.Name="{loc:Loc Compatibility.Open}"
+                              Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).CheckModCompatibilityCommand}"
+                              CommandParameter="{Binding}">
+                        <controls:UtilityIcon Kind="Wrench" Width="14" Height="14" Foreground="{DynamicResource WarningBrush}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Button>
                     </Border>

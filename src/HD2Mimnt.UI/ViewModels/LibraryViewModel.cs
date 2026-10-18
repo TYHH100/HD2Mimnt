@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
@@ -263,8 +263,9 @@ public partial class LibraryViewModel : ObservableObject
         ModLinkService? modLinkService = null,
         ModOnlineService? modOnlineService = null,
         IWebsiteDownloadLauncher? websiteLauncher = null,
-        BrowserDownloadHandoffService? browserDownloads = null)
+        BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null)
     {
+        Compatibility = compatibility;
         _modService = modService;
         LocalVersions = new(modService, confirmationService, async () =>
         {
@@ -349,6 +350,7 @@ public partial class LibraryViewModel : ObservableObject
             ClearSelection();
             DetachModSelectionHandlers();
             _allMods = await Task.Run(() => modsList.Select(m => new ModItemViewModel(m)).ToList());
+            foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
             AttachModSelectionHandlers();
@@ -1212,6 +1214,7 @@ public partial class LibraryViewModel : ObservableObject
     private void ShowModDetail(ModItemViewModel mod)
     {
         if (LocalVersions.IsBusy) return;
+        mod.CheckCompatibilityCommand = Compatibility == null ? null : new AsyncRelayCommand(() => Compatibility.OpenAsync([mod], mod.Name));
         mod.LocalVersions = LocalVersions;
         LocalVersions.Open(mod);
         _detailHashCts?.Cancel();

@@ -1,4 +1,4 @@
-using HD2Mimnt.Core.Entities;
+﻿using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
@@ -42,7 +42,7 @@ public partial class ModService
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
             mod.Hash = hash;
             await _modRepository.UpdateAsync(mod, cancellationToken);
-            RaiseModsChanged();
+            // 仅回填派生缓存，未改变模组内容；调用方直接更新详情，不能触发全库重载。
             return hash;
         }
         finally { _hashGate.Release(); }

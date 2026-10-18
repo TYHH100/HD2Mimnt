@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 新增兼容性设置不能只接浮窗：同时接入设置分类、稳定的 `settings.compatibility` 入口 ID、持久化、分类重置、三语与实际执行开关。启动扫描和批量修复默认关闭；扫描不阻塞初始化、不自动修复，关闭和退出等待取消清理。游戏数据构建通过 Application 门面执行，进度回调核对操作令牌，避免已结束任务更新后续任务。行为与验证见[兼容性说明](../features/MOD_COMPATIBILITY.md)。来源：[MVVM 异步命令](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/asyncrelaycommand)。
+
 - 模组创建的源目录自动填充须经过 Application 后台扫描，按目录分别取名称、直属第一张图片和 Include；空草稿才生成选项，已有清单和手动填写值不被扫描覆盖。自动生成选项时保留根目录补丁的 `.` 映射。Include 选择使用程序内目录勾选树，独立保存对话框选择，确认后替换路径、取消不写回；回归粘贴路径、勾选回显、取消、清空及保存后的实际清单。来源：[旧版创建逻辑](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)、[Avalonia TreeView](https://docs.avaloniaui.net/docs/reference/controls/treeview)。
 
 - 配置页模组的详情、文件位置、来源及作者入口不能使用 `CanSelect` / `CanDrag` 作总开关；加载器锁定只限制选择与排序。右键按操作分别判断权限，双击详情先于拖动权限判断，忽略按钮/开关及 Ctrl/Shift 手势；详情中的启用和移除作用于正在查看的配置，Escape 优先关闭详情。“删除模组文件”与模组库共用 `ModService.DeleteModAsync` 和删除确认，右键与详情共用异步命令流程；删除后等待模组库列表和搜索索引刷新完成，不能只更新配置成员或留下未等待的刷新任务。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://docs.avaloniaui.net/docs/concepts/input/routed-events 、https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/generators/relaycommand
@@ -91,3 +93,6 @@
 - ViewModel 自行管理批量选择时，不能把 FocusedMod 绑定到原生 ListBox.SelectedItem，也不能让原生列表在筛选时清空持久的选中集合。模组库与配置页使用 ItemsControl + 共享 ModCardListBoxItemTheme（继承 FluentAvalonia 原生 ListBoxItem），容器 IsSelected 单向绑定 IsHighlighted（IsSelected || IsFocused），批量操作仅统计模型 IsSelected；选项弹窗继续使用 ViewModelSelectableListBoxItemTheme。鼠标/键盘在原生输入前处理并保留可聚焦的列表。回归必须检查批量选中集合、单击标记和容器 IsSelected，并覆盖搜索后容器重建；只断言 SelectedCount 无法发现视觉失效。ControlTheme 放入 ResourceDictionary，通用属性使用 ReflectionBinding 避免绑定到单一 ViewModel 类型。来源：https://docs.avaloniaui.net/docs/basics/user-interface/styling/control-themes
 
 - 右键菜单在 PointerReleased / ContextRequested 阶段打开，不要在 PointerPressed 提前弹出后又在 ContextRequested 关闭重建；列表的 handledEventsToo 松开事件只作兜底，共享 AppContextMenu 对当前已打开菜单去重。回归检查同次手势仅赋值和打开一次、未发生关闭，并实际点击菜单项。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Control.cs
+
+
+- 兼容性入口共用 Application 门面和全局浮窗；配置范围取完整 ProfileMods，不能取过滤／折叠后的显示列表，也不能用 CanDrag 禁用加载器的只读检查。混合 LOD 的 Unit 选择按 Mod ID 独立传入批量接口；修改选项先使旧计划失效，修复／恢复后的 UI 刷新必须等待。详情补算 Hash 属于派生缓存回填，不触发 ModsChanged 全库重载，否则会关闭正在读取的详情。前端流程见[兼容性说明](../features/MOD_COMPATIBILITY.md)。来源：[MVVM 异步命令](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/asyncrelaycommand)、[Avalonia 虚拟化](https://docs.avaloniaui.net/docs/reference/controls/virtualizingstackpanel)。

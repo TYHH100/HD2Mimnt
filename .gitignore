@@ -147,3 +147,4 @@ $RECYCLE.BIN/
 *.lnk
 
 tests/HD2Mimnt.PerformanceTests/TestData/
+.artifacts/

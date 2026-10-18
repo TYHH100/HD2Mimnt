@@ -1,0 +1,2466 @@
+{
+  "DateUtc": "2026-10-17T13:14:57.4810305Z",
+  "Runtime": "10.0.12",
+  "Mods": 10000,
+  "IndependentImagePaths": 10000,
+  "ImageWidth": 256,
+  "ImageHeight": 256,
+  "ImageContent": "seeded noise PNG, identical bytes at 10000 separate paths",
+  "Actions": [
+    {
+      "Name": "main_initialize",
+      "ElapsedMs": 33520.7321,
+      "AllocatedMiB": 914.2831649780273
+    },
+    {
+      "Name": "all_20000_icons_ready",
+      "ElapsedMs": 6257.5865,
+      "AllocatedMiB": 101.2227554321289
+    },
+    {
+      "Name": "library_search_Armor",
+      "ElapsedMs": 524.9614,
+      "AllocatedMiB": 22.261322021484375
+    },
+    {
+      "Name": "library_search_Perf 09999",
+      "ElapsedMs": 16.6211,
+      "AllocatedMiB": 2.0251541137695312
+    },
+    {
+      "Name": "library_search_no_match_here",
+      "ElapsedMs": 8.0176,
+      "AllocatedMiB": 1.203643798828125
+    },
+    {
+      "Name": "library_search_",
+      "ElapsedMs": 38.2695,
+      "AllocatedMiB": 4.778495788574219
+    },
+    {
+      "Name": "library_sort_descending",
+      "ElapsedMs": 32.4625,
+      "AllocatedMiB": 5.3796539306640625
+    },
+    {
+      "Name": "library_select_all",
+      "ElapsedMs": 398.8045,
+      "AllocatedMiB": 11.635971069335938
+    },
+    {
+      "Name": "library_clear_selection",
+      "ElapsedMs": 51.736,
+      "AllocatedMiB": 6.000885009765625
+    },
+    {
+      "Name": "profile_search_Armor",
+      "ElapsedMs": 40.3051,
+      "AllocatedMiB": 9.327392578125
+    },
+    {
+      "Name": "profile_search_Perf 09999",
+      "ElapsedMs": 26.5484,
+      "AllocatedMiB": 2.244415283203125
+    },
+    {
+      "Name": "profile_search_no_match_here",
+      "ElapsedMs": 3.5672,
+      "AllocatedMiB": 0.48708343505859375
+    },
+    {
+      "Name": "profile_search_",
+      "ElapsedMs": 37.0881,
+      "AllocatedMiB": 8.961990356445312
+    },
+    {
+      "Name": "profile_select_all",
+      "ElapsedMs": 598.5355,
+      "AllocatedMiB": 12.422584533691406
+    },
+    {
+      "Name": "profile_clear_selection",
+      "ElapsedMs": 417.2266,
+      "AllocatedMiB": 12.920402526855469
+    },
+    {
+      "Name": "profile_refresh",
+      "ElapsedMs": 6557.8713,
+      "AllocatedMiB": 198.58621215820312
+    },
+    {
+      "Name": "profile_refreshed_icons_ready",
+      "ElapsedMs": 15945.7016,
+      "AllocatedMiB": 264.27552032470703
+    }
+  ],
+  "Frames": {
+    "library_scroll": {
+      "FrameWorkMs": {
+        "Count": 180,
+        "P50": 19.925,
+        "P95": 39.901,
+        "P99": 73.3177,
+        "Max": 79.2458,
+        "Over50": 4,
+        "Over100": 0
+      },
+      "MaxRealizedContainers": 8,
+      "LastIndex": 9999,
+      "SqlFloodStillRunningAtEnd": true
+    },
+    "profile_scroll": {
+      "FrameWorkMs": {
+        "Count": 180,
+        "P50": 21.8432,
+        "P95": 45.6984,
+        "P99": 76.6602,
+        "Max": 82.594,
+        "Over50": 3,
+        "Over100": 0
+      },
+      "MaxRealizedContainers": 8,
+      "LastIndex": 9999,
+      "SqlFloodStillRunningAtEnd": true
+    }
+  },
+  "DispatcherLatencyMs": {
+    "Count": 2145,
+    "P50": 0.0242,
+    "P95": 3.5662,
+    "P99": 15.3443,
+    "Max": 24400.5565,
+    "Over50": 8,
+    "Over100": 7
+  },
+  "PhaseLatencyMs": {
+    "all_20000_icons_ready": {
+      "Count": 234,
+      "P50": 0.0217,
+      "P95": 0.5362,
+      "P99": 5.2888,
+      "Max": 90.6468,
+      "Over50": 1,
+      "Over100": 0
+    },
+    "profile_clear_selection": {
+      "Count": 1,
+      "P50": 421.9577,
+      "P95": 421.9577,
+      "P99": 421.9577,
+      "Max": 421.9577,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "main_initialize": {
+      "Count": 363,
+      "P50": 0.0175,
+      "P95": 0.0531,
+      "P99": 0.1682,
+      "Max": 24400.5565,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_refresh": {
+      "Count": 2,
+      "P50": 0.2241,
+      "P95": 6557.8947,
+      "P99": 6557.8947,
+      "Max": 6557.8947,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "library_sort_descending": {
+      "Count": 3,
+      "P50": 3.9065,
+      "P95": 5.9488,
+      "P99": 5.9488,
+      "Max": 5.9488,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_Armor": {
+      "Count": 4,
+      "P50": 9.1054,
+      "P95": 285.5004,
+      "P99": 285.5004,
+      "Max": 285.5004,
+      "Over50": 2,
+      "Over100": 2
+    },
+    "library_scroll": {
+      "Count": 362,
+      "P50": 0.3635,
+      "P95": 5.2396,
+      "P99": 11.7606,
+      "Max": 33.2112,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_clear_selection": {
+      "Count": 7,
+      "P50": 6.2248,
+      "P95": 44.1608,
+      "P99": 44.1608,
+      "Max": 44.1608,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_search_Perf 09999": {
+      "Count": 4,
+      "P50": 0.0115,
+      "P95": 0.0417,
+      "P99": 0.0417,
+      "Max": 0.0417,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_select_all": {
+      "Count": 3,
+      "P50": 9.7497,
+      "P95": 396.9136,
+      "P99": 396.9136,
+      "Max": 396.9136,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_search_Armor": {
+      "Count": 3,
+      "P50": 6.9931,
+      "P95": 40.1349,
+      "P99": 40.1349,
+      "Max": 40.1349,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "steady_state": {
+      "Count": 188,
+      "P50": 0.0244,
+      "P95": 0.0407,
+      "P99": 0.0578,
+      "Max": 0.0661,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_Perf 09999": {
+      "Count": 2,
+      "P50": 0.0154,
+      "P95": 16.5449,
+      "P99": 16.5449,
+      "Max": 16.5449,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_no_match_here": {
+      "Count": 4,
+      "P50": 0.0521,
+      "P95": 8.0185,
+      "P99": 8.0185,
+      "Max": 8.0185,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_search_no_match_here": {
+      "Count": 2,
+      "P50": 0.0447,
+      "P95": 3.5662,
+      "P99": 3.5662,
+      "Max": 3.5662,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_select_all": {
+      "Count": 3,
+      "P50": 5.1787,
+      "P95": 598.3066,
+      "P99": 598.3066,
+      "Max": 598.3066,
+      "Over50": 1,
+      "Over100": 1
+    },
+    "profile_scroll": {
+      "Count": 370,
+      "P50": 0.3632,
+      "P95": 8.2996,
+      "P99": 15.3443,
+      "Max": 23.5139,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "library_search_": {
+      "Count": 2,
+      "P50": 0.0116,
+      "P95": 22.759,
+      "P99": 22.759,
+      "Max": 22.759,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_refreshed_icons_ready": {
+      "Count": 586,
+      "P50": 0.0188,
+      "P95": 0.3245,
+      "P99": 0.4668,
+      "Max": 7.0637,
+      "Over50": 0,
+      "Over100": 0
+    },
+    "profile_search_": {
+      "Count": 2,
+      "P50": 6.1604,
+      "P95": 36.796,
+      "P99": 36.796,
+      "Max": 36.796,
+      "Over50": 0,
+      "Over100": 0
+    }
+  },
+  "MemorySamples": [
+    {
+      "Phase": "initialization",
+      "WorkingMiB": 93.73828125,
+      "PrivateMiB": 36.6328125,
+      "ManagedMiB": 10.705902099609375
+    },
+    {
+      "Phase": "initialization",
+      "WorkingMiB": 108.9375,
+      "PrivateMiB": 46.46875,
+      "ManagedMiB": 10.1114501953125
+    },
+    {
+      "Phase": "initialization",
+      "WorkingMiB": 114.1171875,
+      "PrivateMiB": 48.80859375,
+      "ManagedMiB": 17.045211791992188
+    },
+    {
+      "Phase": "initialization",
+      "WorkingMiB": 127.58984375,
+      "PrivateMiB": 62.66796875,
+      "ManagedMiB": 19.10057830810547
+    },
+    {
+      "Phase": "initialization",
+      "WorkingMiB": 138.92578125,
+      "PrivateMiB": 66.07421875,
+      "ManagedMiB": 20.44208526611328
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 139.53125,
+      "PrivateMiB": 64.01171875,
+      "ManagedMiB": 23.411468505859375
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 160.51171875,
+      "PrivateMiB": 85.01953125,
+      "ManagedMiB": 42.21966552734375
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.8828125,
+      "PrivateMiB": 89.25,
+      "ManagedMiB": 41.07051086425781
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.12890625,
+      "PrivateMiB": 88.1640625,
+      "ManagedMiB": 46.568870544433594
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.41015625,
+      "PrivateMiB": 86.95703125,
+      "ManagedMiB": 40.617584228515625
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.265625,
+      "PrivateMiB": 86.6640625,
+      "ManagedMiB": 45.426544189453125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.3359375,
+      "PrivateMiB": 90.5703125,
+      "ManagedMiB": 41.809326171875
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.796875,
+      "PrivateMiB": 90.58203125,
+      "ManagedMiB": 47.075096130371094
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 173.2265625,
+      "PrivateMiB": 93.76953125,
+      "ManagedMiB": 43.40150451660156
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 171.37890625,
+      "PrivateMiB": 92.02734375,
+      "ManagedMiB": 39.447662353515625
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.39453125,
+      "PrivateMiB": 91.62890625,
+      "ManagedMiB": 44.67997741699219
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.18359375,
+      "PrivateMiB": 90.46484375,
+      "ManagedMiB": 41.37377166748047
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.2578125,
+      "PrivateMiB": 90.46484375,
+      "ManagedMiB": 47.083282470703125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 168.703125,
+      "PrivateMiB": 89.984375,
+      "ManagedMiB": 43.7891845703125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 168.06640625,
+      "PrivateMiB": 88.328125,
+      "ManagedMiB": 40.202354431152344
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 166.34765625,
+      "PrivateMiB": 86.50390625,
+      "ManagedMiB": 44.75537872314453
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.69921875,
+      "PrivateMiB": 90.9453125,
+      "ManagedMiB": 41.24463653564453
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 169.3046875,
+      "PrivateMiB": 90.13671875,
+      "ManagedMiB": 46.7205810546875
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 166.4375,
+      "PrivateMiB": 86.734375,
+      "ManagedMiB": 43.21984100341797
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 163.3125,
+      "PrivateMiB": 84.78515625,
+      "ManagedMiB": 39.50756072998047
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.97265625,
+      "PrivateMiB": 86.97265625,
+      "ManagedMiB": 44.32475280761719
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 167.5546875,
+      "PrivateMiB": 88.4140625,
+      "ManagedMiB": 40.34973907470703
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 164.70703125,
+      "PrivateMiB": 84.80078125,
+      "ManagedMiB": 45.86991882324219
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 165.93359375,
+      "PrivateMiB": 86.0859375,
+      "ManagedMiB": 42.285118103027344
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 166.32421875,
+      "PrivateMiB": 86.50390625,
+      "ManagedMiB": 47.528839111328125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 166.19140625,
+      "PrivateMiB": 86.921875,
+      "ManagedMiB": 43.37315368652344
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 167.87890625,
+      "PrivateMiB": 87.23046875,
+      "ManagedMiB": 48.92681884765625
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 192.74609375,
+      "PrivateMiB": 111.125,
+      "ManagedMiB": 65.64681243896484
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 202.453125,
+      "PrivateMiB": 120.7265625,
+      "ManagedMiB": 68.6746597290039
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 214.703125,
+      "PrivateMiB": 132.0625,
+      "ManagedMiB": 73.5694580078125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 214.34765625,
+      "PrivateMiB": 132.02734375,
+      "ManagedMiB": 73.87529754638672
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 211.6796875,
+      "PrivateMiB": 129.26171875,
+      "ManagedMiB": 71.14785766601562
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 217.1796875,
+      "PrivateMiB": 136.453125,
+      "ManagedMiB": 81.87725830078125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 216.328125,
+      "PrivateMiB": 135.46484375,
+      "ManagedMiB": 79.80060577392578
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 217.04296875,
+      "PrivateMiB": 136.08984375,
+      "ManagedMiB": 83.48509979248047
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 237.125,
+      "PrivateMiB": 153.98828125,
+      "ManagedMiB": 92.01233673095703
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 254.7578125,
+      "PrivateMiB": 170.94921875,
+      "ManagedMiB": 105.46383666992188
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 252.73828125,
+      "PrivateMiB": 168.765625,
+      "ManagedMiB": 110.64957427978516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 255.5703125,
+      "PrivateMiB": 171.51953125,
+      "ManagedMiB": 106.58955383300781
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 253.38671875,
+      "PrivateMiB": 170.796875,
+      "ManagedMiB": 111.75820922851562
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 252.93359375,
+      "PrivateMiB": 168.90234375,
+      "ManagedMiB": 107.91439056396484
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 250.109375,
+      "PrivateMiB": 166.5390625,
+      "ManagedMiB": 112.80931091308594
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 251.61328125,
+      "PrivateMiB": 167.8203125,
+      "ManagedMiB": 109.01236724853516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 254.09375,
+      "PrivateMiB": 169.890625,
+      "ManagedMiB": 105.15531921386719
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 253.66015625,
+      "PrivateMiB": 170.015625,
+      "ManagedMiB": 110.3936538696289
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 252.90625,
+      "PrivateMiB": 168.8671875,
+      "ManagedMiB": 106.50457763671875
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 252.89453125,
+      "PrivateMiB": 168.8671875,
+      "ManagedMiB": 110.59676361083984
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 253.83984375,
+      "PrivateMiB": 170.64453125,
+      "ManagedMiB": 106.9449462890625
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 254.625,
+      "PrivateMiB": 171.25390625,
+      "ManagedMiB": 111.07695770263672
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 256.41796875,
+      "PrivateMiB": 173.08203125,
+      "ManagedMiB": 106.716064453125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 251.5390625,
+      "PrivateMiB": 167.46484375,
+      "ManagedMiB": 111.57997131347656
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.4375,
+      "PrivateMiB": 164.34765625,
+      "ManagedMiB": 107.20084381103516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.1171875,
+      "PrivateMiB": 164.09765625,
+      "ManagedMiB": 112.22715759277344
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.62109375,
+      "PrivateMiB": 164.40625,
+      "ManagedMiB": 108.37328338623047
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 246.20703125,
+      "PrivateMiB": 162.6953125,
+      "ManagedMiB": 114.21809387207031
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 249.4921875,
+      "PrivateMiB": 167.0390625,
+      "ManagedMiB": 110.25076293945312
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.76953125,
+      "PrivateMiB": 165.37109375,
+      "ManagedMiB": 115.12027740478516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 246.66015625,
+      "PrivateMiB": 164.140625,
+      "ManagedMiB": 112.08850860595703
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 248.67578125,
+      "PrivateMiB": 166.453125,
+      "ManagedMiB": 108.09098052978516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.75,
+      "PrivateMiB": 164.7734375,
+      "ManagedMiB": 112.98458099365234
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 247.578125,
+      "PrivateMiB": 164.89453125,
+      "ManagedMiB": 109.016845703125
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 257.23828125,
+      "PrivateMiB": 173.93359375,
+      "ManagedMiB": 120.82120513916016
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 295.59375,
+      "PrivateMiB": 212.6171875,
+      "ManagedMiB": 147.4848175048828
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 296.30078125,
+      "PrivateMiB": 213.34765625,
+      "ManagedMiB": 155.77072143554688
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 296.41796875,
+      "PrivateMiB": 214.2109375,
+      "ManagedMiB": 151.85665893554688
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 294.83984375,
+      "PrivateMiB": 212.1171875,
+      "ManagedMiB": 156.7470245361328
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 287.69921875,
+      "PrivateMiB": 204.6015625,
+      "ManagedMiB": 114.58039855957031
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 285.80078125,
+      "PrivateMiB": 202.57421875,
+      "ManagedMiB": 119.59219360351562
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 288.625,
+      "PrivateMiB": 205.578125,
+      "ManagedMiB": 116.51441955566406
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 285.74609375,
+      "PrivateMiB": 201.86328125,
+      "ManagedMiB": 121.29112243652344
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 288.01953125,
+      "PrivateMiB": 204.79296875,
+      "ManagedMiB": 117.11503601074219
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 288.34375,
+      "PrivateMiB": 205.49609375,
+      "ManagedMiB": 121.89979553222656
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 286.22265625,
+      "PrivateMiB": 203.265625,
+      "ManagedMiB": 117.80247497558594
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 287.30859375,
+      "PrivateMiB": 204.67578125,
+      "ManagedMiB": 122.7193832397461
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 286.43359375,
+      "PrivateMiB": 202.46484375,
+      "ManagedMiB": 118.69933319091797
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 286.95703125,
+      "PrivateMiB": 203.51171875,
+      "ManagedMiB": 123.56851959228516
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 285.23828125,
+      "PrivateMiB": 201.7421875,
+      "ManagedMiB": 119.56537628173828
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 283.32421875,
+      "PrivateMiB": 200.24609375,
+      "ManagedMiB": 115.12451934814453
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 279.640625,
+      "PrivateMiB": 195.4140625,
+      "ManagedMiB": 119.9553451538086
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 279.71484375,
+      "PrivateMiB": 195.42578125,
+      "ManagedMiB": 115.92222595214844
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 281.078125,
+      "PrivateMiB": 196.92578125,
+      "ManagedMiB": 120.75117492675781
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 282.453125,
+      "PrivateMiB": 199.4296875,
+      "ManagedMiB": 116.68706512451172
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 279.86328125,
+      "PrivateMiB": 195.453125,
+      "ManagedMiB": 121.32756805419922
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 279.82421875,
+      "PrivateMiB": 195.97265625,
+      "ManagedMiB": 117.2174301147461
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 280.04296875,
+      "PrivateMiB": 195.640625,
+      "ManagedMiB": 122.0999984741211
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 280.1875,
+      "PrivateMiB": 196.5546875,
+      "ManagedMiB": 116.9307632446289
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 280.19921875,
+      "PrivateMiB": 196.56640625,
+      "ManagedMiB": 122.74909210205078
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 295.11328125,
+      "PrivateMiB": 212.79296875,
+      "ManagedMiB": 150.02359008789062
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 369.93359375,
+      "PrivateMiB": 286.15625,
+      "ManagedMiB": 149.32826232910156
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 456.375,
+      "PrivateMiB": 371.6484375,
+      "ManagedMiB": 154.84811401367188
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 538.31640625,
+      "PrivateMiB": 454.65625,
+      "ManagedMiB": 150.53245544433594
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 622.33984375,
+      "PrivateMiB": 539.96484375,
+      "ManagedMiB": 156.93092346191406
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 701.95703125,
+      "PrivateMiB": 620.64453125,
+      "ManagedMiB": 153.3728256225586
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 781.5234375,
+      "PrivateMiB": 701.078125,
+      "ManagedMiB": 149.90463256835938
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 863.08203125,
+      "PrivateMiB": 783.30078125,
+      "ManagedMiB": 155.17323303222656
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 942.7890625,
+      "PrivateMiB": 862.17578125,
+      "ManagedMiB": 151.41109466552734
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1025.6015625,
+      "PrivateMiB": 945.6171875,
+      "ManagedMiB": 156.57200622558594
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1106.78125,
+      "PrivateMiB": 1028.0625,
+      "ManagedMiB": 153.20809936523438
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1191.35546875,
+      "PrivateMiB": 1113.83984375,
+      "ManagedMiB": 158.36461639404297
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1273.953125,
+      "PrivateMiB": 1197.57421875,
+      "ManagedMiB": 153.60189819335938
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1356.5078125,
+      "PrivateMiB": 1281.484375,
+      "ManagedMiB": 151.11074829101562
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1438.55859375,
+      "PrivateMiB": 1364.98828125,
+      "ManagedMiB": 156.23635864257812
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1521.1640625,
+      "PrivateMiB": 1448.9453125,
+      "ManagedMiB": 152.5946807861328
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1605.32421875,
+      "PrivateMiB": 1534.26171875,
+      "ManagedMiB": 157.72266387939453
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1687.4765625,
+      "PrivateMiB": 1617.75,
+      "ManagedMiB": 153.78515625
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1771.06640625,
+      "PrivateMiB": 1702.75,
+      "ManagedMiB": 158.8466567993164
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1854.97265625,
+      "PrivateMiB": 1788.75,
+      "ManagedMiB": 156.7767562866211
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 1940.70703125,
+      "PrivateMiB": 1875.87109375,
+      "ManagedMiB": 153.3260726928711
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2021.2265625,
+      "PrivateMiB": 1957.7265625,
+      "ManagedMiB": 158.8602523803711
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2101.4375,
+      "PrivateMiB": 2039.2890625,
+      "ManagedMiB": 155.37799835205078
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2186.546875,
+      "PrivateMiB": 2125.90625,
+      "ManagedMiB": 160.54295349121094
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2269.578125,
+      "PrivateMiB": 2210.44140625,
+      "ManagedMiB": 156.90233612060547
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2355.03515625,
+      "PrivateMiB": 2297.2890625,
+      "ManagedMiB": 161.9808120727539
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2434.421875,
+      "PrivateMiB": 2378.1484375,
+      "ManagedMiB": 158.5954818725586
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2517.1875,
+      "PrivateMiB": 2462.17578125,
+      "ManagedMiB": 155.71569061279297
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2600.390625,
+      "PrivateMiB": 2546.7265625,
+      "ManagedMiB": 160.52405548095703
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2686.2421875,
+      "PrivateMiB": 2633.58203125,
+      "ManagedMiB": 156.48165893554688
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2770.3515625,
+      "PrivateMiB": 2719.0625,
+      "ManagedMiB": 161.41067504882812
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2847.95703125,
+      "PrivateMiB": 2798.2109375,
+      "ManagedMiB": 156.1028594970703
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 2931.83984375,
+      "PrivateMiB": 2883.01953125,
+      "ManagedMiB": 161.53899383544922
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3011.51171875,
+      "PrivateMiB": 2963.72265625,
+      "ManagedMiB": 157.52337646484375
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3096.57421875,
+      "PrivateMiB": 3050.296875,
+      "ManagedMiB": 162.26522827148438
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3166.91796875,
+      "PrivateMiB": 3121.66796875,
+      "ManagedMiB": 157.41707611083984
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3230.2578125,
+      "PrivateMiB": 3186.03125,
+      "ManagedMiB": 161.18575286865234
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3295.17578125,
+      "PrivateMiB": 3252.0859375,
+      "ManagedMiB": 164.9137725830078
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3370.703125,
+      "PrivateMiB": 3328.6953125,
+      "ManagedMiB": 160.49512481689453
+    },
+    {
+      "Phase": "main_initialize",
+      "WorkingMiB": 3452.32421875,
+      "PrivateMiB": 3411.62890625,
+      "ManagedMiB": 165.1597900390625
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3519.71875,
+      "PrivateMiB": 3479.37109375,
+      "ManagedMiB": 160.73926544189453
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3602.26953125,
+      "PrivateMiB": 3562.06640625,
+      "ManagedMiB": 164.810791015625
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3689.28125,
+      "PrivateMiB": 3651.1796875,
+      "ManagedMiB": 161.97254180908203
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3777.06640625,
+      "PrivateMiB": 3740.25390625,
+      "ManagedMiB": 166.29169464111328
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3862.5625,
+      "PrivateMiB": 3827.87890625,
+      "ManagedMiB": 163.15711212158203
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 3952.87109375,
+      "PrivateMiB": 3919.56640625,
+      "ManagedMiB": 167.47945404052734
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4040.37890625,
+      "PrivateMiB": 4009.16015625,
+      "ManagedMiB": 164.25211334228516
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4126.3046875,
+      "PrivateMiB": 4096.5234375,
+      "ManagedMiB": 168.54534912109375
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4212.2109375,
+      "PrivateMiB": 4183.49609375,
+      "ManagedMiB": 164.1256332397461
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4297.14453125,
+      "PrivateMiB": 4269.77734375,
+      "ManagedMiB": 168.52361297607422
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4382.1875,
+      "PrivateMiB": 4356.01953125,
+      "ManagedMiB": 164.13180541992188
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4467.80078125,
+      "PrivateMiB": 4443.04296875,
+      "ManagedMiB": 168.12501525878906
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4555.60546875,
+      "PrivateMiB": 4532.265625,
+      "ManagedMiB": 163.48529052734375
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4639.1484375,
+      "PrivateMiB": 4617.25390625,
+      "ManagedMiB": 167.55653381347656
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4727.87890625,
+      "PrivateMiB": 4707.78515625,
+      "ManagedMiB": 172.75575256347656
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4811.734375,
+      "PrivateMiB": 4793.05859375,
+      "ManagedMiB": 167.90599060058594
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4896.24609375,
+      "PrivateMiB": 4878.81640625,
+      "ManagedMiB": 172.063232421875
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 4985.3359375,
+      "PrivateMiB": 4969.234375,
+      "ManagedMiB": 167.30562591552734
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5074.39453125,
+      "PrivateMiB": 5059.6640625,
+      "ManagedMiB": 171.40752410888672
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5158.41015625,
+      "PrivateMiB": 5144.90234375,
+      "ManagedMiB": 166.8247299194336
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5228.5,
+      "PrivateMiB": 5216.15234375,
+      "ManagedMiB": 170.87349700927734
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5268.62109375,
+      "PrivateMiB": 5256.94921875,
+      "ManagedMiB": 165.76360321044922
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5309.3984375,
+      "PrivateMiB": 5298.40625,
+      "ManagedMiB": 169.28116607666016
+    },
+    {
+      "Phase": "all_20000_icons_ready",
+      "WorkingMiB": 5340.41015625,
+      "PrivateMiB": 5329.93359375,
+      "ManagedMiB": 172.93284606933594
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5346.2421875,
+      "PrivateMiB": 5335.02734375,
+      "ManagedMiB": 171.10155487060547
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5344.40625,
+      "PrivateMiB": 5332.578125,
+      "ManagedMiB": 122.96598815917969
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5343.08203125,
+      "PrivateMiB": 5330.4765625,
+      "ManagedMiB": 121.67145538330078
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5347.80078125,
+      "PrivateMiB": 5335.01953125,
+      "ManagedMiB": 121.49811553955078
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5343.80078125,
+      "PrivateMiB": 5330.95703125,
+      "ManagedMiB": 120.17889404296875
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5347.71875,
+      "PrivateMiB": 5331.48046875,
+      "ManagedMiB": 123.32623291015625
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5348.1796875,
+      "PrivateMiB": 5331.48046875,
+      "ManagedMiB": 121.40357971191406
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5344.69921875,
+      "PrivateMiB": 5327.37890625,
+      "ManagedMiB": 122.40876770019531
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5349.33984375,
+      "PrivateMiB": 5331.44921875,
+      "ManagedMiB": 121.4161376953125
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.09765625,
+      "PrivateMiB": 5331.4609375,
+      "ManagedMiB": 121.37200927734375
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.33203125,
+      "PrivateMiB": 5331.4609375,
+      "ManagedMiB": 121.89108276367188
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5346.61328125,
+      "PrivateMiB": 5327.39453125,
+      "ManagedMiB": 120.89888000488281
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5349.00390625,
+      "PrivateMiB": 5331.46484375,
+      "ManagedMiB": 121.57693481445312
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5349.984375,
+      "PrivateMiB": 5332.20703125,
+      "ManagedMiB": 121.90242004394531
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5352.48046875,
+      "PrivateMiB": 5332.08984375,
+      "ManagedMiB": 121.8728256225586
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5352.515625,
+      "PrivateMiB": 5332.09375,
+      "ManagedMiB": 121.7542953491211
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5345.5859375,
+      "PrivateMiB": 5324.73828125,
+      "ManagedMiB": 122.34800720214844
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5349.64453125,
+      "PrivateMiB": 5328.80078125,
+      "ManagedMiB": 122.63008880615234
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5349.70703125,
+      "PrivateMiB": 5328.80078125,
+      "ManagedMiB": 124.61246490478516
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.19140625,
+      "PrivateMiB": 5329.32421875,
+      "ManagedMiB": 125.21099853515625
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5347.03125,
+      "PrivateMiB": 5329.32421875,
+      "ManagedMiB": 119.88219451904297
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.73046875,
+      "PrivateMiB": 5329.84765625,
+      "ManagedMiB": 120.52630615234375
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.80078125,
+      "PrivateMiB": 5329.84765625,
+      "ManagedMiB": 121.86453247070312
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5350.82421875,
+      "PrivateMiB": 5329.84765625,
+      "ManagedMiB": 123.74199676513672
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5347.02734375,
+      "PrivateMiB": 5326.046875,
+      "ManagedMiB": 118.32825469970703
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5343.0234375,
+      "PrivateMiB": 5322.046875,
+      "ManagedMiB": 125.68403625488281
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5343.4609375,
+      "PrivateMiB": 5322.52734375,
+      "ManagedMiB": 118.43089294433594
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5347.92578125,
+      "PrivateMiB": 5326.9140625,
+      "ManagedMiB": 119.3254623413086
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5348.17578125,
+      "PrivateMiB": 5327.19921875,
+      "ManagedMiB": 122.06603240966797
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5344.13671875,
+      "PrivateMiB": 5327.2734375,
+      "ManagedMiB": 119.39552307128906
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5348.2109375,
+      "PrivateMiB": 5327.21875,
+      "ManagedMiB": 120.1156234741211
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5351.3984375,
+      "PrivateMiB": 5331.28125,
+      "ManagedMiB": 119.51177215576172
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5348.21484375,
+      "PrivateMiB": 5327.21875,
+      "ManagedMiB": 120.42719268798828
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5344.22265625,
+      "PrivateMiB": 5323.15234375,
+      "ManagedMiB": 120.3418960571289
+    },
+    {
+      "Phase": "library_scroll",
+      "WorkingMiB": 5348.2734375,
+      "PrivateMiB": 5327.21875,
+      "ManagedMiB": 121.47317504882812
+    },
+    {
+      "Phase": "library_search_Armor",
+      "WorkingMiB": 5344.375,
+      "PrivateMiB": 5323.15234375,
+      "ManagedMiB": 119.30150604248047
+    },
+    {
+      "Phase": "library_search_Armor",
+      "WorkingMiB": 5344.609375,
+      "PrivateMiB": 5323.15234375,
+      "ManagedMiB": 122.52880859375
+    },
+    {
+      "Phase": "library_search_Armor",
+      "WorkingMiB": 5348.765625,
+      "PrivateMiB": 5327.1796875,
+      "ManagedMiB": 128.4480972290039
+    },
+    {
+      "Phase": "library_search_",
+      "WorkingMiB": 5352.171875,
+      "PrivateMiB": 5331.2890625,
+      "ManagedMiB": 120.73580932617188
+    },
+    {
+      "Phase": "library_select_all",
+      "WorkingMiB": 5345.0078125,
+      "PrivateMiB": 5323.16796875,
+      "ManagedMiB": 122.21574401855469
+    },
+    {
+      "Phase": "library_select_all",
+      "WorkingMiB": 5345.140625,
+      "PrivateMiB": 5323.2109375,
+      "ManagedMiB": 120.51762390136719
+    },
+    {
+      "Phase": "library_clear_selection",
+      "WorkingMiB": 5348.17578125,
+      "PrivateMiB": 5326.2109375,
+      "ManagedMiB": 131.82769012451172
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5357.6953125,
+      "PrivateMiB": 5337.390625,
+      "ManagedMiB": 127.63758087158203
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.69921875,
+      "PrivateMiB": 5334.98828125,
+      "ManagedMiB": 127.21976470947266
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5353.22265625,
+      "PrivateMiB": 5330.9375,
+      "ManagedMiB": 123.64083862304688
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5353.57421875,
+      "PrivateMiB": 5330.93359375,
+      "ManagedMiB": 129.13170623779297
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5357.63671875,
+      "PrivateMiB": 5334.9921875,
+      "ManagedMiB": 127.06153869628906
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5358.890625,
+      "PrivateMiB": 5339.0546875,
+      "ManagedMiB": 123.94884490966797
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5359.05078125,
+      "PrivateMiB": 5339.0546875,
+      "ManagedMiB": 123.7385482788086
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5357.41796875,
+      "PrivateMiB": 5334.9921875,
+      "ManagedMiB": 125.70380401611328
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5359.25390625,
+      "PrivateMiB": 5339.015625,
+      "ManagedMiB": 125.77665710449219
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.1015625,
+      "PrivateMiB": 5334.9609375,
+      "ManagedMiB": 127.93402099609375
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5358.07421875,
+      "PrivateMiB": 5334.93359375,
+      "ManagedMiB": 123.91632843017578
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5358.08203125,
+      "PrivateMiB": 5334.9375,
+      "ManagedMiB": 130.07350158691406
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.03125,
+      "PrivateMiB": 5330.88671875,
+      "ManagedMiB": 127.96149444580078
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.0546875,
+      "PrivateMiB": 5330.8828125,
+      "ManagedMiB": 122.64820098876953
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.0625,
+      "PrivateMiB": 5330.8828125,
+      "ManagedMiB": 124.40957641601562
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.08203125,
+      "PrivateMiB": 5330.8828125,
+      "ManagedMiB": 126.58521270751953
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5359.3984375,
+      "PrivateMiB": 5336.203125,
+      "ManagedMiB": 122.72949981689453
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5363.578125,
+      "PrivateMiB": 5340.265625,
+      "ManagedMiB": 120.26750183105469
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.875,
+      "PrivateMiB": 5331.44140625,
+      "ManagedMiB": 125.09534454345703
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.89453125,
+      "PrivateMiB": 5331.49609375,
+      "ManagedMiB": 122.09801483154297
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5354.94921875,
+      "PrivateMiB": 5331.49609375,
+      "ManagedMiB": 131.97000885009766
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5359,
+      "PrivateMiB": 5335.5546875,
+      "ManagedMiB": 123.61558532714844
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5360.06640625,
+      "PrivateMiB": 5336.59765625,
+      "ManagedMiB": 122.52896881103516
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5357.66015625,
+      "PrivateMiB": 5336.59375,
+      "ManagedMiB": 125.55970001220703
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5356.015625,
+      "PrivateMiB": 5332.53515625,
+      "ManagedMiB": 123.23233032226562
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5359.87109375,
+      "PrivateMiB": 5336.59375,
+      "ManagedMiB": 127.60881805419922
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5356.02734375,
+      "PrivateMiB": 5332.53515625,
+      "ManagedMiB": 123.23383331298828
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5356.0859375,
+      "PrivateMiB": 5332.53515625,
+      "ManagedMiB": 128.60102081298828
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5356.0859375,
+      "PrivateMiB": 5332.53515625,
+      "ManagedMiB": 124.0339584350586
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5356.05859375,
+      "PrivateMiB": 5332.48046875,
+      "ManagedMiB": 129.1143035888672
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5364.23046875,
+      "PrivateMiB": 5340.5625,
+      "ManagedMiB": 128.45909118652344
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5366.7109375,
+      "PrivateMiB": 5343.03515625,
+      "ManagedMiB": 130.21102142333984
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5366.7109375,
+      "PrivateMiB": 5343.03515625,
+      "ManagedMiB": 125.48898315429688
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5362.66796875,
+      "PrivateMiB": 5338.9765625,
+      "ManagedMiB": 129.90328216552734
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5362.66796875,
+      "PrivateMiB": 5338.9765625,
+      "ManagedMiB": 125.19001007080078
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5362.671875,
+      "PrivateMiB": 5338.9765625,
+      "ManagedMiB": 125.4975357055664
+    },
+    {
+      "Phase": "profile_scroll",
+      "WorkingMiB": 5358.64453125,
+      "PrivateMiB": 5334.91796875,
+      "ManagedMiB": 121.95382690429688
+    },
+    {
+      "Phase": "profile_search_Perf 09999",
+      "WorkingMiB": 5359.14453125,
+      "PrivateMiB": 5335.42578125,
+      "ManagedMiB": 128.00914001464844
+    },
+    {
+      "Phase": "profile_select_all",
+      "WorkingMiB": 5359.234375,
+      "PrivateMiB": 5335.4296875,
+      "ManagedMiB": 123.22653198242188
+    },
+    {
+      "Phase": "profile_select_all",
+      "WorkingMiB": 5359.27734375,
+      "PrivateMiB": 5335.4296875,
+      "ManagedMiB": 127.7873306274414
+    },
+    {
+      "Phase": "profile_select_all",
+      "WorkingMiB": 5359.28125,
+      "PrivateMiB": 5335.390625,
+      "ManagedMiB": 126.85923767089844
+    },
+    {
+      "Phase": "profile_clear_selection",
+      "WorkingMiB": 5359.31640625,
+      "PrivateMiB": 5335.38671875,
+      "ManagedMiB": 124.09243774414062
+    },
+    {
+      "Phase": "profile_clear_selection",
+      "WorkingMiB": 5360.86328125,
+      "PrivateMiB": 5338.4453125,
+      "ManagedMiB": 124.41154479980469
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5360.875,
+      "PrivateMiB": 5338.4453125,
+      "ManagedMiB": 146.33394622802734
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5362.2109375,
+      "PrivateMiB": 5339.7890625,
+      "ManagedMiB": 163.98570251464844
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5362.2734375,
+      "PrivateMiB": 5339.7890625,
+      "ManagedMiB": 162.69020080566406
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5362.32421875,
+      "PrivateMiB": 5339.7890625,
+      "ManagedMiB": 167.32306671142578
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.46484375,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 162.70679473876953
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.53515625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 167.23123931884766
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.53515625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 162.69313049316406
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.59765625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 167.12377166748047
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.59765625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 163.0089874267578
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.59765625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 167.57349395751953
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.59765625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 163.3856201171875
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.66015625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 158.85521697998047
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.72265625,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 163.3634262084961
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.7109375,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 158.96576690673828
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.7109375,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 163.5600814819336
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.70703125,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 159.29647064208984
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.70703125,
+      "PrivateMiB": 5346.859375,
+      "ManagedMiB": 164.01520538330078
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.71484375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 159.4467544555664
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.71484375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 163.95587158203125
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.71484375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 159.39409637451172
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.71484375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 163.94845581054688
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.71484375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 159.70925903320312
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5369.77734375,
+      "PrivateMiB": 5346.78125,
+      "ManagedMiB": 163.99925231933594
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5371.34765625,
+      "PrivateMiB": 5348.5703125,
+      "ManagedMiB": 159.46226501464844
+    },
+    {
+      "Phase": "profile_refresh",
+      "WorkingMiB": 5371.4453125,
+      "PrivateMiB": 5348.625,
+      "ManagedMiB": 171.9938735961914
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5404.78125,
+      "PrivateMiB": 5382.2265625,
+      "ManagedMiB": 176.9116439819336
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5448.0546875,
+      "PrivateMiB": 5426.328125,
+      "ManagedMiB": 180.681396484375
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5490.51953125,
+      "PrivateMiB": 5469.49609375,
+      "ManagedMiB": 175.7444610595703
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5533.62890625,
+      "PrivateMiB": 5513.33203125,
+      "ManagedMiB": 179.2472381591797
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5576.2265625,
+      "PrivateMiB": 5556.6484375,
+      "ManagedMiB": 182.70049285888672
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5614.94921875,
+      "PrivateMiB": 5595.640625,
+      "ManagedMiB": 177.7362823486328
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5654.26171875,
+      "PrivateMiB": 5635.4296875,
+      "ManagedMiB": 182.33739471435547
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5686.0234375,
+      "PrivateMiB": 5667.45703125,
+      "ManagedMiB": 177.1027374267578
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5726.30859375,
+      "PrivateMiB": 5708.3984375,
+      "ManagedMiB": 181.7337417602539
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5773.1484375,
+      "PrivateMiB": 5757.51953125,
+      "ManagedMiB": 180.49018096923828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5814.203125,
+      "PrivateMiB": 5798.58984375,
+      "ManagedMiB": 185.11287689208984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5855.171875,
+      "PrivateMiB": 5840.30859375,
+      "ManagedMiB": 180.90633392333984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5899.328125,
+      "PrivateMiB": 5885.16015625,
+      "ManagedMiB": 185.6478271484375
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5939.46484375,
+      "PrivateMiB": 5925.875,
+      "ManagedMiB": 181.2588348388672
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 5985.96875,
+      "PrivateMiB": 5974.3984375,
+      "ManagedMiB": 188.97108459472656
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6026.78515625,
+      "PrivateMiB": 6015.97265625,
+      "ManagedMiB": 184.49908447265625
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6065.5703125,
+      "PrivateMiB": 6055.39453125,
+      "ManagedMiB": 188.98965454101562
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6109.1875,
+      "PrivateMiB": 6099.828125,
+      "ManagedMiB": 184.6199951171875
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6147.96484375,
+      "PrivateMiB": 6139.3359375,
+      "ManagedMiB": 188.96922302246094
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6192.6640625,
+      "PrivateMiB": 6184.703125,
+      "ManagedMiB": 184.6327667236328
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6236.5625,
+      "PrivateMiB": 6229.32421875,
+      "ManagedMiB": 189.17884063720703
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6278.1015625,
+      "PrivateMiB": 6271.38671875,
+      "ManagedMiB": 184.75733184814453
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6318.76171875,
+      "PrivateMiB": 6312.69921875,
+      "ManagedMiB": 189.00447845458984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6359.921875,
+      "PrivateMiB": 6354.234375,
+      "ManagedMiB": 184.69255828857422
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6404.02734375,
+      "PrivateMiB": 6399.15625,
+      "ManagedMiB": 189.22176361083984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6444.3203125,
+      "PrivateMiB": 6440.18359375,
+      "ManagedMiB": 184.77279663085938
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6488.55078125,
+      "PrivateMiB": 6485.06640625,
+      "ManagedMiB": 189.2351837158203
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6528.47265625,
+      "PrivateMiB": 6525.4140625,
+      "ManagedMiB": 184.6800308227539
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6570.2890625,
+      "PrivateMiB": 6567.94140625,
+      "ManagedMiB": 189.02144622802734
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6615.41796875,
+      "PrivateMiB": 6615.859375,
+      "ManagedMiB": 187.58162689208984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6657.86328125,
+      "PrivateMiB": 6658.98046875,
+      "ManagedMiB": 192.2357406616211
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6698.75390625,
+      "PrivateMiB": 6700.47265625,
+      "ManagedMiB": 187.67266845703125
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6741.05078125,
+      "PrivateMiB": 6743.55859375,
+      "ManagedMiB": 192.02240753173828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6783.90625,
+      "PrivateMiB": 6787.1796875,
+      "ManagedMiB": 187.41881561279297
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6826.625,
+      "PrivateMiB": 6830.73046875,
+      "ManagedMiB": 191.85468292236328
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6866.4609375,
+      "PrivateMiB": 6871.1796875,
+      "ManagedMiB": 187.34546661376953
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6910.08984375,
+      "PrivateMiB": 6915.28515625,
+      "ManagedMiB": 191.66368865966797
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6951.515625,
+      "PrivateMiB": 6957.0859375,
+      "ManagedMiB": 187.05056762695312
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 6995.57421875,
+      "PrivateMiB": 7001.90625,
+      "ManagedMiB": 191.3945083618164
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7035.10546875,
+      "PrivateMiB": 7042.11328125,
+      "ManagedMiB": 186.85321044921875
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7079.9609375,
+      "PrivateMiB": 7087.515625,
+      "ManagedMiB": 191.24014282226562
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7125.50390625,
+      "PrivateMiB": 7133.6640625,
+      "ManagedMiB": 195.47952270507812
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7166.3203125,
+      "PrivateMiB": 7174.98046875,
+      "ManagedMiB": 190.94086456298828
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7208.1171875,
+      "PrivateMiB": 7217.578125,
+      "ManagedMiB": 195.2271957397461
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7248.53125,
+      "PrivateMiB": 7258.296875,
+      "ManagedMiB": 190.72122955322266
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7291.84765625,
+      "PrivateMiB": 7302.25390625,
+      "ManagedMiB": 195.0828857421875
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7328.20703125,
+      "PrivateMiB": 7339.23828125,
+      "ManagedMiB": 189.92745971679688
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7368.49609375,
+      "PrivateMiB": 7380.26171875,
+      "ManagedMiB": 194.48723602294922
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7413.5625,
+      "PrivateMiB": 7425.9140625,
+      "ManagedMiB": 189.75496673583984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7453.625,
+      "PrivateMiB": 7466.4453125,
+      "ManagedMiB": 193.93953704833984
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7496.93359375,
+      "PrivateMiB": 7510.37109375,
+      "ManagedMiB": 189.24359130859375
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7537.78125,
+      "PrivateMiB": 7551.890625,
+      "ManagedMiB": 193.48916625976562
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7582.59765625,
+      "PrivateMiB": 7597.50390625,
+      "ManagedMiB": 188.6265869140625
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7620.9453125,
+      "PrivateMiB": 7636.48828125,
+      "ManagedMiB": 192.6383056640625
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7667.75,
+      "PrivateMiB": 7683.98046875,
+      "ManagedMiB": 196.70494079589844
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7712.6640625,
+      "PrivateMiB": 7729.66796875,
+      "ManagedMiB": 191.83466339111328
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7751.9453125,
+      "PrivateMiB": 7769.64453125,
+      "ManagedMiB": 195.81521606445312
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7797.15625,
+      "PrivateMiB": 7815.5546875,
+      "ManagedMiB": 190.90637969970703
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7839.28125,
+      "PrivateMiB": 7858.3984375,
+      "ManagedMiB": 194.94212341308594
+    },
+    {
+      "Phase": "profile_refreshed_icons_ready",
+      "WorkingMiB": 7877.6484375,
+      "PrivateMiB": 7897.42578125,
+      "ManagedMiB": 189.96041870117188
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7898.453125,
+      "PrivateMiB": 7918.3984375,
+      "ManagedMiB": 193.80137634277344
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7899.76171875,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 188.5780258178711
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7899.76171875,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 192.28713989257812
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7899.828125,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 196.10650634765625
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7900.04296875,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 190.8515396118164
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7900.05859375,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 194.8105926513672
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7900.0546875,
+      "PrivateMiB": 7919.7109375,
+      "ManagedMiB": 189.7376937866211
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7901.9296875,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 193.46269989013672
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7901.94140625,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 188.3354721069336
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7902.06640625,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 192.1305923461914
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7902.15625,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 195.7133331298828
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7902.21875,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 190.3300018310547
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7902.2265625,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 194.1639862060547
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7902.22265625,
+      "PrivateMiB": 7921.765625,
+      "ManagedMiB": 188.93386840820312
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7903.46875,
+      "PrivateMiB": 7923.03125,
+      "ManagedMiB": 192.65128326416016
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7903.46875,
+      "PrivateMiB": 7923.03125,
+      "ManagedMiB": 196.43758392333984
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7903.46875,
+      "PrivateMiB": 7923.03125,
+      "ManagedMiB": 190.9419937133789
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7903.47265625,
+      "PrivateMiB": 7923.03125,
+      "ManagedMiB": 194.541015625
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7903.53125,
+      "PrivateMiB": 7923.03125,
+      "ManagedMiB": 189.13015747070312
+    },
+    {
+      "Phase": "steady_state",
+      "WorkingMiB": 7908.58203125,
+      "PrivateMiB": 7927.93359375,
+      "ManagedMiB": 196.42396545410156
+    }
+  ],
+  "SqlFlood": {
+    "Statements": 1025626,
+    "Writes": 51285,
+    "ElapsedMs": 91350.4666,
+    "StatementsPerSecond": 11227.373709971229,
+    "Workers": [
+      {
+        "Worker": 0,
+        "Statements": 273701,
+        "Writes": 13686,
+        "Rows": 260015,
+        "LatencyMs": {
+          "Count": 273701,
+          "P50": 0.0223,
+          "P95": 0.5949,
+          "P99": 0.808,
+          "Max": 1558.8999,
+          "Over50": 210,
+          "Over100": 210
+        }
+      },
+      {
+        "Worker": 1,
+        "Statements": 253343,
+        "Writes": 12668,
+        "Rows": 240675,
+        "LatencyMs": {
+          "Count": 253343,
+          "P50": 0.0222,
+          "P95": 0.5906,
+          "P99": 0.7957,
+          "Max": 1089.8929,
+          "Over50": 219,
+          "Over100": 219
+        }
+      },
+      {
+        "Worker": 2,
+        "Statements": 260101,
+        "Writes": 13006,
+        "Rows": 247095,
+        "LatencyMs": {
+          "Count": 260101,
+          "P50": 0.0218,
+          "P95": 0.5841,
+          "P99": 0.793,
+          "Max": 1559.5743,
+          "Over50": 225,
+          "Over100": 225
+        }
+      },
+      {
+        "Worker": 3,
+        "Statements": 238481,
+        "Writes": 11925,
+        "Rows": 226556,
+        "LatencyMs": {
+          "Count": 238481,
+          "P50": 0.0217,
+          "P95": 0.5794,
+          "P99": 0.7895,
+          "Max": 1714.298,
+          "Over50": 225,
+          "Over100": 225
+        }
+      }
+    ]
+  },
+  "Gen0": 373,
+  "Gen1": 204,
+  "Gen2": 85
+}

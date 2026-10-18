@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Controls.ModCompatibilityOverlay" x:DataType="vm:ModCompatibilityViewModel"
+             IsVisible="{Binding IsOpen, FallbackValue=False}" Focusable="True"
+             KeyboardNavigation.TabNavigation="Cycle">
+  <UserControl.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></UserControl.Styles>
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:CompatibilityDetailRow" x:DataType="vm:CompatibilityDetailRow">
+      <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="8,10">
+        <StackPanel Spacing="4"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Classes="caption-text"/></StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <Border Background="{DynamicResource OverlayScrimBrush}">
+    <Border x:Name="CompatibilitySurface" Background="{DynamicResource Surface2Brush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource OverlayCornerRadius}"
+            Padding="16" Margin="16" MaxWidth="1120" MaxHeight="760" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+      <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3"><TextBlock x:Name="CompatibilityTitle" Text="{loc:Loc Compatibility.Title}" Classes="section-title"/>
+            <TextBlock Text="{Binding ScopeName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ScopeName}"/></StackPanel>
+          <Button x:Name="CloseCompatibilityButton" Grid.Column="1" Classes="icon-button" Command="{Binding CloseCommand}" ToolTip.Tip="{loc:Loc Common.Close}"><controls:UtilityIcon Kind="Close"/></Button>
+        </Grid>
+        <StackPanel Grid.Row="1" Spacing="4">
+          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{loc:Loc Compatibility.ScopeHelp}" Classes="caption-text" MaxHeight="38" TextTrimming="WordEllipsis" TextWrapping="Wrap" ToolTip.Tip="{loc:Loc Compatibility.ScopeHelp}"/>
+        </StackPanel>
+        <Grid Grid.Row="2" ColumnDefinitions="180,*" ColumnSpacing="12">
+          <ListBox x:Name="CompatibilityModList" ItemsSource="{Binding Mods}" SelectedItem="{Binding SelectedMod}" IsEnabled="{Binding IsIdle}">
+            <ListBox.ItemTemplate><DataTemplate x:DataType="vm:CompatibilityModRow">
+              <StackPanel Spacing="4" Margin="2,5"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                <TextBlock Text="{Binding Status}" Classes="caption-text" TextWrapping="Wrap"/></StackPanel>
+            </DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="6">
+            <TextBlock Text="{Binding SelectedSummary}" TextWrapping="Wrap" MaxHeight="46" TextTrimming="WordEllipsis" ToolTip.Tip="{Binding SelectedSummary}"/>
+            <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTab}">
+              <TabItem Header="{loc:Loc Compatibility.CheckTab}">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                  <TextBlock Text="{loc:Loc Compatibility.ResultHelp}" TextWrapping="Wrap" Classes="caption-text" MaxHeight="50" TextTrimming="WordEllipsis" ToolTip.Tip="{loc:Loc Compatibility.ResultHelp}"/>
+                  <ListBox x:Name="CompatibilityDetailsList" Grid.Row="1" ItemsSource="{Binding Details}"/>
+                  <WrapPanel Grid.Row="2" IsEnabled="{Binding IsIdle}">
+                    <Button x:Name="RecheckCompatibilityButton" Content="{loc:Loc Compatibility.Check}" Command="{Binding CheckCommand}" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc Compatibility.RefreshNames}" Command="{Binding RefreshNamesCommand}" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc Compatibility.CopyReport}" Click="CopyReport" Margin="0,0,0,4"/>
+                  </WrapPanel>
+                </Grid>
+              </TabItem>
+              <TabItem Header="{loc:Loc Compatibility.RepairTab}">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
+                  <WrapPanel IsEnabled="{Binding IsIdle}">
+                    <CheckBox Content="{loc:Loc Compatibility.Metadata}" IsChecked="{Binding RepairMetadata}" Margin="0,0,12,0"/>
+                    <CheckBox Content="{loc:Loc Compatibility.Companions}" IsChecked="{Binding RecoverCompanions}" Margin="0,0,12,0"/>
+                    <CheckBox Content="{loc:Loc Compatibility.Units}" IsChecked="{Binding RepairUnits}" Margin="0,0,12,0"/>
+                    <CheckBox Content="{loc:Loc Compatibility.Materials}" IsChecked="{Binding MigrateMaterials}"/>
+                  </WrapPanel>
+                  <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="10" IsEnabled="{Binding IsIdle}">
+                    <TextBlock Text="{loc:Loc Compatibility.Lod}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="CompatibilityLodInput" Grid.Column="1" ItemsSource="{Binding LodChoices}" SelectedValueBinding="{Binding Value}" SelectedValue="{Binding LodStrategy}" HorizontalAlignment="Stretch">
+                      <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:CompatibilityLodChoice"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </Grid>
+                  <Grid Grid.Row="2" RowDefinitions="Auto,Auto" IsVisible="{Binding IsMixed}" IsEnabled="{Binding IsIdle}">
+                    <TextBlock Text="{loc:Loc Compatibility.MixedHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                    <ListBox Grid.Row="1" ItemsSource="{Binding UnitChoices}" MaxHeight="84">
+                      <ListBox.ItemTemplate><DataTemplate x:DataType="vm:CompatibilityUnitChoice"><CheckBox Content="{Binding Label}" IsChecked="{Binding PreserveLod}"/></DataTemplate></ListBox.ItemTemplate>
+                    </ListBox>
+                  </Grid>
+                  <WrapPanel Grid.Row="3" IsEnabled="{Binding IsIdle}">
+                    <Button x:Name="PreviewSelectedCompatibilityButton" Content="{loc:Loc Compatibility.PreviewSelected}" Command="{Binding PreviewSelectedCommand}" IsEnabled="{Binding CanPreviewSelected}" Margin="0,0,8,4"/>
+                    <Button x:Name="PreviewScopeCompatibilityButton" Content="{loc:Loc Compatibility.PreviewScope}" Command="{Binding PreviewScopeCommand}" Margin="0,0,0,4"/>
+                  </WrapPanel>
+                  <ListBox x:Name="CompatibilityPlanList" Grid.Row="4" ItemsSource="{Binding PlanDetails}"/>
+                  <WrapPanel Grid.Row="5">
+                    <Button x:Name="RepairSelectedCompatibilityButton" Classes="accent" Content="{loc:Loc Compatibility.RepairSelected}" Command="{Binding RepairSelectedCommand}" IsEnabled="{Binding CanRepairSelected}" Margin="0,0,8,4"/>
+                    <Button x:Name="RepairScopeCompatibilityButton" Content="{loc:Loc Compatibility.RepairScope}" Command="{Binding RepairScopeCommand}" IsVisible="{Binding EnableBatchRepair}" IsEnabled="{Binding CanRepairScope}" Margin="0,0,0,4"/>
+                  </WrapPanel>
+                </Grid>
+              </TabItem>
+              <TabItem Header="{loc:Loc Compatibility.BackupsTab}">
+                <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
+                  <TextBlock Text="{loc:Loc Compatibility.BackupHelp}" TextWrapping="Wrap" Classes="caption-text"/>
+                  <ListBox x:Name="CompatibilityBackupList" Grid.Row="1" ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}" IsEnabled="{Binding IsIdle}">
+                    <ListBox.ItemTemplate><DataTemplate x:DataType="vm:CompatibilityBackupChoice"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/></DataTemplate></ListBox.ItemTemplate>
+                  </ListBox>
+                  <TextBlock Grid.Row="2" Text="{Binding SelectedBackupDetails}" TextWrapping="Wrap" MaxHeight="84" TextTrimming="WordEllipsis" ToolTip.Tip="{Binding SelectedBackupDetails}" Classes="caption-text"/>
+                  <WrapPanel Grid.Row="3" IsEnabled="{Binding IsIdle}">
+                    <Button Content="{loc:Loc Compatibility.RefreshBackups}" Command="{Binding RefreshBackupsCommand}" Margin="0,0,8,4"/>
+                    <Button x:Name="RestoreCompatibilityBackupButton" Content="{loc:Loc Compatibility.Restore}" Command="{Binding RestoreBackupCommand}" IsEnabled="{Binding SelectedBackup.Entry.CanRestore, FallbackValue=False}" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc Compatibility.Rollback}" Command="{Binding RollbackCommand}" IsEnabled="{Binding SelectedBackup.Entry.CanRestore, FallbackValue=False}" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc Compatibility.DeleteBackup}" Command="{Binding DeleteBackupCommand}" IsEnabled="{Binding SelectedBackup, Converter={StaticResource NotNullConverter}}" Margin="0,0,8,4"/>
+                    <Button Content="{loc:Loc Compatibility.CleanBackups}" Command="{Binding CleanBackupsCommand}" Margin="0,0,0,4"/>
+                  </WrapPanel>
+                </Grid>
+              </TabItem>
+            </TabControl>
+            <TextBlock Grid.Row="2" Text="{Binding SelectedOperation}" TextWrapping="Wrap" MaxHeight="64" TextTrimming="WordEllipsis" ToolTip.Tip="{Binding SelectedOperation}" Foreground="{DynamicResource WarningBrush}"/>
+          </Grid>
+        </Grid>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="6">
+          <StackPanel Spacing="4"><TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap" MaxHeight="44" TextTrimming="WordEllipsis" ToolTip.Tip="{loc:LocalizedBinding Message}"/>
+            <TextBlock Text="{Binding ProgressText}" Classes="caption-text" TextTrimming="CharacterEllipsis"/></StackPanel>
+          <Button x:Name="CancelCompatibilityButton" Grid.Column="1" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
+          <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
+        </Grid>
+      </Grid>
+    </Border>
+  </Border>
+</UserControl>

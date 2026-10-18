@@ -23,6 +23,7 @@ public partial class SettingsViewModel
         new EntryVisibilityOption("settings.profiles", "配置文件"),
         new EntryVisibilityOption("settings.deployment", "部署"),
         new EntryVisibilityOption("settings.library", "模组库"),
+        new EntryVisibilityOption("settings.compatibility", "兼容性"),
         new EntryVisibilityOption("settings.downloads", "下载"),
         new EntryVisibilityOption("settings.account", "账号"),
         new EntryVisibilityOption("settings.storage", "存储位置"),

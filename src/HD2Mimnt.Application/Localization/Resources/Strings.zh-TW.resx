@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -3889,6 +3889,8 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Creator.OptionName" xml:space="preserve"><value>選項名稱 *</value></data>
   <data name="Creator.DefaultEnabled" xml:space="preserve"><value>預設啟用（不確定狀態沿用管理器預設值）</value></data>
   <data name="Creator.OptionImage" xml:space="preserve"><value>預覽圖片（相對路徑）</value></data>
+  <data name="Creator.ViewImage" xml:space="preserve"><value>查看圖片</value></data>
+  <data name="Creator.ImageUnavailable" xml:space="preserve"><value>無法讀取圖片，請確認圖片位於來源目錄內且路徑正確。</value></data>
   <data name="Creator.HasMapping" xml:space="preserve"><value>指定包含目錄</value></data>
   <data name="Creator.AddDirectory" xml:space="preserve"><value>選擇目錄</value></data>
   <data name="Creator.MappingHint" xml:space="preserve"><value>每行一個相對目錄，用 . 表示根目錄；只包含目錄直屬補丁。勾選但留空表示無檔案；取消勾選則不寫 Include（父選項可由子選項提供映射，葉選項缺少映射可能回退全量部署）。</value></data>
@@ -4030,4 +4032,122 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="IAS.GoInstall" xml:space="preserve"><value>前往安裝 HD2IAS</value></data>
   <data name="IAS.DataRequired" xml:space="preserve"><value>模組庫中的 HD2IAS data 缺失或無效。請選擇相符的執行套件，執行安裝或修復以產生庫內 data，再透過設定檔部署。</value></data>
   <data name="IAS.GoRepairData" xml:space="preserve"><value>前往修復 HD2IAS data</value></data>
+  <data name="Compatibility.Title" xml:space="preserve"><value>模型相容性檢查與修復</value></data>
+  <data name="Compatibility.Open" xml:space="preserve"><value>開啟相容性檢查</value></data>
+  <data name="Compatibility.LibraryScope" xml:space="preserve"><value>模組庫全部模組</value></data>
+  <data name="Compatibility.SelectionScope" xml:space="preserve"><value>所選模組</value></data>
+  <data name="Compatibility.ProfileScope" xml:space="preserve"><value>設定檔：{0}</value></data>
+  <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} 個模組 · {1} 模型通過 · {2} 需處理 · {3} 未確認 · {4} 檢測失敗 · {5} 無需模型檢測</value></data>
+  <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} 個補丁 · {3} 個 Unit · {4:yyyy-MM-dd HH:mm:ss}</value></data>
+  <data name="Compatibility.ScopeHelp" xml:space="preserve"><value>只比較各變體中的模型 Unit 版本。Lua、骨骼、動畫及音效不參與判定；TOC 和 GPU 診斷僅供詳細資料與修復驗證，不代表版本不相容。</value></data>
+  <data name="Compatibility.DetailHelp" xml:space="preserve"><value>檢查此模組、預覽修復計畫並管理修復備份。</value></data>
+  <data name="Compatibility.ResultHelp" xml:space="preserve"><value>依資源 ID 比較模型與目前遊戲版本。未找到參考的模型單獨列出；格式警告保留於詳細資料，不覆蓋已匹配結果。</value></data>
+  <data name="Compatibility.CheckTab" xml:space="preserve"><value>檢查結果</value></data>
+  <data name="Compatibility.RepairTab" xml:space="preserve"><value>修復預覽</value></data>
+  <data name="Compatibility.BackupsTab" xml:space="preserve"><value>備份管理</value></data>
+  <data name="Compatibility.Check" xml:space="preserve"><value>重新檢查</value></data>
+  <data name="Compatibility.Checking" xml:space="preserve"><value>正在檢查模組…</value></data>
+  <data name="Compatibility.CheckComplete" xml:space="preserve"><value>檢查完成。</value></data>
+  <data name="Compatibility.RefreshNames" xml:space="preserve"><value>更新護甲名稱</value></data>
+  <data name="Compatibility.CopyReport" xml:space="preserve"><value>複製報告</value></data>
+  <data name="Compatibility.Copied" xml:space="preserve"><value>報告已複製。</value></data>
+  <data name="Compatibility.Metadata" xml:space="preserve"><value>中繼資料</value></data>
+  <data name="Compatibility.Companions" xml:space="preserve"><value>還原 stream/GPU</value></data>
+  <data name="Compatibility.Units" xml:space="preserve"><value>Unit / 佈局</value></data>
+  <data name="Compatibility.Materials" xml:space="preserve"><value>材質遷移</value></data>
+  <data name="Compatibility.Lod" xml:space="preserve"><value>LOD 策略</value></data>
+  <data name="Compatibility.Lod.Automatic" xml:space="preserve"><value>自動選擇（建議）</value></data>
+  <data name="Compatibility.Lod.PreserveMod" xml:space="preserve"><value>保留模組 LOD</value></data>
+  <data name="Compatibility.Lod.UseGameReference" xml:space="preserve"><value>使用遊戲 LOD</value></data>
+  <data name="Compatibility.Lod.Mixed" xml:space="preserve"><value>逐個 Unit 選擇</value></data>
+  <data name="Compatibility.MixedHelp" xml:space="preserve"><value>目前模組：勾選的 Unit 保留模組 LOD；未勾選的使用遊戲參考。</value></data>
+  <data name="Compatibility.PreviewSelected" xml:space="preserve"><value>預覽此模組</value></data>
+  <data name="Compatibility.PreviewScope" xml:space="preserve"><value>預覽範圍內全部</value></data>
+  <data name="Compatibility.Previewing" xml:space="preserve"><value>正在產生修復預覽…</value></data>
+  <data name="Compatibility.PreviewComplete" xml:space="preserve"><value>預覽完成，僅可執行無阻擋項目的修復計畫。</value></data>
+  <data name="Compatibility.RepairSelected" xml:space="preserve"><value>修復此模組</value></data>
+  <data name="Compatibility.RepairScope" xml:space="preserve"><value>修復已預覽模組</value></data>
+  <data name="Compatibility.Repair" xml:space="preserve"><value>確認相容性修復</value></data>
+  <data name="Compatibility.ConfirmRepair" xml:space="preserve"><value>將對 {0} 個模組執行預覽中的 {1} 項操作，自動備份原檔案。修復後需重新部署才能更新遊戲。是否繼續？</value></data>
+  <data name="Compatibility.Repairing" xml:space="preserve"><value>正在修復模組…</value></data>
+  <data name="Compatibility.RepairComplete" xml:space="preserve"><value>已修復 {0} 個模組，失敗 {1} 個；請重新部署已變更的模組。</value></data>
+  <data name="Compatibility.BackupHelp" xml:space="preserve"><value>選擇模組後重新整理備份。可還原單個檔案，或依所選時間點回復全部檔案。</value></data>
+  <data name="Compatibility.RefreshBackups" xml:space="preserve"><value>重新整理備份</value></data>
+  <data name="Compatibility.Restore" xml:space="preserve"><value>還原檔案</value></data>
+  <data name="Compatibility.Rollback" xml:space="preserve"><value>回復至此時間</value></data>
+  <data name="Compatibility.ConfirmRestore" xml:space="preserve"><value>是否還原所選檔案備份？目前檔案將先備份。完成後需重新部署。</value></data>
+  <data name="Compatibility.ConfirmRollback" xml:space="preserve"><value>是否將此模組回復至所選備份的時間點？目前檔案將先備份。完成後需重新部署。</value></data>
+  <data name="Compatibility.Restored" xml:space="preserve"><value>還原完成，請重新部署此模組。</value></data>
+  <data name="Compatibility.RestoreFailed" xml:space="preserve"><value>還原失敗，請查看操作詳情。</value></data>
+  <data name="Compatibility.DeleteBackup" xml:space="preserve"><value>刪除備份</value></data>
+  <data name="Compatibility.ConfirmDeleteBackup" xml:space="preserve"><value>是否永久刪除所選備份？</value></data>
+  <data name="Compatibility.CleanBackups" xml:space="preserve"><value>每檔案保留最近 3 份</value></data>
+  <data name="Compatibility.ConfirmCleanBackups" xml:space="preserve"><value>是否刪除較早備份，每個檔案僅保留最近 3 份？</value></data>
+  <data name="Compatibility.BackupValid" xml:space="preserve"><value>驗證通過，可還原</value></data>
+  <data name="Compatibility.Canceled" xml:space="preserve"><value>已取消，已提交的變更與還原詳情仍保留。</value></data>
+  <data name="Compatibility.Stale" xml:space="preserve"><value>模組內容已變更，請重新檢查後再預覽修復。</value></data>
+  <data name="Compatibility.Compatible" xml:space="preserve"><value>模型版本已符合</value></data>
+  <data name="Compatibility.Incompatible" xml:space="preserve"><value>模型版本不符</value></data>
+  <data name="Compatibility.Unknown" xml:space="preserve"><value>未確認</value></data>
+  <data name="Compatibility.Error" xml:space="preserve"><value>檢測失敗</value></data>
+  <data name="Compatibility.NotApplicable" xml:space="preserve"><value>無需模型檢測</value></data>
+  <data name="Compatibility.Scope" xml:space="preserve"><value>檢測範圍</value></data>
+  <data name="Compatibility.NoModels" xml:space="preserve"><value>未包含模型 Unit。Lua、骨骼、動畫和音效不屬於此項檢測範圍，不執行模型修復。</value></data>
+  <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>未確認：{0}</value></data>
+  <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>未設定遊戲目錄</value></data>
+  <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>無法讀取目前遊戲參考</value></data>
+  <data name="Compatibility.Reason.NoComparableUnits" xml:space="preserve"><value>未找到可比對的遊戲模型，可能是自訂模型</value></data>
+  <data name="Compatibility.Reason.ModelDataUnreadable" xml:space="preserve"><value>無法讀取模型版本，請查看檔案讀取詳細資料</value></data>
+  <data name="Compatibility.ComparisonCoverage" xml:space="preserve"><value>已比對 {0}/{1} 個模型 Unit；{2} 個無可用參考，未參與版本判斷。</value></data>
+  <data name="Compatibility.Unchecked" xml:space="preserve"><value>未檢查</value></data>
+  <data name="Compatibility.Issue" xml:space="preserve"><value>診斷資訊</value></data>
+  <data name="Compatibility.Source" xml:space="preserve"><value>遊戲參考與護甲名稱來源</value></data>
+  <data name="Compatibility.Blocked" xml:space="preserve"><value>已阻擋</value></data>
+  <data name="Compatibility.Warning" xml:space="preserve"><value>警告</value></data>
+  <data name="Compatibility.Yes" xml:space="preserve"><value>是</value></data>
+  <data name="Compatibility.No" xml:space="preserve"><value>否</value></data>
+  <data name="Compatibility.PatchDetails" xml:space="preserve"><value>{0} · {1:N0} B
+TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5}</value></data>
+  <data name="Compatibility.UnitDetails" xml:space="preserve"><value>{0}
+版本：{1} → {2} · {3}
+主資料：{4:N0} B · stream：{5:N0} B · GPU：{6:N0} B</value></data>
+  <data name="Compatibility.Reference.Found" xml:space="preserve"><value>已找到遊戲參考</value></data>
+  <data name="Compatibility.Reference.Missing" xml:space="preserve"><value>缺少遊戲參考</value></data>
+  <data name="Compatibility.Reference.Ambiguous" xml:space="preserve"><value>遊戲參考不唯一</value></data>
+  <data name="Compatibility.Reference.Error" xml:space="preserve"><value>遊戲參考錯誤</value></data>
+  <data name="Compatibility.State.NoAction" xml:space="preserve"><value>沒有可執行的修復操作。</value></data>
+  <data name="Compatibility.State.Repairable" xml:space="preserve"><value>計畫可執行，確認後修復。</value></data>
+  <data name="Compatibility.State.Blocked" xml:space="preserve"><value>修復已阻擋，請查看計畫。</value></data>
+  <data name="Compatibility.State.Repaired" xml:space="preserve"><value>已修復，請重新部署此模組。</value></data>
+  <data name="Compatibility.State.Failed" xml:space="preserve"><value>操作失敗。</value></data>
+  <data name="Compatibility.Reference.Unknown" xml:space="preserve"><value>未設定遊戲參考</value></data>
+  <data name="Compatibility.Action.EntryIndex" xml:space="preserve"><value>資源項目序號</value></data>
+  <data name="Compatibility.Action.TypeResourceCount" xml:space="preserve"><value>資源類型計數</value></data>
+  <data name="Compatibility.Action.ResourceTypeId" xml:space="preserve"><value>資源類型 ID</value></data>
+  <data name="Compatibility.Action.TypeAlignment" xml:space="preserve"><value>資源類型對齊</value></data>
+  <data name="Compatibility.Action.MainDataOffset" xml:space="preserve"><value>主資料偏移</value></data>
+  <data name="Compatibility.Action.UnitDataSize" xml:space="preserve"><value>Unit 資料長度</value></data>
+  <data name="Compatibility.Action.CompanionRecovery" xml:space="preserve"><value>還原伴隨檔案</value></data>
+  <data name="Compatibility.Action.MaterialMigration" xml:space="preserve"><value>材質遷移</value></data>
+  <data name="Compatibility.Action.UnitMigration" xml:space="preserve"><value>Unit 遷移</value></data>
+  <data name="Settings.Compatibility.Title" xml:space="preserve"><value>相容性</value></data>
+  <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>啟動時檢查模組相容性</value></data>
+  <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>預設關閉。儲存後下次啟動在背景檢查全庫，完成後可從通知查看結果，不會自動修復。</value></data>
+  <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>允許批次修復</value></data>
+  <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>預設關閉。開啟後在修復預覽顯示批次修復按鈕，執行前仍需確認。</value></data>
+  <data name="Settings.Compatibility.Help" xml:space="preserve"><value>儲存後生效。單一模組檢查、預覽與修復始終可用，入口位於模組庫、設定檔與模組詳細資訊。</value></data>
+  <data name="Settings.Compatibility.Saved" xml:space="preserve"><value>相容性設定已儲存</value></data>
+  <data name="Settings.Compatibility.Reset" xml:space="preserve"><value>相容性設定已還原預設值</value></data>
+  <data name="Settings.Compatibility.ShowResults" xml:space="preserve"><value>查看檢查結果</value></data>
+  <data name="Settings.Compatibility.Data.Title" xml:space="preserve"><value>遊戲參考資料</value></data>
+  <data name="Settings.Compatibility.Data.Help" xml:space="preserve"><value>從設定的遊戲目錄建構並儲存索引，重新啟動後重用。啟動、進入此頁與相容性讀取時偵測封存檔變更，過期自動重建；不複製整份遊戲資源。護甲名稱線上快取每天按需更新，也可手動更新。</value></data>
+  <data name="Settings.Compatibility.Data.NotLoaded" xml:space="preserve"><value>正在讀取快取狀態</value></data>
+  <data name="Settings.Compatibility.Data.State.Missing" xml:space="preserve"><value>尚未建構</value></data>
+  <data name="Settings.Compatibility.Data.State.Ready" xml:space="preserve"><value>已儲存，可重用</value></data>
+  <data name="Settings.Compatibility.Data.State.Stale" xml:space="preserve"><value>已過期，需重建</value></data>
+  <data name="Settings.Compatibility.Data.State.Unavailable" xml:space="preserve"><value>遊戲目錄無法使用</value></data>
+  <data name="Settings.Compatibility.Data.Status" xml:space="preserve"><value>{0} · 建構於 {1}&#10;{2:N0} 個封存套件 · {3:N0} 個 Unit&#10;{4}</value></data>
+  <data name="Settings.Compatibility.Data.Build" xml:space="preserve"><value>建構並儲存 / 重新建構</value></data>
+  <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>遊戲參考索引已建構並儲存</value></data>
+  <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>名稱資料已更新：{0:N0} 個資源，{1:N0} 個封存檔</value></data>
 </root>

@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Enums;
@@ -29,6 +29,7 @@ public partial class ProfileViewModel
         if (profileMod is not { IsSeparator: false, SourceInfo: { } detail }
             || !ProfileMods.Contains(profileMod)) return;
         CloseDetailPanel();
+        detail.CheckCompatibilityCommand = Compatibility == null ? null : new AsyncRelayCommand(() => Compatibility.OpenAsync([detail], detail.Name));
         detail.LocalVersions = LocalVersions;
         LocalVersions.Open(detail);
         detail.IsInCurrentProfile = true;

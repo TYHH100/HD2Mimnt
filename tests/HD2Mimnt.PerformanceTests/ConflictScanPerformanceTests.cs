@@ -16,6 +16,7 @@ public sealed class ConflictScanPerformanceTests(ITestOutputHelper output)
     [Theory]
     [InlineData(1000, 1000)]
     [InlineData(5000, 200)]
+    [InlineData(10000, 100)]
     public async Task ScanLargeProfile_FirstAndRepeatedPass(int modCount, int resourcesPerMod)
     {
         var root = Path.Combine(Path.GetTempPath(), $"HD2Mimnt-ConflictPerf-{Guid.NewGuid():N}");

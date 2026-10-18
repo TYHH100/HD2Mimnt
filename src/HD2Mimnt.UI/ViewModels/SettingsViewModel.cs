@@ -58,6 +58,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _importAutoClose;
     [ObservableProperty] private bool _keepModVersions;
     [ObservableProperty] private bool _allowDuplicateImports;
+    [ObservableProperty] private bool _compatibilityCheckOnStartup;
+    [ObservableProperty] private bool _compatibilityEnableBatchRepair;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -89,6 +91,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsProfileCategoryVisible => SelectedCategory == "配置文件";
     public bool IsDeploymentCategoryVisible => SelectedCategory == "部署";
     public bool IsLibraryCategoryVisible => SelectedCategory == "模组库";
+    public bool IsCompatibilityCategoryVisible => SelectedCategory == "兼容性";
     public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
     public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
@@ -98,7 +101,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
-        IConfirmationService? confirmationService = null)
+        IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null)
     {
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
@@ -108,6 +111,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageSettings = storageSettings;
         _localization = localization;
         _confirmationService = confirmationService;
+        _compatibilityService = compatibilityService;
         NexusAccount = nexusAccount;
         AyakaAccount = ayakaAccount;
         LanguageOptions = new[] { new LanguageInfo(LanguageCodes.Automatic, "跟随系统") }
@@ -156,6 +160,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (!IsChangingLanguage) SynchronizeLanguage();
         OnPropertyChanged(nameof(CurrentLanguageText));
         OnPropertyChanged(nameof(ActiveStoragePaths));
+        OnPropertyChanged(nameof(CompatibilityDataStatusText));
     }
 
     private void SynchronizeLanguage()
@@ -168,6 +173,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _compatibilityDataOperation?.Cancel();
         if (_localization != null) _localization.PropertyChanged -= OnUiLanguageChanged;
         NexusAccount?.Dispose();
     }
@@ -187,12 +193,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsProfileCategoryVisible));
         OnPropertyChanged(nameof(IsDeploymentCategoryVisible));
         OnPropertyChanged(nameof(IsLibraryCategoryVisible));
+        OnPropertyChanged(nameof(IsCompatibilityCategoryVisible));
         OnPropertyChanged(nameof(IsAppearanceCategoryVisible));
         OnPropertyChanged(nameof(IsCacheCategoryVisible));
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
         OnPropertyChanged(nameof(IsEntriesCategoryVisible));
+        if (value == "兼容性") _ = UpdateStaleCompatibilityDataAsync();
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
@@ -219,6 +227,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
+            LoadCompatibilitySettings();
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
             DefaultDeploymentMethod = Enum.TryParse<DeploymentMethod>(method, out var parsed) ? parsed : DeploymentMethod.Copy;
@@ -259,6 +268,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 await SaveEntryVisibilityAsync();
                 StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Entries.Saved"];
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
+            if (IsCompatibilityCategoryVisible)
+            {
+                await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+                {
+                    [SettingKeys.CompatibilityCheckOnStartup] = CompatibilityCheckOnStartup,
+                    [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair
+                });
+                StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Compatibility.Saved"];
                 _notificationService.ShowSuccess(StatusMessage, "设置");
                 return;
             }
@@ -412,6 +432,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ResetAsync()
     {
+        if (IsCompatibilityCategoryVisible)
+        {
+            await _settingsService.ResetCategoryAsync("Compatibility");
+            LoadCompatibilitySettings();
+            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Compatibility.Reset"];
+            return;
+        }
         if (IsLogCategoryVisible)
         {
             await _settingsService.ResetCategoryAsync("Diagnostics");
@@ -498,6 +525,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         TempCachePath = _storageSettings.Selected.CachePath;
         StorageRestartRequired = _storageSettings.RestartRequired;
         OnPropertyChanged(nameof(ActiveStoragePaths));
+    }
+
+    private void LoadCompatibilitySettings()
+    {
+        CompatibilityCheckOnStartup = _settingsService.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false);
+        CompatibilityEnableBatchRepair = _settingsService.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false);
     }
 
     private static string FormatBytes(long bytes)

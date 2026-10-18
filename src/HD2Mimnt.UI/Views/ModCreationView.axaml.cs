@@ -75,6 +75,18 @@ public partial class ModCreationView : UserControl
         }
         catch (Exception error) { vm.ShowError(error); }
     }
+    private async void PreviewImage_Click(object? sender, RoutedEventArgs e)
+    {
+        if (Model is not { CanEdit: true } vm) return;
+        var (path, title) = (sender as Control)?.DataContext switch
+        {
+            ModCreationOptionViewModel option => (option.ImagePath, option.Name),
+            ModCreationSubOptionViewModel sub => (sub.ImagePath, sub.Name),
+            _ => (vm.IconPath, vm.ModName)
+        };
+        await vm.PreviewImageAsync(path, title);
+    }
+
     private async void Include_Click(object? sender, RoutedEventArgs e)
     {
         if (Model is not { CanEdit: true } vm || TopLevel.GetTopLevel(this) is not Window owner

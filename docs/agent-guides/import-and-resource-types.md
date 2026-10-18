@@ -4,6 +4,17 @@
 
 ## 易错点与正确做法
 
+- 游戏参考 Unit 的 TOC 尺寸可包含内部结束记录之后的填充，不能沿用模组重建的 `ending + 8 == TOC size` 条件拒绝参考。详细读取验证 `ending >= 0x60` 且 `ending + 8 <= TOC size`，另行检查 LOD 范围；索引仍保存原始 TOC 尺寸，保留资源读取上限和歧义判断。真实样本的结束记录后多 8 字节，版本读取成功不代表详细读取成功，回归须覆盖带填充参考的预览、修复与恢复。预览失败展示缺失、歧义或具体读取错误；版本/LOD 已一致的样本无动作是有效结果。来源：[旧管理器参考读取](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/VersionCheck/GameUnitReferenceReader.cs)，[Apache 2.0 许可证](../../src/HD2Mimnt.Infrastructure/ThirdParty/Helldivers2ModManager/LICENSE.txt)。
+
+- DSAR 块大小不等于单次资源读取大小。真实 `bundles*.nxa` 存在约 857 MiB 的合法未压缩块，块表不能套用 Unit 的 64 MiB 读取上限；未压缩块按存储偏移随机读取所需区间，不能解除上限后仍整块分配。磁盘索引载入也须接受大块，继续校验文件范围、顺序和未压缩尺寸一致性。回归包含大块内 TOC/Unit 读取、缓存复用和分配量；合成小块通过后仍需真实归档构建验收。依据为本地实际块表与 [旧管理器 DSAR 读取](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/VersionCheck/GameUnitReferenceReader.cs)，原有 [Apache 2.0 许可证](../../src/HD2Mimnt.Infrastructure/ThirdParty/Helldivers2ModManager/LICENSE.txt)保留。
+
+- 游戏参考数据复用必须保存 bundle 块表、包映射、过滤器与 Unit 定位，不能只保存“已构建”标志。索引放当前 CachePath，按安装路径及归档指纹失效，跨进程加载校验摘要；构建完成后再次核对归档再原子发布，失败/取消保留旧文件，但不将旧定位视作当前参考。版本、LOD 与伴随内容按请求读取当前游戏，不为缓存复制整份游戏资源。见[兼容性说明](../features/MOD_COMPATIBILITY.md)，来源：[File.Move](https://learn.microsoft.com/dotnet/api/system.io.file.move)、[SHA256](https://learn.microsoft.com/dotnet/api/system.security.cryptography.sha256)。
+
+- 兼容性扫描与修复通过 `ModCompatibilityService`；“TOC 可读”或“库内多数 Unit 版本”不能证明游戏兼容。参考按 Unit ID 比较；缺失、歧义或索引不完整保持未确认。DSAR 映射偏移 0 为归档内 uint64、偏移 8 为 bundle 内 uint32，不能互换。完整 Unit 定位索引按归档指纹失效，句柄每次调用释放。伴随按条目 offset/size 校验，恢复须主内容一致且来源唯一；暂存复检用原伴随或恢复路径。自动迁移保留版本已匹配的作者 LOD，不将一个自定义 Unit 的判断扩散到整包。失败/取消回滚当前模组，完成后清除内容缓存。范围及许可证见[后端说明](../features/MOD_COMPATIBILITY.md)。
+- 模型兼容性判定必须只取 Unit 类型（`0xe0a48d0be9a7453f`）参与游戏版本比较。Lua、IK 骨骼、动画、Wwise 音效等资源没有对应游戏模型参考时，显示为检测范围外或未确认原因，不能把整套模组压成未知，也不能生成模型修复动作；同一模组中有可比对模型时，只按已找到参考的模型决定版本是否匹配，缺失参考只作为详情说明。TOC `entry_index`、尺寸、伴随范围及 GPU 采样诊断不能覆盖模型版本结果；`HasBlockingIssues` 只用于结构诊断，修复仍须独立预览与复检。真实库曾有 24 个可运行模组因权重采样和条目序号等规则误报。UI 角标只标记模型版本不匹配，未知/检测范围外不使用同一警告角标。来源：[旧管理器 Unit 提取](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/VersionCheck/VersionCheckService.cs)、[资源类型目录](../../src/HD2Mimnt.Core/Resources/ResourceTypeCatalog.cs)、[Apache 2.0 许可证](../../src/HD2Mimnt.Infrastructure/ThirdParty/Helldivers2ModManager/LICENSE.txt)。
+
+- 在线名称的资源 ID 与归档 ID 分开：HD2SDK friendlynames.txt 为十进制 ulong 资源 ID，archivehashes.json 为十六进制归档 ID，可能省略前导零；不能把归档护甲名直接赋给同数字 Unit。整表更新、原子保存，检查批次查询内存，失败保留旧表和原哈希。`0xA4CD36` 与十进制 `10800438` 是同一个版本，禁止当成两个 schema。来源：[hashlists](https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition/tree/main/hashlists)、[许可状态](../../src/HD2Mimnt.Infrastructure/ThirdParty/HD2SDK-CommunityEdition/LICENSE-STATUS.md)。
+
 - HD2IAS data 的清单 GUID / sidecar 只能证明库条目身份，不能证明主补丁仍存在。状态检测须回读库内真实资源；未部署、停用和空 stream/GPU 伴随文件不能误报。缺文件仍保留身份供原位修复，同版本修复不能被旧数据库哈希的“未变化”分支跳过。见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)，依据为用户反馈 data 缺失没有提示；格式来源：[官方发布仓库](https://github.com/Estecsky/HD2-Integrated-Armor-System)。
 
 - HD2IAS 系统 Lua 生成按运行包所选路线的模板与正文构建，分别验证原文件、规范化正文和最终源码哈希。用户提供的 1.4.0 Lua 样本是 184 字节索引之后的源码 envelope（版本 2），不能套用 Wwise 回调字节码的 192 字节布局；编译检查仅 loadbuffer，不运行系统 Lua。身份取清单声明并由最终源码哈希约束，自定义追踪放独立 sidecar。运行时匹配不代表已安装 data 包有效；运行时不能混入普通 HD2IR 角色导入，生成的纯 data 则通过 ModService 作为常规模组入库和更新，不直接部署游戏。按清单身份、sidecar 或严格单资源模块入口匹配原条目，更新保留 ID 与配置引用，不能按名称覆盖。格式及双路线离线验证见 [HD2IAS 管理](../features/HD2IAS_MANAGEMENT.md)。来源：[Lua C API](https://www.lua.org/manual/5.1/manual.html#luaL_loadbuffer)、[官方版本包](https://github.com/Estecsky/HD2-Integrated-Armor-System)。

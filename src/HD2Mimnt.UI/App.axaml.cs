@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -15,6 +15,7 @@ using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Diagnostics;
+using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
@@ -408,6 +409,13 @@ public partial class App : Avalonia.Application
             sp.GetService<ILogger<ExternalManagerMigrationService>>()));
 
         services.AddSingleton<ConflictDetectionService>();
+        services.AddSingleton<IModCompatibilityAnalyzer, ModCompatibilityAnalyzer>();
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("compatibility-names", (_, _) => new System.Net.Http.HttpClient
+            { Timeout = TimeSpan.FromSeconds(15) });
+        services.AddSingleton<ICompatibilityResourceNames>(sp => new CompatibilityResourceNameProvider(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("compatibility-names"), storageLocations.TempPath));
+        services.AddSingleton<IGameUnitReferenceReader>(_ => new GameUnitReferenceReader(storageLocations.CachePath));
+        services.AddSingleton<ModCompatibilityService>();
 
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
@@ -490,6 +498,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IConfirmationService>(sp => sp.GetRequiredService<ConfirmationService>());
         services.AddSingleton<ImagePreviewService>();
 
+        services.AddSingleton<ModCompatibilityViewModel>();
+
         // UI 层 ViewModels
         services.AddTransient(sp => new LibraryViewModel(
             sp.GetRequiredService<ModService>(),
@@ -504,7 +514,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModLinkService>(),
             sp.GetRequiredService<ModOnlineService>(),
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
-            sp.GetRequiredService<BrowserDownloadHandoffService>()));
+            sp.GetRequiredService<BrowserDownloadHandoffService>(),
+            sp.GetRequiredService<ModCompatibilityViewModel>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -513,7 +524,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IConfirmationService>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>(),
-            sp.GetRequiredService<DeploymentService>()));
+            sp.GetRequiredService<DeploymentService>(),
+            sp.GetRequiredService<ModCompatibilityViewModel>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -528,7 +540,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
-            sp.GetRequiredService<IConfirmationService>()));
+            sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(
@@ -592,6 +604,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
-            sp.GetRequiredService<Hd2IASManagementViewModel>()));
+            sp.GetRequiredService<Hd2IASManagementViewModel>(),
+            sp.GetRequiredService<ModCompatibilityViewModel>()));
     }
 }

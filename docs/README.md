@@ -1,4 +1,4 @@
-# 文档导航
+﻿# 文档导航
 
 按用途读取下列文档。实现说明、设计计划和历史验收各有适用范围，版本及功能现状仍需核对当前代码；归档中的“已完成”仅表示当时阶段结论。
 
@@ -9,6 +9,7 @@
 | Ayaka Mods 接入、工具密钥与 OAuth2 配置 | [AYAKA_MODS.md](features/AYAKA_MODS.md) |
 | 模组来源、版本与作者 JSON、网站跳转 | [MOD_SOURCE_METADATA.md](features/MOD_SOURCE_METADATA.md) |
 | 本地版本保留、切换与重复导入开关 | [MOD_VERSION_HISTORY.md](features/MOD_VERSION_HISTORY.md) |
+| 兼容性结构检查、元数据修复与备份后端 | [MOD_COMPATIBILITY.md](features/MOD_COMPATIBILITY.md) |
 | HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
 | 外部管理器双向迁移、工具入口与原生格式限制 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
 | 离线模组库、配置与实际部署接口及旧版本保底 | [OFFLINE_MOD_INTERFACE.md](features/OFFLINE_MOD_INTERFACE.md) |
@@ -19,6 +20,7 @@
 | Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
 | 总体设计与路线 | [v2 总体开发计划](plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)；计划不等于已实现功能 |
 | 自动冲突检查与性能测量边界 | [性能评估](reports/automatic-conflict-check-performance.md) |
+| 1 万模组、配图与大量 SQL 联合压力测试 | [2026-10-17 实测](reports/large-library-performance-2026-10-17.md) |
 | 历史架构、UI、HD2IR 阶段报告 | [归档索引](Archive%20records/README.md) |
 
 ## 文档维护

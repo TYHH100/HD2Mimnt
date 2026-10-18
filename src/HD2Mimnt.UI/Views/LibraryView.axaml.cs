@@ -1,4 +1,4 @@
-using HD2Mimnt.UI.Localization;
+﻿using HD2Mimnt.UI.Localization;
 using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Input;
@@ -32,7 +32,7 @@ public partial class LibraryView : UserControl
     {
         if (DataContext is not LibraryViewModel vm) return;
 
-        if (vm.IsAddToProfileDialogOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+        if (vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var isTextInput = e.Source is Visual source &&
             (source is TextBox || source.GetVisualAncestors().Any(ancestor => ancestor is TextBox));
         var controlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
@@ -153,7 +153,7 @@ public partial class LibraryView : UserControl
         if (e.Source is not Visual eventSource ||
             !eventSource.GetVisualAncestors().Prepend(eventSource).Contains(ModList)) return;
         if (DataContext is not LibraryViewModel vm || vm.FilteredMods.Count == 0 ||
-            vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+            vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source).Any(visual => visual is Button or TextBox)) return;
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -211,13 +211,14 @@ public partial class LibraryView : UserControl
 
     private static void ShowModContextMenu(Control card, ModItemViewModel mod, LibraryViewModel vm)
     {
-        if (vm.ModOnline?.IsOpen == true) return;
+        if (vm.Compatibility?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var entries = new List<object>
         {
             new ContextMenuItem("查看详情", vm.ShowModDetailCommand, "Info") { CommandParameter = mod },
             new ContextMenuItem("模组链接…", vm.OpenModLinkCommand, "Globe") { CommandParameter = mod },
         };
 
+        if (vm.Compatibility != null) entries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         if (mod.HasPlatformLink)
             entries.Add(new ContextMenuItem("打开来源网页", mod.OpenSourcePageCommand, "Globe"));
         if (mod.HasAuthorPage)

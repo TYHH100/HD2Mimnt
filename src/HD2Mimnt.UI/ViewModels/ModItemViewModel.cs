@@ -1,4 +1,4 @@
-using Avalonia.Media.Imaging;
+﻿using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
@@ -40,6 +40,8 @@ public static class ModCategoryText
 public partial class ModItemViewModel : ObservableObject
 {
     private Mod _mod;
+    public ModCompatibilityBadgeViewModel? CompatibilityBadge { get; set; }
+    public System.Windows.Input.ICommand? CheckCompatibilityCommand { get; set; }
     [ObservableProperty] private ModVersionsViewModel? _localVersions;
 
     public void ApplyContent(Mod saved)

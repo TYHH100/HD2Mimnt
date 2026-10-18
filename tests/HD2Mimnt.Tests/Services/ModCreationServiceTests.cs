@@ -31,6 +31,46 @@ public sealed class ModCreationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TextFields_ShouldRoundTripJsonEscapesInPreviewSaveAndExport()
+    {
+        const string text = "中文\"引号\"\\反斜杠\r\n换行\t制表符\b\f\0🙂";
+        var document = Draft();
+        document.Manifest.Name = text;
+        document.Manifest.Description = text;
+        document.Manifest.Author = text;
+        document.Manifest.Options = [new() { Name = text, Description = text, Include = [],
+            SubOptions = [new() { Name = text, Description = text, Include = [] }] }];
+
+        void CheckManifest(string json)
+        {
+            var root = JsonNode.Parse(json)!;
+            Assert.Equal(text, root["Name"]!.GetValue<string>());
+            Assert.Equal(text, root["Description"]!.GetValue<string>());
+            var option = root["Options"]![0]!;
+            Assert.Equal(text, option["Name"]!.GetValue<string>());
+            Assert.Equal(text, option["Description"]!.GetValue<string>());
+            var child = option["SubOptions"]![0]!;
+            Assert.Equal(text, child["Name"]!.GetValue<string>());
+            Assert.Equal(text, child["Description"]!.GetValue<string>());
+        }
+        CheckManifest(_service.Preview(document));
+        Assert.Equal(text, JsonNode.Parse(_service.PreviewMetadata(document))!["Extensions"]!["Author"]!.GetValue<string>());
+        var path = Path.Combine(Source, "manifest.json");
+        await _service.SaveAsync(document, path);
+        CheckManifest(await File.ReadAllTextAsync(path));
+        var loaded = await _service.LoadAsync(path);
+        Assert.Equal(text, loaded.Manifest.Name);
+        Assert.Equal(text, loaded.Manifest.Author);
+        Assert.Equal(text, loaded.Manifest.Options![0].SubOptions![0].Description);
+
+        var zip = Path.Combine(_root, "escaped.zip");
+        await _service.ExportArchiveAsync(document, zip);
+        using var archive = ZipFile.OpenRead(zip);
+        using var reader = new StreamReader(archive.GetEntry("manifest.json")!.Open());
+        CheckManifest(await reader.ReadToEndAsync());
+    }
+
+    [Fact]
     public async Task PreviewImages_ShouldStayInsideSourceAndKeepExistingOutputOnCancellation()
     {
         var png = new byte[] { 137, 80, 78, 71 };
