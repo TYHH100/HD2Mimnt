@@ -1,3 +1,4 @@
+using HD2Mimnt.Application.Search;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -176,10 +177,19 @@ public class SearchService
     }
 
     /// <summary>
-    /// 搜索 Mods
+    /// 搜索 Mods（使用默认匹配行为，保持既有调用方兼容）。
+    /// </summary>
+    public Task<IEnumerable<Mod>> SearchAsync(
+        string query,
+        CancellationToken cancellationToken = default)
+        => SearchAsync(query, SearchMatchOptions.Default, cancellationToken);
+
+    /// <summary>
+    /// 按“设置 → 搜索”的匹配选项搜索 Mods。
     /// </summary>
     public async Task<IEnumerable<Mod>> SearchAsync(
         string query,
+        SearchMatchOptions options,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -193,58 +203,53 @@ public class SearchService
             await BuildIndexAsync(cancellationToken);
         }
 
-        var queryLower = query.ToLowerInvariant().Trim();
+        var trimmed = query.Trim();
 
         // 检查是否是标签搜索
-        if (queryLower.StartsWith("tag:"))
+        if (trimmed.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
         {
-            var tag = queryLower.Substring(4).Trim();
+            var tag = trimmed[4..].Trim().ToLowerInvariant();
             return SearchByTag(tag);
         }
 
+        Mod[] snapshot;
+        lock (_indexLock)
+        {
+            snapshot = _allMods.ToArray();
+        }
+
         var results = new List<(Mod mod, int priority)>();
-
-        // 1. Exact Match - 最高优先级
-        if (_exactIndex.TryGetValue(queryLower, out var exactMatch))
+        for (var index = 0; index < snapshot.Length; index++)
         {
-            results.Add((exactMatch, 1));
+            if ((index & 255) == 0) cancellationToken.ThrowIfCancellationRequested();
+            var priority = Score(snapshot[index], trimmed, options);
+            if (priority >= 0) results.Add((snapshot[index], priority));
         }
 
-        // 2. Prefix Match - 第二优先级
-        var prefixMatches = SearchByPrefix(queryLower);
-        foreach (var mod in prefixMatches)
+        // 名称精确/前缀优先，其次作者、描述、标签，最后拼音与模糊匹配。
+        return results.OrderBy(r => r.priority).ThenBy(r => r.mod.Name).Select(r => r.mod).ToArray();
+    }
+
+    private static int Score(Mod mod, string query, SearchMatchOptions options)
+    {
+        var nameKind = SearchMatcher.Match(mod.Name, query, options);
+        if (nameKind != SearchMatchKind.None)
         {
-            if (!results.Any(r => r.mod.Id == mod.Id))
+            return nameKind switch
             {
-                results.Add((mod, 2));
-            }
+                SearchMatchKind.Exact => 0,
+                SearchMatchKind.Prefix => 1,
+                SearchMatchKind.Contains => 2,
+                SearchMatchKind.Normalized => 3,
+                SearchMatchKind.Pinyin => 7,
+                _ => 8
+            };
         }
 
-        // 3. Normalized Match - 第三优先级
-        var normalizedQuery = NormalizeName(query);
-        if (_normalizedIndex.TryGetValue(normalizedQuery, out var normalizedMatches))
-        {
-            foreach (var mod in normalizedMatches)
-            {
-                if (!results.Any(r => r.mod.Id == mod.Id))
-                {
-                    results.Add((mod, 3));
-                }
-            }
-        }
-
-        // 4. Fuzzy Match - 最低优先级
-        var fuzzyMatches = SearchFuzzy(queryLower);
-        foreach (var mod in fuzzyMatches)
-        {
-            if (!results.Any(r => r.mod.Id == mod.Id))
-            {
-                results.Add((mod, 4));
-            }
-        }
-
-        // 按优先级排序
-        return results.OrderBy(r => r.priority).ThenBy(r => r.mod.Name).Select(r => r.mod);
+        if (SearchMatcher.Match(mod.Author, query, options) != SearchMatchKind.None) return 4;
+        if (SearchMatcher.Match(mod.Description, query, options) != SearchMatchKind.None) return 5;
+        if (mod.Tags.Any(tag => SearchMatcher.Match(tag, query, options) != SearchMatchKind.None)) return 6;
+        return -1;
     }
 
     /// <summary>
@@ -257,47 +262,6 @@ public class SearchService
             return mods;
         }
         return Enumerable.Empty<Mod>();
-    }
-
-    /// <summary>
-    /// 前缀搜索
-    /// </summary>
-    private IEnumerable<Mod> SearchByPrefix(string prefix)
-    {
-        var results = new HashSet<Mod>();
-
-        foreach (var kvp in _prefixIndex)
-        {
-            if (kvp.Key.StartsWith(prefix))
-            {
-                foreach (var mod in kvp.Value)
-                {
-                    results.Add(mod);
-                }
-            }
-        }
-
-        return results;
-    }
-
-    /// <summary>
-    /// 模糊搜索
-    /// </summary>
-    private IEnumerable<Mod> SearchFuzzy(string query)
-    {
-        var results = new List<Mod>();
-
-        // 简单的模糊匹配：包含查询字符串
-        foreach (var mod in _allMods)
-        {
-            var modNameLower = mod.Name.ToLowerInvariant();
-            if (modNameLower.Contains(query))
-            {
-                results.Add(mod);
-            }
-        }
-
-        return results;
     }
 
     /// <summary>

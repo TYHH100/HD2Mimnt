@@ -214,13 +214,7 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
             manifest.OptionGroups!.Add(group);
         }
         await File.WriteAllTextAsync(Path.Combine(preparedRoot, MetadataFile), JsonSerializer.Serialize(logical), token);
-        await File.WriteAllTextAsync(Path.Combine(preparedRoot, OptionsFile),
-            JsonSerializer.Serialize(new OptionsDocument
-            {
-                IconPath = manifest.IconPath, Name = manifest.Name, Description = manifest.Description,
-                Author = manifest.Author, Version = manifest.Version,
-                OptionGroups = manifest.OptionGroups, Options = manifest.Options
-            }, OptionsJson), token);
+        await SaveOptionsAsync(preparedRoot, manifest, token);
         return new(logical, manifest, preparedRoot);
 
         /// <summary>外层封面：按包层级从外到内，先取该包清单图片，再取该包根级预览图；内层组件不得顶替。</summary>
@@ -327,6 +321,19 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
             return null;
         }
     }
+
+    /// <summary>
+    /// 把生成的组件分组/选项树写入管理器自有 JSON（HD2IAS 组件包与散装文件夹合集共用）。
+    /// 作者 manifest.json 保持原字节，不写入该结构。
+    /// </summary>
+    internal static Task SaveOptionsAsync(string root, ModManifest manifest, CancellationToken token)
+        => File.WriteAllTextAsync(Path.Combine(root, OptionsFile),
+            JsonSerializer.Serialize(new OptionsDocument
+            {
+                IconPath = manifest.IconPath, Name = manifest.Name, Description = manifest.Description,
+                Author = manifest.Author, Version = manifest.Version,
+                OptionGroups = manifest.OptionGroups, Options = manifest.Options
+            }, OptionsJson), token);
 
     private static string StripArchiveSuffix(string name)
     {

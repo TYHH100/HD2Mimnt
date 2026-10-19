@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Search;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
@@ -289,6 +290,7 @@ public partial class LibraryViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
         _settingsService = settingsService;
+        if (_settingsService != null) _settingsService.SettingChanged += OnSearchSettingsChanged;
         _modSelection = new(() => FilteredMods, () => SelectedMods, SyncListSelection,
             (mod, focused) => mod.IsFocused = focused);
 
@@ -447,6 +449,7 @@ public partial class LibraryViewModel : ObservableObject
         var filter = CurrentFilter;
         var category = SelectedCategory;
         var sortMode = CurrentSortMode;
+        var searchOptions = SearchMatchOptions.FromSettings(_settingsService);
         IsSearching = true;
 
         try
@@ -462,7 +465,7 @@ public partial class LibraryViewModel : ObservableObject
                 return;
             }
             // 执行搜索
-            var results = await _searchService.SearchAsync(searchText, cancellationToken);
+            var results = await _searchService.SearchAsync(searchText, searchOptions, cancellationToken);
             var resultIds = new HashSet<Guid>(results.Select(m => m.Id));
 
             // 筛选 _allMods
@@ -514,6 +517,15 @@ public partial class LibraryViewModel : ObservableObject
         _searchDebounceTimer.Start();
     }
 
+    /// <summary>设置页保存搜索选项后，立即按新规则刷新已有查询。</summary>
+    private void OnSearchSettingsChanged(object? sender, SettingChangedEventArgs e)
+    {
+        if (e.Key is not (SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)) return;
+        if (string.IsNullOrWhiteSpace(SearchText)) return;
+        if (Dispatcher.UIThread.CheckAccess()) _ = ExecuteSearchAsync();
+        else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
+    }
+
     /// <summary>
     /// 筛选
     /// </summary>
@@ -552,6 +564,7 @@ public partial class LibraryViewModel : ObservableObject
         var filter = CurrentFilter;
         var category = SelectedCategory;
         var sortMode = CurrentSortMode;
+        var searchOptions = SearchMatchOptions.FromSettings(_settingsService);
         var filtered = await Task.Run(() =>
         {
             var filtered = _allMods.AsEnumerable();
@@ -559,11 +572,10 @@ public partial class LibraryViewModel : ObservableObject
             // 应用搜索（如果有）
             if (!string.IsNullOrWhiteSpace(searchText))
             {
-                var query = searchText.ToLowerInvariant();
                 filtered = filtered.Where(m =>
-                    m.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    m.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    m.Author.Contains(query, StringComparison.OrdinalIgnoreCase));
+                    SearchMatcher.MatchAny(searchText, searchOptions, m.Name, m.Description, m.Author)
+                    != SearchMatchKind.None
+                    || m.Tags.Any(tag => SearchMatcher.Match(tag, searchText, searchOptions) != SearchMatchKind.None));
             }
 
             // 应用状态筛选

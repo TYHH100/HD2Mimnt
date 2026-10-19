@@ -179,6 +179,14 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="SearchSettingsExpander" Header="{loc:Loc Settings.Search.Title}" IconSource="Search" IsExpanded="True" IsVisible="{Binding IsSearchCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Search.Fuzzy}" Description="{loc:Loc Settings.Search.FuzzyHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchFuzzyToggle" IsChecked="{Binding SearchFuzzy}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Search.Pinyin}" Description="{loc:Loc Settings.Search.PinyinHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchPinyinToggle" IsChecked="{Binding SearchPinyin}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Downloads}" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="{loc:Loc UI.SavedChangesApplyToNewOrRetriedDownloads}">
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="16" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>

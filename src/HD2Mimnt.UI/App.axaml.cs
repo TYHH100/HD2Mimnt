@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -554,7 +554,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ConfirmationService>(),
             sp.GetRequiredService<NotificationService>()));
         services.AddTransient(sp => new LogViewModel(
-            sp.GetRequiredService<IFileLogService>()));
+            sp.GetRequiredService<IFileLogService>(), sp.GetRequiredService<SettingsService>()));
         services.AddTransient<CrashDiagnosticsViewModel>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader, HD2Mimnt.Infrastructure.Hd2IAS.PackageManifestReader>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASRuntimeInspector, HD2Mimnt.Infrastructure.Hd2IAS.RuntimeCompatibilityChecker>();

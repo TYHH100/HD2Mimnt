@@ -1,3 +1,4 @@
+using HD2Mimnt.Application.Search;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
@@ -167,6 +168,69 @@ public class SearchServiceTests : IDisposable
         // Assert
         var results = await _searchService.SearchAsync(modToRemove.Name);
         Assert.DoesNotContain(results, m => m.Id == modToRemove.Id);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Author_ShouldReturnMatchingMods()
+    {
+        await AddTestMods();
+        await _searchService.BuildIndexAsync();
+
+        var results = (await _searchService.SearchAsync("Author C")).ToList();
+
+        Assert.Contains(results, mod => mod.Name == "Weapon Enhancement");
+    }
+
+    [Fact]
+    public async Task SearchAsync_PinyinOption_MatchesChineseName()
+    {
+        await _modRepository.AddAsync(new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "装甲模组",
+            Version = "1.0.0",
+            Author = "测试作者",
+            Description = "测试",
+            Path = "/test/chinese",
+            Category = ModCategory.Visual,
+            Tags = new List<string>(),
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            ImportedAt = DateTime.UtcNow
+        });
+        await _searchService.BuildIndexAsync();
+
+        var withoutPinyin = await _searchService.SearchAsync("zhuangjia", SearchMatchOptions.Default);
+        var withPinyin = await _searchService.SearchAsync("zhuangjia", new SearchMatchOptions(Fuzzy: false, Pinyin: true));
+
+        Assert.DoesNotContain(withoutPinyin, mod => mod.Name == "装甲模组");
+        Assert.Contains(withPinyin, mod => mod.Name == "装甲模组");
+    }
+
+    [Fact]
+    public async Task SearchAsync_FuzzyOption_MatchesNonAdjacentCharacters()
+    {
+        await _modRepository.AddAsync(new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Helldivers Enhancement",
+            Version = "1.0.0",
+            Author = "Test",
+            Description = "Test",
+            Path = "/test/fuzzy",
+            Category = ModCategory.Gameplay,
+            Tags = new List<string>(),
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            ImportedAt = DateTime.UtcNow
+        });
+        await _searchService.BuildIndexAsync();
+
+        var withoutFuzzy = await _searchService.SearchAsync("hldv", SearchMatchOptions.Default);
+        var withFuzzy = await _searchService.SearchAsync("hldv", new SearchMatchOptions(Fuzzy: true, Pinyin: false));
+
+        Assert.DoesNotContain(withoutFuzzy, mod => mod.Name == "Helldivers Enhancement");
+        Assert.Contains(withFuzzy, mod => mod.Name == "Helldivers Enhancement");
     }
 
     [Fact]

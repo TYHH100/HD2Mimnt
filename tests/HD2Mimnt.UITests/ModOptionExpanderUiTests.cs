@@ -307,6 +307,75 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ModOptionsGroup_InnerOptionToggle_KeepsComponentCheckedWhileAnyOptionEnabled()
+    {
+        // 回归：二级页关闭任意一个选项后，一级组件不应被误显示为取消勾选。
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new() { Name = "外观 A", GroupId = "g0", Include = new List<string>() },
+                new() { Name = "外观 B", GroupId = "g0", Include = new List<string>() }
+            },
+            OptionGroups = new List<ModOptionGroup> { new() { Id = "g0", Name = "模型组件" } }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        var group = Assert.Single(dialog.GroupCards);
+        Assert.True(group.IsEnabled);
+
+        dialog.OpenGroupCommand.Execute(group);
+        Assert.Equal(2, dialog.VisibleOptionCards.Count);
+        dialog.ToggleOptionCommand.Execute(dialog.VisibleOptionCards[0]);
+        Assert.False(dialog.VisibleOptionCards[0].IsEnabled);
+        // 关键断言：只关闭部分选项时组件仍参与部署，外层保持勾选。
+        Assert.True(group.IsEnabled);
+        dialog.ReturnToGroupsCommand.Execute(null);
+        Assert.False(dialog.IsGroupPage);
+        Assert.True(group.IsEnabled);
+
+        // 组件内所有选项都关闭时，组件确实不参与部署，才显示未勾选。
+        dialog.OpenGroupCommand.Execute(group);
+        dialog.ToggleOptionCommand.Execute(dialog.VisibleOptionCards[1]);
+        Assert.False(group.IsEnabled);
+        dialog.ReturnToGroupsCommand.Execute(null);
+        Assert.False(group.IsEnabled);
+
+        // 一级重新勾选组件应恢复组内全部选项。
+        dialog.ToggleGroupCommand.Execute(group);
+        Assert.True(group.IsEnabled);
+        Assert.All(group.Options, option => Assert.True(option.IsEnabled));
+
+        // 保存并返回后再次打开，一级勾选状态仍与内部选项一致。
+        dialog.ReturnToGroupsCommand.Execute(null);
+        vm.CloseModOptionsCommand.Execute(null);
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var reopened = vm.ModOptionsDialog!;
+        Assert.True(Assert.Single(reopened.GroupCards).IsEnabled);
+        bool saved = false;
+        for (var i = 0; i < 100 && !saved; i++)
+        {
+            var profile = await scope.Services.GetRequiredService<ProfileService>()
+                .GetProfileByIdAsync(vm.SelectedProfile!.Id);
+            var state = ProfileModOptionsState.FromJson(
+                profile!.Mods.Single(item => item.ModId == mod.Id).OptionsJson);
+            saved = state.OptionToggles is { Count: 2 } toggles && toggles.All(value => value);
+            if (!saved) await Task.Delay(10);
+        }
+        Assert.True(saved);
+        vm.CloseModOptionsCommand.Execute(null);
+    }
+
+    [AvaloniaFact]
     public async Task ModOptionsDialog_PreviewOriginalIsDecodedOnDemandAndReleased()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
@@ -347,6 +416,184 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(1024, preview!.PixelSize.Width);
             vm.CloseModOptionsCommand.Execute(null);
             Assert.False(main.ImagePreview.IsOpen);
+        }
+        finally
+        {
+            main.ImagePreview.Close();
+            vm.CloseModOptions();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task LooseFolderCollection_ShowsComponentListAndSecondLevelOptions()
+    {
+        // 用户反馈：散装文件夹（外层无清单、子目录各自是模组）添加后要在配置页显示两级，
+        // 一级是子模组组件，点进去二级配置它自己的选项。
+        await using var scope = await UiScope.CreateAsync();
+        var source = Path.Combine(scope.Root, "Shinra战斗女仆替换RS系列");
+        CreateCollectionChild(source, "RS-100“制裁者”潜行轻甲", "Shinra战斗女仆替换RS-67“空密码”潜行中甲");
+        CreateCollectionChild(source, "RS-67“空密码”潜行中甲", "Shinra战斗女仆替换RS-67“空密码”潜行中甲");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var id = await scope.Services.GetRequiredService<ModService>().ImportModAsync(source);
+        var profile = await profiles.GetActiveProfileAsync();
+        if (profile == null)
+        {
+            var profileId = await profiles.CreateProfileAsync("合集测试", "散装文件夹合集");
+            await profiles.SetActiveProfileAsync(profileId);
+            profile = (await profiles.GetActiveProfileAsync())!;
+        }
+        await profiles.AddModToProfileAsync(profile.Id, id);
+        var vm = main.ProfileViewModel;
+        await vm.RefreshAfterProfilesChangedAsync();
+        var row = vm.ProfileMods.Single(item => item.ModId == id);
+        Assert.True(row.HasOptions);
+
+        vm.OpenModOptionsCommand.Execute(row);
+        var dialog = vm.ModOptionsDialog!;
+        try
+        {
+            Assert.True(dialog.HasGroups);
+            Assert.True(dialog.ShowGroupList);
+            Assert.False(dialog.IsGroupPage);
+            Assert.Equal(new[] { "RS-100“制裁者”潜行轻甲", "RS-67“空密码”潜行中甲" },
+                dialog.GroupCards.Select(group => group.Name));
+            Assert.True(dialog.GroupCards[0].CanOpen);
+
+            dialog.OpenGroupCommand.Execute(dialog.GroupCards[0]);
+            Assert.True(dialog.IsGroupPage);
+            Assert.Equal(2, dialog.VisibleOptionCards.Count);
+            Assert.Equal("本体", dialog.VisibleOptionCards[0].Name);
+
+            // 二级关闭一个选项：只排除该选项文件，一级组件仍保持勾选，并保存到当前配置。
+            dialog.ToggleOptionCommand.Execute(dialog.VisibleOptionCards[1]);
+            dialog.ReturnToGroupsCommand.Execute(null);
+            Assert.False(dialog.IsGroupPage);
+            Assert.True(dialog.GroupCards[0].IsEnabled);
+            bool saved = false;
+            for (var i = 0; i < 100 && !saved; i++)
+            {
+                var snapshot = await profiles.GetProfileByIdAsync(profile.Id);
+                var state = ProfileModOptionsState.FromJson(
+                    snapshot!.Mods.Single(item => item.ModId == id).OptionsJson);
+                saved = state.OptionToggles is { Count: 4 } toggles && !toggles[1] && toggles[0];
+                if (!saved) await Task.Delay(10);
+            }
+            Assert.True(saved);
+        }
+        finally
+        {
+            vm.CloseModOptionsCommand.Execute(null);
+        }
+    }
+
+    private static void CreateCollectionChild(string parent, string directoryName, string manifestName)
+    {
+        var child = Path.Combine(parent, directoryName);
+        foreach (var optionDirectory in new[] { "本体", "材质包" })
+        {
+            Directory.CreateDirectory(Path.Combine(child, optionDirectory));
+            File.WriteAllText(Path.Combine(child, optionDirectory, "9ba626afa44a3aa3.patch_0"),
+                $"{directoryName}-{optionDirectory}");
+            using (var image = new System.Drawing.Bitmap(64, 64))
+            {
+                using var graphics = System.Drawing.Graphics.FromImage(image);
+                graphics.Clear(System.Drawing.Color.SteelBlue);
+                image.Save(Path.Combine(child, optionDirectory, "1.png"), System.Drawing.Imaging.ImageFormat.Png);
+            }
+        }
+        using (var icon = new System.Drawing.Bitmap(64, 64))
+        {
+            using var graphics = System.Drawing.Graphics.FromImage(icon);
+            graphics.Clear(System.Drawing.Color.DarkOrange);
+            icon.Save(Path.Combine(child, "1.png"), System.Drawing.Imaging.ImageFormat.Png);
+        }
+        File.WriteAllText(Path.Combine(child, "manifest.json"), $$"""
+            {
+              "Version": 1,
+              "Guid": "{{Guid.NewGuid()}}",
+              "Name": "{{manifestName}}",
+              "Description": "合集组件",
+              "IconPath": "1.png",
+              "Options": [
+                { "Name": "本体", "Description": "必选", "Image": "本体/1.png", "Include": ["本体"] },
+                { "Name": "材质包", "Description": "可选", "Image": "材质包/1.png", "Include": ["材质包"] }
+              ]
+            }
+            """);
+    }
+
+    [AvaloniaFact]
+    public async Task ModOptionsDialog_IdenticalImageContent_IsDecodedOnceAndReused()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        var imageDir = Path.Combine(mod.Path, "images");
+        Directory.CreateDirectory(imageDir);
+        // 两个路径、内容完全相同的副本，模拟 HD2IAS 组件目录里复制出来的同一张预览图。
+        var firstPath = Path.Combine(imageDir, "a.png");
+        using (var image = new System.Drawing.Bitmap(1024, 1024))
+        {
+            using var graphics = System.Drawing.Graphics.FromImage(image);
+            graphics.Clear(System.Drawing.Color.SteelBlue);
+            image.Save(firstPath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        var secondPath = Path.Combine(imageDir, "b.png");
+        File.Copy(firstPath, secondPath);
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new()
+                {
+                    Name = "材质", Image = "images/a.png",
+                    SubOptions = new List<ModSubOption> { new() { Name = "变体", Image = "images/b.png" } }
+                },
+                new() { Name = "模型", Image = "images/b.png" }
+            }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        try
+        {
+            await dialog.LoadImagesAsync();
+            var first = dialog.OptionCards[0];
+            var second = dialog.OptionCards[1];
+            var sub = first.SubOptions[0];
+            Assert.NotNull(first.Image);
+            Assert.NotNull(second.Image);
+            Assert.NotNull(sub.Image);
+            // 内容哈希相同：两个路径只解码一张位图，卡片/子选项共享同一实例。
+            Assert.Same(first.Image, second.Image);
+            Assert.Same(first.Image, sub.Image);
+
+            // 内容相同的另一份副本打开原图预览时也应复用，不重复解码整张 4K 原图。
+            dialog.ShowImagePreview(first.Image, first.Name);
+            for (var i = 0; i < 400 && !main.ImagePreview.IsOpen; i++) await Task.Delay(10);
+            Assert.True(main.ImagePreview.IsOpen);
+            var original = main.ImagePreview.Image;
+            Assert.NotNull(original);
+            Assert.Equal(1024, original!.PixelSize.Width);
+
+            dialog.ShowImagePreview(second.Image, second.Name);
+            for (var i = 0; i < 400; i++)
+            {
+                if (ReferenceEquals(main.ImagePreview.Image, original)) break;
+                await Task.Delay(10);
+            }
+            Assert.Same(original, main.ImagePreview.Image);
+
+            vm.CloseModOptionsCommand.Execute(null);
+            Assert.False(main.ImagePreview.IsOpen);
+            Assert.All(dialog.OptionCards, card => Assert.Null(card.Image));
         }
         finally
         {

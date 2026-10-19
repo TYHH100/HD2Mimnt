@@ -192,11 +192,21 @@ public class ModImportService
                 if (hd2Ir != null) modRootPath = hd2Ir.Root;
             }
 
+            // 散装文件夹合集：外层没有清单、每个子目录各自是模组时，按一个模组导入并生成两级组件选项。
+            // HD2IR/HD2IAS 已识别的内容优先，合集只在普通模组路径生效；识别只枚举目录，不单独占用进度步骤。
+            ModCollectionImporter.Collection? collection = null;
+            if (migration == null && hd2Ir == null)
+            {
+                collection = await ModCollectionImporter.TryBuildAsync(modRootPath, fallbackName, cancellationToken);
+                if (collection != null) modRootPath = collection.Root;
+            }
+
             // 读取 manifest：真实模组压缩包常带一层同名子文件夹，根目录没有时向下查找
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report(new(20, "读取模组清单", "识别模组信息和选项", true));
-            var manifest = hd2Ir?.Manifest ?? (migration == null ? await ReadManifestAsync(modRootPath, cancellationToken)
-                : System.Text.Json.JsonSerializer.Deserialize<ModManifest>(System.Text.Json.JsonSerializer.Serialize(migration.Manifest)));
+            var manifest = hd2Ir?.Manifest ?? collection?.Manifest
+                ?? (migration == null ? await ReadManifestAsync(modRootPath, cancellationToken)
+                    : System.Text.Json.JsonSerializer.Deserialize<ModManifest>(System.Text.Json.JsonSerializer.Serialize(migration.Manifest)));
             if (manifest == null)
             {
                 var nestedRoot = FindManifestRoot(modRootPath);
@@ -208,7 +218,8 @@ public class ModImportService
                 }
             }
 
-            var hasParsedManifest = manifest != null;
+            // 合集/HD2IAS 的清单由管理器生成，没有作者根清单需要规范化。
+            var hasParsedManifest = manifest != null && collection == null;
             // 无 manifest 时按旧版管理器语义推断：有子目录时把子目录名作为互斥选项（下拉选择）
             manifest ??= InferManifestFromDirectory(modRootPath, fallbackName);
 
@@ -252,7 +263,9 @@ public class ModImportService
             if (migration == null)
             {
                 await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
-                if (hasParsedManifest && hd2Ir == null) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
+                // 合集：生成的组件分组/选项树只进管理器自有 JSON，作者子清单保持原字节。
+                if (collection != null) await Hd2IrIntegrationService.SaveOptionsAsync(targetPath, manifest!, cancellationToken);
+                else if (hasParsedManifest && hd2Ir == null) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             else

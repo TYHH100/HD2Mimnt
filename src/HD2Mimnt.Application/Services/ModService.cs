@@ -312,8 +312,8 @@ public partial class ModService
         {
             var changed = false;
             // 生成的分组/选项树只来自管理器自有 JSON；作者 manifest.json 保持原样。
-            var options = mod.WorkflowType == Hd2IrIntegrationService.Workflow
-                ? await Hd2IrIntegrationService.ReadOptionsAsync(mod, cancellationToken) : null;
+            // HD2IAS 组件包与散装文件夹合集都靠该文件恢复生成选项，不能只按 WorkflowType 判断。
+            var options = await Hd2IrIntegrationService.ReadOptionsAsync(mod, cancellationToken);
             if (mod.WorkflowType == Hd2IrIntegrationService.Workflow)
                 mod.LogicalMod = await Hd2IrIntegrationService.ReadAsync(mod, cancellationToken);
             if (mod.Manifest == null)

@@ -44,6 +44,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _deployBottomToTop;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
     [ObservableProperty] private bool _showThumbnails = true;
+    [ObservableProperty] private bool _searchFuzzy;
+    [ObservableProperty] private bool _searchPinyin;
     [ObservableProperty] private string _theme = "Dark";
     [ObservableProperty] private string _listDensity = "Comfortable";
     [ObservableProperty] private string _backgroundImagePath = string.Empty;
@@ -91,6 +93,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsProfileCategoryVisible => SelectedCategory == "配置文件";
     public bool IsDeploymentCategoryVisible => SelectedCategory == "部署";
     public bool IsLibraryCategoryVisible => SelectedCategory == "模组库";
+    public bool IsSearchCategoryVisible => SelectedCategory == "搜索";
     public bool IsCompatibilityCategoryVisible => SelectedCategory == "兼容性";
     public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
     public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
@@ -193,6 +196,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsProfileCategoryVisible));
         OnPropertyChanged(nameof(IsDeploymentCategoryVisible));
         OnPropertyChanged(nameof(IsLibraryCategoryVisible));
+        OnPropertyChanged(nameof(IsSearchCategoryVisible));
         OnPropertyChanged(nameof(IsCompatibilityCategoryVisible));
         OnPropertyChanged(nameof(IsAppearanceCategoryVisible));
         OnPropertyChanged(nameof(IsCacheCategoryVisible));
@@ -235,6 +239,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 == DeploymentOrder.BottomToTop.ToString();
             CheckBeforeDeploy = await _settingsService.GetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
+            SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
+            SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
             Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark");
             ListDensity = await _settingsService.GetSettingAsync(SettingKeys.ListDensity, "Comfortable");
             BackgroundImagePath = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
@@ -327,6 +333,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowSuccess(StatusMessage, "设置");
                 return;
             }
+            if (IsSearchCategoryVisible)
+            {
+                await SaveSearchPreferencesAsync();
+                StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Search.Saved"];
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             var gamePath = GamePath.Trim();
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -379,6 +392,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         await _settingsService.SetSettingAsync(SettingKeys.ImportAutoClose, ImportAutoClose);
         await _settingsService.SetSettingAsync(SettingKeys.KeepModVersions, KeepModVersions);
         await _settingsService.SetSettingAsync(SettingKeys.AllowDuplicateImports, AllowDuplicateImports);
+    }
+
+    private async Task SaveSearchPreferencesAsync()
+    {
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.SearchFuzzy] = SearchFuzzy,
+            [SettingKeys.SearchPinyin] = SearchPinyin
+        });
     }
 
     [RelayCommand]
@@ -466,6 +488,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await _settingsService.ResetCategoryAsync("Download");
             await LoadAsync();
             StatusMessage = "下载设置已恢复默认值";
+            _notificationService.ShowInfo(StatusMessage, "设置");
+            return;
+        }
+        if (IsSearchCategoryVisible)
+        {
+            await _settingsService.ResetCategoryAsync("Search");
+            SearchFuzzy = false;
+            SearchPinyin = false;
+            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Search.Reset"];
             _notificationService.ShowInfo(StatusMessage, "设置");
             return;
         }

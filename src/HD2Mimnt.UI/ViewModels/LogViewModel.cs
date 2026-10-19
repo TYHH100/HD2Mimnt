@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Search;
+using HD2Mimnt.Application.Services;
 using HD2Mimnt.UI.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
@@ -11,6 +13,7 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class LogViewModel : ObservableObject
 {
     private readonly IFileLogService _logService;
+    private readonly SettingsService? _settingsService;
     private static readonly Regex LogLineRegex = new(
         @"^(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[.\d]*\s*[+-]\d{2}:\d{2})\s+\[(?<level>[^\]]+)\]\s+(?<logger>[^:]+):\s?(?<message>.*)$",
         RegexOptions.Compiled | RegexOptions.Singleline);
@@ -30,9 +33,11 @@ public partial class LogViewModel : ObservableObject
     public event EventHandler? ExportRequested;
     public event EventHandler? CopyRequested;
 
-    public LogViewModel(IFileLogService logService)
+    public LogViewModel(IFileLogService logService, SettingsService? settingsService = null)
     {
         _logService = logService;
+        _settingsService = settingsService;
+        if (_settingsService != null) _settingsService.SettingChanged += OnSearchSettingsChanged;
     }
     public Task InitializeAsync() => RefreshAsync();
     partial void OnErrorsOnlyChanged(bool value) => ApplyFilter();
@@ -76,13 +81,24 @@ public partial class LogViewModel : ObservableObject
         Enum.TryParse<LogLevel>(DisplayLevel, out var threshold);
         if (ErrorsOnly) threshold = LogLevel.Error;
         var selectedRaw = SelectedEntry?.Raw;
+        var query = SearchText.Trim();
+        var options = SearchMatchOptions.FromSettings(_settingsService);
         var filtered = _allEntries.Where(item => item.Level >= threshold &&
-            (string.IsNullOrWhiteSpace(SearchText) || item.Raw.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase))).ToArray();
+            (query.Length == 0 || SearchMatcher.Match(item.Raw, query, options) != SearchMatchKind.None)).ToArray();
         EntryItems = new(filtered);
         Entries = new(filtered.Select(item => item.Raw));
         SelectedEntry = filtered.FirstOrDefault(item => item.Raw == selectedRaw) ?? filtered.FirstOrDefault();
         StatusMessage = $"显示 {filtered.Length} / {_allEntries.Count} 条日志（最新在前）";
     }
+    /// <summary>设置页保存搜索选项后立即刷新当前日志筛选。</summary>
+    private void OnSearchSettingsChanged(object? sender, SettingChangedEventArgs e)
+    {
+        if (e.Key is not (SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)) return;
+        if (global::Avalonia.Application.Current == null
+            || global::Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) ApplyFilter();
+        else global::Avalonia.Threading.Dispatcher.UIThread.Post(ApplyFilter);
+    }
+
     private static LogEntryViewModel ParseEntry(string line)
     {
         var match = LogLineRegex.Match(line);

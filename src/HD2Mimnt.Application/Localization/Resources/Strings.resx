@@ -3943,6 +3943,13 @@ Last checked: {7}</value>
   <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>Confirm HD2IAS component combination</value></data>
   <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>Detect HD2IAS components</value></data>
   <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>Inspect nested archives and deployment mappings</value></data>
+  <data name="Settings.Search.Title" xml:space="preserve"><value>Search</value></data>
+  <data name="Settings.Search.Fuzzy" xml:space="preserve"><value>Fuzzy search</value></data>
+  <data name="Settings.Search.FuzzyHelp" xml:space="preserve"><value>Also match characters that are not adjacent; for example "hdv" finds "Helldivers". When off, only contiguous text matches. Applies to every local search box after saving.</value></data>
+  <data name="Settings.Search.Pinyin" xml:space="preserve"><value>Pinyin search</value></data>
+  <data name="Settings.Search.PinyinHelp" xml:space="preserve"><value>Match Chinese content by full pinyin or initials; for example "zhongwen" or "zw" finds "中文". Applies to every local search box after saving.</value></data>
+  <data name="Settings.Search.Saved" xml:space="preserve"><value>Search settings saved</value></data>
+  <data name="Settings.Search.Reset" xml:space="preserve"><value>Search settings restored to defaults</value></data>
   <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>Keep mod version history</value></data>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>Keep complete previous versions when updating. Uses additional disk space. Save to apply.</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>Allow duplicate imports</value></data>

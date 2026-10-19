@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Search;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
@@ -335,10 +336,9 @@ public partial class ProfileViewModel : ObservableObject
     private void ApplyAddModFilter()
     {
         var query = AddModSearchText.Trim();
+        var options = SearchMatchOptions.FromSettings(_settingsService);
         VisibleAvailableLibraryMods = new(AvailableLibraryMods.Where(mod => query.Length == 0
-            || mod.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || mod.Author.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || mod.Version.Contains(query, StringComparison.OrdinalIgnoreCase)));
+            || SearchMatcher.MatchAny(query, options, mod.Name, mod.Author, mod.Version) != SearchMatchKind.None));
         OnPropertyChanged(nameof(HasNoAvailableMods));
     }
 
@@ -411,6 +411,17 @@ public partial class ProfileViewModel : ObservableObject
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
+        {
+            void ApplySearch()
+            {
+                ApplyModFilter();
+                ApplyAddModFilter();
+            }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) ApplySearch();
+            else Dispatcher.UIThread.Post(ApplySearch);
+            return;
+        }
         if (e.Key == SettingKeys.ProfilesLockLoaders)
         {
             void Reload()
@@ -614,8 +625,9 @@ public partial class ProfileViewModel : ObservableObject
     private void ApplyModFilter()
     {
         var query = ModSearchText.Trim();
-        bool Matches(ProfileModViewModel row) => row.ModName.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || row.ModVersion.Contains(query, StringComparison.OrdinalIgnoreCase);
+        var options = SearchMatchOptions.FromSettings(_settingsService);
+        bool Matches(ProfileModViewModel row) =>
+            SearchMatcher.MatchAny(query, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
         var ordinary = BuildOrdinaryRows();
         var visibleOrdinary = new List<ProfileModViewModel>();
         var group = (ProfileModViewModel?)null;
@@ -1920,6 +1932,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     /// <summary>点击卡片图片时才按需解码原图；弹窗关闭时释放，避免 4K 原图常驻。</summary>
     private CancellationTokenSource? _originalPreviewLoad;
     private Bitmap? _originalPreview;
+    private string? _originalPreviewHash;
     private bool _disposed;
 
     [ObservableProperty]
@@ -2054,8 +2067,10 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
 
     private void SyncGroup(ProfileModOptionCardViewModel card)
     {
+        // 一级组件开关表示“该组件仍参与部署”，只要组件内还有选项启用就保持勾选；
+        // 关闭某个子选项只排除该选项的文件，不能把整个组件显示成未启用。
         if (_cardGroups.TryGetValue(card, out var group))
-            group.IsEnabled = group.Options.All(option => option.IsEnabled);
+            group.IsEnabled = group.Options.Any(option => option.IsEnabled);
     }
 
     private ProfileModOptionGroupViewModel[] BuildOptionGroups(ModManifest manifest,
@@ -2084,7 +2099,8 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         var group = new ProfileModOptionGroupViewModel
         {
             Id = id, Name = name, Description = description,
-            IsEnabled = options.All(option => option.IsEnabled),
+            // 初始勾选：组件内存在启用的选项即视为组件启用，与子选项逐项开关语义一致。
+            IsEnabled = options.Any(option => option.IsEnabled),
             ImagePath = ResolveImagePath(modPath, image),
             Options = options
         };
@@ -2144,32 +2160,43 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         CancelOriginalPreviewLoad();
         var cancellation = new CancellationTokenSource();
         _originalPreviewLoad = cancellation;
-        Bitmap? original;
         try
         {
-            original = await holder.LoadOriginalImageAsync(cancellation.Token);
+            var hash = holder.ImagePath is { Length: > 0 } path
+                ? await ModImageCache.GetContentHashAsync(path, cancellation.Token)
+                : null;
+
+            // 内容相同的另一份副本（例如 HD2IAS 组件目录里的同一张预览图）直接复用已解码原图。
+            if (hash != null && _originalPreview is { } shared
+                && string.Equals(hash, _originalPreviewHash, StringComparison.Ordinal))
+            {
+                if (!_disposed && !cancellation.IsCancellationRequested) _owner.ShowImagePreview(shared, title);
+                return;
+            }
+
+            var original = await holder.LoadOriginalImageAsync(cancellation.Token);
+            if (original == null)
+            {
+                if (!_disposed) _owner.ShowImagePreview(holder.Image, title);
+                return;
+            }
+
+            // 解码期间弹窗可能已关闭；此时立即释放，不把原图挂到已销毁的弹窗上。
+            if (_disposed || holder.IsDisposed || cancellation.IsCancellationRequested)
+            {
+                original.Dispose();
+                return;
+            }
+
+            ReleaseOriginalPreview();
+            _originalPreview = original;
+            _originalPreviewHash = hash;
+            _owner.ShowImagePreview(original, title);
         }
         catch (OperationCanceledException)
         {
-            return;
+            // 弹窗关闭或切换到另一张图片时放弃本次加载。
         }
-
-        if (original == null)
-        {
-            if (!_disposed) _owner.ShowImagePreview(holder.Image, title);
-            return;
-        }
-
-        // 解码期间弹窗可能已关闭；此时立即释放，不把原图挂到已销毁的弹窗上。
-        if (_disposed || holder.IsDisposed || cancellation.IsCancellationRequested)
-        {
-            original.Dispose();
-            return;
-        }
-
-        ReleaseOriginalPreview();
-        _originalPreview = original;
-        _owner.ShowImagePreview(original, title);
     }
 
     private ProfileModImageHolderViewModel? FindImageHolder(Bitmap image)
@@ -2183,6 +2210,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     {
         var original = _originalPreview;
         _originalPreview = null;
+        _originalPreviewHash = null;
         if (original == null) return;
         if (_owner.IsImagePreviewShowing(original)) _owner.CloseImagePreview();
         original.Dispose();
@@ -2277,12 +2305,29 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         _disposed = true;
         CancelOriginalPreviewLoad();
         ReleaseOriginalPreview();
+
+        // 内容相同的卡片共享同一份位图：按实例去重后统一释放，不能逐个卡片重复 Dispose。
+        var images = new HashSet<Bitmap>(ReferenceEqualityComparer.Instance);
+        foreach (var card in OptionCards)
+        {
+            if (card.Image is { } image) images.Add(image);
+            foreach (var sub in card.SubOptions)
+                if (sub.Image is { } subImage) images.Add(subImage);
+        }
+        foreach (var group in GroupCards)
+            if (group.Image is { } groupImage) images.Add(groupImage);
+
         var cancellation = _imageLoad;
         _imageLoad = null;
         cancellation?.Cancel();
         cancellation?.Dispose();
         foreach (var card in OptionCards) card.Dispose();
         foreach (var group in GroupCards) group.Dispose();
+        foreach (var image in images)
+        {
+            ModImageCache.Forget(image);
+            image.Dispose();
+        }
     }
 
     /// <summary>预览覆盖层当前展示的是否是本弹窗持有的位图。</summary>
@@ -2348,12 +2393,8 @@ public abstract partial class ProfileModImageHolderViewModel : ObservableObject,
         Bitmap? bitmap;
         try
         {
-            var path = ImagePath;
-            bitmap = await Task.Run(() =>
-            {
-                using var stream = File.OpenRead(path);
-                return Bitmap.DecodeToWidth(stream, CardImageDecodeWidth);
-            }, cancellationToken);
+            // 同一路径或内容哈希相同的副本复用同一张解码位图，避免反复解码同一张图。
+            bitmap = await ModImageCache.DecodeSharedAsync(ImagePath, CardImageDecodeWidth, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -2364,12 +2405,8 @@ public abstract partial class ProfileModImageHolderViewModel : ObservableObject,
             // 预览图缺失或损坏时保持无图占位
             return;
         }
-        // 解码期间弹窗可能已关闭；此时立即释放，不能把位图挂到已销毁的卡片上。
-        if (_disposed || cancellationToken.IsCancellationRequested)
-        {
-            bitmap.Dispose();
-            return;
-        }
+        // 解码期间弹窗可能已关闭；共享位图由弹窗统一释放，这里只丢弃引用。
+        if (_disposed || cancellationToken.IsCancellationRequested) return;
         Image = bitmap;
     }
 
@@ -2401,9 +2438,8 @@ public abstract partial class ProfileModImageHolderViewModel : ObservableObject,
     {
         if (_disposed) return;
         _disposed = true;
-        var image = Image;
+        // 相同内容的卡片共享同一张位图，不能各自 Dispose；由弹窗按实例去重后统一释放。
         Image = null;
-        image?.Dispose();
     }
 }
 

@@ -289,6 +289,10 @@ public static class SettingKeys
     public const string DeploymentCheckBeforeDeploy = "Deployment.CheckBefore";
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
 
+    // 搜索相关
+    public const string SearchFuzzy = "Search.Fuzzy";
+    public const string SearchPinyin = "Search.Pinyin";
+
     // 模组库相关
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";

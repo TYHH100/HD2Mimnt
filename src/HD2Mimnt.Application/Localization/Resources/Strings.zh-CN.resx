@@ -3943,6 +3943,13 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Hd2Ir.ConfirmStep" xml:space="preserve"><value>确认 HD2IAS 组件组合</value></data>
   <data name="Hd2Ir.DetectStep" xml:space="preserve"><value>识别 HD2IAS 组件</value></data>
   <data name="Hd2Ir.DetectDetail" xml:space="preserve"><value>检查嵌套压缩包和部署映射</value></data>
+  <data name="Settings.Search.Title" xml:space="preserve"><value>搜索</value></data>
+  <data name="Settings.Search.Fuzzy" xml:space="preserve"><value>模糊搜索</value></data>
+  <data name="Settings.Search.FuzzyHelp" xml:space="preserve"><value>允许匹配不连续的字符，例如输入“hdv”可找到“Helldivers”。关闭时仅匹配连续文本。适用于所有本地搜索框，保存后生效。</value></data>
+  <data name="Settings.Search.Pinyin" xml:space="preserve"><value>拼音搜索</value></data>
+  <data name="Settings.Search.PinyinHelp" xml:space="preserve"><value>中文内容支持全拼或首字母匹配，例如输入“zhongwen”或“zw”可找到“中文”。适用于所有本地搜索框，保存后生效。</value></data>
+  <data name="Settings.Search.Saved" xml:space="preserve"><value>搜索设置已保存</value></data>
+  <data name="Settings.Search.Reset" xml:space="preserve"><value>搜索设置已恢复默认值</value></data>
   <data name="Settings.Library.KeepVersions" xml:space="preserve"><value>保留模组历史版本</value></data>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>更新时保留之前的完整版本，可在详情中切换；会额外占用磁盘空间。保存后生效。</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>允许重复导入</value></data>

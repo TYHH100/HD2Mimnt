@@ -60,14 +60,39 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
 
     public async Task LoadImagesAsync(ModCreationService service, string root, CancellationToken token)
     {
+        // 同一路径或内容完全相同的预览图只解码一次并共享同一张位图，不反复加载同一张图。
+        var byPath = new Dictionary<string, Bitmap?>(StringComparer.OrdinalIgnoreCase);
+        var byHash = new Dictionary<string, Bitmap>(StringComparer.Ordinal);
         foreach (var (path, set) in _images)
         {
+            if (string.IsNullOrEmpty(path)) continue;
+            if (byPath.TryGetValue(path, out var known))
+            {
+                if (known != null) set(known);
+                continue;
+            }
+
             var bytes = await service.ReadPreviewImageAsync(root, path, token);
-            if (bytes == null) continue;
+            if (bytes == null)
+            {
+                byPath[path] = null;
+                continue;
+            }
+
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+            if (byHash.TryGetValue(hash, out var shared))
+            {
+                byPath[path] = shared;
+                set(shared);
+                continue;
+            }
+
             Bitmap bitmap;
             // 创建预览卡片同样只显示 40～64 像素，按 128 像素宽解码，避免大预览图整张进内存。
             try { bitmap = await Task.Run(() => { using var stream = new MemoryStream(bytes); return Bitmap.DecodeToWidth(stream, ProfileModImageHolderViewModel.CardImageDecodeWidth); }, token); }
-            catch (Exception error) when (error is not OperationCanceledException) { continue; }
+            catch (Exception error) when (error is not OperationCanceledException) { byPath[path] = null; continue; }
+            byPath[path] = bitmap;
+            byHash[hash] = bitmap;
             _owned.Add(bitmap); token.ThrowIfCancellationRequested(); set(bitmap);
         }
     }
@@ -82,7 +107,7 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
     public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
     public void Dispose()
     {
-        if (_owned.Contains(_imagePreview?.Image!)) _imagePreview!.Close();
+        if (_imagePreview?.Image is { } showing && _owned.Contains(showing)) _imagePreview.Close();
         foreach (var image in _owned) image.Dispose(); _owned.Clear();
     }
 }
