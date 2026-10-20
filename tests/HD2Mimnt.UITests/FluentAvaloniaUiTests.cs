@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.IO.Compression;
 using Avalonia;
 using Avalonia.Controls;
@@ -1462,7 +1462,7 @@ public sealed partial class FluentAvaloniaUiTests
         vm.GamePath = game;
         vm.AutoDetectGame = false;
         main.SelectedTabIndex = 4;
-        vm.SelectedCategory = "部署";
+        vm.SelectedCategory = "配置文件";
         var window = new MainWindow { DataContext = main };
         try
         {
@@ -1488,7 +1488,7 @@ public sealed partial class FluentAvaloniaUiTests
                 window.MouseUp(point, MouseButton.Left);
                 Assert.NotNull(vm.SaveCommand.ExecutionTask);
                 await vm.SaveCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
-                Assert.Equal("设置已保存", vm.StatusMessage);
+                Assert.Equal("配置文件设置已保存", vm.StatusMessage);
                 Assert.Equal(method.ToString(), settings.GetSetting(SettingKeys.DefaultDeploymentMethod, ""));
                 main.NotificationPanelViewModel.DismissAllToasts();
                 // 保存期间触发的配置刷新完成后，分类仍可通过实际鼠标切换。
@@ -1499,7 +1499,7 @@ public sealed partial class FluentAvaloniaUiTests
                 window.MouseDown(point, MouseButton.Left);
                 window.MouseUp(point, MouseButton.Left);
                 Assert.Equal("游戏", vm.SelectedCategory);
-                vm.SelectedCategory = "部署";
+                vm.SelectedCategory = "配置文件";
                 Layout();
             }
         }
@@ -2677,10 +2677,29 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(mods[2].ModId, vm.ProfileMods[0].ModId);
             Assert.Equal(mods[2].ModId, (await profiles.GetProfileByIdAsync(vm.SelectedProfile!.Id))!.Mods.OrderBy(mod => mod.Order).First().ModId);
 
+            // 空的 Lua 分隔符按规则隐藏；先验证普通列表末尾，再加入真实依赖验证固定区域边界。
             window.UpdateLayout();
             movingIds = vm.VisibleProfileMods.Take(2).Select(mod => mod.ModId).ToList();
             InvokeSortPreview(view, "BeginModDragPreview", movingIds);
-            var separator = (Control)list.ContainerFromIndex(vm.ProfileRows.Count - 1)!;
+            InvokeSortPreview(view, "UpdateModDragPreview", movingIds, list.Bounds.Height + 10);
+            Assert.Equal("松开放到列表末尾", destination.Text);
+            var (_, emptyGroupAnchor) = ((int, Guid?))InvokeSortPreview(view, "GetModDropTarget", movingIds, list.Bounds.Height + 10)!;
+            Assert.Null(emptyGroupAnchor);
+            InvokeSortPreview(view, "ClearSortPreview");
+            var dependency = new Mod
+            {
+                Id = Guid.NewGuid(), Name = "HD2Mimnt Test Sort Dependency", Version = "1.0.0", Path = scope.Root,
+                BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency,
+                BslDetectionVersion = HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectionVersion
+            };
+            await scope.Services.GetRequiredService<HD2Mimnt.Core.Interfaces.IModRepository>().AddAsync(dependency);
+            await profiles.AddModToProfileAsync(vm.SelectedProfile!.Id, dependency.Id);
+            await vm.RefreshAfterProfilesChangedAsync();
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            movingIds = vm.VisibleProfileMods.Take(2).Select(mod => mod.ModId).ToList();
+            InvokeSortPreview(view, "BeginModDragPreview", movingIds);
+            var systemSeparator = vm.ProfileRows.Single(row => row.IsSeparator && !row.IsUserSeparator);
+            var separator = (Control)list.ContainerFromIndex(vm.ProfileRows.IndexOf(systemSeparator))!;
             var separatorY = separator.TranslatePoint(new Point(0, 0), list)!.Value.Y;
             InvokeSortPreview(view, "UpdateModDragPreview", movingIds, separatorY);
             Assert.Contains("2 个模组", title.Text!);

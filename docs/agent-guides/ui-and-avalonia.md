@@ -4,6 +4,10 @@
 
 ## 易错点与正确做法
 
+- 设置分类合并为“配置文件（含部署）”“模组库（含搜索）”“存储位置（含缓存）”；保留各分区原有 `settings.*` 稳定 ID，入口自定义仍按分区隐藏，只有组内全部隐藏才移除标签。旧分类跳转映射到所属标签；同标签的保存与恢复默认覆盖组内设置，不重置其它分类，存储路径恢复默认仍只回填、保存后才生效。更新分类列表后同时刷新分区可见性并恢复有效选择。来源：[Avalonia ListBox](https://docs.avaloniaui.net/docs/reference/controls/listbox)。
+
+- 设置保存按当前标签构造一次事务，不验证或写入其它标签的草稿；合并标签的保存/重置都必须整体成功，失败不发布部分设置或运行时事件。外观恢复默认按明确键列表处理，不能清空含 `UI.HiddenEntries` 的整个 UI 分类，更不能调用全局重置。背景选图与清空复用同一流程，保存成功后才改变已保存的背景；异步入口捕获失败并允许重试。参考：[SQLite 事务](https://www.sqlite.org/lang_transaction.html)、[设置持久化检查记录](../reports/settings-persistence-review-2026-10-20.md)。
+
 - 新增兼容性设置不能只接浮窗：同时接入设置分类、稳定的 `settings.compatibility` 入口 ID、持久化、分类重置、三语与实际执行开关。启动扫描和批量修复默认关闭；扫描不阻塞初始化、不自动修复，关闭和退出等待取消清理。游戏数据构建通过 Application 门面执行，进度回调核对操作令牌，避免已结束任务更新后续任务。行为与验证见[兼容性说明](../features/MOD_COMPATIBILITY.md)。来源：[MVVM 异步命令](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/asyncrelaycommand)。
 
 - 模组创建的源目录自动填充须经过 Application 后台扫描，按目录分别取名称、直属第一张图片和 Include；空草稿才生成选项，已有清单和手动填写值不被扫描覆盖。自动生成选项时保留根目录补丁的 `.` 映射。Include 选择使用程序内目录勾选树，独立保存对话框选择，确认后替换路径、取消不写回；回归粘贴路径、勾选回显、取消、清空及保存后的实际清单。来源：[旧版创建逻辑](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)、[Avalonia TreeView](https://docs.avaloniaui.net/docs/reference/controls/treeview)。
@@ -25,6 +29,8 @@
 - 依赖加载器分隔符使用 `ChevronAngle` 表达部署方向：常规部署展开箭头向下（90°），从下到上部署向上（-90°）；不要只改固定图标，否则方向切换后 UI 与列表顺序不一致。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 收起的用户分组需要保存 `MemberCount` 结束边界，拖入其下方或移动整组时只保留原有成员，组外模组正常显示；仅保存起点会让后续模组自动归组。旧数据的 null 沿用原范围，操作时补齐边界；展开、搜索、重新加载、复制配置和组内移出/删除都要保持边界一致，排序与边界通过同一次服务写入保存。回归覆盖正反部署方向、末尾分组及实际 DragOver/Drop。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://www.sqlite.org/lang_altertable.html
+
+- 删除模组文件不能只依赖 `Mods → ProfileMods` 的外键级联：级联不会维护 `ProfileSeparators.Order/MemberCount`，应先由 `ModService` 调用共享 `ProfileService` 移除所有配置中的引用，再删除模组记录。单个、批量移除及删除文件均按移除前的完整成员换算分组边界，删空的组不能吸收下一组；验证即时显示、重载及其它配置。重新开启加载器锁定时，必须在固定成员重新排序之前按原完整顺序扣除分隔符起点之前及成员范围内的固定成员；展开组的 null 边界与收起组的明确边界均须覆盖，重复重载不能再次偏移。来源：[SQLite 外键级联](https://www.sqlite.org/foreignkeys.html#fk_actions)、[SQLite 公共领域许可声明](https://www.sqlite.org/copyright.html)；回归见 `ModRemoval_ShouldPreserveSeparatorMembersAndEmptyGroupsAfterReload`、`RelockingLoaders_ShouldPreserveOrdinarySeparatorMembers`。
 
 - 外部文件导入拖放统一在 MainWindow 冒泡路由处理并启用 handledEventsToo（DragDrop 事件不走隧道路由），先识别本地文件再标记 Handled，避免页面子控件吞掉事件或内部排序覆盖 Copy；根容器使用透明背景覆盖空白区域。提示层不参与命中测试，DragLeave 只有窗口坐标越界才隐藏，不能因子控件之间移动反复显隐；无文件数据继续交给内部排序。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
@@ -78,7 +84,7 @@
 
 - 数字定位转换落点时，正向列表普通模组区域末尾要映射为 `Guid.Empty` 分隔符锚点，不能用第一项 Lua 模组 ID，否则合法的区域内移动被误拒绝；反向列表末尾保留 null 锚点。回归覆盖含 Lua 分组的单选、多选、正反向和越界拒绝。
 
-- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。搜索后按可见成员计算分隔符位置。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
+- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
 

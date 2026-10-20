@@ -136,7 +136,7 @@ public sealed class ProfileViewModelTests : IDisposable
         _modRepository = new ModRepository(_dbContext);
         _profileRepository = new ProfileRepository(_dbContext);
         _profileService = new ProfileService(_profileRepository, _modRepository);
-        _modService = new ModService(_modRepository, _storageDirectory);
+        _modService = new ModService(_modRepository, _storageDirectory, profileService: _profileService);
     }
 
     [Fact]
@@ -554,6 +554,88 @@ public sealed class ProfileViewModelTests : IDisposable
         Assert.Equal(mods[2].Id, Assert.Single(vm.GetSeparatorMembers(group)).ModId);
         vm.ModSearchText = group.ModName;
         Assert.Equal(mods[2].Id, Assert.Single(vm.VisibleProfileMods).ModId);
+    }
+
+    [Theory]
+    [InlineData(false, false, "single")]
+    [InlineData(true, false, "single")]
+    [InlineData(false, true, "single")]
+    [InlineData(true, true, "single")]
+    [InlineData(false, false, "batch")]
+    [InlineData(true, false, "batch")]
+    [InlineData(false, true, "batch")]
+    [InlineData(true, true, "batch")]
+    [InlineData(false, false, "delete")]
+    [InlineData(true, false, "delete")]
+    [InlineData(false, true, "delete")]
+    [InlineData(true, true, "delete")]
+    public async Task ModRemoval_ShouldPreserveSeparatorMembersAndEmptyGroupsAfterReload(
+        bool bottomToTop, bool collapsed, string operation)
+    {
+        var mods = new List<Mod>();
+        for (var i = 0; i < 6; i++) mods.Add(await AddModAsync($"Removal {i}"));
+        var profileId = await _profileService.CreateProfileAsync("移除后保留分组");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "武器", 1);
+        var second = await _profileService.AddSeparatorAsync(profileId, "护甲", 3);
+        var last = await _profileService.AddSeparatorAsync(profileId, "其它", 5);
+        if (collapsed)
+            foreach (var separator in new[] { first, second, last })
+                await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
+        var copy = await _profileService.DuplicateProfileAsync(profileId, "其它配置中的同一模组");
+        await new SettingsService(_storageDirectory).SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
+            bottomToTop ? "BottomToTop" : "TopToBottom");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        var removed = new HashSet<Guid>();
+        void AssertGroups()
+        {
+            foreach (var (id, members) in new[]
+            {
+                (first.Id, mods.Skip(1).Take(2)), (second.Id, mods.Skip(3).Take(2)), (last.Id, mods.Skip(5))
+            })
+            {
+                var row = vm.ProfileSeparators.Single(item => item.ModId == id);
+                var expected = members.Where(mod => !removed.Contains(mod.Id)).Select(mod => mod.Id).ToArray();
+                Assert.Equal(expected, vm.GetSeparatorMembers(row).Select(item => item.ModId));
+                Assert.Equal(expected.Length, row.GroupModCount);
+                Assert.Equal(collapsed, row.IsCollapsed);
+            }
+        }
+        AssertGroups();
+        // 依次移除分组前的模组、首组全部成员及下一组首项；空组不能吸收相邻成员。
+        var batches = operation == "batch" ? new[] { mods.Take(4).ToArray() }
+            : mods.Take(4).Select(mod => new[] { mod }).ToArray();
+        foreach (var batch in batches)
+        {
+            if (operation == "batch")
+            {
+                vm.ModSearchText = "Removal";
+                foreach (var mod in batch) vm.ToggleModSelected(vm.ProfileMods.Single(row => row.ModId == mod.Id));
+                await vm.RemoveSelectedModsCommand.ExecuteAsync(null);
+                vm.ModSearchText = "";
+            }
+            else if (operation == "delete")
+            {
+                await vm.DeleteModCommand.ExecuteAsync(vm.ProfileMods.Single(row => row.ModId == batch[0].Id));
+                await vm.LoadProfilesCommand.ExecuteAsync(null);
+            }
+            else
+                await vm.RemoveModFromProfileCommand.ExecuteAsync(vm.ProfileMods.Single(row => row.ModId == batch[0].Id));
+            removed.UnionWith(batch.Select(mod => mod.Id));
+            AssertGroups();
+            await vm.LoadProfilesCommand.ExecuteAsync(null);
+            AssertGroups();
+        }
+        var copied = (await _profileService.GetProfileByIdAsync(copy.Id))!;
+        var expectedCopy = operation == "delete" ? mods.Where(mod => !removed.Contains(mod.Id)) : mods;
+        Assert.Equal(expectedCopy.Select(mod => mod.Id), copied.Mods.Select(mod => mod.ModId));
+        Assert.Equal(operation == "delete" ? new[] { 0, 0, 1 } : new[] { 1, 3, 5 },
+            copied.Separators.Select(separator => separator.Order));
+        if (collapsed)
+            Assert.Equal(operation == "delete" ? new int?[] { 0, 1, 1 } : new int?[] { 2, 2, 1 },
+                copied.Separators.Select(separator => separator.MemberCount));
     }
 
     private ProfileViewModel CreateViewModel()

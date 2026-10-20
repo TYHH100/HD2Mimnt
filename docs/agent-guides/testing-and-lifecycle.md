@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 文件日志遇到 `IOException` / `UnauthorizedAccessException` 时只向调试输出报告，不再调用 `ILogger`，也不能把日志错误抛回业务调用链，否则 SQLite 保存失败会被日志异常替换。数据库保存失败仍须传播，不能发布新设置快照或成功通知；用数据库和日志同时只读、恢复可写后的重试回归。排查 SQLite Error 8 时记录实际数据库路径和 `SqliteExtendedErrorCode`，检查主库、WAL/SHM 与父目录，不能仅凭错误 8 认定文件只读属性或自动改权限。来源：[SQLite 返回码](https://www.sqlite.org/rescode.html)、[Microsoft.Data.Sqlite 数据库错误](https://learn.microsoft.com/dotnet/standard/data/sqlite/database-errors)。
+
 - 日志记录级别在“设置 → 日志”保存到 SQLite，默认 Warning，显示筛选不改变记录级别。`ILogger` 筛选只读取 `DiagnosticLogSettings` 的内存快照，禁止在筛选回调读取 SettingsService/SQLite，避免设置服务记录日志时重入设置锁。读取日志从尾部限制条数和字节数，允许共享写入；多行堆栈合并为同一条，级别判断来自记录头，不搜索正文中的“错误”字样。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[FileShare](https://learn.microsoft.com/dotnet/api/system.io.fileshare)。
 
 - Headless 实际点击验证在工具栏、弹窗等改变布局后，应先排空 Dispatcher、更新布局并调用 `CaptureRenderedFrame` 刷新合成命中场景，再执行 `InputHitTest` 和鼠标输入。单独 `UpdateLayout` 或 `RenderTargetBitmap.Render` 可能显示新位置却命中旧场景，不能据此误改业务绑定。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless/HeadlessWindowExtensions.cs

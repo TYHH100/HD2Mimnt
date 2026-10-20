@@ -122,7 +122,15 @@ public sealed class FileLogProvider : ILoggerProvider
             var message = formatter(state, exception);
             if (exception != null) message = $"{message} | {exception}";
             var line = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} [{logLevel}] {_category}: {message}{Environment.NewLine}";
-            lock (_gate) File.AppendAllText(_path, line);
+            try
+            {
+                lock (_gate) File.AppendAllText(_path, line);
+            }
+            catch (Exception writeError) when (writeError is IOException or UnauthorizedAccessException)
+            {
+                // 日志不能替换业务异常，也不能递归调用 ILogger 记录自身的写入失败。
+                System.Diagnostics.Debug.WriteLine($"无法写入日志 {_path}: {writeError.Message}");
+            }
         }
 
         private sealed class NullScope : IDisposable

@@ -35,7 +35,16 @@ public sealed partial class FluentAvaloniaUiTests
         var profiles = scope.Services.GetRequiredService<ProfileService>();
         var libraryMod = (await mods.GetModByIdAsync(mod.ModId))!;
         var otherProfileId = await profiles.CreateProfileAsync("同一模组的另一个配置");
-        await profiles.AddModToProfileAsync(otherProfileId, mod.ModId);
+        var activeProfileId = vm.SelectedProfile!.Id;
+        var originalIds = vm.ProfileMods.Select(row => row.ModId).ToArray();
+        foreach (var id in originalIds) await profiles.AddModToProfileAsync(otherProfileId, id);
+        var groupIds = new Dictionary<Guid, Guid>();
+        foreach (var profileId in new[] { activeProfileId, otherProfileId })
+        {
+            var separator = await profiles.AddSeparatorAsync(profileId, "删除后保持原成员", 1);
+            await profiles.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
+            groupIds.Add(profileId, separator.Id);
+        }
         await vm.RefreshAfterProfilesChangedAsync();
         mod = vm.ProfileMods.Single(row => row.ModId == mod.ModId);
         var window = new MainWindow { DataContext = main, Width = 1200, Height = 950 };
@@ -85,6 +94,20 @@ public sealed partial class FluentAvaloniaUiTests
                 await Task.Delay(20);
             Assert.DoesNotContain(vm.ProfileMods, row => row.ModId == mod.ModId);
             Assert.DoesNotContain((await profiles.GetProfileByIdAsync(otherProfileId))!.Mods, row => row.ModId == mod.ModId);
+            var group = Assert.Single(vm.ProfileSeparators);
+            Assert.Equal(0, group.Order);
+            Assert.True(group.IsCollapsed);
+            Assert.Equal(originalIds.Skip(1), vm.GetSeparatorMembers(group).Select(row => row.ModId));
+            Assert.Empty(vm.VisibleProfileMods);
+            foreach (var profileId in groupIds.Keys)
+            {
+                var saved = (await profiles.GetProfileByIdAsync(profileId))!;
+                var savedGroup = Assert.Single(saved.Separators);
+                Assert.Equal(groupIds[profileId], savedGroup.Id);
+                Assert.Equal(0, savedGroup.Order);
+                Assert.Equal(originalIds.Length - 1, savedGroup.MemberCount);
+                Assert.True(savedGroup.IsCollapsed);
+            }
             for (var attempt = 0; attempt < 100 && main.LibraryViewModel.FilteredMods.Any(row => row.Id == mod.ModId); attempt++)
                 await Task.Delay(20);
             Assert.DoesNotContain(main.LibraryViewModel.FilteredMods, row => row.Id == mod.ModId);

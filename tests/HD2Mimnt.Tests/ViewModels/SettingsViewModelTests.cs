@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.UI.ViewModels;
 using Moq;
+using Microsoft.Data.Sqlite;
 
 namespace HD2Mimnt.Tests.ViewModels;
 
@@ -20,6 +21,200 @@ public sealed class SettingsViewModelTests : IDisposable
         _settingsService = new SettingsService(_rootDirectory);
         _gameDetectionService = new GameDetectionService(_settingsService);
         _imageCache.Setup(service => service.GetStats()).Returns(new ImageCacheStats());
+    }
+
+    [Fact]
+    public async Task GameCategory_FailedSecondSetting_ShouldKeepOldDatabaseAndRuntimeState()
+    {
+        var game = Path.Combine(_rootDirectory, "Helldivers 2");
+        foreach (var name in new[] { "data", "tools", "bin" }) Directory.CreateDirectory(Path.Combine(game, name));
+        await File.WriteAllTextAsync(Path.Combine(game, "bin", "helldivers2.exe"), string.Empty);
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        { [SettingKeys.GamePath] = "previous-game", [SettingKeys.GameAutoDetect] = true });
+        await _gameDetectionService.ApplyConfiguredPathAsync("previous-game");
+        using var vm = CreateViewModel(game);
+        vm.AutoDetectGame = false;
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "CREATE TRIGGER fail_game BEFORE UPDATE ON Settings WHEN NEW.Key = 'Game.AutoDetect' BEGIN SELECT RAISE(ABORT, 'test failure'); END";
+        command.ExecuteNonQuery();
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Contains("保存设置失败", vm.StatusMessage);
+        Assert.Equal("previous-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
+        Assert.Equal("previous-game", _gameDetectionService.CurrentGameInfo!.Path);
+        Assert.True(_settingsService.GetSetting(SettingKeys.GameAutoDetect, false));
+    }
+
+    [Fact]
+    public async Task AppearanceCategory_ShouldSaveWithoutOtherValidationAndResetOnlyAppearance()
+    {
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.GamePath] = "saved-game",
+            [SettingKeys.ProfilesLockLoaders] = false,
+            [SettingKeys.DownloadParallelSegments] = 8,
+            [SettingKeys.HiddenEntries] = new[] { "settings.cache" }
+        });
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        vm.SelectedCategory = "外观";
+        vm.GamePath = "invalid-game-path";
+        vm.DownloadParallelSegments = 0;
+        vm.Theme = "Light";
+        vm.CardOpacity = 70;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal("设置已保存", vm.StatusMessage);
+        Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
+        Assert.Equal(70d, _settingsService.GetSetting(SettingKeys.CardOpacity, 100d));
+        Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
+        await vm.ResetCommand.ExecuteAsync(null);
+        Assert.Equal("Dark", vm.Theme);
+        Assert.Equal(100d, vm.CardOpacity);
+        Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
+        Assert.False(_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true));
+        Assert.Equal(8, _settingsService.GetSetting(SettingKeys.DownloadParallelSegments, 4));
+        Assert.Equal(new[] { "settings.cache" }, _settingsService.GetSetting(SettingKeys.HiddenEntries, Array.Empty<string>()));
+    }
+
+    [Theory]
+    [InlineData("配置文件", "Deployment.DefaultMethod", "Profiles.LockLoaders")]
+    [InlineData("模组库", "Search.Fuzzy", "Library.ImportAutoClose")]
+    public async Task MergedCategory_FailedSave_ShouldRollBackAllSections(string category, string failureKey, string firstKey)
+    {
+        await _settingsService.SetSettingAsync(firstKey, false);
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync(); vm.SelectedCategory = category;
+        vm.LockLoaders = true; vm.ImportAutoClose = true; vm.SearchFuzzy = true;
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE TRIGGER fail_save BEFORE INSERT ON Settings WHEN NEW.Key = '{failureKey}' BEGIN SELECT RAISE(ABORT, 'test save failure'); END";
+        command.ExecuteNonQuery();
+        var events = 0;
+        _settingsService.SettingChanged += (_, _) => events++;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Contains("保存设置失败", vm.StatusMessage);
+        Assert.False(_settingsService.GetSetting(firstKey, true));
+        Assert.False(new SettingsService(_rootDirectory).GetSetting(firstKey, true));
+        Assert.Equal(0, events);
+    }
+
+    [Theory]
+    [InlineData("配置文件", "Deployment.DefaultMethod", "Profiles.LockLoaders")]
+    [InlineData("模组库", "Search.Fuzzy", "Library.ImportAutoClose")]
+    public async Task MergedCategory_FailedReset_ShouldPreserveAllSectionsAndReportFailure(string category, string failureKey, string firstKey)
+    {
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        { [firstKey] = true, [failureKey] = true });
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync(); vm.SelectedCategory = category;
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"CREATE TRIGGER fail_reset BEFORE DELETE ON Settings WHEN OLD.Key = '{failureKey}' BEGIN SELECT RAISE(ABORT, 'test reset failure'); END";
+        command.ExecuteNonQuery();
+        var events = 0;
+        _settingsService.SettingChanged += (_, _) => events++;
+        Assert.Null(await Record.ExceptionAsync(() => vm.ResetCommand.ExecuteAsync(null)));
+        Assert.Contains("失败", vm.StatusMessage);
+        Assert.True(_settingsService.GetSetting(firstKey, false));
+        Assert.True(new SettingsService(_rootDirectory).GetSetting(firstKey, false));
+        Assert.Equal(0, events);
+    }
+
+    [Fact]
+    public async Task BackgroundSelection_FailedWrite_ShouldKeepOldPathAndReportFailure()
+    {
+        await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, "previous.png");
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "CREATE TRIGGER fail_background BEFORE UPDATE ON Settings BEGIN SELECT RAISE(ABORT, 'test failure'); END";
+        command.ExecuteNonQuery();
+        var changed = 0;
+        vm.AppearanceChanged += (_, _) => changed++;
+        Assert.Null(await Record.ExceptionAsync(() => vm.SetBackgroundImagePathAsync("new.png")));
+        Assert.Equal("previous.png", vm.BackgroundImagePath);
+        Assert.Contains("失败", vm.StatusMessage);
+        Assert.Null(await Record.ExceptionAsync(() => vm.ClearBackgroundImageCommand.ExecuteAsync(null)));
+        Assert.Equal("previous.png", vm.BackgroundImagePath);
+        Assert.Equal(0, changed);
+    }
+
+    [Fact]
+    public async Task MergedCategories_ShouldKeepSectionVisibilityAndLegacyEntryIds()
+    {
+        using var vm = CreateViewModel("invalid-game-path");
+        Assert.Equal(10, vm.SettingsCategories.Count());
+        foreach (var (previous, current) in new[] { ("部署", "配置文件"), ("搜索", "模组库"), ("缓存", "存储位置") })
+        {
+            Assert.DoesNotContain(previous, vm.SettingsCategories);
+            vm.SelectedCategory = previous;
+            Assert.Equal(current, vm.SelectedCategory);
+        }
+        vm.SelectedCategory = "模组库";
+        Assert.True(vm.IsLibraryCategoryVisible);
+        Assert.True(vm.IsSearchCategoryVisible);
+        await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, new[] { "settings.library" });
+        await vm.LoadAsync();
+        Assert.Equal("模组库", vm.SelectedCategory);
+        Assert.False(vm.IsLibraryCategoryVisible);
+        Assert.True(vm.IsSearchCategoryVisible);
+        await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, new[] { "settings.library", "settings.search" });
+        await vm.LoadAsync();
+        Assert.DoesNotContain("模组库", vm.SettingsCategories);
+        Assert.Equal("入口自定义", vm.SelectedCategory);
+    }
+
+    [Theory]
+    [InlineData("配置文件")]
+    [InlineData("模组库")]
+    public async Task MergedCategory_ShouldSaveBothSectionsAndResetOnlyItsSettings(string category)
+    {
+        await _settingsService.SetSettingAsync(SettingKeys.Theme, "Light");
+        await _settingsService.SetSettingAsync(SettingKeys.DownloadParallelSegments, 8);
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        vm.SelectedCategory = category;
+        vm.AutoAddImportedMods = true;
+        vm.DefaultDeploymentMethod = HD2Mimnt.Core.Enums.DeploymentMethod.HardLink;
+        vm.DeployBottomToTop = true;
+        vm.CheckBeforeDeploy = false;
+        vm.ImportAutoClose = true;
+        vm.SearchFuzzy = true;
+        vm.SearchPinyin = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        var saved = new SettingsService(_rootDirectory);
+        if (category == "配置文件")
+        {
+            Assert.True(saved.GetSetting(SettingKeys.ProfilesAutoAddImportedMods, false));
+            Assert.Equal("HardLink", saved.GetSetting(SettingKeys.DefaultDeploymentMethod, ""));
+            Assert.Equal("BottomToTop", saved.GetSetting(SettingKeys.DefaultDeploymentOrder, ""));
+            Assert.False(saved.GetSetting(SettingKeys.DeploymentCheckBeforeDeploy, true));
+            Assert.False(saved.GetSetting(SettingKeys.ImportAutoClose, false));
+        }
+        else
+        {
+            Assert.True(saved.GetSetting(SettingKeys.ImportAutoClose, false));
+            Assert.True(saved.GetSetting(SettingKeys.SearchFuzzy, false));
+            Assert.True(saved.GetSetting(SettingKeys.SearchPinyin, false));
+            Assert.False(saved.GetSetting(SettingKeys.ProfilesAutoAddImportedMods, false));
+        }
+        await vm.ResetCommand.ExecuteAsync(null);
+        Assert.False(vm.AutoAddImportedMods);
+        Assert.Equal(HD2Mimnt.Core.Enums.DeploymentMethod.Copy, vm.DefaultDeploymentMethod);
+        Assert.False(vm.ImportAutoClose);
+        Assert.False(vm.SearchFuzzy);
+        Assert.False(vm.SearchPinyin);
+        Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
+        Assert.Equal(8, _settingsService.GetSetting(SettingKeys.DownloadParallelSegments, 4));
     }
 
     [Fact]
@@ -64,7 +259,7 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.All(vm.NavigationEntries.Concat(vm.SettingsEntries), entry => Assert.True(entry.IsVisible));
         Assert.True(vm.ShowBrowseEntry);
-        Assert.Contains("缓存", vm.SettingsCategories);
+        Assert.Contains("存储位置", vm.SettingsCategories);
         Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
     }
 

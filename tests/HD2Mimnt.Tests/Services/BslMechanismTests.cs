@@ -255,6 +255,71 @@ public sealed class BslMechanismTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RelockingLoaders_ShouldPreserveOrdinarySeparatorMembers(bool collapsed)
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, false);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var loader = await AddModAsync("Loader", BslModRole.Loader);
+        var first = await AddModAsync("第一组普通模组");
+        var dependency = await AddModAsync("第一组依赖", BslModRole.Dependency);
+        var second = await AddModAsync("第二组普通模组");
+        var id = await service.CreateProfileAsync("重新锁定后保留分组");
+        await service.SetModsEnabledAsync(id, new[] { loader.Id, first.Id, dependency.Id, second.Id }, true);
+        var firstGroup = await service.AddSeparatorAsync(id, "第一组", 1);
+        var secondGroup = await service.AddSeparatorAsync(id, "第二组", 3);
+        if (collapsed)
+        {
+            await service.SetSeparatorCollapsedAsync(id, firstGroup.Id, true);
+            await service.SetSeparatorCollapsedAsync(id, secondGroup.Id, true);
+        }
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
+        for (var reload = 0; reload < 2; reload++)
+        {
+            var profile = (await service.GetProfileByIdAsync(id))!;
+            Assert.Equal(new[] { first.Id, second.Id, dependency.Id, loader.Id }, profile.Mods.Select(mod => mod.ModId));
+            Assert.Equal(new[] { 0, 1 }, profile.Separators.Select(separator => separator.Order));
+            Assert.All(profile.Separators, separator => Assert.Equal(collapsed, separator.IsCollapsed));
+            if (collapsed) Assert.All(profile.Separators, separator => Assert.Equal(1, separator.MemberCount));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task RemovingFixedMember_ShouldOnlyChangeOrdinarySeparatorBoundariesWhenUnlocked(bool lockLoaders, bool deleteFiles)
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, lockLoaders);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var first = await AddModAsync("第一组模组");
+        var dependency = await AddModAsync("依赖", BslModRole.Dependency);
+        var second = await AddModAsync("第二组模组");
+        var id = await service.CreateProfileAsync("固定成员移除边界");
+        await service.SetModsEnabledAsync(id, new[] { first.Id, dependency.Id, second.Id }, true);
+        var firstGroup = await service.AddSeparatorAsync(id, "第一组", 0);
+        var secondGroup = await service.AddSeparatorAsync(id, "第二组", lockLoaders ? 1 : 2);
+        await service.SetSeparatorCollapsedAsync(id, firstGroup.Id, true);
+        await service.SetSeparatorCollapsedAsync(id, secondGroup.Id, true);
+
+        if (deleteFiles)
+        {
+            var mods = new ModService(_mods, Path.Combine(_root, "library"), settingsService: settings, profileService: service);
+            Assert.True(await mods.DeleteModAsync(dependency.Id));
+        }
+        else await service.RemoveModFromProfileAsync(id, dependency.Id);
+
+        var profile = (await service.GetProfileByIdAsync(id))!;
+        Assert.Equal(new[] { first.Id, second.Id }, profile.Mods.Select(mod => mod.ModId));
+        Assert.Equal(new[] { 0, 1 }, profile.Separators.Select(separator => separator.Order));
+        Assert.All(profile.Separators, separator => Assert.Equal(1, separator.MemberCount));
+    }
+
+    [Theory]
     [InlineData(DeploymentOrder.TopToBottom)]
     [InlineData(DeploymentOrder.BottomToTop)]
     public async Task DeployBothDirections_ShouldAssignHighestPatchToLoader(DeploymentOrder direction)

@@ -149,23 +149,29 @@ public class SettingsService
     /// 重置某个分类的设置
     /// </summary>
     public async Task ResetCategoryAsync(string category)
+        => await ResetCategoriesAsync(category);
+
+    /// <summary>同一个设置标签中的多个分类在同一事务中恢复默认。</summary>
+    public async Task ResetCategoriesAsync(params string[] categories)
     {
+        if (categories.Length == 0) return;
         List<SettingChangedEventArgs> changes;
         await _lock.WaitAsync();
         try
         {
             var keysToRemove = _settings.Keys
-                .Where(k => k.StartsWith(category + ".", StringComparison.OrdinalIgnoreCase))
+                .Where(k => categories.Any(category => k.StartsWith(category + ".", StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
             var previous = _settings;
             var next = new Dictionary<string, object>(previous);
             foreach (var key in keysToRemove) next.Remove(key);
 
-            await _repository.ResetAsync(category);
+            if (categories.Length == 1) await _repository.ResetAsync(categories[0]);
+            else await _repository.ResetCategoriesAsync(categories);
             Volatile.Write(ref _settings, next);
             changes = FindChanges(previous, next);
-            _logger?.LogInformation("分类设置已重置: {Category}", category);
+            _logger?.LogInformation("分类设置已重置: {Category}", string.Join(", ", categories));
         }
         finally
         {

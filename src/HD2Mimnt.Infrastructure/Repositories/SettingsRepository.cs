@@ -91,6 +91,21 @@ public sealed class SettingsRepository(string databasePath) : ISettingsRepositor
         command.ExecuteNonQuery();
     });
 
+    public Task ResetCategoriesAsync(IReadOnlyCollection<string> categories) => Task.Run(() =>
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+        foreach (var category in categories)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "DELETE FROM Settings WHERE substr(Key, 1, length($prefix)) = $prefix COLLATE NOCASE";
+            command.Parameters.AddWithValue("$prefix", category + ".");
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    });
+
     private static void Write(SqliteConnection connection, SqliteTransaction transaction, string key, string value, bool overwrite)
     {
         using var command = connection.CreateCommand();

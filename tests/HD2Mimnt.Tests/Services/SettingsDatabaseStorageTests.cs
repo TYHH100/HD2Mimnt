@@ -17,6 +17,7 @@ public sealed class SettingsDatabaseStorageTests : IDisposable
         var storage = new StorageSettingsService(store);
         await storage.InitializeAsync();
         var before = storage.Current;
+        Directory.CreateDirectory(before.ModsPath);
         var background = Path.Combine(before.ModsPath, "background.png");
         await File.WriteAllTextAsync(background, "image");
         var settings = new SettingsService(before.AppDataPath);

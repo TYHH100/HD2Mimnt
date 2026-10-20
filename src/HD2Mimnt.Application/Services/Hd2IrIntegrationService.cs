@@ -388,6 +388,8 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
         foreach (var file in logical.Components.SelectMany(c => c.DeployableFiles))
         {
             token.ThrowIfCancellationRequested();
+            // 作者元数据只保留在模组库，不作为运行时文件部署到游戏。
+            if (IsAuthorMetadata(file.SourcePath) || IsAuthorMetadata(file.TargetPath)) continue;
             if (!file.TargetPath.StartsWith("bin/HD2IndependentRig/", StringComparison.OrdinalIgnoreCase)
                 || !selected.Contains(Path.GetDirectoryName(file.SourcePath)!.Replace('\\', '/'))) continue;
             var source = ResolveWithin(mod.Path, file.SourcePath);
@@ -399,6 +401,10 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
         }
         return files;
     }
+
+    /// <summary>`.hd2author` 是作者元数据，保留在模组库，但不需要写入游戏目录。</summary>
+    private static bool IsAuthorMetadata(string path) =>
+        Path.GetExtension(path).Equals(".hd2author", StringComparison.OrdinalIgnoreCase);
 
     private static string ResolveWithin(string root, string relative)
     {

@@ -1650,7 +1650,8 @@ public partial class ProfileViewModel : ObservableObject
         if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag) || moving.Select(mod => mod.IsFixedGroupMember).Distinct().Count() != 1)
             return false;
         var beforeSeparator = moving[0].IsFixedGroupMember == _bottomToTop;
-        if (beforeSeparator && anchor == null || !beforeSeparator && anchor == Guid.Empty) return false;
+        if (beforeSeparator && anchor == null && rows.Any(mod => mod.IsFixedGroupMember)
+            || !beforeSeparator && anchor == Guid.Empty) return false;
         // 两种部署方向都以分隔符为边界，不能借另一组的卡片越过分隔符。
         if (beforeSeparator && anchor is { } id
             && rows.Any(mod => mod.ModId == id && mod.IsFixedGroupMember != moving[0].IsFixedGroupMember)) return false;

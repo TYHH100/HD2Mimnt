@@ -16,7 +16,7 @@
 - 文件落入当前模组库中的独立副本，组件元数据保存到 `.hd2mimnt-hd2ir.json`。原包删除后仍可部署；临时解压/准备目录在成功、失败和取消后清理。
 - 统一 Mod ID 和 ProfileMods 保持现有库、搜索、详情、自动加入配置、排序和删除链路。组件读取通过 ModService，UI 不读文件或 SQLite；不再为 UI 创建一套平行配置数据。
 - 原 `manifest.json` 和 `hd2mimnt.json` 在组件目录保留原字节，不写入生成的选项；生成的组件分组与选项树保存到管理器自有 `.hd2mimnt-options.json`，并投影到数据库清单字段。清单缺失或旧导入缺少分组时，Application 从该自有 JSON 回填，不能把作者清单当作生成选项来源。
-- 明确的 `HD2IndependentRig` 相对目录及根目录特征文件映射到游戏 `bin/HD2IndependentRig`；配套合法补丁复用原补丁编号、占位、选项过滤和 `data` 部署逻辑。
+- 明确的 `HD2IndependentRig` 相对目录及根目录特征文件映射到游戏 `bin/HD2IndependentRig`；配套合法补丁复用原补丁编号、占位、选项过滤和 `data` 部署逻辑。`.hd2author` 是作者元数据，随组件保留在模组库，但部署展开 `GetNativeFilesAsync` 时跳过（含旧导入的组件元数据），不写入游戏目录，依据为用户明确要求。
 - 骨骼目标和补丁共同预登记到 `DeploymentFiles`，沿用 Copy / HardLink / SymbolicLink、配置切换前清理和删除追踪。路径保存为规范化绝对路径。
 - 重复骨骼目标在清理旧部署前报错，需调整组件选择。已有且不属于当前部署的骨骼目标要求先备份处理，避免覆盖外部安装。
 - 含 `update_notes.json` 的 HD2IR/HD2IAS 更新包使用其专用更新流程，不能作为角色模组添加。此接入不执行包内管理器、Lua 或原生载荷。

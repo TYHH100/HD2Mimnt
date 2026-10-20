@@ -28,6 +28,10 @@ await localization.SetLanguageAsync(LanguageCodes.Automatic);
 
 “设置 → 外观 → 语言”提供跟随系统、简体中文、繁体中文和 English，并显示实际生效语言。选择独立立即保存，不受游戏路径验证或“保存设置”按钮影响；保存失败恢复旧选项，连续选择串行保存。重置、设置重载和自动检测均同步当前界面。
 
+- 语言控件初始化/重建选中项时可能先回写空值再恢复原代码；空值和已生效的同一选择都不能触发保存。仅打开或重新进入外观标签不应写数据库；保留从“跟随系统”切换为相同实际语言的手动模式保存，它们的选择代码不同。回归四种语言选项的分类点击及实际语言切换。来源：[Avalonia ComboBox](https://docs.avaloniaui.net/docs/reference/controls/combobox)。
+
+- 跳过“与已提交语言相同”的选择仅适用于没有排队写入时；`auto → en-US → auto` 在前一笔提交前必须保留最后的 auto 请求，否则较早的 en-US 会覆盖用户最后选择。回归快速切回原模式与保存失败回滚。来源：[SemaphoreSlim.WaitAsync](https://learn.microsoft.com/dotnet/api/system.threading.semaphoreslim.waitasync)。
+
 `UiLocalization` 在窗口创建前关联后端，将变更派发到 UI 线程并更新 `Revision`。XAML 使用 `xmlns:loc="using:HD2Mimnt.UI.Localization"`：
 
 ```xml

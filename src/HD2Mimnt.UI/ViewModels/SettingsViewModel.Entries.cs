@@ -42,8 +42,19 @@ public partial class SettingsViewModel
     public bool IsEntriesCategoryVisible => SelectedCategory == "入口自定义";
 
     public IEnumerable<string> SettingsCategories => SettingsEntries
-        .Where(entry => !_hiddenEntries.Contains(entry.Id)).Select(entry => entry.Label)
+        .Where(entry => !_hiddenEntries.Contains(entry.Id)).Select(entry => GetCategory(entry.Label)).Distinct()
         .Append("入口自定义");
+
+    private static string GetCategory(string label) => label switch
+    {
+        "部署" => "配置文件",
+        "搜索" => "模组库",
+        "缓存" => "存储位置",
+        _ => label
+    };
+
+    private bool IsSectionVisible(string label) => SelectedCategory == GetCategory(label)
+        && !_hiddenEntries.Contains(SettingsEntries.Single(entry => entry.Label == label).Id);
 
     private void LoadEntryVisibility()
     {
@@ -59,6 +70,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(ShowConflictsEntry));
         OnPropertyChanged(nameof(ShowToolsEntry));
         OnPropertyChanged(nameof(SettingsCategories));
+        NotifyCategoryVisibilityChanged();
         SelectedCategory = SettingsCategories.Contains(selectedCategory) ? selectedCategory : "入口自定义";
     }
 

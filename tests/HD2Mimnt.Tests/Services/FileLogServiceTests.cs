@@ -1,9 +1,68 @@
 using HD2Mimnt.UI.Services;
+using HD2Mimnt.Application.Services;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Tests.Services;
 
 public sealed class FileLogServiceTests
 {
+    [Fact]
+    public async Task Log_ReadOnlyFile_ShouldKeepDatabaseFailureAndRecoverAfterAccessReturns()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "HD2MimntLogTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var logPath = Path.Combine(root, "application.log");
+        var databasePath = Path.Combine(root, "hd2mimnt.db");
+        try
+        {
+            using var factory = LoggerFactory.Create(builder => builder.AddProvider(new FileLogProvider(logPath)));
+            var settings = new SettingsService(root, factory.CreateLogger<SettingsService>());
+            await settings.SetSettingAsync(SettingKeys.Theme, "Dark");
+            var originalLog = await File.ReadAllTextAsync(logPath);
+            var notifications = 0;
+            settings.SettingChanged += (_, _) => notifications++;
+            File.SetAttributes(logPath, File.GetAttributes(logPath) | FileAttributes.ReadOnly);
+            File.SetAttributes(databasePath, File.GetAttributes(databasePath) | FileAttributes.ReadOnly);
+
+            var error = await Assert.ThrowsAsync<SqliteException>(() => settings.SetSettingAsync(SettingKeys.Theme, "Light"));
+
+            Assert.Equal(8, error.SqliteErrorCode);
+            Assert.Equal("Dark", settings.GetSetting(SettingKeys.Theme, ""));
+            Assert.Equal(0, notifications);
+            Assert.Equal(originalLog, await File.ReadAllTextAsync(logPath));
+            File.SetAttributes(databasePath, File.GetAttributes(databasePath) & ~FileAttributes.ReadOnly);
+            File.SetAttributes(logPath, File.GetAttributes(logPath) & ~FileAttributes.ReadOnly);
+            await settings.SetSettingAsync(SettingKeys.Theme, "Light");
+            Assert.Equal("Light", new SettingsService(root).GetSetting(SettingKeys.Theme, ""));
+            Assert.Equal(1, notifications);
+            Assert.True(new FileInfo(logPath).Length > System.Text.Encoding.UTF8.GetByteCount(originalLog));
+        }
+        finally
+        {
+            foreach (var path in new[] { logPath, databasePath })
+                if (File.Exists(path)) File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void Log_LockedFile_ShouldNotThrowAndRecoverOnNextMessage()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "HD2MimntLogTests", Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(root, "application.log");
+        try
+        {
+            using var provider = new FileLogProvider(path);
+            var logger = provider.CreateLogger("test");
+            using (var locked = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                logger.LogError("locked message");
+            logger.LogError("recovered message");
+            Assert.Contains("recovered message", File.ReadAllText(path));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task ReadRecentAsync_ReturnsBoundedTail()
     {

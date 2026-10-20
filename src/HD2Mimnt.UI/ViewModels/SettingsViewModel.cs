@@ -89,17 +89,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event EventHandler? AppearanceChanged;
     public event EventHandler<bool>? AutoCheckConflictsChanged;
 
-    public bool IsGameCategoryVisible => SelectedCategory == "游戏";
-    public bool IsProfileCategoryVisible => SelectedCategory == "配置文件";
-    public bool IsDeploymentCategoryVisible => SelectedCategory == "部署";
-    public bool IsLibraryCategoryVisible => SelectedCategory == "模组库";
-    public bool IsSearchCategoryVisible => SelectedCategory == "搜索";
-    public bool IsCompatibilityCategoryVisible => SelectedCategory == "兼容性";
-    public bool IsAppearanceCategoryVisible => SelectedCategory == "外观";
-    public bool IsCacheCategoryVisible => SelectedCategory == "缓存";
-    public bool IsDownloadCategoryVisible => SelectedCategory == "下载";
-    public bool IsStorageCategoryVisible => SelectedCategory == "存储位置";
-    public bool IsAccountCategoryVisible => SelectedCategory == "账号";
+    public bool IsGameCategoryVisible => IsSectionVisible("游戏");
+    public bool IsProfileCategoryVisible => IsSectionVisible("配置文件");
+    public bool IsDeploymentCategoryVisible => IsSectionVisible("部署");
+    public bool IsLibraryCategoryVisible => IsSectionVisible("模组库");
+    public bool IsSearchCategoryVisible => IsSectionVisible("搜索");
+    public bool IsCompatibilityCategoryVisible => IsSectionVisible("兼容性");
+    public bool IsAppearanceCategoryVisible => IsSectionVisible("外观");
+    public bool IsCacheCategoryVisible => IsSectionVisible("缓存");
+    public bool IsDownloadCategoryVisible => IsSectionVisible("下载");
+    public bool IsStorageCategoryVisible => IsSectionVisible("存储位置");
+    public bool IsAccountCategoryVisible => IsSectionVisible("账号");
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
@@ -130,7 +130,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         // ComboBox 初始化/重建选中项时可能短暂回写 null；这不是用户的语言选择。
         if (string.IsNullOrWhiteSpace(value)) return;
-        if (!_syncingLanguage && _localization?.Service != null)
+        if (!_syncingLanguage && _localization?.Service is { } service && (_pendingLanguageChanges > 0 || value != service.SelectedLanguage))
             LanguageChangeTask = ApplyLanguageAsync(value);
     }
 
@@ -190,8 +190,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCategoryChanged(string value)
     {
-        OnPropertyChanged(nameof(IsLogCategoryVisible));
+        var category = GetCategory(value);
+        if (category != value)
+        {
+            SelectedCategory = category;
+            return;
+        }
+        NotifyCategoryVisibilityChanged();
         if (value != "账号") _ = StopAccountsAsync();
+        if (value == "兼容性") _ = UpdateStaleCompatibilityDataAsync();
+    }
+
+    private void NotifyCategoryVisibilityChanged()
+    {
+        OnPropertyChanged(nameof(IsLogCategoryVisible));
         OnPropertyChanged(nameof(IsGameCategoryVisible));
         OnPropertyChanged(nameof(IsProfileCategoryVisible));
         OnPropertyChanged(nameof(IsDeploymentCategoryVisible));
@@ -204,7 +216,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
         OnPropertyChanged(nameof(IsEntriesCategoryVisible));
-        if (value == "兼容性") _ = UpdateStaleCompatibilityDataAsync();
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
@@ -263,145 +274,125 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task SaveAsync()
     {
-        if (IsLogCategoryVisible)
-        {
-            await SaveLogSettingsAsync();
-            return;
-        }
+        IsLoading = true;
         try
         {
-            if (IsEntriesCategoryVisible)
+            var category = SelectedCategory;
+            if (category == "日志")
+            {
+                await SaveLogSettingsAsync();
+                return;
+            }
+            if (category == "账号") return;
+            if (category == "入口自定义")
             {
                 await SaveEntryVisibilityAsync();
                 StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Entries.Saved"];
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
             }
-            if (IsCompatibilityCategoryVisible)
+            else if (category == "存储位置")
             {
-                await _settingsService.SetSettingsAsync(new Dictionary<string, object>
-                {
-                    [SettingKeys.CompatibilityCheckOnStartup] = CompatibilityCheckOnStartup,
-                    [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair
-                });
-                StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Compatibility.Saved"];
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
-            }
-            if (IsStorageCategoryVisible)
-            {
+                if (!IsStorageCategoryVisible) return;
                 if (_storageSettings == null) throw new InvalidOperationException("存储设置服务未初始化。");
-                IsLoading = true;
                 await _storageSettings.SaveAsync(new(AppDataPath, ModsStoragePath, TempCachePath));
                 LoadStoragePaths();
                 StatusMessage = (_localization ?? UiLocalization.Current)[StorageRestartRequired
                     ? "Settings.Storage.Saved" : "Settings.Storage.Unchanged"];
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
             }
-            var downloads = new DownloadOptions
+            else if (category == "下载")
             {
-                MaxParallelSegments = DownloadParallelSegments,
-                MinimumSegmentSize = DownloadSegmentSizeMiB * 1024L * 1024,
-                MaxRetries = DownloadMaxRetries,
-                RetryDelay = TimeSpan.FromMilliseconds(DownloadRetryDelayMs),
-                EnableResume = DownloadEnableResume
-            };
-            downloads.Validate();
-            if (DownloadSegmentSizeMiB is < 1 or > 256)
-                throw new ArgumentOutOfRangeException(nameof(DownloadSegmentSizeMiB), "分段大小应为 1–256 MiB。");
-            // Download settings can be saved independently of game path validation.
-            if (IsDownloadCategoryVisible)
-            {
+                var downloads = new DownloadOptions
+                {
+                    MaxParallelSegments = DownloadParallelSegments,
+                    MinimumSegmentSize = DownloadSegmentSizeMiB * 1024L * 1024,
+                    MaxRetries = DownloadMaxRetries,
+                    RetryDelay = TimeSpan.FromMilliseconds(DownloadRetryDelayMs),
+                    EnableResume = DownloadEnableResume
+                };
                 await _downloadSettingsService.SaveAsync(downloads);
                 StatusMessage = "下载设置已保存，下次下载生效";
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
             }
-            // 配置偏好可独立保存，不受游戏路径验证影响。
-            if (IsProfileCategoryVisible)
+            else if (category == "游戏")
             {
-                await SaveProfilePreferencesAsync();
-                StatusMessage = "配置文件设置已保存";
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
-            }
-            if (IsLibraryCategoryVisible)
-            {
-                await SaveLibraryPreferencesAsync();
-                StatusMessage = "设置已保存";
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
-            }
-            if (IsSearchCategoryVisible)
-            {
-                await SaveSearchPreferencesAsync();
-                StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Search.Saved"];
-                _notificationService.ShowSuccess(StatusMessage, "设置");
-                return;
-            }
-            var gamePath = GamePath.Trim();
-            if (string.IsNullOrWhiteSpace(gamePath))
-            {
-                await _settingsService.SetSettingAsync(SettingKeys.GamePath, string.Empty);
-                if (AutoDetectGame)
-                {
-                    await _gameDetectionService.AutoDetectAsync();
-                }
-                else
-                {
-                    await _gameDetectionService.ApplyConfiguredPathAsync(string.Empty);
-                }
+                await _gameDetectionService.SavePreferencesAsync(GamePath, AutoDetectGame);
                 GamePath = _gameDetectionService.CurrentGameInfo?.Path ?? string.Empty;
+                StatusMessage = "设置已保存";
             }
             else
             {
-                await _gameDetectionService.SetGamePathAsync(gamePath);
-                GamePath = gamePath;
+                var values = category switch
+                {
+                    "配置文件" => GetProfilePreferences().Concat(GetDeploymentPreferences())
+                        .ToDictionary(pair => pair.Key, pair => pair.Value),
+                    "模组库" => GetLibraryPreferences().Concat(GetSearchPreferences())
+                        .ToDictionary(pair => pair.Key, pair => pair.Value),
+                    "外观" => GetAppearancePreferences(),
+                    "兼容性" => new Dictionary<string, object>
+                    {
+                        [SettingKeys.CompatibilityCheckOnStartup] = CompatibilityCheckOnStartup,
+                        [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair
+                    },
+                    _ => throw new InvalidOperationException("请选择有效的设置分类。")
+                };
+                // 同标签内的全部设置一次提交；失败不发布部分设置或运行时事件。
+                await _settingsService.SetSettingsAsync(values);
+                if (category == "配置文件") AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
+                if (category == "外观") AppearanceChanged?.Invoke(this, EventArgs.Empty);
+                StatusMessage = category switch
+                {
+                    "配置文件" => "配置文件设置已保存",
+                    "兼容性" => (_localization ?? UiLocalization.Current)["Settings.Compatibility.Saved"],
+                    _ => "设置已保存"
+                };
             }
-            await _settingsService.SetSettingAsync(SettingKeys.GameAutoDetect, AutoDetectGame);
-            await SaveProfilePreferencesAsync();
-            await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentMethod, DefaultDeploymentMethod.ToString());
-            await _settingsService.SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
-                (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString());
-            await _settingsService.SetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, CheckBeforeDeploy);
-            await SaveLibraryPreferencesAsync();
-            await _settingsService.SetSettingAsync(SettingKeys.Theme, Theme);
-            await _settingsService.SetSettingAsync(SettingKeys.ListDensity, ListDensity);
-            await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, BackgroundImagePath);
-            await _settingsService.SetSettingAsync(SettingKeys.BackgroundImageOpacity, BackgroundImageOpacity);
-            await _settingsService.SetSettingAsync(SettingKeys.BackgroundBlur, BackgroundBlur);
-            await _settingsService.SetSettingAsync(SettingKeys.CardOpacity, CardOpacity);
-            await _settingsService.SetSettingAsync(SettingKeys.EnableAnimations, EnableAnimations);
-            await _downloadSettingsService.SaveAsync(downloads);
-            AppearanceChanged?.Invoke(this, EventArgs.Empty);
-            StatusMessage = "设置已保存";
-            _notificationService.ShowSuccess("设置已保存", "设置");
+            _notificationService.ShowSuccess(StatusMessage, "设置");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"保存设置失败：{ex.Message}";
-            _notificationService.ShowError($"保存设置失败: {ex.Message}", "设置");
+            StatusMessage = (_localization ?? UiLocalization.Current).Format("Settings.SaveFailed", ex.Message);
+            _notificationService.ShowError(StatusMessage, "设置");
         }
         finally { IsLoading = false; }
     }
 
-    private async Task SaveLibraryPreferencesAsync()
+    private Dictionary<string, object> GetProfilePreferences() => new()
     {
-        await _settingsService.SetSettingAsync(SettingKeys.ShowModThumbnails, ShowThumbnails);
-        await _settingsService.SetSettingAsync(SettingKeys.ImportAutoClose, ImportAutoClose);
-        await _settingsService.SetSettingAsync(SettingKeys.KeepModVersions, KeepModVersions);
-        await _settingsService.SetSettingAsync(SettingKeys.AllowDuplicateImports, AllowDuplicateImports);
-    }
+        [SettingKeys.ProfilesAutoAddImportedMods] = AutoAddImportedMods,
+        [SettingKeys.ProfilesLockLoaders] = LockLoaders,
+        [SettingKeys.ProfilesAutoSwitchOnSelect] = AutoSwitchProfileOnSelect,
+        [SettingKeys.ProfilesAutoCheckConflicts] = AutoCheckConflicts
+    };
 
-    private async Task SaveSearchPreferencesAsync()
+    private Dictionary<string, object> GetDeploymentPreferences() => new()
     {
-        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
-        {
-            [SettingKeys.SearchFuzzy] = SearchFuzzy,
-            [SettingKeys.SearchPinyin] = SearchPinyin
-        });
-    }
+        [SettingKeys.DefaultDeploymentMethod] = DefaultDeploymentMethod.ToString(),
+        [SettingKeys.DefaultDeploymentOrder] = (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString(),
+        [SettingKeys.DeploymentCheckBeforeDeploy] = CheckBeforeDeploy
+    };
+
+    private Dictionary<string, object> GetLibraryPreferences() => new()
+    {
+        [SettingKeys.ShowModThumbnails] = ShowThumbnails,
+        [SettingKeys.ImportAutoClose] = ImportAutoClose,
+        [SettingKeys.KeepModVersions] = KeepModVersions,
+        [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports
+    };
+
+    private Dictionary<string, object> GetSearchPreferences() => new()
+    {
+        [SettingKeys.SearchFuzzy] = SearchFuzzy,
+        [SettingKeys.SearchPinyin] = SearchPinyin
+    };
+
+    private Dictionary<string, object> GetAppearancePreferences() => new()
+    {
+        [SettingKeys.Theme] = Theme,
+        [SettingKeys.ListDensity] = ListDensity,
+        [SettingKeys.BackgroundImagePath] = BackgroundImagePath,
+        [SettingKeys.BackgroundImageOpacity] = BackgroundImageOpacity,
+        [SettingKeys.BackgroundBlur] = BackgroundBlur,
+        [SettingKeys.CardOpacity] = CardOpacity,
+        [SettingKeys.EnableAnimations] = EnableAnimations
+    };
 
     [RelayCommand]
     private async Task ToggleKeepModVersionsAsync()
@@ -415,15 +406,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
         KeepModVersions = !KeepModVersions;
-    }
-
-    private async Task SaveProfilePreferencesAsync()
-    {
-        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, AutoAddImportedMods);
-        await _settingsService.SetSettingAsync(SettingKeys.ProfilesLockLoaders, LockLoaders);
-        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, AutoSwitchProfileOnSelect);
-        await _settingsService.SetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, AutoCheckConflicts);
-        AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
     }
 
     [RelayCommand]
@@ -454,73 +436,94 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ResetAsync()
     {
-        if (IsCompatibilityCategoryVisible)
+        IsLoading = true;
+        try { await ResetSelectedCategoryAsync(); }
+        catch (Exception ex)
         {
-            await _settingsService.ResetCategoryAsync("Compatibility");
-            LoadCompatibilitySettings();
-            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Compatibility.Reset"];
-            return;
+            StatusMessage = (_localization ?? UiLocalization.Current).Format("Settings.ResetFailed", ex.Message);
+            _notificationService.ShowError(StatusMessage, "设置");
         }
-        if (IsLogCategoryVisible)
-        {
-            await _settingsService.ResetCategoryAsync("Diagnostics");
-            LoadLogSettings();
-            StatusMessage = "日志设置已恢复默认值";
-            return;
-        }
-        if (IsEntriesCategoryVisible)
+        finally { IsLoading = false; }
+    }
+
+    private async Task ResetSelectedCategoryAsync()
+    {
+        var category = SelectedCategory;
+        if (category == "账号") return;
+        if (category == "入口自定义")
         {
             await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, Array.Empty<string>());
             LoadEntryVisibility();
             StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Entries.Reset"];
             return;
         }
-        if (IsStorageCategoryVisible && _storageSettings != null)
+        if (category == "存储位置")
         {
+            if (!IsStorageCategoryVisible || _storageSettings == null) return;
             AppDataPath = _storageSettings.Defaults.AppDataPath;
             ModsStoragePath = _storageSettings.Defaults.ModsPath;
             TempCachePath = _storageSettings.Defaults.CachePath;
             StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Storage.Defaults"];
             return;
         }
-        if (IsDownloadCategoryVisible)
+        if (category == "外观")
         {
-            await _settingsService.ResetCategoryAsync("Download");
-            await LoadAsync();
-            StatusMessage = "下载设置已恢复默认值";
-            _notificationService.ShowInfo(StatusMessage, "设置");
-            return;
+            // UI 分类还包含语言与隐藏入口；外观重置不能清空 UI.HiddenEntries。
+            var defaults = new Dictionary<string, object>
+            {
+                [SettingKeys.Theme] = "Dark", [SettingKeys.ListDensity] = "Comfortable",
+                [SettingKeys.BackgroundImagePath] = string.Empty, [SettingKeys.BackgroundImageOpacity] = 25d,
+                [SettingKeys.BackgroundBlur] = 0d, [SettingKeys.CardOpacity] = 100d,
+                [SettingKeys.EnableAnimations] = true, [SettingKeys.Language] = LanguageCodes.Automatic
+            };
+            await _settingsService.SetSettingsAsync(defaults);
         }
-        if (IsSearchCategoryVisible)
+        else
         {
-            await _settingsService.ResetCategoryAsync("Search");
-            SearchFuzzy = false;
-            SearchPinyin = false;
-            StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Search.Reset"];
-            _notificationService.ShowInfo(StatusMessage, "设置");
-            return;
+            var categories = category switch
+            {
+                "游戏" => new[] { "Game" },
+                "配置文件" => new[] { "Profiles", "Deployment" },
+                "模组库" => new[] { "Library", "Search" },
+                "下载" => new[] { "Download" },
+                "兼容性" => new[] { "Compatibility" },
+                "日志" => new[] { "Diagnostics" },
+                _ => throw new InvalidOperationException("请选择有效的设置分类。")
+            };
+            await _settingsService.ResetCategoriesAsync(categories);
         }
-        await _settingsService.ResetToDefaultAsync();
         await LoadAsync();
-        _notificationService.ShowInfo("设置已恢复默认值", "设置");
+        if (category == "游戏") await _gameDetectionService.ApplyConfiguredPathAsync(GamePath);
+        if (category == "外观") AppearanceChanged?.Invoke(this, EventArgs.Empty);
+        StatusMessage = category switch
+        {
+            "兼容性" => (_localization ?? UiLocalization.Current)["Settings.Compatibility.Reset"],
+            "下载" => "下载设置已恢复默认值",
+            "日志" => "日志设置已恢复默认值",
+            _ => "设置已恢复默认值"
+        };
+        _notificationService.ShowInfo(StatusMessage, "设置");
     }
 
-    /// <summary>外观选图（View 代码后置用系统文件选择器拿到路径后调用）；立即持久化并通知应用。</summary>
+    /// <summary>选图与清空共用保存流程，失败保持已保存的背景并提示。</summary>
     public async Task SetBackgroundImagePathAsync(string path)
     {
-        BackgroundImagePath = path;
-        await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, path);
-        AppearanceChanged?.Invoke(this, EventArgs.Empty);
-        StatusMessage = "背景图片已更新";
+        try
+        {
+            await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, path);
+            BackgroundImagePath = path;
+            AppearanceChanged?.Invoke(this, EventArgs.Empty);
+            StatusMessage = "背景图片已更新";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = (_localization ?? UiLocalization.Current).Format("Settings.SaveFailed", ex.Message);
+            _notificationService.ShowError(StatusMessage, "设置");
+        }
     }
 
     [RelayCommand]
-    private async Task ClearBackgroundImageAsync()
-    {
-        BackgroundImagePath = string.Empty;
-        await _settingsService.SetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
-        AppearanceChanged?.Invoke(this, EventArgs.Empty);
-    }
+    private Task ClearBackgroundImageAsync() => SetBackgroundImagePathAsync(string.Empty);
 
     [RelayCommand]
     private async Task ClearImageCacheAsync()

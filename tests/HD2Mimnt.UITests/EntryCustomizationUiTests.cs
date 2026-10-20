@@ -62,6 +62,8 @@ public sealed partial class FluentAvaloniaUiTests
             var browseEntry = navigation.MenuItems.OfType<FANavigationViewItem>().Single(item => item.Tag?.ToString() == "5");
             Assert.False(browseEntry.IsVisible);
             Assert.DoesNotContain("缓存", categories.Items.Cast<string>());
+            Assert.Contains("存储位置", categories.Items.Cast<string>());
+            Assert.False(vm.IsCacheCategoryVisible);
             Assert.Equal("入口自定义", categories.SelectedItem);
             Assert.True(navigation.MenuItems.OfType<FANavigationViewItem>().Single(item => item.Tag?.ToString() == "4").IsVisible);
             Assert.Contains("navigation.browse", scope.Services.GetRequiredService<SettingsService>().GetSetting(SettingKeys.HiddenEntries, Array.Empty<string>()));
@@ -83,7 +85,7 @@ public sealed partial class FluentAvaloniaUiTests
 
             await vm.ResetCommand.ExecuteAsync(null); Layout();
             Assert.True(browseEntry.IsVisible);
-            Assert.Contains("缓存", categories.Items.Cast<string>());
+            Assert.Contains("存储位置", categories.Items.Cast<string>());
             Click(navigation.MenuItems.OfType<FANavigationViewItem>().Single(item => item.Tag?.ToString() == "1"));
             Assert.Equal(1, main.SelectedTabIndex);
         }

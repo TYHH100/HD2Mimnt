@@ -58,10 +58,9 @@ public class GameDetectionService
         if (detectedPath != null)
         {
             _logger?.LogInformation("在常见位置找到游戏: {Path}", detectedPath);
-            await UpdateGameInfoAsync(detectedPath, GameStatus.Found, cancellationToken);
-
             // 保存检测到的路径
             await _settingsService.SetSettingAsync("Game.Path", detectedPath);
+            await UpdateGameInfoAsync(detectedPath, GameStatus.Found, cancellationToken);
             return;
         }
 
@@ -134,6 +133,26 @@ public class GameDetectionService
             await UpdateGameInfoAsync(path, GameStatus.Invalid, cancellationToken);
             throw new InvalidOperationException($"Invalid game directory: {path}");
         }
+    }
+
+    /// <summary>设置页的路径与自动检测选项一起提交，成功后再更新运行时状态。</summary>
+    public async Task SavePreferencesAsync(string path, bool autoDetect, CancellationToken cancellationToken = default)
+    {
+        path = path.Trim();
+        if (!string.IsNullOrEmpty(path) && !await ValidateGameDirectoryAsync(path, cancellationToken))
+        {
+            await UpdateGameInfoAsync(path, GameStatus.Invalid, cancellationToken);
+            throw new InvalidOperationException($"Invalid game directory: {path}");
+        }
+        if (string.IsNullOrEmpty(path) && autoDetect)
+            path = await Task.Run(() => DetectFromCommonLocationsAsync(cancellationToken), cancellationToken) ?? string.Empty;
+        cancellationToken.ThrowIfCancellationRequested();
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.GamePath] = path,
+            [SettingKeys.GameAutoDetect] = autoDetect
+        });
+        await UpdateGameInfoAsync(path, string.IsNullOrEmpty(path) ? GameStatus.NotFound : GameStatus.Found, cancellationToken);
     }
 
     /// <summary>

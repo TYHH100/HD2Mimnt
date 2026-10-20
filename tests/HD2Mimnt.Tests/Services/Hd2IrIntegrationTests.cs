@@ -200,6 +200,30 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         Assert.Empty(await _mods.GetAllAsync());
     }
 
+    [Fact]
+    public async Task AuthorMetadataFile_IsKeptInLibraryButNotDeployed()
+    {
+        var source = Path.Combine(_root, "author-pack");
+        var rig = Path.Combine(source, "bin", "HD2IndependentRig");
+        Directory.CreateDirectory(rig);
+        await File.WriteAllTextAsync(Path.Combine(rig, "hero.rigbin"), "rig");
+        await File.WriteAllTextAsync(Path.Combine(rig, "hero.hd2author"), "author");
+        await File.WriteAllTextAsync(Path.Combine(source, "0123456789abcdef.patch_0"), "patch");
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var mod = (await _mods.GetByIdAsync(id))!;
+        // 作者元数据仍随组件保存在库内，只是不作为运行时文件部署。
+        Assert.Single(Directory.EnumerateFiles(mod.Path, "hero.hd2author", SearchOption.AllDirectories));
+        var profile = await CreateProfile(id, [true, true]);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.True(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin")));
+        Assert.False(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.hd2author")));
+        Assert.True(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
+        var record = Assert.Single((await _deployment.GetLatestDeploymentsAsync()).ToList());
+        Assert.DoesNotContain((await _deployment.GetDeploymentFilesAsync(record.Id)).ToList(),
+            file => file.TargetPath.EndsWith(".hd2author", StringComparison.OrdinalIgnoreCase));
+    }
+
     private string CreateNestedPackage()
     {
         var rig = Path.Combine(_root, "rig-source", "bin", "HD2IndependentRig");

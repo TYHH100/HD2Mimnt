@@ -8,4 +8,5 @@ public interface ISettingsRepository
     void ImportLegacy(IReadOnlyDictionary<string, string> values);
     Task ApplyAsync(IReadOnlyDictionary<string, string> values, IReadOnlyCollection<string> removedKeys);
     Task ResetAsync(string? category);
+    Task ResetCategoriesAsync(IReadOnlyCollection<string> categories);
 }

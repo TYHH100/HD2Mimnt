@@ -179,7 +179,10 @@ public partial class App : Avalonia.Application
         {
             running = false;
             if (startup == null) ShowStorageStartupWindow();
-            startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", ex.Message));
+            var detail = ex is UnauthorizedAccessException
+                ? UiLocalization.Current.Format("Settings.Storage.AccessDenied", ex.Message)
+                : ex.Message;
+            startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", detail));
         }
     }
 

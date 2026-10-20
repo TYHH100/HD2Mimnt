@@ -23,7 +23,7 @@ public sealed partial class FluentAvaloniaUiTests
         var vm = scope.Services.GetRequiredService<SettingsViewModel>();
         var settings = scope.Services.GetRequiredService<SettingsService>();
         await vm.LoadAsync();
-        vm.SelectedCategory = "搜索";
+        vm.SelectedCategory = "模组库";
         var view = new SettingsView { DataContext = vm };
         var window = new Window { Width = 1040, Height = 800, Content = view };
         var app = Avalonia.Application.Current!;
@@ -46,8 +46,10 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.False(pinyin.IsChecked);
             Assert.Equal(language["Settings.Search.Title"], expander.Header);
 
+            fuzzy.BringIntoView();
             ClickVersionControl(window, fuzzy);
             Assert.True(vm.SearchFuzzy);
+            pinyin.BringIntoView();
             ClickVersionControl(window, pinyin);
             Assert.True(vm.SearchPinyin);
             ClickVersionControl(window, view.FindControl<Button>("SaveSettingsButton")!);

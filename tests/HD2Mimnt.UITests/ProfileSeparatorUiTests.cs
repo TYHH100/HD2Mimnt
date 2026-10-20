@@ -49,7 +49,9 @@ public sealed partial class FluentAvaloniaUiTests
                 Assert.Equal(DragDropEffects.Move, over.DragEffects);
                 Assert.True(view.FindControl<Border>("SortInsertionMarker")!.IsVisible);
                 var (_, anchor) = ((int, Guid?))InvokeSortPreview(view, "GetModDropTarget", movingIds, point.Y)!;
-                Assert.Equal(bottomToTop ? (Guid?)null : Guid.Empty, anchor);
+                // 空的 Lua 分组没有系统分隔符，两个方向都以真实列表末尾作为组外落点。
+                Assert.DoesNotContain(vm.ProfileRows, row => row.IsSeparator && !row.IsUserSeparator);
+                Assert.Null(anchor);
                 list.RaiseEvent(new DragEventArgs(DragDrop.DropEvent, data, list, point, KeyModifiers.None));
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 while ((await profiles.GetProfileByIdAsync(profileId))!.Mods.OrderBy(row => row.Order).Last().ModId != moving.ModId)

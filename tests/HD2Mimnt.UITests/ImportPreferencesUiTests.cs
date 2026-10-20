@@ -60,6 +60,8 @@ public sealed partial class FluentAvaloniaUiTests
     {
         await using var scope = await UiScope.CreateAsync();
         var settings = scope.Services.GetRequiredService<SettingsService>();
+        // 本用例反复导入同一内容以验证导入偏好，显式允许重复，避免测到重复拦截。
+        await settings.SetSettingAsync(SettingKeys.AllowDuplicateImports, true);
         var vm = scope.Services.GetRequiredService<SettingsViewModel>();
         var library = scope.Services.GetRequiredService<MainWindowViewModel>().LibraryViewModel;
         var profiles = scope.Services.GetRequiredService<ProfileService>();
@@ -118,10 +120,15 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(2, (await profiles.GetProfileByIdAsync(activeId))!.Mods.Count);
 
             await vm.ResetCommand.ExecuteAsync(null);
-            Assert.False(vm.ImportAutoClose);
+            Assert.True(vm.ImportAutoClose); // 配置文件标签不能重置模组库的导入偏好。
             Assert.False(vm.AutoAddImportedMods);
+            vm.SelectedCategory = "模组库";
+            await vm.ResetCommand.ExecuteAsync(null);
+            Assert.False(vm.ImportAutoClose);
+            await File.WriteAllTextAsync(Path.Combine(source, "body.patch"), "new-content-after-reset");
             await library.ImportPathsAsync([source]);
             Assert.True(library.Import.IsOpen);
+            Assert.Equal(1, library.Import.SuccessCount);
             Assert.Equal(2, (await profiles.GetProfileByIdAsync(activeId))!.Mods.Count);
         }
         finally

@@ -2723,6 +2723,9 @@ Cache: {2}</value>
   <data name="Settings.Storage.StartupFailed" xml:space="preserve">
     <value>Storage initialization failed: {0}</value>
   </data>
+  <data name="Settings.Storage.AccessDenied" xml:space="preserve">
+    <value>{0} Check that this path is a directory and that the current Windows account can create folders there. If Windows Controlled Folder Access is enabled, allow HD2Mimnt to access the folder.</value>
+  </data>
   <data name="Settings.Storage.EmptyTarget" xml:space="preserve">
     <value>Choose an empty folder to avoid overwriting existing files.</value>
   </data>
@@ -4166,4 +4169,5 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Data.Build" xml:space="preserve"><value>Build and save / Rebuild</value></data>
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>Game reference index built and saved</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>Names updated: {0:N0} resources, {1:N0} archives</value></data>
+  <data name="Settings.ResetFailed" xml:space="preserve"><value>Failed to restore settings: {0}</value></data>
 </root>

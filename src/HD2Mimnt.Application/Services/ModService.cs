@@ -402,6 +402,14 @@ public partial class ModService
         await _thumbnailService.DeleteThumbnailAsync(id, cancellationToken);
         await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, cancellationToken);
 
+        // 先通过配置服务移除引用并调整分组边界；数据库级联删除不会更新分隔符位置和成员数。
+        if (_profileService != null)
+        {
+            var profiles = await _profileService.GetAllProfilesAsync(cancellationToken);
+            foreach (var profile in profiles.Where(profile => profile.Mods.Any(item => item.ModId == id)))
+                await _profileService.RemoveModFromProfileAsync(profile.Id, id, cancellationToken);
+        }
+
         // 从数据库删除
         await _modRepository.DeleteAsync(id, cancellationToken);
         await _metadata.WriteAsync(id, null, CancellationToken.None);

@@ -26,6 +26,69 @@ namespace HD2Mimnt.Tests.UI;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
+    public async Task LanguageSelection_QueuedReturnToCurrentMode_ShouldHonorLastChoice()
+    {
+        await using var scope = await UiScope.CreateAsync(systemLanguage: new TestSystemLanguage());
+        var vm = scope.Services.GetRequiredService<SettingsViewModel>();
+        var service = scope.Services.GetRequiredService<ILocalizationService>();
+        vm.SelectedLanguageCode = "en-US";
+        vm.SelectedLanguageCode = "auto";
+        await vm.LanguageChangeTask.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal("auto", service.SelectedLanguage);
+        Assert.Equal("auto", vm.SelectedLanguageCode);
+        Assert.Equal("auto", new SettingsService(scope.Root).GetSetting(SettingKeys.Language, ""));
+    }
+
+    [AvaloniaFact]
+    public async Task AppearanceCategory_ReopeningAndRestoringLanguageSelection_ShouldNotWriteSettings()
+    {
+        await using var scope = await UiScope.CreateAsync(systemLanguage: new TestSystemLanguage());
+        var vm = scope.Services.GetRequiredService<SettingsViewModel>();
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        var language = scope.Services.GetRequiredService<ILocalizationService>();
+        await vm.LoadAsync();
+        var view = new SettingsView { DataContext = vm };
+        var window = new Window { Width = 1040, Height = 800, Content = view };
+        try
+        {
+            window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            foreach (var code in new[] { "auto", "zh-CN", "zh-TW", "en-US" })
+            {
+                await language.SetLanguageAsync(code);
+                Dispatcher.UIThread.RunJobs();
+                var writes = 0;
+                EventHandler<SettingChangedEventArgs> onChanged = (_, args) =>
+                {
+                    if (args.Key == SettingKeys.Language) writes++;
+                };
+                settings.SettingChanged += onChanged;
+                try
+                {
+                    var previousTask = vm.LanguageChangeTask;
+                    // SelectedValue 初始化/重建会暂时回写空值，再恢复已保存的选择。
+                    vm.SelectedLanguageCode = null!;
+                    vm.SelectedLanguageCode = code;
+                    await vm.LanguageChangeTask;
+                    Assert.Same(previousTask, vm.LanguageChangeTask);
+                    foreach (var category in new[] { "外观", "配置文件", "外观", "模组库", "外观" })
+                    {
+                        var item = view.GetVisualDescendants().OfType<ListBoxItem>()
+                            .Single(item => item.DataContext as string == category);
+                        ClickVersionControl(window, item);
+                        await vm.LanguageChangeTask;
+                        Assert.Equal(code, vm.SelectedLanguageCode);
+                        Assert.Equal(code, language.SelectedLanguage);
+                        Assert.Same(previousTask, vm.LanguageChangeTask);
+                    }
+                    Assert.Equal(0, writes);
+                }
+                finally { settings.SettingChanged -= onChanged; }
+            }
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task LanguageSettings_ShouldPersistImmediatelyAndRefreshExistingPages()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true, systemLanguage: new TestSystemLanguage());

@@ -61,6 +61,11 @@ public class LogSearchTests
             return Task.CompletedTask;
         }
 
+        public async Task ResetCategoriesAsync(IReadOnlyCollection<string> categories)
+        {
+            foreach (var category in categories) await ResetAsync(category);
+        }
+
         public Task ResetAsync(string? category)
         {
             if (string.IsNullOrEmpty(category))

@@ -2723,6 +2723,9 @@
   <data name="Settings.Storage.StartupFailed" xml:space="preserve">
     <value>存储目录初始化失败：{0}</value>
   </data>
+  <data name="Settings.Storage.AccessDenied" xml:space="preserve">
+    <value>{0} 请确认此路径是目录，且当前 Windows 帐户有权在其中创建文件夹。如果已启用 Windows 受控文件夹访问，请允许 HD2Mimnt 访问该目录。</value>
+  </data>
   <data name="Settings.Storage.EmptyTarget" xml:space="preserve">
     <value>新位置必须是空目录，以免覆盖已有文件。</value>
   </data>
@@ -4166,4 +4169,5 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Data.Build" xml:space="preserve"><value>构建并保存 / 重新构建</value></data>
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>游戏参考索引已构建并保存</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>名称数据已更新：{0:N0} 个资源，{1:N0} 个归档</value></data>
+  <data name="Settings.ResetFailed" xml:space="preserve"><value>恢复设置失败：{0}</value></data>
 </root>

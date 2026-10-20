@@ -88,8 +88,38 @@ public class ProfileService
         var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToList();
         foreach (var mod in mods) await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
         var byId = mods.ToDictionary(mod => mod.Id);
-        var changed = enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
+        var changed = LoaderLockEnabled && AdjustSeparatorsForLockedLoaders(profile, byId);
+        changed |= enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
         return BslProfilePolicy.Normalize(profile, byId, LoaderLockEnabled) || changed;
+    }
+
+    private static bool AdjustSeparatorsForLockedLoaders(Profile profile, IReadOnlyDictionary<Guid, Mod> mods)
+    {
+        if (profile.Separators.Count == 0) return false;
+        var ordered = profile.Mods.OrderBy(item => item.Order).ToList();
+        var ordinaryCounts = new int[ordered.Count + 1];
+        for (var index = 0; index < ordered.Count; index++)
+            ordinaryCounts[index + 1] = ordinaryCounts[index]
+                + (!mods.TryGetValue(ordered[index].ModId, out var mod)
+                    || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None ? 1 : 0);
+
+        // 重新锁定加载器时，先按原完整顺序换算边界，再将固定成员移出普通区域。
+        var separators = profile.Separators.OrderBy(item => item.Order).ToArray();
+        var changed = false;
+        for (var index = 0; index < separators.Length; index++)
+        {
+            var separator = separators[index];
+            var start = Math.Clamp(separator.Order, 0, ordered.Count);
+            var end = Math.Clamp(index + 1 < separators.Length ? separators[index + 1].Order : ordered.Count,
+                start, ordered.Count);
+            var count = Math.Clamp(separator.MemberCount ?? end - start, 0, end - start);
+            int? memberCount = separator.MemberCount != null || separator.IsCollapsed
+                ? ordinaryCounts[start + count] - ordinaryCounts[start] : null;
+            changed |= separator.Order != ordinaryCounts[start] || separator.MemberCount != memberCount;
+            separator.Order = ordinaryCounts[start];
+            separator.MemberCount = memberCount;
+        }
+        return changed;
     }
 
     public async Task<IEnumerable<Profile>> GetAllProfilesAsync(CancellationToken cancellationToken = default)

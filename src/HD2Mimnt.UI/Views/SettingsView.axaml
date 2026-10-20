@@ -140,7 +140,7 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
+        <fa:FASettingsExpander x:Name="ProfileSettings" Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoAddImportedModsToggle" IsChecked="{Binding AutoAddImportedMods}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -154,7 +154,7 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoCheckConflictsToggle" IsChecked="{Binding AutoCheckConflicts}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="{loc:Loc UI.Deployment}" IconSource="Upload" IsExpanded="True" IsVisible="{Binding IsDeploymentCategoryVisible}">
+        <fa:FASettingsExpander x:Name="DeploymentSettings" Header="{loc:Loc UI.Deployment}" IconSource="Upload" IsExpanded="True" IsVisible="{Binding IsDeploymentCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.DefaultDeploymentMethod}">
             <fa:FASettingsExpanderItem.Footer><ComboBox x:Name="DeploymentMethodInput" ItemsSource="{Binding DeploymentMethods}" SelectedItem="{Binding DefaultDeploymentMethod}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -165,7 +165,7 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
+        <fa:FASettingsExpander x:Name="LibrarySettings" Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.KeepVersions}" Description="{loc:Loc Settings.Library.KeepVersionsHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="KeepModVersionsToggle" IsChecked="{Binding KeepModVersions, Mode=OneWay}" Command="{Binding ToggleKeepModVersionsCommand}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -204,7 +204,7 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="DownloadResumeToggle" IsChecked="{Binding DownloadEnableResume}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="{loc:Loc Settings.Storage.Title}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsStorageCategoryVisible}" Description="{loc:Loc Settings.Storage.RestartHelp}">
+        <fa:FASettingsExpander x:Name="StorageSettings" Header="{loc:Loc Settings.Storage.Title}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsStorageCategoryVisible}" Description="{loc:Loc Settings.Storage.RestartHelp}">
           <fa:FASettingsExpanderItem>
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{loc:Loc Settings.Storage.AppData}"/><Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="AppDataPathInput" Text="{Binding AppDataPath, UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="{loc:Loc UI.Choose}" Click="OnPickAppDataClicked"/></Grid></Grid>
           </fa:FASettingsExpanderItem>
@@ -217,6 +217,12 @@
           <fa:FASettingsExpanderItem>
             <StackPanel Spacing="6"><TextBlock Text="{loc:Loc Settings.Storage.Active}"/><TextBlock Text="{Binding ActiveStoragePaths}" Classes="caption-text" TextWrapping="Wrap"/></StackPanel>
           </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="CacheSettings" Header="{loc:Loc UI.Cache}" IconSource="Save" IsExpanded="True" IsVisible="{Binding IsCacheCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ImageCache}">
+            <fa:FASettingsExpanderItem.Footer><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="{loc:Loc UI.RefreshInformation}" Command="{Binding RefreshCacheCommand}"/><Button Content="{loc:Loc UI.CleanUp}" Command="{Binding ClearImageCacheCommand}"/></StackPanel></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:LocalizedBinding CacheStatus}"/>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Appearance}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Language}" Description="{loc:Loc Settings.Language.Help}">
@@ -261,12 +267,6 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.CardOpacity}">
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="20" Maximum="100" Value="{Binding CardOpacity}"/><TextBlock Grid.Column="1" Text="{Binding CardOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-        </fa:FASettingsExpander>
-        <fa:FASettingsExpander Header="{loc:Loc UI.Cache}" IconSource="Save" IsExpanded="True" IsVisible="{Binding IsCacheCategoryVisible}">
-          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ImageCache}">
-            <fa:FASettingsExpanderItem.Footer><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="{loc:Loc UI.RefreshInformation}" Command="{Binding RefreshCacheCommand}"/><Button Content="{loc:Loc UI.CleanUp}" Command="{Binding ClearImageCacheCommand}"/></StackPanel></fa:FASettingsExpanderItem.Footer>
-          </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="{loc:LocalizedBinding CacheStatus}"/>
         </fa:FASettingsExpander>
         </StackPanel>
       </ScrollViewer>
