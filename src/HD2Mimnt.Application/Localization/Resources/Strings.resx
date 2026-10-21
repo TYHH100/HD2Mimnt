@@ -4170,4 +4170,33 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>Game reference index built and saved</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>Names updated: {0:N0} resources, {1:N0} archives</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>Failed to restore settings: {0}</value></data>
+  <data name="SoundFix.Title" xml:space="preserve"><value>Sound repair</value></data>
+  <data name="SoundFix.Description" xml:space="preserve"><value>Scan the mod library and rebuild outdated sound banks from the current game while preserving replaced embedded audio.</value></data>
+  <data name="SoundFix.Scope" xml:space="preserve"><value>Configure the game directory first. Banks with many custom entries or new non-weapon events, initialization banks, and streamed banks are skipped by default. Library files are backed up before repair. Redeploy and restart the game afterward.</value></data>
+  <data name="SoundFix.Scan" xml:space="preserve"><value>Scan mod library</value></data>
+  <data name="SoundFix.Repair" xml:space="preserve"><value>Repair selected mod</value></data>
+  <data name="SoundFix.Restore" xml:space="preserve"><value>Restore latest backup</value></data>
+  <data name="SoundFix.Author" xml:space="preserve"><value>Original author: 40Hour · Bilibili</value></data>
+  <data name="SoundFix.Declaration" xml:space="preserve"><value>Original author declaration (translated): This tool changes sound bank packaging only, not game logic, and does not involve online cheating. Modifying game files still carries risk; back up your files and use at your own risk. The full original instructions are included in ThirdParty/HD2SoundFix.</value></data>
+  <data name="SoundFix.Ready" xml:space="preserve"><value>Scan to inspect sound mods in your library.</value></data>
+  <data name="SoundFix.Working" xml:space="preserve"><value>Processing sound mods…</value></data>
+  <data name="SoundFix.Progress" xml:space="preserve"><value>Scanning {0}/{1}: {2}</value></data>
+  <data name="SoundFix.Scanned" xml:space="preserve"><value>Scan complete: {0} relevant mods, {1} banks eligible for safe repair.</value></data>
+  <data name="SoundFix.ModSummary" xml:space="preserve"><value>{0} banks · {1} repairable · {2} errors</value></data>
+  <data name="SoundFix.BankLine" xml:space="preserve"><value>{0}
+{1} · {2}
+Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
+  <data name="SoundFix.RepairConfirm" xml:space="preserve"><value>Repair “{0}”? Sound banks in the library will be backed up and replaced. Current official event hierarchy replaces the old hierarchy, so custom added entries may be lost. Redeploy afterward.</value></data>
+  <data name="SoundFix.RestoreConfirm" xml:space="preserve"><value>Restore files from before the latest sound repair of “{0}”? Files changed since repair will not be overwritten.</value></data>
+  <data name="SoundFix.Repaired" xml:space="preserve"><value>Repair complete; original files are backed up. Rescan, redeploy, and restart the game.</value></data>
+  <data name="SoundFix.Restored" xml:space="preserve"><value>Files restored. Rescan and redeploy the mod.</value></data>
+  <data name="SoundFix.Rescan" xml:space="preserve"><value>Content changed. Please scan again.</value></data>
+  <data name="SoundFix.Cancelled" xml:space="preserve"><value>Operation cancelled; incomplete changes to the current mod were rolled back.</value></data>
+  <data name="SoundFix.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="SoundFix.NoChanges" xml:space="preserve"><value>No files needed changes.</value></data>
+  <data name="SoundFix.State.Current" xml:space="preserve"><value>No missing content found</value></data>
+  <data name="SoundFix.State.Repairable" xml:space="preserve"><value>Repairable</value></data>
+  <data name="SoundFix.State.Skipped" xml:space="preserve"><value>Skipped by default</value></data>
+  <data name="SoundFix.State.Unknown" xml:space="preserve"><value>Unconfirmed</value></data>
+  <data name="SoundFix.State.Error" xml:space="preserve"><value>Read failed</value></data>
 </root>

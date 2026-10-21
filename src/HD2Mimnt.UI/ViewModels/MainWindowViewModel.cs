@@ -125,6 +125,7 @@ public partial class MainWindowViewModel : ObservableObject
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
+    public SoundFixViewModel? SoundFixViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -153,7 +154,8 @@ public partial class MainWindowViewModel : ObservableObject
         CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
         DirectDownloadViewModel? directDownloadViewModel = null,
         ModCreationViewModel? modCreationViewModel = null,
-        Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null)
+        Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
+        SoundFixViewModel? soundFixViewModel = null)
     {
         Compatibility = compatibility;
         if (Compatibility != null)
@@ -205,6 +207,7 @@ public partial class MainWindowViewModel : ObservableObject
         DirectDownloadViewModel = directDownloadViewModel;
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
+        SoundFixViewModel = soundFixViewModel;
         if (Hd2IASManagementViewModel != null)
             Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
         MoreViewModel.PropertyChanged += (_, args) =>
@@ -800,6 +803,7 @@ public partial class MainWindowViewModel : ObservableObject
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
+        if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)

@@ -10,6 +10,7 @@
 | 模组来源、版本与作者 JSON、网站跳转 | [MOD_SOURCE_METADATA.md](features/MOD_SOURCE_METADATA.md) |
 | 本地版本保留、切换与重复导入开关 | [MOD_VERSION_HISTORY.md](features/MOD_VERSION_HISTORY.md) |
 | 兼容性结构检查、元数据修复与备份后端 | [MOD_COMPATIBILITY.md](features/MOD_COMPATIBILITY.md) |
+| 模组库音效扫描、修复与备份恢复 | [SOUND_FIX.md](features/SOUND_FIX.md) |
 | HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
 | 外部管理器双向迁移、工具入口与原生格式限制 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
 | 离线模组库、配置与实际部署接口及旧版本保底 | [OFFLINE_MOD_INTERFACE.md](features/OFFLINE_MOD_INTERFACE.md) |

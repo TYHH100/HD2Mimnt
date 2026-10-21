@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             x:Class="HD2Mimnt.UI.Views.SoundFixView" x:DataType="vm:SoundFixViewModel">
+  <StackPanel Classes="section" Spacing="12">
+    <TextBlock Text="{loc:Loc SoundFix.Title}" Classes="section-title"/>
+    <TextBlock Text="{loc:Loc SoundFix.Description}" TextWrapping="Wrap" Classes="muted"/>
+    <TextBlock Text="{loc:Loc SoundFix.Scope}" TextWrapping="Wrap" Classes="muted"/>
+    <WrapPanel Orientation="Horizontal">
+      <Button Name="ScanSoundLibraryButton" Content="{loc:Loc SoundFix.Scan}" Classes="accent" Command="{Binding ScanCommand}" Margin="0,0,8,8"/>
+      <Button Name="RepairSoundModButton" Content="{loc:Loc SoundFix.Repair}" Command="{Binding RepairCommand}" Margin="0,0,8,8"/>
+      <Button Name="RestoreSoundModButton" Content="{loc:Loc SoundFix.Restore}" Command="{Binding RestoreCommand}" Margin="0,0,8,8"/>
+      <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" Margin="0,0,0,8"/>
+    </WrapPanel>
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
+    <TextBlock Name="SoundFixStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap"/>
+    <ListBox Name="SoundFixModList" ItemsSource="{Binding Mods}" SelectedItem="{Binding SelectedMod}" IsEnabled="{Binding CanEdit}" MaxHeight="260">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:SoundFixModItemViewModel">
+          <StackPanel Spacing="3" Margin="4">
+            <TextBlock Text="{Binding Report.Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap"/>
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <TextBox Name="SoundFixDetails" Text="{Binding SelectedMod.Details, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="100" MaxHeight="360"/>
+    <Button Name="SoundFixAuthorButton" Content="{loc:Loc SoundFix.Author}" Command="{Binding OpenAuthorCommand}" HorizontalAlignment="Left"/>
+    <TextBlock Text="{loc:Loc SoundFix.Declaration}" TextWrapping="Wrap" Classes="muted"/>
+  </StackPanel>
+</UserControl>

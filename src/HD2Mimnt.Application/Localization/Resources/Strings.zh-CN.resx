@@ -4170,4 +4170,33 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>游戏参考索引已构建并保存</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>名称数据已更新：{0:N0} 个资源，{1:N0} 个归档</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>恢复设置失败：{0}</value></data>
+  <data name="SoundFix.Title" xml:space="preserve"><value>音效修复</value></data>
+  <data name="SoundFix.Description" xml:space="preserve"><value>直接扫描当前模组库，以当前游戏的官方音库重建过时音效，并保留模组替换过的内嵌音频。</value></data>
+  <data name="SoundFix.Scope" xml:space="preserve"><value>先在设置中配置游戏目录。默认跳过含较多自定义内容或新增非武器事件的音库，以及初始化和流式音库。修复会备份库内原文件；完成后需重新部署并重启游戏。</value></data>
+  <data name="SoundFix.Scan" xml:space="preserve"><value>扫描模组库</value></data>
+  <data name="SoundFix.Repair" xml:space="preserve"><value>修复选中模组</value></data>
+  <data name="SoundFix.Restore" xml:space="preserve"><value>恢复最近备份</value></data>
+  <data name="SoundFix.Author" xml:space="preserve"><value>原作者：40Hour · Bilibili 主页</value></data>
+  <data name="SoundFix.Declaration" xml:space="preserve"><value>原作者声明：本工具只修改音库文件的打包结构，不修改游戏逻辑、不涉及联机作弊；但修改游戏文件仍有风险，请自行备份并承担使用风险。完整原说明随软件保留在 ThirdParty/HD2SoundFix。</value></data>
+  <data name="SoundFix.Ready" xml:space="preserve"><value>点击扫描，检测当前模组库中的音效模组。</value></data>
+  <data name="SoundFix.Working" xml:space="preserve"><value>正在处理音效模组…</value></data>
+  <data name="SoundFix.Progress" xml:space="preserve"><value>扫描 {0}/{1}：{2}</value></data>
+  <data name="SoundFix.Scanned" xml:space="preserve"><value>扫描完成：{0} 个相关模组，{1} 个音库可安全修复。</value></data>
+  <data name="SoundFix.ModSummary" xml:space="preserve"><value>{0} 个音库 · {1} 个可修复 · {2} 项错误</value></data>
+  <data name="SoundFix.BankLine" xml:space="preserve"><value>{0}
+{1} · {2}
+缺失条目 {3} / 媒体 {4}；自定义条目 {5} / 媒体 {6}</value></data>
+  <data name="SoundFix.RepairConfirm" xml:space="preserve"><value>确定修复“{0}”吗？将备份并替换模组库内的音库；官方事件层级会替代旧层级，模组新增的自定义条目可能丢失。完成后需要重新部署。</value></data>
+  <data name="SoundFix.RestoreConfirm" xml:space="preserve"><value>确定恢复“{0}”最近一次音效修复前的文件吗？若修复后又更新过模组，将拒绝覆盖。</value></data>
+  <data name="SoundFix.Repaired" xml:space="preserve"><value>修复完成，原文件已备份。请重新扫描、部署模组并重启游戏。</value></data>
+  <data name="SoundFix.Restored" xml:space="preserve"><value>已恢复修复前的文件。请重新扫描并部署模组。</value></data>
+  <data name="SoundFix.Rescan" xml:space="preserve"><value>内容已改变，请重新扫描。</value></data>
+  <data name="SoundFix.Cancelled" xml:space="preserve"><value>操作已取消，当前模组未完成的修改已回滚。</value></data>
+  <data name="SoundFix.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="SoundFix.NoChanges" xml:space="preserve"><value>没有需要修改的文件。</value></data>
+  <data name="SoundFix.State.Current" xml:space="preserve"><value>未发现缺失</value></data>
+  <data name="SoundFix.State.Repairable" xml:space="preserve"><value>可修复</value></data>
+  <data name="SoundFix.State.Skipped" xml:space="preserve"><value>默认跳过</value></data>
+  <data name="SoundFix.State.Unknown" xml:space="preserve"><value>未确认</value></data>
+  <data name="SoundFix.State.Error" xml:space="preserve"><value>读取失败</value></data>
 </root>

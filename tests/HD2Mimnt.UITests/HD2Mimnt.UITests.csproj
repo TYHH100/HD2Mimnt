@@ -17,6 +17,7 @@
     <Using Include="Xunit"/>
     <ProjectReference Include="../../src/HD2Mimnt.UI/HD2Mimnt.UI.csproj"/>
     <Compile Include="../HD2Mimnt.Tests/Services/CompatibilityFixture.cs" Link="Compatibility/CompatibilityFixture.cs"/>
+    <Compile Include="../HD2Mimnt.Tests/Services/SoundFixFixture.cs" Link="SoundFix/SoundFixFixture.cs"/>
     <Compile Include="../HD2Mimnt.PerformanceTests/LargeLibraryWorkload.cs" Link="Performance/LargeLibraryWorkload.cs"/>
   </ItemGroup>
 </Project>

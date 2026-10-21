@@ -30,6 +30,7 @@
         <StackPanel IsVisible="{Binding MoreViewModel.IsCrashDiagnosticsVisible}"><views:CrashDiagnosticsView DataContext="{Binding CrashDiagnosticsViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsDirectDownloadVisible}"><views:DirectDownloadView DataContext="{Binding DirectDownloadViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsHd2IASVisible}"><views:Hd2IASManagementView DataContext="{Binding Hd2IASManagementViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsSoundFixVisible}"><views:SoundFixView DataContext="{Binding SoundFixViewModel}"/></StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsExternalToolsVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.ExternalTools}" Classes="section-title" />

@@ -418,6 +418,12 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ICompatibilityResourceNames>(sp => new CompatibilityResourceNameProvider(
             sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("compatibility-names"), storageLocations.TempPath));
         services.AddSingleton<IGameUnitReferenceReader>(_ => new GameUnitReferenceReader(storageLocations.CachePath));
+        services.AddSingleton<IGameSoundBankReader>(sp => (GameUnitReferenceReader)sp.GetRequiredService<IGameUnitReferenceReader>());
+        services.AddSingleton<HD2Mimnt.Infrastructure.SoundFix.SoundFixInspector>();
+        services.AddSingleton(sp => new SoundFixService(sp.GetRequiredService<IModRepository>(), sp.GetRequiredService<ModService>(),
+            sp.GetRequiredService<HD2Mimnt.Infrastructure.SoundFix.SoundFixInspector>(), sp.GetRequiredService<SettingsService>(),
+            Path.Combine(storageLocations.AppDataPath, "SoundFixBackups")));
+        services.AddTransient<SoundFixViewModel>();
         services.AddSingleton<ModCompatibilityService>();
 
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
@@ -608,6 +614,6 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
             sp.GetRequiredService<Hd2IASManagementViewModel>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>()));
     }
 }

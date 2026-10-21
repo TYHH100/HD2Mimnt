@@ -7,7 +7,7 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class MoreViewModel : ObservableObject
 {
-    public string[] Categories { get; } = { "教程", "直链下载", "插件", "备份与恢复", "管理器迁移", "游戏崩溃排查", "日志", "外部工具", "开发工具", "HD2IAS 管理", "关于" };
+    public string[] Categories { get; } = { "教程", "直链下载", "插件", "备份与恢复", "管理器迁移", "游戏崩溃排查", "音效修复", "日志", "外部工具", "开发工具", "HD2IAS 管理", "关于" };
 
     [ObservableProperty]
     private string _selectedCategory = "插件";
@@ -23,6 +23,7 @@ public partial class MoreViewModel : ObservableObject
     public bool IsCrashDiagnosticsVisible => SelectedCategory == "游戏崩溃排查";
     public bool IsDirectDownloadVisible => SelectedCategory == "直链下载";
     public bool IsHd2IASVisible => SelectedCategory == "HD2IAS 管理";
+    public bool IsSoundFixVisible => SelectedCategory == "音效修复";
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -37,5 +38,6 @@ public partial class MoreViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCrashDiagnosticsVisible));
         OnPropertyChanged(nameof(IsDirectDownloadVisible));
         OnPropertyChanged(nameof(IsHd2IASVisible));
+        OnPropertyChanged(nameof(IsSoundFixVisible));
     }
 }

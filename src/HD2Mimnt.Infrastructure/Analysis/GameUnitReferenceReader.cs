@@ -7,7 +7,7 @@ using K4os.Compression.LZ4;
 namespace HD2Mimnt.Infrastructure.Analysis;
 
 /// <summary>DSAR 只读入口。TOC 定位缓存按归档指纹失效，资源按需读取，句柄限于单次调用。</summary>
-public sealed partial class GameUnitReferenceReader(string? cacheRoot = null) : IGameUnitReferenceReader, IGameReferenceCache
+public sealed partial class GameUnitReferenceReader(string? cacheRoot = null) : IGameUnitReferenceReader, IGameReferenceCache, IGameSoundBankReader
 {
     private const int MaxResourceBytes = 64 * 1024 * 1024;
     private const int MaxIndexBytes = 256 * 1024 * 1024;
