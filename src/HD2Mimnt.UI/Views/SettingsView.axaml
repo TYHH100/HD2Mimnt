@@ -178,6 +178,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ForceManifestV1}" Description="{loc:Loc Settings.Library.ForceManifestV1Help}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ForceManifestV1Toggle" IsChecked="{Binding ForceManifestV1}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander x:Name="SearchSettingsExpander" Header="{loc:Loc Settings.Search.Title}" IconSource="Search" IsExpanded="True" IsVisible="{Binding IsSearchCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Search.Fuzzy}" Description="{loc:Loc Settings.Search.FuzzyHelp}">

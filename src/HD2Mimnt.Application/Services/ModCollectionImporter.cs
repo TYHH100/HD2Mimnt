@@ -119,7 +119,7 @@ internal static class ModCollectionImporter
             AddChildOptions(manifest.Options!, child, groupId, componentName, image);
         }
 
-        manifest.IconPath = ResolveOuterImage(collectionRoot, manifest);
+        manifest.IconPath = ResolveOuterImage(collectionRoot);
         return manifest;
     }
 
@@ -214,13 +214,12 @@ internal static class ModCollectionImporter
         return MapPath(child.DirectoryName, Path.GetRelativePath(child.Root, preview).Replace('\\', '/'));
     }
 
-    /// <summary>外层封面按包层级解析；合集本身没有图片时才回退到第一个组件/选项图片。</summary>
-    private static string? ResolveOuterImage(string collectionRoot, ModManifest manifest)
+    /// <summary>合集卡片只使用根目录图片，组件和选项图片保留在各自层级。</summary>
+    private static string? ResolveOuterImage(string collectionRoot)
     {
         if (FindPreviewImage(collectionRoot) is { } outer)
             return Path.GetRelativePath(collectionRoot, outer).Replace('\\', '/');
-        return manifest.OptionGroups?.Select(group => group.Image).FirstOrDefault(image => !string.IsNullOrEmpty(image))
-            ?? manifest.Options?.Select(option => option.Image).FirstOrDefault(image => !string.IsNullOrEmpty(image));
+        return null;
     }
 
     private static string? FindPreviewImage(string directory)

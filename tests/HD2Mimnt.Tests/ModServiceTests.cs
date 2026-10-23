@@ -88,6 +88,48 @@ public class ModServiceTests : IDisposable
         Assert.Equal(expected, (await _modRepository.GetByIdAsync(mod.Id))!.ThumbnailPath);
     }
 
+    [Theory]
+    [InlineData(null, true, false, true)]
+    [InlineData("", true, true, true)]
+    [InlineData("missing.png", true, true, true)]
+    [InlineData("", false, true, false)]
+    [InlineData("missing.png", false, true, false)]
+    [InlineData("", false, false, false)]
+    public async Task ImportMod_WithoutDeclaredPreview_UsesOnlyRootImage(
+        string? icon, bool rootImage, bool nestedImage, bool expectedPreview)
+    {
+        var source = Path.Combine(_testStoragePath, "source");
+        Directory.CreateDirectory(Path.Combine(source, "images"));
+        if (icon != null)
+            await File.WriteAllTextAsync(Path.Combine(source, "manifest.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { Version = 1, Name = "RootPreview", IconPath = icon }));
+        await File.WriteAllTextAsync(Path.Combine(source, "body.patch"), "content");
+        void SaveImage(string relative, System.Drawing.Color color)
+        {
+            using var bitmap = new System.Drawing.Bitmap(4, 4);
+            using var graphics = System.Drawing.Graphics.FromImage(bitmap);
+            graphics.Clear(color);
+            bitmap.Save(Path.Combine(source, relative), System.Drawing.Imaging.ImageFormat.Png);
+        }
+        if (rootImage) SaveImage("封面.PNG", System.Drawing.Color.Blue);
+        if (nestedImage) SaveImage("images/preview.png", System.Drawing.Color.Red);
+
+        var id = await _modService.ImportModAsync(source);
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+
+        if (expectedPreview)
+        {
+            Assert.True(File.Exists(mod.ThumbnailPath));
+            using var thumbnail = new System.Drawing.Bitmap(mod.ThumbnailPath);
+            Assert.Equal(System.Drawing.Color.Blue.ToArgb(), thumbnail.GetPixel(0, 0).ToArgb());
+        }
+        else
+        {
+            Assert.Empty(mod.ThumbnailPath);
+            Assert.Null(_modService.GetThumbnailPath(id));
+        }
+    }
+
     [Fact]
     public async Task ImportMod_ManifestIcon_TakesPriorityOverOtherPreviewImages()
     {

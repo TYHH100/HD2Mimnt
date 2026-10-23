@@ -16,7 +16,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task<PlatformCache?> GetAsync(string platformId, string platformModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM PlatformCaches WHERE PlatformId = @PlatformId AND PlatformModId = @PlatformModId";
@@ -34,7 +34,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task AddAsync(PlatformCache cache, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -54,7 +54,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task UpdateAsync(PlatformCache cache, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -80,7 +80,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM PlatformCaches WHERE Id = @Id";
@@ -91,7 +91,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task<List<PlatformCache>> GetExpiredAsync(DateTime now, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM PlatformCaches WHERE ExpiresAt < @Now";
@@ -109,7 +109,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task DeleteExpiredAsync(DateTime now, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM PlatformCaches WHERE ExpiresAt < @Now";
@@ -120,7 +120,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task<int> GetCacheSizeAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM PlatformCaches";
@@ -131,7 +131,7 @@ public class PlatformCacheRepository : IPlatformCacheRepository
 
     public async Task ClearAsync(string? platformId = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         if (platformId == null)

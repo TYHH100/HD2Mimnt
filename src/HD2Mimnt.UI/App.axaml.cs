@@ -437,6 +437,7 @@ public partial class App : Avalonia.Application
 
         // Task Center
         services.AddSingleton<TaskService>();
+        services.AddSingleton<PlatformDownloadTaskRunner>();
 
         // Workers
         services.AddSingleton<IWorker, ImportWorker>();
@@ -524,7 +525,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModOnlineService>(),
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(),
+            sp.GetRequiredService<PlatformDownloadTaskRunner>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),

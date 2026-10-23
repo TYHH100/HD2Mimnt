@@ -145,7 +145,7 @@ public sealed class ModLinkServiceTests : IDisposable
         await CreateAsync();
         var original = new Mod { Id = Guid.NewGuid(), Name = "Existing", Path = "missing", Version = "old", Tags = new() { "keep" } };
         await _repository.AddAsync(original);
-        var connection = await _db!.GetConnectionAsync();
+        using var connection = await _db!.OpenConnectionAsync();
         foreach (var column in new[] { "PlatformId", "PlatformModId", "PlatformVersion", "LastUpdateCheck", "PlatformLinkJson" })
         {
             using var drop = connection.CreateCommand();

@@ -141,6 +141,7 @@ public partial class ProfileView : UserControl
             }
         };
         if (vm.Compatibility != null) modEntries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
+        modEntries.Add(new ContextMenuItem("添加到其他配置文件…", vm.AddModToOtherProfilesCommand, "Add") { CommandParameter = mod });
         if (mod.CanDrag)
         {
             modEntries.Add(AppContextMenu.Separator);
@@ -744,7 +745,7 @@ public partial class ProfileView : UserControl
     /// 点击图片（模组图标/选项图/子选项图）：在主窗口顶层的覆盖层预览原图。
     /// 标记 Handled，子选项图上的点击只预览、不改变选中变体。
     /// </summary>
-    private void PreviewImage_Tapped(object? sender, TappedEventArgs e)
+    private async void PreviewImage_Tapped(object? sender, TappedEventArgs e)
     {
         e.Handled = true;
         if (DataContext is not ProfileViewModel vm) return;
@@ -759,7 +760,7 @@ public partial class ProfileView : UserControl
                 vm.ShowImagePreview(sub.Image, sub.Name);
                 break;
             case ProfileModViewModel mod:
-                vm.ShowImagePreview(mod.Icon, mod.ModName);
+                await vm.ShowModImagePreviewAsync(mod.ModId, mod.ModName);
                 break;
         }
     }

@@ -19,7 +19,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task<Plugin?> GetByIdAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -40,7 +40,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task<List<Plugin>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -61,7 +61,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task<List<Plugin>> GetEnabledAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -83,7 +83,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task AddAsync(Plugin plugin, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -108,7 +108,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task UpdateAsync(Plugin plugin, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -133,7 +133,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task DeleteAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Plugins WHERE Id = @Id";
@@ -144,7 +144,7 @@ public class PluginRepository : IPluginRepository
 
     public async Task<bool> ExistsAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Plugins WHERE Id = @Id";

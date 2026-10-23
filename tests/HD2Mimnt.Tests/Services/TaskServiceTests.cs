@@ -57,6 +57,61 @@ public class TaskServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RuntimeOperation_ShouldWaitForCancellationCleanupAndPersistFinalState()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleaning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = _taskService.RunTaskAsync("N 网下载：测试", "PlatformDownload", async (progress, token) =>
+        {
+            progress.Report(new() { Progress = 35, Stage = "Downloading", CurrentItem = "armor.zip", Message = "Downloading" });
+            started.SetResult();
+            try { await Task.Delay(Timeout.Infinite, token); }
+            finally { cleaning.SetResult(); await release.Task; }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var running = Assert.Single(await _taskService.GetRunningTasksAsync());
+            Assert.Equal(35, running.Progress);
+            Assert.Equal("armor.zip", running.CurrentItem);
+            var cancellation = _taskService.CancelTaskAsync(running.Id);
+            await cleaning.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(cancellation.IsCompleted);
+            Assert.False(operation.IsCompleted);
+            release.SetResult();
+            await cancellation;
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+            var stored = await _taskService.GetTaskAsync(running.Id);
+            Assert.Equal(Core.Entities.TaskStatus.Cancelled, stored!.Status);
+            Assert.NotNull(stored.EndTime);
+            Assert.Empty(await _taskService.GetRunningTasksAsync());
+        }
+        finally { release.TrySetResult(); await _taskService.CancelAllAndWaitAsync(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RuntimeOperation_ShouldPreserveSuccessOrOriginalFailure(bool fail)
+    {
+        var error = new InvalidDataException("download rejected");
+        var operation = _taskService.RunTaskAsync("A 网下载：测试", "PlatformDownload", (progress, _) =>
+        {
+            progress.Report(new() { Progress = 85, Stage = "Downloading", Message = "file received" });
+            if (fail) throw error;
+            return Task.CompletedTask;
+        });
+        if (fail) Assert.Same(error, await Assert.ThrowsAsync<InvalidDataException>(() => operation));
+        else await operation;
+        var stored = Assert.Single(await _taskService.GetHistoryAsync());
+        Assert.Equal(fail ? Core.Entities.TaskStatus.Failed : Core.Entities.TaskStatus.Completed, stored.Status);
+        Assert.Equal(fail ? "download rejected" : "file received", stored.Message);
+        Assert.NotNull(stored.EndTime);
+        Assert.Empty(await _taskService.GetRunningTasksAsync());
+    }
+
+    [Fact]
     public async Task StartTask_ShouldExecuteWorker()
     {
         // Arrange
@@ -104,7 +159,6 @@ public class TaskServiceTests : IDisposable
         await _taskService.CancelTaskAsync(taskId);
 
         // 等待取消完成
-        await Task.Delay(1500);
 
         // Assert
         var task = await _taskService.GetTaskAsync(taskId);
@@ -143,7 +197,7 @@ public class TaskServiceTests : IDisposable
         await _taskService.StartTaskAsync(taskId);
 
         // 等待任务完成
-        await Task.Delay(3000);
+        await _taskService.WaitForTaskAsync(taskId);
 
         // Assert
         var task = await _taskService.GetTaskAsync(taskId);
@@ -198,7 +252,7 @@ public class TaskServiceTests : IDisposable
         // Arrange
         var taskId = await _taskService.CreateTaskAsync("History Task", "Import");
         await _taskService.StartTaskAsync(taskId);
-        await Task.Delay(3000); // 等待完成
+        await _taskService.WaitForTaskAsync(taskId);
 
         // Act
         var history = await _taskService.GetHistoryAsync();
@@ -236,7 +290,7 @@ public class TaskServiceTests : IDisposable
 
         // Act
         await _taskService.StartTaskAsync(taskId);
-        await Task.Delay(5000); // 等待完成
+        await _taskService.WaitForTaskAsync(taskId);
 
         // Assert
         var task = await _taskService.GetTaskAsync(taskId);
@@ -251,6 +305,7 @@ public class TaskServiceTests : IDisposable
 
     public void Dispose()
     {
+        _taskService.CancelAllAndWaitAsync().GetAwaiter().GetResult();
         _dbContext.Dispose();
         if (File.Exists(_testDbPath))
         {

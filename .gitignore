@@ -148,3 +148,8 @@ $RECYCLE.BIN/
 
 tests/HD2Mimnt.PerformanceTests/TestData/
 .artifacts/
+.clean-code-check/
+.claude/
+.layout-validation/
+.tmp-platform-download-1792644419808/
+.claude/

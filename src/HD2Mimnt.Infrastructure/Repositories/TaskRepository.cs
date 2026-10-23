@@ -23,7 +23,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task<ModTask?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
@@ -46,7 +46,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task<IEnumerable<ModTask>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
@@ -69,7 +69,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task<IEnumerable<ModTask>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
@@ -95,7 +95,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task<IEnumerable<ModTask>> GetHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
@@ -132,7 +132,7 @@ public class TaskRepository : ITaskRepository
         {
             try
             {
-                var connection = await _context.GetConnectionAsync(cancellationToken);
+                using var connection = await _context.OpenConnectionAsync(cancellationToken);
                 using var command = connection.CreateCommand();
                 command.CommandText = @"
                     INSERT INTO Tasks (Id, Name, Type, Status, Progress, Stage, CurrentItem, Message,
@@ -157,7 +157,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task UpdateAsync(ModTask task, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = @"
             UPDATE Tasks
@@ -175,7 +175,7 @@ public class TaskRepository : ITaskRepository
     /// </summary>
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _context.GetConnectionAsync(cancellationToken);
+        using var connection = await _context.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Tasks WHERE Id = @id";
         command.Parameters.AddWithValue("@id", id.ToString());

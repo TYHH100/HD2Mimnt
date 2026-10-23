@@ -12,6 +12,7 @@ namespace HD2Mimnt.UI.Services;
 public partial class ImagePreviewService : ObservableObject
 {
     private Bitmap? _ownedImage;
+    private int _loadVersion;
     [ObservableProperty]
     private bool _isOpen;
 
@@ -32,9 +33,36 @@ public partial class ImagePreviewService : ObservableObject
         IsOpen = true;
     }
 
+    /// <summary>点击后才读取和完整解码原图；关闭或后续预览使旧加载结果失效。</summary>
+    public async Task ShowOriginalAsync(Func<Task<byte[]?>> readImage, string? title)
+    {
+        Close();
+        var version = _loadVersion;
+        Bitmap? original = null;
+        try
+        {
+            var bytes = await readImage();
+            if (bytes == null || version != _loadVersion) return;
+            original = await Task.Run(() =>
+            {
+                using var stream = new MemoryStream(bytes);
+                return new Bitmap(stream);
+            });
+            if (version != _loadVersion) return;
+            Show(original, title, ownsImage: true);
+            original = null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            System.Diagnostics.Debug.WriteLine(error);
+        }
+        finally { original?.Dispose(); }
+    }
+
     [RelayCommand]
     public void Close()
     {
+        _loadVersion++;
         IsOpen = false;
         Image = null;
         Title = string.Empty;

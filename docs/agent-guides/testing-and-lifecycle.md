@@ -4,6 +4,14 @@
 
 ## 易错点与正确做法
 
+- Repository 通过 `HD2MimntDbContext.OpenConnectionAsync` 取得本次操作独占的短连接，并用 `using` 释放；上下文不缓存连接，连接禁用池。初始化单独串行化，不在释放时切换日志模式、清空全局池或强制 GC。读取完整配置时，头部、成员与分隔符共用同一读事务快照。来源：[SQLite 并发访问](https://learn.microsoft.com/dotnet/standard/data/sqlite/database-errors)。
+
+- 备份恢复使用 SQLite `BackupDatabase` 将已校验的临时库恢复到目标库，不关闭其它操作持有的连接，不覆盖活动数据库文件或删除其 WAL/SHM；恢复和设置写入仍共用设置闸门。来源：[SQLite 在线备份](https://learn.microsoft.com/dotnet/standard/data/sqlite/backup)。
+
+- TaskService 的取消返回时必须已等待 Worker 清理和最终状态保存；启动与完成使用实际任务信号，不靠固定延时。强制终止后的进度不得再覆盖终止状态；退出取消并等待执行体。测试用可控清理信号验证等待关系，不能靠额外 sleep 使断言通过。来源：[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)。
+
+- 必须等待的页面联动使用返回 `Task` 的回调；事件触发的异步刷新交给可等待的串行队列，统一报告错误，并在退出与服务释放前排空。禁止向 `Action` 传入异步 lambda；备份恢复命令等待页面刷新结束后才报告整体成功。来源：[异步返回类型](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-return-types)。
+
 - 文件日志遇到 `IOException` / `UnauthorizedAccessException` 时只向调试输出报告，不再调用 `ILogger`，也不能把日志错误抛回业务调用链，否则 SQLite 保存失败会被日志异常替换。数据库保存失败仍须传播，不能发布新设置快照或成功通知；用数据库和日志同时只读、恢复可写后的重试回归。排查 SQLite Error 8 时记录实际数据库路径和 `SqliteExtendedErrorCode`，检查主库、WAL/SHM 与父目录，不能仅凭错误 8 认定文件只读属性或自动改权限。来源：[SQLite 返回码](https://www.sqlite.org/rescode.html)、[Microsoft.Data.Sqlite 数据库错误](https://learn.microsoft.com/dotnet/standard/data/sqlite/database-errors)。
 
 - 日志记录级别在“设置 → 日志”保存到 SQLite，默认 Warning，显示筛选不改变记录级别。`ILogger` 筛选只读取 `DiagnosticLogSettings` 的内存快照，禁止在筛选回调读取 SettingsService/SQLite，避免设置服务记录日志时重入设置锁。读取日志从尾部限制条数和字节数，允许共享写入；多行堆栈合并为同一条，级别判断来自记录头，不搜索正文中的“错误”字样。来源：[.NET 日志筛选](https://learn.microsoft.com/dotnet/core/extensions/logging#configure-logging)、[FileShare](https://learn.microsoft.com/dotnet/api/system.io.fileshare)。
@@ -46,7 +54,7 @@
 
 - 插件 manifest 的解析和校验属于 `IPluginService`，View 只负责文件选择和权限确认，不要在 code-behind 中复制安装逻辑。
 
-- SQLite 上下文的连接初始化和释放必须受生命周期闸门保护；不要在生产 `DbContext.Dispose` 中调用全局 `ClearAllPools` 或强制 GC，否则会干扰并行测试和其他上下文的连接。
+- SQLite 上下文串行初始化 schema，释放时只标记上下文已结束，后续打开连接应拒绝；已取得的独占连接由调用方释放。不要在生产 `DbContext.Dispose` 中调用全局 `ClearAllPools` 或强制 GC，否则会干扰并行测试和其他上下文的连接。
 
 - Avalonia Headless 测试在同一进程只能进行一次 `AppBuilder.SetupWithoutStarting()`；新增窗口布局测试必须复用现有测试应用或拆分到独立测试程序集，不能再创建第二个 AppBuilder，否则会出现初始化冲突、资源缺失或测试宿主不退出。
 

@@ -21,7 +21,7 @@ public class ModRepository : IModRepository
 
     public async Task<Mod?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE Id = @Id";
@@ -44,7 +44,7 @@ public class ModRepository : IModRepository
         var mods = new List<Mod>(distinctIds.Length);
         foreach (var chunk in distinctIds.Chunk(500))
         {
-            var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+            using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
             using var command = connection.CreateCommand();
             var parameters = new List<string>(chunk.Length);
             for (var index = 0; index < chunk.Length; index++)
@@ -67,7 +67,7 @@ public class ModRepository : IModRepository
 
     public async Task<IEnumerable<Mod>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods ORDER BY Name";
@@ -84,7 +84,7 @@ public class ModRepository : IModRepository
 
     public async Task<IEnumerable<Mod>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         // 使用 FTS5 全文搜索索引以提高性能
@@ -107,7 +107,7 @@ public class ModRepository : IModRepository
 
     public async Task<IEnumerable<Mod>> GetByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE Tags LIKE @Tag ORDER BY Name";
@@ -125,7 +125,7 @@ public class ModRepository : IModRepository
 
     public async Task<IEnumerable<Mod>> GetByCategoryAsync(ModCategory category, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE Category = @Category ORDER BY Name";
@@ -143,7 +143,7 @@ public class ModRepository : IModRepository
 
     public async Task<IEnumerable<Mod>> GetByStatusAsync(ModStatus status, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Mods WHERE Status = @Status ORDER BY Name";
@@ -161,7 +161,7 @@ public class ModRepository : IModRepository
 
     public async Task<long> GetTotalSizeAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COALESCE(SUM(Size), 0) FROM Mods";
@@ -172,7 +172,7 @@ public class ModRepository : IModRepository
 
     public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Mods";
@@ -183,7 +183,7 @@ public class ModRepository : IModRepository
 
     public async Task AddAsync(Mod mod, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -202,7 +202,7 @@ public class ModRepository : IModRepository
 
     public async Task UpdateAsync(Mod mod, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -223,7 +223,7 @@ public class ModRepository : IModRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Mods WHERE Id = @Id";
@@ -233,7 +233,7 @@ public class ModRepository : IModRepository
 
     public async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM Mods WHERE Id = @Id";

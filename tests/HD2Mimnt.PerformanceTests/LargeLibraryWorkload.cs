@@ -16,7 +16,7 @@ public static class LargeLibraryWorkload
     public static async Task<Guid[]> SeedAsync(HD2MimntDbContext db, string root, string? imageTemplate = null,
         int resourcesPerMod = 0)
     {
-        var connection = await db.GetConnectionAsync();
+        using var connection = await db.OpenConnectionAsync();
         var ids = Enumerable.Range(0, ModCount).Select(_ => Guid.NewGuid()).ToArray();
         Directory.CreateDirectory(Path.Combine(root, "images"));
         Directory.CreateDirectory(Path.Combine(root, "mods"));

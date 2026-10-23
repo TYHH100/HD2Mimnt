@@ -45,7 +45,7 @@ public sealed class LargeLibraryServicePerformanceTests(ITestOutputHelper output
             await Measure("repository_get_by_ids_10000", async () => Assert.Equal(10000, (await mods.GetByIdsAsync(ids)).Count()));
             await Measure("service_get_all_with_sidecars", async () => Assert.Equal(10000, (await modService.GetAllModsAsync()).Count()));
             await Measure("profiles_12_memberships_21000", async () => Assert.Equal(12, (await profiles.GetAllAsync()).Count()));
-            await Measure("profile_normalize_10000", async () => Assert.Equal(10000, (await profileService.GetProfileByIdAsync(profile.Id))!.Mods.Count));
+            await Measure("profile_normalize_10000", async () => Assert.Equal(10000, (await profileService.NormalizeProfileAsync(profile.Id))!.Mods.Count));
             await Measure("search_build_index_10000", () => search.BuildIndexAsync());
             await Measure("search_common_5000_results", async () => Assert.Equal(5000, (await search.SearchAsync("Armor")).Count()));
             await Measure("statistics_10000", async () => Assert.Equal(10000, (await modService.GetStatisticsAsync()).TotalCount));

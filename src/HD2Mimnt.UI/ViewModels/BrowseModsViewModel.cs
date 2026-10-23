@@ -15,7 +15,8 @@ public sealed record BrowsePlatformChoice(string Id, string Name);
 
 public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownloadLauncher website,
     ImagePreviewService imagePreview, NexusModsAccountViewModel? account = null,
-    BrowserDownloadHandoffService? browserDownloads = null) : ObservableObject
+    BrowserDownloadHandoffService? browserDownloads = null,
+    PlatformDownloadTaskRunner? downloadTasks = null) : ObservableObject
 {
     public IReadOnlyList<BrowsePlatformChoice> Platforms { get; } = new[]
     { new BrowsePlatformChoice("nexusmods", "Nexus Mods"), new BrowsePlatformChoice("ayakamods", "Ayaka Mods") };
@@ -60,7 +61,10 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     }
     public NexusModsAccountViewModel? Account { get; } = account;
     private CancellationTokenSource? _operation;
+    private CancellationToken _executionToken;
+    private bool _isBackgroundDownload;
     private PendingDownload? _pending;
+    private PendingDownload? _cancelledWebsiteDownload;
     private CancellationTokenSource? _previewOperation;
     private Task _previews = Task.CompletedTask;
     private CancellationTokenSource? _fullPreviewOperation;
@@ -309,6 +313,41 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         return StartDownloadAsync(destination, import: false);
     }
 
+    public Task DownloadProtocolLinkAsync(string input) => RunAsync(async token =>
+    {
+        await StopPreviewsAsync();
+        await StopFullPreviewAsync();
+        Message = "已收到 N 网下载授权，正在获取文件信息…";
+        var (mod, file) = await service.ResolveProtocolDownloadAsync(input, token);
+        token.ThrowIfCancellationRequested();
+        // 先切服务再更新选择，避免触发切平台事件取消当前操作。
+        service.SelectPlatform("nexusmods");
+        SelectedPlatform = Platforms[0];
+        ReleaseImages();
+        SelectedMod = null;
+        Details = mod;
+        Files = new[] { file };
+        SelectedFile = file;
+        var source = service.CreateSourceLink(mod, file);
+        var downloading = true;
+        var progress = new InlineProgress<DownloadProgress>(value => Dispatcher.UIThread.Post(() =>
+        {
+            if (!downloading || _executionToken != token || token.IsCancellationRequested) return;
+            Progress = value.Percentage;
+            IsIndeterminate = value.TotalBytes <= 0;
+        }));
+        Message = "正在下载所选文件…";
+        await service.DownloadAndImportAsync(mod.Id, file, input, async (archive, importToken) =>
+        {
+            downloading = false;
+            Message = "下载完成，正在导入模组…";
+            IsIndeterminate = true;
+            if (ImportPlatformArchiveAsync != null) await ImportPlatformArchiveAsync(archive, source, importToken);
+            else await (ImportDownloadedArchiveAsync ?? throw new InvalidOperationException("模组导入不可用。"))(archive, importToken);
+        }, progress, token);
+        Message = "模组已下载并导入模组库。";
+    }, "N 网下载");
+
     [RelayCommand]
     private Task DownloadAndImportAsync()
         => CanDownloadAndImport ? StartDownloadAsync(null, import: true) : Task.CompletedTask;
@@ -354,6 +393,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                 if (!premium)
                 {
                     var pending = new PendingDownload(modId, file);
+                    _cancelledWebsiteDownload = null;
                     _pending = pending;
                     IsWaitingForWebsite = true;
                     Message = "等待网页授权：在浏览器完成下载确认，选择 HD2Mimnt 打开链接后自动继续。";
@@ -366,7 +406,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                 var downloading = true;
                 var progress = new InlineProgress<DownloadProgress>(value => Dispatcher.UIThread.Post(() =>
                     {
-                        if (!downloading || _operation?.Token != token || token.IsCancellationRequested) return;
+                        if (!downloading || _executionToken != token || token.IsCancellationRequested) return;
                         Progress = value.Percentage;
                         IsIndeterminate = value.TotalBytes <= 0;
                     }));
@@ -387,8 +427,14 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                     Message = "压缩包已保存，可拖入窗口添加到模组库。";
                 }
             }
-            finally { _pending = null; IsWaitingForWebsite = false; }
-        });
+            finally
+            {
+                if (token.IsCancellationRequested && _pending is { } pending && !pending.Result.Task.IsCompleted)
+                    _cancelledWebsiteDownload = pending;
+                _pending = null;
+                IsWaitingForWebsite = false;
+            }
+        }, $"{(IsAyaka ? "A 网下载" : "N 网下载")}：{Details.Name}");
     }
 
     [RelayCommand]
@@ -416,32 +462,60 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         if (IsWaitingForBrowser) _operation?.Cancel();
     }
 
-    public bool TryReceiveProtocolLink(string input)
+    public bool TryReceiveProtocolLink(string input, bool ignoreMismatch = false)
     {
-        if (_pending is not { } pending || !IsWaitingForWebsite || _operation?.IsCancellationRequested != false || pending.Result.Task.IsCompleted)
+        if (_pending is not { } pending || !IsWaitingForWebsite || _operation == null || _executionToken.IsCancellationRequested || pending.Result.Task.IsCompleted)
             return false;
         try
         {
             service.ValidateProtocolTarget(pending.ModId, pending.File, input);
             pending.Result.TrySetResult(input);
         }
-        catch (Exception ex) { SetError(ex, "接收网页授权"); }
+        catch (Exception ex)
+        {
+            if (ignoreMismatch) return false;
+            SetError(ex, "接收网页授权");
+        }
         return true;
     }
 
-    private Task RunAsync(Func<CancellationToken, Task> action) => IsBusy ? Completion : Completion = RunCoreAsync(action);
-    private async Task RunCoreAsync(Func<CancellationToken, Task> action)
+    public bool IsCancelledProtocolLink(string input)
+    {
+        if (_cancelledWebsiteDownload is not { } cancelled) return false;
+        try { service.ValidateProtocolTarget(cancelled.ModId, cancelled.File, input); return true; }
+        catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+    }
+
+    private Task RunAsync(Func<CancellationToken, Task> action, string? downloadName = null)
+        => IsBusy ? Completion : Completion = RunCoreAsync(action, downloadName);
+    private async Task RunCoreAsync(Func<CancellationToken, Task> action, string? downloadName)
     {
         using var cts = new CancellationTokenSource();
         _operation = cts;
+        _executionToken = cts.Token;
+        _isBackgroundDownload = downloadName != null;
         IsBusy = true;
         Message = "";
         Progress = 0;
         IsIndeterminate = true;
-        try { await action(cts.Token); }
+        try
+        {
+            if (downloadName != null && downloadTasks != null)
+                await downloadTasks.RunAsync(downloadName, token =>
+                {
+                    _executionToken = token;
+                    return action(token);
+                }, () => new TaskProgress
+                {
+                    Progress = Progress, Stage = IsWaitingForWebsite || IsWaitingForBrowser ? "WaitingForWebsite" : "Downloading",
+                    CurrentItem = SelectedFile?.Name ?? "", Message = Message
+                }, cts.Token);
+            else await action(cts.Token);
+        }
         catch (OperationCanceledException) { Message = "操作已取消。"; }
         catch (Exception ex) { SetError(ex, IsAyaka ? "浏览 A 网模组" : "浏览 N 网模组"); }
-        finally { _operation = null; IsBusy = false; IsIndeterminate = false; }
+        finally { _operation = null; _executionToken = default; _isBackgroundDownload = false; IsBusy = false; IsIndeterminate = false; }
     }
 
     private void SetError(Exception exception, string operation)
@@ -454,6 +528,18 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     private bool CanCancel() => IsBusy;
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel() => _operation?.Cancel();
+
+    public async Task LeavePageAsync()
+    {
+        if (Account != null) await Account.StopAsync();
+        if (!_isBackgroundDownload)
+        {
+            _operation?.Cancel();
+            await Completion;
+        }
+        await StopPreviewsAsync();
+        await StopFullPreviewAsync();
+    }
 
     public async Task StopAsync()
     {

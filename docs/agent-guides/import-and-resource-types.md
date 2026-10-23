@@ -70,3 +70,5 @@
 - 模组添加按钮和外部拖放共用导入浮窗及批次入口。阶段进度由 Application 服务报告，未知耗时步骤显示不确定进度；剩余数量包含当前未完成项。排队的 UI 进度回调须校验批次/文件是否仍有效，不能覆盖完成或取消结果；取消不得被通用异常处理吞掉，未落库副本须清理，已落库模组不能因缩略图取消被算作失败。来源：https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation
 
 - 模组详情 Hash 通过 Application 的 `ModHashService` 调用 Core 的 `ModDirectoryHash`，导入与迁回复制校验共用同一算法：规范化相对路径按 Ordinal 排序，以路径长度前缀和完整文件 SHA-256 摘要生成目录指纹；不能用文件名/大小或首尾快速指纹冒充内容哈希。新导入在落库前计算并支持取消；旧记录只在打开详情时补算空值并保存，不能在加载列表时扫描整个库。来源：https://learn.microsoft.com/dotnet/api/system.security.cryptography.incrementalhash
+
+- 密码压缩包不能共享静态 `ReaderOptions`：逐次创建并通过 Application 密码库提供候选；ZIP 采用显式 ZipArchive 的逐条提取，7z 采用 Archive API 的 ExtractAllEntries，其它复合流保留 ReaderFactory。密码重试使用独立暂存目录，失败清理后再尝试；7z 加密头部错误密码可能表现为 LZMA DataError。加密输出经 7-Zip 标准输入传密码，禁止将密码放入日志、命令行或包内清单；当前 ZIP 仅 ASCII 密码，Unicode 使用 7z。行为、验证范围和许可证见[模组创建](../features/MOD_CREATION.md#密码库与加密压缩包)。来源：[SharpCompress 格式支持](https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md)、[7-Zip 参数解析源码](https://github.com/ip7z/7zip/blob/main/CPP/Common/CommandLineParser.cpp)。

@@ -245,8 +245,8 @@
                       <Border Classes="chip" IsVisible="{Binding IsLuaMod}">
                         <TextBlock Text="Lua Mods" FontSize="12" Classes="accent-text"/>
                       </Border>
-                      <TextBlock Text="{loc:Loc UI.Enabled}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding Enabled}"/>
-                      <TextBlock Text="{loc:Loc UI.Disabled}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !Enabled}"/>
+                      <TextBlock Text="{loc:Loc UI.Deployed}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
+                      <TextBlock Text="{loc:Loc Shell.NotDeployed}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !IsDeployed}"/>
                       <TextBlock Text="{loc:Loc UI.HasOptions}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding HasOptions}"/>
                       <TextBlock Text="{loc:LocalizedBinding PriorityLabel}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsFixedGroupMember}"/>
                       <TextBlock Text="{loc:Loc UI.FixedPosition}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !CanDrag}"/>
@@ -409,6 +409,24 @@
         </StackPanel>
       </Border>
     </Border>
+
+    <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
+            IsVisible="{Binding IsRenameProfileDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="55">
+      <Border Classes="card" Background="{DynamicResource Surface2Brush}" Width="400" Padding="20"
+              HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="12">
+          <TextBlock Text="{loc:Loc UI.RenameProfile}" Classes="section-title"/>
+          <TextBox Text="{Binding RenameProfileName}" PlaceholderText="{loc:Loc UI.NewProfileName}"/>
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelRenameProfileCommand}" Classes="secondary"/>
+            <Button Content="{loc:Loc UI.Rename}" Command="{Binding ConfirmRenameProfileCommand}" Classes="accent"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <controls:AddToProfileOverlay Grid.RowSpan="3" Grid.ColumnSpan="2" ZIndex="110"
+        DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryViewModel}"/>
 
     <!-- ══ 底部操作栏（旧版仅右侧按钮，无重复状态文字）══ -->
     <Border Grid.Row="2" Grid.Column="1" Classes="card" Padding="12">

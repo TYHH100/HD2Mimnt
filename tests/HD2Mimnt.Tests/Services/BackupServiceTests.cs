@@ -21,7 +21,7 @@ public sealed class BackupServiceTests
             var settings = new SettingsService(root);
             await settings.SetSettingAsync("Test.Value", "before");
 
-            var connection = await dbContext.GetConnectionAsync();
+            using var connection = await dbContext.OpenConnectionAsync();
             await using (var command = connection.CreateCommand())
             {
                 command.CommandText = "INSERT INTO Settings (Key, Value) VALUES ('Test.Db', '\"before\"')";
@@ -49,7 +49,7 @@ public sealed class BackupServiceTests
             await service.RestoreBackupAsync(created.FullPath);
 
             Assert.Equal("before", await settings.GetSettingAsync("Test.Value", "missing"));
-            var restoredConnection = await dbContext.GetConnectionAsync();
+            using var restoredConnection = await dbContext.OpenConnectionAsync();
             await using var verify = restoredConnection.CreateCommand();
             verify.CommandText = "SELECT Value FROM Settings WHERE Key = 'Test.Db'";
             Assert.Equal("\"before\"", (string?)await verify.ExecuteScalarAsync());

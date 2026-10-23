@@ -340,6 +340,9 @@ public static class SettingKeys
     public const string EnableLogging = "Advanced.EnableLogging";
     public const string LogLevel = "Advanced.LogLevel";
     public const string ConcurrentImports = "Advanced.ConcurrentImports";
+
+    // 清单相关
+    public const string ForceManifestV1 = "Manifest.ForceV1";
 }
 
 /// <summary>

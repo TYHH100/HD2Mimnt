@@ -20,7 +20,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task AddAsync(FileOwnership ownership, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -43,7 +43,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task<FileOwnership?> GetByDeployPathAsync(string deployPath, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM FileOwnerships WHERE DeployPath = @DeployPath";
@@ -60,7 +60,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task<List<FileOwnership>> GetByLogicalModIdAsync(Guid logicalModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var ownerships = new List<FileOwnership>();
 
         using var command = connection.CreateCommand();
@@ -78,7 +78,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task<List<FileOwnership>> GetByComponentIdAsync(Guid componentId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var ownerships = new List<FileOwnership>();
 
         using var command = connection.CreateCommand();
@@ -96,7 +96,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task DeleteByLogicalModIdAsync(Guid logicalModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM FileOwnerships WHERE LogicalModId = @LogicalModId";
@@ -107,7 +107,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task UpdateReferenceCountAsync(string deployPath, int delta, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -123,7 +123,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task<List<FileOwnership>> GetSharedResourcesAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var ownerships = new List<FileOwnership>();
 
         using var command = connection.CreateCommand();
@@ -140,7 +140,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task<List<FileOwnership>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var ownerships = new List<FileOwnership>();
 
         using var command = connection.CreateCommand();
@@ -157,7 +157,7 @@ public class FileOwnershipRepository : IFileOwnershipRepository
 
     public async Task DeleteByDeployPathAsync(string deployPath, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM FileOwnerships WHERE DeployPath = @DeployPath";

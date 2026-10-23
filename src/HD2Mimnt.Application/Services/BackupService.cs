@@ -14,7 +14,6 @@ public sealed class BackupService
     private const string SettingsEntryName = "settings.json";
 
     private readonly string _appDataPath;
-    private readonly string _databasePath;
     private readonly string _backupDirectory;
     private readonly HD2MimntDbContext _dbContext;
     private readonly SettingsService _settingsService;
@@ -27,7 +26,6 @@ public sealed class BackupService
         SettingsService settingsService)
     {
         _appDataPath = appDataPath;
-        _databasePath = dbContext.DatabasePath;
         _backupDirectory = Path.Combine(appDataPath, "Backups");
         _dbContext = dbContext;
         _settingsService = settingsService;
@@ -64,7 +62,7 @@ public sealed class BackupService
             temporaryDatabasePath = Path.Combine(_backupDirectory, $".backup-{Guid.NewGuid():N}.db");
             temporaryBackupPath = backupPath + ".tmp";
 
-            var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+            using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
             await using (var command = connection.CreateCommand())
             {
                 var escapedPath = temporaryDatabasePath.Replace("'", "''", StringComparison.Ordinal);
@@ -118,11 +116,19 @@ public sealed class BackupService
             await _settingsService.ReloadAfterRestoreAsync(async () =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _dbContext.Dispose();
-                File.Copy(temporaryDatabasePath, _databasePath, overwrite: true);
-                DeleteIfExists(_databasePath + "-wal");
-                DeleteIfExists(_databasePath + "-shm");
-                await _dbContext.InitializeDatabaseAsync(cancellationToken);
+                // SQLite 在线备份以事务替换内容；不关闭其它操作的连接，也不删除活动 WAL。
+                await Task.Run(async () =>
+                {
+                    using var source = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+                    {
+                        DataSource = temporaryDatabasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly, Pooling = false
+                    }.ToString());
+                    await source.OpenAsync(cancellationToken);
+                    using var target = await _dbContext.OpenConnectionAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    source.BackupDatabase(target);
+                }, cancellationToken);
+                await _dbContext.InitializeDatabaseAsync(CancellationToken.None);
             });
             Restored?.Invoke(this, EventArgs.Empty);
         }

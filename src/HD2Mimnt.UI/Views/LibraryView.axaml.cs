@@ -263,17 +263,6 @@ public partial class LibraryView : UserControl
     }
 
     /// <summary>
-    /// 点击背景关闭"加入配置文件"弹窗
-    /// </summary>
-    private void OnAddToProfileBackgroundPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (DataContext is LibraryViewModel vm)
-        {
-            vm.CancelAddToProfileCommand.Execute(null);
-        }
-    }
-
-    /// <summary>
     /// 点击背景关闭详情面板
     /// </summary>
     private void OnDetailBackgroundPressed(object? sender, PointerPressedEventArgs e)
@@ -285,13 +274,13 @@ public partial class LibraryView : UserControl
     }
 
     /// <summary>点击模组卡片图标：在主窗口顶层的覆盖层预览原图（无图标时无操作）。</summary>
-    private void PreviewImage_Tapped(object? sender, TappedEventArgs e)
+    private async void PreviewImage_Tapped(object? sender, TappedEventArgs e)
     {
         e.Handled = true;
-        if (sender is Border { DataContext: ModItemViewModel { IconBitmap: { } icon } mod }
+        if (sender is Border { DataContext: ModItemViewModel mod }
             && DataContext is LibraryViewModel vm)
         {
-            vm.ShowImagePreview(icon, mod.Name);
+            await vm.ShowModImagePreviewAsync(mod.Id, mod.Name);
         }
     }
 

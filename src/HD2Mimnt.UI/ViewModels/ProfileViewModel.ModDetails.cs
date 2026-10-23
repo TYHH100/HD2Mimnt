@@ -15,6 +15,15 @@ public partial class ProfileViewModel
 
     public event EventHandler<ModItemViewModel>? ModUpdatesRequested;
     public event Func<Task>? ModDeleted;
+    public Func<ModItemViewModel, Guid, Task>? AddToOtherProfilesAsync { get; set; }
+
+    [RelayCommand]
+    private async Task AddModToOtherProfilesAsync(ProfileModViewModel? mod)
+    {
+        if (mod is not { IsSeparator: false, SourceInfo: { } source }
+            || !ProfileMods.Contains(mod) || SelectedProfile == null || AddToOtherProfilesAsync == null) return;
+        await AddToOtherProfilesAsync(source, SelectedProfile.Id);
+    }
 
     [ObservableProperty]
     private ModItemViewModel? _selectedModDetail;

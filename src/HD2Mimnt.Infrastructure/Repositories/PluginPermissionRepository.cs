@@ -19,7 +19,7 @@ public class PluginPermissionRepository : IPluginPermissionRepository
 
     public async Task<List<PluginPermission>> GetByPluginIdAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -41,7 +41,7 @@ public class PluginPermissionRepository : IPluginPermissionRepository
 
     public async Task AddAsync(PluginPermission permission, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -59,7 +59,7 @@ public class PluginPermissionRepository : IPluginPermissionRepository
 
     public async Task UpdateAsync(PluginPermission permission, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -77,7 +77,7 @@ public class PluginPermissionRepository : IPluginPermissionRepository
 
     public async Task DeleteByPluginIdAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM PluginPermissions WHERE PluginId = @PluginId";

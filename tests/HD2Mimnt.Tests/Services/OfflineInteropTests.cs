@@ -227,7 +227,7 @@ public sealed class OfflineInteropTests : IAsyncLifetime
     public async Task Read_SnapshotWhileWriterHasUncommittedChanges_DoesNotMixRows()
     {
         var mod = await AddMod("已提交名称"); var profile = await AddProfile(mod);
-        var connection = await _db.GetConnectionAsync();
+        using var connection = await _db.OpenConnectionAsync();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand(); command.Transaction = transaction;
         command.CommandText = "UPDATE Mods SET Name = '未提交名称'; UPDATE ProfileMods SET Enabled = 0;";

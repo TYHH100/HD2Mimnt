@@ -3,19 +3,24 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
 public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> refresh,
-    IWebsiteDownloadLauncher? websiteLauncher = null, BrowserDownloadHandoffService? browserDownloads = null) : ObservableObject
+    IWebsiteDownloadLauncher? websiteLauncher = null, BrowserDownloadHandoffService? browserDownloads = null,
+    PlatformDownloadTaskRunner? downloadTasks = null) : ObservableObject
 {
     private Guid _modId;
     private ModPlatformLink? _link;
     private ModItemViewModel? _target;
     private CancellationTokenSource? _operation;
+    private CancellationToken _executionToken;
     private volatile bool _isImporting;
+    private bool _isBackgroundDownload;
     private PendingAuthorization? _pendingAuthorization;
+    private PendingAuthorization? _cancelledWebsiteDownload;
     private BrowserDownloadSession? _browserSession;
     private readonly IWebsiteDownloadLauncher _websiteLauncher = websiteLauncher ?? new WebsiteDownloadLauncher();
     public Task Completion { get; private set; } = Task.CompletedTask;
@@ -62,7 +67,11 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
 
     public async Task OpenAsync(ModItemViewModel mod)
     {
-        if (IsBusy) return;
+        if (IsBusy)
+        {
+            if (_isBackgroundDownload) IsOpen = true;
+            return;
+        }
         _modId = mod.Id;
         _target = mod;
         _link = mod.PlatformLink;
@@ -104,10 +113,10 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
         Message = "下载方式已切换，请重新检查更新。";
     }
     /// <summary>由启动参数/单实例管道在 UI 线程调用；只有当前等待的文件可继续。</summary>
-    public bool TryReceiveProtocolLink(string input)
+    public bool TryReceiveProtocolLink(string input, bool ignoreMismatch = false)
     {
         var pending = _pendingAuthorization;
-        if (!IsOpen || pending == null || !IsWaitingForWebsite || _operation?.IsCancellationRequested != false || pending.Result.Task.IsCompleted)
+        if (pending == null || !IsWaitingForWebsite || _operation == null || _executionToken.IsCancellationRequested || pending.Result.Task.IsCompleted)
             return false;
         try
         {
@@ -115,7 +124,11 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             pending.Result.TrySetResult(input);
             Message = "已收到网页授权，正在验证账户并继续…";
         }
-        catch (Exception ex) { Message = ModPlatformErrorFormatter.Format(ex, "接收网页授权") + "\n仍在等待所选文件的有效授权。"; }
+        catch (Exception ex)
+        {
+            if (ignoreMismatch) return false;
+            Message = ModPlatformErrorFormatter.Format(ex, "接收网页授权") + "\n仍在等待所选文件的有效授权。";
+        }
         return true;
     }
 
@@ -124,6 +137,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
     {
         if (!UseWebsiteAuthorization) return (file, null);
         var pending = new PendingAuthorization(link, file);
+        _cancelledWebsiteDownload = null;
         _pendingAuthorization = pending;
         IsWaitingForWebsite = true;
         Message = "等待网页授权：在浏览器完成下载确认，选择 HD2Mimnt 打开链接后将自动继续。";
@@ -139,7 +153,20 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             if (resolved.Id != pending.File.Id) throw new InvalidOperationException("授权文件与所选文件不同。");
             return (resolved, input);
         }
-        finally { _pendingAuthorization = null; IsWaitingForWebsite = false; }
+        finally
+        {
+            if (token.IsCancellationRequested && !pending.Result.Task.IsCompleted) _cancelledWebsiteDownload = pending;
+            _pendingAuthorization = null;
+            IsWaitingForWebsite = false;
+        }
+    }
+
+    public bool IsCancelledProtocolLink(string input)
+    {
+        if (_cancelledWebsiteDownload is not { } cancelled) return false;
+        try { service.ValidateProtocolTarget(cancelled.Link, cancelled.File, input); return true; }
+        catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
     }
 
     partial void OnSelectedFileChanged(PlatformModFile? value)
@@ -195,7 +222,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             await refresh();
             Message = "模组已替换，请检查模组选项。" + (result.DeploymentWasCleaned ? "旧部署已清理，请重新部署。" : "")
                 + result.CleanupWarning;
-        });
+        }, backgroundDownload: true);
     }
 
     public Task DownloadAsync(string path)
@@ -210,7 +237,7 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             Message = "正在下载压缩包…";
             await service.DownloadAsync(_modId, link, authorized.File, path, DownloadReporter(token), token, authorized.ProtocolLink);
             Message = "压缩包已保存：" + path;
-        });
+        }, backgroundDownload: true);
     }
 
     public void OpenBrowserDownload()
@@ -244,29 +271,45 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
 
     private void Publish(CancellationToken token, Action action) => Dispatcher.UIThread.Post(() =>
     {
-        if (IsOpen && IsBusy && _operation?.Token == token && !token.IsCancellationRequested) action();
+        if (IsBusy && _executionToken == token && !token.IsCancellationRequested) action();
     });
 
-    private Task RunAsync(string operation, Func<CancellationToken, Task> action)
+    private Task RunAsync(string operation, Func<CancellationToken, Task> action, bool backgroundDownload = false)
     {
         if (IsBusy) return Completion;
-        return Completion = RunCoreAsync(operation, action);
+        return Completion = RunCoreAsync(operation, action, backgroundDownload);
     }
-    private async Task RunCoreAsync(string operation, Func<CancellationToken, Task> action)
+    private async Task RunCoreAsync(string operation, Func<CancellationToken, Task> action, bool backgroundDownload)
     {
         using var cts = new CancellationTokenSource();
         _operation = cts;
+        _executionToken = cts.Token;
+        _isBackgroundDownload = backgroundDownload;
         _isImporting = false;
         IsBusy = true;
         Progress = 0;
         IsIndeterminate = true;
-        try { await action(cts.Token); }
+        try
+        {
+            if (backgroundDownload && downloadTasks != null)
+                await downloadTasks.RunAsync($"{(IsAyaka ? "A 网下载" : "N 网下载")}：{TargetName}", token =>
+                    {
+                        _executionToken = token;
+                        return action(token);
+                    },
+                    () => new TaskProgress
+                    {
+                        Progress = Progress, Stage = IsWaitingForWebsite || IsWaitingForBrowser ? "WaitingForWebsite" : _isImporting ? "Importing" : "Downloading",
+                        CurrentItem = SelectedFile?.Name ?? "", Message = Message
+                    }, cts.Token);
+            else await action(cts.Token);
+        }
         catch (OperationCanceledException) { Message = "操作已取消，原模组未替换。"; }
         catch (Exception ex)
         {
             Message = ModPlatformErrorFormatter.Format(ex, operation);
         }
-        finally { _operation = null; IsBusy = false; IsIndeterminate = false; }
+        finally { _operation = null; _executionToken = default; _isBackgroundDownload = false; IsBusy = false; IsIndeterminate = false; }
     }
 
     private bool CanCancel() => IsBusy;
@@ -275,6 +318,12 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
 
     [RelayCommand]
     private async Task CloseAsync()
+    {
+        IsOpen = false;
+        if (!_isBackgroundDownload) await StopAsync();
+    }
+
+    public async Task StopAsync()
     {
         _operation?.Cancel();
         await Completion;

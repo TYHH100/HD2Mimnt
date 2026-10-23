@@ -115,7 +115,8 @@ public sealed class NexusModsAuthTests
                 await platform.HasDirectDownloadAccessAsync();
                 Assert.Equal("Bearer synthetic-access-one", handler.Requests.Single().Authorization);
                 Assert.Null(handler.Requests.Single().ApiKey);
-                using var command = (await database.GetConnectionAsync()).CreateCommand();
+                using var ownedConnection = await database.OpenConnectionAsync();
+                using var command = ownedConnection.CreateCommand();
                 command.CommandText = "SELECT ProtectedApiKey FROM PlatformCredentials";
                 var cipher = Assert.IsType<byte[]>(await command.ExecuteScalarAsync());
                 Assert.DoesNotContain("synthetic-access-one", Encoding.UTF8.GetString(cipher));

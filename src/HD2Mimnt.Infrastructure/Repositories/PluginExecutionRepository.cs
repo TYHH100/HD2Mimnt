@@ -19,7 +19,7 @@ public class PluginExecutionRepository : IPluginExecutionRepository
 
     public async Task<List<PluginExecutionHistory>> GetByPluginIdAsync(string pluginId, int limit = 100, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -43,7 +43,7 @@ public class PluginExecutionRepository : IPluginExecutionRepository
 
     public async Task AddAsync(PluginExecutionHistory execution, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -64,7 +64,7 @@ public class PluginExecutionRepository : IPluginExecutionRepository
 
     public async Task UpdateAsync(PluginExecutionHistory execution, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"

@@ -17,7 +17,7 @@ public partial class BackupViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
 
-    public event EventHandler? RestoreCompleted;
+    public Func<Task>? RefreshAfterRestoreAsync { get; set; }
 
     public BackupViewModel(BackupService backupService, IConfirmationService confirmationService, NotificationService notificationService)
     {
@@ -75,17 +75,19 @@ public partial class BackupViewModel : ObservableObject
     {
         if (backup == null || !await _confirmationService.ConfirmAsync("恢复备份", $"恢复“{backup.Name}”会覆盖当前模组库、配置文件和设置，并刷新当前页面。确定继续吗？")) return;
         IsLoading = true;
+        var restored = false;
         try
         {
             await _backupService.RestoreBackupAsync(backup.FullPath);
-            StatusMessage = "备份已恢复，页面数据将在刷新后同步";
+            restored = true;
+            if (RefreshAfterRestoreAsync != null) await RefreshAfterRestoreAsync();
+            StatusMessage = "备份已恢复，页面数据已同步";
             _notificationService.ShowSuccess("备份已恢复", "备份");
-            RestoreCompleted?.Invoke(this, EventArgs.Empty);
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"恢复备份失败：{ex.Message}";
+            StatusMessage = restored ? $"备份已恢复，但页面刷新失败：{ex.Message}" : $"恢复备份失败：{ex.Message}";
             _notificationService.ShowError(StatusMessage, "备份");
         }
         finally

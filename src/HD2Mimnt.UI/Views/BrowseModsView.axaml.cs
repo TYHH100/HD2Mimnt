@@ -14,7 +14,7 @@ public partial class BrowseModsView : UserControl
         InitializeComponent();
         DetachedFromVisualTree += async (_, _) =>
         {
-            if (DataContext is BrowseModsViewModel vm) await vm.StopAsync();
+            if (DataContext is BrowseModsViewModel vm) await vm.LeavePageAsync();
         };
     }
 

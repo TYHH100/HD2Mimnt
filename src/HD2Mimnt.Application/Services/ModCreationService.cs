@@ -236,7 +236,12 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
         => ExportArchiveAsync(document, path, ModArchiveCompression.Ultra, token);
 
     public Task ExportArchiveAsync(ModCreationDocument document, string path, ModArchiveCompression compression, CancellationToken token = default)
+        => ExportArchiveAsync(document, path, compression, null, token);
+
+    public Task ExportArchiveAsync(ModCreationDocument document, string path, ModArchiveCompression compression,
+        string? password, CancellationToken token = default)
     {
+        if (password?.IndexOfAny(['\0', '\r', '\n']) >= 0) throw new InvalidDataException("ArchivePasswords.InvalidPassword");
         // UI 在启动操作前冻结编辑；先生成独立快照，打包期间不再读取可变表单。
         var package = ManifestPackage.Separate(BuildCombined(document));
         var json = package.Manifest.ToJsonString(JsonOptions);
@@ -253,9 +258,14 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
             var temporary = destination + $".{Guid.NewGuid():N}.tmp";
             try
             {
-                if (Path.GetExtension(destination).Equals(".7z", StringComparison.OrdinalIgnoreCase))
+                var format = Path.GetExtension(destination).TrimStart('.').ToLowerInvariant();
+                if (format is not ("7z" or "zip")) throw new InvalidDataException("Creator.ArchiveFormatRequired");
+                // 7-Zip 的 ZIP 加密只接受 ASCII 密码，Unicode 密码使用 7z。
+                if (format == "zip" && password?.Any(c => c > 127) == true)
+                    throw new InvalidDataException("ArchivePasswords.ZipAsciiRequired");
+                if (format == "7z" || !string.IsNullOrEmpty(password))
                 {
-                    await ExportSevenZipAsync(source, temporary, json, metadataJson, compression, token);
+                    await ExportSevenZipAsync(source, temporary, json, metadataJson, compression, token, password, format);
                     token.ThrowIfCancellationRequested();
                     File.Move(temporary, destination, overwrite: true);
                     return;
@@ -313,7 +323,7 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
     }
 
     private async Task ExportSevenZipAsync(string source, string temporary, string json, string metadataJson,
-        ModArchiveCompression compression, CancellationToken token)
+        ModArchiveCompression compression, CancellationToken token, string? password, string format)
     {
         var inputs = new List<string>();
         var pending = new Stack<string>(); pending.Push(Path.GetFullPath(source));
@@ -342,7 +352,7 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
             await File.WriteAllTextAsync(Path.Combine(stage, ManifestPackage.MetadataFileName), metadataJson, token);
             var list = Path.Combine(stage, "files.txt");
             await File.WriteAllLinesAsync(list, inputs, new System.Text.UTF8Encoding(false), token);
-            await SevenZipArchiveWriter.CreateAsync(temporary, Path.GetFullPath(source), inputs.Count > 0 ? list : null, stage, compression, token);
+            await SevenZipArchiveWriter.CreateAsync(temporary, Path.GetFullPath(source), inputs.Count > 0 ? list : null, stage, compression, token, password, format);
         }
         finally { Directory.Delete(stage, recursive: true); }
     }

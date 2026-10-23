@@ -82,9 +82,14 @@ public sealed partial class FluentAvaloniaUiTests
             {
                 Assert.Equal("test", await File.ReadAllTextAsync(source));
                 Layout(dev); Assert.False(toggle.IsEffectivelyEnabled);
+                window.Content = new Border();
+                await vm.LeavePageAsync();
+                Assert.True(vm.IsBusy);
+                Assert.False(pending.IsCompleted);
             }
             finally { finishImport.TrySetResult(); }
             await pending.WaitAsync(TimeSpan.FromSeconds(15));
+            window.Content = view;
             Assert.False(File.Exists(source));
             Assert.False(Directory.Exists(Path.GetDirectoryName(source)));
             ayaka.FailDownload = true;
@@ -92,6 +97,9 @@ public sealed partial class FluentAvaloniaUiTests
             await vm.DownloadAsync(failed).WaitAsync(TimeSpan.FromSeconds(20));
             Assert.Contains("400", vm.Message);
             Assert.False(File.Exists(failed));
+            await main.TaskCenterViewModel.LoadAsync();
+            Assert.Contains(main.TaskCenterViewModel.Tasks, task => task.Type == "PlatformDownload" && task.Status == HD2Mimnt.Core.Entities.TaskStatus.Completed);
+            Assert.Contains(main.TaskCenterViewModel.Tasks, task => task.Type == "PlatformDownload" && task.Status == HD2Mimnt.Core.Entities.TaskStatus.Failed);
             Assert.Empty(scope.WebsiteLauncher.Urls);
             Assert.False(vm.IsWaitingForBrowser || vm.IsWaitingForWebsite);
             Toggle(); Assert.False(vm.UseAyakaApiDownload);
@@ -133,7 +141,10 @@ public sealed partial class FluentAvaloniaUiTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using (var frame = window.CaptureRenderedFrame()) { }
             var chooser = window.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "OnlineChooseBrowserFileButton");
             Assert.True(chooser.IsEffectivelyVisible && chooser.IsEffectivelyEnabled);
-            await online.CloseCommand.ExecuteAsync(null); await pending;
+            await online.CloseCommand.ExecuteAsync(null);
+            Assert.False(online.IsOpen);
+            Assert.True(online.IsWaitingForBrowser && online.IsBusy);
+            await online.StopAsync(); await pending;
             Assert.False(online.IsWaitingForBrowser || online.IsBusy);
             Assert.Equal(bound.Version, (await repository.GetByIdAsync(mod.Id))!.Version);
             await online.OpenAsync(new ModItemViewModel(bound));
@@ -150,11 +161,11 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.True(File.Exists(path));
             Assert.DoesNotContain(ayaka.Paths, p => p.Contains("/download"));
         }
-        finally { await online.CloseCommand.ExecuteAsync(null); window.Content = null; window.Close(); }
+        finally { await online.StopAsync(); window.Content = null; window.Close(); }
     }
 
     [AvaloniaFact]
-    public async Task AyakaBrowserDownload_ShouldImportAutomaticOrManualFileAndStopOnLeaving()
+    public async Task AyakaBrowserDownload_ShouldImportAutomaticOrManualFileAndSupportExplicitCancellation()
     {
         using var ayaka = new AyakaUiHandler();
         await using var scope = await UiScope.CreateAsync(ayakaHandler: ayaka);

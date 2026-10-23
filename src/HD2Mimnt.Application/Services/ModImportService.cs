@@ -35,7 +35,8 @@ public class ModImportService
         _modRepository = modRepository;
         _modsStoragePath = modsStoragePath;
         _logger = logger;
-        _archiveExtractor = archiveExtractor ?? new SharpCompressArchiveExtractor();
+        _archiveExtractor = archiveExtractor ?? (settingsService == null ? new SharpCompressArchiveExtractor()
+            : new PasswordAwareArchiveExtractor(new ArchivePasswordService(settingsService)));
         _tempDirectory = tempDirectory ?? Path.GetTempPath();
         _settingsService = settingsService;
 
@@ -220,7 +221,7 @@ public class ModImportService
 
             // 合集/HD2IAS 的清单由管理器生成，没有作者根清单需要规范化。
             var hasParsedManifest = manifest != null && collection == null;
-            // 无 manifest 时按旧版管理器语义推断：有子目录时把子目录名作为互斥选项（下拉选择）
+            // 无 manifest 时按设置推断：若启用 ForceManifestV1，生成 V1 清单；否则按旧版语义生成 Legacy 清单
             manifest ??= InferManifestFromDirectory(modRootPath, fallbackName);
 
             // 分析 Mod 内容
@@ -290,7 +291,7 @@ public class ModImportService
             }
             mod.Path = targetPath;
             if (string.IsNullOrWhiteSpace(mod.ThumbnailPath))
-                mod.ThumbnailPath = ResolveManifestIconPath(targetPath, manifest?.IconPath) ?? string.Empty;
+                mod.ThumbnailPath = ResolveCardPreviewPath(targetPath, manifest?.IconPath) ?? string.Empty;
             progress?.Report(new(80, "识别资源类型", "扫描模组资源索引", true));
             await PopulateResourceTypesAsync(mod, cancellationToken);
             try
@@ -351,6 +352,18 @@ public class ModImportService
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         { return null; }
+    }
+
+    /// <summary>卡片优先使用作者指定图片，否则只查找模组根目录；不借用子目录的选项图片。</summary>
+    internal static string? ResolveCardPreviewPath(string modPath, string? iconPath)
+    {
+        if (ResolveManifestIconPath(modPath, iconPath) is { } declared) return declared;
+        if (!Directory.Exists(modPath)) return null;
+        return Directory.EnumerateFiles(modPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(file => Path.GetExtension(file).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" or ".webp")
+            .OrderBy(file => Path.GetFileNameWithoutExtension(file).ToLowerInvariant() is "thumbnail" or "preview" or "cover" or "icon" ? 0 : 1)
+            .ThenBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
     }
 
     internal async Task PopulateResourceTypesAsync(Mod mod, CancellationToken cancellationToken)
@@ -476,10 +489,10 @@ public class ModImportService
 
     /// <summary>
     /// 无 manifest 时的推断（与旧版管理器 InferFromDirectory 语义一致）：
-    /// 有子目录时把子目录名作为互斥的 Legacy 选项，部署时只使用选中的那个子目录；
-    /// 没有子目录时返回 null（模组按整体部署）。导入与历史数据回填共用。
+    /// 有子目录时把子目录名作为互斥的选项；没有子目录时返回 null（模组按整体部署）。
+    /// 根据 ForceManifestV1 设置决定使用 V1 还是 Legacy 格式。导入与历史数据回填共用。
     /// </summary>
-    public static ModManifest? InferManifestFromDirectory(string modRootPath, string fallbackName)
+    public ModManifest? InferManifestFromDirectory(string modRootPath, string fallbackName)
     {
         if (!Directory.Exists(modRootPath))
         {
@@ -492,13 +505,42 @@ public class ModImportService
             return null;
         }
 
-        return new ModManifest
+        var forceV1 = _settingsService?.GetSetting(SettingKeys.ForceManifestV1, true) ?? true;
+
+        if (forceV1)
         {
-            Name = fallbackName,
-            Description = "A locally imported mod.",
-            ManifestVersion = ManifestVersion.Legacy,
-            LegacyOptions = subDirectories.Select(Path.GetFileName).ToList()
-        };
+            // V1 格式：每个子目录作为一个互斥的子选项
+            var options = subDirectories.Select(dir =>
+            {
+                var dirName = Path.GetFileName(dir) ?? Path.GetDirectoryName(dir) ?? "Unknown";
+                return new ModOption
+                {
+                    Name = dirName,
+                    Description = $"Option for {dirName}",
+                    DefaultEnabled = false,
+                    SubOptions = new List<ModSubOption>()
+                };
+            }).ToList();
+
+            return new ModManifest
+            {
+                Name = fallbackName,
+                Description = "A locally imported mod.",
+                ManifestVersion = ManifestVersion.V1,
+                Options = options
+            };
+        }
+        else
+        {
+            // Legacy 格式：子目录作为互斥下拉选项
+            return new ModManifest
+            {
+                Name = fallbackName,
+                Description = "A locally imported mod.",
+                ManifestVersion = ManifestVersion.Legacy,
+                LegacyOptions = subDirectories.Select(d => Path.GetFileName(d) ?? "Unknown").ToList()
+            };
+        }
     }
 
     /// <summary>
@@ -649,5 +691,161 @@ public class ModImportService
         if (!full.StartsWith(normalized + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"迁移文件路径越出模组目录：{relative}");
         return full;
+    }
+
+    /// <summary>
+    /// 将无清单或 Legacy 清单的模组升级为 V1 清单格式
+    /// 仅在 ForceManifestV1 设置启用时执行
+    /// </summary>
+    public async Task<bool> UpgradeModManifestToV1Async(Mod mod, CancellationToken cancellationToken = default)
+    {
+        var forceV1 = _settingsService?.GetSetting(SettingKeys.ForceManifestV1, true) ?? true;
+        if (!forceV1)
+        {
+            _logger?.LogInformation("ForceManifestV1 未启用，跳过清单升级: {ModId}", mod.Id);
+            return false;
+        }
+
+        // 如果已是 V1 格式，无需升级
+        if (mod.Manifest?.ManifestVersion == ManifestVersion.V1)
+        {
+            _logger?.LogInformation("模组已是 V1 格式，无需升级: {ModId}", mod.Id);
+            return false;
+        }
+
+        try
+        {
+            if (!Directory.Exists(mod.Path))
+            {
+                _logger?.LogWarning("模组路径不存在，无法升级清单: {ModPath}", mod.Path);
+                return false;
+            }
+
+            var manifestPath = Path.Combine(mod.Path, "manifest.json");
+            ModManifest? newManifest = null;
+
+            if (File.Exists(manifestPath))
+            {
+                // 已有清单文件，转换为 V1
+                var currentManifest = await _manifestParser.ParseFromFileAsync(manifestPath, cancellationToken);
+                if (currentManifest == null)
+                {
+                    _logger?.LogWarning("无法解析现有清单: {ManifestPath}", manifestPath);
+                    return false;
+                }
+
+                // 复制基本信息
+                newManifest = new ModManifest
+                {
+                    Guid = currentManifest.Guid,
+                    Name = currentManifest.Name,
+                    Description = currentManifest.Description,
+                    Version = currentManifest.Version,
+                    Author = currentManifest.Author,
+                    AuthorUrl = currentManifest.AuthorUrl,
+                    IconPath = currentManifest.IconPath,
+                    Category = currentManifest.Category,
+                    Tags = currentManifest.Tags,
+                    ManifestVersion = ManifestVersion.V1,
+                    NexusData = currentManifest.NexusData,
+                    OptionGroups = currentManifest.OptionGroups
+                };
+
+                // 如果是 Legacy 格式，转换 Legacy 选项为 V1 选项
+                if (currentManifest.ManifestVersion == ManifestVersion.Legacy && currentManifest.LegacyOptions?.Count > 0)
+                {
+                    newManifest.Options = currentManifest.LegacyOptions
+                        .Select(option => new ModOption
+                        {
+                            Name = option,
+                            Description = $"Option for {option}",
+                            DefaultEnabled = false,
+                            SubOptions = new List<ModSubOption>()
+                        })
+                        .ToList();
+                }
+            }
+            else
+            {
+                // 无清单，根据目录推断
+                newManifest = InferManifestFromDirectory(mod.Path, mod.Name);
+            }
+
+            if (newManifest == null)
+            {
+                _logger?.LogInformation("模组无子目录结构，无法生成清单: {ModId}", mod.Id);
+                return false;
+            }
+
+            // 保存新清单
+            _manifestParser.SaveToFile(newManifest, manifestPath);
+            mod.Manifest = newManifest;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+
+            _logger?.LogInformation("模组清单已升级为 V1 格式: {ModId}", mod.Id);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogError(ex, "升级模组清单失败: {ModId}", mod.Id);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 批量升级无清单或 Legacy 清单的模组为 V1 格式
+    /// </summary>
+    public async Task<(int upgraded, int skipped, int failed)> UpgradeAllModsManifestToV1Async(
+        CancellationToken cancellationToken = default,
+        IProgress<(int current, int total)>? progress = null)
+    {
+        var forceV1 = _settingsService?.GetSetting(SettingKeys.ForceManifestV1, true) ?? true;
+        if (!forceV1)
+        {
+            _logger?.LogInformation("ForceManifestV1 未启用，跳过批量升级");
+            return (0, 0, 0);
+        }
+
+        int upgraded = 0, skipped = 0, failed = 0;
+
+        try
+        {
+            var allMods = await _modRepository.GetAllAsync(cancellationToken);
+            var total = allMods.Count();
+            int current = 0;
+
+            foreach (var mod in allMods)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                current++;
+                progress?.Report((current, total));
+
+                // 已是 V1 或有 manifest 且不是 Legacy 的，跳过
+                if (mod.Manifest?.ManifestVersion == ManifestVersion.V1)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                if (await UpgradeModManifestToV1Async(mod, cancellationToken))
+                {
+                    upgraded++;
+                }
+                else
+                {
+                    if (mod.Manifest == null)
+                        skipped++; // 无子目录，无法升级
+                    else
+                        failed++;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogError(ex, "批量升级模组清单失败");
+        }
+
+        _logger?.LogInformation("模组清单批量升级完成: 升级 {Upgraded} 个，跳过 {Skipped} 个，失败 {Failed} 个", upgraded, skipped, failed);
+        return (upgraded, skipped, failed);
     }
 }

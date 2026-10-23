@@ -39,6 +39,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly ProfileService _profileService;
     private readonly NotificationService _notificationService;
     private readonly DeploymentService _deploymentService;
+    public event Action<IReadOnlySet<Guid>>? DeploymentStateChanged;
     private readonly GameDetectionService _gameDetectionService;
     private readonly IConfirmationService _confirmationService;
     private readonly ImagePreviewService? _imagePreview;
@@ -264,7 +265,8 @@ public partial class LibraryViewModel : ObservableObject
         ModLinkService? modLinkService = null,
         ModOnlineService? modOnlineService = null,
         IWebsiteDownloadLauncher? websiteLauncher = null,
-        BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null)
+        BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
+        PlatformDownloadTaskRunner? downloadTasks = null)
     {
         Compatibility = compatibility;
         _modService = modService;
@@ -281,7 +283,7 @@ public partial class LibraryViewModel : ObservableObject
             if (SelectedModDetail is { } detail && await _modService.GetModByIdAsync(detail.Id) is { } saved)
                 detail.ApplyContent(saved);
             await searchService.BuildIndexAsync();
-        }, websiteLauncher, browserDownloads);
+        }, websiteLauncher, browserDownloads, downloadTasks);
         _searchService = searchService;
         _profileService = profileService;
         _notificationService = notificationService;
@@ -385,6 +387,7 @@ public partial class LibraryViewModel : ObservableObject
             {
                 modVm.IsDeployed = deployedModIds.Contains(modVm.Id);
             }
+            DeploymentStateChanged?.Invoke(deployedModIds);
 
             // 应用筛选和排序
             await ApplyFiltersAsync();
@@ -755,6 +758,21 @@ public partial class LibraryViewModel : ObservableObject
         AddToProfileTarget = null;
         _profilesForAdd = null;
         AddToProfileChoices.Clear();
+    }
+
+    public async Task OpenAddToOtherProfilesAsync(ModItemViewModel mod, Guid sourceProfileId)
+    {
+        await OpenAddToProfileDialogAsync(mod);
+        foreach (var choice in AddToProfileChoices.ToArray())
+        {
+            if (choice.Id == sourceProfileId) AddToProfileChoices.Remove(choice);
+            else choice.IsSelected = false;
+        }
+        if (AddToProfileChoices.Count == 0)
+        {
+            CancelAddToProfile();
+            _notificationService.ShowInfo("请先创建一个配置文件", "加入配置文件");
+        }
     }
 
     /// <summary>
@@ -1218,6 +1236,9 @@ public partial class LibraryViewModel : ObservableObject
 
     /// <summary>点击图片（模组卡片图标/详情面板图标）：在主窗口顶层的覆盖层预览原图。</summary>
     public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
+
+    public Task ShowModImagePreviewAsync(Guid modId, string? title)
+        => _imagePreview?.ShowOriginalAsync(() => _modService.ReadOriginalPreviewAsync(modId), title) ?? Task.CompletedTask;
 
     /// <summary>
     /// 显示模组详情

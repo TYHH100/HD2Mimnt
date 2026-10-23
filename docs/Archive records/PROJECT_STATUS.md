@@ -84,7 +84,7 @@ Profile Layer → Logical Mod Layer → Import Layer → Deployment Engine
 ### Application Layer
 - **服务数量：** 20+ 个（含 Phase 1-4 新增 7 个）
 - **核心服务：** ModService, ProfileService, DeploymentService, TaskService
-- **HD2IR 服务：** ArchiveAnalysisEngine, ComponentDetector, LogicalModBuilder, DiffEngine, ArchiveExtractionService, UnifiedDeploymentService, ProfileSwitchService
+- **HD2IR 服务：** ArchiveAnalysisEngine, ComponentDetector, LogicalModBuilder, DiffEngine, ArchiveExtractionService；实际部署与配置激活入口为 DeploymentService、ProfileService（未接入的旧服务已移除）
 - **状态：** ✅ 稳定
 
 ### UI Layer
@@ -309,7 +309,7 @@ dotnet build
 ### 技术债务
 
 **高优先级：**
-- [ ] 添加 ProfileSwitchService 单元测试
+- [x] 移除未接入主流程的旧配置切换服务；测试覆盖实际 ProfileService 与 DeploymentService
 - [ ] 调查测试主机清理崩溃问题
 - [ ] 定位 Phase 1-4 单元测试文件位置
 

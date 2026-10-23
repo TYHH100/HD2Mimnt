@@ -130,7 +130,8 @@ public sealed class ModSourceMetadataTests : IDisposable
         var mod = new Mod { Id = Guid.NewGuid(), Name = "Local", Path = "missing" };
         await repository.AddAsync(mod);
         await mods.SetPlatformLinkAsync(mod.Id, Source);
-        using var command = (await _database!.GetConnectionAsync()).CreateCommand();
+        using var ownedConnection = await _database!.OpenConnectionAsync();
+        using var command = ownedConnection.CreateCommand();
         command.CommandText = "CREATE TRIGGER reject_metadata BEFORE UPDATE ON Mods BEGIN SELECT RAISE(FAIL, 'test failure'); END;";
         await command.ExecuteNonQueryAsync();
         await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => mods.RecordUpdateCheckAsync(mod.Id, Source, "next"));

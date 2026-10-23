@@ -331,9 +331,9 @@ public partial class ModService
                 }
                 else
                 {
-                    // 清单缺失时同样应用“子目录推断为互斥选项”的旧版语义。
+                    // 清单缺失时同样应用”子目录推断为互斥选项”的旧版语义。
                     mod.Manifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken)
-                        ?? ModImportService.InferManifestFromDirectory(mod.Path, mod.Name);
+                        ?? _importService.InferManifestFromDirectory(mod.Path, mod.Name);
                     changed = mod.Manifest != null;
                 }
             }
@@ -686,6 +686,18 @@ public partial class ModService
         }
 
         return thumbnailPath;
+    }
+
+    /// <summary>读取卡片所对应的原始图片，放大预览不读取生成的缩略图。</summary>
+    public async Task<byte[]?> ReadOriginalPreviewAsync(Guid modId, CancellationToken cancellationToken = default)
+    {
+        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+        if (mod == null) return null;
+        return await Task.Run(async () =>
+        {
+            var path = ModImportService.ResolveCardPreviewPath(mod.Path, mod.Manifest?.IconPath);
+            return path == null ? null : await File.ReadAllBytesAsync(path, cancellationToken);
+        }, cancellationToken);
     }
 
     public string? GetThumbnailPath(Guid modId)

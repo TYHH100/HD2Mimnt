@@ -19,7 +19,7 @@ public sealed class PlatformCredentialStore(HD2MimntDbContext database) : IPlatf
         byte[] ciphertext;
         try { ciphertext = ProtectedData.Protect(plaintext, Entropy(platformId), DataProtectionScope.CurrentUser); }
         finally { CryptographicOperations.ZeroMemory(plaintext); }
-        var connection = await database.GetConnectionAsync(cancellationToken);
+        using var connection = await database.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "INSERT INTO PlatformCredentials (PlatformId, ProtectedApiKey) VALUES (@Platform, @Key) " +
             "ON CONFLICT(PlatformId) DO UPDATE SET ProtectedApiKey = excluded.ProtectedApiKey";
@@ -31,7 +31,7 @@ public sealed class PlatformCredentialStore(HD2MimntDbContext database) : IPlatf
     public async Task<string?> ReadApiKeyAsync(string platformId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
-        var connection = await database.GetConnectionAsync(cancellationToken);
+        using var connection = await database.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT ProtectedApiKey FROM PlatformCredentials WHERE PlatformId = @Platform";
         command.Parameters.AddWithValue("@Platform", platformId);
@@ -46,7 +46,7 @@ public sealed class PlatformCredentialStore(HD2MimntDbContext database) : IPlatf
     public async Task DeleteApiKeyAsync(string platformId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(platformId);
-        var connection = await database.GetConnectionAsync(cancellationToken);
+        using var connection = await database.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM PlatformCredentials WHERE PlatformId = @Platform";
         command.Parameters.AddWithValue("@Platform", platformId);

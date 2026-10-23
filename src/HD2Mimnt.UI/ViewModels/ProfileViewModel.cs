@@ -26,7 +26,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly SettingsService _settingsService;
     private readonly ImagePreviewService? _imagePreview;
 
-    public event EventHandler? ActiveProfileChanged;
+    public Func<Task>? ActiveProfileChanged { get; set; }
     public event EventHandler<ProfileModViewModel>? ConflictModLocationRequested;
 
     [ObservableProperty]
@@ -92,6 +92,14 @@ public partial class ProfileViewModel : ObservableObject
     private string _newProfileName = string.Empty;
 
     [ObservableProperty]
+    private string _renameProfileName = string.Empty;
+
+    [ObservableProperty]
+    private bool _isRenameProfileDialogOpen;
+
+    private ProfileItemViewModel? _profileToRename;
+
+    [ObservableProperty]
     private ProfileItemViewModel? _selectedProfile;
 
     /// <summary>当前激活的 Profile（页头下拉选择器，选择即切换激活）。</summary>
@@ -102,6 +110,7 @@ public partial class ProfileViewModel : ObservableObject
 
     /// <summary>本页自身发起的 ProfileService 变更不需要经 ProfilesChanged 事件重载（本地状态已同步）。</summary>
     private bool _suppressProfilesChangedRefresh;
+    public bool IsApplyingLocalChange => _suppressProfilesChangedRefresh;
 
     private readonly ModSelection<ProfileModViewModel> _modSelection;
     private readonly HashSet<ProfileModViewModel> _selectionTrackedMods = new();
@@ -377,6 +386,13 @@ public partial class ProfileViewModel : ObservableObject
 
     private CancellationTokenSource? _compareCts;
     private CancellationTokenSource? _profileModsCts;
+    private Guid? _loadedProfileId;
+    private string? _loadedProfileContent;
+
+    private static string ProfileContentSignature(Profile profile) => System.Text.Json.JsonSerializer.Serialize(new
+    {
+        profile.Mods, profile.Separators, profile.IsLuaGroupCollapsed, profile.LuaSeparatorColor, profile.IsLibraryLayout
+    });
 
     public IEnumerable<string> CompareFilterOptions { get; } = new[] { "全部", "仅左侧", "仅右侧", "状态不同", "两边共有" };
 
@@ -521,7 +537,7 @@ public partial class ProfileViewModel : ObservableObject
     /// ProfileService.ProfilesChanged 事件联动：就地刷新配置文件列表（名称/激活态/模组数/顺序）
     /// 并重载当前查看 Profile 的模组列表，不改变用户正在查看的选中项。
     /// </summary>
-    public async Task RefreshAfterProfilesChangedAsync()
+    public async Task RefreshAfterProfilesChangedAsync(bool skipUnchangedProfile = false)
     {
         if (_suppressProfilesChangedRefresh) return;
 
@@ -577,7 +593,10 @@ public partial class ProfileViewModel : ObservableObject
 
             if (SelectedProfile != null)
             {
-                await LoadProfileModsAsync(SelectedProfile.Id);
+                var selected = latest.FirstOrDefault(profile => profile.Id == SelectedProfile.Id);
+                if (!skipUnchangedProfile || selected == null || selected.Id != _loadedProfileId
+                    || ProfileContentSignature(selected) != _loadedProfileContent)
+                    await LoadProfileModsAsync(SelectedProfile.Id);
             }
         }
         catch (Exception ex)
@@ -891,7 +910,7 @@ public partial class ProfileViewModel : ObservableObject
             _bottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
                 == DeploymentOrder.BottomToTop.ToString();
             var lockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
-            var profile = await _profileService.GetProfileByIdAsync(profileId, cancellationToken);
+            var profile = await _profileService.NormalizeProfileAsync(profileId, cancellationToken);
             if (profile == null)
             {
                 HasProfileModsError = true;
@@ -902,6 +921,11 @@ public partial class ProfileViewModel : ObservableObject
             var modsById = (await _modService.GetModsByIdsAsync(
                 profile.Mods.Select(profileMod => profileMod.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
+            var deployedModIds = _deploymentService == null ? new HashSet<Guid>()
+                : (await _deploymentService.GetLatestDeploymentsAsync(cancellationToken))
+                    .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
+                        && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
+                    .Select(record => record.ModId).ToHashSet();
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
@@ -915,6 +939,7 @@ public partial class ProfileViewModel : ObservableObject
                         ModVersion = mod.PlatformLink?.InstalledVersion ?? mod.Version,
                         SourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) },
                         Enabled = profileMod.Enabled,
+                        IsDeployed = deployedModIds.Contains(mod.Id),
                         Order = profileMod.Order,
                         BslRole = BslProfilePolicy.Role(mod),
                         LoaderLockEnabled = lockLoaders,
@@ -932,6 +957,8 @@ public partial class ProfileViewModel : ObservableObject
 
             cancellationToken.ThrowIfCancellationRequested();
             ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
+            _loadedProfileId = profile.Id;
+            _loadedProfileContent = ProfileContentSignature(profile);
             _luaSeparator.ProfileId = profile.Id;
             _luaSeparator.IsCollapsed = profile.IsLuaGroupCollapsed;
             _luaSeparator.SeparatorColor = profile.LuaSeparatorColor;
@@ -966,6 +993,14 @@ public partial class ProfileViewModel : ObservableObject
                 IsProfileModsLoading = false;
             }
         }
+    }
+
+    public void ApplyDeploymentState(IReadOnlySet<Guid> deployedModIds)
+    {
+        foreach (var mod in ProfileMods)
+            mod.IsDeployed = deployedModIds.Contains(mod.ModId);
+        if (SelectedModDetail != null)
+            SelectedModDetail.IsDeployed = deployedModIds.Contains(SelectedModDetail.Id);
     }
 
     private void RefreshProfileModStateProperties()
@@ -1241,22 +1276,34 @@ public partial class ProfileViewModel : ObservableObject
         }
     }
 
-    public async Task RenameProfileAsync(ProfileItemViewModel? profile)
+    public Task RenameProfileAsync(ProfileItemViewModel? profile)
     {
-        if (profile == null) return;
+        if (profile == null) return Task.CompletedTask;
+        _profileToRename = profile;
+        RenameProfileName = profile.Name;
+        IsRenameProfileDialogOpen = true;
+        return Task.CompletedTask;
+    }
 
-        // 页面无独立输入对话框：新名称复用左侧面板顶部的名称输入框
-        var name = NewProfileName.Trim();
+    [RelayCommand]
+    private void CancelRenameProfile() => IsRenameProfileDialogOpen = false;
+
+    [RelayCommand]
+    private async Task ConfirmRenameProfileAsync()
+    {
+        var profile = _profileToRename;
+        if (profile == null) return;
+        var name = RenameProfileName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            _notificationService.ShowWarning("请先在上方输入框填写新名称，再点击重命名", "重命名配置文件");
+            _notificationService.ShowWarning("请输入配置文件名称", "重命名配置文件");
             return;
         }
         try
         {
             await SuppressLocalChangeAsync(() =>
                 _profileService.RenameProfileAsync(profile.Id, name));
-            NewProfileName = string.Empty;
+            IsRenameProfileDialogOpen = false;
             await LoadProfilesAsync();
             _notificationService.ShowSuccess("配置文件名称已更新", "重命名配置文件");
         }
@@ -1304,7 +1351,8 @@ public partial class ProfileViewModel : ObservableObject
             ActiveProfileSelection = profile;
             _suppressActiveProfileSelection = false;
             await LoadProfileModsAsync(profile.Id);
-            ActiveProfileChanged?.Invoke(this, EventArgs.Empty);
+            if (ActiveProfileChanged != null)
+                foreach (Func<Task> refresh in ActiveProfileChanged.GetInvocationList()) await refresh();
         }
         catch (Exception ex)
         {
@@ -1459,6 +1507,9 @@ public partial class ProfileViewModel : ObservableObject
 
     /// <summary>点击图片（模组图标/选项图/子选项图）：在主窗口顶层的覆盖层预览原图。</summary>
     public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
+
+    public Task ShowModImagePreviewAsync(Guid modId, string? title)
+        => _imagePreview?.ShowOriginalAsync(() => _modService.ReadOriginalPreviewAsync(modId), title) ?? Task.CompletedTask;
 
     /// <summary>关闭共享预览覆盖层（选项弹窗释放自己按需解码的原图时使用）。</summary>
     internal void CloseImagePreview() => _imagePreview?.Close();
@@ -1687,866 +1738,4 @@ public partial class ProfileViewModel : ObservableObject
             ProfileMods[index].Position = index + 1;
         }
     }
-}
-
-public partial class ProfileItemViewModel : ObservableObject
-{
-    private readonly Profile _profile;
-
-    public Guid Id => _profile.Id;
-    public bool IsDefault => _profile.IsDefault;
-    public DateTime ModifiedAt => _profile.ModifiedAt;
-    public DateTime CreatedAt => _profile.CreatedAt;
-
-    [ObservableProperty]
-    private string _name;
-
-    [ObservableProperty]
-    private string _description;
-
-    [ObservableProperty]
-    private bool _isActive;
-
-    [ObservableProperty]
-    private int _modCount;
-
-    public ProfileItemViewModel(Profile profile)
-    {
-        _profile = profile;
-        _name = profile.Name;
-        _description = profile.Description;
-        _isActive = profile.IsActive;
-        _modCount = profile.Mods.Count;
-    }
-
-    /// <summary>所属页面 VM，右键菜单命令经此转发。</summary>
-    internal ProfileViewModel? Owner { get; set; }
-
-    [RelayCommand]
-    private Task ActivateAsync() => Owner == null ? Task.CompletedTask : Owner.SetActiveProfileAsync(this);
-
-    [RelayCommand]
-    private Task DuplicateAsync() => Owner == null ? Task.CompletedTask : Owner.DuplicateProfileAsync(this);
-
-    [RelayCommand]
-    private Task RenameAsync() => Owner == null ? Task.CompletedTask : Owner.RenameProfileAsync(this);
-
-    [RelayCommand]
-    private Task DeleteAsync() => Owner == null ? Task.CompletedTask : Owner.DeleteProfileAsync(this);
-
-    partial void OnNameChanged(string value) => _profile.Name = value;
-}
-
-public partial class ProfileModViewModel : ObservableObject
-{
-    public ModItemViewModel? SourceInfo { get; init; }
-    [ObservableProperty]
-    private bool _isConflictLocation;
-
-    public IEnumerable<ConflictModTarget> ConflictTargets { get; private set; } = [];
-
-    [ObservableProperty]
-    private bool _hasConflict;
-
-    public string ConflictTooltip
-    {
-        get
-        {
-            if (!HasConflict) return string.Empty;
-            var preview = ConflictTargets.Take(9).ToArray();
-            return "与以下模组存在覆盖冲突：\n"
-                + string.Join("\n", preview.Take(8).Select(target => target.ModName))
-                + (preview.Length > 8 ? "\n…点击感叹号查看全部关联模组。" : "")
-                + "\n\n详细信息请查看“冲突”页。";
-        }
-    }
-
-    internal void ApplyConflictStatus(bool hasConflict, ConflictCardIndex index)
-    {
-        HasConflict = hasConflict;
-        ConflictTargets = hasConflict ? index.GetTargets(ModId) : [];
-        OnPropertyChanged(nameof(ConflictTooltip));
-    }
-
-    public bool IsSeparator { get; init; }
-    public bool IsUserSeparator { get; init; }
-    public int? MemberCount { get; set; }
-    [ObservableProperty]
-    private bool _isCollapsed;
-
-    [ObservableProperty]
-    private int _groupModCount;
-
-    /// <summary>展开时的箭头方向：常规部署向下，从下到上部署向上。</summary>
-    [ObservableProperty]
-    private double _chevronAngle = 90;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCustomSeparatorColor))]
-    [NotifyPropertyChangedFor(nameof(SeparatorColorBrush))]
-    private string _separatorColor = string.Empty;
-    public bool HasCustomSeparatorColor => Color.TryParse(SeparatorColor, out _);
-    public IBrush? SeparatorColorBrush => Color.TryParse(SeparatorColor, out var color) ? new SolidColorBrush(color) : null;
-    public bool IsExpanded => !IsCollapsed;
-    public BslModRole BslRole { get; init; }
-    public bool IsBslMember => BslRole != BslModRole.None;
-    public bool LoaderLockEnabled { get; init; } = true;
-    public bool IsFixedGroupMember => LoaderLockEnabled && IsBslMember;
-    public bool IsBslLoader => BslProfilePolicy.IsLoader(BslRole);
-    public bool IsSmoothBoot => BslRole == BslModRole.SmoothBoot;
-    public bool IsLuaDependency => BslRole == BslModRole.Dependency;
-    public bool HasLuaResources { get; init; }
-    public bool IsLuaMod => HasLuaResources || IsBslMember;
-    public string PriorityLabel => IsSmoothBoot ? "SmoothBoot · 最高优先级" : IsBslLoader ? "BSL / MDL · 固定在依赖之后" : "依赖加载器";
-    public bool CanSelect => !IsSeparator && (!LoaderLockEnabled || !IsBslLoader && !IsSmoothBoot);
-    public bool CanDrag => CanSelect || IsUserSeparator;
-
-    [ObservableProperty]
-    private Guid _profileId;
-
-    [ObservableProperty]
-    private Guid _modId;
-
-    [ObservableProperty]
-    private string _modName = string.Empty;
-
-    [ObservableProperty]
-    private string _modVersion = string.Empty;
-
-    [ObservableProperty]
-    private bool _enabled;
-
-    [ObservableProperty]
-    private int _order;
-
-    /// <summary>列表中的展示位次（1 起），与部署顺序一致。</summary>
-    [ObservableProperty]
-    private int _position;
-
-    /// <summary>多选拖动：Ctrl+点击标记，随拖动整体移动。</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsHighlighted))]
-    private bool _isSelected;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsHighlighted))]
-    private bool _isFocused;
-
-    public bool IsHighlighted => IsSelected || IsFocused;
-
-    /// <summary>模组库目录，供“打开模组目录”使用。</summary>
-    [ObservableProperty]
-    private string _modPath = string.Empty;
-
-    [ObservableProperty]
-    private string _thumbnailPath = string.Empty;
-
-    [ObservableProperty]
-    private Bitmap? _icon;
-
-    partial void OnIconChanged(Bitmap? value)
-    {
-        if (SourceInfo != null) SourceInfo.Icon = value;
-    }
-
-    private bool _isLoadingIcon;
-
-    public string PositionText => Position.ToString("00");
-
-    partial void OnPositionChanged(int value) => OnPropertyChanged(nameof(PositionText));
-
-    partial void OnIsCollapsedChanged(bool value) => OnPropertyChanged(nameof(IsExpanded));
-
-    // ── 模组选项（卡片只保留入口；选项/子选项在覆盖层里编辑） ──
-
-    /// <summary>模组是否带选项定义（v0 互斥下拉 / v1 独立开关+子选项）。</summary>
-    [ObservableProperty]
-    private bool _hasOptions;
-
-    /// <summary>模组清单（含选项定义），供选项覆盖层构建。</summary>
-    internal ModManifest? ManifestRef { get; set; }
-
-    /// <summary>已保存/正在编辑的选项选择状态。</summary>
-    internal ProfileModOptionsState StoredOptions { get; set; } = new();
-
-    internal void InitializeOptions(ModManifest? manifest, ProfileModOptionsState state)
-    {
-        ManifestRef = manifest;
-        StoredOptions = state;
-        HasOptions = ProfileModOptionResolver.HasOptions(manifest);
-    }
-
-    /// <summary>与库页共享缩略图解码缓存；失败保持 null 以显示序号占位。</summary>
-    public async Task LoadIconAsync(CancellationToken cancellationToken = default)
-    {
-        if (Icon != null || _isLoadingIcon) return;
-        if (string.IsNullOrEmpty(ThumbnailPath)) return;
-
-        _isLoadingIcon = true;
-        try
-        {
-            Icon = await ModImageCache.DecodeAsync(ThumbnailPath, 256, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch
-        {
-            // 图标加载失败，保持为 null
-        }
-        finally
-        {
-            _isLoadingIcon = false;
-        }
-    }
-}
-
-public sealed record ConflictModTarget(Guid ModId, string ModName);
-
-/// <summary>
-/// 模组选项覆盖层（应用内模态弹窗）：展示 v1 选项卡片（独立开关 + 带图片的子选项多选一）
-/// 或 v0 互斥选择列表。任何改动立即经 ProfileViewModel 持久化到当前 Profile。
-/// </summary>
-public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOptionsSelection
-{
-    System.Windows.Input.ICommand IModOptionsSelection.ToggleOptionCommand => ToggleOptionCommand;
-    System.Windows.Input.ICommand IModOptionsSelection.OpenGroupCommand => OpenGroupCommand;
-    System.Windows.Input.ICommand IModOptionsSelection.ToggleGroupCommand => ToggleGroupCommand;
-    System.Windows.Input.ICommand IModOptionsSelection.ReturnCommand => ReturnToGroupsCommand;
-    private readonly ProfileViewModel _owner;
-
-    public ProfileModViewModel TargetMod { get; }
-
-    /// <summary>v0 模组为 true：展示互斥选择列表而不是独立开关卡片。</summary>
-    public bool IsLegacyMode { get; }
-
-    public IReadOnlyList<ProfileModLegacyChoiceViewModel> LegacyChoices { get; }
-
-    public IReadOnlyList<ProfileModOptionCardViewModel> OptionCards { get; }
-
-    /// <summary>一级组件分组（仅 HD2IAS 角色包导入生成）；空表示沿用单级选项列表。</summary>
-    public IReadOnlyList<ProfileModOptionGroupViewModel> GroupCards { get; private set; } =
-        Array.Empty<ProfileModOptionGroupViewModel>();
-
-    private readonly Dictionary<ProfileModOptionCardViewModel, ProfileModOptionGroupViewModel> _cardGroups = new();
-    private CancellationTokenSource? _imageLoad;
-
-    /// <summary>点击卡片图片时才按需解码原图；弹窗关闭时释放，避免 4K 原图常驻。</summary>
-    private CancellationTokenSource? _originalPreviewLoad;
-    private Bitmap? _originalPreview;
-    private string? _originalPreviewHash;
-    private bool _disposed;
-
-    [ObservableProperty]
-    private ProfileModOptionGroupViewModel? _activeGroup;
-
-    public bool HasGroups => GroupCards.Count > 0;
-    public bool ShowGroupList => HasGroups && !IsGroupPage;
-    public bool ShowOptionList => !IsLegacyMode && !ShowGroupList;
-    public bool IsGroupPage => ActiveGroup != null;
-    public IReadOnlyList<ProfileModOptionCardViewModel> VisibleOptionCards =>
-        ActiveGroup?.Options ?? OptionCards;
-
-    partial void OnActiveGroupChanged(ProfileModOptionGroupViewModel? value)
-    {
-        OnPropertyChanged(nameof(IsGroupPage));
-        OnPropertyChanged(nameof(ShowGroupList));
-        OnPropertyChanged(nameof(ShowOptionList));
-        OnPropertyChanged(nameof(VisibleOptionCards));
-        OnPropertyChanged(nameof(Title));
-    }
-
-    public string Title => IsGroupPage ? $"{TargetMod.ModName} · {ActiveGroup!.Name}" : TargetMod.ModName;
-
-    public ProfileModOptionsDialogViewModel(ProfileViewModel owner, ProfileModViewModel targetMod)
-    {
-        _owner = owner;
-        TargetMod = targetMod;
-
-        var manifest = targetMod.ManifestRef;
-        var state = targetMod.StoredOptions;
-        var modPath = targetMod.ModPath;
-
-        if (manifest?.ManifestVersion == ManifestVersion.V1 && manifest.Options is { Count: > 0 })
-        {
-            IsLegacyMode = false;
-            var cards = new List<ProfileModOptionCardViewModel>(manifest.Options.Count);
-            for (var i = 0; i < manifest.Options.Count; i++)
-            {
-                var option = manifest.Options[i];
-
-                var subChoices = new List<ProfileModSubOptionChoiceViewModel>();
-                if (option.SubOptions is { Count: > 0 })
-                {
-                    var selectedIndex = i < state.OptionSelections?.Count
-                        ? Math.Clamp(state.OptionSelections[i], 0, option.SubOptions.Count - 1)
-                        : 0;
-                    for (var s = 0; s < option.SubOptions.Count; s++)
-                    {
-                        var sub = option.SubOptions[s];
-                        subChoices.Add(new ProfileModSubOptionChoiceViewModel
-                        {
-                            Name = sub.Name,
-                            Description = sub.Description,
-                            ImagePath = ResolveImagePath(modPath, sub.Image),
-                            IsSelected = s == selectedIndex
-                        });
-                    }
-                }
-
-                cards.Add(new ProfileModOptionCardViewModel
-                {
-                    Name = option.Name,
-                    Description = option.Description,
-                    IsEnabled = i < state.OptionToggles?.Count
-                        ? state.OptionToggles[i]
-                        : option.DefaultEnabled ?? true,
-                    ImagePath = ResolveImagePath(modPath, option.Image),
-                    GroupId = option.GroupId,
-                    SubOptions = subChoices
-                });
-            }
-
-            OptionCards = cards;
-            GroupCards = BuildOptionGroups(manifest, cards, modPath);
-            LegacyChoices = Array.Empty<ProfileModLegacyChoiceViewModel>();
-        }
-        else if (manifest?.LegacyOptions is { Count: > 0 })
-        {
-            IsLegacyMode = true;
-            var selectedIndex = Math.Clamp(state.LegacySelectedIndex ?? 0, 0, manifest.LegacyOptions.Count - 1);
-            LegacyChoices = manifest.LegacyOptions
-                .Select((name, index) => new ProfileModLegacyChoiceViewModel
-                {
-                    Name = name,
-                    IsSelected = index == selectedIndex
-                })
-                .ToList();
-            OptionCards = Array.Empty<ProfileModOptionCardViewModel>();
-        }
-        else
-        {
-            IsLegacyMode = false;
-            OptionCards = Array.Empty<ProfileModOptionCardViewModel>();
-            LegacyChoices = Array.Empty<ProfileModLegacyChoiceViewModel>();
-        }
-    }
-
-    [RelayCommand]
-    public void ToggleOption(ProfileModOptionCardViewModel? card)
-    {
-        if (card == null) return;
-        card.IsEnabled = !card.IsEnabled;
-        SyncGroup(card);
-        SaveState();
-    }
-
-    /// <summary>一级组件开关：同步组件内所有选项，并保存到当前配置。</summary>
-    [RelayCommand]
-    public void ToggleGroup(ProfileModOptionGroupViewModel? group)
-    {
-        if (group == null) return;
-        group.IsEnabled = !group.IsEnabled;
-        foreach (var card in group.Options) card.IsEnabled = group.IsEnabled;
-        SaveState();
-    }
-
-    /// <summary>进入二级组件选项页继续配置。</summary>
-    [RelayCommand]
-    public void OpenGroup(ProfileModOptionGroupViewModel? group)
-    {
-        if (group is not { CanOpen: true }) return;
-        ActiveGroup = group;
-    }
-
-    /// <summary>保存二级页改动并回到一级组件列表。</summary>
-    [RelayCommand]
-    public void ReturnToGroups()
-    {
-        SaveState();
-        ActiveGroup = null;
-    }
-
-    private void SyncGroup(ProfileModOptionCardViewModel card)
-    {
-        // 一级组件开关表示“该组件仍参与部署”，只要组件内还有选项启用就保持勾选；
-        // 关闭某个子选项只排除该选项的文件，不能把整个组件显示成未启用。
-        if (_cardGroups.TryGetValue(card, out var group))
-            group.IsEnabled = group.Options.Any(option => option.IsEnabled);
-    }
-
-    private ProfileModOptionGroupViewModel[] BuildOptionGroups(ModManifest manifest,
-        IReadOnlyList<ProfileModOptionCardViewModel> cards, string modPath)
-    {
-        // 只有 HD2IAS 导入生成的分组才切换成两级配置页；普通模组保持单级列表。
-        if (manifest.OptionGroups is not { Count: > 0 } declaredGroups)
-            return Array.Empty<ProfileModOptionGroupViewModel>();
-        var groups = new List<ProfileModOptionGroupViewModel>();
-        foreach (var declared in declaredGroups)
-        {
-            var options = cards.Where(card => card.GroupId != null
-                && card.GroupId.Equals(declared.Id, StringComparison.Ordinal)).ToList();
-            if (options.Count == 0) continue;
-            groups.Add(CreateGroup(declared.Id, declared.Name, declared.Description, declared.Image, options, modPath));
-        }
-        // 未分组的选项补一个合成分组，避免存在分组时被一级列表隐藏。
-        foreach (var card in cards.Where(card => !_cardGroups.ContainsKey(card)))
-            groups.Add(CreateGroup($"option-{groups.Count}", card.Name, card.Description, null, [card], modPath));
-        return groups.ToArray();
-    }
-
-    private ProfileModOptionGroupViewModel CreateGroup(string id, string name, string description, string? image,
-        IReadOnlyList<ProfileModOptionCardViewModel> options, string modPath)
-    {
-        var group = new ProfileModOptionGroupViewModel
-        {
-            Id = id, Name = name, Description = description,
-            // 初始勾选：组件内存在启用的选项即视为组件启用，与子选项逐项开关语义一致。
-            IsEnabled = options.Any(option => option.IsEnabled),
-            ImagePath = ResolveImagePath(modPath, image),
-            Options = options
-        };
-        foreach (var option in options) _cardGroups[option] = group;
-        return group;
-    }
-
-    /// <summary>子选项多选一：同卡片内互斥，选中项高亮。</summary>
-    public void SelectSubOption(ProfileModSubOptionChoiceViewModel? choice)
-    {
-        if (choice == null) return;
-        foreach (var card in OptionCards)
-        {
-            if (card.SubOptions.Contains(choice))
-            {
-                foreach (var sub in card.SubOptions)
-                {
-                    sub.IsSelected = ReferenceEquals(sub, choice);
-                }
-                break;
-            }
-        }
-        SaveState();
-    }
-
-    /// <summary>v0 互斥下拉：列表内单选。</summary>
-    public void SelectLegacyChoice(ProfileModLegacyChoiceViewModel? choice)
-    {
-        if (choice == null) return;
-        foreach (var item in LegacyChoices)
-        {
-            item.IsSelected = ReferenceEquals(item, choice);
-        }
-        SaveState();
-    }
-
-    public void Close() => _owner.CloseModOptions();
-
-    /// <summary>
-    /// 卡片图片点击：仅在需要时按原图尺寸解码，关闭预览或弹窗时释放；
-    /// 没有原图路径时回退到已解码的小图。这样打开带 4K 预览图的 HD2IAS 选项不会一次性占用数百 MiB。
-    /// </summary>
-    public void ShowImagePreview(Bitmap? image, string? title)
-    {
-        if (image == null) return;
-        if (FindImageHolder(image) is { } holder && !string.IsNullOrEmpty(holder.ImagePath))
-        {
-            _ = ShowOriginalPreviewAsync(holder, title);
-            return;
-        }
-
-        _owner.ShowImagePreview(image, title);
-    }
-
-    private async Task ShowOriginalPreviewAsync(ProfileModImageHolderViewModel holder, string? title)
-    {
-        CancelOriginalPreviewLoad();
-        var cancellation = new CancellationTokenSource();
-        _originalPreviewLoad = cancellation;
-        try
-        {
-            var hash = holder.ImagePath is { Length: > 0 } path
-                ? await ModImageCache.GetContentHashAsync(path, cancellation.Token)
-                : null;
-
-            // 内容相同的另一份副本（例如 HD2IAS 组件目录里的同一张预览图）直接复用已解码原图。
-            if (hash != null && _originalPreview is { } shared
-                && string.Equals(hash, _originalPreviewHash, StringComparison.Ordinal))
-            {
-                if (!_disposed && !cancellation.IsCancellationRequested) _owner.ShowImagePreview(shared, title);
-                return;
-            }
-
-            var original = await holder.LoadOriginalImageAsync(cancellation.Token);
-            if (original == null)
-            {
-                if (!_disposed) _owner.ShowImagePreview(holder.Image, title);
-                return;
-            }
-
-            // 解码期间弹窗可能已关闭；此时立即释放，不把原图挂到已销毁的弹窗上。
-            if (_disposed || holder.IsDisposed || cancellation.IsCancellationRequested)
-            {
-                original.Dispose();
-                return;
-            }
-
-            ReleaseOriginalPreview();
-            _originalPreview = original;
-            _originalPreviewHash = hash;
-            _owner.ShowImagePreview(original, title);
-        }
-        catch (OperationCanceledException)
-        {
-            // 弹窗关闭或切换到另一张图片时放弃本次加载。
-        }
-    }
-
-    private ProfileModImageHolderViewModel? FindImageHolder(Bitmap image)
-        => GroupCards.Cast<ProfileModImageHolderViewModel>()
-            .Concat(OptionCards)
-            .Concat(OptionCards.SelectMany(card => card.SubOptions))
-            .FirstOrDefault(holder => ReferenceEquals(holder.Image, image));
-
-    /// <summary>释放覆盖层中的原图预览；覆盖层正显示它时先关闭覆盖层。</summary>
-    private void ReleaseOriginalPreview()
-    {
-        var original = _originalPreview;
-        _originalPreview = null;
-        _originalPreviewHash = null;
-        if (original == null) return;
-        if (_owner.IsImagePreviewShowing(original)) _owner.CloseImagePreview();
-        original.Dispose();
-    }
-
-    private void CancelOriginalPreviewLoad()
-    {
-        var cancellation = _originalPreviewLoad;
-        _originalPreviewLoad = null;
-        cancellation?.Cancel();
-        cancellation?.Dispose();
-    }
-
-    /// <summary>把覆盖层当前的选择收集为可持久化状态。</summary>
-    internal ProfileModOptionsState BuildOptionsState()
-    {
-        var state = new ProfileModOptionsState();
-        if (IsLegacyMode)
-        {
-            for (var i = 0; i < LegacyChoices.Count; i++)
-            {
-                if (LegacyChoices[i].IsSelected)
-                {
-                    state.LegacySelectedIndex = i;
-                    break;
-                }
-            }
-
-            if (state.LegacySelectedIndex is null && LegacyChoices.Count > 0)
-            {
-                state.LegacySelectedIndex = 0;
-            }
-        }
-        else
-        {
-            state.OptionToggles = OptionCards.Select(card => card.IsEnabled).ToList();
-            state.OptionSelections = OptionCards.Select(card =>
-            {
-                for (var s = 0; s < card.SubOptions.Count; s++)
-                {
-                    if (card.SubOptions[s].IsSelected)
-                    {
-                        return s;
-                    }
-                }
-
-                return 0;
-            }).ToList();
-        }
-
-        return state;
-    }
-
-    private void SaveState()
-    {
-        TargetMod.StoredOptions = BuildOptionsState();
-        _ = _owner.PersistModOptionsAsync(TargetMod);
-    }
-
-    /// <summary>后台加载组件/选项/子选项预览图；关闭弹窗时取消并释放已解码位图。</summary>
-    public async Task LoadImagesAsync()
-    {
-        _imageLoad?.Cancel();
-        _imageLoad?.Dispose();
-        var cancellation = new CancellationTokenSource();
-        _imageLoad = cancellation;
-        var token = cancellation.Token;
-        try
-        {
-            foreach (var group in GroupCards)
-            {
-                await group.LoadImageAsync(token);
-            }
-            foreach (var card in OptionCards)
-            {
-                await card.LoadImageAsync(token);
-                foreach (var sub in card.SubOptions)
-                {
-                    await sub.LoadImageAsync(token);
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-    }
-
-    /// <summary>关闭弹窗后释放本弹窗解码的预览图（含按需解码的原图），避免反复打开累积原生位图内存。</summary>
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        CancelOriginalPreviewLoad();
-        ReleaseOriginalPreview();
-
-        // 内容相同的卡片共享同一份位图：按实例去重后统一释放，不能逐个卡片重复 Dispose。
-        var images = new HashSet<Bitmap>(ReferenceEqualityComparer.Instance);
-        foreach (var card in OptionCards)
-        {
-            if (card.Image is { } image) images.Add(image);
-            foreach (var sub in card.SubOptions)
-                if (sub.Image is { } subImage) images.Add(subImage);
-        }
-        foreach (var group in GroupCards)
-            if (group.Image is { } groupImage) images.Add(groupImage);
-
-        var cancellation = _imageLoad;
-        _imageLoad = null;
-        cancellation?.Cancel();
-        cancellation?.Dispose();
-        foreach (var card in OptionCards) card.Dispose();
-        foreach (var group in GroupCards) group.Dispose();
-        foreach (var image in images)
-        {
-            ModImageCache.Forget(image);
-            image.Dispose();
-        }
-    }
-
-    /// <summary>预览覆盖层当前展示的是否是本弹窗持有的位图。</summary>
-    internal bool OwnsImage(Bitmap? image)
-        => image != null && (OptionCards.Any(card => ReferenceEquals(card.Image, image)
-            || card.SubOptions.Any(sub => ReferenceEquals(sub.Image, image)))
-            || GroupCards.Any(group => ReferenceEquals(group.Image, image)));
-
-    /// <summary>把清单里的相对图片路径解析为模组目录内的绝对路径（越出模组目录或文件缺失返回 null）。</summary>
-    internal static string? ResolveImagePath(string modPath, string? relativeImage)
-    {
-        if (string.IsNullOrWhiteSpace(relativeImage) || string.IsNullOrEmpty(modPath))
-        {
-            return null;
-        }
-
-        try
-        {
-            var fullRoot = Path.GetFullPath(modPath);
-            var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativeImage));
-            if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            return File.Exists(fullPath) ? fullPath : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-}
-
-/// <summary>
-/// 选项/组件卡片共用的预览图持有者：后台解码、关闭弹窗时取消并释放位图，
-/// 防止反复打开选项弹窗后原生位图内存持续累积。
-/// </summary>
-public abstract partial class ProfileModImageHolderViewModel : ObservableObject, IDisposable
-{
-    [ObservableProperty]
-    private Bitmap? _image;
-
-    internal string? ImagePath { get; set; }
-
-    /// <summary>
-    /// 卡片实际显示尺寸只有 40～64 像素；按原图尺寸解码时，一张 4K 预览图就要占约 32 MiB 原生内存，
-    /// 打开带预览图的 HD2IAS 选项弹窗会瞬间抬升数百 MiB。统一按 128 像素宽解码（2x 屏足够清晰）。
-    /// </summary>
-    internal const int CardImageDecodeWidth = 128;
-
-    private bool _disposed;
-
-    public bool IsDisposed => _disposed;
-
-    public bool HasImage => Image != null;
-
-    partial void OnImageChanged(Bitmap? value) => OnPropertyChanged(nameof(HasImage));
-
-    public async Task LoadImageAsync(CancellationToken cancellationToken = default)
-    {
-        if (_disposed || Image != null || string.IsNullOrEmpty(ImagePath)) return;
-        Bitmap? bitmap;
-        try
-        {
-            // 同一路径或内容哈希相同的副本复用同一张解码位图，避免反复解码同一张图。
-            bitmap = await ModImageCache.DecodeSharedAsync(ImagePath, CardImageDecodeWidth, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-        catch
-        {
-            // 预览图缺失或损坏时保持无图占位
-            return;
-        }
-        // 解码期间弹窗可能已关闭；共享位图由弹窗统一释放，这里只丢弃引用。
-        if (_disposed || cancellationToken.IsCancellationRequested) return;
-        Image = bitmap;
-    }
-
-    /// <summary>按需解码原图供覆盖层预览；调用方负责在预览关闭后释放。</summary>
-    public async Task<Bitmap?> LoadOriginalImageAsync(CancellationToken cancellationToken = default)
-    {
-        if (_disposed || string.IsNullOrEmpty(ImagePath)) return null;
-        var path = ImagePath;
-        try
-        {
-            return await Task.Run(() =>
-            {
-                using var stream = File.OpenRead(path);
-                return new Bitmap(stream);
-            }, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            // 原图不可读时由调用方回退到已加载的小图。
-            return null;
-        }
-    }
-
-    public virtual void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        // 相同内容的卡片共享同一张位图，不能各自 Dispose；由弹窗按实例去重后统一释放。
-        Image = null;
-    }
-}
-
-/// <summary>v1 选项卡片：独立开关 + 可选的子选项（多选一）。</summary>
-public partial class ProfileModOptionCardViewModel : ProfileModImageHolderViewModel
-{
-    [ObservableProperty]
-    private string _name = string.Empty;
-
-    [ObservableProperty]
-    private string _description = string.Empty;
-
-    [ObservableProperty]
-    private bool _isEnabled;
-
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-
-    public IReadOnlyList<ProfileModSubOptionChoiceViewModel> SubOptions { get; init; } =
-        Array.Empty<ProfileModSubOptionChoiceViewModel>();
-
-    public bool HasSubOptions => SubOptions.Count > 0;
-
-    /// <summary>所属组件分组（HD2IAS 导入生成）；null 表示单级选项。</summary>
-    public string? GroupId { get; init; }
-
-    public override void Dispose()
-    {
-        if (IsDisposed) return;
-        foreach (var sub in SubOptions) sub.Dispose();
-        base.Dispose();
-    }
-}
-
-/// <summary>一级组件卡片（HD2IAS 角色包）：进入二级页配置该组件的选项与子选项。</summary>
-public partial class ProfileModOptionGroupViewModel : ProfileModImageHolderViewModel
-{
-    public string Id { get; init; } = string.Empty;
-
-    [ObservableProperty]
-    private string _name = string.Empty;
-
-    [ObservableProperty]
-    private string _description = string.Empty;
-
-    [ObservableProperty]
-    private bool _isEnabled;
-
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-
-    public IReadOnlyList<ProfileModOptionCardViewModel> Options { get; init; } =
-        Array.Empty<ProfileModOptionCardViewModel>();
-
-    public bool HasSubOptions => Options.Any(option => option.SubOptions.Count > 0);
-
-    /// <summary>只有一个无变体选项时直接在一级开关，无需进入二级页。</summary>
-    public bool CanOpen => Options.Count > 1 || HasSubOptions;
-}
-
-/// <summary>v1 选项内的子选项（多选一变体），带预览图。</summary>
-public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderViewModel
-{
-    [ObservableProperty]
-    private string _name = string.Empty;
-
-    [ObservableProperty]
-    private string _description = string.Empty;
-
-    [ObservableProperty]
-    private bool _isSelected;
-
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-}
-
-/// <summary>v0 模组的互斥选项（单选列表项）。</summary>
-public partial class ProfileModLegacyChoiceViewModel : ObservableObject
-{
-    [ObservableProperty]
-    private string _name = string.Empty;
-
-    [ObservableProperty]
-    private bool _isSelected;
-}
-
-public partial class LibraryModChoiceViewModel : ObservableObject
-{
-    [ObservableProperty] private Guid _id;
-    [ObservableProperty] private string _name = string.Empty;
-    [ObservableProperty] private string _version = string.Empty;
-    [ObservableProperty] private string _author = string.Empty;
-}
-
-public enum ProfileCompareStatus
-{
-    Common,
-    OnlyLeft,
-    OnlyRight,
-    EnabledStateDifferent
-}
-
-public partial class ProfileCompareItemViewModel : ObservableObject
-{
-    [ObservableProperty] private Guid _modId;
-    [ObservableProperty] private string _name = string.Empty;
-    [ObservableProperty] private string _leftState = "-";
-    [ObservableProperty] private string _rightState = "-";
-    [ObservableProperty] private string _statusText = string.Empty;
-    [ObservableProperty] private ProfileCompareStatus _status;
-    [ObservableProperty] private bool _isVisible = true;
 }

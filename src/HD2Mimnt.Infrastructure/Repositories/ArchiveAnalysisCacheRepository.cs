@@ -20,7 +20,7 @@ public class ArchiveAnalysisCacheRepository : IArchiveAnalysisCacheRepository
 
     public async Task<ArchiveAnalysisCache?> GetAsync(string filePath, long fileSize, DateTime lastModified, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -44,7 +44,7 @@ public class ArchiveAnalysisCacheRepository : IArchiveAnalysisCacheRepository
 
     public async Task SaveAsync(ArchiveAnalysisCache cache, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         // Check if exists
         var existing = await GetAsync(cache.FilePath, cache.FileSize, cache.LastModified, cancellationToken);
@@ -96,7 +96,7 @@ public class ArchiveAnalysisCacheRepository : IArchiveAnalysisCacheRepository
 
     public async Task UpdateAccessAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -113,7 +113,7 @@ public class ArchiveAnalysisCacheRepository : IArchiveAnalysisCacheRepository
 
     public async Task DeleteExpiredAsync(int expirationDays, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var expirationDate = DateTime.UtcNow.AddDays(-expirationDays);
 
         using var command = connection.CreateCommand();
@@ -125,7 +125,7 @@ public class ArchiveAnalysisCacheRepository : IArchiveAnalysisCacheRepository
 
     public async Task ClearAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM ArchiveAnalysisCache";

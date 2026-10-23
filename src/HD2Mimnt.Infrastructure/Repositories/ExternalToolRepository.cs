@@ -19,7 +19,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task<List<ExternalTool>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM ExternalTools ORDER BY DisplayOrder, Name";
@@ -36,7 +36,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task<List<ExternalTool>> GetEnabledAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM ExternalTools WHERE IsEnabled = 1 ORDER BY DisplayOrder, Name";
@@ -53,7 +53,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task<ExternalTool?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM ExternalTools WHERE Id = @Id";
@@ -76,7 +76,7 @@ public class ExternalToolRepository : IExternalToolRepository
             extension = "." + extension;
         }
 
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -99,7 +99,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM ExternalTools WHERE Id = @Id";
@@ -111,7 +111,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task AddAsync(ExternalTool tool, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -130,7 +130,7 @@ public class ExternalToolRepository : IExternalToolRepository
     {
         tool.ModifiedAt = DateTime.UtcNow;
 
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -153,7 +153,7 @@ public class ExternalToolRepository : IExternalToolRepository
 
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM ExternalTools WHERE Id = @Id";

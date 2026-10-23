@@ -12,6 +12,7 @@ namespace HD2Mimnt.UI.ViewModels;
 
 public partial class ModCreationViewModel : ObservableObject
 {
+    public ArchivePasswordsViewModel Passwords { get; }
     private readonly ModCreationService _service;
     private readonly IConfirmationService _confirmation;
     private readonly ImagePreviewService? _imagePreview;
@@ -78,8 +79,9 @@ public partial class ModCreationViewModel : ObservableObject
     public string StatusMessage => UiLocalization.Current.Format(_statusKey,
         _errorKey == null ? _statusArguments : [UiLocalization.Current[_errorKey]]);
 
-    public ModCreationViewModel(ModCreationService service, IConfirmationService confirmation, ImagePreviewService? imagePreview = null)
+    public ModCreationViewModel(ModCreationService service, IConfirmationService confirmation, ImagePreviewService? imagePreview = null, SettingsService? settingsService = null)
     {
+        Passwords = new(settingsService);
         _imagePreview = imagePreview;
         _service = service; _confirmation = confirmation; _document = service.Create();
         LegacyOptions.CollectionChanged += (_, _) => Changed();
@@ -182,7 +184,8 @@ public partial class ModCreationViewModel : ObservableObject
     public void ShowError(Exception error)
     {
         _statusKey = "Creator.Failed"; _statusArguments = [error.Message];
-        _errorKey = error.Message.StartsWith("Creator.", StringComparison.Ordinal) ? error.Message : null;
+        _errorKey = error.Message.StartsWith("Creator.", StringComparison.Ordinal)
+            || error.Message.StartsWith("ArchivePasswords.", StringComparison.Ordinal) ? error.Message : null;
         OnPropertyChanged(nameof(StatusMessage));
     }
 
@@ -336,7 +339,7 @@ public partial class ModCreationViewModel : ObservableObject
     public Task SaveAsync(string path) => RunAsync(async token =>
     { await _service.SaveAsync(Snapshot(), path, token); IsDirty = false; SetStatus("Creator.Saved", path); });
     public Task ExportAsync(string path) => RunAsync(async token =>
-    { await _service.ExportArchiveAsync(Snapshot(), path, ArchiveCompression, token); IsDirty = false; SetStatus("Creator.Exported", path); });
+    { await _service.ExportArchiveAsync(Snapshot(), path, ArchiveCompression, Passwords.GetExportPassword(), token); IsDirty = false; SetStatus("Creator.Exported", path); });
 
     public Task RefreshManagerPreviewAsync() => RunAsync(async token =>
     {

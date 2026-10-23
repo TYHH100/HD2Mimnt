@@ -1496,9 +1496,6 @@
   <data name="UI.NexusModsAuthentication" xml:space="preserve">
     <value>N 网认证</value>
   </data>
-  <data name="UI.ANexusModsLinkWasReceivedButNoTaskIsWaitingForBrowserAuthorizationAppl" xml:space="preserve">
-    <value>已收到 N 网下载链接，但当前没有等待网页授权的任务。请先在开发工具应用 API 密钥，再从模组库选择文件并点击下载或更新。</value>
-  </data>
   <data name="UI.NexusModsDownloads" xml:space="preserve">
     <value>N 网下载</value>
   </data>
@@ -3957,6 +3954,8 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>更新时保留之前的完整版本，可在详情中切换；会额外占用磁盘空间。保存后生效。</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>允许重复导入</value></data>
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>默认关闭：阻止库内或历史版本中已有的相同内容重复入库。开启后允许独立副本；已有重复项不会自动删除。</value></data>
+  <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>
+  <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>导入无清单的模组时，自动生成 V1 清单格式而非旧版 Legacy 格式。启用后，库中没有清单的模组也可自动升级为 V1。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>可从压缩包更新此模组，或切换已保留的版本。当前版本见下方模组信息。</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用压缩包更新…</value></data>
@@ -4199,4 +4198,44 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="SoundFix.State.Skipped" xml:space="preserve"><value>默认跳过</value></data>
   <data name="SoundFix.State.Unknown" xml:space="preserve"><value>未确认</value></data>
   <data name="SoundFix.State.Error" xml:space="preserve"><value>读取失败</value></data>
+  <data name="Profile.AddToOtherProfiles" xml:space="preserve"><value>添加到其他配置文件…</value></data>
+  <data name="ArchivePasswords.Library" xml:space="preserve"><value>压缩包密码库</value></data>
+  <data name="ArchivePasswords.Hint" xml:space="preserve"><value>导入时自动尝试已保存的密码，长期默认密码优先，并用于默认加密导出。保存立即生效；密码以当前 Windows 账户加密保存。</value></data>
+  <data name="ArchivePasswords.Select" xml:space="preserve"><value>选择已保存的密码</value></data>
+  <data name="ArchivePasswords.Name" xml:space="preserve"><value>密码名称（同名保存会更新）</value></data>
+  <data name="ArchivePasswords.Password" xml:space="preserve"><value>压缩包密码</value></data>
+  <data name="ArchivePasswords.MakeDefault" xml:space="preserve"><value>保存后设为长期默认密码</value></data>
+  <data name="ArchivePasswords.New" xml:space="preserve"><value>新增 / 临时密码</value></data>
+  <data name="ArchivePasswords.ClearDefault" xml:space="preserve"><value>取消长期默认</value></data>
+  <data name="ArchivePasswords.EncryptExport" xml:space="preserve"><value>为导出压缩包加密（7z 或 AES-256 ZIP）</value></data>
+  <data name="ArchivePasswords.Prompt" xml:space="preserve"><value>已保存的密码未能解密。请输入或选择密码后重试。</value></data>
+  <data name="ArchivePasswords.Retry" xml:space="preserve"><value>使用密码重试</value></data>
+  <data name="ArchivePasswords.ReadFailed" xml:space="preserve"><value>密码库读取失败，请检查 Windows 账户或恢复原设置。</value></data>
+  <data name="ArchivePasswords.SaveFailed" xml:space="preserve"><value>密码库保存失败，请重试。</value></data>
+  <data name="ArchivePasswords.Required" xml:space="preserve"><value>压缩包需要密码，或密码不正确。</value></data>
+  <data name="ArchivePasswords.PasswordRequired" xml:space="preserve"><value>加密导出前请输入或选择密码。</value></data>
+  <data name="ArchivePasswords.NameAndPasswordRequired" xml:space="preserve"><value>请输入密码名称和密码。</value></data>
+  <data name="ArchivePasswords.InvalidLibrary" xml:space="preserve"><value>密码库数据无效。</value></data>
+  <data name="ArchivePasswords.InvalidPassword" xml:space="preserve"><value>密码不能包含空字符或换行。</value></data>
+  <data name="ArchivePasswords.DefaultLabel" xml:space="preserve"><value>长期默认：</value></data>
+  <data name="ArchivePasswords.ZipAsciiRequired" xml:space="preserve"><value>加密 ZIP 密码仅支持 ASCII 字符。中文等 Unicode 密码请选择 7z 格式。</value></data>
+  <data name="Creator.Packaging" xml:space="preserve"><value>打包设置</value></data>
+  <data name="Nexus.NxmReceived" xml:space="preserve">
+    <value>已收到 N 网下载授权，正在获取文件信息…</value>
+  </data>
+  <data name="Nexus.NxmApiAuthenticationRequired" xml:space="preserve">
+    <value>nxm 链接已包含此文件的下载授权，无需再次网页授权。N 网 API 仍要求账号认证，请先在“设置 → 账号”登录 N 网，再打开此链接。</value>
+  </data>
+  <data name="Nexus.NxmCancelled" xml:space="preserve">
+    <value>对应的网页下载任务已取消。请重新发起下载。</value>
+  </data>
+  <data name="Nexus.NxmBusy" xml:space="preserve">
+    <value>当前下载操作尚未结束，请完成或取消后重新打开 N 网下载链接。</value>
+  </data>
+  <data name="Downloads.NexusTask" xml:space="preserve">
+    <value>N 网下载：{0}</value>
+  </data>
+  <data name="Downloads.AyakaTask" xml:space="preserve">
+    <value>A 网下载：{0}</value>
+  </data>
 </root>

@@ -19,9 +19,11 @@ public class ProfileRepository : IProfileRepository
 
     public async Task<Profile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var snapshot = connection.BeginTransaction(deferred: true);
 
         using var command = connection.CreateCommand();
+        command.Transaction = snapshot;
         command.CommandText = "SELECT * FROM Profiles WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id.ToString());
 
@@ -29,8 +31,9 @@ public class ProfileRepository : IProfileRepository
         if (await reader.ReadAsync(cancellationToken))
         {
             var profile = MapToProfile(reader);
-            await LoadProfileModsAsync(profile, cancellationToken);
-            await LoadProfileSeparatorsAsync(profile, cancellationToken);
+            await reader.CloseAsync();
+            await LoadProfileModsAsync(profile, connection, snapshot, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, connection, snapshot, cancellationToken);
             return profile;
         }
 
@@ -39,9 +42,11 @@ public class ProfileRepository : IProfileRepository
 
     public async Task<IEnumerable<Profile>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var snapshot = connection.BeginTransaction(deferred: true);
 
         using var command = connection.CreateCommand();
+        command.Transaction = snapshot;
         command.CommandText = "SELECT * FROM Profiles ORDER BY IsDefault DESC, SortOrder, CreatedAt";
 
         var profiles = new List<Profile>();
@@ -52,10 +57,11 @@ public class ProfileRepository : IProfileRepository
             profiles.Add(profile);
         }
 
+        await reader.CloseAsync();
         foreach (var profile in profiles)
         {
-            await LoadProfileModsAsync(profile, cancellationToken);
-            await LoadProfileSeparatorsAsync(profile, cancellationToken);
+            await LoadProfileModsAsync(profile, connection, snapshot, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, connection, snapshot, cancellationToken);
         }
 
         return profiles;
@@ -63,17 +69,20 @@ public class ProfileRepository : IProfileRepository
 
     public async Task<Profile?> GetActiveProfileAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var snapshot = connection.BeginTransaction(deferred: true);
 
         using var command = connection.CreateCommand();
+        command.Transaction = snapshot;
         command.CommandText = "SELECT * FROM Profiles WHERE IsActive = 1 LIMIT 1";
 
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (await reader.ReadAsync(cancellationToken))
         {
             var profile = MapToProfile(reader);
-            await LoadProfileModsAsync(profile, cancellationToken);
-            await LoadProfileSeparatorsAsync(profile, cancellationToken);
+            await reader.CloseAsync();
+            await LoadProfileModsAsync(profile, connection, snapshot, cancellationToken);
+            await LoadProfileSeparatorsAsync(profile, connection, snapshot, cancellationToken);
             return profile;
         }
 
@@ -82,7 +91,7 @@ public class ProfileRepository : IProfileRepository
 
     public async Task AddAsync(Profile profile, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -110,7 +119,7 @@ public class ProfileRepository : IProfileRepository
 
     public async Task UpdateAsync(Profile profile, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -148,7 +157,7 @@ public class ProfileRepository : IProfileRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -215,7 +224,7 @@ public class ProfileRepository : IProfileRepository
 
     public async Task SetActiveProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -242,11 +251,11 @@ public class ProfileRepository : IProfileRepository
         }
     }
 
-    private async Task LoadProfileModsAsync(Profile profile, CancellationToken cancellationToken)
+    private static async Task LoadProfileModsAsync(Profile profile, SqliteConnection connection, SqliteTransaction snapshot, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
+        command.Transaction = snapshot;
         command.CommandText = @"
             SELECT ProfileId, ModId, Enabled, [Order], OptionsJson
             FROM ProfileMods
@@ -269,10 +278,10 @@ public class ProfileRepository : IProfileRepository
         }
     }
 
-    private async Task LoadProfileSeparatorsAsync(Profile profile, CancellationToken cancellationToken)
+    private static async Task LoadProfileSeparatorsAsync(Profile profile, SqliteConnection connection, SqliteTransaction snapshot, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
+        command.Transaction = snapshot;
         command.CommandText = @"
             SELECT Id, ProfileId, Name, [Order], IsCollapsed, Color, MemberCount
             FROM ProfileSeparators
@@ -369,7 +378,7 @@ public class ProfileRepository : IProfileRepository
     /// <summary>下一个可用排序号（追加到列表末尾）。</summary>
     private async Task<int> GetNextSortOrderAsync(CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COALESCE(MAX(SortOrder), -1) + 1 FROM Profiles";
         var result = await command.ExecuteScalarAsync(cancellationToken);

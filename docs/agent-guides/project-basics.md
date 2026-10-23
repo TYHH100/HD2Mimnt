@@ -19,6 +19,7 @@ HD2Mimnt 是基于 .NET 10、Avalonia 和 SQLite 的 Helldivers 2 模组管理�
 
 - UI 入口：`src/HD2Mimnt.UI/Program.cs`；DI 注册检查 `App.axaml.cs` 中的 `ConfigureServices`，尤其手动构造工厂。
 - 主窗口：`src/HD2Mimnt.UI/MainWindow.axaml` 及 `.cs`；页面模型在 `ViewModels/`。
+- 当前导入入口是 Application 的 `ModImportService`，部署为 `DeploymentService`，配置激活为 `ProfileService.SetActiveProfileAsync`。未接入的 Core 旧导入器、`UnifiedDeploymentService` 和 `ProfileSwitchService` 已移除；归档阶段报告不代表当前调用链。
 - 业务服务：`src/HD2Mimnt.Application/Services/`；实体在 `src/HD2Mimnt.Core/Entities/`，枚举在 `HD2Mimnt.Core.Enums`。
 - 数据访问通过 `IModRepository`、`IProfileRepository`、`ITaskRepository`、`IDeploymentRepository` 等接口完成。
 - `ModService` 管理模组，`ProfileService` 管理配置及成员，`DeploymentService` 编排部署/清理，`TaskService` 管理任务，搜索与资源分析由各自服务负责。

@@ -14,7 +14,7 @@
 | HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
 | 外部管理器双向迁移、工具入口与原生格式限制 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
 | 离线模组库、配置与实际部署接口及旧版本保底 | [OFFLINE_MOD_INTERFACE.md](features/OFFLINE_MOD_INTERFACE.md) |
-| 图形化清单编辑与完整模组 ZIP 导出 | [MOD_CREATION.md](features/MOD_CREATION.md) |
+| 图形化清单编辑、密码库与完整模组 7z／ZIP 导出 | [MOD_CREATION.md](features/MOD_CREATION.md) |
 | HD2IR 嵌套角色包、组件选项与部署接入 | [HD2IR_INTEGRATION.md](features/HD2IR_INTEGRATION.md) |
 | 散装文件夹 / 包裹压缩包的多模组合集与两级选项 | [MOD_COLLECTION_IMPORT.md](features/MOD_COLLECTION_IMPORT.md) |
 | HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |

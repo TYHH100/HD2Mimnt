@@ -21,7 +21,8 @@ public sealed class AyakaModsOAuthServiceTests
         await service.ApplyClientIdAsync("registered-test-client");
         await service.LoginAsync(_ => { });
         Assert.True(service.IsSignedIn);
-        using (var command = (await scope.Database.GetConnectionAsync()).CreateCommand())
+        using var ownedConnection = await scope.Database.OpenConnectionAsync();
+        using (var command = ownedConnection.CreateCommand())
         {
             command.CommandText = "SELECT ProtectedApiKey FROM PlatformCredentials WHERE PlatformId = 'ayakamods-oauth'";
             var encrypted = Encoding.UTF8.GetString(Assert.IsType<byte[]>(await command.ExecuteScalarAsync()));

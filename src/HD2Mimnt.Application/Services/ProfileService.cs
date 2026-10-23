@@ -19,14 +19,13 @@ public class ProfileService
     private readonly SettingsService? _settingsService;
     private bool LoaderLockEnabled => _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
 
-    /// <summary>选项保存的写入闸门：快速连续切换选项时串行化读改写，避免并发 UpdateAsync 互相覆盖。</summary>
-    private readonly SemaphoreSlim _optionsWriteGate = new(1, 1);
-    private readonly SemaphoreSlim _initializationGate = new(1, 1);
+    /// <summary>同一配置的成员、选项、排序、元数据和规范化共用读改写闸门。</summary>
+    private readonly SemaphoreSlim _mutationGate = new(1, 1);
 
     /// <summary>启动/恢复时保证默认配置存在；激活状态已随每次切换落库，无需退出时再写。</summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await _initializationGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profiles = (await _profileRepository.GetAllAsync(cancellationToken)).ToList();
@@ -55,7 +54,7 @@ public class ProfileService
                 await _profileRepository.SetActiveProfileAsync(defaultProfile.Id, cancellationToken);
             RaiseProfilesChanged();
         }
-        finally { _initializationGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     /// <summary>
@@ -74,7 +73,18 @@ public class ProfileService
     private void RaiseProfilesChanged(bool affectsConflictResults = true)
         => ProfilesChanged?.Invoke(this, new ProfilesChangedEventArgs(affectsConflictResults));
 
-    public async Task<Profile?> GetProfileByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<Profile?> GetProfileByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        => _profileRepository.GetByIdAsync(id, cancellationToken);
+
+    /// <summary>显式修正加载器顺序和分组边界；与所有配置写入串行执行。</summary>
+    public async Task<Profile?> NormalizeProfileAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try { return await NormalizeProfileCoreAsync(id, cancellationToken); }
+        finally { _mutationGate.Release(); }
+    }
+
+    private async Task<Profile?> NormalizeProfileCoreAsync(Guid id, CancellationToken cancellationToken)
     {
         var profile = await _profileRepository.GetByIdAsync(id, cancellationToken);
         if (profile != null && await NormalizeBslAsync(profile, cancellationToken))
@@ -134,27 +144,33 @@ public class ProfileService
 
     public async Task<Guid> CreateProfileAsync(string name, string description = "", CancellationToken cancellationToken = default)
     {
-        var profile = new Profile
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Description = description,
-            CreatedAt = DateTime.UtcNow,
-            ModifiedAt = DateTime.UtcNow,
-            IsActive = false,
-            SortOrder = await GetNextSortOrderAsync(cancellationToken)
-        };
+            var profile = new Profile
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                Description = description,
+                CreatedAt = DateTime.UtcNow,
+                ModifiedAt = DateTime.UtcNow,
+                IsActive = false,
+                SortOrder = await GetNextSortOrderAsync(cancellationToken)
+            };
 
-        await _profileRepository.AddAsync(profile, cancellationToken);
-        RaiseProfilesChanged();
-        return profile.Id;
+            await _profileRepository.AddAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+            return profile.Id;
+
+        }
+        finally { _mutationGate.Release(); }
     }
 
     /// <summary>迁移完整配置快照；来源默认配置合并到现有默认配置，重复快照保留用户后续编辑。</summary>
     internal async Task<(Guid Id, bool Reused)> ImportMigratedProfileAsync(Profile profile, CancellationToken cancellationToken,
         Guid? defaultSourceId = null)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             Profile? targetDefault = null;
@@ -209,7 +225,7 @@ public class ProfileService
             RaiseProfilesChanged();
             return (profile.Id, false);
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     private async Task MergeMigratedDefaultAsync(Profile target, Profile incoming, Guid sourceId,
@@ -280,90 +296,115 @@ public class ProfileService
     /// </summary>
     public async Task ReorderProfilesAsync(IReadOnlyList<Guid> orderedProfileIds, CancellationToken cancellationToken = default)
     {
-        var profiles = (await _profileRepository.GetAllAsync(cancellationToken)).ToList();
-        if (profiles.Count == 0) return;
-
-        var anchor = profiles.FirstOrDefault(profile => profile.IsDefault) ?? profiles
-            .OrderBy(p => p.CreatedAt)
-            .ThenBy(p => p.Id)
-            .First();
-
-        var byId = profiles.ToDictionary(p => p.Id);
-        var finalOrder = new List<Guid> { anchor.Id };
-        foreach (var id in orderedProfileIds)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            if (id != anchor.Id && byId.ContainsKey(id) && !finalOrder.Contains(id))
+            var profiles = (await _profileRepository.GetAllAsync(cancellationToken)).ToList();
+            if (profiles.Count == 0) return;
+
+            var anchor = profiles.FirstOrDefault(profile => profile.IsDefault) ?? profiles
+                .OrderBy(p => p.CreatedAt)
+                .ThenBy(p => p.Id)
+                .First();
+
+            var byId = profiles.ToDictionary(p => p.Id);
+            var finalOrder = new List<Guid> { anchor.Id };
+            foreach (var id in orderedProfileIds)
             {
-                finalOrder.Add(id);
+                if (id != anchor.Id && byId.ContainsKey(id) && !finalOrder.Contains(id))
+                {
+                    finalOrder.Add(id);
+                }
             }
-        }
-        // 传入顺序未覆盖的配置文件（理论不存在，兜底）按当前顺序追加
-        finalOrder.AddRange(profiles
-            .OrderBy(p => p.SortOrder)
-            .Select(p => p.Id)
-            .Where(id => !finalOrder.Contains(id)));
+            // 传入顺序未覆盖的配置文件（理论不存在，兜底）按当前顺序追加
+            finalOrder.AddRange(profiles
+                .OrderBy(p => p.SortOrder)
+                .Select(p => p.Id)
+                .Where(id => !finalOrder.Contains(id)));
 
-        for (var index = 0; index < finalOrder.Count; index++)
-        {
-            var profile = byId[finalOrder[index]];
-            if (profile.SortOrder == index) continue;
-            profile.SortOrder = index;
-            profile.ModifiedAt = DateTime.UtcNow;
-            await _profileRepository.UpdateAsync(profile, cancellationToken);
-        }
+            for (var index = 0; index < finalOrder.Count; index++)
+            {
+                var profile = byId[finalOrder[index]];
+                if (profile.SortOrder == index) continue;
+                profile.SortOrder = index;
+                profile.ModifiedAt = DateTime.UtcNow;
+                await _profileRepository.UpdateAsync(profile, cancellationToken);
+            }
 
-        RaiseProfilesChanged();
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task DeleteProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException($"Profile {id} not found");
-        if (profile.IsDefault) throw new InvalidOperationException("默认配置文件不能删除");
-        if (profile.IsActive)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException("不能删除当前激活的配置文件，请先切换到其他配置文件");
-        }
+            var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {id} not found");
+            if (profile.IsDefault) throw new InvalidOperationException("默认配置文件不能删除");
+            if (profile.IsActive)
+            {
+                throw new InvalidOperationException("不能删除当前激活的配置文件，请先切换到其他配置文件");
+            }
 
-        await _profileRepository.DeleteAsync(id, cancellationToken);
-        RaiseProfilesChanged();
+            await _profileRepository.DeleteAsync(id, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task RenameProfileAsync(Guid id, string name, CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException($"Profile {id} not found");
-        if (string.IsNullOrWhiteSpace(name))
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new ArgumentException("配置文件名称不能为空", nameof(name));
-        }
+            var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {id} not found");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("配置文件名称不能为空", nameof(name));
+            }
 
-        profile.Name = name.Trim();
-        profile.ModifiedAt = DateTime.UtcNow;
-        await _profileRepository.UpdateAsync(profile, cancellationToken);
-        RaiseProfilesChanged();
+            profile.Name = name.Trim();
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task<Profile> DuplicateProfileAsync(Guid id, string newName, CancellationToken cancellationToken = default)
     {
-        await GetProfileByIdAsync(id, cancellationToken);
-        var duplicated = await _profileRepository.DuplicateAsync(id, newName, cancellationToken);
-        RaiseProfilesChanged();
-        return duplicated;
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            await NormalizeProfileCoreAsync(id, cancellationToken);
+            var duplicated = await _profileRepository.DuplicateAsync(id, newName, cancellationToken);
+            RaiseProfilesChanged();
+            return duplicated;
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task SetActiveProfileAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
-            ?? throw new InvalidOperationException($"Profile {id} not found");
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {id} not found");
 
-        await _profileRepository.SetActiveProfileAsync(id, cancellationToken);
-        RaiseProfilesChanged();
+            await _profileRepository.SetActiveProfileAsync(id, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task AddModToProfileAsync(Guid profileId, Guid modId, CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
@@ -399,7 +440,7 @@ public class ProfileService
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged();
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task RemoveModFromProfileAsync(Guid profileId, Guid modId, CancellationToken cancellationToken = default)
@@ -408,7 +449,7 @@ public class ProfileService
     public async Task RemoveModsFromProfileAsync(Guid profileId, IReadOnlyCollection<Guid> modIds,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
@@ -443,7 +484,7 @@ public class ProfileService
                 RaiseProfilesChanged();
             }
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task SetModEnabledAsync(Guid profileId, Guid modId, bool enabled, CancellationToken cancellationToken = default)
@@ -457,7 +498,7 @@ public class ProfileService
         bool enabled,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
@@ -523,7 +564,7 @@ public class ProfileService
                 RaiseProfilesChanged();
             }
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     /// <summary>
@@ -537,7 +578,7 @@ public class ProfileService
         ProfileModOptionsState state,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -559,33 +600,38 @@ public class ProfileService
         }
         finally
         {
-            _optionsWriteGate.Release();
+            _mutationGate.Release();
         }
     }
 
     public async Task ReorderModsAsync(Guid profileId, List<Guid> modIds, CancellationToken cancellationToken = default)
     {
-        var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
-        if (profile == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException($"Profile {profileId} not found");
-        }
-
-        var finalIds = modIds.Distinct().Concat(profile.Mods.OrderBy(item => item.Order)
-            .Select(item => item.ModId).Where(id => !modIds.Contains(id))).ToList();
-        for (int i = 0; i < finalIds.Count; i++)
-        {
-            var mod = profile.Mods.FirstOrDefault(m => m.ModId == finalIds[i]);
-            if (mod != null)
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null)
             {
-                mod.Order = i;
+                throw new InvalidOperationException($"Profile {profileId} not found");
             }
-        }
 
-        await NormalizeBslAsync(profile, cancellationToken);
-        profile.ModifiedAt = DateTime.UtcNow;
-        await _profileRepository.UpdateAsync(profile, cancellationToken);
-        RaiseProfilesChanged();
+            var finalIds = modIds.Distinct().Concat(profile.Mods.OrderBy(item => item.Order)
+                .Select(item => item.ModId).Where(id => !modIds.Contains(id))).ToList();
+            for (int i = 0; i < finalIds.Count; i++)
+            {
+                var mod = profile.Mods.FirstOrDefault(m => m.ModId == finalIds[i]);
+                if (mod != null)
+                {
+                    mod.Order = i;
+                }
+            }
+
+            await NormalizeBslAsync(profile, cancellationToken);
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public Task ReorderProfileRowsAsync(Guid profileId, IReadOnlyList<Guid> modIds,
@@ -596,7 +642,7 @@ public class ProfileService
         IReadOnlyList<Guid> ordinaryRowIds, IReadOnlyDictionary<Guid, int>? separatorMemberCounts,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -640,7 +686,7 @@ public class ProfileService
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged();
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     public Task<ProfileSeparator> AddSeparatorAsync(Guid profileId, string name, int order,
@@ -652,7 +698,7 @@ public class ProfileService
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("分隔符名称不能为空", nameof(name));
         color = NormalizeSeparatorColor(color);
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -673,7 +719,7 @@ public class ProfileService
             RaiseProfilesChanged(affectsConflictResults: false);
             return separator;
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     public Task RenameSeparatorAsync(Guid profileId, Guid separatorId, string name,
@@ -687,7 +733,7 @@ public class ProfileService
         if (separatorId != Guid.Empty && string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("分隔符名称不能为空", nameof(name));
         if (color != null) color = NormalizeSeparatorColor(color);
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -707,13 +753,13 @@ public class ProfileService
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged(affectsConflictResults: false);
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task SetSeparatorCollapsedAsync(Guid profileId, Guid separatorId, bool collapsed,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -742,7 +788,7 @@ public class ProfileService
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged(affectsConflictResults: false);
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 
     private static string NormalizeSeparatorColor(string color)
@@ -764,7 +810,7 @@ public class ProfileService
     public async Task RemoveSeparatorAsync(Guid profileId, Guid separatorId,
         CancellationToken cancellationToken = default)
     {
-        await _optionsWriteGate.WaitAsync(cancellationToken);
+        await _mutationGate.WaitAsync(cancellationToken);
         try
         {
             var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
@@ -774,6 +820,6 @@ public class ProfileService
             await _profileRepository.UpdateAsync(profile, cancellationToken);
             RaiseProfilesChanged(affectsConflictResults: false);
         }
-        finally { _optionsWriteGate.Release(); }
+        finally { _mutationGate.Release(); }
     }
 }

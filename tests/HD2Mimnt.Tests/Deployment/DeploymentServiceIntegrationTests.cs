@@ -873,7 +873,7 @@ public class DeploymentServiceIntegrationTests : IDisposable
     {
         var mod = await AddPatchModAsync("tracking-failure", "aaaaaaaaaaaaaaaa.patch_0");
         var profile = await AddPatchProfileAsync(mod);
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.OpenConnectionAsync();
         using var trigger = connection.CreateCommand();
         trigger.CommandText = """
             CREATE TRIGGER fail_placeholder_tracking BEFORE INSERT ON DeploymentFiles
@@ -1013,7 +1013,7 @@ public class DeploymentServiceIntegrationTests : IDisposable
         var profile = await AddPatchProfileAsync(first, second);
         await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
         var secondRecord = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
-        var connection = await _dbContext.GetConnectionAsync();
+        using var connection = await _dbContext.OpenConnectionAsync();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER FailTargetUpdate BEFORE UPDATE OF TargetPath ON DeploymentFiles BEGIN SELECT RAISE(ABORT, 'test commit failure'); END";
         await command.ExecuteNonQueryAsync();

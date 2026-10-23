@@ -20,7 +20,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task<LogicalMod> AddAsync(LogicalMod logicalMod, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -59,7 +59,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task UpdateAsync(LogicalMod logicalMod, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -85,7 +85,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task<LogicalMod?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM LogicalMods WHERE Id = @Id";
@@ -111,7 +111,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task<List<LogicalMod>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var logicalMods = new List<LogicalMod>();
 
         using var command = connection.CreateCommand();
@@ -135,7 +135,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         // Delete in order: deployable files, components, packages, logical mod
         using var deleteFilesCmd = connection.CreateCommand();
@@ -161,7 +161,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     public async Task<List<LogicalMod>> SearchByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var logicalMods = new List<LogicalMod>();
 
         using var command = connection.CreateCommand();
@@ -185,7 +185,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task AddComponentAsync(Guid logicalModId, LogicalModComponent component, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -214,7 +214,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task AddPackageAsync(Guid logicalModId, PackageSource package, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -238,7 +238,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task AddDeployableFileAsync(Guid componentId, DeployableFile file, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -260,7 +260,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task<List<LogicalModComponent>> GetComponentsAsync(Guid logicalModId, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var components = new List<LogicalModComponent>();
 
         using var command = connection.CreateCommand();
@@ -285,7 +285,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task<List<PackageSource>> GetPackagesAsync(Guid logicalModId, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var packages = new List<PackageSource>();
 
         using var command = connection.CreateCommand();
@@ -303,7 +303,7 @@ public class LogicalModRepository : ILogicalModRepository
 
     private async Task<List<DeployableFile>> GetDeployableFilesAsync(Guid componentId, CancellationToken cancellationToken)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var files = new List<DeployableFile>();
 
         using var command = connection.CreateCommand();

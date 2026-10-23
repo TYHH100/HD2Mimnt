@@ -20,7 +20,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task AddAsync(ProfileLogicalMod profileLogicalMod, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -39,7 +39,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task<List<ProfileLogicalMod>> GetByProfileIdAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var profileLogicalMods = new List<ProfileLogicalMod>();
 
         using var command = connection.CreateCommand();
@@ -57,7 +57,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task<List<ProfileLogicalMod>> GetEnabledByProfileIdAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var profileLogicalMods = new List<ProfileLogicalMod>();
 
         using var command = connection.CreateCommand();
@@ -75,7 +75,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task UpdateEnabledAsync(Guid profileId, Guid logicalModId, bool enabled, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -92,7 +92,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task UpdateOrderAsync(Guid profileId, Guid logicalModId, int order, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -109,7 +109,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task UpdateEnabledComponentsAsync(Guid profileId, Guid logicalModId, List<Guid> enabledComponentIds, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -126,7 +126,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task RemoveAsync(Guid profileId, Guid logicalModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM ProfileLogicalMods WHERE ProfileId = @ProfileId AND LogicalModId = @LogicalModId";
@@ -138,7 +138,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task RemoveAllByProfileIdAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM ProfileLogicalMods WHERE ProfileId = @ProfileId";
@@ -149,7 +149,7 @@ public class ProfileLogicalModRepository : IProfileLogicalModRepository
 
     public async Task<bool> ExistsAsync(Guid profileId, Guid logicalModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM ProfileLogicalMods WHERE ProfileId = @ProfileId AND LogicalModId = @LogicalModId";

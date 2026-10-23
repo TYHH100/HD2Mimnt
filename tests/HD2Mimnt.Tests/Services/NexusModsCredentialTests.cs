@@ -37,7 +37,7 @@ public sealed class NexusModsCredentialTests
                 await auth.ApplyApiKeyAsync("first-test-key");
                 await auth.ApplyApiKeyAsync("  " + key + "  ");
                 Assert.True(auth.IsApiKeySaved);
-                var connection = await db.GetConnectionAsync();
+                using var connection = await db.OpenConnectionAsync();
                 using var command = connection.CreateCommand();
                 command.CommandText = "SELECT ProtectedApiKey FROM PlatformCredentials";
                 var ciphertext = Assert.IsType<byte[]>(await command.ExecuteScalarAsync());
@@ -82,7 +82,7 @@ public sealed class NexusModsCredentialTests
             var store = new PlatformCredentialStore(db);
             var auth = CreateService(store, client);
             await auth.ApplyApiKeyAsync("synthetic-key");
-            var connection = await db.GetConnectionAsync();
+            using var connection = await db.OpenConnectionAsync();
             using (var command = connection.CreateCommand())
             {
                 command.CommandText = "UPDATE PlatformCredentials SET ProtectedApiKey = X'010203'";

@@ -9,40 +9,49 @@ namespace HD2Mimnt.Infrastructure.Data;
 public class HD2MimntDbContext : IDisposable
 {
     private readonly string _connectionString;
-    private SqliteConnection? _connection;
+    private readonly SemaphoreSlim _initializationGate = new(1, 1);
+    private int _disposed;
 
     public string DatabasePath { get; }
 
     public HD2MimntDbContext(string databasePath)
     {
         DatabasePath = databasePath;
-        _connectionString = $"Data Source={databasePath};Mode=ReadWriteCreate;";
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false, DefaultTimeout = 5
+        }.ToString();
     }
 
-    public async Task<SqliteConnection> GetConnectionAsync(CancellationToken cancellationToken = default)
+    /// <summary>调用方独占连接并负责释放；连接不跨 Repository 操作共享。</summary>
+    public async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken = default)
     {
-        if (_connection == null)
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        var connection = new SqliteConnection(_connectionString);
+        try
         {
-            _connection = new SqliteConnection(_connectionString);
-            await _connection.OpenAsync(cancellationToken);
-
-            // 启用 WAL 模式
-            using var walCommand = _connection.CreateCommand();
-            walCommand.CommandText = "PRAGMA journal_mode=WAL;";
-            await walCommand.ExecuteNonQueryAsync(cancellationToken);
-
-            // 设置 busy_timeout 以处理并发写入
-            using var timeoutCommand = _connection.CreateCommand();
-            timeoutCommand.CommandText = "PRAGMA busy_timeout=5000;";
-            await timeoutCommand.ExecuteNonQueryAsync(cancellationToken);
+            await connection.OpenAsync(cancellationToken);
+            return connection;
         }
-
-        return _connection;
+        catch { connection.Dispose(); throw; }
     }
 
     public async Task InitializeDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync(cancellationToken);
+        await _initializationGate.WaitAsync(cancellationToken);
+        try { await InitializeSchemaAsync(cancellationToken); }
+        finally { _initializationGate.Release(); }
+    }
+
+    private async Task InitializeSchemaAsync(CancellationToken cancellationToken)
+    {
+        using var connection = await OpenConnectionAsync(cancellationToken);
+        using (var journal = connection.CreateCommand())
+        {
+            journal.CommandText = "PRAGMA journal_mode=WAL;";
+            await journal.ExecuteNonQueryAsync(cancellationToken);
+        }
 
         var sql = @"
             CREATE TABLE IF NOT EXISTS Mods (
@@ -608,40 +617,6 @@ public class HD2MimntDbContext : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        if (_connection != null)
-        {
-            try
-            {
-                // 在关闭前禁用 WAL 模式，清理额外的文件
-                using var command = _connection.CreateCommand();
-                command.CommandText = "PRAGMA journal_mode=DELETE;";
-                command.ExecuteNonQuery();
-            }
-            catch
-            {
-                // 忽略错误，继续关闭连接
-            }
-
-            try
-            {
-                _connection.Close();
-                _connection.Dispose();
-            }
-            catch
-            {
-                // 忽略清理错误
-            }
-            finally
-            {
-                _connection = null;
-            }
-        }
-
-        // 强制 GC 以确保文件锁释放
-        SqliteConnection.ClearAllPools();
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-    }
+    // 短连接由各操作释放，结束上下文不触碰其它上下文的池和 GC。
+    public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
 }

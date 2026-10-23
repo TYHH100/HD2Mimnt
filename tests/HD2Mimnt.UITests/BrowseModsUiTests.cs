@@ -26,7 +26,81 @@ namespace HD2Mimnt.Tests.UI;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
-    public async Task BrowseTab_ShouldLoadFilterOpenDetailsAndCancelWebsiteDownloadOnLeaving()
+    public async Task StandaloneNxm_ShouldImportWithoutPendingTaskOrAnotherWebsiteAuthorization()
+    {
+        using var handler = new BrowseContractHandler();
+        using (var archive = new MemoryStream())
+        {
+            using (var zip = new ZipArchive(archive, ZipArchiveMode.Create, leaveOpen: true))
+            using (var writer = new StreamWriter(zip.CreateEntry("0123456789abcdef.patch_0").Open()))
+                writer.Write("standalone nxm patch");
+            handler.Archive = archive.ToArray();
+        }
+        await using var scope = await UiScope.CreateAsync(nexusHandler: handler);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("browse-test-key");
+        var vm = main.BrowseModsViewModel!;
+        // 从另一平台接收外部链接，既没有选中文件，也没有等待网页的任务。
+        vm.SelectedPlatform = vm.Platforms[1];
+        await vm.PlatformChange;
+        Assert.Null(vm.Details);
+        Assert.False(vm.IsWaitingForWebsite);
+        main.ReceiveBrowserProtocolLink("nxm://helldivers2/mods/123/files/456?key=secret&expires=4102444800&user_id=1");
+        await vm.Completion.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.Equal(5, main.SelectedTabIndex);
+        Assert.Same(vm, main.CurrentView);
+        Assert.True(vm.IsNexus);
+        Assert.Contains("已下载并导入", vm.Message);
+        var installed = Assert.Single(await scope.Services.GetRequiredService<IModRepository>().GetAllAsync());
+        Assert.Equal("standalone nxm patch", await File.ReadAllTextAsync(Path.Combine(installed.Path, "0123456789abcdef.patch_0")));
+        Assert.Equal("123", installed.PlatformLink!.ModId);
+        Assert.Equal("456", installed.PlatformLink.InstalledWebsiteFileId);
+        Assert.Equal("Builder", installed.PlatformLink.Author);
+        Assert.Empty(scope.WebsiteLauncher.Urls);
+        Assert.Single(handler.DownloadQueries);
+        Assert.Contains("key=secret&expires=4102444800", handler.DownloadQueries[0]);
+        Assert.Null(handler.ArchiveApiKey);
+        Assert.Empty(Directory.GetDirectories(scope.Root, "hd2mimnt_browse_*", SearchOption.AllDirectories));
+        main.LibraryViewModel.Import.CloseCommand.Execute(null);
+        await vm.CloseAsync();
+    }
+
+    [AvaloniaFact]
+    public async Task StandaloneNxm_ShouldExplainApiLoginAndRejectInvalidOrCancelledCallbacks()
+    {
+        using var handler = new BrowseContractHandler();
+        await using var scope = await UiScope.CreateAsync(nexusHandler: handler);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var vm = main.BrowseModsViewModel!;
+        const string link = "nxm://helldivers2/mods/123/files/456?key=secret&expires=4102444800&user_id=1";
+        main.ReceiveBrowserProtocolLink(link);
+        await vm.Completion;
+        Assert.Contains("无需再次网页授权", vm.Message);
+        Assert.Contains("设置 → 账号", vm.Message);
+        Assert.DoesNotContain("开发工具", vm.Message);
+        Assert.DoesNotContain("secret", vm.Message);
+        Assert.Empty(handler.Paths);
+        main.ReceiveBrowserProtocolLink(link.Replace("helldivers2", "skyrim"));
+        await vm.Completion;
+        Assert.Empty(handler.Paths);
+        await scope.Services.GetRequiredService<NexusModsTestService>().ApplyApiKeyAsync("browse-test-key");
+        vm.ModLink = "123";
+        await vm.OpenLinkCommand.ExecuteAsync(null);
+        var pending = vm.DownloadAsync(Path.Combine(scope.Root, "cancelled.zip"));
+        await WaitForBrowseAuthorizationAsync(vm);
+        await vm.StopAsync();
+        await pending;
+        var requests = handler.Paths.Count;
+        main.ReceiveBrowserProtocolLink(link);
+        await vm.Completion;
+        Assert.Equal(requests, handler.Paths.Count);
+        Assert.Empty(handler.DownloadQueries);
+        Assert.Empty(await scope.Services.GetRequiredService<IModRepository>().GetAllAsync());
+        await vm.CloseAsync();
+    }
+
+    [AvaloniaFact]
+    public async Task BrowseTab_ShouldLoadFilterOpenDetailsAndKeepWebsiteDownloadOnLeaving()
     {
         using var handler = new BrowseContractHandler();
         await using var scope = await UiScope.CreateAsync(nexusHandler: handler);
@@ -124,6 +198,8 @@ public sealed partial class FluentAvaloniaUiTests
             main.ReceiveBrowserProtocolLink("nxm://helldivers2/mods/999/files/456?key=secret&expires=4102444800&user_id=1");
             Assert.True(vm.IsWaitingForWebsite);
             main.NavigateToLibraryCommand.Execute(null);
+            Assert.True(vm.IsBusy && vm.IsWaitingForWebsite);
+            await vm.StopAsync();
             await pending;
             Assert.False(vm.IsBusy || vm.IsWaitingForWebsite);
             Assert.False(vm.TryReceiveProtocolLink("nxm://helldivers2/mods/123/files/456?key=secret&expires=4102444800&user_id=1"));
@@ -143,6 +219,7 @@ public sealed partial class FluentAvaloniaUiTests
         vm.ModLink = "123";
         await vm.OpenLinkCommand.ExecuteAsync(null);
         var destination = Path.Combine(scope.Root, "download.zip");
+        main.SelectedTabIndex = 5;
         var pending = vm.DownloadAsync(destination);
         await WaitForBrowseAuthorizationAsync(vm);
         Assert.True(vm.IsWaitingForWebsite);

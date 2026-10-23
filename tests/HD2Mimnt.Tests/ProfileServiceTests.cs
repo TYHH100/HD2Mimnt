@@ -71,7 +71,8 @@ public class ProfileServiceTests : IDisposable
         var originalId = await _profileService.CreateProfileAsync("旧默认");
         var activeId = await _profileService.CreateProfileAsync("上次使用");
         await _profileService.SetActiveProfileAsync(activeId);
-        using (var command = (await _dbContext.GetConnectionAsync()).CreateCommand())
+        using var ownedConnection = await _dbContext.OpenConnectionAsync();
+        using (var command = ownedConnection.CreateCommand())
         {
             command.CommandText = "ALTER TABLE Profiles DROP COLUMN IsDefault;";
             await command.ExecuteNonQueryAsync();
@@ -199,7 +200,8 @@ public class ProfileServiceTests : IDisposable
         var mod = new Mod { Id = Guid.NewGuid(), Name = "Mod", Version = "1", Path = @"C:\TestMods\Mod" };
         await _modRepository.AddAsync(mod);
         await _profileService.AddModToProfileAsync(profileId, mod.Id);
-        using (var command = (await _dbContext.GetConnectionAsync()).CreateCommand())
+        using var ownedConnection = await _dbContext.OpenConnectionAsync();
+        using (var command = ownedConnection.CreateCommand())
         {
             command.CommandText = "ALTER TABLE ProfileSeparators DROP COLUMN Color; ALTER TABLE ProfileSeparators DROP COLUMN MemberCount; ALTER TABLE Profiles DROP COLUMN LuaSeparatorColor; ALTER TABLE Profiles DROP COLUMN IsLuaGroupCollapsed";
             await command.ExecuteNonQueryAsync();
@@ -221,7 +223,8 @@ public class ProfileServiceTests : IDisposable
         await _profileService.RemoveSeparatorAsync(duplicate.Id, copied.Id);
         Assert.Single((await _profileService.GetProfileByIdAsync(duplicate.Id))!.Mods);
         await _profileService.DeleteProfileAsync(profileId);
-        using var check = (await _dbContext.GetConnectionAsync()).CreateCommand();
+        using var checkConnection = await _dbContext.OpenConnectionAsync();
+        using var check = checkConnection.CreateCommand();
         check.CommandText = "SELECT COUNT(*) FROM ProfileSeparators WHERE ProfileId = @Id";
         check.Parameters.AddWithValue("@Id", profileId.ToString());
         Assert.Equal(0L, await check.ExecuteScalarAsync());

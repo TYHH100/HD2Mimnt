@@ -1496,9 +1496,6 @@ Clean up the previous deployment and deploy in profile order?</value>
   <data name="UI.NexusModsAuthentication" xml:space="preserve">
     <value>Nexus Mods authentication</value>
   </data>
-  <data name="UI.ANexusModsLinkWasReceivedButNoTaskIsWaitingForBrowserAuthorizationAppl" xml:space="preserve">
-    <value>A Nexus Mods link was received, but no task is waiting for browser authorization. Apply an API key in Developer tools, then select a file in the library and click Download or Update.</value>
-  </data>
   <data name="UI.NexusModsDownloads" xml:space="preserve">
     <value>Nexus Mods downloads</value>
   </data>
@@ -3957,6 +3954,8 @@ Last checked: {7}</value>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>Keep complete previous versions when updating. Uses additional disk space. Save to apply.</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>Allow duplicate imports</value></data>
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>Off by default: reject identical content already in the library or version history. Enable to import separate copies. Existing duplicates are kept.</value></data>
+  <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>
+  <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>When importing mods without manifests, automatically generate V1 format instead of legacy format. When enabled, mods without manifests in the library can also be auto-upgraded to V1.</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>Update this mod from an archive, or switch to a saved version. The current version is shown below in the mod details.</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>Update from archive…</value></data>
@@ -4199,4 +4198,44 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="SoundFix.State.Skipped" xml:space="preserve"><value>Skipped by default</value></data>
   <data name="SoundFix.State.Unknown" xml:space="preserve"><value>Unconfirmed</value></data>
   <data name="SoundFix.State.Error" xml:space="preserve"><value>Read failed</value></data>
+  <data name="Profile.AddToOtherProfiles" xml:space="preserve"><value>Add to other profiles…</value></data>
+  <data name="ArchivePasswords.Library" xml:space="preserve"><value>Password library</value></data>
+  <data name="ArchivePasswords.Hint" xml:space="preserve"><value>Saved passwords are tried automatically on import. The long-term default is tried first and selected for encrypted export. Saving applies immediately; passwords are encrypted for this Windows account.</value></data>
+  <data name="ArchivePasswords.Select" xml:space="preserve"><value>Choose a saved password</value></data>
+  <data name="ArchivePasswords.Name" xml:space="preserve"><value>Password name (same name updates the entry)</value></data>
+  <data name="ArchivePasswords.Password" xml:space="preserve"><value>Archive password</value></data>
+  <data name="ArchivePasswords.MakeDefault" xml:space="preserve"><value>Use as the long-term default after saving</value></data>
+  <data name="ArchivePasswords.New" xml:space="preserve"><value>New / temporary password</value></data>
+  <data name="ArchivePasswords.ClearDefault" xml:space="preserve"><value>Clear long-term default</value></data>
+  <data name="ArchivePasswords.EncryptExport" xml:space="preserve"><value>Encrypt exported archive (7z or AES-256 ZIP)</value></data>
+  <data name="ArchivePasswords.Prompt" xml:space="preserve"><value>No saved password worked. Enter or select a password, then retry.</value></data>
+  <data name="ArchivePasswords.Retry" xml:space="preserve"><value>Use password and retry</value></data>
+  <data name="ArchivePasswords.ReadFailed" xml:space="preserve"><value>Could not read the password library. Check the Windows account or restore the original settings.</value></data>
+  <data name="ArchivePasswords.SaveFailed" xml:space="preserve"><value>Could not save the password library. Please retry.</value></data>
+  <data name="ArchivePasswords.Required" xml:space="preserve"><value>The archive needs a password, or the password is incorrect.</value></data>
+  <data name="ArchivePasswords.PasswordRequired" xml:space="preserve"><value>Enter or select a password before encrypted export.</value></data>
+  <data name="ArchivePasswords.NameAndPasswordRequired" xml:space="preserve"><value>Enter a name and password.</value></data>
+  <data name="ArchivePasswords.InvalidLibrary" xml:space="preserve"><value>The password library is invalid.</value></data>
+  <data name="ArchivePasswords.InvalidPassword" xml:space="preserve"><value>Passwords cannot contain null characters or line breaks.</value></data>
+  <data name="ArchivePasswords.DefaultLabel" xml:space="preserve"><value>Long-term default:</value></data>
+  <data name="ArchivePasswords.ZipAsciiRequired" xml:space="preserve"><value>Encrypted ZIP passwords must use ASCII characters. Choose 7z for Chinese or other Unicode passwords.</value></data>
+  <data name="Creator.Packaging" xml:space="preserve"><value>Packaging</value></data>
+  <data name="Nexus.NxmReceived" xml:space="preserve">
+    <value>Download authorization received from Nexus Mods. Loading file information…</value>
+  </data>
+  <data name="Nexus.NxmApiAuthenticationRequired" xml:space="preserve">
+    <value>The nxm link already authorizes this file download; no further website authorization is needed. The Nexus Mods API still requires account authentication. Sign in under Settings → Accounts, then open this link again.</value>
+  </data>
+  <data name="Nexus.NxmCancelled" xml:space="preserve">
+    <value>The corresponding website download task was cancelled. Start the download again.</value>
+  </data>
+  <data name="Nexus.NxmBusy" xml:space="preserve">
+    <value>A download operation is still running. Finish or cancel it, then open the Nexus Mods download link again.</value>
+  </data>
+  <data name="Downloads.NexusTask" xml:space="preserve">
+    <value>Nexus Mods download: {0}</value>
+  </data>
+  <data name="Downloads.AyakaTask" xml:space="preserve">
+    <value>Ayaka Mods download: {0}</value>
+  </data>
 </root>

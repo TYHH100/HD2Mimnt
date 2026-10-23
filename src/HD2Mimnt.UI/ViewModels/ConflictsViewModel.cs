@@ -50,7 +50,7 @@ public partial class ConflictsViewModel : ObservableObject
         try
         {
             // 合并连续启停、选项及排序变更；始终等待上一轮完成清理，避免并发读取磁盘。
-            await Task.Delay(750, cts.Token);
+            await Task.Delay(1500, cts.Token);
             if (ScanCommand.ExecutionTask is { IsCompleted: false } pending) await pending;
             cts.Token.ThrowIfCancellationRequested();
             if (!_automaticChecking || !_targetProfileId.HasValue) return;
@@ -206,9 +206,10 @@ public partial class ConflictsViewModel : ObservableObject
         SummaryText = "正在读取当前配置的补丁资源…";
         try
         {
-            var profile = _targetProfileId is { } targetId
+            var targetProfileId = _targetProfileId;
+            var profile = await Task.Run(async () => targetProfileId is { } targetId
                 ? await _profileService.GetProfileByIdAsync(targetId, cancellationToken)
-                : await _profileService.GetActiveProfileAsync(cancellationToken);
+                : await _profileService.GetActiveProfileAsync(cancellationToken), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (revision != _revision) return;
             if (profile == null)
@@ -220,7 +221,7 @@ public partial class ConflictsViewModel : ObservableObject
 
             HasProfile = true;
             ProfileName = profile.Name;
-            var result = await _conflictDetectionService.ScanProfileAsync(profile.Id, cancellationToken);
+            var result = await Task.Run(() => _conflictDetectionService.ScanProfileAsync(profile.Id, cancellationToken), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (revision != _revision) return;
 

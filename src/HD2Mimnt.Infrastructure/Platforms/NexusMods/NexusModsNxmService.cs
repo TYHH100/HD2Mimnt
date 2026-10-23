@@ -73,6 +73,8 @@ internal sealed class NexusModsNxmService(NexusModsApiClient api, IHttpDownloadS
 
     private async Task ValidateAccountAsync(NexusModsNxmLink link, CancellationToken token)
     {
+        if (!api.IsAuthenticated)
+            throw new InvalidOperationException("nxm 链接已包含此文件的下载授权，无需再次网页授权。N 网 API 仍要求账号认证，请先在“设置 → 账号”登录 N 网，再打开此链接。");
         var user = await api.GetLegacyDataAsync<LegacyUser>("/users/validate.json", "验证临时授权所属账户", token);
         if (user.UserId != link.UserId)
             throw new InvalidOperationException("临时链接的 N 网账户与当前认证账户不同。请用同一账户登录网页并重新获取链接，或重新登录 N 网。");

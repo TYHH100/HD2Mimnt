@@ -12,6 +12,49 @@ namespace HD2Mimnt.Tests.ViewModels;
 public sealed class ProfileViewModelTests : IDisposable
 {
     [Fact]
+    public async Task RenameProfile_ShouldOpenPrefilledDialogAndSaveConfirmedName()
+    {
+        await _profileService.CreateProfileAsync("Original profile");
+        var vm = CreateViewModel();
+        await vm.LoadProfilesAsync();
+        var profile = Assert.Single(vm.Profiles);
+
+        await vm.RenameProfileAsync(profile);
+
+        Assert.True(vm.IsRenameProfileDialogOpen);
+        Assert.Equal("Original profile", vm.RenameProfileName);
+        vm.RenameProfileName = "Renamed profile";
+        await vm.ConfirmRenameProfileCommand.ExecuteAsync(null);
+
+        Assert.False(vm.IsRenameProfileDialogOpen);
+        Assert.Equal("Renamed profile", Assert.Single(vm.Profiles).Name);
+    }
+
+    [Fact]
+    public async Task ProfileRefresh_ShouldKeepCurrentCardsWhenOnlyAnotherProfileChanges()
+    {
+        var mod = await AddModAsync("Current Mod");
+        var currentId = await _profileService.CreateProfileAsync("Current Profile");
+        var otherId = await _profileService.CreateProfileAsync("Other Profile");
+        await _profileService.AddModToProfileAsync(currentId, mod.Id);
+        await _profileService.SetActiveProfileAsync(currentId);
+        var vm = CreateViewModel();
+        await vm.LoadProfilesAsync();
+        var card = Assert.Single(vm.ProfileMods);
+
+        await _profileService.RenameProfileAsync(otherId, "Renamed Other Profile");
+        await vm.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
+
+        Assert.Same(card, Assert.Single(vm.ProfileMods));
+        Assert.Equal("Renamed Other Profile", vm.Profiles.Single(p => p.Id == otherId).Name);
+
+        await _profileService.SetModEnabledAsync(currentId, mod.Id, false);
+        await vm.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
+
+        Assert.False(Assert.Single(vm.ProfileMods).Enabled);
+    }
+
+    [Fact]
     public void ConflictCards_ShouldKeepDenseRelationsSharedAndPreviewBounded()
     {
         var vm = CreateViewModel();
@@ -518,7 +561,8 @@ public sealed class ProfileViewModelTests : IDisposable
         await _profileService.SetSeparatorCollapsedAsync(profileId, separator.Id, true);
         if (legacy)
         {
-            using var command = (await _dbContext.GetConnectionAsync()).CreateCommand();
+            using var ownedConnection = await _dbContext.OpenConnectionAsync();
+            using var command = ownedConnection.CreateCommand();
             command.CommandText = "UPDATE ProfileSeparators SET MemberCount = NULL WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", separator.Id.ToString());
             await command.ExecuteNonQueryAsync();

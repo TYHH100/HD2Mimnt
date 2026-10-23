@@ -239,7 +239,8 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         incoming.Mods.Add(new("a", true, new()));
         incoming.Separators.Add(new("迁入分组", 0, true, "#123456", 2));
         plan.Profiles.Clear(); plan.Profiles.Add(incoming);
-        using var command = (await _db.GetConnectionAsync()).CreateCommand();
+        using var ownedConnection = await _db.OpenConnectionAsync();
+        using var command = ownedConnection.CreateCommand();
         if (writeFailure)
         {
             command.CommandText = "CREATE TRIGGER reject_default_separator BEFORE INSERT ON ProfileSeparators WHEN NEW.Name='迁入分组' BEGIN SELECT RAISE(ABORT,'test failure'); END";
@@ -796,7 +797,8 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
     [Fact]
     public async Task Migrate_DatabaseFailure_LeavesNoIncompleteRecordAndCanRetry()
     {
-        using var command = (await _db.GetConnectionAsync()).CreateCommand();
+        using var ownedConnection = await _db.OpenConnectionAsync();
+        using var command = ownedConnection.CreateCommand();
         command.CommandText = "CREATE TRIGGER reject_migration BEFORE INSERT ON Mods BEGIN SELECT RAISE(ABORT,'test write failure'); END";
         await command.ExecuteNonQueryAsync();
         var plan = Plan(SourceMod("failure"));
@@ -940,7 +942,8 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
     public async Task Migrate_ProfileWriteFailure_RollsBackMembersAndRetriesCommittedMod()
     {
         await _profiles.InitializeAsync();
-        using var command = (await _db.GetConnectionAsync()).CreateCommand();
+        using var ownedConnection = await _db.OpenConnectionAsync();
+        using var command = ownedConnection.CreateCommand();
         command.CommandText = "CREATE TRIGGER reject_profile_member BEFORE INSERT ON ProfileMods BEGIN SELECT RAISE(ABORT,'test profile failure'); END";
         await command.ExecuteNonQueryAsync();
         var plan = Plan(SourceMod("profile-write"));

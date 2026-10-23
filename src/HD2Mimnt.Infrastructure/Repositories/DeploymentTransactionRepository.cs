@@ -21,7 +21,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task AddAsync(DeploymentTransaction transaction, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -60,7 +60,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<DeploymentTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentTransactions WHERE Id = @Id";
@@ -77,7 +77,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<DeploymentTransaction?> GetBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentTransactions WHERE SessionId = @SessionId";
@@ -94,7 +94,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<List<DeploymentTransaction>> GetByProfileIdAsync(Guid profileId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var transactions = new List<DeploymentTransaction>();
 
         using var command = connection.CreateCommand();
@@ -112,7 +112,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<List<DeploymentTransaction>> GetByLogicalModIdAsync(Guid logicalModId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var transactions = new List<DeploymentTransaction>();
 
         using var command = connection.CreateCommand();
@@ -130,7 +130,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<List<DeploymentTransaction>> GetByModIdAsync(Guid modId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         var transactions = new List<DeploymentTransaction>();
 
         using var command = connection.CreateCommand();
@@ -148,7 +148,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task<DeploymentTransaction?> GetLatestAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentTransactions ORDER BY StartTime DESC LIMIT 1";
@@ -164,7 +164,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task UpdateStatusAsync(Guid id, DeploymentStatus status, DateTime? endTime = null, string? errorMessage = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -182,7 +182,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentTransactions WHERE Id = @Id";
@@ -193,7 +193,7 @@ public class DeploymentTransactionRepository : IDeploymentTransactionRepository
 
     public async Task DeleteBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentTransactions WHERE SessionId = @SessionId";

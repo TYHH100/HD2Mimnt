@@ -83,7 +83,8 @@ public sealed class ResourceTypeClassificationTests : IDisposable
         var id = await import.ImportModAsync(source);
         var imported = (await repository.GetByIdAsync(id))!;
         Assert.Equal(new[] { Texture, Mesh, ulong.MaxValue }, imported.ResourceTypeIds);
-        using (var sql = (await db.GetConnectionAsync()).CreateCommand())
+        using var ownedConnection = await db.OpenConnectionAsync();
+        using (var sql = ownedConnection.CreateCommand())
         {
             sql.CommandText = "SELECT ResourceTypeIds FROM Mods;";
             Assert.Equal("[\"CD4238C6A0C69E32\",\"E0A48D0BE9A7453F\",\"FFFFFFFFFFFFFFFF\"]", await sql.ExecuteScalarAsync());
@@ -109,7 +110,8 @@ public sealed class ResourceTypeClassificationTests : IDisposable
         var repository = new ModRepository(db);
         var mod = new Mod { Id = Guid.NewGuid(), Name = "Legacy", Category = ModCategory.Armor, Tags = new() { "armor" } };
         await repository.AddAsync(mod);
-        using (var sql = (await db.GetConnectionAsync()).CreateCommand())
+        using var ownedConnection = await db.OpenConnectionAsync();
+        using (var sql = ownedConnection.CreateCommand())
         {
             sql.CommandText = "ALTER TABLE Mods DROP COLUMN ResourceTypeIds;";
             await sql.ExecuteNonQueryAsync();

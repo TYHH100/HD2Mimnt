@@ -21,7 +21,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<DeploymentRecord?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentRecords WHERE Id = @Id";
@@ -41,7 +41,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<IEnumerable<DeploymentRecord>> GetBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentRecords WHERE SessionId = @SessionId ORDER BY StartTime DESC";
@@ -65,7 +65,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<IEnumerable<DeploymentRecord>> GetByModIdAsync(Guid modId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentRecords WHERE ModId = @ModId ORDER BY StartTime DESC";
@@ -88,7 +88,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<Guid?> GetLatestSessionIdAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT SessionId FROM DeploymentRecords ORDER BY StartTime DESC LIMIT 1";
@@ -110,7 +110,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task AddAsync(DeploymentRecord record, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -141,7 +141,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task UpdateAsync(DeploymentRecord record, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -158,7 +158,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentRecords WHERE Id = @Id";
@@ -168,7 +168,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task DeleteBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentRecords WHERE SessionId = @SessionId";
@@ -178,7 +178,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task DeleteByModIdAsync(Guid modId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentRecords WHERE ModId = @ModId";
@@ -188,7 +188,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task AddDeploymentFileAsync(DeploymentFile file, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -201,7 +201,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task AddDeploymentFilesAsync(IEnumerable<DeploymentFile> files, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var transaction = connection.BeginTransaction();
         try
@@ -218,7 +218,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<IEnumerable<DeploymentFile>> GetDeploymentFilesAsync(Guid deploymentId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentFiles WHERE DeploymentId = @DeploymentId";
@@ -236,7 +236,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task<DeploymentFile?> GetDeploymentFileByTargetPathAsync(string targetPath, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM DeploymentFiles WHERE TargetPath = @TargetPath LIMIT 1";
@@ -330,7 +330,7 @@ public class DeploymentRepository : IDeploymentRepository
 
     public async Task DeleteDeploymentFilesByDeploymentIdAsync(Guid deploymentId, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM DeploymentFiles WHERE DeploymentId = @DeploymentId";
@@ -342,7 +342,7 @@ public class DeploymentRepository : IDeploymentRepository
     public async Task CommitModDeploymentRemovalAsync(IReadOnlyCollection<Guid> deploymentIds,
         IReadOnlyList<(Guid FileId, string TargetPath)> renamedFiles, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
         using var transaction = connection.BeginTransaction();
         foreach (var file in renamedFiles)
         {

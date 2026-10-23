@@ -31,29 +31,7 @@ public class ThumbnailService
     {
         try
         {
-            var thumbnailFile = ModImportService.ResolveManifestIconPath(modPath, iconPath);
-            if (thumbnailFile == null)
-            {
-                // 清单图片不可用时才回退目录内的候选图。
-                var imageFiles = Directory.GetFiles(modPath, "*.*", SearchOption.AllDirectories)
-                    .Where(f =>
-                    {
-                        var ext = Path.GetExtension(f).ToLowerInvariant();
-                        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp";
-                    })
-                    .OrderBy(f => Path.GetFileName(f))
-                    .ToList();
-
-                // 优先查找 thumbnail.png 或 preview.png
-                thumbnailFile = imageFiles.FirstOrDefault(f =>
-                {
-                    var name = Path.GetFileNameWithoutExtension(f).ToLowerInvariant();
-                    return name == "thumbnail" || name == "preview" || name == "icon";
-                });
-
-                // 如果没有找到，使用第一个图片文件
-                thumbnailFile ??= imageFiles.FirstOrDefault();
-            }
+            var thumbnailFile = ModImportService.ResolveCardPreviewPath(modPath, iconPath);
 
             if (thumbnailFile == null)
             {

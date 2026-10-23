@@ -9,6 +9,38 @@ namespace HD2Mimnt.UI.ViewModels;
 
 public partial class ModImportViewModel(ModService modService, SettingsService? settingsService = null) : ObservableObject
 {
+    public ArchivePasswordsViewModel Passwords { get; } = new(settingsService);
+    private TaskCompletionSource<string>? _passwordRequest;
+    [ObservableProperty] private bool _hasPasswordRequest;
+    [ObservableProperty] private string _passwordArchive = "";
+
+    [RelayCommand]
+    private void SubmitPassword()
+    {
+        if (!string.IsNullOrEmpty(Passwords.Password)) _passwordRequest?.TrySetResult(Passwords.Password);
+    }
+
+    private async Task<string> RequestPasswordAsync(string name, CancellationToken token)
+    {
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _passwordRequest = completion;
+            PasswordArchive = name;
+            HasPasswordRequest = true;
+            IsIndeterminate = false;
+        });
+        try { return await completion.Task.WaitAsync(token); }
+        finally
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                HasPasswordRequest = false;
+                _passwordRequest = null;
+            });
+        }
+    }
+
     private CancellationTokenSource? _cancellation;
     private int _fileGeneration;
     private TaskCompletionSource? _hd2IrConfirmation;
@@ -81,7 +113,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
 
     public void Open()
     {
-        if (!IsOpen && !IsImporting) Reset();
+        if (!IsOpen && !IsImporting) { Reset(); Passwords.Reload(); }
         IsOpen = true;
     }
 
@@ -125,6 +157,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
 
     private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink)
     {
+        using var passwordScope = PasswordAwareArchiveExtractor.BeginRequest(RequestPasswordAsync);
         var cancelled = false;
         try
         {

@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
-             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:models="using:HD2Mimnt.Application.Services" xmlns:controls="using:HD2Mimnt.UI.Controls"
              x:Class="HD2Mimnt.UI.Views.ModCreationView" x:DataType="vm:ModCreationViewModel">
   <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="12">
     <StackPanel Spacing="10">
@@ -14,39 +14,23 @@
                      IsChecked="{Binding IsLegacyManifest}" Margin="0,0,0,4"/>
       </WrapPanel>
       <WrapPanel IsEnabled="{Binding CanEdit}">
-        <TextBlock Text="{loc:Loc Creator.ArchiveFormat}" VerticalAlignment="Center" Margin="0,0,8,4"/>
-        <ComboBox Name="CreationArchiveFormat" SelectedIndex="{Binding SelectedArchiveFormatIndex}" MinWidth="85" Margin="0,0,20,4">
-          <ComboBoxItem Content="7z"/>
-          <ComboBoxItem Content="ZIP"/>
-        </ComboBox>
-        <TextBlock Text="{loc:Loc Creator.CompressionLevel}" VerticalAlignment="Center" Margin="0,0,8,4"/>
-        <ComboBox Name="CreationCompressionLevel" SelectedIndex="{Binding SelectedCompressionIndex}" MinWidth="180" Margin="0,0,0,4"
-                  ToolTip.Tip="{loc:Loc Creator.CompressionHint}">
-          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionStore}"/></ComboBoxItem>
-          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionFast}"/></ComboBoxItem>
-          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionNormal}"/></ComboBoxItem>
-          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionHigh}"/></ComboBoxItem>
-          <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionUltra}"/></ComboBoxItem>
-        </ComboBox>
-      </WrapPanel>
-      <WrapPanel IsEnabled="{Binding CanEdit}">
         <Button Content="{loc:Loc Creator.New}" Command="{Binding NewCommand}" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc Creator.Open}" Click="Open_Click" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc Creator.Save}" Click="Save_Click" Margin="0,0,8,4"/>
         <Button Name="ExportModArchiveButton" Content="{loc:Loc Creator.Export}" Click="Export_Click" Classes="accent" Margin="0,0,0,4"/>
       </WrapPanel>
     </StackPanel>
-    <TabControl Grid.Row="1" IsEnabled="{Binding CanEdit}" Name="CreationTabs" SelectionChanged="CreationTabs_SelectionChanged">
+    <TabControl Grid.Row="1" IsEnabled="{Binding CanEdit}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Name="CreationTabs" SelectionChanged="CreationTabs_SelectionChanged">
       <TabItem>
         <TabItem.Header><TextBlock Text="{loc:Loc Creator.Basic}" FontSize="14"/></TabItem.Header>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Name="CreationBasicScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
           <StackPanel Spacing="12" Margin="0,12,12,12">
-            <Border Classes="card" Padding="20">
+            <Border Name="CreationBasicCard" Classes="card" Padding="20" HorizontalAlignment="Stretch">
               <StackPanel Spacing="10">
                 <TextBlock Text="{loc:Loc Creator.SourceDirectory}"/>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <TextBox Name="CreationSourceInput" Text="{Binding SourceDirectory}" LostFocus="Source_LostFocus" KeyDown="Source_KeyDown"/>
-                  <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Source_Click"/>
+                  <Button Name="CreationSourceBrowseButton" Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Source_Click"/>
                 </Grid>
                 <TextBlock Text="{loc:Loc Creator.SourceHint}" Classes="muted" TextWrapping="Wrap"/>
                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="8">
@@ -58,7 +42,7 @@
                   <TextBlock Grid.Row="2" Grid.Column="1" Text="{loc:Loc Creator.Cover}"/>
                   <TextBox Grid.Row="3" Text="{Binding ModVersion}"/>
                   <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                    <TextBox Text="{Binding IconPath}"/>
+                    <TextBox Name="CreationCoverInput" Text="{Binding IconPath}" MinWidth="0"/>
                     <Button Grid.Column="1" Content="{loc:Loc Creator.Browse}" Click="Image_Click"/>
                     <Button Name="CreationCoverPreviewButton" Grid.Column="2" Content="{loc:Loc Creator.ViewImage}" Click="PreviewImage_Click"/>
                   </Grid>
@@ -182,6 +166,46 @@
             <controls:ModCreationPreview Name="CreationManagerPreview" DataContext="{Binding ManagerPreview}"/>
           </ScrollViewer>
         </Grid>
+      </TabItem>
+      <TabItem Name="CreationPackagingTab">
+        <TabItem.Header><TextBlock Text="{loc:Loc Creator.Packaging}" FontSize="14"/></TabItem.Header>
+        <ScrollViewer Name="CreationPackagingScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                      HorizontalContentAlignment="Stretch">
+          <StackPanel Spacing="16" Margin="0,12,12,12" MaxWidth="880" HorizontalAlignment="Left">
+            <Border Classes="card" Padding="20" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="16">
+                <WrapPanel IsEnabled="{Binding CanEdit}">
+                  <TextBlock Text="{loc:Loc Creator.ArchiveFormat}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+                  <ComboBox Name="CreationArchiveFormat" SelectedIndex="{Binding SelectedArchiveFormatIndex}" MinWidth="85" Margin="0,0,20,4">
+                    <ComboBoxItem Content="7z"/>
+                    <ComboBoxItem Content="ZIP"/>
+                  </ComboBox>
+                  <TextBlock Text="{loc:Loc Creator.CompressionLevel}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+                  <ComboBox Name="CreationCompressionLevel" SelectedIndex="{Binding SelectedCompressionIndex}" MinWidth="180" Margin="0,0,0,4"
+                            ToolTip.Tip="{loc:Loc Creator.CompressionHint}">
+                    <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionStore}"/></ComboBoxItem>
+                    <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionFast}"/></ComboBoxItem>
+                    <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionNormal}"/></ComboBoxItem>
+                    <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionHigh}"/></ComboBoxItem>
+                    <ComboBoxItem><TextBlock Text="{loc:Loc Creator.CompressionUltra}"/></ComboBoxItem>
+                  </ComboBox>
+                </WrapPanel>
+                <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
+                  <CheckBox Name="EncryptModArchive" Content="{loc:Loc ArchivePasswords.EncryptExport}" IsChecked="{Binding Passwords.UsePassword}"/>
+                  <TextBox Name="ExportArchivePassword" Text="{Binding Passwords.Password}" PasswordChar="●"
+                           PlaceholderText="{loc:Loc ArchivePasswords.Password}" IsVisible="{Binding Passwords.UsePassword}"/>
+                  <ComboBox Name="ExportSavedArchivePassword" ItemsSource="{Binding Passwords.Entries}" SelectedItem="{Binding Passwords.Selected}"
+                            IsVisible="{Binding Passwords.UsePassword}" PlaceholderText="{loc:Loc ArchivePasswords.Select}" MinWidth="240">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="models:ArchivePasswordEntry"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="20" HorizontalAlignment="Stretch">
+              <controls:ArchivePasswordsControl DataContext="{Binding Passwords}"/>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
     </TabControl>
     <Canvas Name="CreationScreenshotHost" Grid.RowSpan="3" Width="0" Height="0" ClipToBounds="True" IsHitTestVisible="False"/>

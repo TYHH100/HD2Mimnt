@@ -73,8 +73,9 @@ public sealed class ModCollectionImportTests : IDisposable
         Assert.Equal("RS-100“制裁者”潜行轻甲/本体/1.png", mod.Manifest.Options[0].Image);
         Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest.Options[0].Image!)));
 
-        // 外层没有封面时回退第一个组件图片；生成选项只进自有 JSON，作者子清单保持原字节。
-        Assert.Equal("RS-100“制裁者”潜行轻甲/1.png", mod.Manifest.IconPath);
+        // 外层没有封面时卡片留空，不能借用组件图片；作者子清单保持原字节。
+        Assert.Null(mod.Manifest.IconPath);
+        Assert.Empty(mod.ThumbnailPath);
         Assert.True(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
         Assert.Equal(firstManifestJson, await File.ReadAllTextAsync(
             Path.Combine(mod.Path, "RS-100“制裁者”潜行轻甲", "manifest.json")));

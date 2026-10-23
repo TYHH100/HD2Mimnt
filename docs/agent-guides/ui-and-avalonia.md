@@ -4,6 +4,16 @@
 
 ## 易错点与正确做法
 
+- 模组库、配置页及详情面板点击卡片图片放大时，通过 Application 的 `ModService.ReadOriginalPreviewAsync` 读取清单指定图片或根目录图片，再完整解码；不能把卡片的 `IconBitmap` / `Icon` 或生成的 256px 缩略图直接交给放大层。原图由共享预览持有，关闭时释放；加载期间关闭或打开其它图片后，旧加载结果不能重新打开覆盖层。回归同时断言缩略图为 256px、放大图保持原始尺寸。来源：[Avalonia Bitmap](https://docs.avaloniaui.net/docs/reference/graphics/bitmaps)。
+
+- 配置页本地启停、选项和排序操作的 `ProfilesChanged` 经过异步刷新队列时，必须在事件发布时捕获 `IsApplyingLocalChange`，队列执行时按捕获值跳过当前页重复重载；不能读取已在服务返回后复原的抑制标记。自动冲突检查在最后一次变更后等待 1500 ms 合并，过期任务取消并串行清理；后台范围包含配置读取、加载器识别和资源扫描准备，不能仅把最终资源解析放进 `Task.Run`。回归检查连续开关、选项保存、排序后卡片实例保留与只完成一次扫描。来源：[异步场景与 Task.Run](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios)。
+
+- 配置页右键“添加到其他配置文件”复用模组库的 `AddToProfileOverlay`、选择状态和批量添加命令，排除源配置且不预选其它配置；不切换页面、不移除源配置成员。加载器锁定不限制此入口，Escape 和背景点击共用取消流程。来源：[Avalonia UserControl](https://docs.avaloniaui.net/docs/reference/controls/usercontrol)。
+
+- `ProfileService.GetProfileByIdAsync` 是只读查询；需要加载器重排与分组边界修正时显式使用 `NormalizeProfileAsync`。完整配置的创建、改名、排序、激活、复制、成员与选项写入共用 `_mutationGate`，不能让未加闸门的旧快照覆盖并发修改。配置页面加载执行显式规范化，比较及其它查询保持只读。来源：[命令与查询职责](https://martinfowler.com/bliki/CommandQuerySeparation.html)。
+
+- 配置变化事件刷新列表信息时，当前配置内容未变就保留已有模组卡片；修改其它配置或激活状态不能使当前右键菜单、详情和选择持有的卡片失效。内容变化仍须重载；模组元数据变化走完整刷新。回归见 `ProfileViewModelTests.ProfileRefresh_ShouldKeepCurrentCardsWhenOnlyAnotherProfileChanges` 和跨配置删除 UI 测试。
+
 - 设置分类合并为“配置文件（含部署）”“模组库（含搜索）”“存储位置（含缓存）”；保留各分区原有 `settings.*` 稳定 ID，入口自定义仍按分区隐藏，只有组内全部隐藏才移除标签。旧分类跳转映射到所属标签；同标签的保存与恢复默认覆盖组内设置，不重置其它分类，存储路径恢复默认仍只回填、保存后才生效。更新分类列表后同时刷新分区可见性并恢复有效选择。来源：[Avalonia ListBox](https://docs.avaloniaui.net/docs/reference/controls/listbox)。
 
 - 设置保存按当前标签构造一次事务，不验证或写入其它标签的草稿；合并标签的保存/重置都必须整体成功，失败不发布部分设置或运行时事件。外观恢复默认按明确键列表处理，不能清空含 `UI.HiddenEntries` 的整个 UI 分类，更不能调用全局重置。背景选图与清空复用同一流程，保存成功后才改变已保存的背景；异步入口捕获失败并允许重试。参考：[SQLite 事务](https://www.sqlite.org/lang_transaction.html)、[设置持久化检查记录](../reports/settings-persistence-review-2026-10-20.md)。
@@ -110,3 +120,5 @@
 - HD2IAS 组件包与散装文件夹合集共用的两级选项弹窗中，一级组件勾选表示“组件仍参与部署”，由组内选项派生：只要还有任意选项启用就保持勾选，关闭部分选项只排除对应文件，不能把组件显示成未启用；只有组内全部选项关闭时才取消一级勾选。点击一级开关则整组启用/关闭（关闭后再次勾选恢复全部选项）。一级状态必须由保存后的 `OptionToggles` 重新派生，关闭弹窗再打开不能出现一级已勾选、内部却全部关闭或相反的错位。回归覆盖“二级关闭一个选项返回后组件仍勾选、全部关闭才取消、一级重新勾选恢复全部并持久化”。来源：用户 2026-10-18 反馈与本轮回归；[Avalonia CheckBox](https://docs.avaloniaui.net/docs/reference/controls/checkbox)。
 
 - 搜索设置“模糊搜索/拼音搜索”位于“设置 → 搜索”，分类标识 `搜索`、入口 ID `settings.search`、键 `Search.Fuzzy`/`Search.Pinyin`，默认关闭；保存后用 `SettingsService.SettingChanged` 让模组库、配置文件和日志中已有查询立即重算。所有本地搜索框共用 `SearchMatcher`：关闭时保持原有连续包含匹配，模糊搜索只增加不连续字符匹配，拼音搜索使用 `PinyinData.g.cs` 的全拼和首字母（含常见多音字候选），不引入运行时包；在线平台搜索由服务端执行，不套用本地规则。新增此类设置要同时接入三语、分类重置、入口自定义和真实控件回归；拼音表通过 `tools/generate-pinyin-data.py` 重新生成。来源：[xUnit](https://xunit.net/)、[Avalonia Headless](https://docs.avaloniaui.net/docs/concepts/headless/)。
+
+- 创建页的压缩格式、档位、加密和密码库集中在“打包设置”标签页，避免继续增高顶部 Auto 区域、挤压编辑内容。TabControl 与表单 ScrollViewer 的内容显式 Stretch；长路径输入不能撑出右侧按钮。布局回归检查窄窗口、中英文和深浅主题下的实际控件边界、Extent/Viewport 与展开后的滚动，不能只检查 IsEffectivelyVisible。来源：[TabControl](https://docs.avaloniaui.net/controls/navigation/tabcontrol)、[ScrollViewer](https://docs.avaloniaui.net/controls/layout/containers/scrollviewer)。

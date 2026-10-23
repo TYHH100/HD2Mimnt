@@ -322,6 +322,7 @@ public sealed partial class FluentAvaloniaUiTests
             var p = update.TranslatePoint(new Point(20, 12), window)!.Value;
             window.MouseDown(p, MouseButton.Left);
             window.MouseUp(p, MouseButton.Left);
+            await WaitForOnlineAuthorizationAsync(online);
             Assert.True(online.IsWaitingForWebsite);
             Assert.False(online.CanDownload);
             Assert.Equal("https://www.nexusmods.com/helldivers2/mods/16633?tab=files&file_id=457&nmm=1",
@@ -376,12 +377,10 @@ public sealed partial class FluentAvaloniaUiTests
         target.ApplyPlatformLink(await scope.Services.GetRequiredService<ModLinkService>().SaveAsync(target.Id, link));
         const string authorization = "nxm://helldivers2/mods/16633/files/457?key=test-ui-free-key&expires=4102444800&user_id=789";
         var online = library.ModOnline!;
-        // 冷启动/无待处理动作时只提示，不修改库或创建下载。
-        main.ReceiveBrowserProtocolLink(authorization);
-        Assert.Contains(scope.Services.GetRequiredService<NotificationService>().GetRecentNotifications(), n => n.Message.Contains("没有等待"));
         await online.OpenAsync(target);
         online.SelectedFile = online.Files[1];
         var update = online.UpdateCommand.ExecuteAsync(null);
+        await WaitForOnlineAuthorizationAsync(online);
         Assert.True(online.IsWaitingForWebsite);
         online.CancelCommand.Execute(null);
         Assert.False(online.TryReceiveProtocolLink(authorization));
@@ -389,8 +388,13 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.False(online.IsBusy);
         Assert.Equal("1.0.0", (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.Version);
         Assert.Empty(scope.Services.GetRequiredService<DownloadManagerService>().GetAllDownloads());
+        // 已取消更新的迟到回调不能落入独立下载入口，导致意外导入。
+        main.ReceiveBrowserProtocolLink(authorization);
+        Assert.Contains(scope.Services.GetRequiredService<NotificationService>().GetRecentNotifications(), n => n.Message.Contains("任务已取消"));
+        Assert.False(main.BrowseModsViewModel!.IsBusy);
         var path = Path.Combine(scope.Root, "download.zip");
         var wrongAccount = online.DownloadAsync(path);
+        await WaitForOnlineAuthorizationAsync(online);
         Assert.True(online.TryReceiveProtocolLink(authorization.Replace("user_id=789", "user_id=790")));
         await wrongAccount;
         Assert.Contains("账户不同", online.Message);
@@ -400,6 +404,7 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.Contains("浏览器无法打开", online.Message);
         Assert.False(online.IsWaitingForWebsite);
         var staleSelection = online.DownloadAsync(path);
+        await WaitForOnlineAuthorizationAsync(online);
         var requestedFile = online.SelectedFile;
         online.SelectedFile = online.Files[0];
         Assert.False(online.TryReceiveProtocolLink(authorization));
@@ -407,6 +412,7 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.False(File.Exists(path));
         online.SelectedFile = requestedFile;
         var download = online.DownloadAsync(path);
+        await WaitForOnlineAuthorizationAsync(online);
         Assert.True(online.TryReceiveProtocolLink(authorization));
         Assert.False(online.TryReceiveProtocolLink(authorization));
         await download;
@@ -414,7 +420,10 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.NotNull(archive.GetEntry("0123456789abcdef.patch_0"));
         Assert.Equal("1.0.0", (await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(target.Id))!.Version);
         var waiting = online.UpdateCommand.ExecuteAsync(null);
+        await WaitForOnlineAuthorizationAsync(online);
         await online.CloseCommand.ExecuteAsync(null);
+        Assert.True(online.IsWaitingForWebsite && online.IsBusy);
+        await online.StopAsync();
         await waiting;
         Assert.False(online.IsOpen);
         Assert.False(online.TryReceiveProtocolLink(authorization));
@@ -1554,8 +1563,13 @@ public sealed partial class FluentAvaloniaUiTests
                 main.SettingsViewModel.AutoSwitchProfileOnSelect = false;
                 main.SettingsViewModel.DefaultDeploymentMethod = method;
                 main.SettingsViewModel.DeployBottomToTop = method == HD2Mimnt.Core.Enums.DeploymentMethod.Copy;
+                main.SettingsViewModel.SelectedCategory = "游戏";
                 await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
                 Assert.Equal("设置已保存", main.SettingsViewModel.StatusMessage);
+                main.SettingsViewModel.SelectedCategory = "配置文件";
+                await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+                Assert.Equal("配置文件设置已保存", main.SettingsViewModel.StatusMessage);
+                Assert.Equal(method.ToString(), settings.GetSetting(SettingKeys.DefaultDeploymentMethod, ""));
                 // 模拟未保存的下拉修改，部署必须仍使用已保存值。
                 main.SettingsViewModel.DefaultDeploymentMethod = HD2Mimnt.Core.Enums.DeploymentMethod.SymbolicLink;
                 window.UpdateLayout();
@@ -1599,6 +1613,8 @@ public sealed partial class FluentAvaloniaUiTests
                     Assert.Equal("Completed", record.Status);
                 });
                 Assert.Contains("查看的配置", confirmation.Message);
+                Assert.All(main.ProfileViewModel.ProfileMods.Where(mod => !mod.IsSeparator),
+                    mod => Assert.True(mod.IsDeployed));
                 Assert.Contains("启用模组：2 个", confirmation.Message);
                 Assert.Contains(Path.Combine(game, "data"), confirmation.Message);
                 var target = Path.Combine(game, "data", "0123456789abcdef.patch_0");
@@ -1653,7 +1669,8 @@ public sealed partial class FluentAvaloniaUiTests
             await main.LibraryViewModel.OpenAddToProfileDialogCommand.ExecuteAsync(main.LibraryViewModel.FilteredMods[0]);
             window.UpdateLayout();
             var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
-            var surface = view.FindControl<Border>("AddToProfileDialogSurface")!;
+            var surface = view.GetVisualDescendants().OfType<HD2Mimnt.UI.Controls.AddToProfileOverlay>().Single()
+                .FindControl<Border>("AddToProfileDialogSurface")!;
             Color? previousColor = null;
             foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
             {

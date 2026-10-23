@@ -197,7 +197,7 @@ public sealed class BslMechanismTests : IDisposable
         var state = new ProfileModOptionsState();
         await _service.SetModOptionsAsync(profileId, dependency.Id, state);
         await _service.ReorderModsAsync(profileId, new() { loader.Id, dependency.Id, normal.Id });
-        var profile = (await _service.GetProfileByIdAsync(profileId))!;
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
         Assert.Equal(new[] { normal.Id, dependency.Id, loader.Id }, profile.Mods.Select(item => item.ModId));
         Assert.False(profile.Mods[1].Enabled);
         Assert.Equal(state.ToJson(), profile.Mods[1].OptionsJson);
@@ -210,7 +210,7 @@ public sealed class BslMechanismTests : IDisposable
         await _mods.UpdateAsync(dependency);
         profile.Mods.Single(item => item.ModId == loader.Id).Order = -1;
         await _profiles.UpdateAsync(profile);
-        profile = (await _service.GetProfileByIdAsync(profileId))!;
+        profile = (await _service.NormalizeProfileAsync(profileId))!;
         Assert.Equal(loader.Id, profile.Mods.Last().ModId);
         Assert.Equal(BslModRole.Dependency, (await _mods.GetByIdAsync(dependency.Id))!.BslRole);
     }
@@ -235,10 +235,10 @@ public sealed class BslMechanismTests : IDisposable
         var id = await service.CreateProfileAsync("手动顺序");
         await service.SetModsEnabledAsync(id, manual.Select(mod => mod.Id).ToArray(), true);
         await service.ReorderProfileRowsAsync(id, manual.Select(mod => mod.Id).ToArray(), manual.Select(mod => mod.Id).ToArray());
-        var saved = (await service.GetProfileByIdAsync(id))!;
+        var saved = (await service.NormalizeProfileAsync(id))!;
         Assert.Equal(manual.Select(mod => mod.Id), saved.Mods.Select(mod => mod.ModId));
         await service.SetModEnabledAsync(id, loader.Id, false);
-        Assert.False((await service.GetProfileByIdAsync(id))!.Mods.Single(mod => mod.ModId == loader.Id).Enabled);
+        Assert.False((await service.NormalizeProfileAsync(id))!.Mods.Single(mod => mod.ModId == loader.Id).Enabled);
         await service.SetModEnabledAsync(id, loader.Id, true);
         var game = Path.Combine(_root, "manual-game");
         Directory.CreateDirectory(game);
@@ -249,7 +249,7 @@ public sealed class BslMechanismTests : IDisposable
             Assert.Equal(expected[index].Name, await File.ReadAllTextAsync(Path.Combine(game, $"data/9ba626afa44a3aa3.patch_{index}")));
 
         await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
-        saved = (await service.GetProfileByIdAsync(id))!;
+        saved = (await service.NormalizeProfileAsync(id))!;
         Assert.Equal(new[] { normal.Id, dependency.Id, loader.Id, smooth.Id }, saved.Mods.Select(mod => mod.ModId));
         Assert.All(saved.Mods, mod => Assert.True(mod.Enabled));
     }
@@ -278,7 +278,7 @@ public sealed class BslMechanismTests : IDisposable
         await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
         for (var reload = 0; reload < 2; reload++)
         {
-            var profile = (await service.GetProfileByIdAsync(id))!;
+            var profile = (await service.NormalizeProfileAsync(id))!;
             Assert.Equal(new[] { first.Id, second.Id, dependency.Id, loader.Id }, profile.Mods.Select(mod => mod.ModId));
             Assert.Equal(new[] { 0, 1 }, profile.Separators.Select(separator => separator.Order));
             Assert.All(profile.Separators, separator => Assert.Equal(collapsed, separator.IsCollapsed));
@@ -313,7 +313,7 @@ public sealed class BslMechanismTests : IDisposable
         }
         else await service.RemoveModFromProfileAsync(id, dependency.Id);
 
-        var profile = (await service.GetProfileByIdAsync(id))!;
+        var profile = (await service.NormalizeProfileAsync(id))!;
         Assert.Equal(new[] { first.Id, second.Id }, profile.Mods.Select(mod => mod.ModId));
         Assert.Equal(new[] { 0, 1 }, profile.Separators.Select(separator => separator.Order));
         Assert.All(profile.Separators, separator => Assert.Equal(1, separator.MemberCount));
@@ -446,7 +446,7 @@ public sealed class BslMechanismTests : IDisposable
         foreach (var mod in all) await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
         var profileId = await _service.CreateProfileAsync("配置");
         await _service.SetModsEnabledAsync(profileId, all.Reverse().Select(mod => mod.Id).ToArray(), true);
-        var profile = (await _service.GetProfileByIdAsync(profileId))!;
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
         Assert.Equal(all.Select(mod => mod.Id), profile.Mods.Select(item => item.ModId));
         await _service.ReorderModsAsync(profileId, all.Reverse().Select(mod => mod.Id).ToList());
         var game = Path.Combine(_root, "game");

@@ -20,7 +20,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task<AIProviderConfig?> GetActiveProviderAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM AIProviderConfigs WHERE IsEnabled = 1 LIMIT 1";
@@ -36,7 +36,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task<List<AIProviderConfig>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM AIProviderConfigs ORDER BY Name";
@@ -53,7 +53,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task<AIProviderConfig?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM AIProviderConfigs WHERE Id = @Id";
@@ -70,7 +70,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM AIProviderConfigs WHERE Id = @Id";
@@ -82,7 +82,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task AddAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -99,7 +99,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
     {
         config.ModifiedAt = DateTime.UtcNow;
 
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
@@ -121,7 +121,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM AIProviderConfigs WHERE Id = @Id";
@@ -132,7 +132,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task SetActiveProviderAsync(string id, CancellationToken cancellationToken = default)
     {
-        var connection = await _dbContext.GetConnectionAsync(cancellationToken);
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         // Disable all providers first
         using (var command = connection.CreateCommand())

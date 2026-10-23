@@ -62,6 +62,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _allowDuplicateImports;
     [ObservableProperty] private bool _compatibilityCheckOnStartup;
     [ObservableProperty] private bool _compatibilityEnableBatchRepair;
+    [ObservableProperty] private bool _forceManifestV1 = true;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private string _statusMessage = string.Empty;
@@ -242,6 +243,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
+            ForceManifestV1 = await _settingsService.GetSettingAsync(SettingKeys.ForceManifestV1, true);
             LoadCompatibilitySettings();
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
             var method = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
@@ -565,6 +567,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         CompatibilityCheckOnStartup = _settingsService.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false);
         CompatibilityEnableBatchRepair = _settingsService.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false);
+    }
+
+    partial void OnForceManifestV1Changed(bool value)
+    {
+        _ = _settingsService.SetSettingAsync(SettingKeys.ForceManifestV1, value);
     }
 
     private static string FormatBytes(long bytes)

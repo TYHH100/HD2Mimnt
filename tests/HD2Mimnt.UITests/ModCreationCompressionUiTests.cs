@@ -50,6 +50,8 @@ public sealed partial class FluentAvaloniaUiTests
             }
             main.NotificationPanelViewModel.DismissAllToasts(); Layout();
             var view = window.GetVisualDescendants().OfType<ModCreationView>().Single();
+            view.FindControl<TabControl>("CreationTabs")!.SelectedItem = view.FindControl<TabItem>("CreationPackagingTab");
+            Layout();
             var format = view.FindControl<ComboBox>("CreationArchiveFormat")!;
             var compression = view.FindControl<ComboBox>("CreationCompressionLevel")!;
             Assert.Equal("7z", vm.ArchiveExtension); Assert.Equal(4, compression.SelectedIndex);

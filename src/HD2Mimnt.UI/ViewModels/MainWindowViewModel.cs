@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
@@ -14,7 +14,7 @@ using Avalonia.Threading;
 
 namespace HD2Mimnt.UI.ViewModels;
 
-public partial class MainWindowViewModel : ObservableObject
+public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 {
     public ModCompatibilityViewModel? Compatibility { get; }
     public Task StartupCompatibilityTask { get; private set; } = Task.CompletedTask;
@@ -281,6 +281,8 @@ public partial class MainWindowViewModel : ObservableObject
         NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
+        _libraryViewModel.DeploymentStateChanged += _profileViewModel.ApplyDeploymentState;
+        _profileViewModel.AddToOtherProfilesAsync = _libraryViewModel.OpenAddToOtherProfilesAsync;
         _profileViewModel.ModDeleted += () => _libraryViewModel.InitializeAsync();
         _profileViewModel.ModContentChanged += () => _libraryViewModel.InitializeAsync();
         _profileViewModel.ModUpdatesRequested += (_, mod) =>
@@ -308,11 +310,11 @@ public partial class MainWindowViewModel : ObservableObject
         _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
         _settingsViewModel.AutoCheckConflictsChanged += (_, enabled) =>
             ApplyOnUiThread(() => _conflictsViewModel.SetAutomaticChecking(enabled));
-        _backupViewModel.RestoreCompleted += OnBackupRestored;
+        _backupViewModel.RefreshAfterRestoreAsync = OnBackupRestoredAsync;
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
         _modService.ModsChanged += OnModsChanged;
-        _modService.MetadataChanged += (_, _) => ApplyOnUiThread(async () =>
+        _modService.MetadataChanged += (_, _) => QueueUiRefresh(async () =>
             await _profileViewModel.RefreshAfterProfilesChangedAsync());
         _profileService.ProfilesChanged += OnProfilesChanged;
         _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
@@ -346,11 +348,12 @@ public partial class MainWindowViewModel : ObservableObject
         _gameDetectionService.GameStatusChanged += OnGameStatusChanged;
         _notificationService.NotificationAdded += OnNotificationAdded;
         _taskService.TaskCompleted += OnTaskCompleted;
+        _taskService.TaskStarted += OnTaskStarted;
     }
 
     private void OnGameStatusChanged(object? sender, GameStatusChangedEventArgs e)
     {
-        ApplyOnUiThread(async () =>
+        QueueUiRefresh(async () =>
         {
             GameDetected = e.NewStatus == Application.Services.GameStatus.Found;
             GamePath = e.GameInfo.Path;
@@ -392,6 +395,43 @@ public partial class MainWindowViewModel : ObservableObject
         ApplyOnUiThread(() => UnreadNotificationCount = _notificationService.GetUnreadCount());
     }
 
+    private readonly Services.AsyncOperationQueue _refreshes = new();
+
+    private bool _disposed;
+
+    private void QueueUiRefresh(Func<Task> refresh) => _ = QueueUiRefreshAsync(refresh);
+
+    private Task QueueUiRefreshAsync(Func<Task> refresh)
+        => _disposed ? Task.CompletedTask : _refreshes.Enqueue(async () =>
+        {
+            try
+            {
+                if (Dispatcher.UIThread.CheckAccess() || global::Avalonia.Application.Current is null) await refresh();
+                else await Dispatcher.UIThread.InvokeAsync(refresh);
+            }
+            catch (Exception error)
+            {
+                ApplyOnUiThread(() => _notificationService.ShowError($"刷新界面失败：{error.Message}", "界面刷新"));
+            }
+        });
+
+    public Task WaitForRefreshesAsync() => _refreshes.DrainAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _modService.ModsChanged -= OnModsChanged;
+        _profileService.ProfilesChanged -= OnProfilesChanged;
+        _profileViewModel.ActiveProfileChanged -= OnActiveProfileChanged;
+        _taskService.TaskCompleted -= OnTaskCompleted;
+        _taskService.TaskStarted -= OnTaskStarted;
+        _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
+        _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
+        _backupViewModel.RefreshAfterRestoreAsync = null;
+        await WaitForRefreshesAsync();
+    }
+
     private static void ApplyOnUiThread(Action action)
     {
         if (Dispatcher.UIThread.CheckAccess() || global::Avalonia.Application.Current is null)
@@ -405,14 +445,10 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnTaskCompleted(object? sender, TaskCompletedEventArgs e)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            _ = HandleTaskCompletedAsync(e.Task);
-            return;
-        }
-
-        Dispatcher.UIThread.Post(() => _ = HandleTaskCompletedAsync(e.Task));
+        QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
     }
+
+    private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);
 
     private async Task HandleTaskCompletedAsync(Core.Entities.ModTask task)
     {
@@ -459,17 +495,17 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private async void OnActiveProfileChanged(object? sender, EventArgs e)
+    private Task OnActiveProfileChanged() => QueueUiRefreshAsync(async () =>
     {
         await _libraryViewModel.RefreshProfileStateAsync();
         UpdateCurrentProfile();
-    }
+    });
 
     private void OnModsChanged(object? sender, EventArgs e)
     {
         if (Compatibility?.IsMutating == true) return;
         // 模组增删后联动刷新配置文件页（库页自行重载）
-        ApplyOnUiThread(async () =>
+        QueueUiRefresh(async () =>
         {
             _conflictsViewModel.InvalidateResults();
             await _profileViewModel.RefreshAfterProfilesChangedAsync();
@@ -480,18 +516,22 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
     {
+        // 在事件发布时捕获；排队刷新执行时，本地操作的抑制范围可能已经结束。
+        var isLocalChange = _profileViewModel.IsApplyingLocalChange;
         // 配置文件数据变更（含模组成员/启用状态）联动刷新配置文件页与库页统计、归属状态
-        ApplyOnUiThread(async () =>
+        QueueUiRefresh(async () =>
         {
             if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
-            await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            if (!isLocalChange) await _profileViewModel.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
             await _libraryViewModel.RefreshProfileStateAsync();
             SyncConflictProfile();
             UpdateCurrentProfile();
         });
     }
 
-    private async void OnBackupRestored(object? sender, EventArgs e)
+    private Task OnBackupRestoredAsync() => _refreshes.Enqueue(ReloadAfterBackupAsync);
+
+    private async Task ReloadAfterBackupAsync()
     {
         await RestoreNexusCredentialsAsync();
         await _profileService.InitializeAsync();
@@ -541,6 +581,7 @@ public partial class MainWindowViewModel : ObservableObject
             await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
+        await WaitForRefreshesAsync();
         StatusBarText = "Application initialized";
         if (!_startupCompatibilityStarted)
         {
@@ -609,7 +650,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnSelectedTabIndexChanged(int oldValue, int newValue)
     {
         if (oldValue == 5 && newValue != 5 && BrowseModsViewModel != null)
-            _ = BrowseModsViewModel.StopAsync();
+            _ = BrowseModsViewModel.LeavePageAsync();
         if (oldValue == 4 && newValue != 4) _ = _settingsViewModel.StopAccountsAsync();
     }
 
@@ -725,6 +766,11 @@ public partial class MainWindowViewModel : ObservableObject
             _imagePreview.Close();
             return;
         }
+        if (_libraryViewModel.IsAddToProfileDialogOpen)
+        {
+            _libraryViewModel.CancelAddToProfileCommand.Execute(null);
+            return;
+        }
         if (SelectedTabIndex == 5 && BrowseModsViewModel is { } browse)
         {
             if (browse.IsLoadingImage) { browse.CancelImagePreview(); return; }
@@ -770,19 +816,36 @@ public partial class MainWindowViewModel : ObservableObject
     public void ReceiveBrowserProtocolLink(string value)
     {
         if (value.Length == 0) return;
-        if (BrowseModsViewModel is { IsWaitingForWebsite: true } browse && browse.TryReceiveProtocolLink(value))
+        if (BrowseModsViewModel is { IsWaitingForWebsite: true } browse && browse.TryReceiveProtocolLink(value, ignoreMismatch: true)) return;
+        if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } waitingOnline &&
+            waitingOnline.TryReceiveProtocolLink(value, ignoreMismatch: true)) return;
+        if (BrowseModsViewModel is { IsWaitingForWebsite: true } waitingBrowse)
         {
-            SelectedTabIndex = 5;
+            waitingBrowse.TryReceiveProtocolLink(value);
             return;
         }
         if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } online)
         {
-            SelectedTabIndex = 1;
             online.TryReceiveProtocolLink(value);
+            return;
         }
-        else if (_libraryViewModel.ModOnline?.IsBusy != true)
+        if (BrowseModsViewModel?.IsCancelledProtocolLink(value) == true ||
+            _libraryViewModel.ModOnline?.IsCancelledProtocolLink(value) == true)
+        {
             _notificationService.ShowWarning(
-                "已收到 N 网下载链接，但当前没有等待网页授权的任务。请先在开发工具应用 API 密钥，再从模组库选择文件并点击下载或更新。", "N 网下载");
+                "对应的网页下载任务已取消。请重新发起下载。", "N 网下载");
+            return;
+        }
+        if (BrowseModsViewModel is not { IsBusy: false } receiver || !receiver.PlatformChange.IsCompleted ||
+            _libraryViewModel.ModOnline?.IsBusy == true)
+        {
+            _notificationService.ShowWarning("当前下载操作尚未结束，请完成或取消后重新打开 N 网下载链接。", "N 网下载");
+            return;
+        }
+        SelectedTabIndex = 5;
+        CurrentView = receiver;
+        StatusBarText = "浏览模组";
+        _ = receiver.DownloadProtocolLinkAsync(value);
     }
 
     public async Task<bool> CanCloseAsync()
@@ -805,7 +868,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
-        if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.LeavePageAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {
             await migration.CancelAndWaitAsync();
@@ -825,20 +888,32 @@ public partial class MainWindowViewModel : ObservableObject
             if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
             await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
+            await StopPlatformDownloadsAsync();
+            await _taskService.CancelAllAndWaitAsync();
+            await WaitForRefreshesAsync();
             return true;
         }
 
         var canClose = await _confirmationService.ConfirmAsync(
             "退出应用",
-            $"当前仍有 {runningTasks.Count()} 个后台任务运行中。退出可能中断正在进行的操作，确定退出吗？");
+            $"当前仍有 {runningTasks.Count()} 个后台任务运行中。将取消任务并等待清理完成，确定退出吗？");
         if (canClose)
         {
             if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
             await _conflictsViewModel.StopScanAsync();
             _taskCenterViewModel.StopAutoRefresh();
+            await StopPlatformDownloadsAsync();
+            await _taskService.CancelAllAndWaitAsync();
+            await WaitForRefreshesAsync();
         }
 
         return canClose;
+    }
+
+    private async Task StopPlatformDownloadsAsync()
+    {
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
+        if (_libraryViewModel.ModOnline is { } online) await online.StopAsync();
     }
 
     private void OnThemeChanged(object? sender, string theme)
@@ -847,7 +922,7 @@ public partial class MainWindowViewModel : ObservableObject
         ApplyTransparencyBrushes();
     }
 
-    private void OnAppearanceChanged(object? sender, EventArgs e) => _ = ApplyAppearanceAsync();
+    private void OnAppearanceChanged(object? sender, EventArgs e) => QueueUiRefresh(ApplyAppearanceAsync);
 
     /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
     public async Task ApplyAppearanceAsync()

@@ -21,7 +21,6 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
         ".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz",
     };
 
-    private static readonly ReaderOptions ReaderOptions = CreateReaderOptions();
 
     private readonly ILogger<SharpCompressArchiveExtractor>? _logger;
 
@@ -39,45 +38,89 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
         string archivePath,
         string destinationDirectory,
         CancellationToken cancellationToken = default)
+        => await ExtractWithPasswordAsync(archivePath, destinationDirectory, null, cancellationToken);
+
+    public async Task ExtractWithPasswordAsync(string archivePath, string destinationDirectory, string? password,
+        CancellationToken cancellationToken = default)
     {
         if (!File.Exists(archivePath))
         {
             throw new FileNotFoundException($"压缩包不存在: {archivePath}");
         }
 
-        Directory.CreateDirectory(destinationDirectory);
+        var staging = Path.GetFullPath(destinationDirectory).TrimEnd(Path.DirectorySeparatorChar) + "." + Guid.NewGuid().ToString("N") + ".extract";
+        Directory.CreateDirectory(staging);
+        var encrypted = false;
+        var isSevenZip = false;
+        var options = CreateReaderOptions(password);
+        try
+        {
 
-        // SharpCompress 的读取 API 是同步的，放到线程池执行避免阻塞调用方（UI 线程）。
-        await Task.Run(
-            () =>
-            {
-                using var stream = File.OpenRead(archivePath);
-                // 7z 需要可定位的 Archive API，ReaderFactory 的流式格式列表不包含它。
-                var isSevenZip = SevenZipArchive.IsSevenZipFile(stream);
-                stream.Position = 0;
-                using var archive = isSevenZip ? ArchiveFactory.OpenArchive(stream, ReaderOptions) : null;
-                using var reader = archive != null ? archive.ExtractAllEntries() : OpenReader(stream, archivePath);
-                while (reader.MoveToNextEntry())
+            // SharpCompress 的读取 API 是同步的，放到线程池执行避免阻塞调用方（UI 线程）。
+            await Task.Run(
+                () =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (reader.Entry.IsDirectory)
+                    using var stream = File.OpenRead(archivePath);
+                    // 7z 需要可定位的 Archive API，ReaderFactory 的流式格式列表不包含它。
+                    isSevenZip = SevenZipArchive.IsSevenZipFile(stream);
+                    stream.Position = 0;
+                    if (!isSevenZip && SharpCompress.Archives.Zip.ZipArchive.IsZipFile(stream))
                     {
-                        continue;
+                        using var zip = SharpCompress.Archives.Zip.ZipArchive.OpenArchive(Reset(stream), options);
+                        foreach (var entry in zip.Entries)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            encrypted |= entry.IsEncrypted;
+                            if (entry.IsEncrypted && password == null) throw new ArchivePasswordRequiredException();
+                            if (entry.IsDirectory) continue;
+                            entry.WriteToDirectory(staging, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                        }
+                        return;
                     }
+                    using var archive = isSevenZip ? ArchiveFactory.OpenArchive(Reset(stream), options) : null;
+                    using var reader = archive != null ? archive.ExtractAllEntries() : OpenReader(Reset(stream), archivePath, options);
+                    while (reader.MoveToNextEntry())
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        encrypted |= reader.Entry.IsEncrypted;
+                        if (reader.Entry.IsEncrypted && password == null) throw new ArchivePasswordRequiredException();
+                        if (reader.Entry.IsDirectory)
+                        {
+                            continue;
+                        }
 
-                    reader.WriteEntryToDirectory(
-                        destinationDirectory,
-                        new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                }
-            },
-            cancellationToken);
+                        reader.WriteEntryToDirectory(
+                            staging,
+                            new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                    }
+                },
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(destinationDirectory);
+            foreach (var directory in Directory.EnumerateDirectories(staging, "*", SearchOption.AllDirectories))
+                Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(staging, directory)));
+            foreach (var file in Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                File.Move(file, Path.Combine(destinationDirectory, Path.GetRelativePath(staging, file)), true);
+            }
+        }
+        catch (SharpCompressException ex) when (isSevenZip && password != null
+            && ex.GetType().FullName == "SharpCompress.Compressors.LZMA.DataErrorException")
+        { throw new ArchivePasswordRequiredException(); }
+        catch (SharpCompress.Common.CryptographicException) { throw new ArchivePasswordRequiredException(); }
+        catch (Exception ex) when (encrypted && ex is SharpCompressException or InvalidDataException)
+        { throw new ArchivePasswordRequiredException(); }
+        finally { Directory.Delete(staging, true); }
     }
 
-    private static IReader OpenReader(Stream stream, string archivePath)
+    private static Stream Reset(Stream stream) { stream.Position = 0; return stream; }
+
+    private static IReader OpenReader(Stream stream, string archivePath, ReaderOptions options)
     {
         try
         {
-            return ReaderFactory.OpenReader(stream, ReaderOptions);
+            return ReaderFactory.OpenReader(stream, options);
         }
         catch (InvalidFormatException ex)
         {
@@ -85,17 +128,18 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
         }
     }
 
-    private static ReaderOptions CreateReaderOptions()
+    private static ReaderOptions CreateReaderOptions(string? password)
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var ansiEncoding = Encoding.GetEncoding(936);
 
         return new ReaderOptions
         {
+            Password = password,
             ArchiveEncoding = new ArchiveEncoding
             {
                 Default = ansiEncoding,
-                Password = ansiEncoding,
+                Password = Encoding.UTF8,
             },
         };
     }

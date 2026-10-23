@@ -92,6 +92,19 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
         => Platform is IModDownloadAccessPlatform access ? access.HasDirectDownloadAccessAsync(token)
             : Task.FromResult(false);
 
+    /// <summary>网页直接打开 NXM 时，依据链接解析所授权的文件，无需预先选择模组。</summary>
+    public async Task<(PlatformModInfo Mod, PlatformModFile File)> ResolveProtocolDownloadAsync(
+        string input, CancellationToken token = default)
+    {
+        var platform = platforms.GetPlatform("nexusmods");
+        if (platform is not IModProtocolDownloadPlatform protocol || platform is not IModBrowsePlatform browser)
+            throw new NotSupportedException("此平台不支持网页授权下载。");
+        var target = protocol.ReadProtocolTarget(input);
+        var file = await protocol.ResolveProtocolFileAsync(target.ModId, input, token);
+        var mod = await browser.GetBrowseDetailsAsync(target.ModId, token);
+        return (mod, file);
+    }
+
     /// <summary>下载到独立临时目录，交给现有导入流程；导入返回后才清理源文件。</summary>
     public async Task DownloadAndImportAsync(string modId, PlatformModFile file, string? input,
         Func<string, CancellationToken, Task> importArchive, IProgress<DownloadProgress>? progress = null,
@@ -115,7 +128,9 @@ public sealed class ModBrowseService(IPlatformRegistry platforms, DownloadManage
 
     public void ValidateProtocolTarget(string modId, PlatformModFile file, string input)
     {
-        var target = Protocol.ReadProtocolTarget(input);
+        var protocol = platforms.GetPlatform("nexusmods") as IModProtocolDownloadPlatform
+            ?? throw new NotSupportedException("此平台不支持网页授权下载。");
+        var target = protocol.ReadProtocolTarget(input);
         if (target.PlatformId != "nexusmods" || target.GameDomain != "helldivers2" || target.ModId != modId || target.WebsiteFileId != file.WebsiteFileId)
             throw new ArgumentException("网页授权与所选模组或文件不一致，请从所选文件网页重新获取授权。");
     }
