@@ -5,6 +5,13 @@
 - 范围：全部 11 个 csproj（src 6.5 万行 / tests 4.1 万行），只读审查，未修改任何代码
 - 方法：4 路并行专项审查（结构分层、安全、Application+Infrastructure 质量、UI 质量）+ 构建与测试实测 + 高严重度结论人工抽查复核
 
+> **执行状态（2026-10-24 更新）**
+> - ✅ Phase 0 已完成并提交（`2335e0f`）：slnx 补齐 3 项目；UI 引用 PluginHost/Worker 保证 exe 随主程序输出；删除 4 个 Class1.cs；移除 EFCore.InMemory；.gitignore 修正；UITests 命名空间归位。
+> - ✅ Phase 1 已完成并提交（`1e120b1`）：CrashGuard 三件套全局异常兜底 + SafeAsync 包装；退出序列接入 Host Dispose 与主 VM 释放；TaskService 进度节流（死锁诱因消除）；PluginHostManager/WorkerHostManager 生命周期修复；IPC 改 Type 分发（原抽象基类反序列化必炸）；ThumbnailService 边缘伪影修复；28 个失败测试全部修复（ImageCache 簇迁 UITests 改 [AvaloniaFact]——其原静态构造在 xunit 工作线程初始化 Avalonia 即炸，亦是整套件偶发挂起的根源）。
+> - 验证：HD2Mimnt.Tests **1442/1442 连续两次全绿、无挂起**。
+> - ⚠️ 遗留：UITests 存在 **137 个预存环境性失败**（"Cannot get KeyValueStorage on the idle test context"，在 Phase 0 之前的基线上同样失败，与本方案改动无关），修复需调查 headless 平台配置，建议纳入 Phase 4。
+> - 待执行：Phase 2（安全加固）、Phase 3（数据层与资源）、Phase 4（结构治理）。
+
 ---
 
 ## 0. 总体结论
