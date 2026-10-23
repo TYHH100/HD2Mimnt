@@ -60,6 +60,26 @@
   <Style Selector="Border.mod-card"><Setter Property="Margin" Value="0,4"/><Setter Property="Padding" Value="14,10"/></Style>
   <Style Selector="Border.mod-card.compact"><Setter Property="Padding" Value="14,6"/></Style>
   <Style Selector="Border.mod-card:pointerover, Border.sub-choice:pointerover"><Setter Property="Background" Value="{DynamicResource Surface3Brush}"/></Style>
+  <!-- 配置页分隔符分组的连贯半透明色板：铺在成员卡片底层，透明度跟随外观设置的卡片不透明度。 -->
+  <Style Selector="Border.group-slab.is-group">
+    <Setter Property="Background" Value="{DynamicResource GroupTintFallbackBrush}"/>
+    <Setter Property="Opacity" Value="{DynamicResource CardSurfaceOpacity}"/>
+  </Style>
+  <Style Selector="Border.group-slab.is-group.custom-tint">
+    <Setter Property="Background" Value="{ReflectionBinding GroupTintBrush}"/>
+  </Style>
+  <Style Selector="Border.group-slab.is-group.slab-start">
+    <Setter Property="CornerRadius" Value="8,8,0,0"/>
+  </Style>
+  <Style Selector="Border.group-slab.is-group.slab-end">
+    <Setter Property="CornerRadius" Value="0,0,8,8"/>
+  </Style>
+  <Style Selector="Border.group-slab.is-group.slab-start.slab-end">
+    <Setter Property="CornerRadius" Value="8"/>
+  </Style>
+  <Style Selector="Border.group-member-host.is-group">
+    <Setter Property="Padding" Value="10,0"/>
+  </Style>
   <Style Selector="Border.option-card"><Setter Property="Padding" Value="12,10"/></Style>
   <Style Selector="Border.sub-choice"><Setter Property="Padding" Value="10,8"/></Style>
   <Style Selector="Border.chip">

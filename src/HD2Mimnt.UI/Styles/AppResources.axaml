@@ -49,6 +49,8 @@
   <SolidColorBrush x:Key="CardFillBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ChromeFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ContentFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
+  <!-- 分隔符分组色板的默认底色：未设置自定义颜色时跟随主题强调色。 -->
+  <SolidColorBrush x:Key="GroupTintFallbackBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.15"/>
   <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
   <CornerRadius x:Key="SubtleCornerRadius">2</CornerRadius>
   <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>

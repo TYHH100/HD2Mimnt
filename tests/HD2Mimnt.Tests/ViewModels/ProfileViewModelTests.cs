@@ -545,6 +545,52 @@ public sealed class ProfileViewModelTests : IDisposable
         Assert.Single(vm.ProfileSeparators);
     }
 
+    [Fact]
+    public async Task GroupSlab_ShouldTintExpandedMembersWithSeparatorColorAndClearWhenCollapsed()
+    {
+        var mods = new List<Mod>();
+        for (var i = 0; i < 4; i++) mods.Add(await AddModAsync($"Slab {i}"));
+        var profileId = await _profileService.CreateProfileAsync("分组色板");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var colored = await _profileService.AddSeparatorAsync(profileId, "有色", 1, "#F08020");
+        await _profileService.AddSeparatorAsync(profileId, "主题色", 3);
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        var first = vm.ProfileMods.Single(row => row.ModId == mods[1].Id);
+        var second = vm.ProfileMods.Single(row => row.ModId == mods[2].Id);
+        var outside = vm.ProfileMods.Single(row => row.ModId == mods[0].Id);
+        var themed = vm.ProfileMods.Single(row => row.ModId == mods[3].Id);
+
+        Assert.True(first.IsInsideGroup);
+        var tint = Assert.IsType<Avalonia.Media.Immutable.ImmutableSolidColorBrush>(first.GroupTintBrush);
+        Assert.Equal(0xF0, tint.Color.R);
+        Assert.Equal(0x80, tint.Color.G);
+        Assert.Equal(0x20, tint.Color.B);
+        Assert.Equal(38, tint.Color.A);
+        Assert.True(first.IsSlabStart);
+        Assert.False(first.IsSlabEnd);
+        Assert.True(second.IsInsideGroup);
+        Assert.False(second.IsSlabStart);
+        Assert.True(second.IsSlabEnd);
+        Assert.False(outside.IsInsideGroup);
+        Assert.Null(outside.GroupTintBrush);
+        Assert.True(themed.IsInsideGroup);
+        Assert.Null(themed.GroupTintBrush);
+        Assert.True(themed.IsSlabStart && themed.IsSlabEnd);
+
+        var separatorRow = vm.ProfileSeparators.Single(row => row.ModId == colored.Id);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(separatorRow);
+        Assert.True(separatorRow.IsCollapsed);
+        Assert.DoesNotContain(vm.ProfileRows, row => row.ModId == mods[1].Id || row.ModId == mods[2].Id);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(separatorRow);
+        first = vm.ProfileMods.Single(row => row.ModId == mods[1].Id);
+        second = vm.ProfileMods.Single(row => row.ModId == mods[2].Id);
+        Assert.True(first.IsInsideGroup && first.IsSlabStart && !first.IsSlabEnd);
+        Assert.True(second.IsInsideGroup && second.IsSlabEnd && !second.IsSlabStart);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

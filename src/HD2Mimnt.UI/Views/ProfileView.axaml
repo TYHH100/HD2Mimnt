@@ -178,8 +178,13 @@
                     </Grid>
                   </Grid>
                 </Border>
-                <!-- 使用 FluentAvalonia 原生 ListBoxItem 选中模板，保持与模组库单选效果一致。 -->
-                <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}" Classes="profile-mod-item" IsVisible="{Binding !IsSeparator}">
+                <!-- 分组成员的连贯半透明色板铺在卡片底层；成员在色板内水平内缩，形成分组包裹感。 -->
+                <Grid IsVisible="{Binding !IsSeparator}">
+                  <Border Classes="group-slab" Classes.is-group="{Binding IsInsideGroup}" Classes.custom-tint="{Binding HasCustomGroupTint}"
+                          Classes.slab-start="{Binding IsSlabStart}" Classes.slab-end="{Binding IsSlabEnd}"/>
+                  <Border Classes="group-member-host" Classes.is-group="{Binding IsInsideGroup}">
+                    <!-- 使用 FluentAvalonia 原生 ListBoxItem 选中模板，保持与模组库单选效果一致。 -->
+                    <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}" Classes="profile-mod-item">
                   <Border x:Name="ProfileTutorialCard" Classes="mod-card" Classes.conflict-location="{Binding IsConflictLocation}"
                           PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved"
                           ContextRequested="ModCard_ContextRequested">
@@ -270,7 +275,9 @@
 
                     </Grid>
                   </Border>
-                </ListBoxItem>
+                    </ListBoxItem>
+                  </Border>
+                </Grid>
               </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

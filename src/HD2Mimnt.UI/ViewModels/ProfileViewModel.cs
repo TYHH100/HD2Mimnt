@@ -689,6 +689,7 @@ public partial class ProfileViewModel : ObservableObject
             if (separator.GroupModCount > 0) rows.Add(separator);
             rows.AddRange(fixedRows);
         }
+        MarkGroupSlabs(rows);
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
         ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
         HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
@@ -828,6 +829,44 @@ public partial class ProfileViewModel : ObservableObject
             ? BuildOrdinaryRows().SkipWhile(row => row != separator).Skip(1).TakeWhile(row => !row.IsUserSeparator)
                 .Take(separator.MemberCount ?? int.MaxValue).ToList()
             : ProfileMods.Where(row => row.IsFixedGroupMember).ToList();
+
+    /// <summary>
+    /// 展开的分隔符分组为成员卡片标记连贯半透明色板：颜色取分隔符自定义色，
+    /// 空值保持 null 由样式回退到主题强调色；只标记当前显示的行，首尾成员决定色板圆角。
+    /// </summary>
+    private void MarkGroupSlabs(IReadOnlyList<ProfileModViewModel> rows)
+    {
+        foreach (var row in rows)
+        {
+            row.IsInsideGroup = false;
+            row.GroupTintBrush = null;
+            row.IsSlabStart = false;
+            row.IsSlabEnd = false;
+        }
+        var visible = new HashSet<ProfileModViewModel>(rows);
+        foreach (var separator in rows.Where(row => row.IsUserSeparator))
+            MarkSlabMembers(GetSeparatorMembers(separator).Where(visible.Contains).ToList(), separator.SeparatorColor);
+        if (rows.Contains(_luaSeparator))
+            MarkSlabMembers(ProfileMods.Where(mod => mod.IsFixedGroupMember && visible.Contains(mod)).ToList(),
+                _luaSeparator.SeparatorColor);
+    }
+
+    private static void MarkSlabMembers(List<ProfileModViewModel> members, string separatorColor)
+    {
+        if (members.Count == 0) return;
+        IBrush? tint = null;
+        if (Color.TryParse(separatorColor, out var color))
+            // 不可变画刷没有线程亲和限制，列表刷新可能在后台上下文构建。
+            tint = new Avalonia.Media.Immutable.ImmutableSolidColorBrush(Color.FromArgb(38, color.R, color.G, color.B));
+        for (var index = 0; index < members.Count; index++)
+        {
+            var member = members[index];
+            member.IsInsideGroup = true;
+            member.GroupTintBrush = tint;
+            member.IsSlabStart = index == 0;
+            member.IsSlabEnd = index == members.Count - 1;
+        }
+    }
 
     private void AdjustSeparatorPositionsAfterRemoval(IReadOnlyCollection<ProfileModViewModel> removed)
     {

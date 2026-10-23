@@ -61,6 +61,23 @@ public partial class ProfileModViewModel : ObservableObject
     public bool HasCustomSeparatorColor => Color.TryParse(SeparatorColor, out _);
     public IBrush? SeparatorColorBrush => Color.TryParse(SeparatorColor, out var color) ? new SolidColorBrush(color) : null;
     public bool IsExpanded => !IsCollapsed;
+
+    /// <summary>是否位于展开分组的连贯半透明色板上（成员卡片）。</summary>
+    [ObservableProperty]
+    private bool _isInsideGroup;
+
+    /// <summary>分组色板的自定义颜色（已按固定透明度混合）；null 表示跟随主题，由样式回退到主题强调色。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCustomGroupTint))]
+    private IBrush? _groupTintBrush;
+    public bool HasCustomGroupTint => GroupTintBrush != null;
+
+    /// <summary>色板的首/尾成员，决定连贯底色的圆角方向。</summary>
+    [ObservableProperty]
+    private bool _isSlabStart;
+
+    [ObservableProperty]
+    private bool _isSlabEnd;
     public BslModRole BslRole { get; init; }
     public bool IsBslMember => BslRole != BslModRole.None;
     public bool LoaderLockEnabled { get; init; } = true;
