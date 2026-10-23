@@ -21,7 +21,7 @@ public class NamedPipeServer : IDisposable
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Message,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 
     public async Task WaitForConnectionAsync(CancellationToken cancellationToken = default)

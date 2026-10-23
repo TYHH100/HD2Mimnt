@@ -24,7 +24,7 @@ public class PluginRepository : IPluginRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Version, Author, Description, ManifestPath, AssemblyPath,
-                   InstalledAt, Enabled, PermissionMode
+                   AssemblySha256, InstalledAt, Enabled, PermissionMode
             FROM Plugins
             WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", pluginId);
@@ -45,7 +45,7 @@ public class PluginRepository : IPluginRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Version, Author, Description, ManifestPath, AssemblyPath,
-                   InstalledAt, Enabled, PermissionMode
+                   AssemblySha256, InstalledAt, Enabled, PermissionMode
             FROM Plugins
             ORDER BY Name";
 
@@ -66,7 +66,7 @@ public class PluginRepository : IPluginRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             SELECT Id, Name, Version, Author, Description, ManifestPath, AssemblyPath,
-                   InstalledAt, Enabled, PermissionMode
+                   AssemblySha256, InstalledAt, Enabled, PermissionMode
             FROM Plugins
             WHERE Enabled = 1
             ORDER BY Name";
@@ -88,9 +88,9 @@ public class PluginRepository : IPluginRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             INSERT INTO Plugins (Id, Name, Version, Author, Description, ManifestPath,
-                                AssemblyPath, InstalledAt, Enabled, PermissionMode)
+                                AssemblyPath, AssemblySha256, InstalledAt, Enabled, PermissionMode)
             VALUES (@Id, @Name, @Version, @Author, @Description, @ManifestPath,
-                    @AssemblyPath, @InstalledAt, @Enabled, @PermissionMode)";
+                    @AssemblyPath, @AssemblySha256, @InstalledAt, @Enabled, @PermissionMode)";
 
         command.Parameters.AddWithValue("@Id", plugin.Id);
         command.Parameters.AddWithValue("@Name", plugin.Name);
@@ -99,6 +99,7 @@ public class PluginRepository : IPluginRepository
         command.Parameters.AddWithValue("@Description", plugin.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@ManifestPath", plugin.ManifestPath);
         command.Parameters.AddWithValue("@AssemblyPath", plugin.AssemblyPath);
+        command.Parameters.AddWithValue("@AssemblySha256", (object?)plugin.AssemblySha256 ?? DBNull.Value);
         command.Parameters.AddWithValue("@InstalledAt", plugin.InstalledAt.ToString("O"));
         command.Parameters.AddWithValue("@Enabled", plugin.Enabled ? 1 : 0);
         command.Parameters.AddWithValue("@PermissionMode", plugin.PermissionMode);
@@ -114,7 +115,7 @@ public class PluginRepository : IPluginRepository
         command.CommandText = @"
             UPDATE Plugins
             SET Name = @Name, Version = @Version, Author = @Author, Description = @Description,
-                ManifestPath = @ManifestPath, AssemblyPath = @AssemblyPath,
+                ManifestPath = @ManifestPath, AssemblyPath = @AssemblyPath, AssemblySha256 = @AssemblySha256,
                 Enabled = @Enabled, PermissionMode = @PermissionMode
             WHERE Id = @Id";
 
@@ -125,6 +126,7 @@ public class PluginRepository : IPluginRepository
         command.Parameters.AddWithValue("@Description", plugin.Description ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@ManifestPath", plugin.ManifestPath);
         command.Parameters.AddWithValue("@AssemblyPath", plugin.AssemblyPath);
+        command.Parameters.AddWithValue("@AssemblySha256", (object?)plugin.AssemblySha256 ?? DBNull.Value);
         command.Parameters.AddWithValue("@Enabled", plugin.Enabled ? 1 : 0);
         command.Parameters.AddWithValue("@PermissionMode", plugin.PermissionMode);
 
@@ -165,9 +167,10 @@ public class PluginRepository : IPluginRepository
             Description = reader.IsDBNull(4) ? null : reader.GetString(4),
             ManifestPath = reader.GetString(5),
             AssemblyPath = reader.GetString(6),
-            InstalledAt = DateTime.Parse(reader.GetString(7)),
-            Enabled = reader.GetInt32(8) == 1,
-            PermissionMode = reader.GetString(9)
+            AssemblySha256 = reader.IsDBNull(7) ? null : reader.GetString(7),
+            InstalledAt = DateTime.Parse(reader.GetString(8)),
+            Enabled = reader.GetInt32(9) == 1,
+            PermissionMode = reader.GetString(10)
         };
     }
 }

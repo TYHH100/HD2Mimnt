@@ -40,7 +40,14 @@ public sealed class DirectDownloadService(IDirectDownloadClientFactory clients, 
         proxy.Validate();
         if (importArchive == null && string.IsNullOrWhiteSpace(destination))
             throw new ArgumentException("请选择下载文件夹。");
-        var options = await optionsProvider.GetOptionsAsync();
+        // 直连下载由用户显式发起并可选自配置 http 代理，属用户选择的明文通道
+        var saved = await optionsProvider.GetOptionsAsync();
+        var options = new DownloadOptions
+        {
+            MaxParallelSegments = saved.MaxParallelSegments, MinimumSegmentSize = saved.MinimumSegmentSize,
+            MaxRetries = saved.MaxRetries, RetryDelay = saved.RetryDelay, EnableResume = saved.EnableResume,
+            OverwriteExisting = saved.OverwriteExisting, AllowInsecureHttp = true
+        };
         using var client = clients.Create(proxy);
         var info = await client.GetInfoAsync(uri, token);
         var name = SanitizeFileName(string.IsNullOrWhiteSpace(fileName) ? info.FileName : fileName);
@@ -53,7 +60,9 @@ public sealed class DirectDownloadService(IDirectDownloadClientFactory clients, 
             {
                 MaxParallelSegments = options.MaxParallelSegments, MinimumSegmentSize = options.MinimumSegmentSize,
                 MaxRetries = options.MaxRetries, RetryDelay = options.RetryDelay, EnableResume = options.EnableResume,
-                OverwriteExisting = false
+                OverwriteExisting = false,
+                // 直连下载由用户显式发起并可选自配置 http 代理，属用户选择的明文通道
+                AllowInsecureHttp = true
             }, progress, token);
             return target;
         }

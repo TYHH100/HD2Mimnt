@@ -23,7 +23,7 @@ public sealed partial class Hd2IASIntegrationTests
         using var client = new HttpClient(handler);
         var versions = await new GitHubUpdateSource(client, new HttpDownloadService(client)).GetVersionsAsync();
         Assert.Equal(new[] { "1.10.0", "1.9.0" }, versions.Select(version => version.Version));
-        Assert.Equal(1, handler.Calls);
+        Assert.Equal(2, handler.Calls); // 官方锚点探测 + 官方直连
     }
 
     [Theory]
@@ -40,7 +40,7 @@ public sealed partial class Hd2IASIntegrationTests
         Assert.Equal(Path.Combine(_root, "cache", "HD2IAS-1.4.4-update.zip"), path);
         Assert.Equal(bytes, await File.ReadAllBytesAsync(path));
         Assert.True((await service.InspectAsync(path, null, Hd2IASRoute.Native)).Package.IsValid);
-        Assert.Equal(legacyName ? 2 : 1, handler.Calls);
+        Assert.Equal(legacyName ? 4 : 2, handler.Calls); // 锚点探测 + 下载（历史名再加 404 与二次锚点探测）
         AssertNoDownloadRemnants(path);
     }
 
@@ -110,7 +110,7 @@ public sealed partial class Hd2IASIntegrationTests
         var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
             new GitHubUpdateSource(client, new HttpDownloadService(client)).GetVersionsAsync());
         Assert.Equal(status, error.StatusCode);
-        Assert.Equal(1, handler.Calls);
+        Assert.Equal(2, handler.Calls); // 锚点探测 + 官方直连
     }
 
     [Theory]
@@ -136,7 +136,7 @@ public sealed partial class Hd2IASIntegrationTests
         });
         using var client = new HttpClient(handler);
         var error = await Assert.ThrowsAsync<HttpRequestException>(() => UpdateService(client).DownloadUpdateAsync(new("1.4.4")));
-        Assert.Equal(status, error.StatusCode); Assert.Equal(1, handler.Calls);
+        Assert.Equal(status, error.StatusCode); Assert.Equal(2, handler.Calls); // 锚点探测 + 官方直连
         AssertNoDownloadRemnants(null);
     }
 
@@ -166,13 +166,44 @@ public sealed partial class Hd2IASIntegrationTests
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
             if (truncated) response.Content.Headers.ContentLength = bytes.Length + 1;
             return Task.FromResult(response);
-        });
+        }, anchorContent: _ => bytes);
     }
 
-    private sealed class IASHttpHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond) : HttpMessageHandler
+    private sealed class IASHttpHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond,
+        Func<string, byte[]>? anchorContent = null) : HttpMessageHandler
     {
         public int Calls;
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Calls++; return respond(request, cancellationToken); }
+        {
+            Calls++;
+            // GitHubUpdateSource 会先探测官方 Contents API 内容锚点；默认按 404 应答（退化为仅官方直连），
+            // 提供 anchorContent 时按路径返回锚点（走全部源并启用校验）。
+            if (request.RequestUri!.Host == "api.github.com")
+            {
+                var content = anchorContent?.Invoke(request.RequestUri.AbsoluteUri);
+                return Task.FromResult(content is null
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : GitHubContentsAnchor(content));
+            }
+            return respond(request, cancellationToken);
+        }
+    }
+
+    private static HttpResponseMessage GitHubContentsAnchor(byte[] content) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(
+            $$"""{"sha":"{{GitBlobSha(content)}}","size":{{content.Length}}}""", Encoding.UTF8, "application/json")
+    };
+
+    private static string GitBlobSha(byte[] content)
+    {
+        var header = Encoding.ASCII.GetBytes($"blob {content.Length}\0");
+        using var sha = System.Security.Cryptography.SHA1.Create();
+        sha.TransformBlock(header, 0, header.Length, null, 0);
+        sha.TransformBlock(content, 0, content.Length, null, 0);
+        sha.TransformFinalBlock([], 0, 0);
+        return Convert.ToHexString(sha.Hash!).ToLowerInvariant();
     }
 }

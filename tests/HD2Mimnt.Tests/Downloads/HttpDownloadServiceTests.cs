@@ -281,6 +281,62 @@ public sealed class HttpDownloadServiceTests : IDisposable
             new DownloadOptions { MaxRetries = -1 }));
     }
 
+    [Fact]
+    public async Task DownloadToFileAsync_ExpectedHash_Match_Should_Publish()
+    {
+        using var client = new HttpClient(new Handler((request, _) =>
+            Task.FromResult(request.Headers.Range is null ? Full() : Segment(request))));
+        var sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(_data)).ToLowerInvariant();
+        var path = Path.Combine(_directory, "verified.zip");
+        var options = new DownloadOptions
+        {
+            MaxParallelSegments = 4, MinimumSegmentSize = 1024, RetryDelay = TimeSpan.Zero,
+            EnableResume = false, ExpectedHash = "sha256:" + sha256
+        };
+        await new HttpDownloadService(client).DownloadToFileAsync(Address, path, options);
+        Assert.Equal(_data, await File.ReadAllBytesAsync(path));
+    }
+
+    [Fact]
+    public async Task DownloadToFileAsync_ExpectedHash_Mismatch_Should_Delete_And_Throw()
+    {
+        using var client = new HttpClient(new Handler((request, _) =>
+            Task.FromResult(request.Headers.Range is null ? Full() : Segment(request))));
+        var wrong = new string('a', 64);
+        var path = Path.Combine(_directory, "tampered.zip");
+        var options = new DownloadOptions
+        {
+            MaxParallelSegments = 1, MinimumSegmentSize = 1024, RetryDelay = TimeSpan.Zero,
+            EnableResume = true, ExpectedHash = "sha256:" + wrong
+        };
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            new HttpDownloadService(client).DownloadToFileAsync(Address, path, options));
+        // 目标与暂存/断点文件都不得残留
+        Assert.Empty(Directory.GetFiles(_directory));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_InsecureHttp_RejectedUnlessExplicitlyAllowed()
+    {
+        using var client = new HttpClient(new Handler((_, _) => throw new Xunit.Sdk.XunitException("Unexpected request")));
+        var insecure = new Uri("http://cdn.example.com/mod.zip");
+        // 默认拒绝明文 http
+        await Assert.ThrowsAsync<ArgumentException>(() => new HttpDownloadService(client).DownloadAsync(insecure, Options));
+        // 用户显式选择时放行（此 handler 会在收到请求后失败，仅验证不再被 Validate 拦截）
+        var allowed = new DownloadOptions { MaxParallelSegments = 1, MinimumSegmentSize = 1024, RetryDelay = TimeSpan.Zero, EnableResume = false, AllowInsecureHttp = true };
+        await Assert.ThrowsAsync<Xunit.Sdk.XunitException>(() => new HttpDownloadService(client).DownloadAsync(insecure, allowed));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_Invalid_ExpectedHash_Format_Should_Fail_Before_Network_IO()
+    {
+        using var client = new HttpClient(new Handler((_, _) => throw new Xunit.Sdk.XunitException("Unexpected request")));
+        await Assert.ThrowsAsync<ArgumentException>(() => new HttpDownloadService(client).DownloadAsync(Address,
+            new DownloadOptions { ExpectedHash = "sha1:" + new string('a', 40) }));
+        await Assert.ThrowsAsync<ArgumentException>(() => new HttpDownloadService(client).DownloadAsync(Address,
+            new DownloadOptions { ExpectedHash = "sha256:not-hex" }));
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(4)]

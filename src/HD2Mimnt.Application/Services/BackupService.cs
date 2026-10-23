@@ -65,8 +65,8 @@ public sealed class BackupService
             using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
             await using (var command = connection.CreateCommand())
             {
-                var escapedPath = temporaryDatabasePath.Replace("'", "''", StringComparison.Ordinal);
-                command.CommandText = $"VACUUM INTO '{escapedPath}'";
+                command.CommandText = "VACUUM INTO @destination";
+                command.Parameters.AddWithValue("@destination", temporaryDatabasePath);
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
 

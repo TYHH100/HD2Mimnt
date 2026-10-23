@@ -17,7 +17,7 @@ public class AIProviderConfigRepositoryTests : IDisposable
         _testDbPath = Path.Combine(Path.GetTempPath(), $"test_aiprovider_{Guid.NewGuid()}.db");
         _dbContext = new HD2MimntDbContext(_testDbPath);
         _dbContext.InitializeDatabaseAsync().Wait();
-        _repository = new AIProviderConfigRepository(_dbContext);
+        _repository = new AIProviderConfigRepository(_dbContext, new PlatformCredentialStore(_dbContext));
     }
 
     [Fact]
@@ -337,6 +337,65 @@ public class AIProviderConfigRepositoryTests : IDisposable
         Assert.Equal("custom-model-v1", retrieved.Model);
         Assert.Equal(8000, retrieved.MaxTokens);
         Assert.Equal(0.5, retrieved.Temperature);
+    }
+
+    [Fact]
+    public async Task AddAsync_ApiKey_NotStoredAsPlaintextInDatabase()
+    {
+        // Arrange
+        var config = new AIProviderConfig
+        {
+            Id = "secret",
+            Name = "Secret Provider",
+            Type = AIProviderType.OpenAI,
+            ApiEndpoint = "https://api.openai.com",
+            ApiKey = "sk-plaintext-must-not-persist",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        // Act
+        await _repository.AddAsync(config);
+
+        // Assert：密钥只进 DPAPI 凭据存储，数据库列必须为空
+        using var connection = await _dbContext.OpenConnectionAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ApiKey FROM AIProviderConfigs WHERE Id = 'secret'";
+        var stored = await command.ExecuteScalarAsync();
+        Assert.True(stored is null or DBNull, $"数据库列不应存有明文: {stored}");
+
+        // 透明解密读取
+        var retrieved = await _repository.GetByIdAsync("secret");
+        Assert.NotNull(retrieved);
+        Assert.Equal("sk-plaintext-must-not-persist", retrieved.ApiKey);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_LegacyPlaintextKey_MigratesToCredentialStore()
+    {
+        // Arrange：模拟旧版本写入的明文行
+        using (var connection = await _dbContext.OpenConnectionAsync())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                INSERT INTO AIProviderConfigs (Id, Name, Type, ApiEndpoint, ApiKey, IsEnabled, MaxTokens, Temperature, CreatedAt)
+                VALUES ('legacy', 'Legacy', 0, 'https://api.openai.com', 'legacy-plain-key', 0, 0, 0, '2026-01-01T00:00:00.0000000Z')
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        // Act
+        var retrieved = await _repository.GetByIdAsync("legacy");
+
+        // Assert：读取到密钥且列值被清除（迁移幂等）
+        Assert.NotNull(retrieved);
+        Assert.Equal("legacy-plain-key", retrieved.ApiKey);
+        using (var connection = await _dbContext.OpenConnectionAsync())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT ApiKey FROM AIProviderConfigs WHERE Id = 'legacy'";
+            var stored = await command.ExecuteScalarAsync();
+            Assert.True(stored is null or DBNull);
+        }
     }
 
     public void Dispose()

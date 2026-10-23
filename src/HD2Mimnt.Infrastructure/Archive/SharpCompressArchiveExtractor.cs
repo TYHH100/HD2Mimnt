@@ -21,6 +21,10 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
         ".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".tbz2", ".xz",
     };
 
+    // 解压配额：防止单个恶意压缩包（压缩炸弹）写满磁盘
+    private const long MaxTotalExtractedBytes = 4L * 1024 * 1024 * 1024;
+    private const long MaxSingleEntryBytes = 2L * 1024 * 1024 * 1024;
+    private const long MaxCompressionRatio = 1000;
 
     private readonly ILogger<SharpCompressArchiveExtractor>? _logger;
 
@@ -60,6 +64,7 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
             await Task.Run(
                 () =>
                 {
+                    long totalExtracted = 0;
                     using var stream = File.OpenRead(archivePath);
                     // 7z 需要可定位的 Archive API，ReaderFactory 的流式格式列表不包含它。
                     isSevenZip = SevenZipArchive.IsSevenZipFile(stream);
@@ -73,6 +78,7 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
                             encrypted |= entry.IsEncrypted;
                             if (entry.IsEncrypted && password == null) throw new ArchivePasswordRequiredException();
                             if (entry.IsDirectory) continue;
+                            ValidateEntry(staging, entry.Key, entry.Size, entry.CompressedSize, ref totalExtracted);
                             entry.WriteToDirectory(staging, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
                         }
                         return;
@@ -89,6 +95,7 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
                             continue;
                         }
 
+                        ValidateEntry(staging, reader.Entry.Key, reader.Entry.Size, reader.Entry.CompressedSize, ref totalExtracted);
                         reader.WriteEntryToDirectory(
                             staging,
                             new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
@@ -115,6 +122,42 @@ public class SharpCompressArchiveExtractor : IArchiveExtractor
     }
 
     private static Stream Reset(Stream stream) { stream.Position = 0; return stream; }
+
+    /// <summary>
+    /// 应用层防护（库内置校验之外的第二层）：条目路径不得越出暂存根目录，
+    /// 声明的解压大小受单条目/总量/压缩比配额约束，拦截压缩炸弹。
+    /// </summary>
+    private static void ValidateEntry(string root, string? key, long? size, long? compressedSize, ref long totalExtracted)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            var rootPrefix = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var destination = Path.GetFullPath(Path.Combine(root, key));
+            if (!destination.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"压缩包条目路径越界，已拒绝: {key}");
+            }
+        }
+
+        if (size is not { } entrySize)
+        {
+            return;
+        }
+
+        if (entrySize > MaxSingleEntryBytes)
+        {
+            throw new InvalidDataException($"压缩包条目声明大小过大（{entrySize:N0} 字节），已拒绝: {key}");
+        }
+        if (compressedSize is > 0 && entrySize / compressedSize > MaxCompressionRatio)
+        {
+            throw new InvalidDataException($"压缩包条目压缩比异常（{entrySize / compressedSize:N0}×），疑似压缩炸弹，已拒绝: {key}");
+        }
+        totalExtracted += entrySize;
+        if (totalExtracted > MaxTotalExtractedBytes)
+        {
+            throw new InvalidDataException($"压缩包总解压大小超出上限（{MaxTotalExtractedBytes / (1024 * 1024 * 1024)}GB），已拒绝。");
+        }
+    }
 
     private static IReader OpenReader(Stream stream, string archivePath, ReaderOptions options)
     {

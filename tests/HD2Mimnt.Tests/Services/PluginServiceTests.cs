@@ -74,6 +74,76 @@ public class PluginServiceTests
     }
 
     [Fact]
+    public async Task InstallPluginAsync_RecordsAssemblySha256Anchor()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "hash.plugin", Name = "Hash", Version = "1.0.0", Assembly = "Hash.dll",
+            EntryType = "Hash.Entry", PermissionMode = PluginPermissionMode.Sandbox,
+            RequestedPermissions = new List<string>()
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+        var assemblyPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Hash.dll");
+        await File.WriteAllTextAsync(assemblyPath, "assembly-bytes");
+        _mockPluginRepo.Setup(r => r.ExistsAsync(manifest.Id, default)).ReturnsAsync(false);
+        _mockPluginRepo.Setup(r => r.AddAsync(It.IsAny<Plugin>(), default)).Returns(Task.CompletedTask);
+        _mockPermissionRepo.Setup(r => r.AddAsync(It.IsAny<PluginPermission>(), default)).Returns(Task.CompletedTask);
+
+        var expectedSha = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData("assembly-bytes"u8.ToArray())).ToLowerInvariant();
+
+        var result = await _service.InstallPluginAsync(_tempManifestPath);
+
+        Assert.True(result.Success);
+        _mockPluginRepo.Verify(r => r.AddAsync(It.Is<Plugin>(p => p.AssemblySha256 == expectedSha), default), Times.Once);
+    }
+
+    [Fact]
+    public async Task StartPluginAsync_TamperedAssembly_IsRejectedBeforeHostStart()
+    {
+        var assemblyPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Tampered.dll");
+        await File.WriteAllTextAsync(assemblyPath, "modified-content");
+        var plugin = new Plugin
+        {
+            Id = "tampered.plugin", Name = "T", Version = "1.0.0",
+            ManifestPath = _tempManifestPath, AssemblyPath = assemblyPath,
+            AssemblySha256 = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData("original-content"u8.ToArray())).ToLowerInvariant()
+        };
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(plugin.Id, default)).ReturnsAsync(plugin);
+
+        var result = await _service.StartPluginAsync(plugin.Id);
+
+        Assert.False(result.Success);
+        Assert.Contains("拒绝启动", result.Error);
+        _mockHostManager.Verify(h => h.StartPluginAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task StartPluginAsync_IntactAssembly_StartsHost()
+    {
+        var assemblyPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Intact.dll");
+        await File.WriteAllTextAsync(assemblyPath, "stable-content");
+        var sha = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData("stable-content"u8.ToArray())).ToLowerInvariant();
+        var plugin = new Plugin
+        {
+            Id = "intact.plugin", Name = "I", Version = "1.0.0",
+            ManifestPath = _tempManifestPath, AssemblyPath = assemblyPath, AssemblySha256 = sha
+        };
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(plugin.Id, default)).ReturnsAsync(plugin);
+        _mockHostManager.Setup(h => h.StartPluginAsync(plugin.Id, plugin.AssemblyPath, plugin.ManifestPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PluginOperationResult.SuccessResult("started"));
+
+        var result = await _service.StartPluginAsync(plugin.Id);
+
+        Assert.True(result.Success);
+        _mockHostManager.Verify(h => h.StartPluginAsync(plugin.Id, plugin.AssemblyPath, plugin.ManifestPath,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task InstallPluginAsync_ManifestNotFound_Failure()
     {
         // Arrange

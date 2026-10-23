@@ -7,16 +7,24 @@ using Microsoft.Data.Sqlite;
 namespace HD2Mimnt.Infrastructure.Repositories;
 
 /// <summary>
-/// Repository implementation for AI provider configuration management
+/// Repository implementation for AI provider configuration management.
+/// ApiKey 经 DPAPI（IPlatformCredentialStore）加密保存，数据库 ApiKey 列恒为 NULL；
+/// 读取时若发现旧版本遗留的明文密钥，自动迁移到加密存储并清除列值。
 /// </summary>
 public class AIProviderConfigRepository : IAIProviderConfigRepository
 {
-    private readonly HD2MimntDbContext _dbContext;
+    private const string CredentialPrefix = "ai-provider:";
 
-    public AIProviderConfigRepository(HD2MimntDbContext dbContext)
+    private readonly HD2MimntDbContext _dbContext;
+    private readonly IPlatformCredentialStore _credentialStore;
+
+    public AIProviderConfigRepository(HD2MimntDbContext dbContext, IPlatformCredentialStore credentialStore)
     {
         _dbContext = dbContext;
+        _credentialStore = credentialStore;
     }
+
+    private static string CredentialId(string providerId) => CredentialPrefix + providerId;
 
     public async Task<AIProviderConfig?> GetActiveProviderAsync(CancellationToken cancellationToken = default)
     {
@@ -25,13 +33,16 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM AIProviderConfigs WHERE IsEnabled = 1 LIMIT 1";
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        AIProviderConfig? config = null;
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            return MapToAIProviderConfig(reader);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                config = MapToAIProviderConfig(reader);
+            }
         }
 
-        return null;
+        return config is null ? null : await LoadApiKeyAsync(connection, config, cancellationToken);
     }
 
     public async Task<List<AIProviderConfig>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -42,10 +53,17 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         command.CommandText = "SELECT * FROM AIProviderConfigs ORDER BY Name";
 
         var configs = new List<AIProviderConfig>();
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            configs.Add(MapToAIProviderConfig(reader));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                configs.Add(MapToAIProviderConfig(reader));
+            }
+        }
+
+        foreach (var config in configs)
+        {
+            await LoadApiKeyAsync(connection, config, cancellationToken);
         }
 
         return configs;
@@ -59,13 +77,16 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         command.CommandText = "SELECT * FROM AIProviderConfigs WHERE Id = @Id";
         command.Parameters.AddWithValue("@Id", id);
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        AIProviderConfig? config = null;
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            return MapToAIProviderConfig(reader);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                config = MapToAIProviderConfig(reader);
+            }
         }
 
-        return null;
+        return config is null ? null : await LoadApiKeyAsync(connection, config, cancellationToken);
     }
 
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken = default)
@@ -82,6 +103,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task AddAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
     {
+        await SaveCredentialAsync(config.Id, config.ApiKey, cancellationToken);
+
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
@@ -98,6 +121,9 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
     public async Task UpdateAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
     {
         config.ModifiedAt = DateTime.UtcNow;
+
+        // 编辑时未重新填写密钥（空值）则保留既有凭据
+        await SaveCredentialAsync(config.Id, config.ApiKey, cancellationToken);
 
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
@@ -121,6 +147,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
     {
+        await _credentialStore.DeleteApiKeyAsync(CredentialId(id), cancellationToken);
+
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
@@ -150,6 +178,30 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         }
     }
 
+    private async Task SaveCredentialAsync(string providerId, string? apiKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey)) return;
+        await _credentialStore.SaveApiKeyAsync(CredentialId(providerId), apiKey, cancellationToken);
+    }
+
+    /// <summary>读取密钥；发现旧版本明文列值时迁移到加密存储并清除列值（幂等）。</summary>
+    private async Task<AIProviderConfig> LoadApiKeyAsync(SqliteConnection connection, AIProviderConfig config, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(config.ApiKey))
+        {
+            await _credentialStore.SaveApiKeyAsync(CredentialId(config.Id), config.ApiKey, cancellationToken);
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "UPDATE AIProviderConfigs SET ApiKey = NULL WHERE Id = @Id";
+                command.Parameters.AddWithValue("@Id", config.Id);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        config.ApiKey = await _credentialStore.ReadApiKeyAsync(CredentialId(config.Id), cancellationToken);
+        return config;
+    }
+
     private static AIProviderConfig MapToAIProviderConfig(SqliteDataReader reader)
     {
         return new AIProviderConfig
@@ -158,6 +210,7 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
             Name = reader.GetString(reader.GetOrdinal("Name")),
             Type = (AIProviderType)reader.GetInt32(reader.GetOrdinal("Type")),
             ApiEndpoint = reader.GetString(reader.GetOrdinal("ApiEndpoint")),
+            // ApiKey 列仅作旧明文迁移来源；正常路径恒为 NULL
             ApiKey = reader.IsDBNull(reader.GetOrdinal("ApiKey")) ? null : reader.GetString(reader.GetOrdinal("ApiKey")),
             Model = reader.IsDBNull(reader.GetOrdinal("Model")) ? null : reader.GetString(reader.GetOrdinal("Model")),
             IsEnabled = reader.GetInt32(reader.GetOrdinal("IsEnabled")) == 1,
@@ -174,7 +227,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         command.Parameters.AddWithValue("@Name", config.Name);
         command.Parameters.AddWithValue("@Type", (int)config.Type);
         command.Parameters.AddWithValue("@ApiEndpoint", config.ApiEndpoint);
-        command.Parameters.AddWithValue("@ApiKey", (object?)config.ApiKey ?? DBNull.Value);
+        // 密钥只进 DPAPI 凭据存储，数据库列恒为 NULL
+        command.Parameters.AddWithValue("@ApiKey", DBNull.Value);
         command.Parameters.AddWithValue("@Model", (object?)config.Model ?? DBNull.Value);
         command.Parameters.AddWithValue("@IsEnabled", config.IsEnabled ? 1 : 0);
         command.Parameters.AddWithValue("@MaxTokens", config.MaxTokens);

@@ -12,6 +12,8 @@ public class Plugin
     public string? Description { get; set; }
     public string ManifestPath { get; set; } = string.Empty;
     public string AssemblyPath { get; set; } = string.Empty;
+    /// <summary>安装时记录的程序集 SHA-256（小写十六进制）；启动前校验，防安装后被替换。</summary>
+    public string? AssemblySha256 { get; set; }
     public DateTime InstalledAt { get; set; }
     public bool Enabled { get; set; } = true;
     public string PermissionMode { get; set; } = "Sandbox"; // 'Sandbox' | 'FullAccess'

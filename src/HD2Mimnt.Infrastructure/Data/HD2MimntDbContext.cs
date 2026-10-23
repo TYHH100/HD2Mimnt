@@ -233,6 +233,7 @@ public class HD2MimntDbContext : IDisposable
                 Description TEXT,
                 ManifestPath TEXT NOT NULL,
                 AssemblyPath TEXT NOT NULL,
+                AssemblySha256 TEXT,
                 InstalledAt TEXT NOT NULL,
                 Enabled INTEGER NOT NULL DEFAULT 1,
                 PermissionMode TEXT NOT NULL DEFAULT 'Sandbox'
@@ -507,6 +508,18 @@ public class HD2MimntDbContext : IDisposable
                 using var alterSeparator = connection.CreateCommand();
                 alterSeparator.CommandText = "ALTER TABLE ProfileSeparators ADD COLUMN IsCollapsed INTEGER NOT NULL DEFAULT 0";
                 await alterSeparator.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        // 插件完整性锚点：安装时记录程序集 SHA-256，启动前校验（Phase 2 安全加固）
+        using (var pluginHashCheck = connection.CreateCommand())
+        {
+            pluginHashCheck.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Plugins') WHERE name = 'AssemblySha256'";
+            if (Convert.ToInt64(await pluginHashCheck.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alterPluginHash = connection.CreateCommand();
+                alterPluginHash.CommandText = "ALTER TABLE Plugins ADD COLUMN AssemblySha256 TEXT";
+                await alterPluginHash.ExecuteNonQueryAsync(cancellationToken);
             }
         }
 

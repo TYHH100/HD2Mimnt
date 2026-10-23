@@ -69,6 +69,36 @@ public sealed class HttpDownloadService : IHttpDownloadService
         }
     }
 
+    /// <summary>流式校验文件哈希；不匹配抛 InvalidDataException（上层会删除文件）。</summary>
+    private static async Task VerifyHashAsync(FileStream file, string expected, CancellationToken cancellationToken)
+    {
+        var separator = expected.IndexOf(':');
+        var algorithm = expected[..separator];
+        var hex = expected[(separator + 1)..];
+        file.Position = 0;
+        string actual;
+        using (var hash = algorithm switch
+        {
+            "sha256" => IncrementalHash.CreateHash(HashAlgorithmName.SHA256),
+            "md5" => IncrementalHash.CreateHash(HashAlgorithmName.MD5),
+            _ => throw new InvalidDataException($"不支持的哈希算法: {algorithm}")
+        })
+        {
+            var buffer = new byte[81920];
+            int read;
+            while ((read = await file.ReadAsync(buffer, cancellationToken)) != 0)
+            {
+                hash.AppendData(buffer, 0, read);
+            }
+            actual = Convert.ToHexString(hash.GetHashAndReset());
+        }
+
+        if (!actual.Equals(hex, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"下载内容校验失败：{algorithm} 不匹配（期望 {hex[..8]}…，实际 {actual[..8]}…）。");
+        }
+    }
+
     private static string GetIdentity(Uri uri, string? resumeKey) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(resumeKey ?? uri.AbsoluteUri)));
 
@@ -87,12 +117,17 @@ public sealed class HttpDownloadService : IHttpDownloadService
             try
             {
                 await DownloadCoreAsync(uri, file, options, progress, context, cancellationToken);
+                if (options.ExpectedHash is { Length: > 0 })
+                {
+                    await VerifyHashAsync(file, options.ExpectedHash, cancellationToken);
+                }
                 await file.FlushAsync(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 succeeded = true;
             }
             catch (InvalidDataException)
             {
+                // 校验失败（哈希不匹配/协议违规）时断点数据同样不可信
                 context.Discard();
                 throw;
             }
@@ -337,6 +372,8 @@ public sealed class HttpDownloadService : IHttpDownloadService
         ArgumentNullException.ThrowIfNull(uri);
         if (!uri.IsAbsoluteUri || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             throw new ArgumentException("下载地址必须是 HTTP 或 HTTPS 绝对地址。", nameof(uri));
+        if (uri.Scheme == Uri.UriSchemeHttp && !options.AllowInsecureHttp)
+            throw new ArgumentException("默认仅允许 HTTPS 下载；如确需明文 http://，请设置 DownloadOptions.AllowInsecureHttp。", nameof(uri));
         options.Validate();
     }
 

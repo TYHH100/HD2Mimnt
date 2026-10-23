@@ -11,6 +11,11 @@ public interface IPluginService
     Task<PluginOperationResult> InstallPluginAsync(string manifestPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 启动插件宿主进程（启动前校验程序集哈希与安装记录一致）
+    /// </summary>
+    Task<PluginOperationResult> StartPluginAsync(string pluginId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Uninstall a plugin
     /// </summary>
     Task<PluginOperationResult> UninstallPluginAsync(string pluginId, CancellationToken cancellationToken = default);

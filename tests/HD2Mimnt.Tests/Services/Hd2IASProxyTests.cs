@@ -33,7 +33,7 @@ public sealed partial class Hd2IASIntegrationTests
             var success = request.RequestUri.AbsoluteUri == IASRawRoots[workingSource] + IASRepository + "UPDATE_HISTORY.txt";
             return Task.FromResult(new HttpResponseMessage(success ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable)
                 { Content = new StringContent("1.4.5\n1.4.2\n") });
-        });
+        }, anchorContent: _ => "1.4.5\n1.4.2\n"u8.ToArray());
         using var http = new HttpClient(handler);
         var source = new GitHubUpdateSource(http, new HttpDownloadService(http), time);
         var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => source.GetVersionsAsync()));
@@ -53,7 +53,8 @@ public sealed partial class Hd2IASIntegrationTests
     {
         var bytes = await File.ReadAllBytesAsync(CreatePackage());
         var requests = new List<string>();
-        using var http = new HttpClient(new IASHttpHandler((_, _) => throw new Exception("No metadata probe expected")));
+        using var http = new HttpClient(new IASHttpHandler((_, _) => throw new Exception("Unexpected content request"),
+            anchorContent: _ => bytes));
         var downloader = new IASDownloadSpy((uri, options, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -75,14 +76,15 @@ public sealed partial class Hd2IASIntegrationTests
         using var http = new HttpClient(handler); var time = new IASClock();
         var source = new GitHubUpdateSource(http, new HttpDownloadService(http), time);
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(4, handler.Calls);
+        Assert.Equal(2, handler.Calls); // 锚点探测失败 + 仅官方直连
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
+        Assert.Equal(2, handler.Calls); // 冷却期内不请求
         time.Advance(TimeSpan.FromMinutes(2));
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(4, handler.Calls); // 各源失败后五分钟内不重试。
+        Assert.Equal(3, handler.Calls); // 官方源不可用窗口内只补了锚点探测。
         time.Advance(TimeSpan.FromMinutes(4));
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(8, handler.Calls);
+        Assert.Equal(5, handler.Calls);
     }
 
     [Fact]
@@ -96,17 +98,17 @@ public sealed partial class Hd2IASIntegrationTests
             var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
             response.Headers.RetryAfter = new(TimeSpan.FromHours(1));
             return Task.FromResult(response);
-        });
+        }, anchorContent: _ => [1]);
         using var http = new HttpClient(handler); var time = new IASClock();
         var source = new GitHubUpdateSource(http, new HttpDownloadService(http), time);
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(2, handler.Calls);
+        Assert.Equal(3, handler.Calls); // 锚点探测 + 官方失败 + 公益源 429
         time.Advance(TimeSpan.FromMinutes(6));
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(2, handler.Calls);
+        Assert.Equal(3, handler.Calls); // RetryAfter 冷却期内不请求
         time.Advance(TimeSpan.FromMinutes(55));
         await Assert.ThrowsAsync<HttpRequestException>(() => source.GetVersionsAsync());
-        Assert.Equal(4, handler.Calls);
+        Assert.Equal(6, handler.Calls);
     }
 
     [Fact]
@@ -114,14 +116,15 @@ public sealed partial class Hd2IASIntegrationTests
     {
         using var handler = new IASHttpHandler((request, _) => Task.FromResult(new HttpResponseMessage(
             request.RequestUri!.Host == "raw.githubusercontent.com" ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK)
-            { Content = new StringContent("1.4.4") }));
+            { Content = new StringContent("1.4.4") }),
+            anchorContent: path => path.Contains("UPDATE_HISTORY.txt") ? "1.4.4"u8.ToArray() : [1]);
         using var http = new HttpClient(handler); var time = new IASClock(); var downloads = 0;
         var source = new GitHubUpdateSource(http, new IASDownloadSpy((uri, _, _) =>
         {
             Assert.Equal("api.gitproxy.dev", uri.Host); downloads++;
             return Task.FromResult<Stream>(new MemoryStream([1]));
         }), time);
-        await source.GetVersionsAsync(); Assert.Equal(2, handler.Calls);
+        await source.GetVersionsAsync(); Assert.Equal(3, handler.Calls); // 锚点探测 + 官方失败 + 公益源
         using var cancellation = new CancellationTokenSource();
         var pending = source.DownloadAsync(new("1.4.4"), cancellationToken: cancellation.Token);
         Assert.False(pending.IsCompleted); Assert.Equal(0, downloads);
@@ -129,7 +132,7 @@ public sealed partial class Hd2IASIntegrationTests
         Assert.Equal(0, downloads);
         time.Advance(TimeSpan.FromSeconds(3));
         await using var stream = await source.DownloadAsync(new("1.4.4"));
-        Assert.Equal(1, downloads); Assert.Equal(2, handler.Calls);
+        Assert.Equal(1, downloads); Assert.Equal(4, handler.Calls); // 版本轮 3 次 + zip 锚点探测 1 次
     }
 
     [Fact]
@@ -139,10 +142,10 @@ public sealed partial class Hd2IASIntegrationTests
         using var handler = PackageHandler(bytes, "1.4.4", "HD2IAS-1.4.4-update.zip");
         using var http = new HttpClient(handler); var service = UpdateService(http);
         var paths = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => service.DownloadUpdateAsync(new("1.4.4"))));
-        Assert.All(paths, path => Assert.Equal(paths[0], path)); Assert.Equal(1, handler.Calls);
+        Assert.All(paths, path => Assert.Equal(paths[0], path)); Assert.Equal(2, handler.Calls); // 锚点探测 + 下载
         await File.WriteAllTextAsync(paths[0], "corrupt-cache");
         Assert.Equal(paths[0], await service.DownloadUpdateAsync(new("1.4.4")));
-        Assert.Equal(2, handler.Calls); Assert.Equal(bytes, await File.ReadAllBytesAsync(paths[0]));
+        Assert.Equal(3, handler.Calls); Assert.Equal(bytes, await File.ReadAllBytesAsync(paths[0])); // 锚点已缓存
         AssertNoDownloadRemnants(paths[0]);
     }
 
@@ -155,10 +158,24 @@ public sealed partial class Hd2IASIntegrationTests
             hosts.Add(request.RequestUri!.Host);
             return Task.FromResult(new HttpResponseMessage(request.RequestUri.Host == "raw.githubusercontent.com"
                 ? HttpStatusCode.BadGateway : HttpStatusCode.OK) { Content = new StringContent("not-a-zip") });
-        });
+        }, anchorContent: _ => System.Text.Encoding.UTF8.GetBytes("not-a-zip"));
         using var http = new HttpClient(handler);
         await Assert.ThrowsAsync<InvalidDataException>(() => UpdateService(http).DownloadUpdateAsync(new("1.4.4")));
         Assert.Equal(new[] { "raw.githubusercontent.com", "api.gitproxy.dev" }, hosts);
+        AssertNoDownloadRemnants(null);
+    }
+
+    [Fact]
+    public async Task GitHubDownload_TamperedProxyContent_IsRejectedByOfficialAnchor()
+    {
+        // 官方锚点指向真实包内容，公益源投毒返回不同字节：必须整体拒绝且不落缓存
+        var real = await File.ReadAllBytesAsync(CreatePackage());
+        using var handler = new IASHttpHandler((request, _) => Task.FromResult(new HttpResponseMessage(
+            request.RequestUri!.Host == "raw.githubusercontent.com" ? HttpStatusCode.BadGateway : HttpStatusCode.OK)
+            { Content = new ByteArrayContent("tampered-payload"u8.ToArray()) }),
+            anchorContent: _ => real);
+        using var http = new HttpClient(handler);
+        await Assert.ThrowsAsync<InvalidDataException>(() => UpdateService(http).DownloadUpdateAsync(new("1.4.4")));
         AssertNoDownloadRemnants(null);
     }
 

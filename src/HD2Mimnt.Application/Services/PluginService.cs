@@ -76,6 +76,8 @@ public class PluginService : IPluginService
                 Description = manifest.Description,
                 ManifestPath = manifestPath,
                 AssemblyPath = assemblyPath,
+                // 完整性锚点：安装时固定程序集内容，启动前比对防替换
+                AssemblySha256 = await ComputeFileSha256Async(assemblyPath, cancellationToken),
                 InstalledAt = DateTime.UtcNow,
                 Enabled = true,
                 PermissionMode = manifest.PermissionMode.ToString()
@@ -103,6 +105,48 @@ public class PluginService : IPluginService
         {
             return PluginOperationResult.ErrorResult(ex.Message, "Installation failed");
         }
+    }
+
+    /// <summary>
+    /// 启动插件宿主进程。启动前校验程序集 SHA-256 与安装记录一致，
+    /// 不一致即拒绝（防止安装后被替换的程序集在完整权限下运行）；
+    /// 旧数据无哈希时现场补录（首次信任当前文件）。
+    /// </summary>
+    public async Task<PluginOperationResult> StartPluginAsync(string pluginId, CancellationToken cancellationToken = default)
+    {
+        var plugin = await _pluginRepository.GetByIdAsync(pluginId, cancellationToken);
+        if (plugin == null)
+        {
+            return PluginOperationResult.ErrorResult("Plugin not found", pluginId);
+        }
+        if (!File.Exists(plugin.AssemblyPath))
+        {
+            return PluginOperationResult.ErrorResult("Plugin assembly not found", plugin.AssemblyPath);
+        }
+
+        var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
+        if (plugin.AssemblySha256 is { } recorded)
+        {
+            if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
+            {
+                return PluginOperationResult.ErrorResult(
+                    "插件程序集与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+            }
+        }
+        else
+        {
+            plugin.AssemblySha256 = currentSha;
+            await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+        }
+
+        return await _pluginHostManager.StartPluginAsync(plugin.Id, plugin.AssemblyPath, plugin.ManifestPath, cancellationToken);
+    }
+
+    private static async Task<string> ComputeFileSha256Async(string path, CancellationToken cancellationToken)
+    {
+        await using var stream = File.OpenRead(path);
+        return Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(stream, cancellationToken))
+            .ToLowerInvariant();
     }
 
     public async Task<PluginOperationResult> UninstallPluginAsync(string pluginId, CancellationToken cancellationToken = default)
