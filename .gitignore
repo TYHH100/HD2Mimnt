@@ -151,5 +151,4 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .clean-code-check/
 .claude/
 .layout-validation/
-.tmp-platform-download-1792644419808/
-.claude/
+.tmp-platform-download-*/

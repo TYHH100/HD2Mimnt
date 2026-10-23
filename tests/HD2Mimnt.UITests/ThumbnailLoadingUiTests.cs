@@ -7,7 +7,7 @@ using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {

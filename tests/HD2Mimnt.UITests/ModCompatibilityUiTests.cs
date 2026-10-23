@@ -19,7 +19,7 @@ using HD2Mimnt.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using static HD2Mimnt.Tests.Services.CompatibilityFixture;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {

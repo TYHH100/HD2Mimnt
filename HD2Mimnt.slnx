@@ -6,9 +6,12 @@
     <Project Path="src/HD2Mimnt.PluginHost/HD2Mimnt.PluginHost.csproj" />
     <Project Path="src/HD2Mimnt.PluginSDK/HD2Mimnt.PluginSDK.csproj" />
     <Project Path="src/HD2Mimnt.UI/HD2Mimnt.UI.csproj" />
+    <Project Path="src/HD2Mimnt.Worker/HD2Mimnt.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj" />
+    <Project Path="tests/HD2Mimnt.PerformanceTests/HD2Mimnt.PerformanceTests.csproj" />
+    <Project Path="tests/HD2Mimnt.StabilityTests/HD2Mimnt.StabilityTests.csproj" />
     <Project Path="tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj" />
   </Folder>
 </Solution>

@@ -1,7 +1,7 @@
 using HD2Mimnt.UI.Services;
 using Microsoft.Win32;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed class BrowserProtocolHostTests
 {

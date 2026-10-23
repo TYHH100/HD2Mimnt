@@ -16,7 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using static HD2Mimnt.Tests.Services.CompatibilityFixture;
 using static HD2Mimnt.Tests.Services.SoundFixFixture;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {

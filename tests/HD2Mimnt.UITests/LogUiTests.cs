@@ -14,7 +14,7 @@ using HD2Mimnt.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {

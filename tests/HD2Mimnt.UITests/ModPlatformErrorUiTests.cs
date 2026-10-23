@@ -6,7 +6,7 @@ using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HD2Mimnt.Tests.UI;
+namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {
