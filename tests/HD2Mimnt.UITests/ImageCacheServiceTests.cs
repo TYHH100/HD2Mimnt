@@ -1,12 +1,11 @@
-using Avalonia;
 using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using HD2Mimnt.Infrastructure.Services;
 using Xunit;
-using Xunit.Abstractions;
 
-namespace HD2Mimnt.Tests.Services;
+namespace HD2Mimnt.UITests;
 
 public class ImageCacheServiceTests : IDisposable
 {
@@ -14,14 +13,6 @@ public class ImageCacheServiceTests : IDisposable
     private readonly string _tempCachePath;
     private readonly ImageCacheService _cacheService;
     private readonly string _testImagePath;
-
-    static ImageCacheServiceTests()
-    {
-        // 初始化 Avalonia Headless 平台
-        AppBuilder.Configure<TestApplication>()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-            .SetupWithoutStarting();
-    }
 
     public ImageCacheServiceTests(ITestOutputHelper output)
     {
@@ -36,7 +27,7 @@ public class ImageCacheServiceTests : IDisposable
         CreateTestImage(_testImagePath, 100, 100);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task GetOrLoadAsync_Should_Load_And_Cache_Image()
     {
         // Arrange
@@ -74,7 +65,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.Equal(1, stats.CacheHits); // 第二次从缓存
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task GetAsync_Should_Return_Null_For_NonExistent_Key()
     {
         // Act
@@ -84,7 +75,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.Null(bitmap);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task PreloadAsync_Should_Add_To_Cache()
     {
         // Arrange
@@ -100,7 +91,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.Same(bitmap, retrieved);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task DiskCache_Should_Persist_Between_Service_Instances()
     {
         // Arrange
@@ -122,7 +113,7 @@ public class ImageCacheServiceTests : IDisposable
         _output.WriteLine($"Original: {bitmap.PixelSize}, Retrieved: {retrieved.PixelSize}");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ClearMemoryCache_Should_Remove_All_Memory_Cached_Items()
     {
         // Arrange
@@ -138,7 +129,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.Equal(0, stats.MemoryCacheCount);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task ClearDiskCacheAsync_Should_Remove_All_Disk_Cached_Files()
     {
         // Arrange
@@ -155,7 +146,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.Equal(0, stats.DiskCacheSizeBytes);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task GetStats_Should_Return_Accurate_Statistics()
     {
         // Arrange & Act
@@ -174,7 +165,7 @@ public class ImageCacheServiceTests : IDisposable
         Assert.True(stats.DiskCacheCount >= 0);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task Concurrent_Access_Should_Not_Load_Multiple_Times()
     {
         // Arrange
@@ -207,17 +198,27 @@ public class ImageCacheServiceTests : IDisposable
         Assert.True(loadCallCount >= 1);
     }
 
-    private void CreateTestImage(string path, int width, int height)
+    private static void CreateTestImage(string path, int width, int height)
     {
-        // 创建一个简单的测试图片
-        using var bitmap = new Bitmap(
-            Avalonia.Platform.PixelFormat.Rgba8888,
-            Avalonia.Platform.AlphaFormat.Unpremul,
-            IntPtr.Zero,
+        // Skia 的 Bitmap 构造不接受空数据指针；用托管缓冲写入 WriteableBitmap 生成测试图
+        var pixels = new byte[width * height * 4];
+        for (var i = 0; i < pixels.Length; i += 4)
+        {
+            pixels[i] = 0x80;
+            pixels[i + 1] = 0x90;
+            pixels[i + 2] = 0xA0;
+            pixels[i + 3] = 0xFF;
+        }
+
+        using var bitmap = new WriteableBitmap(
             new Avalonia.PixelSize(width, height),
             new Avalonia.Vector(96, 96),
-            width * 4);
-
+            Avalonia.Platform.PixelFormat.Bgra8888,
+            Avalonia.Platform.AlphaFormat.Unpremul);
+        using (var frame = bitmap.Lock())
+        {
+            System.Runtime.InteropServices.Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
+        }
         bitmap.Save(path);
     }
 
@@ -235,11 +236,4 @@ public class ImageCacheServiceTests : IDisposable
             // 忽略清理错误
         }
     }
-}
-
-/// <summary>
-/// 测试用的 Avalonia Application
-/// </summary>
-internal class TestApplication : Avalonia.Application
-{
 }

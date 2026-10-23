@@ -37,27 +37,35 @@ public class WorkerHostManager : IWorkerHostManager
         var processStartInfo = new ProcessStartInfo
         {
             FileName = workerExePath,
-            Arguments = $"--task-id {taskId} --worker {workerType} --pipe-name {pipeName}",
             UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
             CreateNoWindow = true
         };
+        processStartInfo.ArgumentList.Add("--task-id");
+        processStartInfo.ArgumentList.Add(taskId.ToString());
+        processStartInfo.ArgumentList.Add("--worker");
+        processStartInfo.ArgumentList.Add(workerType);
+        processStartInfo.ArgumentList.Add("--pipe-name");
+        processStartInfo.ArgumentList.Add(pipeName);
 
         var process = Process.Start(processStartInfo);
         if (process == null)
         {
+            pipeServer.Dispose();
             throw new InvalidOperationException("Failed to start worker process");
         }
 
-        // Wait for connection with timeout
-        var connectTask = pipeServer.WaitForConnectionAsync(cancellationToken);
-        var timeoutTask = Task.Delay(10000, cancellationToken);
-        var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-
-        if (completedTask == timeoutTask)
+        // 连接等待：外部取消与超时分开判定，失败路径统一清理进程与管道
+        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectCts.CancelAfter(TimeSpan.FromSeconds(10));
+        try
         {
-            process.Kill();
+            await pipeServer.WaitForConnectionAsync(connectCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try { if (!process.HasExited) process.Kill(); } catch { }
+            pipeServer.Dispose();
+            if (cancellationToken.IsCancellationRequested) throw;
             throw new TimeoutException("Worker process failed to connect within timeout");
         }
 
@@ -81,7 +89,8 @@ public class WorkerHostManager : IWorkerHostManager
         var workerProcess = new WorkerProcess(taskId, process, pipeServer, progress);
         _runningWorkers[taskId] = workerProcess;
 
-        _ = Task.Run(async () => await ListenForMessagesAsync(workerProcess, cancellationToken), cancellationToken);
+        // 监听器与工作者同生命周期，不随启动调用方令牌取消
+        _ = ListenForMessagesAsync(workerProcess, workerProcess.ListenerCts.Token);
 
         return taskId;
     }
@@ -128,6 +137,10 @@ public class WorkerHostManager : IWorkerHostManager
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // 取消路径：不当作崩溃记录，统一走 finally 清理
+        }
         catch (Exception ex)
         {
             // Worker crashed or pipe disconnected
@@ -141,6 +154,7 @@ public class WorkerHostManager : IWorkerHostManager
 
     private void CleanupWorker(WorkerProcess worker)
     {
+        worker.ListenerCts.Cancel();
         try
         {
             if (!worker.Process.HasExited)
@@ -196,7 +210,7 @@ public class WorkerHostManager : IWorkerHostManager
     {
         if (_runningWorkers.TryGetValue(taskId, out var worker))
         {
-            return await worker.CompletionTask;
+            return await worker.CompletionTask.WaitAsync(cancellationToken);
         }
 
         throw new InvalidOperationException($"Worker {taskId} not found");
@@ -215,12 +229,16 @@ public class WorkerHostManager : IWorkerHostManager
 /// </summary>
 internal class WorkerProcess : IDisposable
 {
-    private readonly TaskCompletionSource<WorkerResult> _completionSource = new();
+    private readonly TaskCompletionSource<WorkerResult> _completionSource =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public Guid TaskId { get; }
     public Process Process { get; }
     public NamedPipeServer Pipe { get; }
     public IProgress<WorkerTaskProgress>? Progress { get; }
+
+    /// <summary>监听循环的取消源，与工作者同生命周期，不随启动调用方令牌取消。</summary>
+    public System.Threading.CancellationTokenSource ListenerCts { get; } = new();
 
     public Task<WorkerResult> CompletionTask => _completionSource.Task;
 

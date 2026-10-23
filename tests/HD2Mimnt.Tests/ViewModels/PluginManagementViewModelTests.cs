@@ -115,7 +115,7 @@ public class PluginManagementViewModelTests
         await _viewModel.LoadPluginsCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.Equal("Loaded 1 plugins", _viewModel.StatusMessage);
+        Assert.Equal("已加载 1 个插件", _viewModel.StatusMessage);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class PluginManagementViewModelTests
         await _viewModel.LoadPluginsCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.Contains("Failed to load plugins", _viewModel.StatusMessage);
+        Assert.Contains("加载插件失败", _viewModel.StatusMessage);
         Assert.Contains("Database error", _viewModel.StatusMessage);
     }
 
@@ -153,7 +153,7 @@ public class PluginManagementViewModelTests
 
         // Assert
         Assert.True(pluginItem.IsEnabled);
-        Assert.Contains("Enabled", _viewModel.StatusMessage);
+        Assert.Contains("已启用", _viewModel.StatusMessage);
         Assert.Equal(1, _viewModel.EnabledPlugins);
     }
 
@@ -177,7 +177,7 @@ public class PluginManagementViewModelTests
 
         // Assert
         Assert.False(pluginItem.IsEnabled);
-        Assert.Contains("Failed to enable", _viewModel.StatusMessage);
+        Assert.Contains("启用 Test Plugin 失败", _viewModel.StatusMessage);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class PluginManagementViewModelTests
 
         // Assert
         Assert.False(pluginItem.IsEnabled);
-        Assert.Contains("Disabled", _viewModel.StatusMessage);
+        Assert.Contains("已停用", _viewModel.StatusMessage);
         Assert.Equal(0, _viewModel.EnabledPlugins);
     }
 
@@ -224,7 +224,7 @@ public class PluginManagementViewModelTests
 
         // Assert
         Assert.Empty(_viewModel.InstalledPlugins);
-        Assert.Contains("Uninstalled", _viewModel.StatusMessage);
+        Assert.Contains("已卸载", _viewModel.StatusMessage);
         Assert.Equal(0, _viewModel.TotalPlugins);
     }
 
@@ -251,7 +251,7 @@ public class PluginManagementViewModelTests
         await _viewModel.ViewExecutionHistoryCommand.ExecuteAsync(pluginItem);
 
         // Assert
-        Assert.Contains("Found 1 execution records", _viewModel.StatusMessage);
+        Assert.Contains("已找到 Test Plugin 的 1 条运行记录", _viewModel.StatusMessage);
     }
 
     [Fact]

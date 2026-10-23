@@ -47,6 +47,8 @@ public class PluginErrorResponse : PluginHostMessage
 /// </summary>
 internal class PluginHostPipeServer : IDisposable
 {
+    private const int MaxMessageBytes = 8 * 1024 * 1024;
+
     private readonly NamedPipeServerStream _pipeServer;
 
     public PluginHostPipeServer(string pipeName)
@@ -75,19 +77,34 @@ internal class PluginHostPipeServer : IDisposable
         await _pipeServer.FlushAsync(cancellationToken);
     }
 
-    public async Task<T?> ReceiveMessageAsync<T>(CancellationToken cancellationToken = default) where T : PluginHostMessage
+    /// <summary>读取一帧原始 JSON；返回 null 表示对端关闭。</summary>
+    public async Task<string?> ReceiveRawAsync(CancellationToken cancellationToken = default)
     {
         var lengthBytes = new byte[4];
-        var bytesRead = await _pipeServer.ReadAsync(lengthBytes, 0, 4, cancellationToken);
-        if (bytesRead == 0) return null;
+        if (!await ReadExactlyAsync(lengthBytes, cancellationToken)) return null;
 
         var length = BitConverter.ToInt32(lengthBytes, 0);
-        var messageBytes = new byte[length];
-        bytesRead = await _pipeServer.ReadAsync(messageBytes, 0, length, cancellationToken);
-        if (bytesRead == 0) return null;
+        if (length is <= 0 or > MaxMessageBytes)
+        {
+            // 长度非法：视为协议破坏，抛出让监听器按宿主崩溃处理
+            throw new IOException($"Invalid IPC message length: {length}");
+        }
 
-        var json = Encoding.UTF8.GetString(messageBytes);
-        return JsonSerializer.Deserialize<T>(json);
+        var messageBytes = new byte[length];
+        if (!await ReadExactlyAsync(messageBytes, cancellationToken)) return null;
+        return Encoding.UTF8.GetString(messageBytes);
+    }
+
+    private async Task<bool> ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
+    {
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await _pipeServer.ReadAsync(buffer.AsMemory(offset), cancellationToken);
+            if (read == 0) return false; // 对端关闭
+            offset += read;
+        }
+        return true;
     }
 
     public bool IsConnected => _pipeServer.IsConnected;
@@ -110,7 +127,11 @@ internal class PluginHostProcess
     public DateTime StartedAt { get; }
     public bool IsRunning { get; private set; } = true;
 
-    private TaskCompletionSource<PluginOperationResult> _currentCommand = new();
+    /// <summary>监听循环的取消源，与宿主同生命周期，不随启动调用方令牌取消。</summary>
+    public CancellationTokenSource ListenerCts { get; } = new();
+
+    private TaskCompletionSource<PluginOperationResult> _currentCommand =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public PluginHostProcess(Guid hostId, string pluginId, Process process, PluginHostPipeServer pipeServer)
     {
@@ -141,7 +162,9 @@ internal class PluginHostProcess
 
     public void StartNewCommand()
     {
-        _currentCommand = new TaskCompletionSource<PluginOperationResult>();
+        // 旧等待者立即取消，避免被替换后永久挂起
+        _currentCommand.TrySetCanceled();
+        _currentCommand = new TaskCompletionSource<PluginOperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }
 
@@ -156,6 +179,11 @@ public class PluginHostManager : IPluginHostManager
 
     public async Task<PluginOperationResult> StartPluginAsync(string pluginId, string assemblyPath, string manifestPath, CancellationToken cancellationToken = default)
     {
+        // Guid 校验前置：进程启动后才校验只会留下无法清理的孤儿
+        if (!Guid.TryParse(pluginId, out var pluginGuid))
+        {
+            return PluginOperationResult.ErrorResult("Invalid plugin id format", pluginId);
+        }
         if (_runningHosts.ContainsKey(pluginId))
         {
             return PluginOperationResult.ErrorResult("Plugin already running", pluginId);
@@ -172,79 +200,114 @@ public class PluginHostManager : IPluginHostManager
         var processStartInfo = new ProcessStartInfo
         {
             FileName = hostExePath,
-            Arguments = $"--plugin-id {pluginId} --pipe-name {pipeName}",
             UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
+            CreateNoWindow = true
         };
+        processStartInfo.ArgumentList.Add("--plugin-id");
+        processStartInfo.ArgumentList.Add(pluginGuid.ToString());
+        processStartInfo.ArgumentList.Add("--pipe-name");
+        processStartInfo.ArgumentList.Add(pipeName);
 
         if (_storage != null) processStartInfo.Environment["HD2MIMNT_RUNTIME_DATA_PATH"] = _storage.Current.AppDataPath;
-        var process = Process.Start(processStartInfo);
-        if (process == null)
-        {
-            return PluginOperationResult.ErrorResult("Failed to start plugin host process");
-        }
 
-        // Wait for connection with timeout
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
-
+        Process? process = null;
+        PluginHostProcess? hostProcess = null;
         try
         {
+            process = Process.Start(processStartInfo);
+            if (process == null)
+            {
+                pipeServer.Dispose();
+                return PluginOperationResult.ErrorResult("Failed to start plugin host process");
+            }
+
+            // 启动握手（连接 + 加载响应）整体受 10 秒超时约束
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
             await pipeServer.WaitForConnectionAsync(linkedCts.Token);
+
+            hostProcess = new PluginHostProcess(hostId, pluginId, process, pipeServer);
+            if (!_runningHosts.TryAdd(pluginId, hostProcess))
+            {
+                await TerminateHostAsync(hostProcess, cancellationToken);
+                return PluginOperationResult.ErrorResult("Plugin already running", pluginId);
+            }
+
+            // 监听器独占读取管道；初始加载结果同样由它投递
+            _ = Task.Run(() => ListenForMessagesAsync(hostProcess, hostProcess.ListenerCts.Token));
+
+            // Send load plugin command
+            var loadCommand = new LoadPluginCommand
+            {
+                Type = nameof(LoadPluginCommand),
+                PluginId = pluginGuid,
+                PluginPath = assemblyPath,
+                ManifestPath = manifestPath
+            };
+            await pipeServer.SendMessageAsync(loadCommand, linkedCts.Token);
+
+            var response = await hostProcess.WaitForResultAsync().WaitAsync(linkedCts.Token);
+            if (!response.Success)
+            {
+                await TerminateHostAsync(hostProcess, cancellationToken);
+                return PluginOperationResult.ErrorResult($"Failed to load plugin: {response.Error}");
+            }
+
+            return PluginOperationResult.SuccessResult("Plugin started successfully", hostId);
         }
         catch (OperationCanceledException)
         {
-            process.Kill();
-            return PluginOperationResult.ErrorResult("Plugin host failed to connect within timeout");
+            if (hostProcess != null) await TerminateHostAsync(hostProcess, CancellationToken.None);
+            else await CleanupProcessAsync(process, pipeServer);
+            return PluginOperationResult.ErrorResult(cancellationToken.IsCancellationRequested
+                ? "Plugin start was cancelled"
+                : "Plugin host failed to connect within timeout");
         }
-
-        // Send load plugin command
-        var loadCommand = new LoadPluginCommand
+        catch (Exception ex)
         {
-            PluginId = Guid.Parse(pluginId),
-            PluginPath = assemblyPath,
-            ManifestPath = manifestPath
-        };
-
-        await pipeServer.SendMessageAsync(loadCommand, cancellationToken);
-
-        // Create host process tracking
-        var hostProcess = new PluginHostProcess(hostId, pluginId, process, pipeServer);
-        _runningHosts.TryAdd(pluginId, hostProcess);
-
-        // Start listening for messages
-        _ = Task.Run(() => ListenForMessagesAsync(hostProcess, cancellationToken), cancellationToken);
-
-        // Wait for initial load response
-        var response = await pipeServer.ReceiveMessageAsync<PluginCompletedResponse>(cancellationToken);
-        if (response == null || !response.Success)
-        {
-            return PluginOperationResult.ErrorResult($"Failed to load plugin: {response?.Errors?.FirstOrDefault()}");
+            if (hostProcess != null) await TerminateHostAsync(hostProcess, CancellationToken.None);
+            else await CleanupProcessAsync(process, pipeServer);
+            return PluginOperationResult.ErrorResult($"Failed to start plugin host: {ex.Message}");
         }
+    }
 
-        return PluginOperationResult.SuccessResult("Plugin started successfully", hostId);
+    private static Task CleanupProcessAsync(Process? process, PluginHostPipeServer pipeServer)
+    {
+        try { pipeServer.Dispose(); } catch { }
+        if (process is { HasExited: false })
+        {
+            try { process.Kill(); } catch { }
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>停止宿主进程：条件移除字典项、唤醒等待者、关闭管道、等待退出（超时强杀）。</summary>
+    private async Task TerminateHostAsync(PluginHostProcess hostProcess, CancellationToken cancellationToken)
+    {
+        // 条件移除：条目已被监听器清理或从未注册时不动其它实例
+        _runningHosts.TryRemove(new KeyValuePair<string, PluginHostProcess>(hostProcess.PluginId, hostProcess));
+        hostProcess.SetCrashed();
+        try { hostProcess.PipeServer.Dispose(); } catch { }
+        try
+        {
+            if (!hostProcess.Process.HasExited)
+            {
+                using var exitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                exitCts.CancelAfter(TimeSpan.FromSeconds(5));
+                try { await hostProcess.Process.WaitForExitAsync(exitCts.Token); }
+                catch (OperationCanceledException) { try { hostProcess.Process.Kill(); } catch { } }
+            }
+        }
+        catch { /* 进程可能已自行退出 */ }
+        hostProcess.ListenerCts.Cancel();
     }
 
     public async Task StopPluginAsync(string pluginId, CancellationToken cancellationToken = default)
     {
         if (_runningHosts.TryRemove(pluginId, out var hostProcess))
         {
-            try
-            {
-                hostProcess.PipeServer.Dispose();
-                hostProcess.Process.WaitForExit(5000);
-
-                if (!hostProcess.Process.HasExited)
-                {
-                    hostProcess.Process.Kill();
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
+            await TerminateHostAsync(hostProcess, cancellationToken);
         }
     }
 
@@ -259,6 +322,7 @@ public class PluginHostManager : IPluginHostManager
 
         var command = new ExecutePluginCommand
         {
+            Type = nameof(ExecutePluginCommand),
             PluginId = Guid.Parse(hostProcess.PluginId),
             MethodName = methodName,
             ArgumentsJson = argumentsJson
@@ -266,7 +330,7 @@ public class PluginHostManager : IPluginHostManager
 
         await hostProcess.PipeServer.SendMessageAsync(command, cancellationToken);
 
-        return await hostProcess.WaitForResultAsync();
+        return await hostProcess.WaitForResultAsync().WaitAsync(cancellationToken);
     }
 
     public IReadOnlyList<PluginHostInfo> GetRunningPlugins()
@@ -286,13 +350,15 @@ public class PluginHostManager : IPluginHostManager
         {
             try
             {
-                hostProcess.Process.Kill();
+                hostProcess.SetCrashed();
                 hostProcess.PipeServer.Dispose();
+                hostProcess.Process.Kill();
             }
             catch
             {
                 // Ignore cleanup errors
             }
+            hostProcess.ListenerCts.Cancel();
         }
     }
 
@@ -300,41 +366,76 @@ public class PluginHostManager : IPluginHostManager
     {
         try
         {
-            while (hostProcess.PipeServer.IsConnected && !cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                var message = await hostProcess.PipeServer.ReceiveMessageAsync<PluginHostMessage>(cancellationToken);
-                if (message == null) break;
+                var json = await hostProcess.PipeServer.ReceiveRawAsync(cancellationToken);
+                if (json is null) break; // 管道已关闭
 
-                if (message is PluginCompletedResponse completed)
+                switch (ParseMessage(json))
                 {
-                    var result = new PluginOperationResult
-                    {
-                        Success = completed.Success,
-                        Message = completed.ResultJson
-                    };
+                    case PluginCompletedResponse completed:
+                        var result = new PluginOperationResult
+                        {
+                            Success = completed.Success,
+                            Message = completed.ResultJson
+                        };
 
-                    if (completed.Errors != null)
-                    {
-                        result.Error = string.Join("; ", completed.Errors);
-                    }
+                        if (completed.Errors != null)
+                        {
+                            result.Error = string.Join("; ", completed.Errors);
+                        }
 
-                    hostProcess.SetCompleted(result);
-                }
-                else if (message is PluginErrorResponse error)
-                {
-                    hostProcess.SetError($"{error.ErrorMessage}\n{error.StackTrace}");
+                        hostProcess.SetCompleted(result);
+                        break;
+
+                    case PluginErrorResponse error:
+                        hostProcess.SetError($"{error.ErrorMessage}\n{error.StackTrace}");
+                        break;
+
+                    // PluginLogMessage 与未知类型暂无消费方，忽略
                 }
             }
         }
-        catch (IOException)
+        catch (OperationCanceledException)
         {
-            // Pipe disconnected - plugin crashed
-            hostProcess.SetCrashed();
+            return; // 正常停止路径由 TerminateHostAsync 负责清理
         }
-        catch (Exception)
+        catch
         {
-            // Other errors
+            // 管道断开或读取失败：宿主异常退出，落到底部统一清理
+        }
+
+        // 宿主异常退出：条件移除后清理进程与管道，避免残留
+        if (_runningHosts.TryRemove(new KeyValuePair<string, PluginHostProcess>(hostProcess.PluginId, hostProcess)))
+        {
             hostProcess.SetCrashed();
+            try { hostProcess.PipeServer.Dispose(); } catch { }
+            try { if (!hostProcess.Process.HasExited) hostProcess.Process.Kill(); } catch { }
+            hostProcess.ListenerCts.Cancel();
+        }
+    }
+
+    /// <summary>协议以 Type 字符串区分消息类型；抽象基类无法直接反序列化。</summary>
+    private static PluginHostMessage? ParseMessage(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("Type", out var type) &&
+                type.GetString() is { Length: > 0 } typeName)
+            {
+                return typeName switch
+                {
+                    nameof(PluginCompletedResponse) => JsonSerializer.Deserialize<PluginCompletedResponse>(json),
+                    nameof(PluginErrorResponse) => JsonSerializer.Deserialize<PluginErrorResponse>(json),
+                    _ => null,
+                };
+            }
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 }

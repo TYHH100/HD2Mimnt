@@ -42,18 +42,35 @@ public class NamedPipeServer : IDisposable
 
     public async Task<WorkerMessage?> ReceiveMessageAsync(CancellationToken cancellationToken = default)
     {
+        const int maxMessageBytes = 8 * 1024 * 1024;
+
         var lengthBuffer = new byte[4];
-        var bytesRead = await _pipeServer.ReadAsync(lengthBuffer, cancellationToken);
-        if (bytesRead == 0) return null;
+        if (!await ReadExactlyAsync(lengthBuffer, cancellationToken)) return null;
 
         var length = BitConverter.ToInt32(lengthBuffer, 0);
+        if (length is <= 0 or > maxMessageBytes)
+        {
+            // 长度非法：视为协议破坏，抛出让监听器按工作者异常处理
+            throw new IOException($"Invalid IPC message length: {length}");
+        }
+
         var buffer = new byte[length];
-        bytesRead = await _pipeServer.ReadAsync(buffer, cancellationToken);
+        if (!await ReadExactlyAsync(buffer, cancellationToken)) return null;
 
-        if (bytesRead == 0) return null;
-
-        var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        var json = Encoding.UTF8.GetString(buffer);
         return JsonSerializer.Deserialize<WorkerMessage>(json);
+    }
+
+    private async Task<bool> ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
+    {
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await _pipeServer.ReadAsync(buffer.AsMemory(offset), cancellationToken);
+            if (read == 0) return false; // 对端关闭
+            offset += read;
+        }
+        return true;
     }
 
     public bool IsConnected => _pipeServer.IsConnected;

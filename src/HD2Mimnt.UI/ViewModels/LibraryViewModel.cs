@@ -512,10 +512,10 @@ public partial class LibraryViewModel : ObservableObject
     {
         _searchDebounceTimer?.Stop();
         _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        _searchDebounceTimer.Tick += async (_, _) =>
+        _searchDebounceTimer.Tick += (_, _) =>
         {
             _searchDebounceTimer?.Stop();
-            await ExecuteSearchAsync();
+            SafeAsync.Run(ExecuteSearchAsync, "自动搜索");
         };
         _searchDebounceTimer.Start();
     }

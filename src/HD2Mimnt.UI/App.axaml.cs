@@ -110,6 +110,7 @@ public partial class App : Avalonia.Application
 
             // 设置 Program.AppHost
             Program.SetAppHost(host);
+            CrashGuard.AttachLogging(host.Services);
 
             // 在 ViewModel/窗口构造前应用保存的语言，自动模式持续跟随系统。
             var localization = ServiceProvider.GetRequiredService<LocalizationService>();
@@ -145,6 +146,7 @@ public partial class App : Avalonia.Application
 
             // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
+            Program.MainWindowViewModel = mainViewModel;
             var mainWindow = new MainWindow
             {
                 DataContext = mainViewModel,
@@ -188,22 +190,31 @@ public partial class App : Avalonia.Application
 
     private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
     {
-        await main.InitializeAsync();
-        var interop = ServiceProvider!.GetRequiredService<OfflineInteropService>();
-        await interop.StartAsync();
-        if (interop.LastError is { } interopError)
-            ServiceProvider!.GetRequiredService<NotificationService>().ShowWarning(interopError, UiLocalization.Current["Interop.Title"]);
-        if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
-            ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(storageMessage, UiLocalization.Current["Settings.Storage.Title"]);
-        if (Program.ProtocolRegistrationError is { } error)
-            ServiceProvider?.GetRequiredService<NotificationService>().ShowError(error, "N 网链接接收");
-        Program.ProtocolHost?.SetReceiver(value => Dispatcher.UIThread.Post(() =>
+        // 窗口已显示后才执行初始化，任何失败必须可见，不能静默丢失。
+        try
         {
-            if (!window.IsVisible) return;
-            if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
-            window.Activate();
-            main.ReceiveBrowserProtocolLink(value);
-        }));
+            await main.InitializeAsync();
+            var interop = ServiceProvider!.GetRequiredService<OfflineInteropService>();
+            await interop.StartAsync();
+            if (interop.LastError is { } interopError)
+                ServiceProvider!.GetRequiredService<NotificationService>().ShowWarning(interopError, UiLocalization.Current["Interop.Title"]);
+            if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
+                ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(storageMessage, UiLocalization.Current["Settings.Storage.Title"]);
+            if (Program.ProtocolRegistrationError is { } error)
+                ServiceProvider?.GetRequiredService<NotificationService>().ShowError(error, "N 网链接接收");
+            Program.ProtocolHost?.SetReceiver(value => Dispatcher.UIThread.Post(() =>
+            {
+                if (!window.IsVisible) return;
+                if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+                window.Activate();
+                main.ReceiveBrowserProtocolLink(value);
+            }));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            CrashGuard.Report(ex, "主窗口初始化失败");
+        }
     }
 
     /// <summary>关闭开屏；两个触发路径（Opened / 兜底计时器）先到者生效，保证幂等。</summary>

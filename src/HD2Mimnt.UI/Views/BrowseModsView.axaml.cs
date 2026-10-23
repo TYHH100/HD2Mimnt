@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.ViewModels;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.Views;
 
@@ -12,9 +13,10 @@ public partial class BrowseModsView : UserControl
     public BrowseModsView()
     {
         InitializeComponent();
-        DetachedFromVisualTree += async (_, _) =>
+        DetachedFromVisualTree += (_, _) =>
         {
-            if (DataContext is BrowseModsViewModel vm) await vm.LeavePageAsync();
+            if (DataContext is BrowseModsViewModel vm)
+                SafeAsync.FireAndForget(vm.LeavePageAsync(), "离开浏览页");
         };
     }
 

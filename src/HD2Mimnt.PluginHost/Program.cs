@@ -1,5 +1,6 @@
 using HD2Mimnt.PluginHost.IPC;
 using HD2Mimnt.PluginSDK;
+using System.Text.Json;
 
 namespace HD2Mimnt.PluginHost;
 
@@ -62,6 +63,7 @@ class Program
             {
                 var logMsg = new PluginLogMessage
                 {
+                    Type = nameof(PluginLogMessage),
                     PluginId = pluginId,
                     Level = level,
                     Message = message,
@@ -81,18 +83,20 @@ class Program
             // Send ready response
             await pipeClient.SendMessageAsync(new PluginCompletedResponse
             {
+                Type = nameof(PluginCompletedResponse),
                 PluginId = pluginId,
                 Success = true,
                 ResultJson = "Plugin loaded and initialized"
             });
 
-            // Wait for commands
+            // Wait for commands; 协议以 Type 字符串分发，抽象基类不能直接反序列化
             while (pipeClient.IsConnected)
             {
-                var message = await pipeClient.ReceiveMessageAsync<PluginHostMessage>();
-                if (message == null) break;
+                var json = await pipeClient.ReceiveRawAsync();
+                if (json is null) break;
 
-                if (message is ExecutePluginCommand executeCmd)
+                if (TryMessageType(json) == nameof(ExecutePluginCommand) &&
+                    JsonSerializer.Deserialize<ExecutePluginCommand>(json) is { } executeCmd)
                 {
                     await HandleExecuteCommandAsync(plugin, executeCmd, pipeClient, pluginId);
                 }
@@ -114,6 +118,7 @@ class Program
                 {
                     await pipeClient.SendMessageAsync(new PluginErrorResponse
                     {
+                        Type = nameof(PluginErrorResponse),
                         PluginId = pluginId,
                         ErrorMessage = ex.Message,
                         StackTrace = ex.StackTrace
@@ -147,6 +152,7 @@ class Program
 
             await pipeClient.SendMessageAsync(new PluginCompletedResponse
             {
+                Type = nameof(PluginCompletedResponse),
                 PluginId = pluginId,
                 Success = true,
                 ResultJson = $"Executed {command.MethodName}"
@@ -156,10 +162,25 @@ class Program
         {
             await pipeClient.SendMessageAsync(new PluginErrorResponse
             {
+                Type = nameof(PluginErrorResponse),
                 PluginId = pluginId,
                 ErrorMessage = ex.Message,
                 StackTrace = ex.StackTrace
             });
+        }
+    }
+
+    /// <summary>从原始 JSON 中读取消息 Type 判别字段。</summary>
+    static string? TryMessageType(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("Type", out var type) ? type.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 }

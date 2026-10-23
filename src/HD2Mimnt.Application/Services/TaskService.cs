@@ -147,24 +147,61 @@ public class TaskService
                 TaskStarted?.Invoke(this, EventArgs.Empty);
                 started.TrySetResult();
 
-                // 创建进度报告器
+                // 进度报告线程只做无阻塞暂存，由单飞后台协程在节流下落库；
+                // Worker 结束后关闭进度写入，避免覆盖 finally 中的终态。
+                var progressInbox = new ConcurrentQueue<TaskProgress>();
+                int progressWriteScheduled = 0;
+                int progressClosed = 0;
+
                 var progress = new SynchronousProgress<TaskProgress>(p =>
                 {
-                    stateGate.Wait();
+                    if (Volatile.Read(ref progressClosed) != 0) return;
+                    progressInbox.Enqueue(p);
+                    if (Interlocked.CompareExchange(ref progressWriteScheduled, 1, 0) == 0)
+                        _ = PersistProgressAsync();
+                });
+
+                async Task PersistProgressAsync()
+                {
                     try
                     {
-                        if (_forceTerminatedTasks.ContainsKey(taskId)) return;
-                        task.Progress = p.Progress;
-                        task.Stage = p.Stage;
-                        task.CurrentItem = p.CurrentItem;
-                        task.Message = p.Message;
-                        _taskRepository.UpdateAsync(task, CancellationToken.None).GetAwaiter().GetResult();
+                        while (true)
+                        {
+                            // 只保留最新值，历史报告直接丢弃
+                            TaskProgress? latest = null;
+                            while (progressInbox.TryDequeue(out var item)) latest = item;
+                            if (latest is null || Volatile.Read(ref progressClosed) != 0) break;
+                            await stateGate.WaitAsync();
+                            try
+                            {
+                                if (Volatile.Read(ref progressClosed) != 0) break;
+                                task.Progress = latest.Progress;
+                                task.Stage = latest.Stage;
+                                task.CurrentItem = latest.CurrentItem;
+                                task.Message = latest.Message;
+                                await _taskRepository.UpdateAsync(task, CancellationToken.None);
+                            }
+                            finally { stateGate.Release(); }
+                            await Task.Delay(200);
+                        }
                     }
-                    finally { stateGate.Release(); }
-                });
+                    catch
+                    {
+                        // 进度落库失败不影响任务执行；终态仍由 finally 统一写入
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref progressWriteScheduled, 0);
+                        // 循环退出后又有新报告则重新调度一次
+                        if (Volatile.Read(ref progressClosed) == 0 && !progressInbox.IsEmpty &&
+                            Interlocked.CompareExchange(ref progressWriteScheduled, 1, 0) == 0)
+                            _ = PersistProgressAsync();
+                    }
+                }
 
                 // 执行任务
                 await worker.ExecuteAsync(task, progress, cts.Token);
+                Volatile.Write(ref progressClosed, 1);
 
                 // 任务完成 - 但如果 Worker 已经设置了状态（如 PartiallyFailed），则保留
                 if (task.Status == Core.Entities.TaskStatus.Running)
@@ -296,6 +333,10 @@ public class TaskService
         finally
         {
             stateGate.Release();
+            // 任务已结束时移除本方法 GetOrAdd 补建的门控条目，防止字典残留；
+            // 不 Dispose 信号量本身，避免与并发等待者竞态。
+            if (!_runningTasks.ContainsKey(taskId))
+                _taskStateGates.TryRemove(new KeyValuePair<Guid, SemaphoreSlim>(taskId, stateGate));
         }
     }
 

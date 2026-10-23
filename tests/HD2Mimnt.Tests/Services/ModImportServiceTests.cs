@@ -205,7 +205,9 @@ public sealed class ModImportServiceTests : IDisposable
         File.WriteAllText(Path.Combine(contentRoot, "VariantA", "a.patch"), "a");
         File.WriteAllText(Path.Combine(contentRoot, "VariantB", "b.patch"), "b");
 
-        var importedId = await CreateService().ImportModAsync(contentRoot);
+        // Phase 6.8 起 ForceManifestV1 默认开启；验证旧语义需显式关闭
+        var importedId = await CreateService(
+            TestHelpers.SeededSettingsService.Create(forceManifestV1: false)).ImportModAsync(contentRoot);
 
         var mod = (await _modRepository.GetByIdAsync(importedId))!;
         Assert.NotNull(mod.Manifest);
@@ -213,8 +215,8 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.Equal(new List<string> { "VariantA", "VariantB" }, mod.Manifest.LegacyOptions);
     }
 
-    private ModImportService CreateService()
-        => new(_modRepository, _storageDirectory);
+    private ModImportService CreateService(SettingsService? settingsService = null)
+        => new(_modRepository, _storageDirectory, settingsService: settingsService);
 
     [Fact]
     public async Task ImportModAsync_ShouldPersistActualImportTime()

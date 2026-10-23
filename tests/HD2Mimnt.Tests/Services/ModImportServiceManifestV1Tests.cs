@@ -1,4 +1,5 @@
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Tests.TestHelpers;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using Moq;
@@ -12,7 +13,6 @@ namespace HD2Mimnt.Tests.Services;
 public class ModImportServiceManifestV1Tests
 {
     private readonly Mock<IModRepository> _mockRepository = new();
-    private readonly Mock<SettingsService> _mockSettingsService = new();
     private readonly string _testStoragePath;
 
     public ModImportServiceManifestV1Tests()
@@ -28,16 +28,12 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var testDir = Path.Combine(_testStoragePath, "test_mod");
         Directory.CreateDirectory(testDir);
         Directory.CreateDirectory(Path.Combine(testDir, "Option1"));
         Directory.CreateDirectory(Path.Combine(testDir, "Option2"));
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         // Act
         var manifest = importService.InferManifestFromDirectory(testDir, "Test Mod");
@@ -60,16 +56,12 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: false));
 
         var testDir = Path.Combine(_testStoragePath, "test_mod");
         Directory.CreateDirectory(testDir);
         Directory.CreateDirectory(Path.Combine(testDir, "Option1"));
         Directory.CreateDirectory(Path.Combine(testDir, "Option2"));
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(false);
 
         // Act
         var manifest = importService.InferManifestFromDirectory(testDir, "Test Mod");
@@ -90,15 +82,11 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var testDir = Path.Combine(_testStoragePath, "test_mod_no_sub");
         Directory.CreateDirectory(testDir);
         File.WriteAllText(Path.Combine(testDir, "test.txt"), "test");
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         // Act
         var manifest = importService.InferManifestFromDirectory(testDir, "Test Mod");
@@ -114,7 +102,7 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var modDir = Path.Combine(_testStoragePath, "upgrade_test");
         Directory.CreateDirectory(modDir);
@@ -130,9 +118,17 @@ public class ModImportServiceManifestV1Tests
             LegacyOptions = new List<string> { "Option1", "Option2" }
         };
 
-        // 保存 Legacy 清单
+        // 保存 Legacy 清单（解析器按"缺 Version 字段"识别 Legacy，
+        // Legacy 选项存放在 "Options" 字符串数组——与 V1 的对象数组同字段不同形态）
         var manifestPath = Path.Combine(modDir, "manifest.json");
-        var json = System.Text.Json.JsonSerializer.Serialize(legacyManifest);
+        var json = """
+            {
+              "Name": "Test Mod",
+              "Description": "A test mod",
+              "Author": "Test Author",
+              "Options": ["Option1", "Option2"]
+            }
+            """;
         File.WriteAllText(manifestPath, json);
 
         var mod = new Mod
@@ -142,10 +138,6 @@ public class ModImportServiceManifestV1Tests
             Path = modDir,
             Manifest = legacyManifest
         };
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         _mockRepository
             .Setup(r => r.UpdateAsync(It.IsAny<Mod>(), It.IsAny<CancellationToken>()))
@@ -172,7 +164,7 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: false));
 
         var mod = new Mod
         {
@@ -181,10 +173,6 @@ public class ModImportServiceManifestV1Tests
             Path = Path.Combine(_testStoragePath, "nonexistent"),
             Manifest = new ModManifest { ManifestVersion = ManifestVersion.Legacy }
         };
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(false);
 
         // Act
         var result = await importService.UpgradeModManifestToV1Async(mod);
@@ -200,7 +188,7 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var mod = new Mod
         {
@@ -209,10 +197,6 @@ public class ModImportServiceManifestV1Tests
             Path = Path.Combine(_testStoragePath, "test"),
             Manifest = new ModManifest { ManifestVersion = ManifestVersion.V1 }
         };
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         // Act
         var result = await importService.UpgradeModManifestToV1Async(mod);
@@ -228,7 +212,7 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var mods = new List<Mod>
         {
@@ -236,10 +220,6 @@ public class ModImportServiceManifestV1Tests
             new() { Id = Guid.NewGuid(), Name = "Mod2", Path = Path.Combine(_testStoragePath, "mod2"), Manifest = new() { ManifestVersion = ManifestVersion.Legacy } },
             new() { Id = Guid.NewGuid(), Name = "Mod3", Path = Path.Combine(_testStoragePath, "mod3"), Manifest = null }
         };
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         _mockRepository
             .Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
@@ -250,11 +230,14 @@ public class ModImportServiceManifestV1Tests
             .Returns(Task.CompletedTask);
 
         // Act
+        // Mod1 已是 V1 → 跳过；Mod2 有 Legacy 清单但目录缺失 → 失败；
+        // Mod3 无清单且目录缺失（无子目录可推断）→ 计为跳过
         var (upgraded, skipped, failed) = await importService.UpgradeAllModsManifestToV1Async();
 
         // Assert
-        Assert.Equal(0, upgraded); // Mod2 has no directory, Mod3 has no manifest - both skipped/failed
-        Assert.Equal(1, skipped); // Mod1 is already V1
+        Assert.Equal(0, upgraded);
+        Assert.Equal(2, skipped); // Mod1（已是 V1）与 Mod3（无清单无目录）
+        Assert.Equal(1, failed);  // Mod2（Legacy 但目录缺失）
     }
 
     [Fact]
@@ -264,15 +247,11 @@ public class ModImportServiceManifestV1Tests
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
-            settingsService: _mockSettingsService.Object);
+            settingsService: SeededSettingsService.Create(forceManifestV1: true));
 
         var testDir = Path.Combine(_testStoragePath, "test_metadata");
         Directory.CreateDirectory(testDir);
         Directory.CreateDirectory(Path.Combine(testDir, "SubDir"));
-
-        _mockSettingsService
-            .Setup(s => s.GetSetting(SettingKeys.ForceManifestV1, It.IsAny<bool>()))
-            .Returns(true);
 
         // Act
         var manifest = importService.InferManifestFromDirectory(testDir, "Test Mod");

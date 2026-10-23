@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Controls;
+using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.ViewModels;
 
 namespace HD2Mimnt.UI.Views;
@@ -18,12 +19,13 @@ public partial class LibraryView : UserControl
         AddHandler(KeyDownEvent, OnModListKeyDown, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerReleasedEvent, OnModListContextReleased, RoutingStrategies.Bubble, handledEventsToo: true);
-        DetachedFromVisualTree += async (_, _) =>
+        DetachedFromVisualTree += (_, _) =>
         {
             if (DataContext is LibraryViewModel vm)
             {
                 vm.ModLink?.CloseCommand.Execute(null);
-                if (vm.ModOnline is { } online) await online.CloseCommand.ExecuteAsync(null);
+                if (vm.ModOnline is { } online)
+                    SafeAsync.FireAndForget(online.CloseCommand.ExecuteAsync(null), "关闭在线详情");
             }
         };
     }

@@ -43,17 +43,39 @@ public class PluginHostPipeClient : IDisposable
 
     public async Task<T?> ReceiveMessageAsync<T>(CancellationToken cancellationToken = default) where T : PluginHostMessage
     {
+        var json = await ReceiveRawAsync(cancellationToken);
+        return json is null ? null : JsonSerializer.Deserialize<T>(json);
+    }
+
+    /// <summary>读取一帧原始 JSON；返回 null 表示对端关闭。</summary>
+    public async Task<string?> ReceiveRawAsync(CancellationToken cancellationToken = default)
+    {
+        const int maxMessageBytes = 8 * 1024 * 1024;
+
         var lengthBytes = new byte[4];
-        var bytesRead = await _pipeClient.ReadAsync(lengthBytes, 0, 4, cancellationToken);
-        if (bytesRead == 0) return null;
+        if (!await ReadExactlyAsync(lengthBytes, cancellationToken)) return null;
 
         var length = BitConverter.ToInt32(lengthBytes, 0);
-        var messageBytes = new byte[length];
-        bytesRead = await _pipeClient.ReadAsync(messageBytes, 0, length, cancellationToken);
-        if (bytesRead == 0) return null;
+        if (length is <= 0 or > maxMessageBytes)
+        {
+            throw new IOException($"Invalid IPC message length: {length}");
+        }
 
-        var json = Encoding.UTF8.GetString(messageBytes);
-        return JsonSerializer.Deserialize<T>(json);
+        var messageBytes = new byte[length];
+        if (!await ReadExactlyAsync(messageBytes, cancellationToken)) return null;
+        return Encoding.UTF8.GetString(messageBytes);
+    }
+
+    private async Task<bool> ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
+    {
+        var offset = 0;
+        while (offset < buffer.Length)
+        {
+            var read = await _pipeClient.ReadAsync(buffer.AsMemory(offset), cancellationToken);
+            if (read == 0) return false; // 对端关闭
+            offset += read;
+        }
+        return true;
     }
 
     public bool IsConnected => _pipeClient.IsConnected;

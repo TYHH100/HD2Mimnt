@@ -14,6 +14,7 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        CrashGuard.Install();
         using var protocolHost = new BrowserProtocolHost(BrowserProtocolHost.GetScope());
         var protocolLink = BrowserProtocolHost.GetProtocolArgument(args);
         if (!protocolHost.IsPrimary)
@@ -32,10 +33,31 @@ class Program
         // 构建 Host（在 App.OnFrameworkInitializationCompleted 中初始化）
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
-        // Avalonia 已退出，在后台发布最终离线快照并等清理结束，避免退出时遗留临时文件。
+        // Avalonia 已退出：按依赖顺序清理——主 ViewModel 退订事件并排空刷新队列，
+        // 再发布最终离线快照，最后停机并释放容器，让所有单例的清理代码真正执行。
+        DisposeMainWindowViewModel();
         AppHost?.Services.GetService<HD2Mimnt.Application.Services.OfflineInteropService>()
             ?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        if (AppHost is { } host)
+        {
+            try { host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); }
+            catch (Exception ex) { Console.Error.WriteLine($"Host stop failed: {ex}"); }
+            host.Dispose();
+            AppHost = null;
+        }
         ProtocolHost = null;
+    }
+
+    /// <summary>主窗口 ViewModel；App 启动后赋值，退出时由此处统一释放。</summary>
+    public static ViewModels.MainWindowViewModel? MainWindowViewModel { get; internal set; }
+
+    private static void DisposeMainWindowViewModel()
+    {
+        var viewModel = MainWindowViewModel;
+        MainWindowViewModel = null;
+        if (viewModel is null) return;
+        try { viewModel.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+        catch (Exception ex) { Console.Error.WriteLine($"MainWindowViewModel dispose failed: {ex}"); }
     }
 
     public static AppBuilder BuildAvaloniaApp()

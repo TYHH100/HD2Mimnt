@@ -598,7 +598,9 @@ public class ProfileModOptionsTests : IDisposable
         await _modRepository.UpdateAsync(mod);
 
         // 模拟应用启动时的历史数据回填：推断子目录为互斥选项并落库
-        var modService = new ModService(_modRepository, _modDirRoot);
+        // （Phase 6.8 起 ForceManifestV1 默认开启，验证旧语义需显式关闭）
+        var modService = new ModService(_modRepository, _modDirRoot,
+            settingsService: TestHelpers.SeededSettingsService.Create(forceManifestV1: false));
         await modService.GetModsByIdsAsync(new[] { mod.Id });
         var persistedMod = await _modRepository.GetByIdAsync(mod.Id);
         Assert.NotNull(persistedMod!.Manifest);

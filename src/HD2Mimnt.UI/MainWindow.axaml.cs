@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using FluentAvalonia.UI.Controls;
+using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.ViewModels;
 using System.ComponentModel;
 using Avalonia;
@@ -12,6 +13,7 @@ namespace HD2Mimnt.UI;
 public partial class MainWindow : Window
 {
     private bool _closeConfirmed;
+    private bool _closingInFlight;
     private MainWindowViewModel? _viewModel;
     private bool _importingDrop;
 
@@ -74,7 +76,7 @@ public partial class MainWindow : Window
             ImportDragHint.IsVisible = false;
     }
 
-    private async void OnFileDrop(object? sender, DragEventArgs e)
+    private void OnFileDrop(object? sender, DragEventArgs e)
     {
         ImportDragHint.IsVisible = false;
         var paths = GetDroppedPaths(e);
@@ -87,8 +89,11 @@ public partial class MainWindow : Window
         }
         e.DragEffects = DragDropEffects.Copy;
         _importingDrop = true;
-        try { await _viewModel.LibraryViewModel.ImportPathsAsync(paths); }
-        finally { _importingDrop = false; }
+        SafeAsync.Run(async () =>
+        {
+            try { await _viewModel!.LibraryViewModel.ImportPathsAsync(paths); }
+            finally { _importingDrop = false; }
+        }, "导入拖放文件");
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -134,13 +139,26 @@ public partial class MainWindow : Window
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (_closeConfirmed || DataContext is not ViewModels.MainWindowViewModel viewModel) return;
+        if (_closeConfirmed || _closingInFlight || DataContext is not ViewModels.MainWindowViewModel viewModel) return;
 
         e.Cancel = true;
-        if (await viewModel.CanCloseAsync())
+        _closingInFlight = true;
+        try
         {
+            if (await viewModel.CanCloseAsync())
+            {
+                _closeConfirmed = true;
+                Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            // 关闭确认链抛异常时窗口不得卡死：记录后放行关闭，
+            // 后续清理仍会由 Program.Main 的退出序列兜底。
+            CrashGuard.Report(ex, "关闭确认失败");
             _closeConfirmed = true;
             Close();
         }
+        finally { _closingInFlight = false; }
     }
 }

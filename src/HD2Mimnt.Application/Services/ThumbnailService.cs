@@ -151,7 +151,14 @@ public class ThumbnailService
         graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
         graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
 
-        graphics.DrawImage(sourceImage, 0, 0, width, height);
+        // 高质量插值会向源图边界外采样（透明黑），放大时边缘像素被晕染；
+        // TileFlipXY 让越界采样镜像回源图，消除缩略图边缘伪影。
+        using var attributes = new ImageAttributes();
+        attributes.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+        graphics.DrawImage(sourceImage,
+            new Rectangle(0, 0, width, height),
+            0, 0, sourceImage.Width, sourceImage.Height,
+            GraphicsUnit.Pixel, attributes);
 
         // 保存为 PNG
         thumbnail.Save(targetPath, ImageFormat.Png);
