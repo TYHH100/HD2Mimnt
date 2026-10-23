@@ -10,7 +10,8 @@
 > - ✅ Phase 1 已完成并提交（`1e120b1`）：CrashGuard 三件套全局异常兜底 + SafeAsync 包装；退出序列接入 Host Dispose 与主 VM 释放；TaskService 进度节流（死锁诱因消除）；PluginHostManager/WorkerHostManager 生命周期修复；IPC 改 Type 分发（原抽象基类反序列化必炸）；ThumbnailService 边缘伪影修复；28 个失败测试全部修复（ImageCache 簇迁 UITests 改 [AvaloniaFact]——其原静态构造在 xunit 工作线程初始化 Avalonia 即炸，亦是整套件偶发挂起的根源）。
 > - 验证：HD2Mimnt.Tests **1442/1442 连续两次全绿、无挂起**。
 > - ⚠️ 遗留：UITests 存在 **137 个预存环境性失败**（"Cannot get KeyValueStorage on the idle test context"，在 Phase 0 之前的基线上同样失败，与本方案改动无关），修复需调查 headless 平台配置，建议纳入 Phase 4。
-> - 待执行：Phase 2（安全加固）、Phase 3（数据层与资源）、Phase 4（结构治理）。
+> - ✅ Phase 2 已完成并提交（`23da11e`）：AI ApiKey 迁 DPAPI（数据库列恒空、旧明文自动迁移）；DownloadOptions 哈希校验能力（ExpectedHash）与默认拒绝明文 http（用户直连通道显式放行）；HD2IAS 更新链路以 GitHub 官方 Contents API 的 git blob SHA-1 为内容锚点，代理投毒整体拒绝、无锚点仅官方直连；解压防护（路径越界拒绝 + 单条目 2GB/总量 4GB/压缩比 1000× 配额）；插件/工作者管道 CurrentUserOnly；插件安装记录程序集 SHA-256 并新增 StartPluginAsync 启动前校验；VACUUM INTO 参数化。新增 13 个安全测试。
+> - 待执行：Phase 3（数据层与资源）、Phase 4（结构治理）。
 
 ---
 
