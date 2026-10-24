@@ -27,7 +27,7 @@
    git push origin master V0.2.0-beta
    ```
 
-3. 推送标签后 GitHub Actions 自动构建并创建 GitHub Release，产物为 `HD2Mimnt-<版本>-win-x64.zip`。
+3. 推送标签后 GitHub Actions 自动构建并创建 GitHub Release，产物为主包 `HD2Mimnt-<版本>-win-x64.zip`（不含 `.pdb`）与调试符号包 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
 4. 回到 `dev` 继续下一轮开发：`git checkout dev`。
 
 ## CI 发布工作流
@@ -35,7 +35,8 @@
 工作流文件：[.github/workflows/release.yml](../.github/workflows/release.yml)。
 
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。
-- 步骤：还原依赖 → Release 构建 → `HD2Mimnt.Tests` 单元测试 → 发布 UI 主程序 → 打包 zip → 创建 Release。
+- 步骤：还原依赖 → Release 构建 → `HD2Mimnt.Tests` 单元测试 → 发布 UI 主程序 → 主包与符号包分离打包 → 创建 Release。
+- 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`，配合 `minidump-stackwalk` 排查崩溃转储。
 - 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 与 `minidump-stackwalk` 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。
 - 产物为框架依赖发布，运行需安装 [.NET Desktop Runtime 10.0 x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 - UI 测试（Avalonia Headless）、性能与稳定性测试不在 CI 运行，发布前须在本地验证。
