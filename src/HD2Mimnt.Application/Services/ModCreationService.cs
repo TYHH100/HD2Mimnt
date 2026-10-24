@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.IO.Compression;
@@ -207,8 +208,7 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
         if (string.IsNullOrWhiteSpace(relative) || Path.IsPathRooted(relative)) throw new InvalidDataException("Creator.RelativePathRequired");
         var directory = Path.GetFullPath(root);
         var full = Path.GetFullPath(relative.Replace('/', Path.DirectorySeparatorChar), directory);
-        if (!string.Equals(full, directory, StringComparison.OrdinalIgnoreCase)
-            && !full.StartsWith(Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(full, directory, StringComparison.OrdinalIgnoreCase) && !PathGuard.IsInsideRoot(directory, full))
             throw new InvalidDataException("Creator.RelativePathRequired");
         return full;
     }
@@ -253,8 +253,7 @@ public sealed class ModCreationService(StorageSettingsService? storage = null)
             Validate(document);
             if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
             var destination = Path.GetFullPath(path);
-            if (destination.StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(source)) + Path.DirectorySeparatorChar,
-                StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Creator.ArchiveOutsideSource");
+            if (PathGuard.IsInsideRoot(source, destination)) throw new InvalidDataException("Creator.ArchiveOutsideSource");
             var temporary = destination + $".{Guid.NewGuid():N}.tmp";
             try
             {

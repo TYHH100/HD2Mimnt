@@ -158,4 +158,30 @@ public class LruCacheTests
         Assert.True(cache.Count <= 100);
         _output.WriteLine($"Cache count after concurrent access: {cache.Count}");
     }
+
+    [Fact]
+    public void EvictionCallback_Should_Fire_OnEvict_Remove_And_Clear_But_Not_OnUpdate()
+    {
+        // Arrange
+        var evicted = new List<int>();
+        var cache = new LruCache<string, int>(capacity: 2, v => evicted.Add(v));
+
+        // Act & Assert - 更新同键不触发回调（避免误释放仍被引用的同一实例）
+        cache.Add("key1", 1);
+        cache.Add("key1", 1);
+        Assert.Empty(evicted);
+
+        // 超容量驱逐最久未使用项
+        cache.Add("key2", 2);
+        cache.Add("key3", 3); // 驱逐 key1
+        Assert.Equal([1], evicted);
+
+        // 显式移除触发回调
+        cache.Remove("key2");
+        Assert.Equal([1, 2], evicted);
+
+        // 清空触发剩余项回调
+        cache.Clear();
+        Assert.Equal([1, 2, 3], evicted);
+    }
 }

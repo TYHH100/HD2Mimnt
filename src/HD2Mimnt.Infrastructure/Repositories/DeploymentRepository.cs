@@ -54,11 +54,7 @@ public class DeploymentRepository : IDeploymentRepository
             records.Add(MapToDeploymentRecord(reader));
         }
 
-        // Load files for each record
-        foreach (var record in records)
-        {
-            record.Files = (await GetDeploymentFilesAsync(record.Id, cancellationToken)).ToList();
-        }
+        await LoadDeploymentFilesAsync(connection, records, cancellationToken);
 
         return records;
     }
@@ -78,10 +74,7 @@ public class DeploymentRepository : IDeploymentRepository
             records.Add(MapToDeploymentRecord(reader));
         }
 
-        foreach (var record in records)
-        {
-            record.Files = (await GetDeploymentFilesAsync(record.Id, cancellationToken)).ToList();
-        }
+        await LoadDeploymentFilesAsync(connection, records, cancellationToken);
 
         return records;
     }
@@ -249,6 +242,45 @@ public class DeploymentRepository : IDeploymentRepository
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 批量装载部署文件并按记录分配，替代逐记录的 N+1 查询。
+    /// </summary>
+    private static async Task LoadDeploymentFilesAsync(SqliteConnection connection, List<DeploymentRecord> records, CancellationToken cancellationToken)
+    {
+        if (records.Count == 0)
+        {
+            return;
+        }
+
+        var filesByDeployment = new Dictionary<Guid, List<DeploymentFile>>();
+        foreach (var chunk in records.Select(r => r.Id).Distinct().Chunk(SqliteBatching.MaxParametersPerChunk))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT * FROM DeploymentFiles
+                WHERE DeploymentId IN ({SqliteBatching.BindInParameters(command, chunk, id => id.ToString())})";
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var file = MapToDeploymentFile(reader);
+                if (!filesByDeployment.TryGetValue(file.DeploymentId, out var list))
+                {
+                    filesByDeployment[file.DeploymentId] = list = new List<DeploymentFile>();
+                }
+                list.Add(file);
+            }
+        }
+
+        foreach (var record in records)
+        {
+            if (filesByDeployment.TryGetValue(record.Id, out var files))
+            {
+                record.Files = files;
+            }
+        }
     }
 
     private async Task AddDeploymentFilesInternalAsync(

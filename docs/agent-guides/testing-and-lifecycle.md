@@ -73,3 +73,9 @@
 - Avalonia 12 的 `Avalonia.Headless.XUnit` 依赖 xUnit v3，与现有 xUnit v2 单元测试分项目运行；UI 测试放在 `HD2Mimnt.UITests`，通过 `AvaloniaTestApplication` 复用宿主 UI 线程，不能给旧测试程序集引入第二套 xUnit。来源：https://www.nuget.org/packages/Avalonia.Headless.XUnit/12.0.3
 
 - Headless 多用例合并运行若出现 `Cannot get KeyValueStorage on the idle test context`，先逐用例分进程、顺序运行以区分宿主上下文错误与业务断言失败；不得将隔离通过表述为合并运行已修复，也不要通过再创建 AppBuilder 绕过宿主。当前 Avalonia.Headless.XUnit 12.0.3 / xUnit v3 3.2.2 组合已复现此问题。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless.XUnit/AvaloniaTestRunner.cs
+
+- `Microsoft.Data.Sqlite` 打开连接时默认启用外键约束（与原生 SQLite 默认相反）。聚合写入必须按外键依赖顺序（主行 → 包 → 组件 → 部署文件，`DeployableFiles.PackageId` 引用 `PackageSources`）并包在同一事务；仓储测试用临时库 + `InitializeDatabaseAsync()`，`DeploymentRecords`/`DeploymentFiles` 的外键要求先插入 `Profiles`/`Mods` 前置行。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/foreign-keys
+
+- 聚合读取禁止逐父行子查询（N+1）：先取父行集合，再用 `SqliteBatching.BindInParameters` + `Chunk(500)` 批量 IN 装载子表并按归属列分组（批次查询须同时 SELECT 归属列，映射器不读它）。实测 500 模组聚合读取从 ~3.2s 降到 ~28ms。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/parameters
+
+- "路径必须位于根内"与长度前缀管道帧是共享设施：新代码一律使用 `HD2Mimnt.Core.IO.PathGuard.IsInsideRoot/ResolveInsideRoot` 和 `HD2Mimnt.Core.IPC.PipeFrame`（含 ReadExactly 短读循环与 8MB 帧上限），不要手写 `GetFullPath + StartsWith` 前缀比较或第二份帧读取器。`LruCache` 构造可传驱逐回调释放原生资源（如 Bitmap），回调在锁外执行；`ImageLoaderService.CancelPendingLoads` 是代际令牌，Cancel 后新加载仍可用。

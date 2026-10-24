@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using HD2Mimnt.Core.Hd2IAS;
 using HD2Mimnt.Infrastructure.Hd2IAS;
 using System.IO.Compression;
@@ -132,8 +133,7 @@ public sealed class Hd2IASIntegrationService(IHd2IASPackageReader packages, IHd2
     {
         // 导出到游戏目录会留下未追踪的活动系统包，必须交给后续专用部署流程处理。
         var output = Path.GetFullPath(outputPath);
-        var gameRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(gamePath));
-        if (output.StartsWith(gameRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (PathGuard.IsInsideRoot(gamePath, output))
             throw new InvalidOperationException("Export the HD2IAS package outside the game directory.");
         var package = await packages.ReadAsync(packagePath, cancellationToken);
         if (!package.IsValid) throw new InvalidDataException("HD2IAS package verification failed.");

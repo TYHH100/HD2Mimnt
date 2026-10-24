@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
@@ -347,8 +348,7 @@ public class ModImportService
         {
             var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(modPath));
             var image = Path.GetFullPath(iconPath.Replace('/', Path.DirectorySeparatorChar), root);
-            return image.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                && File.Exists(image) ? image : null;
+            return PathGuard.IsInsideRoot(root, image) && File.Exists(image) ? image : null;
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
         { return null; }
@@ -687,10 +687,9 @@ public class ModImportService
     private static string Inside(string root, string relative)
     {
         var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-        var full = Path.GetFullPath(Path.Combine(normalized, relative.Replace('/', Path.DirectorySeparatorChar)));
-        if (!full.StartsWith(normalized + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"迁移文件路径越出模组目录：{relative}");
-        return full;
+        return PathGuard.ResolveInsideRoot(normalized,
+            Path.Combine(normalized, relative.Replace('/', Path.DirectorySeparatorChar)),
+            $"迁移文件路径越出模组目录：{relative}");
     }
 
     /// <summary>

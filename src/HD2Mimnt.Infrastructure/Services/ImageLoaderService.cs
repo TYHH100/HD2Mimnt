@@ -7,12 +7,13 @@ namespace HD2Mimnt.Infrastructure.Services;
 /// 图片加载服务实现
 /// 支持异步加载、优先级队列、缩略图生成
 /// </summary>
-public class ImageLoaderService : IImageLoaderService
+public class ImageLoaderService : IImageLoaderService, IDisposable
 {
     private readonly IImageCacheService _cacheService;
     private readonly PriorityTaskScheduler _taskScheduler;
     private readonly ConcurrentDictionary<string, Task<Bitmap?>> _pendingLoads;
-    private readonly CancellationTokenSource _globalCts;
+    private readonly object _ctsLock = new();
+    private CancellationTokenSource _globalCts;
 
     public ImageLoaderService(IImageCacheService cacheService)
     {
@@ -35,9 +36,16 @@ public class ImageLoaderService : IImageLoaderService
         // 生成缓存键（包含尺寸信息）
         var cacheKey = GenerateCacheKey(path, maxWidth, maxHeight);
 
+        // 在锁内捕获当前代际的令牌，避免与 CancelPendingLoads 的代际重建竞态
+        CancellationToken globalToken;
+        lock (_ctsLock)
+        {
+            globalToken = _globalCts.Token;
+        }
+
         // 组合取消令牌
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, _globalCts.Token);
+            cancellationToken, globalToken);
 
         // 检查是否已经在加载中
         if (_pendingLoads.TryGetValue(cacheKey, out var existingTask))
@@ -77,9 +85,28 @@ public class ImageLoaderService : IImageLoaderService
         return results;
     }
 
+    /// <summary>
+    /// 取消当前所有进行中的加载；通过重建代际令牌源，后续新加载不受影响。
+    /// 旧令牌源不主动 Dispose，避免与飞行中 CreateLinkedTokenSource 的注册竞态（对象由 GC 回收）。
+    /// </summary>
     public void CancelPendingLoads()
     {
-        _globalCts.Cancel();
+        CancellationTokenSource previous;
+        lock (_ctsLock)
+        {
+            previous = _globalCts;
+            _globalCts = new CancellationTokenSource();
+        }
+        previous.Cancel();
+    }
+
+    public void Dispose()
+    {
+        lock (_ctsLock)
+        {
+            _globalCts.Cancel();
+            _globalCts.Dispose();
+        }
     }
 
     private static async Task<Bitmap?> LoadImageFromDiskAsync(

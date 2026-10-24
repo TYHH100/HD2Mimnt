@@ -22,7 +22,8 @@ public class ImageCacheService : IImageCacheService
 
     public ImageCacheService(string? cachePath = null, int memoryCacheSize = DefaultMemoryCacheSize)
     {
-        _memoryCache = new Cache.LruCache<string, Bitmap>(memoryCacheSize);
+        // Bitmap 持有原生内存，驱逐时必须释放；当前消费方不长期持有缓存实例
+        _memoryCache = new Cache.LruCache<string, Bitmap>(memoryCacheSize, bitmap => bitmap.Dispose());
         _diskCachePath = cachePath ?? Path.Combine(RuntimeDataPaths.GetDefaultApplicationDataPath(), "ImageCache");
 
         Directory.CreateDirectory(_diskCachePath);

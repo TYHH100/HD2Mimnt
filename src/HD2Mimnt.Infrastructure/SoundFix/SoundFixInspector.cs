@@ -9,22 +9,31 @@ namespace HD2Mimnt.Infrastructure.SoundFix;
 /// <summary>只读扫描库内文件；游戏 data 仅作为官方参考。</summary>
 public sealed class SoundFixInspector(IGameSoundBankReader references)
 {
-    private sealed class Inspection
+    private sealed class Inspection : IDisposable
     {
         public SoundFixModReport Report { get; set; } = new();
         public Dictionary<string, Package> Packages { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string> Hashes { get; } = new(StringComparer.OrdinalIgnoreCase);
         public List<FixPlan> Plans { get; } = [];
+
+        public void Dispose()
+        {
+            foreach (var package in Packages.Values) package.Dispose();
+        }
     }
 
     public Task<SoundFixModReport> InspectAsync(Mod mod, string gameDirectory, CancellationToken token = default)
-        => Task.Run(async () => (await InspectCoreAsync(mod, gameDirectory, token)).Report, token);
+        => Task.Run(async () =>
+        {
+            using var inspection = await InspectCoreAsync(mod, gameDirectory, token);
+            return inspection.Report;
+        }, token);
 
     public Task<SoundFixTransaction> PrepareAsync(Mod mod, string gameDirectory, SoundFixModReport expected,
         string backupRoot, CancellationToken token = default)
         => Task.Run(async () =>
         {
-            var inspection = await InspectCoreAsync(mod, gameDirectory, token);
+            using var inspection = await InspectCoreAsync(mod, gameDirectory, token);
             if (!string.Equals(expected.ModPath, mod.Path, StringComparison.OrdinalIgnoreCase)
                 || inspection.Report.Fingerprint != expected.Fingerprint)
                 throw new InvalidOperationException("模组或游戏参考已改变，请重新扫描。");
@@ -36,8 +45,8 @@ public sealed class SoundFixInspector(IGameSoundBankReader references)
                 {
                     token.ThrowIfCancellationRequested();
                     var banks = group.ToDictionary(p => p.Ref.Entry.FileId, SoundBankRepair.RebuildBank);
-                    var rebuilt = SoundBankRepair.RebuildPackage(inspection.Packages[group.Key], banks);
-                    await transaction.StageAsync(group.Key, rebuilt, inspection.Hashes[group.Key], token);
+                    using var rebuilt = SoundBankRepair.RebuildPackage(inspection.Packages[group.Key], banks);
+                    await transaction.StageAsync(group.Key, rebuilt, rebuilt.Length, inspection.Hashes[group.Key], token);
                 }
                 return transaction;
             }
@@ -82,9 +91,13 @@ public sealed class SoundFixInspector(IGameSoundBankReader references)
                     }
                     if (!hasBank) continue;
                 }
-                var raw = await File.ReadAllBytesAsync(path, token);
-                var hash = Convert.ToHexString(SHA256.HashData(raw));
-                var package = Package.Load(raw, path);
+                // 音效补丁可达数百 MB：哈希流式计算，包内容通过内存映射按需读取，不整包驻留内存。
+                string hash;
+                await using (var hashStream = File.OpenRead(path))
+                {
+                    hash = Convert.ToHexString(await SHA256.HashDataAsync(hashStream, token));
+                }
+                var package = Package.Load(path);
                 inspection.Packages.Add(path, package);
                 inspection.Hashes.Add(path, hash);
                 fingerprint.AppendData(Encoding.UTF8.GetBytes(Path.GetRelativePath(root, path) + "\0" + hash));

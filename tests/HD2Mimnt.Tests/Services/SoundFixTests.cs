@@ -165,7 +165,7 @@ public sealed class SoundFixTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => service.RestoreAsync(mod.Id));
         Assert.Equal(changed, File.ReadAllBytes(path));
         using var transaction = new SoundFixTransaction(mod.Id, mod.Path, BackupRoot);
-        await transaction.StageAsync(path, [1, 2, 3], Convert.ToHexString(SHA256.HashData(changed)), default);
+        await transaction.StageAsync(path, new MemoryStream([1, 2, 3]), 3, Convert.ToHexString(SHA256.HashData(changed)), default);
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => transaction.ApplyAsync(cancellation.Token));
         await transaction.RollbackAsync(); Assert.Equal(changed, File.ReadAllBytes(path));

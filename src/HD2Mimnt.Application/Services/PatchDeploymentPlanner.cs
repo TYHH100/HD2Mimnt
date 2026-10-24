@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using HD2Mimnt.Core.Entities;
@@ -36,8 +37,7 @@ internal static partial class PatchDeploymentPlanner
         {
             cancellationToken.ThrowIfCancellationRequested();
             var directory = Path.GetFullPath(Path.Combine(root, relative));
-            if ((!directory.Equals(root, StringComparison.OrdinalIgnoreCase)
-                && !directory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if ((!directory.Equals(root, StringComparison.OrdinalIgnoreCase) && !PathGuard.IsInsideRoot(root, directory))
                 || !visited.Add(directory) || !Directory.Exists(directory))
                 continue;
 

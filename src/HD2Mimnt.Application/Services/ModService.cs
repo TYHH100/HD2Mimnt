@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
@@ -230,9 +231,7 @@ public partial class ModService
         }
     }
 
-    private bool IsManagedModDirectory(string path)
-        => Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(_storageDirectory))
-            + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    private bool IsManagedModDirectory(string path) => PathGuard.IsInsideRoot(_storageDirectory, path);
 
     public async Task<Mod> RecordUpdateCheckAsync(Guid id, ModPlatformLink expectedLink, string? latestVersion,
         CancellationToken cancellationToken = default)

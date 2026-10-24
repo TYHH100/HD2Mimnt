@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 using HD2Mimnt.Core.Entities;
 
@@ -66,8 +67,7 @@ public sealed class ModVersionStore(string libraryPath)
     private string Resolve(string relative)
     {
         var full = Path.GetFullPath(relative, Path.GetFullPath(libraryPath));
-        if (!full.StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(libraryPath)) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("版本文件不在模组库中。");
+        if (!PathGuard.IsInsideRoot(libraryPath, full)) throw new InvalidDataException("版本文件不在模组库中。");
         return full;
     }
 }

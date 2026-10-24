@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using HD2Mimnt.UI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -453,7 +454,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         {
             var fullRoot = Path.GetFullPath(modPath);
             var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativeImage));
-            if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (!PathGuard.IsInsideRoot(fullRoot, fullPath))
             {
                 return null;
             }

@@ -100,8 +100,9 @@ public class ImageCacheServiceTests : IDisposable
 
         // Act - 保存到第一个服务实例
         await _cacheService.PreloadAsync(key, bitmap);
+        var originalSize = bitmap.PixelSize;
 
-        // 清除内存缓存
+        // 清除内存缓存（清理会释放被缓存的 Bitmap 原生内存）
         _cacheService.ClearMemoryCache();
 
         // 创建新的服务实例（使用同一磁盘缓存路径）
@@ -110,7 +111,7 @@ public class ImageCacheServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(retrieved);
-        _output.WriteLine($"Original: {bitmap.PixelSize}, Retrieved: {retrieved.PixelSize}");
+        _output.WriteLine($"Original: {originalSize}, Retrieved: {retrieved.PixelSize}");
     }
 
     [AvaloniaFact]

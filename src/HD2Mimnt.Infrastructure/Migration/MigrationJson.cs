@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 using System.Security.Cryptography;
 using HD2Mimnt.Core.Entities;
@@ -53,8 +54,7 @@ internal static class MigrationJson
     {
         var normalizedRoot = Root(root);
         var full = Path.GetFullPath(Path.Combine(normalizedRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
-        if (!full.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase)
-            && !full.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (!full.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase) && !PathGuard.IsInsideRoot(normalizedRoot, full))
             throw new InvalidDataException($"相对路径越出模组目录：{relative}");
         return full;
     }

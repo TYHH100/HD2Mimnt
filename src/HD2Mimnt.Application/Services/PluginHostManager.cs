@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using HD2Mimnt.Core.IPC;
 using HD2Mimnt.Core.Interfaces;
 
 namespace HD2Mimnt.Application.Services;
@@ -47,8 +48,6 @@ public class PluginErrorResponse : PluginHostMessage
 /// </summary>
 internal class PluginHostPipeServer : IDisposable
 {
-    private const int MaxMessageBytes = 8 * 1024 * 1024;
-
     private readonly NamedPipeServerStream _pipeServer;
 
     public PluginHostPipeServer(string pipeName)
@@ -66,46 +65,12 @@ internal class PluginHostPipeServer : IDisposable
         await _pipeServer.WaitForConnectionAsync(cancellationToken);
     }
 
-    public async Task SendMessageAsync<T>(T message, CancellationToken cancellationToken = default) where T : PluginHostMessage
-    {
-        var json = JsonSerializer.Serialize(message);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var lengthBytes = BitConverter.GetBytes(bytes.Length);
-
-        await _pipeServer.WriteAsync(lengthBytes, 0, 4, cancellationToken);
-        await _pipeServer.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
-        await _pipeServer.FlushAsync(cancellationToken);
-    }
+    public Task SendMessageAsync<T>(T message, CancellationToken cancellationToken = default) where T : PluginHostMessage
+        => PipeFrame.SendAsync(_pipeServer, JsonSerializer.Serialize(message), cancellationToken);
 
     /// <summary>读取一帧原始 JSON；返回 null 表示对端关闭。</summary>
-    public async Task<string?> ReceiveRawAsync(CancellationToken cancellationToken = default)
-    {
-        var lengthBytes = new byte[4];
-        if (!await ReadExactlyAsync(lengthBytes, cancellationToken)) return null;
-
-        var length = BitConverter.ToInt32(lengthBytes, 0);
-        if (length is <= 0 or > MaxMessageBytes)
-        {
-            // 长度非法：视为协议破坏，抛出让监听器按宿主崩溃处理
-            throw new IOException($"Invalid IPC message length: {length}");
-        }
-
-        var messageBytes = new byte[length];
-        if (!await ReadExactlyAsync(messageBytes, cancellationToken)) return null;
-        return Encoding.UTF8.GetString(messageBytes);
-    }
-
-    private async Task<bool> ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
-    {
-        var offset = 0;
-        while (offset < buffer.Length)
-        {
-            var read = await _pipeServer.ReadAsync(buffer.AsMemory(offset), cancellationToken);
-            if (read == 0) return false; // 对端关闭
-            offset += read;
-        }
-        return true;
-    }
+    public Task<string?> ReceiveRawAsync(CancellationToken cancellationToken = default)
+        => PipeFrame.ReceiveAsync(_pipeServer, cancellationToken);
 
     public bool IsConnected => _pipeServer.IsConnected;
 

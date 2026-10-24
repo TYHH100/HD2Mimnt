@@ -11,7 +11,8 @@
 > - 验证：HD2Mimnt.Tests **1442/1442 连续两次全绿、无挂起**。
 > - ⚠️ 遗留：UITests 存在 **137 个预存环境性失败**（"Cannot get KeyValueStorage on the idle test context"，在 Phase 0 之前的基线上同样失败，与本方案改动无关），修复需调查 headless 平台配置，建议纳入 Phase 4。
 > - ✅ Phase 2 已完成并提交（`23da11e`）：AI ApiKey 迁 DPAPI（数据库列恒空、旧明文自动迁移）；DownloadOptions 哈希校验能力（ExpectedHash）与默认拒绝明文 http（用户直连通道显式放行）；HD2IAS 更新链路以 GitHub 官方 Contents API 的 git blob SHA-1 为内容锚点，代理投毒整体拒绝、无锚点仅官方直连；解压防护（路径越界拒绝 + 单条目 2GB/总量 4GB/压缩比 1000× 配额）；插件/工作者管道 CurrentUserOnly；插件安装记录程序集 SHA-256 并新增 StartPluginAsync 启动前校验；VACUUM INTO 参数化。新增 13 个安全测试。
-> - 待执行：Phase 3（数据层与资源）、Phase 4（结构治理）。
+> - ✅ Phase 3 已完成：LogicalModRepository 聚合写入包事务并修复外键插入顺序缺陷（原顺序下带部署文件的聚合在 FK 约束下必然失败）；GetAll/Search/Deployment 列表 N+1 改批量 IN（500 模组聚合读取 ~3.2s → ~28ms，部署会话 ~330ms → ~14ms）；SoundFix 包解析改 MemoryMappedFile 按需读取 + Stage/恢复流程流式化（数百 MB 音效包不再整包驻留）；ImageLoaderService 代际取消令牌 + Dispose；LruCache 驱逐回调释放 Bitmap；DownloadManagerService File.Move 出锁；三份重复帧读取器合并为 Core PipeFrame；14 处手写“根内路径”校验收敛为 Core PathGuard。新增 10 个测试。
+> - 待执行：Phase 4（结构治理）。
 
 ---
 
@@ -267,6 +268,23 @@
 3. `ImageLoaderService` 代际 CTS + Dispose；`LruCache` 驱逐回调 Dispose Bitmap；`DownloadManagerService` File.Move 出锁（C5）。
 4. 合并帧读取器（含短读处理）；提取 `PathGuard` 收敛 12+ 处路径校验（C6）。
 - 验证：全量测试绿 + 大库性能测试（PerformanceTests 现在已在 slnx 内）对比 N+1 修复前后耗时。
+
+**Phase 3 执行结果（2026-10-24）**
+
+- C3：`LogicalModRepository.AddAsync/DeleteAsync` 同连接事务化，并把写入顺序修正为 主行 → 包 → 组件 → 文件（`DeployableFiles.PackageId` 外键依赖；Microsoft.Data.Sqlite 默认启用外键，原顺序下带文件的聚合必然 FK 失败——属既有隐藏缺陷，本次由新增测试首次暴露并修复）。`GetAllAsync`/`SearchByNameAsync`/`GetByIdAsync` 经 `LoadAggregatesAsync` 批量 IN 装载（新 `Core` 无侵入，`SqliteBatching.BindInParameters` + `Chunk(500)`）；`DeploymentRepository.GetBySessionIdAsync/GetByModIdAsync` 同法批量化。
+- C4：`Package` 改为 `MemoryMappedFile` 按需区间读取（`Load(path)`；内存版仅供重建复检），哈希改流式；`RebuildPackage` 返回 `MemoryStream` 并以 `GetBuffer` 复检（免二次整包拷贝）；`SoundFixTransaction.StageAsync` 改 `(Stream, length)` 流式落盘，恢复流程按流校验/搬运。
+- C5：`ImageLoaderService` 代际 CTS（Cancel 后重建，新加载不再静默失效）+ `Dispose`；`LruCache` 增驱逐/移除/清空回调（锁外执行），`ImageCacheService` 驱逐时释放 Bitmap 原生内存；`DownloadManagerService` 的 `File.Move` 移出 `lock (task)`。
+- C6：三份相同的长度前缀帧读取器（NamedPipeServer / PluginHostPipeServer / PluginHostPipeClient）合并为 `Core/IPC/PipeFrame`；14 处手写"根内路径"前缀校验收敛为 `Core/IO/PathGuard`（SharpCompress 解压的复合 ValidateEntry 保留原样）。
+- 性能对比（`LogicalModAggregatePerformanceTests`，同机 7 次取暖值中位，修复前为 HEAD 基线）：
+
+| 场景（500 逻辑模组 / 200 部署记录） | 修复前（N+1） | 修复后（批量 IN） | 提速 |
+| --- | --- | --- | --- |
+| `logical_mods_get_all_500` | ~3.24 s | ~28 ms | ~115× |
+| `logical_mods_aggregate_4500_children` | ~3.38 s | ~28 ms | ~120× |
+| `logical_mods_search_250` | ~1.69 s | ~21 ms | ~80× |
+| `deployments_by_session_200_records` | ~330 ms | ~14 ms | ~24× |
+
+- 验证：新增 LogicalModRepositoryTests(5)/DeploymentRepositoryTests(3)/LruCache 驱逐回调(1)/SoundFix 流式(既有 7 个全绿)；主套件 **1464/1464 连续两次全绿**；UITests 137 失败与 Phase 2 基线一致（预存 headless 环境问题，无新增回归）。
 
 ### Phase 4 — 结构治理（持续，按需排期）
 

@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using HD2Mimnt.Core.Diagnostics;
@@ -126,8 +127,7 @@ public sealed class CrashDiagnosticsService(IMinidumpAnalyzer analyzer, IDeploym
     private static string FileName(string path) => Path.GetFileName(path.Replace('\\', '/'));
     private static bool IsWithin(string path, string root)
     {
-        try { return Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase); }
+        try { return PathGuard.IsInsideRoot(root, path); }
         catch (Exception error) when (error is ArgumentException or NotSupportedException) { return false; }
     }
 }

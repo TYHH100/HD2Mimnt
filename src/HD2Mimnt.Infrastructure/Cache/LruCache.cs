@@ -7,16 +7,19 @@ namespace HD2Mimnt.Infrastructure.Cache;
 public class LruCache<TKey, TValue> where TKey : notnull
 {
     private readonly int _capacity;
+    private readonly Action<TValue>? _onEvicted;
     private readonly Dictionary<TKey, LinkedListNode<CacheItem>> _cache;
     private readonly LinkedList<CacheItem> _lruList;
     private readonly object _lock = new();
 
-    public LruCache(int capacity)
+    /// <param name="onEvicted">条目被驱逐/移除/清空时的回调（如释放原生资源）；更新同键现有值时不触发。</param>
+    public LruCache(int capacity, Action<TValue>? onEvicted = null)
     {
         if (capacity <= 0)
             throw new ArgumentException("Capacity must be greater than 0", nameof(capacity));
 
         _capacity = capacity;
+        _onEvicted = onEvicted;
         _cache = new Dictionary<TKey, LinkedListNode<CacheItem>>(capacity);
         _lruList = new LinkedList<CacheItem>();
     }
@@ -53,6 +56,8 @@ public class LruCache<TKey, TValue> where TKey : notnull
 
     public void Add(TKey key, TValue value)
     {
+        TValue evicted = default!;
+        var hasEvicted = false;
         lock (_lock)
         {
             if (_cache.TryGetValue(key, out var existingNode))
@@ -73,6 +78,8 @@ public class LruCache<TKey, TValue> where TKey : notnull
                     {
                         _cache.Remove(lruNode.Value.Key);
                         _lruList.RemoveLast();
+                        evicted = lruNode.Value.Value;
+                        hasEvicted = true;
                     }
                 }
 
@@ -81,29 +88,57 @@ public class LruCache<TKey, TValue> where TKey : notnull
                 _cache[key] = newNode;
             }
         }
+        // 回调放到锁外执行，避免回调重入缓存时死锁
+        if (hasEvicted)
+        {
+            _onEvicted?.Invoke(evicted);
+        }
     }
 
     public bool Remove(TKey key)
     {
+        TValue removed = default!;
+        var hasRemoved = false;
         lock (_lock)
         {
             if (_cache.TryGetValue(key, out var node))
             {
                 _lruList.Remove(node);
                 _cache.Remove(key);
-                return true;
+                removed = node.Value.Value;
+                hasRemoved = true;
             }
-
-            return false;
         }
+        if (hasRemoved)
+        {
+            _onEvicted?.Invoke(removed);
+        }
+        return hasRemoved;
     }
 
     public void Clear()
     {
+        List<TValue>? evicted = null;
         lock (_lock)
         {
+            if (_onEvicted != null)
+            {
+                evicted = new List<TValue>(_cache.Count);
+                foreach (var node in _lruList)
+                {
+                    evicted.Add(node.Value);
+                }
+            }
             _cache.Clear();
             _lruList.Clear();
+        }
+        // 回调放到锁外执行，避免回调重入缓存时死锁
+        if (evicted != null)
+        {
+            foreach (var value in evicted)
+            {
+                _onEvicted!.Invoke(value);
+            }
         }
     }
 

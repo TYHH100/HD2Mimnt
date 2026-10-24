@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
@@ -54,9 +55,7 @@ public sealed class StorageLocationStore
     }
     public static bool Same(string left, string right) => string.Equals(
         Path.TrimEndingDirectorySeparator(left), Path.TrimEndingDirectorySeparator(right), StringComparison.OrdinalIgnoreCase);
-    public static bool Contains(string root, string path) => Same(root, path) ||
-        Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase);
+    public static bool Contains(string root, string path) => Same(root, path) || PathGuard.IsInsideRoot(root, path);
 }
 
 public sealed record StorageState(StorageLocations Current)

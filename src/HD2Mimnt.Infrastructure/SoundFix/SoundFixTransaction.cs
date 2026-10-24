@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -25,14 +26,19 @@ public sealed class SoundFixTransaction : IDisposable
         BackupPath = Path.Combine(backupRoot, modId.ToString("N"), DateTime.UtcNow.ToString("yyyyMMddHHmmssfffffff") + "-" + Guid.NewGuid().ToString("N"));
     }
 
-    public async Task StageAsync(string original, byte[] data, string expectedHash, CancellationToken token)
+    /// <summary>把替换内容写入临时文件，提交时移动；数据以流方式消费，不整包驻留内存。</summary>
+    public async Task StageAsync(string original, Stream data, long length, string expectedHash, CancellationToken token)
     {
         var relative = Path.GetRelativePath(_root, original);
         _ = Resolve(_root, relative);
         var temporary = Path.Combine(Path.GetDirectoryName(original)!, $".soundfix-{Guid.NewGuid():N}.tmp");
-        var entry = new Entry(relative, expectedHash, Convert.ToHexString(SHA256.HashData(data)), new FileInfo(original).Length, data.LongLength);
-        _files.Add((entry, temporary));
-        await File.WriteAllBytesAsync(temporary, data, token);
+        var afterHash = Convert.ToHexString(await SHA256.HashDataAsync(data, token));
+        data.Position = 0;
+        _files.Add((new Entry(relative, expectedHash, afterHash, new FileInfo(original).Length, length), temporary));
+        await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+        {
+            await data.CopyToAsync(output, token);
+        }
     }
 
     public async Task ApplyAsync(CancellationToken token)
@@ -105,9 +111,10 @@ public sealed class SoundFixTransaction : IDisposable
             {
                 var original = Resolve(root, entry.RelativePath);
                 if (await HashAsync(original, token) != entry.AfterHash) throw new InvalidDataException("修复后模组已更新，请勿用旧备份覆盖新内容。");
-                var data = await File.ReadAllBytesAsync(Resolve(backup, entry.RelativePath), token);
-                if (Convert.ToHexString(SHA256.HashData(data)) != entry.BeforeHash) throw new InvalidDataException("音效备份校验失败。");
-                await transaction.StageAsync(original, data, entry.AfterHash, token);
+                var backupFile = Resolve(backup, entry.RelativePath);
+                if (await HashAsync(backupFile, token) != entry.BeforeHash) throw new InvalidDataException("音效备份校验失败。");
+                await using var data = File.OpenRead(backupFile);
+                await transaction.StageAsync(original, data, data.Length, entry.AfterHash, token);
             }
             return transaction;
         }
@@ -126,9 +133,7 @@ public sealed class SoundFixTransaction : IDisposable
 
     private static string Resolve(string root, string relative)
     {
-        var path = Path.GetFullPath(Path.Combine(root, relative));
-        if (!path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("音效备份路径越界。");
+        var path = PathGuard.ResolveInsideRoot(root, Path.Combine(root, relative), "音效备份路径越界。");
         return path;
     }
 

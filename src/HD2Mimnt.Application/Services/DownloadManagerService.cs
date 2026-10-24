@@ -190,10 +190,11 @@ public class DownloadManagerService
                 await fileStream.FlushAsync(task.CancellationTokenSource.Token);
             }
 
+            // 移动在锁外执行（同步 IO 可达秒级），完成状态仍在锁内更新
+            task.CancellationTokenSource.Token.ThrowIfCancellationRequested();
+            File.Move(temporaryPath, target, overwrite: true);
             lock (task)
             {
-                task.CancellationTokenSource.Token.ThrowIfCancellationRequested();
-                File.Move(temporaryPath, target, overwrite: true);
                 task.Status = DownloadStatus.Completed;
                 task.Progress = 100;
                 task.CompletedAt = DateTime.UtcNow;

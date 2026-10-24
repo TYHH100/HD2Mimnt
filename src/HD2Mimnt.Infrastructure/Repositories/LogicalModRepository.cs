@@ -22,36 +22,50 @@ public class LogicalModRepository : ILogicalModRepository
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-            INSERT INTO LogicalMods (Id, Name, Version, Author, Description, ManifestVersion, CreatedAt, ModifiedAt, TotalSize, ThumbnailPath, Tags, Metadata)
-            VALUES (@Id, @Name, @Version, @Author, @Description, @ManifestVersion, @CreatedAt, @ModifiedAt, @TotalSize, @ThumbnailPath, @Tags, @Metadata)";
-
-        command.Parameters.AddWithValue("@Id", logicalMod.Id.ToString());
-        command.Parameters.AddWithValue("@Name", logicalMod.Name);
-        command.Parameters.AddWithValue("@Version", logicalMod.Version);
-        command.Parameters.AddWithValue("@Author", logicalMod.Author);
-        command.Parameters.AddWithValue("@Description", logicalMod.Description);
-        command.Parameters.AddWithValue("@ManifestVersion", (int)logicalMod.ManifestVersion);
-        command.Parameters.AddWithValue("@CreatedAt", logicalMod.CreatedAt);
-        command.Parameters.AddWithValue("@ModifiedAt", logicalMod.ModifiedAt);
-        command.Parameters.AddWithValue("@TotalSize", logicalMod.TotalSize);
-        command.Parameters.AddWithValue("@ThumbnailPath", (object?)logicalMod.ThumbnailPath ?? DBNull.Value);
-        command.Parameters.AddWithValue("@Tags", JsonSerializer.Serialize(logicalMod.Tags));
-        command.Parameters.AddWithValue("@Metadata", JsonSerializer.Serialize(logicalMod.Metadata));
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-
-        // Insert components
-        foreach (var component in logicalMod.Components)
+        // 主行、组件、部署文件、包同库同事务写入，避免中途失败留下残缺聚合
+        using var transaction = connection.BeginTransaction();
+        try
         {
-            await AddComponentAsync(logicalMod.Id, component, cancellationToken);
+            using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = @"
+                    INSERT INTO LogicalMods (Id, Name, Version, Author, Description, ManifestVersion, CreatedAt, ModifiedAt, TotalSize, ThumbnailPath, Tags, Metadata)
+                    VALUES (@Id, @Name, @Version, @Author, @Description, @ManifestVersion, @CreatedAt, @ModifiedAt, @TotalSize, @ThumbnailPath, @Tags, @Metadata)";
+
+                command.Parameters.AddWithValue("@Id", logicalMod.Id.ToString());
+                command.Parameters.AddWithValue("@Name", logicalMod.Name);
+                command.Parameters.AddWithValue("@Version", logicalMod.Version);
+                command.Parameters.AddWithValue("@Author", logicalMod.Author);
+                command.Parameters.AddWithValue("@Description", logicalMod.Description);
+                command.Parameters.AddWithValue("@ManifestVersion", (int)logicalMod.ManifestVersion);
+                command.Parameters.AddWithValue("@CreatedAt", logicalMod.CreatedAt);
+                command.Parameters.AddWithValue("@ModifiedAt", logicalMod.ModifiedAt);
+                command.Parameters.AddWithValue("@TotalSize", logicalMod.TotalSize);
+                command.Parameters.AddWithValue("@ThumbnailPath", (object?)logicalMod.ThumbnailPath ?? DBNull.Value);
+                command.Parameters.AddWithValue("@Tags", JsonSerializer.Serialize(logicalMod.Tags));
+                command.Parameters.AddWithValue("@Metadata", JsonSerializer.Serialize(logicalMod.Metadata));
+
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            // 按外键依赖顺序写入：主行 → 包 → 组件 → 部署文件（DeployableFiles.PackageId 引用 PackageSources）
+            foreach (var package in logicalMod.Packages)
+            {
+                await AddPackageAsync(connection, transaction, logicalMod.Id, package, cancellationToken);
+            }
+
+            foreach (var component in logicalMod.Components)
+            {
+                await AddComponentAsync(connection, transaction, logicalMod.Id, component, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
         }
-
-        // Insert packages
-        foreach (var package in logicalMod.Packages)
+        catch
         {
-            await AddPackageAsync(logicalMod.Id, package, cancellationToken);
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
         }
 
         return logicalMod;
@@ -97,11 +111,7 @@ public class LogicalModRepository : ILogicalModRepository
             var logicalMod = MapToLogicalMod(reader);
             await reader.CloseAsync();
 
-            // Load components
-            logicalMod.Components = await GetComponentsAsync(logicalMod.Id, cancellationToken);
-
-            // Load packages
-            logicalMod.Packages = await GetPackagesAsync(logicalMod.Id, cancellationToken);
+            await LoadAggregatesAsync(connection, [logicalMod], cancellationToken);
 
             return logicalMod;
         }
@@ -123,12 +133,7 @@ public class LogicalModRepository : ILogicalModRepository
             logicalMods.Add(MapToLogicalMod(reader));
         }
 
-        // Load components and packages for each
-        foreach (var mod in logicalMods)
-        {
-            mod.Components = await GetComponentsAsync(mod.Id, cancellationToken);
-            mod.Packages = await GetPackagesAsync(mod.Id, cancellationToken);
-        }
+        await LoadAggregatesAsync(connection, logicalMods, cancellationToken);
 
         return logicalMods;
     }
@@ -137,26 +142,32 @@ public class LogicalModRepository : ILogicalModRepository
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
-        // Delete in order: deployable files, components, packages, logical mod
-        using var deleteFilesCmd = connection.CreateCommand();
-        deleteFilesCmd.CommandText = "DELETE FROM DeployableFiles WHERE ComponentId IN (SELECT Id FROM LogicalModComponents WHERE LogicalModId = @Id)";
-        deleteFilesCmd.Parameters.AddWithValue("@Id", id.ToString());
-        await deleteFilesCmd.ExecuteNonQueryAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            // Delete in order: deployable files, components, packages, logical mod
+            foreach (var sql in new[]
+            {
+                "DELETE FROM DeployableFiles WHERE ComponentId IN (SELECT Id FROM LogicalModComponents WHERE LogicalModId = @Id)",
+                "DELETE FROM LogicalModComponents WHERE LogicalModId = @Id",
+                "DELETE FROM PackageSources WHERE LogicalModId = @Id",
+                "DELETE FROM LogicalMods WHERE Id = @Id"
+            })
+            {
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                command.Parameters.AddWithValue("@Id", id.ToString());
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
 
-        using var deleteComponentsCmd = connection.CreateCommand();
-        deleteComponentsCmd.CommandText = "DELETE FROM LogicalModComponents WHERE LogicalModId = @Id";
-        deleteComponentsCmd.Parameters.AddWithValue("@Id", id.ToString());
-        await deleteComponentsCmd.ExecuteNonQueryAsync(cancellationToken);
-
-        using var deletePackagesCmd = connection.CreateCommand();
-        deletePackagesCmd.CommandText = "DELETE FROM PackageSources WHERE LogicalModId = @Id";
-        deletePackagesCmd.Parameters.AddWithValue("@Id", id.ToString());
-        await deletePackagesCmd.ExecuteNonQueryAsync(cancellationToken);
-
-        using var deleteModCmd = connection.CreateCommand();
-        deleteModCmd.CommandText = "DELETE FROM LogicalMods WHERE Id = @Id";
-        deleteModCmd.Parameters.AddWithValue("@Id", id.ToString());
-        await deleteModCmd.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<List<LogicalMod>> SearchByNameAsync(string name, CancellationToken cancellationToken = default)
@@ -174,20 +185,112 @@ public class LogicalModRepository : ILogicalModRepository
             logicalMods.Add(MapToLogicalMod(reader));
         }
 
-        foreach (var mod in logicalMods)
-        {
-            mod.Components = await GetComponentsAsync(mod.Id, cancellationToken);
-            mod.Packages = await GetPackagesAsync(mod.Id, cancellationToken);
-        }
+        await LoadAggregatesAsync(connection, logicalMods, cancellationToken);
 
         return logicalMods;
     }
 
-    private async Task AddComponentAsync(Guid logicalModId, LogicalModComponent component, CancellationToken cancellationToken)
+    /// <summary>
+    /// 批量装载组件、包与部署文件并按归属分配，替代逐 mod 的 N+1 查询。
+    /// </summary>
+    private static async Task LoadAggregatesAsync(SqliteConnection connection, List<LogicalMod> logicalMods, CancellationToken cancellationToken)
     {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        if (logicalMods.Count == 0)
+        {
+            return;
+        }
 
+        var componentsByMod = new Dictionary<Guid, List<LogicalModComponent>>();
+        var packagesByMod = new Dictionary<Guid, List<PackageSource>>();
+        var allComponents = new List<LogicalModComponent>();
+
+        foreach (var chunk in logicalMods.Select(m => m.Id).Distinct().Chunk(SqliteBatching.MaxParametersPerChunk))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT * FROM LogicalModComponents
+                WHERE LogicalModId IN ({SqliteBatching.BindInParameters(command, chunk, id => id.ToString())})";
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var modId = Guid.Parse(reader.GetString(reader.GetOrdinal("LogicalModId")));
+                var component = MapToComponent(reader);
+                allComponents.Add(component);
+                if (!componentsByMod.TryGetValue(modId, out var list))
+                {
+                    componentsByMod[modId] = list = new List<LogicalModComponent>();
+                }
+                list.Add(component);
+            }
+        }
+
+        foreach (var chunk in logicalMods.Select(m => m.Id).Distinct().Chunk(SqliteBatching.MaxParametersPerChunk))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT * FROM PackageSources
+                WHERE LogicalModId IN ({SqliteBatching.BindInParameters(command, chunk, id => id.ToString())})";
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var modId = Guid.Parse(reader.GetString(reader.GetOrdinal("LogicalModId")));
+                var package = MapToPackage(reader);
+                if (!packagesByMod.TryGetValue(modId, out var list))
+                {
+                    packagesByMod[modId] = list = new List<PackageSource>();
+                }
+                list.Add(package);
+            }
+        }
+
+        var filesByComponent = new Dictionary<Guid, List<DeployableFile>>();
+        foreach (var chunk in allComponents.Select(c => c.Id).Distinct().Chunk(SqliteBatching.MaxParametersPerChunk))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+                SELECT * FROM DeployableFiles
+                WHERE ComponentId IN ({SqliteBatching.BindInParameters(command, chunk, id => id.ToString())})";
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var componentId = Guid.Parse(reader.GetString(reader.GetOrdinal("ComponentId")));
+                var file = MapToDeployableFile(reader);
+                if (!filesByComponent.TryGetValue(componentId, out var list))
+                {
+                    filesByComponent[componentId] = list = new List<DeployableFile>();
+                }
+                list.Add(file);
+            }
+        }
+
+        foreach (var component in allComponents)
+        {
+            if (filesByComponent.TryGetValue(component.Id, out var files))
+            {
+                component.DeployableFiles = files;
+            }
+        }
+
+        foreach (var mod in logicalMods)
+        {
+            if (componentsByMod.TryGetValue(mod.Id, out var components))
+            {
+                mod.Components = components;
+            }
+            if (packagesByMod.TryGetValue(mod.Id, out var packages))
+            {
+                mod.Packages = packages;
+            }
+        }
+    }
+
+    private static async Task AddComponentAsync(SqliteConnection connection, SqliteTransaction transaction, Guid logicalModId, LogicalModComponent component, CancellationToken cancellationToken)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = @"
             INSERT INTO LogicalModComponents (Id, LogicalModId, ComponentId, Type, Name, SourcePackageId, Size, Enabled, Dependencies, Metadata)
             VALUES (@Id, @LogicalModId, @ComponentId, @Type, @Name, @SourcePackageId, @Size, @Enabled, @Dependencies, @Metadata)";
@@ -208,15 +311,14 @@ public class LogicalModRepository : ILogicalModRepository
         // Insert deployable files
         foreach (var file in component.DeployableFiles)
         {
-            await AddDeployableFileAsync(component.Id, file, cancellationToken);
+            await AddDeployableFileAsync(connection, transaction, component.Id, file, cancellationToken);
         }
     }
 
-    private async Task AddPackageAsync(Guid logicalModId, PackageSource package, CancellationToken cancellationToken)
+    private static async Task AddPackageAsync(SqliteConnection connection, SqliteTransaction transaction, Guid logicalModId, PackageSource package, CancellationToken cancellationToken)
     {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = @"
             INSERT INTO PackageSources (Id, LogicalModId, Name, PhysicalPath, ArchiveType, Size, Hash, LastModified, ParentPackageId, Depth, PathInParent)
             VALUES (@Id, @LogicalModId, @Name, @PhysicalPath, @ArchiveType, @Size, @Hash, @LastModified, @ParentPackageId, @Depth, @PathInParent)";
@@ -236,11 +338,10 @@ public class LogicalModRepository : ILogicalModRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private async Task AddDeployableFileAsync(Guid componentId, DeployableFile file, CancellationToken cancellationToken)
+    private static async Task AddDeployableFileAsync(SqliteConnection connection, SqliteTransaction transaction, Guid componentId, DeployableFile file, CancellationToken cancellationToken)
     {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = @"
             INSERT INTO DeployableFiles (Id, ComponentId, SourcePath, TargetPath, Size, Hash, PackageId, IsShared, Metadata)
             VALUES (@Id, @ComponentId, @SourcePath, @TargetPath, @Size, @Hash, @PackageId, @IsShared, @Metadata)";
@@ -258,68 +359,7 @@ public class LogicalModRepository : ILogicalModRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private async Task<List<LogicalModComponent>> GetComponentsAsync(Guid logicalModId, CancellationToken cancellationToken)
-    {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-        var components = new List<LogicalModComponent>();
-
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM LogicalModComponents WHERE LogicalModId = @LogicalModId";
-        command.Parameters.AddWithValue("@LogicalModId", logicalModId.ToString());
-
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            var component = MapToComponent(reader);
-            components.Add(component);
-        }
-
-        // Load deployable files for each component
-        foreach (var component in components)
-        {
-            component.DeployableFiles = await GetDeployableFilesAsync(component.Id, cancellationToken);
-        }
-
-        return components;
-    }
-
-    private async Task<List<PackageSource>> GetPackagesAsync(Guid logicalModId, CancellationToken cancellationToken)
-    {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-        var packages = new List<PackageSource>();
-
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM PackageSources WHERE LogicalModId = @LogicalModId";
-        command.Parameters.AddWithValue("@LogicalModId", logicalModId.ToString());
-
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            packages.Add(MapToPackage(reader));
-        }
-
-        return packages;
-    }
-
-    private async Task<List<DeployableFile>> GetDeployableFilesAsync(Guid componentId, CancellationToken cancellationToken)
-    {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-        var files = new List<DeployableFile>();
-
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM DeployableFiles WHERE ComponentId = @ComponentId";
-        command.Parameters.AddWithValue("@ComponentId", componentId.ToString());
-
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            files.Add(MapToDeployableFile(reader));
-        }
-
-        return files;
-    }
-
-    private LogicalMod MapToLogicalMod(SqliteDataReader reader)
+    private static LogicalMod MapToLogicalMod(SqliteDataReader reader)
     {
         return new LogicalMod
         {
@@ -338,7 +378,7 @@ public class LogicalModRepository : ILogicalModRepository
         };
     }
 
-    private LogicalModComponent MapToComponent(SqliteDataReader reader)
+    private static LogicalModComponent MapToComponent(SqliteDataReader reader)
     {
         return new LogicalModComponent
         {
@@ -354,7 +394,7 @@ public class LogicalModRepository : ILogicalModRepository
         };
     }
 
-    private PackageSource MapToPackage(SqliteDataReader reader)
+    private static PackageSource MapToPackage(SqliteDataReader reader)
     {
         return new PackageSource
         {
@@ -371,7 +411,7 @@ public class LogicalModRepository : ILogicalModRepository
         };
     }
 
-    private DeployableFile MapToDeployableFile(SqliteDataReader reader)
+    private static DeployableFile MapToDeployableFile(SqliteDataReader reader)
     {
         return new DeployableFile
         {

@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.IO;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -42,8 +43,8 @@ internal static class ExternalExportSupport
         foreach (var mod in plan.Mods)
         {
             var source = MigrationJson.Root(mod.SourcePath);
-            if (targetRoot.Equals(source, StringComparison.OrdinalIgnoreCase) || targetRoot.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || plan.TargetModsPath.Equals(source, StringComparison.OrdinalIgnoreCase) || plan.TargetModsPath.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            if (targetRoot.Equals(source, StringComparison.OrdinalIgnoreCase) || PathGuard.IsInsideRoot(source, targetRoot)
+                || plan.TargetModsPath.Equals(source, StringComparison.OrdinalIgnoreCase) || PathGuard.IsInsideRoot(source, plan.TargetModsPath))
                 plan.Issues.Add(new(mod.Manifest.Name, "目标目录位于源模组内部，请选择其它目录。", true));
         }
     }

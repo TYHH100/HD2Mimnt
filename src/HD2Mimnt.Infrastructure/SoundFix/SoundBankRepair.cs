@@ -2,6 +2,7 @@
 // 原作者：https://space.bilibili.com/157681854
 // 原声明与许可状态见 ThirdParty/HD2SoundFix/；未将上游标为本项目许可证。
 #nullable disable
+using System.IO.MemoryMappedFiles;
 using System.Text;
 namespace HD2Mimnt.Infrastructure.SoundFix;
 
@@ -9,10 +10,10 @@ internal static class SoundBankRepair
 {
     internal const ulong BankType = 6006249203084351385UL;
 
-    internal static byte[] RebuildPackage(Package package, IReadOnlyDictionary<ulong, byte[]> banks)
+    internal static MemoryStream RebuildPackage(Package package, IReadOnlyDictionary<ulong, byte[]> banks)
     {
-        using var output = new MemoryStream();
-        output.Write(package.Raw);
+        var output = new MemoryStream();
+        package.WriteRawTo(output);
         for (int i = 0; i < package.Entries.Count; i++)
         {
             var entry = package.Entries[i];
@@ -32,11 +33,12 @@ internal static class SoundBankRepair
             WriteU32(output, (uint)(16 + bank.Length));
             output.Position = end;
         }
-        var result = output.ToArray();
-        var check = Package.Load(result, package.Path);
+        // 复检直接读底层缓冲区（前 output.Length 字节有效），避免再复制一份整包。
+        var check = Package.Load(output.GetBuffer(), package.Path, output.Length);
         foreach (var entry in check.Entries.Where(e => e.TypeId == BankType && banks.ContainsKey(e.FileId)))
             if (!check.TocData(entry).AsSpan(16).SequenceEqual(banks[entry.FileId])) throw new InvalidDataException("补丁重建复检失败。");
-        return result;
+        output.Position = 0;
+        return output;
     }
     internal static FixPlan Evaluate(BankRef r, byte[] officialBank)
     {
@@ -338,68 +340,114 @@ internal class TocEntry
     public uint TocDataSize, StreamSize, GpuSize, Unk3, Unk4, Index;
 }
 
-internal class Package
+/// <summary>
+/// 补丁包索引。文件版通过内存映射按需读取区间，避免数百 MB 级整包常驻内存；
+/// 内存版仅用于重建结果的复检。
+/// </summary>
+internal class Package : IDisposable
 {
     public uint Magic, NumTypes, NumFiles, Unknown;
     public byte[] Unk4;
     public List<TypeHeader> Types = new List<TypeHeader>();
     public List<TocEntry> Entries = new List<TocEntry>();
-    public byte[] Raw;
     public string Path;
 
-    public static Package Load(byte[] raw, string path)
+    private MemoryMappedFile _mapping;
+    private MemoryMappedViewAccessor _view;
+    private byte[] _raw;
+    private long _length;
+
+    public long Length => _length;
+
+    public static Package Load(string path)
     {
-        if (raw.Length < 72) throw new InvalidDataException("补丁头不完整。");
-        Package p = new Package();
-        p.Raw = raw;
+        var p = new Package();
         p.Path = path;
-        p.Magic = BitConverter.ToUInt32(raw, 0);
-        if (p.Magic != 0xF0000011u) throw new Exception("不是 HD2 补丁包");
-        p.NumTypes = BitConverter.ToUInt32(raw, 4);
-        p.NumFiles = BitConverter.ToUInt32(raw, 8);
-        p.Unknown = BitConverter.ToUInt32(raw, 12);
-        p.Unk4 = new byte[56];
-        Buffer.BlockCopy(raw, 16, p.Unk4, 0, 56);
-        if (72UL + 32UL * p.NumTypes + 80UL * p.NumFiles > (ulong)raw.Length) throw new InvalidDataException("补丁索引不完整。");
+        try
+        {
+            p._mapping = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            p._view = p._mapping.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            p._length = new FileInfo(path).Length;
+            p.ParseToc(p._length, pos => p._view.ReadUInt32(pos), pos => p._view.ReadUInt64(pos), pos => p._view.ReadArray(pos, p.Unk4, 0, 56) >= 0);
+            return p;
+        }
+        catch
+        {
+            p.Dispose();
+            throw;
+        }
+    }
+
+    public static Package Load(byte[] raw, string path) => Load(raw, path, raw.LongLength);
+
+    public static Package Load(byte[] raw, string path, long validLength)
+    {
+        var p = new Package();
+        p.Path = path;
+        p._raw = raw;
+        p._length = validLength;
+        p.ParseToc(validLength, pos => BitConverter.ToUInt32(raw, (int)pos), pos => BitConverter.ToUInt64(raw, (int)pos), _ => { Buffer.BlockCopy(raw, 16, p.Unk4, 0, 56); return true; });
+        return p;
+    }
+
+    private void ParseToc(long length, Func<long, uint> readU32, Func<long, ulong> readU64, Func<long, bool> readUnk4)
+    {
+        if (length < 72) throw new InvalidDataException("补丁头不完整。");
+        Magic = readU32(0);
+        if (Magic != 0xF0000011u) throw new Exception("不是 HD2 补丁包");
+        NumTypes = readU32(4);
+        NumFiles = readU32(8);
+        Unknown = readU32(12);
+        Unk4 = new byte[56];
+        readUnk4(16);
+        if (72UL + 32UL * NumTypes + 80UL * NumFiles > (ulong)length) throw new InvalidDataException("补丁索引不完整。");
         int off = 72;
-        for (int i = 0; i < p.NumTypes; i++)
+        for (int i = 0; i < NumTypes; i++)
         {
             TypeHeader th = new TypeHeader();
-            th.TypeId = BitConverter.ToUInt64(raw, off + 8);
-            p.Types.Add(th);
+            th.TypeId = readU64(off + 8);
+            Types.Add(th);
             off += 32;
         }
         int tocStart = off;
-        for (int i = 0; i < p.NumFiles; i++)
+        for (int i = 0; i < NumFiles; i++)
         {
             int o = tocStart + i * 80;
             TocEntry e = new TocEntry();
-            e.FileId = BitConverter.ToUInt64(raw, o);
-            e.TypeId = BitConverter.ToUInt64(raw, o + 8);
-            e.TocDataOffset = BitConverter.ToUInt64(raw, o + 16);
-            e.StreamFileOffset = BitConverter.ToUInt64(raw, o + 24);
-            e.GpuOffset = BitConverter.ToUInt64(raw, o + 32);
-            e.Unk1 = BitConverter.ToUInt64(raw, o + 40);
-            e.Unk2 = BitConverter.ToUInt64(raw, o + 48);
-            e.TocDataSize = BitConverter.ToUInt32(raw, o + 56);
-            e.StreamSize = BitConverter.ToUInt32(raw, o + 60);
-            e.GpuSize = BitConverter.ToUInt32(raw, o + 64);
-            e.Unk3 = BitConverter.ToUInt32(raw, o + 68);
-            e.Unk4 = BitConverter.ToUInt32(raw, o + 72);
-            e.Index = BitConverter.ToUInt32(raw, o + 76);
-            if (e.TocDataOffset > (ulong)raw.Length || e.TocDataSize > (ulong)raw.Length - e.TocDataOffset) throw new InvalidDataException("补丁载荷范围越界。");
-            p.Entries.Add(e);
+            e.FileId = readU64(o);
+            e.TypeId = readU64(o + 8);
+            e.TocDataOffset = readU64(o + 16);
+            e.StreamFileOffset = readU64(o + 24);
+            e.GpuOffset = readU64(o + 32);
+            e.Unk1 = readU64(o + 40);
+            e.Unk2 = readU64(o + 48);
+            e.TocDataSize = readU32(o + 56);
+            e.StreamSize = readU32(o + 60);
+            e.GpuSize = readU32(o + 64);
+            e.Unk3 = readU32(o + 68);
+            e.Unk4 = readU32(o + 72);
+            e.Index = readU32(o + 76);
+            if (e.TocDataOffset > (ulong)length || e.TocDataSize > (ulong)length - e.TocDataOffset) throw new InvalidDataException("补丁载荷范围越界。");
+            Entries.Add(e);
         }
-        return p;
+    }
+
+    /// <summary>把原始包字节顺序写入输出流（文件版按需从磁盘读取，不整包驻留）。</summary>
+    public void WriteRawTo(Stream output)
+    {
+        if (_raw != null) { output.Write(_raw, 0, (int)_length); return; }
+        using var stream = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: false);
+        stream.CopyTo(output);
     }
 
     public byte[] TocData(TocEntry e)
     {
         long off = (long)e.TocDataOffset;
-        long len = e.TocDataSize;
-        if (off < 0 || off + len > Raw.Length) throw new InvalidDataException("音库资源范围越界。");
+        long len = (int)e.TocDataSize;
+        if (off < 0 || off + len > Length) throw new InvalidDataException("音库资源范围越界。");
         byte[] r = new byte[len];
-        Buffer.BlockCopy(Raw, (int)off, r, 0, (int)len);
+        if (_raw != null) Buffer.BlockCopy(_raw, (int)off, r, 0, (int)len);
+        else _view.ReadArray(off, r, 0, (int)len);
         return r;
     }
 
@@ -410,13 +458,26 @@ internal class Package
             if (e.TypeId == 12624162998411505776UL && e.FileId == fileId)
             {
                 long off = (long)e.TocDataOffset;
-                if (off + 8 > Raw.Length) return null;
-                uint size = BitConverter.ToUInt32(Raw, (int)off + 4);
-                if (off + 8 + size > Raw.Length) return null;
-                return Encoding.UTF8.GetString(Raw, (int)off + 8, (int)size).TrimEnd('\0');
+                if (off + 8 > Length) return null;
+                uint size;
+                if (_raw != null) size = BitConverter.ToUInt32(_raw, (int)off + 4);
+                else size = _view.ReadUInt32(off + 4);
+                if (off + 8 + size > Length) return null;
+                byte[] name = new byte[size];
+                if (_raw != null) Buffer.BlockCopy(_raw, (int)off + 8, name, 0, (int)size);
+                else _view.ReadArray(off + 8, name, 0, (int)size);
+                return Encoding.UTF8.GetString(name).TrimEnd('\0');
             }
         }
         return null;
+    }
+
+    public void Dispose()
+    {
+        _view?.Dispose();
+        _mapping?.Dispose();
+        _view = null;
+        _mapping = null;
     }
 }
 
