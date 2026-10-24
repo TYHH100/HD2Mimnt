@@ -127,6 +127,18 @@
         </StackPanel>
         <fa:FASettingsExpander Header="{loc:Loc UI.GameDirectory}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsGameCategoryVisible}">
           <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="8">
+              <TextBlock Text="{loc:Loc UI.GameSource}"/>
+              <WrapPanel>
+                <RadioButton x:Name="OfficialGameSourceRadio" GroupName="GameSource" Content="{loc:Loc UI.GameSourceOfficial}"
+                             IsChecked="{Binding IsOfficialGameSource}" Margin="0,0,20,4"/>
+                <RadioButton x:Name="HellForgeGameSourceRadio" GroupName="GameSource" Content="{loc:Loc UI.GameSourceHellForge}"
+                             IsChecked="{Binding IsHellForgeGameSource}" Margin="0,0,0,4"/>
+              </WrapPanel>
+              <TextBlock Text="{loc:Loc UI.GameSourceHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="OfficialGamePathItem" IsVisible="{Binding IsOfficialGameSource}">
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
               <TextBlock Text="{loc:Loc UI.HelldiversInstallationDirectory}"/>
               <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -136,7 +148,18 @@
               </Grid>
             </Grid>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="{loc:Loc UI.AutoDetectGameAtStartup}">
+          <fa:FASettingsExpanderItem x:Name="HellForgeGamePathItem" IsVisible="{Binding IsHellForgeGameSource}">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Text="{loc:Loc UI.HellForgeInstallationDirectory}"/>
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox x:Name="HellForgePathInput" Text="{Binding HellForgePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ChooseHellForgeInstallationDirectory}"/>
+                <Button x:Name="BrowseHellForgeButton" Grid.Column="1" Content="{loc:Loc UI.Browse}" Click="OnPickHellForgeClicked"/>
+                <Button x:Name="ValidateHellForgeButton" Grid.Column="2" Content="{loc:Loc UI.Validate}" Command="{Binding ValidateGameCommand}"/>
+              </Grid>
+              <TextBlock Grid.Row="2" Text="{loc:Loc UI.HellForgeDirectoryHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="AutoDetectGameItem" Content="{loc:Loc UI.AutoDetectGameAtStartup}" IsVisible="{Binding IsOfficialGameSource}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>

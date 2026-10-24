@@ -49,4 +49,6 @@ public partial class SettingsView : UserControl
         => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).ModsStoragePath = path);
     private async void OnPickCacheClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).TempCachePath = path);
+    private async void OnPickHellForgeClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => await PickFolderAsync(path => ((SettingsViewModel)DataContext!).HellForgePath = path);
 }

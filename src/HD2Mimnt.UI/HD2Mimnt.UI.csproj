@@ -32,6 +32,22 @@
     <Content Include="Tools\minidump-stackwalk\NOTICE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 单文件发布只打包被引用 exe 的托管程序集，不会复制其 apphost/deps/runtimeconfig；
+       应用运行时按应用目录拉起这两个子进程，发布时从本项目输出目录补齐它们的完整输出。
+       先收集到临时项再转换 RelativePath，避免同一 ItemGroup 内多段 Include 的元数据批处理串值 -->
+  <Target Name="PublishChildProcessHosts" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <_ChildProcessHostFile Include="$(OutDir)HD2Mimnt.PluginHost.*" />
+      <_ChildProcessHostFile Include="$(OutDir)HD2Mimnt.Worker.*" />
+    </ItemGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(_ChildProcessHostFile)"
+                             RelativePath="%(Filename)%(Extension)"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />

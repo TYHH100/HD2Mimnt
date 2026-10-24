@@ -741,7 +741,7 @@ Deny: do not install this plugin</value>
     <value>Deploy enabled mods in the current profile in list order</value>
   </data>
   <data name="UI.LaunchHelldiversThroughSteam" xml:space="preserve">
-    <value>Launch Helldivers 2 through Steam</value>
+    <value>Launch Helldivers 2 through Steam (official) or HellForge (offline)</value>
   </data>
   <data name="UI.DeploymentActions" xml:space="preserve">
     <value>Deployment actions</value>
@@ -805,6 +805,30 @@ Deny: do not install this plugin</value>
   </data>
   <data name="UI.AutoDetectGameAtStartup" xml:space="preserve">
     <value>Auto-detect game at startup</value>
+  </data>
+  <data name="UI.GameSource" xml:space="preserve">
+    <value>Game source</value>
+  </data>
+  <data name="UI.GameSourceOfficial" xml:space="preserve">
+    <value>Official game (Steam)</value>
+  </data>
+  <data name="UI.GameSourceHellForge" xml:space="preserve">
+    <value>HellForge offline</value>
+  </data>
+  <data name="UI.GameSourceHelp" xml:space="preserve">
+    <value>Only the selected source is used for deployment, compatibility checks and launching. The other path is kept so you can switch back.</value>
+  </data>
+  <data name="UI.HellForgeInstallationDirectory" xml:space="preserve">
+    <value>HellForge installation directory</value>
+  </data>
+  <data name="UI.ChooseHellForgeInstallationDirectory" xml:space="preserve">
+    <value>Choose the folder containing HellForge.exe and the game folder</value>
+  </data>
+  <data name="UI.HellForgeDirectoryHelp" xml:space="preserve">
+    <value>Choose the HellForge installation root (containing hellforge-install.json and game) or its game folder. Mods are deployed to game\data and are not listed on HellForge's own Mods page; this manager keeps their order. The launch button prefers HellForge.Cli.exe play and falls back to opening the HellForge launcher on older versions.</value>
+  </data>
+  <data name="UI.Browse" xml:space="preserve">
+    <value>Browse</value>
   </data>
   <data name="UI.ApplyProfileWhenSelected" xml:space="preserve">
     <value>Apply profile when selected</value>

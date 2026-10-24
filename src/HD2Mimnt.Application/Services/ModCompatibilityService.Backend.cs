@@ -97,7 +97,7 @@ public sealed partial class ModCompatibilityService
 
     private async Task<(string? GamePath, string[] Sources)> GetRepairContextAsync(CancellationToken token)
     {
-        var gamePath = _settings is null ? null : await _settings.GetSettingAsync<string?>("Game.Path", null);
+        var gamePath = _settings?.GetEffectiveGamePath();
         var mods = await _modRepository.GetAllAsync(token);
         return (gamePath, mods.Select(mod => mod.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
     }

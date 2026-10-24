@@ -741,7 +741,7 @@
     <value>按列表顺序部署当前配置文件中已启用的模组</value>
   </data>
   <data name="UI.LaunchHelldiversThroughSteam" xml:space="preserve">
-    <value>通过 Steam 启动 Helldivers 2</value>
+    <value>通过 Steam（官方）或 HellForge（离线服）启动游戏</value>
   </data>
   <data name="UI.DeploymentActions" xml:space="preserve">
     <value>部署操作</value>
@@ -805,6 +805,30 @@
   </data>
   <data name="UI.AutoDetectGameAtStartup" xml:space="preserve">
     <value>启动时自动识别游戏</value>
+  </data>
+  <data name="UI.GameSource" xml:space="preserve">
+    <value>游戏来源</value>
+  </data>
+  <data name="UI.GameSourceOfficial" xml:space="preserve">
+    <value>官方游戏（Steam）</value>
+  </data>
+  <data name="UI.GameSourceHellForge" xml:space="preserve">
+    <value>HellForge 离线服</value>
+  </data>
+  <data name="UI.GameSourceHelp" xml:space="preserve">
+    <value>只有当前选中的来源会用于部署、兼容性检查和启动；另一个目录会保留，方便随时切回。</value>
+  </data>
+  <data name="UI.HellForgeInstallationDirectory" xml:space="preserve">
+    <value>HellForge 安装目录</value>
+  </data>
+  <data name="UI.ChooseHellForgeInstallationDirectory" xml:space="preserve">
+    <value>选择包含 HellForge.exe 和 game 文件夹的安装根目录</value>
+  </data>
+  <data name="UI.HellForgeDirectoryHelp" xml:space="preserve">
+    <value>选择 HellForge 安装根目录（包含 hellforge-install.json 和 game），也可以直接选择其中的 game 文件夹。模组会部署到 game\data，不会出现在 HellForge 自己的 Mods 列表中，启用顺序由本管理器维护。启动按钮优先通过 HellForge.Cli.exe play 直接开始会话；旧版本会自动打开 HellForge 启动器。</value>
+  </data>
+  <data name="UI.Browse" xml:space="preserve">
+    <value>选择目录</value>
   </data>
   <data name="UI.ApplyProfileWhenSelected" xml:space="preserve">
     <value>选择时自动应用配置文件</value>

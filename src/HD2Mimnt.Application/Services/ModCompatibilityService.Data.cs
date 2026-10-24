@@ -21,7 +21,7 @@ public sealed partial class ModCompatibilityService
             ? await BuildGameDataAsync(progress: progress, cancellationToken: cancellationToken).ConfigureAwait(false) : status;
     }
 
-    private string GameDirectory => _settings?.GetSetting(SettingKeys.GamePath, string.Empty) ?? string.Empty;
+    private string GameDirectory => _settings?.GetEffectiveGamePath() ?? string.Empty;
     private IGameReferenceCache Cache => _gameReferences as IGameReferenceCache
         ?? throw new NotSupportedException("游戏参考数据缓存服务未配置。");
 }

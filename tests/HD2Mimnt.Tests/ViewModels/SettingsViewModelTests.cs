@@ -325,6 +325,74 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task GameCategory_HellForgeSource_ShouldSaveAndKeepOfficialPathForSwitchBack()
+    {
+        var official = CreateOfficialGameDirectory();
+        var hellForge = CreateHellForgeInstallation();
+        using var vm = CreateViewModel(official);
+
+        vm.IsOfficialGameSource = false;
+        vm.HellForgePath = hellForge;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal("设置已保存", vm.StatusMessage);
+        Assert.Equal(HD2Mimnt.Core.Enums.GameInstallationMode.HellForge, _settingsService.GetGameInstallationMode());
+        Assert.Equal(hellForge, _settingsService.GetSetting(SettingKeys.HellForgePath, string.Empty));
+        Assert.Equal(official, _settingsService.GetSetting(SettingKeys.GamePath, string.Empty));
+        Assert.Equal(Path.Combine(hellForge, "game"), _gameDetectionService.CurrentGameInfo?.Path);
+
+        vm.IsOfficialGameSource = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(HD2Mimnt.Core.Enums.GameInstallationMode.Official, _settingsService.GetGameInstallationMode());
+        Assert.Equal(official, _gameDetectionService.CurrentGameInfo?.Path);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithHellForgeMode_ShouldLoadBothPathsAndSource()
+    {
+        var official = CreateOfficialGameDirectory();
+        var hellForge = CreateHellForgeInstallation();
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.GameMode] = HD2Mimnt.Core.Enums.GameInstallationMode.HellForge.ToString(),
+            [SettingKeys.GamePath] = official,
+            [SettingKeys.HellForgePath] = hellForge
+        });
+        using var vm = CreateViewModel(string.Empty);
+
+        await vm.LoadAsync();
+
+        Assert.False(vm.IsOfficialGameSource);
+        Assert.True(vm.IsHellForgeGameSource);
+        Assert.Equal(official, vm.GamePath);
+        Assert.Equal(hellForge, vm.HellForgePath);
+    }
+
+    [Fact]
+    public async Task GameCategory_InvalidHellForgePath_ShouldKeepSavedOfficialMode()
+    {
+        var official = CreateOfficialGameDirectory();
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.GameMode] = HD2Mimnt.Core.Enums.GameInstallationMode.Official.ToString(),
+            [SettingKeys.GamePath] = official,
+            [SettingKeys.GameAutoDetect] = false
+        });
+        using var vm = CreateViewModel(official);
+        await vm.LoadAsync();
+
+        vm.IsOfficialGameSource = false;
+        vm.HellForgePath = Path.Combine(_rootDirectory, "missing");
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        Assert.Contains("保存设置失败", vm.StatusMessage);
+        Assert.Equal(HD2Mimnt.Core.Enums.GameInstallationMode.Official, _settingsService.GetGameInstallationMode());
+        Assert.Equal(official, _settingsService.GetSetting(SettingKeys.GamePath, string.Empty));
+        Assert.Equal(string.Empty, _settingsService.GetSetting(SettingKeys.HellForgePath, string.Empty));
+    }
+
+    [Fact]
     public async Task DownloadCategory_Should_Save_Independently_And_Reload()
     {
         var viewModel = CreateViewModel("invalid-game-path");
@@ -389,6 +457,27 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.Contains("保存设置失败", vm.StatusMessage);
         Assert.Empty(await _settingsService.GetAllSettingsAsync());
+    }
+
+    private string CreateOfficialGameDirectory()
+    {
+        var official = Path.Combine(_rootDirectory, "Helldivers 2");
+        foreach (var name in new[] { "data", "tools", "bin" })
+            Directory.CreateDirectory(Path.Combine(official, name));
+        File.WriteAllText(Path.Combine(official, "bin", "helldivers2.exe"), string.Empty);
+        return official;
+    }
+
+    private string CreateHellForgeInstallation()
+    {
+        var root = Path.Combine(_rootDirectory, "HellForge");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "hellforge-install.json"), "{}");
+        var game = Path.Combine(root, "game");
+        foreach (var name in new[] { "data", "tools", "bin" })
+            Directory.CreateDirectory(Path.Combine(game, name));
+        File.WriteAllText(Path.Combine(game, "bin", "helldivers2.exe"), string.Empty);
+        return root;
     }
 
     private SettingsViewModel CreateViewModel(string gamePath)

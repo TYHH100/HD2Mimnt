@@ -44,7 +44,7 @@ public sealed class SoundFixService(IModRepository repository, ModService mods, 
 
     private string RequireGamePath()
     {
-        var path = settings.GetSetting("Game.Path", "");
+        var path = settings.GetEffectiveGamePath();
         if (string.IsNullOrWhiteSpace(path)) throw new InvalidOperationException("请先在设置中配置游戏目录，以读取当前官方音库。");
         return path;
     }

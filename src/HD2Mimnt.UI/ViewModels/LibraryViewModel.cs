@@ -21,15 +21,19 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class LibraryViewModel : ObservableObject
 {
     [RelayCommand]
-    private void LaunchGame()
+    private async Task LaunchGameAsync()
     {
         try
         {
-            _gameDetectionService.LaunchGame();
+            var launch = await _gameDetectionService.LaunchGameAsync();
+            if (launch == GameLaunchKind.HellForgeSession)
+                _notificationService.ShowInfo("HellForge 会话已启动", "启动游戏");
+            else if (launch == GameLaunchKind.HellForgeLauncher)
+                _notificationService.ShowInfo("当前 HellForge 版本不支持命令直接开始会话，已打开启动器，请点击 PLAY。", "启动游戏");
         }
         catch (Exception ex)
         {
-            _notificationService.ShowError($"无法启动 HD2，请确认已安装 Steam：{ex.Message}", "启动失败");
+            _notificationService.ShowError($"无法启动游戏：{ex.Message}", "启动失败");
         }
     }
 

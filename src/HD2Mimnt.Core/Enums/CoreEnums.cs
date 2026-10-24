@@ -60,3 +60,12 @@ public enum DeploymentStatus
     Failed,
     Cancelled
 }
+
+/// <summary>
+/// 游戏来源。官方安装与 HellForge 离线服副本互斥，同一时间只使用其中一个目录。
+/// </summary>
+public enum GameInstallationMode
+{
+    Official,
+    HellForge
+}

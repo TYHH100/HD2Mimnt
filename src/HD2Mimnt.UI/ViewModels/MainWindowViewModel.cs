@@ -563,14 +563,14 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _logViewModel.InitializeAsync();
         await UpdateRunningTasksAsync();
 
-        // 根据设置决定是否扫描常见安装位置。
-        if (_settingsViewModel.AutoDetectGame)
+        // 官方来源按设置决定是否扫描常见安装位置；HellForge 只应用已配置目录。
+        if (_settingsViewModel.IsOfficialGameSource && _settingsViewModel.AutoDetectGame)
         {
             await _gameDetectionService.AutoDetectAsync();
         }
         else
         {
-            await _gameDetectionService.ApplyConfiguredPathAsync(_settingsViewModel.GamePath);
+            await _gameDetectionService.ApplyConfiguredGameAsync();
         }
 
         // 更新当前配置

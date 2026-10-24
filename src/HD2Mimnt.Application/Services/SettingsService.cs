@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Repositories;
 
@@ -45,6 +46,20 @@ public class SettingsService
     /// <summary>异步获取设置值。</summary>
     public Task<T> GetSettingAsync<T>(string key, T defaultValue)
         => Task.FromResult(GetSetting(key, defaultValue));
+
+    /// <summary>当前启用的游戏来源；旧设置没有该键时按官方安装处理。</summary>
+    public GameInstallationMode GetGameInstallationMode()
+        => Enum.TryParse<GameInstallationMode>(
+               GetSetting(SettingKeys.GameMode, nameof(GameInstallationMode.Official)), true, out var mode)
+            ? mode
+            : GameInstallationMode.Official;
+
+    /// <summary>业务服务统一读取的游戏目录；HellForge 模式解析为安装根下的 game 副本。</summary>
+    public string GetEffectiveGamePath()
+        => GetGameInstallationMode() == GameInstallationMode.HellForge
+            ? GameInstallationPaths.ResolveHellForgeGameDirectory(
+                  GetSetting(SettingKeys.HellForgePath, string.Empty)) ?? string.Empty
+            : GetSetting(SettingKeys.GamePath, string.Empty);
 
     private T ReadSetting<T>(IReadOnlyDictionary<string, object> settings, string key, T defaultValue)
     {
@@ -282,6 +297,8 @@ public static class SettingKeys
     // 游戏相关
     public const string GamePath = "Game.Path";
     public const string GameAutoDetect = "Game.AutoDetect";
+    public const string GameMode = "Game.Mode";
+    public const string HellForgePath = "Game.HellForgePath";
 
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";

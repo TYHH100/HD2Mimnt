@@ -94,7 +94,7 @@ public sealed partial class ModCompatibilityService
         if (_gameReferences is null || _settings is null) return;
         var ids = reports.SelectMany(report => report.Units).Select(unit => unit.ResourceId).Distinct().ToArray();
         if (ids.Length == 0) return;
-        var gamePath = await _settings.GetSettingAsync<string?>("Game.Path", null);
+        var gamePath = _settings.GetEffectiveGamePath();
         if (string.IsNullOrWhiteSpace(gamePath))
         {
             foreach (var report in reports.Where(report => report.UnitCount > 0))

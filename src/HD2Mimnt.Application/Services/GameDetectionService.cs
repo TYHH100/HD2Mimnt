@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
+using HD2Mimnt.Core.Enums;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -9,14 +11,124 @@ namespace HD2Mimnt.Application.Services;
 /// </summary>
 public class GameDetectionService
 {
-    /// <summary>通过 Steam 启动 HD2，保留 Steam 的启动选项和启动流程。</summary>
-    public void LaunchGame()
+    /// <summary>按当前游戏来源启动：官方走 Steam，HellForge 优先用 CLI 直接开始会话。</summary>
+    public async Task<GameLaunchKind> LaunchGameAsync(CancellationToken cancellationToken = default)
     {
-        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        if (IsHellForgeMode)
+            return await LaunchHellForgeAsync(cancellationToken);
+
+        try
         {
-            FileName = "steam://rungameid/553850",
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "steam://rungameid/553850",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            throw new InvalidOperationException("无法通过 Steam 启动 Helldivers 2，请确认 Steam 已安装并登录。", ex);
+        }
+        return GameLaunchKind.Steam;
+    }
+
+    public bool IsHellForgeMode => _settingsService.GetGameInstallationMode() == GameInstallationMode.HellForge;
+
+    private async Task<GameLaunchKind> LaunchHellForgeAsync(CancellationToken cancellationToken)
+    {
+        var configured = _settingsService.GetSetting(SettingKeys.HellForgePath, string.Empty);
+        if (!GameInstallationPaths.TryResolveHellForgeRoot(configured, out var root))
+            throw new InvalidOperationException("请先在设置中选择有效的 HellForge 安装目录。");
+        var cli = Path.Combine(root, "app", "cli", "HellForge.Cli.exe");
+        if (File.Exists(cli) && await SupportsPlayCommandAsync(cli, cancellationToken))
+        {
+            var startInfo = new ProcessStartInfo(cli)
+            {
+                WorkingDirectory = root,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("play");
+            startInfo.ArgumentList.Add("--install");
+            startInfo.ArgumentList.Add(root);
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("无法启动 HellForge CLI。");
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = await outputTask;
+            var error = await errorTask;
+            if (process.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(error) ? output.Trim() : error.Trim();
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
+                    ? $"HellForge CLI 退出码 {process.ExitCode}。"
+                    : detail);
+            }
+            _logger?.LogInformation("HellForge 会话启动命令已完成: {Output}", output);
+            return GameLaunchKind.HellForgeSession;
+        }
+
+        var launcher = Path.Combine(root, "HellForge.exe");
+        if (!File.Exists(launcher))
+            launcher = Path.Combine(root, "app", "launcher", "HellForge.Launcher.exe");
+        if (!File.Exists(launcher))
+            throw new InvalidOperationException("当前 HellForge 版本没有可用的 CLI 会话命令，也未找到启动器。");
+        using var launcherProcess = Process.Start(new ProcessStartInfo(launcher)
+        {
+            WorkingDirectory = root,
             UseShellExecute = true
         });
+        _logger?.LogInformation("当前 HellForge CLI 不支持 play，已打开启动器: {Launcher}", launcher);
+        return GameLaunchKind.HellForgeLauncher;
+    }
+
+    private static async Task<bool> SupportsPlayCommandAsync(string cli, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo(cli)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("--help");
+            using var process = Process.Start(startInfo);
+            if (process is null) return false;
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(); } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                try { await process.WaitForExitAsync(CancellationToken.None); }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                try { await Task.WhenAll(outputTask, errorTask); }
+                catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException) { }
+                if (cancellationToken.IsCancellationRequested) throw;
+                return false;
+            }
+            var help = (await outputTask) + (await errorTask);
+            return help.Split('\n').Any(line =>
+                line.TrimStart().StartsWith("play ", StringComparison.Ordinal));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
     }
 
     private readonly SettingsService _settingsService;
@@ -42,13 +154,22 @@ public class GameDetectionService
     {
         _logger?.LogInformation("开始自动检测游戏...");
 
+        // HellForge 是独立的游戏副本，只应用用户配置，不扫描 Steam 库。
+        if (IsHellForgeMode)
+        {
+            _logger?.LogInformation("HellForge 模式：只应用已配置目录");
+            await ApplyConfiguredGameAsync(cancellationToken);
+            return;
+        }
+
         // 1. 尝试从设置中读取用户指定的路径
-        var customPath = await _settingsService.GetSettingAsync<string?>("Game.Path", null);
+        var customPath = await _settingsService.GetSettingAsync<string?>(SettingKeys.GamePath, null);
         if (!string.IsNullOrWhiteSpace(customPath) && !scanEvenIfConfigured)
         {
             _logger?.LogInformation("使用用户设置的路径: {Path}", customPath);
             var configuredValid = await ValidateGameDirectoryAsync(customPath, cancellationToken);
-            await UpdateGameInfoAsync(customPath, configuredValid ? GameStatus.Found : GameStatus.Invalid, cancellationToken);
+            await UpdateGameInfoAsync(customPath, configuredValid ? GameStatus.Found : GameStatus.Invalid,
+                GameInstallationMode.Official, cancellationToken);
             return;
         }
 
@@ -59,14 +180,14 @@ public class GameDetectionService
         {
             _logger?.LogInformation("在常见位置找到游戏: {Path}", detectedPath);
             // 保存检测到的路径
-            await _settingsService.SetSettingAsync("Game.Path", detectedPath);
-            await UpdateGameInfoAsync(detectedPath, GameStatus.Found, cancellationToken);
+            await _settingsService.SetSettingAsync(SettingKeys.GamePath, detectedPath);
+            await UpdateGameInfoAsync(detectedPath, GameStatus.Found, GameInstallationMode.Official, cancellationToken);
             return;
         }
 
         // 3. 未找到游戏
         _logger?.LogWarning("未找到游戏安装路径");
-        await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, cancellationToken);
+        await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, GameInstallationMode.Official, cancellationToken);
     }
 
     /// <summary>
@@ -85,7 +206,22 @@ public class GameDetectionService
         return await Task.FromResult(valid);
     }
 
-    private bool ValidateGameDirectory(string? path)
+    /// <summary>按来源校验游戏目录；HellForge 可接受安装根目录或其 game 子目录。</summary>
+    public Task<bool> ValidateGameInstallationAsync(GameInstallationMode mode, string path,
+        CancellationToken cancellationToken = default)
+    {
+        var valid = mode == GameInstallationMode.HellForge
+            ? ValidateHellForgeInstallation(path)
+            : ValidateGameDirectory(path);
+        if (!valid)
+        {
+            _logger?.LogInformation("{Mode} 游戏目录校验未通过: {Path}", mode, path);
+        }
+
+        return Task.FromResult(valid);
+    }
+
+    private static bool ValidateGameDirectory(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
         {
@@ -98,15 +234,12 @@ public class GameDetectionService
             return false;
         }
 
-        if (!Directory.Exists(Path.Combine(path, "data"))
-            || !Directory.Exists(Path.Combine(path, "tools"))
-            || !Directory.Exists(Path.Combine(path, "bin")))
-        {
-            return false;
-        }
-
-        return Directory.GetFiles(Path.Combine(path, "bin"), "helldivers2.exe").Any();
+        return GameInstallationPaths.ValidateGameFiles(path);
     }
+
+    private static bool ValidateHellForgeInstallation(string? path)
+        => GameInstallationPaths.TryResolveHellForgeRoot(path, out var root)
+           && GameInstallationPaths.ValidateGameFiles(Path.Combine(root, "game"));
 
     /// <summary>
     /// 获取游戏版本（可选功能）
@@ -125,52 +258,118 @@ public class GameDetectionService
     {
         if (await ValidateGameDirectoryAsync(path, cancellationToken))
         {
-            await _settingsService.SetSettingAsync("Game.Path", path);
-            await UpdateGameInfoAsync(path, GameStatus.Found, cancellationToken);
+            await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+            {
+                [SettingKeys.GameMode] = GameInstallationMode.Official.ToString(),
+                [SettingKeys.GamePath] = path
+            });
+            await UpdateGameInfoAsync(path, GameStatus.Found, GameInstallationMode.Official, cancellationToken);
         }
         else
         {
-            await UpdateGameInfoAsync(path, GameStatus.Invalid, cancellationToken);
+            await UpdateGameInfoAsync(path, GameStatus.Invalid, GameInstallationMode.Official, cancellationToken);
             throw new InvalidOperationException($"Invalid game directory: {path}");
         }
-    }
-
-    /// <summary>设置页的路径与自动检测选项一起提交，成功后再更新运行时状态。</summary>
-    public async Task SavePreferencesAsync(string path, bool autoDetect, CancellationToken cancellationToken = default)
-    {
-        path = path.Trim();
-        if (!string.IsNullOrEmpty(path) && !await ValidateGameDirectoryAsync(path, cancellationToken))
-        {
-            await UpdateGameInfoAsync(path, GameStatus.Invalid, cancellationToken);
-            throw new InvalidOperationException($"Invalid game directory: {path}");
-        }
-        if (string.IsNullOrEmpty(path) && autoDetect)
-            path = await Task.Run(() => DetectFromCommonLocationsAsync(cancellationToken), cancellationToken) ?? string.Empty;
-        cancellationToken.ThrowIfCancellationRequested();
-        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
-        {
-            [SettingKeys.GamePath] = path,
-            [SettingKeys.GameAutoDetect] = autoDetect
-        });
-        await UpdateGameInfoAsync(path, string.IsNullOrEmpty(path) ? GameStatus.NotFound : GameStatus.Found, cancellationToken);
     }
 
     /// <summary>
-    /// 只应用已保存的游戏路径，不扫描常见安装位置。
+    /// 设置页的两种来源目录与自动检测选项一起提交。只校验当前来源，另一个目录仅保留供切换。
+    /// </summary>
+    public async Task SavePreferencesAsync(GameInstallationMode mode, string officialPath, string hellForgePath,
+        bool autoDetect, CancellationToken cancellationToken = default)
+    {
+        officialPath = (officialPath ?? string.Empty).Trim();
+        hellForgePath = (hellForgePath ?? string.Empty).Trim();
+
+        if (mode == GameInstallationMode.HellForge)
+        {
+            if (!string.IsNullOrEmpty(hellForgePath))
+            {
+                if (!await ValidateGameInstallationAsync(mode, hellForgePath, cancellationToken))
+                {
+                    var invalidPath = GameInstallationPaths.ResolveHellForgeGameDirectory(hellForgePath) ?? hellForgePath;
+                    await UpdateGameInfoAsync(invalidPath, GameStatus.Invalid, mode, cancellationToken);
+                    throw new InvalidOperationException($"Invalid HellForge installation directory: {hellForgePath}");
+                }
+                if (GameInstallationPaths.TryResolveHellForgeRoot(hellForgePath, out var root))
+                    hellForgePath = root;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+            {
+                [SettingKeys.GameMode] = mode.ToString(),
+                [SettingKeys.GamePath] = officialPath,
+                [SettingKeys.HellForgePath] = hellForgePath,
+                [SettingKeys.GameAutoDetect] = autoDetect
+            });
+            var effective = string.IsNullOrEmpty(hellForgePath)
+                ? string.Empty
+                : GameInstallationPaths.ResolveHellForgeGameDirectory(hellForgePath) ?? string.Empty;
+            await UpdateGameInfoAsync(effective,
+                string.IsNullOrEmpty(effective) ? GameStatus.NotFound : GameStatus.Found, mode, cancellationToken);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(officialPath) && !await ValidateGameDirectoryAsync(officialPath, cancellationToken))
+        {
+            await UpdateGameInfoAsync(officialPath, GameStatus.Invalid, mode, cancellationToken);
+            throw new InvalidOperationException($"Invalid game directory: {officialPath}");
+        }
+        if (string.IsNullOrEmpty(officialPath) && autoDetect)
+            officialPath = await Task.Run(() => DetectFromCommonLocationsAsync(cancellationToken), cancellationToken) ?? string.Empty;
+        cancellationToken.ThrowIfCancellationRequested();
+        await _settingsService.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.GameMode] = mode.ToString(),
+            [SettingKeys.GamePath] = officialPath,
+            [SettingKeys.HellForgePath] = hellForgePath,
+            [SettingKeys.GameAutoDetect] = autoDetect
+        });
+        await UpdateGameInfoAsync(officialPath,
+            string.IsNullOrEmpty(officialPath) ? GameStatus.NotFound : GameStatus.Found, mode, cancellationToken);
+    }
+
+    /// <summary>
+    /// 只应用已保存的官方游戏路径，不扫描常见安装位置。
     /// </summary>
     public async Task<bool> ApplyConfiguredPathAsync(string? path, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, cancellationToken);
+            await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, GameInstallationMode.Official, cancellationToken);
             return false;
         }
 
         var status = await ValidateGameDirectoryAsync(path, cancellationToken)
             ? GameStatus.Found
             : GameStatus.Invalid;
-        await UpdateGameInfoAsync(path, status, cancellationToken);
+        await UpdateGameInfoAsync(path, status, GameInstallationMode.Official, cancellationToken);
         return status == GameStatus.Found;
+    }
+
+    /// <summary>
+    /// 按设置中的当前来源只应用已保存目录，不扫描 Steam 安装。
+    /// </summary>
+    public async Task<bool> ApplyConfiguredGameAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsHellForgeMode)
+            return await ApplyConfiguredPathAsync(
+                _settingsService.GetSetting(SettingKeys.GamePath, string.Empty), cancellationToken);
+
+        var configured = _settingsService.GetSetting(SettingKeys.HellForgePath, string.Empty);
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            await UpdateGameInfoAsync(string.Empty, GameStatus.NotFound, GameInstallationMode.HellForge, cancellationToken);
+            return false;
+        }
+
+        var valid = await ValidateGameInstallationAsync(
+            GameInstallationMode.HellForge, configured, cancellationToken);
+        var gamePath = GameInstallationPaths.ResolveHellForgeGameDirectory(configured) ?? configured;
+        await UpdateGameInfoAsync(gamePath, valid ? GameStatus.Found : GameStatus.Invalid,
+            GameInstallationMode.HellForge, cancellationToken);
+        return valid;
     }
 
     private async Task<string?> DetectFromCommonLocationsAsync(CancellationToken cancellationToken)
@@ -306,7 +505,8 @@ public class GameDetectionService
         return libraries;
     }
 
-    private async Task UpdateGameInfoAsync(string path, GameStatus status, CancellationToken cancellationToken)
+    private async Task UpdateGameInfoAsync(string path, GameStatus status, GameInstallationMode source,
+        CancellationToken cancellationToken)
     {
         var oldInfo = CurrentGameInfo;
 
@@ -314,6 +514,7 @@ public class GameDetectionService
         {
             Path = path,
             Status = status,
+            Source = source,
             LastChecked = DateTime.UtcNow,
             Version = status == GameStatus.Found
                 ? await GetGameVersionAsync(path, cancellationToken)
@@ -340,6 +541,7 @@ public class GameInfo
     public string Path { get; set; } = string.Empty;
     public string? Version { get; set; }
     public GameStatus Status { get; set; }
+    public GameInstallationMode Source { get; set; }
     public DateTime LastChecked { get; set; }
 }
 
@@ -352,6 +554,16 @@ public enum GameStatus
     Found,
     Invalid,
     Checking
+}
+
+/// <summary>
+/// 启动结果。旧版 HellForge 没有 CLI play 命令时只能打开启动器。
+/// </summary>
+public enum GameLaunchKind
+{
+    Steam,
+    HellForgeSession,
+    HellForgeLauncher
 }
 
 /// <summary>

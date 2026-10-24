@@ -39,7 +39,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [ObservableProperty] private string _gamePath = string.Empty;
+    [ObservableProperty] private string _hellForgePath = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHellForgeGameSource))]
+    private bool _isOfficialGameSource = true;
     [ObservableProperty] private bool _autoDetectGame = true;
+
+    public bool IsHellForgeGameSource
+    {
+        get => !IsOfficialGameSource;
+        set => IsOfficialGameSource = !value;
+    }
     [ObservableProperty] private DeploymentMethod _defaultDeploymentMethod = DeploymentMethod.Copy;
     [ObservableProperty] private bool _deployBottomToTop;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
@@ -235,7 +245,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             LoadEntryVisibility();
             LoadStoragePaths();
             LoadLogSettings();
+            IsOfficialGameSource = _settingsService.GetGameInstallationMode() == GameInstallationMode.Official;
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
+            HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
@@ -316,8 +328,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else if (category == "游戏")
             {
-                await _gameDetectionService.SavePreferencesAsync(GamePath, AutoDetectGame);
-                GamePath = _gameDetectionService.CurrentGameInfo?.Path ?? string.Empty;
+                var mode = IsOfficialGameSource ? GameInstallationMode.Official : GameInstallationMode.HellForge;
+                await _gameDetectionService.SavePreferencesAsync(mode, GamePath, HellForgePath, AutoDetectGame);
+                GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
+                HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
                 StatusMessage = "设置已保存";
             }
             else
@@ -414,7 +428,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DetectGameAsync()
     {
-        // "自动识别"是显式触发，即使已配置路径也重新扫描
+        // "自动识别"只适用于官方安装，HellForge 副本不参与 Steam 扫描。
+        if (!IsOfficialGameSource) return;
         await _gameDetectionService.AutoDetectAsync(scanEvenIfConfigured: true);
         GamePath = _gameDetectionService.CurrentGameInfo?.Path ?? string.Empty;
         StatusMessage = _gameDetectionService.CurrentGameInfo?.Status.ToString() ?? "未检测到游戏";
@@ -423,13 +438,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ValidateGameAsync()
     {
-        var valid = await _gameDetectionService.ValidateGameDirectoryAsync(GamePath);
-        StatusMessage = valid ? "游戏目录有效" : "游戏目录无效";
+        var mode = IsOfficialGameSource ? GameInstallationMode.Official : GameInstallationMode.HellForge;
+        var path = IsOfficialGameSource ? GamePath : HellForgePath;
+        var valid = await _gameDetectionService.ValidateGameInstallationAsync(mode, path);
+        StatusMessage = valid
+            ? IsOfficialGameSource ? "游戏目录有效" : "HellForge 安装目录有效"
+            : IsOfficialGameSource ? "游戏目录无效" : "HellForge 安装目录无效";
         if (!valid)
         {
             _notificationService.ShowWithNavigation(
                 NotificationLevel.Warning,
-                "未找到有效的 Helldivers 2 游戏目录",
+                IsOfficialGameSource ? "未找到有效的 Helldivers 2 游戏目录" : "未找到有效的 HellForge 安装目录",
                 "打开设置",
                 NotificationNavigationTarget.Settings,
                 "游戏设置");
@@ -496,7 +515,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await _settingsService.ResetCategoriesAsync(categories);
         }
         await LoadAsync();
-        if (category == "游戏") await _gameDetectionService.ApplyConfiguredPathAsync(GamePath);
+        if (category == "游戏") await _gameDetectionService.ApplyConfiguredGameAsync();
         if (category == "外观") AppearanceChanged?.Invoke(this, EventArgs.Empty);
         StatusMessage = category switch
         {
