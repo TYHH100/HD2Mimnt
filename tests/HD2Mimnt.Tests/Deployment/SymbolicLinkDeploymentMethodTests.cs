@@ -190,7 +190,7 @@ public class SymbolicLinkDeploymentMethodTests : IDisposable
         await File.WriteAllTextAsync(sourceFile, "Test content");
 
         var progressReports = new List<string>();
-        var progress = new Progress<string>(report => progressReports.Add(report));
+        var progress = new ImmediateProgress<string>(report => progressReports.Add(report));
 
         // Act
         var result = await _symlinkMethod.DeployFileAsync(sourceFile, targetFile, progress);
@@ -352,5 +352,14 @@ public class SymbolicLinkDeploymentMethodTests : IDisposable
             }
         }
         catch { }
+    }
+
+    private sealed class ImmediateProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public ImmediateProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }

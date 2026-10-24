@@ -423,7 +423,7 @@ public class DeploymentServiceIntegrationTests : IDisposable
             record.Id, mod.Id, "source.txt", testFile, DeploymentMethod.Copy);
 
         var progressMessages = new List<string>();
-        var progress = new Progress<string>(msg => progressMessages.Add(msg));
+        var progress = new ImmediateProgress<string>(msg => progressMessages.Add(msg));
 
         // Act
         await _deploymentService.PreDeploymentCleanupAsync(progress);
@@ -1244,5 +1244,14 @@ public class DeploymentServiceIntegrationTests : IDisposable
         public Task<bool> CleanupFileAsync(
             string targetPath,
             CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
+
+    private sealed class ImmediateProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public ImmediateProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }

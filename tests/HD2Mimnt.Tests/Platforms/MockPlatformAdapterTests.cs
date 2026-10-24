@@ -134,13 +134,10 @@ public class MockPlatformAdapterTests : IDisposable
     {
         // Arrange
         DownloadProgress? reportedProgress = null;
-        var progress = new Progress<DownloadProgress>(p => reportedProgress = p);
+        var progress = new ImmediateProgress<DownloadProgress>(p => reportedProgress = p);
 
         // Act
         await _platform.DownloadModAsync("mod1", progress);
-
-        // Give the progress callback time to execute
-        await Task.Delay(10);
 
         // Assert
         Assert.NotNull(reportedProgress);
@@ -206,5 +203,14 @@ public class MockPlatformAdapterTests : IDisposable
         // Assert
         Assert.True(result.Mods.Count >= 2);
         Assert.True(result.Mods[0].DownloadCount >= result.Mods[1].DownloadCount);
+    }
+
+    private sealed class ImmediateProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public ImmediateProgress(Action<T> handler) => _handler = handler;
+
+        public void Report(T value) => _handler(value);
     }
 }
