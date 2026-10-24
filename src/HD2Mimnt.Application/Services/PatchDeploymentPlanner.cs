@@ -74,8 +74,10 @@ internal static partial class PatchDeploymentPlanner
                         .ToDictionary(item => item.Match.Groups[3].Value, item => item.File, StringComparer.OrdinalIgnoreCase);
                     if (!triplet.ContainsKey(""))
                         throw new InvalidDataException($"补丁缺少主文件：{Path.Combine(directory.Key!, $"{resource.Key}.patch_{originalIndex}")}");
+                    // 游戏不认 0 字节占位（加载即崩溃）：只部署实际存在的伴随文件，缺失项不生成占位。
                     foreach (var suffix in new[] { "", ".gpu_resources", ".stream" })
-                        result.Add(new FileEntry(triplet.GetValueOrDefault(suffix), $"{resource.Key}.patch_{next}{suffix}"));
+                        if (triplet.TryGetValue(suffix, out var file))
+                            result.Add(new FileEntry(file, $"{resource.Key}.patch_{next}{suffix}"));
                     next++;
                 }
                 nextIndexes[resource.Key] = next;

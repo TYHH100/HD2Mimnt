@@ -216,7 +216,7 @@ public sealed partial class Hd2IASIntegrationTests
         Assert.False(preserved.Enabled); Assert.Equal(0, preserved.Order);
         Assert.Empty(await _iasDeployment.GetModDeploymentHistoryAsync(dataId));
         Assert.NotEqual(systemBytes, await File.ReadAllBytesAsync(Path.Combine(updated.Path, "data", StingrayArchiveWriter.PatchName)));
-        Assert.Equal(3, Directory.GetFiles(Path.Combine(game, "data"), "*.patch_*").Length); // 仅剩 loader，不会自动部署新 data。
+        Assert.Single(Directory.GetFiles(Path.Combine(game, "data"), "*.patch_*")); // 仅剩 loader，不会自动部署新 data。
     }
 
     [Fact]

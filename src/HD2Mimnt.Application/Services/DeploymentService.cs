@@ -2,6 +2,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Diagnostics;
+using HD2Mimnt.Core.IO;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -106,10 +107,12 @@ public class DeploymentService
     /// Pre-Deployment Cleanup
     /// 清理最近一次部署会话的所有文件和记录
     /// </summary>
+    /// <param name="preserveTargets">增量部署保留的目标文件：跳过文件删除，但记录仍删除并稍后按新计划重建。</param>
     public async Task<(int FilesDeleted, int RecordsDeleted)> PreDeploymentCleanupAsync(
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default,
-        IProgress<DeploymentCleanupProgress>? fileProgress = null)
+        IProgress<DeploymentCleanupProgress>? fileProgress = null,
+        IReadOnlyCollection<string>? preserveTargets = null)
     {
         progress?.Report("开始 Pre-Deployment Cleanup...");
 
@@ -154,19 +157,22 @@ public class DeploymentService
         // 3. 遍历每个部署记录，清理其文件
         int totalFilesDeleted = 0;
         int totalRecordsDeleted = 0;
+        int totalPreserved = 0;
         var allRecordsCleaned = true;
 
         foreach (var deployment in deploymentList)
         {
-            var (filesDeleted, recordDeleted) = await CleanupDeploymentFilesAsync(
+            var (filesDeleted, recordDeleted, preserved) = await CleanupDeploymentFilesAsync(
                 deployment.Id,
                 true,
                 progress,
                 cancellationToken,
-                FileProcessed);
+                FileProcessed,
+                preserveTargets);
 
             totalFilesDeleted += filesDeleted;
             totalRecordsDeleted += recordDeleted ? 1 : 0;
+            totalPreserved += preserved;
             allRecordsCleaned &= recordDeleted;
         }
 
@@ -181,7 +187,8 @@ public class DeploymentService
             }
         }
 
-        progress?.Report($"Pre-Deployment Cleanup 完成: 会话 {latestSessionId.Value}，删除 {totalFilesDeleted} 个文件, {totalRecordsDeleted} 个记录");
+        var preservedSummary = totalPreserved > 0 ? $"，保留未变更 {totalPreserved} 个" : string.Empty;
+        progress?.Report($"Pre-Deployment Cleanup 完成: 会话 {latestSessionId.Value}，删除 {totalFilesDeleted} 个文件{preservedSummary}, {totalRecordsDeleted} 个记录");
 
         return (totalFilesDeleted, totalRecordsDeleted);
     }
@@ -193,40 +200,54 @@ public class DeploymentService
         Guid deploymentId,
         IProgress<string>? progress = null,
         CancellationToken cancellationToken = default)
-        => await CleanupDeploymentFilesAsync(deploymentId, true, progress, cancellationToken);
-
-    private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesAsync(
-        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken,
-        Action? fileProcessed = null)
     {
-        try { return await CleanupDeploymentFilesCoreAsync(deploymentId, deleteRecord, progress, cancellationToken, fileProcessed); }
+        var (filesDeleted, recordDeleted, _) = await CleanupDeploymentFilesAsync(deploymentId, true, progress, cancellationToken);
+        return (filesDeleted, recordDeleted);
+    }
+
+    private async Task<(int FilesDeleted, bool RecordDeleted, int PreservedFiles)> CleanupDeploymentFilesAsync(
+        Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken,
+        Action? fileProcessed = null, IReadOnlyCollection<string>? preserveTargets = null)
+    {
+        try { return await CleanupDeploymentFilesCoreAsync(deploymentId, deleteRecord, progress, cancellationToken, fileProcessed, preserveTargets); }
         finally { RaiseDeploymentsChanged(); }
     }
 
-    private async Task<(int FilesDeleted, bool RecordDeleted)> CleanupDeploymentFilesCoreAsync(
+    private async Task<(int FilesDeleted, bool RecordDeleted, int PreservedFiles)> CleanupDeploymentFilesCoreAsync(
         Guid deploymentId, bool deleteRecord, IProgress<string>? progress, CancellationToken cancellationToken,
-        Action? fileProcessed)
+        Action? fileProcessed, IReadOnlyCollection<string>? preserveTargets = null)
     {
         var deployment = await _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
         if (deployment == null)
         {
             _logger?.LogWarning("部署记录 {DeploymentId} 不存在", deploymentId);
-            return (0, false);
+            return (0, false, 0);
         }
 
         // 获取所有部署文件
         var files = await GetDeploymentFilesAsync(deploymentId, cancellationToken);
         var fileList = files.ToList();
+        var preserveSet = preserveTargets == null ? null
+            : new HashSet<string>(preserveTargets.Select(Path.GetFullPath), StringComparer.OrdinalIgnoreCase);
 
         progress?.Report($"清理 Mod {deployment.ModId}: {fileList.Count} 个文件");
 
         int filesDeleted = 0;
+        int filesPreserved = 0;
         var allFilesCleaned = true;
 
         // 遍历清理每个文件
         foreach (var file in fileList)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // 增量部署保留的未变更文件：文件不动，追踪记录稍后按新计划重建。
+            if (preserveSet != null && preserveSet.Contains(Path.GetFullPath(file.TargetPath)))
+            {
+                filesPreserved++;
+                fileProcessed?.Invoke();
+                continue;
+            }
 
             // 链接部署中的空占位文件使用 Copy；旧记录未保存文件方法时才沿用会话方法。
             var methodName = string.IsNullOrWhiteSpace(file.Method) ? deployment.DeploymentMethod : file.Method;
@@ -274,7 +295,7 @@ public class DeploymentService
 
         progress?.Report($"已清理 {filesDeleted}/{fileList.Count} 个文件");
 
-        return (filesDeleted, allFilesCleaned);
+        return (filesDeleted, allFilesCleaned, filesPreserved);
     }
 
     /// <summary>
@@ -484,16 +505,93 @@ public class DeploymentService
             if (plans.Count == 0 && result.SkippedMods > 0)
                 throw new InvalidOperationException($"当前配置没有可部署的补丁，跳过 {result.SkippedMods} 个模组：{string.Join("、", skippedNames)}");
 
-            progress?.Report(new DeploymentProgress { Stage = "Cleaning", Message = "清理之前的部署...", TotalMods = result.TotalMods });
+            // 增量部署：与上次会话按源文件比对。未变更文件位置不变则保留在位，
+            // 编号位移则直接改名就位；只有真正变化的文件才删除重写。
             var previousSession = await GetLatestDeploymentSessionIdAsync(cancellationToken);
+            var previousFilesByTarget = new Dictionary<string, DeploymentFile>(StringComparer.OrdinalIgnoreCase);
+            var previousFilesBySource = new Dictionary<string, DeploymentFile>(StringComparer.OrdinalIgnoreCase);
+            if (previousSession.HasValue)
+                foreach (var previousRecord in await GetDeploymentsBySessionIdAsync(previousSession.Value, cancellationToken))
+                    foreach (var file in await GetDeploymentFilesAsync(previousRecord.Id, cancellationToken))
+                    {
+                        previousFilesByTarget[Path.GetFullPath(file.TargetPath)] = file;
+                        if (!string.IsNullOrEmpty(file.SourcePath))
+                            previousFilesBySource[Path.GetFullPath(file.SourcePath)] = file;
+                    }
+
+            var preserveTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var renamePlan = new List<(string From, string To)>();
+            var plannedFileCount = 0;
+            foreach (var (_, files) in plans)
+                foreach (var file in files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    plannedFileCount++;
+                    var target = Path.GetFullPath(Path.Combine(file.RelativeToGameRoot ? gameDirectory : targetDirectory, file.FileName));
+                    var previousTarget = await TryMatchPreviousAsync(file, target, method,
+                        previousFilesBySource, cancellationToken);
+                    if (previousTarget == null)
+                        continue;
+                    if (string.Equals(previousTarget, target, StringComparison.OrdinalIgnoreCase))
+                        preserveTargets.Add(target);
+                    else
+                        renamePlan.Add((previousTarget, target));
+                }
+
+            // 完全一致时整体跳过：不删文件、不重建会话记录，沿用上次 SessionId。
+            if (renamePlan.Count == 0
+                && previousFilesByTarget.Count > 0
+                && preserveTargets.Count == previousFilesByTarget.Count
+                && preserveTargets.Count == plannedFileCount)
+            {
+                result.SessionId = previousSession!.Value;
+                result.PreservedFiles = preserveTargets.Count;
+                result.CompletedMods = result.TotalMods;
+                result.Status = result.SkippedMods > 0 ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed;
+                result.Message = $"配置“{profile.Name}”与上次部署完全一致，已跳过重新部署：{preserveTargets.Count} 个文件保持原状。位置：{targetDirectory}";
+                if (skippedNames.Count > 0) result.Message += $"；无可部署补丁：{string.Join("、", skippedNames)}";
+                progress?.Report(new DeploymentProgress
+                {
+                    Stage = "Completed", Message = result.Message, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods
+                });
+                return result;
+            }
+
+            progress?.Report(new DeploymentProgress { Stage = "Cleaning", Message = "清理之前的部署...", TotalMods = result.TotalMods });
+            // 保留在位与待改名的旧目标都不能被清理删除；其余按旧部署清理。
+            var preserveForCleanup = new HashSet<string>(preserveTargets, StringComparer.OrdinalIgnoreCase);
+            foreach (var (from, _) in renamePlan)
+                preserveForCleanup.Add(from);
             var (filesDeleted, _) = await PreDeploymentCleanupAsync(
                 new InlineProgress<string>(message => progress?.Report(new DeploymentProgress
                 {
                     Stage = "Cleaning", Message = message, TotalMods = result.TotalMods
-                })), cancellationToken);
+                })), cancellationToken, preserveTargets: preserveForCleanup);
             result.FilesDeleted = filesDeleted;
             if (previousSession.HasValue && (await GetDeploymentsBySessionIdAsync(previousSession.Value, cancellationToken)).Any())
                 throw new IOException("之前的部署未完全清理，请重试清理后再部署");
+
+            if (renamePlan.Count > 0)
+            {
+                // 清理上次崩溃可能残留的改名临时文件，再执行本次两阶段改名。
+                foreach (var directory in renamePlan.Select(item => Path.GetDirectoryName(item.To)).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    if (Directory.Exists(directory))
+                        foreach (var leftover in Directory.EnumerateFiles(directory!, ".hd2mimnt_stage_*"))
+                            File.Delete(leftover);
+                }
+                progress?.Report(new DeploymentProgress
+                {
+                    Stage = "Deploying", Message = $"编号位移：{renamePlan.Count} 个未变更文件改名就位...",
+                    TotalMods = result.TotalMods, CompletedMods = result.CompletedMods
+                });
+                result.RenamedFiles = RenameDisplacedTargets(renamePlan);
+            }
+            // 已就位目标 = 原地保留 + 改名到位，写入循环全部跳过。
+            var settledTargets = new HashSet<string>(preserveTargets, StringComparer.OrdinalIgnoreCase);
+            foreach (var (_, to) in renamePlan)
+                settledTargets.Add(to);
+            result.PreservedFiles = settledTargets.Count;
 
             result.Status = DeploymentStatus.Deploying;
             if (_crashHistory != null)
@@ -521,13 +619,12 @@ public class DeploymentService
                 try
                 {
                     // 一次事务预登记整个模组，避免每复制一个文件都提交 SQLite。
-                    // 占位文件仍独立记录为 Copy，取消/失败后也能清理全部目标。
                     await _deploymentRepository.AddDeploymentFilesAsync(files.Select(file => new DeploymentFile
                     {
                         Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = mod.Id,
-                        SourcePath = file.SourcePath ?? string.Empty,
+                        SourcePath = file.SourcePath!,
                         TargetPath = Path.GetFullPath(Path.Combine(file.RelativeToGameRoot ? gameDirectory : targetDirectory, file.FileName)),
-                        Method = (file.SourcePath == null ? DeploymentMethod.Copy : method).ToString()
+                        Method = method.ToString()
                     }).ToList(), cancellationToken);
                     var hasFailure = false;
                     var done = 0;
@@ -535,28 +632,31 @@ public class DeploymentService
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var target = Path.GetFullPath(Path.Combine(file.RelativeToGameRoot ? gameDirectory : targetDirectory, file.FileName));
+                        if (settledTargets.Contains(target))
+                        {
+                            // 未变更文件已保留或改名就位，只重建追踪记录。
+                            done++;
+                            progress?.Report(new DeploymentProgress
+                            {
+                                Stage = "Deploying", Message = $"保留未变更文件：{file.FileName}", CurrentMod = mod.Name,
+                                TotalMods = result.TotalMods, CompletedMods = result.CompletedMods,
+                                CurrentModFiles = done, CurrentModTotalFiles = files.Count
+                            });
+                            continue;
+                        }
                         progress?.Report(new DeploymentProgress
                         {
                             Stage = "Deploying", Message = $"正在部署 {mod.Name}：{done}/{files.Count}，{file.FileName}",
                             CurrentMod = mod.Name, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods,
                             CurrentModFiles = done, CurrentModTotalFiles = files.Count
                         });
-                        if (file.SourcePath == null)
-                        {
-                            // 先解除可能存在的链接，不能截断链接指向的源文件。
-                            File.Delete(target);
-                            using var placeholder = new FileStream(target, FileMode.CreateNew, FileAccess.Write);
-                        }
-                        else
-                        {
-                            var success = await deploymentMethod.DeployFileAsync(file.SourcePath, target, null, cancellationToken);
-                            cancellationToken.ThrowIfCancellationRequested();
-                            if (success && !file.RelativeToGameRoot
-                                && PatchDeploymentPlanner.TryParseTarget(file.FileName, out _, out _, out var suffix) && suffix.Length == 0
-                                && new FileInfo(target).Length == 0)
-                                throw new InvalidDataException($"部署后的补丁主文件为空：{target}");
-                            hasFailure |= !success;
-                        }
+                        var success = await deploymentMethod.DeployFileAsync(file.SourcePath!, target, null, cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (success && !file.RelativeToGameRoot
+                            && PatchDeploymentPlanner.TryParseTarget(file.FileName, out _, out _, out var suffix) && suffix.Length == 0
+                            && new FileInfo(target).Length == 0)
+                            throw new InvalidDataException($"部署后的补丁主文件为空：{target}");
+                        hasFailure |= !success;
                         done++;
                     }
                     await UpdateDeploymentStatusAsync(record.Id,
@@ -581,6 +681,7 @@ public class DeploymentService
             result.Status = result.FailedMods > 0 || result.SkippedMods > 0 ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed;
             result.Message = $"配置“{profile.Name}”：已部署 {result.CompletedMods}/{result.TotalMods} 个模组，失败 {result.FailedMods} 个，跳过 {result.SkippedMods} 个。位置：{targetDirectory}";
             if (skippedNames.Count > 0) result.Message += $"；无可部署补丁：{string.Join("、", skippedNames)}";
+            if (result.PreservedFiles > 0) result.Message += $"；沿用未变更文件 {result.PreservedFiles} 个（改名就位 {result.RenamedFiles} 个）";
             progress?.Report(new DeploymentProgress
             {
                 Stage = "Completed", Message = result.Message, TotalMods = result.TotalMods, CompletedMods = result.CompletedMods
@@ -613,6 +714,79 @@ public class DeploymentService
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
     {
         public void Report(T value) => report(value);
+    }
+
+    /// <summary>
+    /// 匹配计划文件在上次部署中的对应目标：按源路径匹配，且登记方法与本次一致、
+    /// 目标仍与库源内容一致时返回上次所在目标（位置不同则由调用方改名就位）。
+    /// 匹配失败返回 null，走删除重写。
+    /// </summary>
+    private static async Task<string?> TryMatchPreviousAsync(
+        PatchDeploymentPlanner.FileEntry file, string target, DeploymentMethod method,
+        IReadOnlyDictionary<string, DeploymentFile> previousFilesBySource,
+        CancellationToken cancellationToken)
+    {
+        var source = Path.GetFullPath(file.SourcePath!);
+        if (!previousFilesBySource.TryGetValue(source, out var previous) || !File.Exists(previous.TargetPath))
+            return null;
+        if (previous.Method != method.ToString())
+            return null;
+        var previousTarget = Path.GetFullPath(previous.TargetPath);
+        cancellationToken.ThrowIfCancellationRequested();
+        var contentMatches = method switch
+        {
+            // 硬链接：目标与库源仍是同一文件且链接数≥2（库源还在）。
+            DeploymentMethod.HardLink => FileIdentity.IsSameFile(source, previousTarget),
+            // 符号链接：目标仍是指向库源原路径的链接，未被外部替换成实体文件。
+            DeploymentMethod.SymbolicLink => string.Equals(new FileInfo(previousTarget).LinkTarget, source, StringComparison.OrdinalIgnoreCase),
+            // 复制：目标内容与库源一致，跳过删除重拷。
+            _ => await FileIdentity.ContentEqualsAsync(source, previousTarget, cancellationToken),
+        };
+        return contentMatches ? previousTarget : null;
+    }
+
+    /// <summary>
+    /// 编号位移的未变更文件两阶段改名就位：先全部腾挪到目标目录的临时名
+    /// （避免互换编号时互相占位），再统一移入最终目标。失败逆序回滚；
+    /// 进程级崩溃的残留由下次部署清扫 <c>.hd2mimnt_stage_*</c> 兜底。
+    /// 改名是纯元数据操作，本阶段不响应取消，尽快完成。
+    /// </summary>
+    private static int RenameDisplacedTargets(IReadOnlyList<(string From, string To)> renamePlan)
+    {
+        var staged = new List<(string Temp, string From, string To)>(renamePlan.Count);
+        try
+        {
+            foreach (var (from, to) in renamePlan)
+            {
+                if (!File.Exists(from))
+                    throw new IOException($"增量改名来源缺失：{from}");
+                var temp = Path.Combine(Path.GetDirectoryName(to)!, $".hd2mimnt_stage_{Guid.NewGuid():N}");
+                File.Move(from, temp);
+                staged.Add((temp, from, to));
+            }
+            foreach (var (temp, _, to) in staged)
+                File.Move(temp, to);
+        }
+        catch
+        {
+            foreach (var (temp, from, to) in staged.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    if (!File.Exists(from))
+                    {
+                        if (File.Exists(to)) File.Move(to, from);
+                        else if (File.Exists(temp)) File.Move(temp, from);
+                    }
+                }
+                catch
+                {
+                    // 尽力恢复原名；无法恢复的残留由 .hd2mimnt_stage_* 清扫兜底。
+                }
+            }
+            throw;
+        }
+        return staged.Count;
     }
     /// <summary>
     /// 创建部署记录
@@ -836,6 +1010,10 @@ public class DeploymentResult
     public int FailedMods { get; set; }
     public int SkippedMods { get; set; }
     public int FilesDeleted { get; set; }
+    /// <summary>增量部署沿用的未变更目标文件数（含原地保留与改名就位）；完全一致时等于全部文件数。</summary>
+    public int PreservedFiles { get; set; }
+    /// <summary>增量部署中因编号位移而改名就位的未变更文件数。</summary>
+    public int RenamedFiles { get; set; }
     public string? Message { get; set; }
     public string? ErrorMessage { get; set; }
 }

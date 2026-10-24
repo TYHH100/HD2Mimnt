@@ -145,8 +145,8 @@ public sealed class OfflineInteropTests : IAsyncLifetime
             TimeSpan.Zero, TimeSpan.FromSeconds(10));
         Assert.Equal(0, record.Order);
         Assert.True(record.IsComplete);
-        Assert.Equal(3, record.Files.Count);
-        Assert.Equal(2, record.Files.Count(file => file.IsPlaceholder));
+        Assert.Single(record.Files);
+        Assert.Equal(0, record.Files.Count(file => file.IsPlaceholder));
         Assert.All(record.Files, file => Assert.True(File.Exists(file.TargetPath)));
         await _deploymentService.PreDeploymentCleanupAsync();
         await WaitFor(snapshot => snapshot.Deployments.Count == 0);
