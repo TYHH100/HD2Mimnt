@@ -67,7 +67,7 @@ public class DeploymentRepositoryTests : IDisposable
             Assert.All(record.Files, file => Assert.Equal(record.Id, file.DeploymentId));
         }
         Assert.Equal(2, records.ElementAt(0).Files.Count);
-        Assert.Equal(1, records.ElementAt(1).Files.Count);
+        Assert.Single(records.ElementAt(1).Files);
     }
 
     [Fact]

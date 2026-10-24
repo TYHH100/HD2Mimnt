@@ -123,8 +123,8 @@ public sealed class CodeQualityLifecycleTests
         var queue = new AsyncOperationQueue();
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var order = new List<int>();
-        queue.Enqueue(async () => { order.Add(1); await release.Task; order.Add(2); queue.Enqueue(() => { order.Add(4); return Task.CompletedTask; }); });
-        queue.Enqueue(() => { order.Add(3); return Task.CompletedTask; });
+        _ = queue.Enqueue(async () => { order.Add(1); await release.Task; order.Add(2); _ = queue.Enqueue(() => { order.Add(4); return Task.CompletedTask; }); });
+        _ = queue.Enqueue(() => { order.Add(3); return Task.CompletedTask; });
         var draining = queue.DrainAsync();
         try { Assert.False(draining.IsCompleted); Assert.Equal(new[] { 1 }, order); }
         finally { release.TrySetResult(); }

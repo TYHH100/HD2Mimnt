@@ -188,7 +188,7 @@ public class PluginModAccessTests
         {
             Id = modId,
             Name = "Test Mod",
-            Tags = null  // No tags
+            Tags = []  // No tags
         };
 
         _mockPluginService.Setup(s => s.CheckPermissionAsync(TestPluginId, "mods.read", default)).ReturnsAsync(true);

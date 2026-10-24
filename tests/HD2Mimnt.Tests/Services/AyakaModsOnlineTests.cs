@@ -29,7 +29,7 @@ public sealed class AyakaModsOnlineTests
             platform.SetupGet(p => p.Id).Returns("ayakamods");
             platform.Setup(p => p.GetFilesAsync("42", null, It.IsAny<CancellationToken>())).ReturnsAsync(new List<PlatformModFile>());
             var registry = new PlatformRegistry(); registry.RegisterPlatform(platform.Object);
-            var online = new ModOnlineService(repository.Object, registry, new ModService(repository.Object, root), new(registry));
+            var online = new ModOnlineService(registry, new ModService(repository.Object, root), new(registry));
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => online.UpdateFromBrowserFileAsync(mod.Id, link,
                 new PlatformModFile { Id = "ayaka-file:9:10", Version = "2.0" }, "must-not-open.zip"));
             Assert.Contains(changedBinding ? "链接已变更" : "已不可用", exception.Message);
@@ -94,7 +94,7 @@ public sealed class AyakaModsOnlineTests
                 Assert.Equal("ayakamods", bound.PlatformId);
                 Assert.Equal("42", bound.PlatformLink!.ModId);
                 var mods = new ModService(repository, Path.Combine(root, "storage"));
-                var online = new ModOnlineService(repository, registry, mods, new(registry));
+                var online = new ModOnlineService(registry, mods, new(registry));
                 var info = await online.CheckAsync(mod.Id);
                 Assert.Equal(file.Id, Assert.Single(info.Files).Id);
                 if (fromBrowser)

@@ -103,7 +103,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsAccountCategoryVisible => IsSectionVisible("账号");
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
-        UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
+        DownloadSettingsService? downloadSettings = null, UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
         IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null)
     {
@@ -111,7 +111,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
         _imageCacheService = imageCacheService;
-        _downloadSettingsService = new DownloadSettingsService(settingsService);
+        // 测试直接构造时可省略；宿主注入共享单例，避免重复读取下载设置
+        _downloadSettingsService = downloadSettings ?? new DownloadSettingsService(settingsService);
         _storageSettings = storageSettings;
         _localization = localization;
         _confirmationService = confirmationService;

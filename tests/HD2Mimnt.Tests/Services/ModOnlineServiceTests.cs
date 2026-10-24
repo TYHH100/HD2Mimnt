@@ -42,7 +42,7 @@ public sealed class ModOnlineServiceTests : IDisposable
             .ReturnsAsync(() => new MemoryStream(_archive));
         var registry = new PlatformRegistry();
         registry.RegisterPlatform(_platform.Object);
-        _online = new(_repository, registry, _mods, new(registry));
+        _online = new(registry, _mods, new(registry));
         _original = new Mod { Id = Guid.NewGuid(), Name = "Local name", Author = "Local author", Version = "1.0",
             Tags = new() { "user tag" }, ImportedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             PlatformId = _link.PlatformId, PlatformModId = _link.ModId, PlatformLink = _link,

@@ -903,7 +903,7 @@ public sealed partial class FluentAvaloniaUiTests
                     var cardBackground = Assert.IsAssignableFrom<ISolidColorBrush>(card.Background);
                     Assert.Equal(byte.MaxValue, cardBackground.Color.A);
                     Assert.Equal(1, cardBackground.Opacity);
-                    if (step.TargetKey is "DeployCurrentProfileButton" or "ImportModButton" or "GamePathInput")
+                    if (step.TargetKey is "DeployCurrentProfileButton" or "ImportModButton" or "OfficialGameSourceRadio")
                     {
                         Capture(window, theme.ToString(), $"tutorial-{size.Width}-{index}");
                         var previewPath = Environment.GetEnvironmentVariable("HD2MIMNT_UI_PREVIEW_PATH");
@@ -3637,7 +3637,12 @@ public sealed partial class FluentAvaloniaUiTests
 
         public async ValueTask DisposeAsync()
         {
+            // 测试体（含 window.Close 的级联回调）可能遗留延迟工作；不排空的话它们会在
+            // xUnit idle 上下文执行并毒化 headless 宿主（后续全部 KeyValueStorage 失败）。
+            // RunJobs 只能清已排队任务；未到期的轮询/节流任务仍偶发触发，根治需上游修复 idle 上下文限制。
+            Dispatcher.UIThread.RunJobs();
             await Services.DisposeAsync();
+            Dispatcher.UIThread.RunJobs();
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
         }
     }

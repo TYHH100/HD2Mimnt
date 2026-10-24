@@ -257,13 +257,13 @@ public class ArchiveImportService
     {
         // Fast fingerprint based on file size and first/last bytes
         using var stream = File.OpenRead(filePath);
-        var buffer = new byte[1024];
-        var bytesRead = stream.Read(buffer, 0, buffer.Length);
+        var buffer = new byte[(int)Math.Min(1024, stream.Length)];
+        stream.ReadExactly(buffer);
 
         if (stream.Length > 1024)
         {
             stream.Seek(-1024, SeekOrigin.End);
-            stream.Read(buffer, 0, buffer.Length);
+            stream.ReadExactly(buffer);
         }
 
         return Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(buffer));

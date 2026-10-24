@@ -137,7 +137,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         Assert.Contains("with-options", await File.ReadAllTextAsync(Path.Combine(mod.Path, ".hd2mimnt-hd2ir.json")));
         Assert.Equal(json, await File.ReadAllTextAsync(Path.Combine(mod.Path, "components", "1", "manifest.json")));
         Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest!.IconPath!)));
-        Assert.StartsWith("preview/", mod.Manifest.IconPath);
+        Assert.StartsWith("preview/", mod.Manifest.IconPath!);
         Assert.Equal(2, mod.Manifest.OptionGroups!.Count);
         Assert.All(mod.Manifest.Options!, option => Assert.False(string.IsNullOrWhiteSpace(option.GroupId)));
         Assert.True(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
@@ -172,9 +172,10 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
         var mod = (await _mods.GetByIdAsync(id))!;
         Assert.Equal("Armor Pack", mod.Name);
-        Assert.StartsWith("preview/", mod.Manifest!.IconPath);
-        Assert.True(mod.Manifest.IconPath.EndsWith("cover.png", StringComparison.OrdinalIgnoreCase), $"actual={mod.Manifest.IconPath}");
-        Assert.True(File.Exists(Path.Combine(mod.Path, mod.Manifest.IconPath)));
+        var iconPath = mod.Manifest!.IconPath!;
+        Assert.StartsWith("preview/", iconPath);
+        Assert.True(iconPath.EndsWith("cover.png", StringComparison.OrdinalIgnoreCase), $"actual={iconPath}");
+        Assert.True(File.Exists(Path.Combine(mod.Path, iconPath)));
         // 一级组件分组：系统组件 + 模型；模型组带作者选项/子选项。
         Assert.Equal(2, mod.Manifest.OptionGroups!.Count);
         var modelGroup = Assert.Single(mod.Manifest.OptionGroups, group => group.Name.Contains("Inner Model"));

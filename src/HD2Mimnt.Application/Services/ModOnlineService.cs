@@ -8,7 +8,7 @@ namespace HD2Mimnt.Application.Services;
 public sealed record ModOnlineInfo(Mod Mod, IReadOnlyList<PlatformModFile> Files);
 
 /// <summary>使用已保存的链接检查文件、下载指定版本并替换原模组。</summary>
-public sealed class ModOnlineService(IModRepository repository, IPlatformRegistry platforms,
+public sealed class ModOnlineService(IPlatformRegistry platforms,
     ModService mods, DownloadManagerService downloads, ILogger<ModOnlineService>? logger = null,
     StorageSettingsService? storage = null)
 {

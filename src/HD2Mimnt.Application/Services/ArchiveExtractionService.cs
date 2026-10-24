@@ -156,13 +156,13 @@ public class ArchiveExtractionService
         using var stream = File.OpenRead(filePath);
 
         var buffer = new byte[Math.Min(1024, fileInfo.Length)];
-        await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+        await stream.ReadExactlyAsync(buffer, cancellationToken);
 
         if (fileInfo.Length > 1024)
         {
             stream.Seek(-1024, SeekOrigin.End);
             var tailBuffer = new byte[1024];
-            await stream.ReadAsync(tailBuffer, 0, tailBuffer.Length, cancellationToken);
+            await stream.ReadExactlyAsync(tailBuffer, cancellationToken);
 
             // 合并首尾数据
             var combined = new byte[buffer.Length + tailBuffer.Length];

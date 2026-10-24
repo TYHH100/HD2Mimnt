@@ -79,3 +79,9 @@
 - 聚合读取禁止逐父行子查询（N+1）：先取父行集合，再用 `SqliteBatching.BindInParameters` + `Chunk(500)` 批量 IN 装载子表并按归属列分组（批次查询须同时 SELECT 归属列，映射器不读它）。实测 500 模组聚合读取从 ~3.2s 降到 ~28ms。来源：https://learn.microsoft.com/dotnet/standard/data/sqlite/parameters
 
 - "路径必须位于根内"与长度前缀管道帧是共享设施：新代码一律使用 `HD2Mimnt.Core.IO.PathGuard.IsInsideRoot/ResolveInsideRoot` 和 `HD2Mimnt.Core.IPC.PipeFrame`（含 ReadExactly 短读循环与 8MB 帧上限），不要手写 `GetFullPath + StartsWith` 前缀比较或第二份帧读取器。`LruCache` 构造可传驱逐回调释放原生资源（如 Bitmap），回调在锁外执行；`ImageLoaderService.CancelPendingLoads` 是代际令牌，Cancel 后新加载仍可用。
+
+- 包版本只在仓库根 `Directory.Packages.props`（CPM）声明，项目引用不带 Version；公共属性（net10.0/Nullable/ImplicitUsings）在 `Directory.Build.props`。升版本先确认目标版本已被缓存（新版本需联网）。`System.Drawing.Common` 有意保留 9.0.0。来源：https://learn.microsoft.com/nuget/consume-packages/Central-Package-Management
+
+- 平台兼容警告（CA1416）由 `Directory.Build.props` 统一注入的程序集级 `SupportedOSPlatform("windows")` 治理——本应用仅面向 Windows，新的跨平台边界才需要单独处理；警告基线为 0，提交前保持 `dotnet build` 0 警告。
+
+- UITests 合并运行的 "Cannot get KeyValueStorage on the idle test context" 级联：机制是测试遗留延迟工作（window.Close 级联、未到期定时器）在 xUnit v3 idle 上下文执行并毒化 headless 宿主，且 xUnit 把上一测试的清理失败记到下一测试头上；`UiScope.DisposeAsync` 的 RunJobs 排空可消除确定性触发，但未到期任务仍偶发，新增 UI 测试应在断言完成后排空 dispatcher 并确保后台服务可释放。根治需 Avalonia.Headless.XUnit/xunit.v3 上游修复。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless.XUnit/AvaloniaTestRunner.cs

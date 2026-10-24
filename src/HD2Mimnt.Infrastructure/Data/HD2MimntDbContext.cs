@@ -44,6 +44,21 @@ public class HD2MimntDbContext : IDisposable
         finally { _initializationGate.Release(); }
     }
 
+    /// <summary>
+    /// 以在线备份方式把外部数据库文件的内容替换导入当前库（事务替换，不关闭其它操作的连接）。
+    /// </summary>
+    public async Task ImportFromAsync(string sourceDatabasePath, CancellationToken cancellationToken = default)
+    {
+        using var source = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = sourceDatabasePath, Mode = SqliteOpenMode.ReadOnly, Pooling = false
+        }.ToString());
+        await source.OpenAsync(cancellationToken);
+        using var target = await OpenConnectionAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        source.BackupDatabase(target);
+    }
+
     private async Task InitializeSchemaAsync(CancellationToken cancellationToken)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);

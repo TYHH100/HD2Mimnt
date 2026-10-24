@@ -117,17 +117,7 @@ public sealed class BackupService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 // SQLite 在线备份以事务替换内容；不关闭其它操作的连接，也不删除活动 WAL。
-                await Task.Run(async () =>
-                {
-                    using var source = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
-                    {
-                        DataSource = temporaryDatabasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly, Pooling = false
-                    }.ToString());
-                    await source.OpenAsync(cancellationToken);
-                    using var target = await _dbContext.OpenConnectionAsync(cancellationToken);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    source.BackupDatabase(target);
-                }, cancellationToken);
+                await _dbContext.ImportFromAsync(temporaryDatabasePath, cancellationToken);
                 await _dbContext.InitializeDatabaseAsync(CancellationToken.None);
             });
             Restored?.Invoke(this, EventArgs.Empty);

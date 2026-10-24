@@ -559,6 +559,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<GameDetectionService>(),
             sp.GetRequiredService<NotificationService>(),
             sp.GetRequiredService<IImageCacheService>(),
+            sp.GetRequiredService<DownloadSettingsService>(),
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),

@@ -425,7 +425,7 @@ public class ProfileModOptionsTests : IDisposable
         var loaded = await _modRepository.GetByIdAsync(mod.Id);
 
         Assert.Equal(new[] { "系统组件", "外观组件" }, loaded!.Manifest!.OptionGroups!.Select(group => group.Name));
-        Assert.Equal("preview/cover.png", loaded.Manifest.OptionGroups[1].Image);
+        Assert.Equal("preview/cover.png", loaded.Manifest.OptionGroups![1].Image);
         Assert.All(loaded.Manifest.Options!, option => Assert.False(string.IsNullOrWhiteSpace(option.GroupId)));
         var plan = ProfileModOptionResolver.ResolveDeployPlan(loaded.Manifest,
             new ProfileModOptionsState { OptionToggles = new List<bool> { true, false } });

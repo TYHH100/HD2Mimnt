@@ -12,7 +12,8 @@
 > - ⚠️ 遗留：UITests 存在 **137 个预存环境性失败**（"Cannot get KeyValueStorage on the idle test context"，在 Phase 0 之前的基线上同样失败，与本方案改动无关），修复需调查 headless 平台配置，建议纳入 Phase 4。
 > - ✅ Phase 2 已完成并提交（`23da11e`）：AI ApiKey 迁 DPAPI（数据库列恒空、旧明文自动迁移）；DownloadOptions 哈希校验能力（ExpectedHash）与默认拒绝明文 http（用户直连通道显式放行）；HD2IAS 更新链路以 GitHub 官方 Contents API 的 git blob SHA-1 为内容锚点，代理投毒整体拒绝、无锚点仅官方直连；解压防护（路径越界拒绝 + 单条目 2GB/总量 4GB/压缩比 1000× 配额）；插件/工作者管道 CurrentUserOnly；插件安装记录程序集 SHA-256 并新增 StartPluginAsync 启动前校验；VACUUM INTO 参数化。新增 13 个安全测试。
 > - ✅ Phase 3 已完成：LogicalModRepository 聚合写入包事务并修复外键插入顺序缺陷（原顺序下带部署文件的聚合在 FK 约束下必然失败）；GetAll/Search/Deployment 列表 N+1 改批量 IN（500 模组聚合读取 ~3.2s → ~28ms，部署会话 ~330ms → ~14ms）；SoundFix 包解析改 MemoryMappedFile 按需读取 + Stage/恢复流程流式化（数百 MB 音效包不再整包驻留）；ImageLoaderService 代际取消令牌 + Dispose；LruCache 驱逐回调释放 Bitmap；DownloadManagerService File.Move 出锁；三份重复帧读取器合并为 Core PipeFrame；14 处手写“根内路径”校验收敛为 Core PathGuard。新增 10 个测试。
-> - 待执行：Phase 4（结构治理）。
+> - ✅ Phase 4 已完成（结构治理首批，2026-10-24）：中央包管理 `Directory.Packages.props` + `Directory.Build.props`（Microsoft.Extensions 统一 10.0.11、测试包对齐主套件已验证组合；System.Drawing.Common 保留 9.0.0）；程序集级 `SupportedOSPlatform("windows")` 经 Directory.Build.props 统一注入，CA1416 174 处清零，配合 .editorconfig 与逐项修复后全解决方案 **0 警告 0 错误**（含 3 处 CA2022 不准确读取改 ReadExactly、CS9113 未读参数删除、AVLN5001 过时 API 归位）；SettingsViewModel 改构造注入 DownloadSettingsService；BackupService 的 SQLite 直连下沉为 HD2MimntDbContext.ImportFromAsync。UITests 137 个 KeyValueStorage 失败完成调查：机制为测试遗留延迟工作在 xUnit v3 idle 上下文执行并毒化 headless 宿主（级联起点 LuaSeparator→Navigation，确定性可复现）；UiScope.DisposeAsync 增加 RunJobs 排空后确定性触发消除，未到期定时任务仍偶发，根治需上游（Avalonia.Headless.XUnit 12.0.3 / xunit.v3 3.2.2）修复。Phase 4 剩余项（BusyOperationRunner/DragSortController、巨型 VM 拆分、LocalizedBinding 编译路径、ArchiveInspector 合并、TestDataService 迁移）按需排期。
+> - 遗留：工作区同期存在用户未提交的 HellForge 功能改动（GameDetectionService/SettingsViewModel 等），Phase 4 提交已用行级暂存避开。
 
 ---
 
