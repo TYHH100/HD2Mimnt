@@ -5,6 +5,7 @@
 | 用途 | 入口 |
 | --- | --- |
 | 开发协作与易错点 | [仓库规则](../AGENTS.md)，按索引读取 `agent-guides/` |
+| 构建与发布流程、版本标签规范 | [RELEASE_PROCESS.md](RELEASE_PROCESS.md) |
 | Nexus Mods 接入、认证与在线更新 | [NEXUS_MODS.md](features/NEXUS_MODS.md) |
 | Ayaka Mods 接入、工具密钥与 OAuth2 配置 | [AYAKA_MODS.md](features/AYAKA_MODS.md) |
 | 模组来源、版本与作者 JSON、网站跳转 | [MOD_SOURCE_METADATA.md](features/MOD_SOURCE_METADATA.md) |
