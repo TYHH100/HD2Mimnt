@@ -13,26 +13,26 @@ permissions:
 
 jobs:
   release:
-    name: 构建并发布
+    name: build-and-release
     runs-on: windows-latest
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 安装 .NET SDK
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
 
       # 测试（单元/UI/性能/稳定性）在开发阶段本地执行，发布流水线不运行测试；
       # dotnet publish 自带还原与依赖构建
-      - name: 计算版本号
+      - name: Compute version
         shell: pwsh
         run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^V', '')"
 
       # 与 Release.pubxml 一致：win-x64、框架依赖、单文件。
       # 子进程 exe（PluginHost/Worker）由 UI csproj 的 PublishChildProcessHosts 目标补齐。
-      - name: 发布主程序
+      - name: Publish app
         shell: pwsh
         run: >
           dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj
@@ -42,7 +42,7 @@ jobs:
           -p:Version=$env:VERSION
 
       # 主包不含 .pdb；调试符号单独打包，配合 minidump-stackwalk 排查崩溃转储
-      - name: 打包发布文件与符号
+      - name: Package release and symbols
         shell: pwsh
         run: |
           $publishDir = 'src/HD2Mimnt.UI/bin/Release/net10.0/win-x64/publish'
@@ -52,7 +52,7 @@ jobs:
           Compress-Archive -Path "$publishDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64.zip"
           Compress-Archive -Path "$symbolsDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64-symbols.zip"
 
-      - name: 创建 GitHub Release
+      - name: Create GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
