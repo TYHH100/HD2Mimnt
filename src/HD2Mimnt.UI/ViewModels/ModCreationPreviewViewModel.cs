@@ -1,0 +1,113 @@
+using System.Windows.Input;
+using Avalonia.Media.Imaging;
+using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
+using HD2Mimnt.UI.Services;
+
+namespace HD2Mimnt.UI.ViewModels;
+
+/// <summary>预览选择只保存在快照中，不修改创建草稿或配置文件。</summary>
+public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposable
+{
+    private readonly ImagePreviewService? _imagePreview;
+    private readonly List<(string? Path, Action<Bitmap> Set)> _images = [];
+    private readonly List<Bitmap> _owned = [];
+    public string Name { get; }
+    public string Author { get; }
+    public string Description { get; }
+    public Bitmap? Cover { get; private set; }
+    public bool IsLegacyMode { get; }
+    public IReadOnlyList<ProfileModOptionCardViewModel> OptionCards { get; }
+    public IReadOnlyList<ProfileModLegacyChoiceViewModel> LegacyChoices { get; }
+    public ICommand ToggleOptionCommand { get; }
+
+    // 创建预览只展示本次草稿的清单，不生成组件分组，也不保存到任何配置。
+    public bool HasGroups => false;
+    public bool ShowGroupList => false;
+    public bool ShowOptionList => !IsLegacyMode;
+    public bool IsGroupPage => false;
+    public IReadOnlyList<ProfileModOptionGroupViewModel> GroupCards => Array.Empty<ProfileModOptionGroupViewModel>();
+    public IReadOnlyList<ProfileModOptionCardViewModel> VisibleOptionCards => OptionCards;
+    public ICommand OpenGroupCommand { get; }
+    public ICommand ToggleGroupCommand { get; }
+    public ICommand ReturnCommand { get; }
+
+    public ModCreationPreviewViewModel(ModManifest manifest, ImagePreviewService? imagePreview)
+    {
+        _imagePreview = imagePreview;
+        Name = manifest.Name; Author = manifest.Author; Description = manifest.Description;
+        IsLegacyMode = manifest.ManifestVersion == ManifestVersion.Legacy;
+        ToggleOptionCommand = new RelayCommand<ProfileModOptionCardViewModel>(card => { if (card != null) card.IsEnabled = !card.IsEnabled; });
+        OpenGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
+        ToggleGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
+        ReturnCommand = new RelayCommand(() => { });
+        LegacyChoices = IsLegacyMode ? (manifest.LegacyOptions ?? []).Select((name, index) =>
+            new ProfileModLegacyChoiceViewModel { Name = name, IsSelected = index == 0 }).ToList() : [];
+        OptionCards = IsLegacyMode ? [] : (manifest.Options ?? []).Select(option =>
+        {
+            var children = (option.SubOptions ?? []).Select((sub, index) =>
+            {
+                var child = new ProfileModSubOptionChoiceViewModel { Name = sub.Name, Description = sub.Description, IsSelected = index == 0 };
+                _images.Add((sub.Image, image => child.Image = image)); return child;
+            }).ToList();
+            var card = new ProfileModOptionCardViewModel { Name = option.Name, Description = option.Description,
+                IsEnabled = option.DefaultEnabled ?? true, SubOptions = children };
+            _images.Add((option.Image, image => card.Image = image)); return card;
+        }).ToList();
+        _images.Add((manifest.IconPath, image => Cover = image));
+    }
+
+    public async Task LoadImagesAsync(ModCreationService service, string root, CancellationToken token)
+    {
+        // 同一路径或内容完全相同的预览图只解码一次并共享同一张位图，不反复加载同一张图。
+        var byPath = new Dictionary<string, Bitmap?>(StringComparer.OrdinalIgnoreCase);
+        var byHash = new Dictionary<string, Bitmap>(StringComparer.Ordinal);
+        foreach (var (path, set) in _images)
+        {
+            if (string.IsNullOrEmpty(path)) continue;
+            if (byPath.TryGetValue(path, out var known))
+            {
+                if (known != null) set(known);
+                continue;
+            }
+
+            var bytes = await service.ReadPreviewImageAsync(root, path, token);
+            if (bytes == null)
+            {
+                byPath[path] = null;
+                continue;
+            }
+
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+            if (byHash.TryGetValue(hash, out var shared))
+            {
+                byPath[path] = shared;
+                set(shared);
+                continue;
+            }
+
+            Bitmap bitmap;
+            // 创建预览卡片同样只显示 40～64 像素，按 128 像素宽解码，避免大预览图整张进内存。
+            try { bitmap = await Task.Run(() => { using var stream = new MemoryStream(bytes); return Bitmap.DecodeToWidth(stream, ProfileModImageHolderViewModel.CardImageDecodeWidth); }, token); }
+            catch (Exception error) when (error is not OperationCanceledException) { byPath[path] = null; continue; }
+            byPath[path] = bitmap;
+            byHash[hash] = bitmap;
+            _owned.Add(bitmap); token.ThrowIfCancellationRequested(); set(bitmap);
+        }
+    }
+
+    public void SelectSubOption(ProfileModSubOptionChoiceViewModel? choice)
+    {
+        var card = OptionCards.FirstOrDefault(card => card.SubOptions.Contains(choice!));
+        if (card != null) foreach (var sub in card.SubOptions) sub.IsSelected = ReferenceEquals(sub, choice);
+    }
+    public void SelectLegacyChoice(ProfileModLegacyChoiceViewModel? choice)
+    { foreach (var item in LegacyChoices) item.IsSelected = ReferenceEquals(item, choice); }
+    public void ShowImagePreview(Bitmap? image, string? title) => _imagePreview?.Show(image, title);
+    public void Dispose()
+    {
+        if (_imagePreview?.Image is { } showing && _owned.Contains(showing)) _imagePreview.Close();
+        foreach (var image in _owned) image.Dispose(); _owned.Clear();
+    }
+}

@@ -1,0 +1,1011 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
+using HD2Mimnt.UI.Views;
+using System.Collections.ObjectModel;
+using System.IO;
+using HD2Mimnt.UI.Controls;
+using HD2Mimnt.UI.Services;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using Avalonia.Styling;
+using Avalonia.Threading;
+
+namespace HD2Mimnt.UI.ViewModels;
+
+public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
+{
+    public ModCompatibilityViewModel? Compatibility { get; }
+    public Task StartupCompatibilityTask { get; private set; } = Task.CompletedTask;
+    private bool _startupCompatibilityStarted;
+    private bool _closingCompatibility;
+    private readonly LibraryViewModel _libraryViewModel;
+    private readonly ProfileViewModel _profileViewModel;
+    private readonly GameDetectionService _gameDetectionService;
+    private readonly NotificationService _notificationService;
+    private readonly TaskService _taskService;
+    private readonly TestDataService _testDataService;
+    private readonly ProfileService _profileService;
+    private readonly ModService _modService;
+    private readonly SettingsViewModel _settingsViewModel;
+    private readonly TaskCenterViewModel _taskCenterViewModel;
+    private readonly ExternalToolsViewModel _externalToolsViewModel;
+    private readonly PluginManagementViewModel _pluginManagementViewModel;
+    private readonly BackupViewModel _backupViewModel;
+    private readonly LogViewModel _logViewModel;
+    private readonly ConfirmationService _confirmationService;
+    private readonly ConflictsViewModel _conflictsViewModel;
+    private readonly ImagePreviewService _imagePreview;
+    private readonly NexusModsTestService _nexusModsTestService;
+    private int _tutorialOriginPage;
+    private string? _tutorialOriginSettingsCategory;
+    private string? _tutorialOriginToolsCategory;
+    private string? _iasMissingNotifiedPath;
+    private string? _iasDataMissingNotifiedPath;
+
+    [ObservableProperty]
+    private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
+
+    [ObservableProperty]
+    private ObservableObject? _currentView;
+
+    [ObservableProperty]
+    private int _selectedTabIndex = 0;
+
+    [ObservableProperty]
+    private string _statusBarText = "Ready";
+
+    // 游戏状态
+    [ObservableProperty]
+    private string _gameStatus = "Detecting...";
+
+    [ObservableProperty]
+    private bool _gameDetected = false;
+
+    [ObservableProperty]
+    private string _gamePath = string.Empty;
+
+    // 当前配置文件
+    [ObservableProperty]
+    private string _currentProfileName = "No Profile";
+
+    // 部署状态
+    [ObservableProperty]
+    private string _deploymentStatus = "Not Deployed";
+
+    [ObservableProperty]
+    private bool _isDeployed = false;
+
+    // 任务状态
+    [ObservableProperty]
+    private int _runningTaskCount = 0;
+
+    [ObservableProperty]
+    private string _taskStatusText = "Idle";
+
+    // 通知状态
+    [ObservableProperty]
+    private int _unreadNotificationCount = 0;
+
+    [ObservableProperty]
+    private bool _isTaskCenterOpen;
+
+    [ObservableProperty]
+    private bool _isNotificationPanelOpen;
+
+    // 外观：自定义背景图片与卡片透明度（设置页“外观”驱动）
+    [ObservableProperty]
+    private Bitmap? _backgroundImage;
+
+    [ObservableProperty]
+    private bool _hasBackgroundImage;
+
+    [ObservableProperty]
+    private double _backgroundImageOpacity = 0.25;
+
+    [ObservableProperty]
+    private double _backgroundBlurRadius;
+
+    // Expose ViewModels for binding
+    public LibraryViewModel LibraryViewModel => _libraryViewModel;
+    public ProfileViewModel ProfileViewModel => _profileViewModel;
+    public SettingsViewModel SettingsViewModel => _settingsViewModel;
+    public TaskCenterViewModel TaskCenterViewModel => _taskCenterViewModel;
+    public ExternalToolsViewModel ExternalToolsViewModel => _externalToolsViewModel;
+    public PluginManagementViewModel PluginManagementViewModel => _pluginManagementViewModel;
+    public BackupViewModel BackupViewModel => _backupViewModel;
+    public LogViewModel LogViewModel => _logViewModel;
+    public NotificationPanelViewModel NotificationPanelViewModel { get; }
+    public MoreViewModel MoreViewModel { get; } = new();
+    public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
+    public ImagePreviewService ImagePreview => _imagePreview;
+    public BrowseModsViewModel? BrowseModsViewModel { get; }
+    public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
+    public DirectDownloadViewModel? DirectDownloadViewModel { get; }
+    public ModCreationViewModel? ModCreationViewModel { get; }
+    public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
+    public SoundFixViewModel? SoundFixViewModel { get; }
+    public TutorialViewModel Tutorial { get; } = new();
+    public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
+
+    public MainWindowViewModel(
+        LibraryViewModel libraryViewModel,
+        ProfileViewModel profileViewModel,
+        ConflictsViewModel conflictsViewModel,
+        GameDetectionService gameDetectionService,
+        NotificationService notificationService,
+        TaskService taskService,
+        TestDataService testDataService,
+        ProfileService profileService,
+        ModService modService,
+        SettingsViewModel settingsViewModel,
+        TaskCenterViewModel taskCenterViewModel,
+        NotificationPanelViewModel notificationPanelViewModel,
+        ExternalToolsViewModel externalToolsViewModel,
+        PluginManagementViewModel pluginManagementViewModel,
+        BackupViewModel backupViewModel,
+        LogViewModel logViewModel,
+        ConfirmationService confirmationService,
+        ImagePreviewService imagePreviewService,
+        NexusModsTestService nexusModsTestService,
+        ManagerMigrationViewModel? managerMigrationViewModel = null,
+        BrowseModsViewModel? browseModsViewModel = null,
+        CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
+        DirectDownloadViewModel? directDownloadViewModel = null,
+        ModCreationViewModel? modCreationViewModel = null,
+        Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
+        SoundFixViewModel? soundFixViewModel = null)
+    {
+        Compatibility = compatibility;
+        if (Compatibility != null)
+        {
+            Compatibility.ContentChanged += async () =>
+            {
+                conflictsViewModel.InvalidateResults();
+                await libraryViewModel.InitializeAsync();
+                await profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
+            modService.ModsChanged += (_, _) =>
+            {
+                // 自己提交的变更由 ContentChanged 等待刷新，避免排队回调误使新结果失效。
+                if (!Compatibility.IsMutating) ApplyOnUiThread(Compatibility.Invalidate);
+            };
+            Compatibility.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(ModCompatibilityViewModel.IsOpen))
+                {
+                    NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+                    NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+                    NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+                    NavigateToModCreationCommand.NotifyCanExecuteChanged();
+                }
+            };
+        }
+        _libraryViewModel = libraryViewModel;
+        _profileViewModel = profileViewModel;
+        _conflictsViewModel = conflictsViewModel;
+        _gameDetectionService = gameDetectionService;
+        _notificationService = notificationService;
+        _taskService = taskService;
+        _testDataService = testDataService;
+        _profileService = profileService;
+        _modService = modService;
+        _settingsViewModel = settingsViewModel;
+        _taskCenterViewModel = taskCenterViewModel;
+        _externalToolsViewModel = externalToolsViewModel;
+        _pluginManagementViewModel = pluginManagementViewModel;
+        _backupViewModel = backupViewModel;
+        _logViewModel = logViewModel;
+        NotificationPanelViewModel = notificationPanelViewModel;
+        _confirmationService = confirmationService;
+        _imagePreview = imagePreviewService;
+        _nexusModsTestService = nexusModsTestService;
+        ManagerMigrationViewModel = managerMigrationViewModel;
+        BrowseModsViewModel = browseModsViewModel;
+        CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
+        DirectDownloadViewModel = directDownloadViewModel;
+        ModCreationViewModel = modCreationViewModel;
+        Hd2IASManagementViewModel = hd2IASManagementViewModel;
+        SoundFixViewModel = soundFixViewModel;
+        if (Hd2IASManagementViewModel != null)
+            Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
+        MoreViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
+                && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
+                _ = diagnostics.RefreshCommand.ExecuteAsync(null);
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2IASVisible
+                && Hd2IASManagementViewModel is { } ias)
+            {
+                ias.Invalidate();
+                if (!ias.IsBusy) _ = ias.RefreshInstallationCommand.ExecuteAsync(null);
+            }
+        };
+        async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
+        {
+            if (!_libraryViewModel.ImportCompletion.IsCompleted)
+                throw new InvalidOperationException("已有模组正在导入，请等待完成后重试。");
+            await _libraryViewModel.ImportPathsAsync(new[] { archive }, token, sourceLink);
+            if (_libraryViewModel.Import.SuccessCount > 0) return;
+            token.ThrowIfCancellationRequested();
+            if (_libraryViewModel.Import.RemainingCount > 0) throw new OperationCanceledException();
+            throw new InvalidOperationException(_libraryViewModel.Import.Errors.FirstOrDefault() ?? "模组导入失败。");
+        }
+        if (BrowseModsViewModel != null)
+        {
+            BrowseModsViewModel.ImportPlatformArchiveAsync = (archive, source, token) => ImportArchiveAsync(archive, token, source);
+        }
+        if (DirectDownloadViewModel != null)
+            DirectDownloadViewModel.ImportDownloadedArchiveAsync = (archive, token) => ImportArchiveAsync(archive, token);
+        if (ManagerMigrationViewModel != null)
+            ManagerMigrationViewModel.RefreshImportedDataAsync = async () =>
+            {
+                await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
+                await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
+        Tutorial.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
+            {
+                NavigateToProfilesCommand.NotifyCanExecuteChanged();
+                NavigateToLibraryCommand.NotifyCanExecuteChanged();
+                NavigateToConflictsCommand.NotifyCanExecuteChanged();
+                NavigateToToolsCommand.NotifyCanExecuteChanged();
+                NavigateToSettingsCommand.NotifyCanExecuteChanged();
+                NavigateToBrowseCommand.NotifyCanExecuteChanged();
+                NavigateToModCreationCommand.NotifyCanExecuteChanged();
+                if (Tutorial.IsOpen)
+                {
+                    _tutorialOriginPage = SelectedTabIndex;
+                    _tutorialOriginSettingsCategory = SettingsViewModel.SelectedCategory;
+                    _tutorialOriginToolsCategory = MoreViewModel.SelectedCategory;
+                }
+                else
+                {
+                    SettingsViewModel.SelectedCategory = _tutorialOriginSettingsCategory ?? "游戏";
+                    MoreViewModel.SelectedCategory = _tutorialOriginToolsCategory ?? "插件";
+                    NavigateToPage(_tutorialOriginPage);
+                    return;
+                }
+            }
+            if (Tutorial.IsOpen && (args.PropertyName == nameof(TutorialViewModel.CurrentStep)
+                || args.PropertyName == nameof(TutorialViewModel.IsOpen)))
+            {
+                CloseTaskCenter();
+                CloseNotifications();
+                NavigateForTutorialStep();
+            }
+        };
+
+        NavigateToProfiles();
+        SubscribeToEvents();
+        _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
+        _libraryViewModel.DeploymentStateChanged += _profileViewModel.ApplyDeploymentState;
+        _profileViewModel.AddToOtherProfilesAsync = _libraryViewModel.OpenAddToOtherProfilesAsync;
+        _profileViewModel.ModDeleted += () => _libraryViewModel.InitializeAsync();
+        _profileViewModel.ModContentChanged += () => _libraryViewModel.InitializeAsync();
+        _profileViewModel.ModUpdatesRequested += (_, mod) =>
+        {
+            NavigateToLibrary();
+            _libraryViewModel.OpenModOnlineCommand.Execute(mod);
+        };
+        _profileViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ProfileViewModel.SelectedProfile))
+            {
+                SyncConflictProfile();
+                ScanProfileConflictsCommand.NotifyCanExecuteChanged();
+            }
+            if (args.PropertyName == nameof(ProfileViewModel.ProfileMods)) SyncConflictBadges();
+        };
+        _conflictsViewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ConflictsViewModel.HasScanned)) SyncConflictBadges();
+            if (args.PropertyName == nameof(ConflictsViewModel.IsScanning))
+                ScanProfileConflictsCommand.NotifyCanExecuteChanged();
+        };
+        _settingsViewModel.ThemeChanged += OnThemeChanged;
+        _settingsViewModel.ListDensityChanged += OnListDensityChanged;
+        _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
+        _settingsViewModel.AutoCheckConflictsChanged += (_, enabled) =>
+            ApplyOnUiThread(() => _conflictsViewModel.SetAutomaticChecking(enabled));
+        _backupViewModel.RefreshAfterRestoreAsync = OnBackupRestoredAsync;
+        NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
+        NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
+        _modService.ModsChanged += OnModsChanged;
+        _modService.MetadataChanged += (_, _) => QueueUiRefresh(async () =>
+            await _profileViewModel.RefreshAfterProfilesChangedAsync());
+        _profileService.ProfilesChanged += OnProfilesChanged;
+        _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
+    }
+
+    private void NavigateForTutorialStep()
+    {
+        if (Tutorial.CurrentStep.PageIndex == 3)
+            MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
+        if (Tutorial.CurrentStep.PageIndex == 4)
+            SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
+        NavigateToPage(Tutorial.CurrentStep.PageIndex);
+    }
+
+    private void NavigateToPage(int pageIndex)
+    {
+        switch (pageIndex)
+        {
+            case 0: NavigateToProfiles(); break;
+            case 1: NavigateToLibrary(); break;
+            case 2: NavigateToConflicts(); break;
+            case 3: NavigateToTools(); break;
+            case 4: NavigateToSettings(); break;
+            case 5: NavigateToBrowseCommand.Execute(null); break;
+            case 6: NavigateToModCreation(); break;
+        }
+    }
+
+    private void SubscribeToEvents()
+    {
+        _gameDetectionService.GameStatusChanged += OnGameStatusChanged;
+        _notificationService.NotificationAdded += OnNotificationAdded;
+        _taskService.TaskCompleted += OnTaskCompleted;
+        _taskService.TaskStarted += OnTaskStarted;
+    }
+
+    private void OnGameStatusChanged(object? sender, GameStatusChangedEventArgs e)
+    {
+        QueueUiRefresh(async () =>
+        {
+            GameDetected = e.NewStatus == Application.Services.GameStatus.Found;
+            GamePath = e.GameInfo.Path;
+            GameStatus = e.NewStatus switch
+            {
+                Application.Services.GameStatus.Found => "Game Found",
+                Application.Services.GameStatus.NotFound => "Game Not Found",
+                Application.Services.GameStatus.Invalid => "Invalid Path",
+                Application.Services.GameStatus.Checking => "Checking...",
+                _ => "Unknown"
+            };
+            if (e.NewStatus != Application.Services.GameStatus.Checking && Hd2IASManagementViewModel != null)
+                await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
+        });
+    }
+
+    private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
+    {
+        if (Hd2IASManagementViewModel is not { } ias) return;
+        var localizer = Localization.UiLocalization.Current;
+        NotifyRequirement(ias.NeedsRuntimeInstallation, ref _iasMissingNotifiedPath, ias.RuntimeRequiredMessage, "IAS.GoInstall");
+        NotifyRequirement(ias.NeedsDataGeneration, ref _iasDataMissingNotifiedPath, ias.DataRequiredMessage, "IAS.GoRepairData");
+
+        void NotifyRequirement(bool required, ref string? notifiedPath, string message, string actionKey)
+        {
+            if (!required) { notifiedPath = null; return; }
+            if (string.Equals(notifiedPath, ias.GamePath, StringComparison.OrdinalIgnoreCase)) return;
+            notifiedPath = ias.GamePath;
+            _notificationService.ShowWithAction(NotificationLevel.Warning, message, localizer[actionKey], () =>
+            {
+                MoreViewModel.SelectedCategory = "HD2IAS 管理";
+                NavigateToTools();
+            }, localizer["IAS.Title"]);
+        }
+    }
+
+    private void OnNotificationAdded(object? sender, Notification e)
+    {
+        ApplyOnUiThread(() => UnreadNotificationCount = _notificationService.GetUnreadCount());
+    }
+
+    private readonly Services.AsyncOperationQueue _refreshes = new();
+
+    private bool _disposed;
+
+    private void QueueUiRefresh(Func<Task> refresh) => _ = QueueUiRefreshAsync(refresh);
+
+    private Task QueueUiRefreshAsync(Func<Task> refresh)
+        => _disposed ? Task.CompletedTask : _refreshes.Enqueue(async () =>
+        {
+            try
+            {
+                if (Dispatcher.UIThread.CheckAccess() || global::Avalonia.Application.Current is null) await refresh();
+                else await Dispatcher.UIThread.InvokeAsync(refresh);
+            }
+            catch (Exception error)
+            {
+                ApplyOnUiThread(() => _notificationService.ShowError($"刷新界面失败：{error.Message}", "界面刷新"));
+            }
+        });
+
+    public Task WaitForRefreshesAsync() => _refreshes.DrainAsync();
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _modService.ModsChanged -= OnModsChanged;
+        _profileService.ProfilesChanged -= OnProfilesChanged;
+        _profileViewModel.ActiveProfileChanged -= OnActiveProfileChanged;
+        _taskService.TaskCompleted -= OnTaskCompleted;
+        _taskService.TaskStarted -= OnTaskStarted;
+        _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
+        _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
+        _backupViewModel.RefreshAfterRestoreAsync = null;
+        await WaitForRefreshesAsync();
+    }
+
+    private static void ApplyOnUiThread(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess() || global::Avalonia.Application.Current is null)
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.UIThread.Post(action);
+    }
+
+    private void OnTaskCompleted(object? sender, TaskCompletedEventArgs e)
+    {
+        QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
+    }
+
+    private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);
+
+    private async Task HandleTaskCompletedAsync(Core.Entities.ModTask task)
+    {
+        switch (task.Status)
+        {
+            case Core.Entities.TaskStatus.Completed:
+                _notificationService.ShowSuccess($"任务“{task.Name}”已完成", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.PartiallyFailed:
+                _notificationService.ShowWarning($"任务“{task.Name}”部分失败", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.Cancelled:
+                _notificationService.ShowInfo($"任务“{task.Name}”已取消", "后台任务");
+                break;
+            case Core.Entities.TaskStatus.Failed:
+            case Core.Entities.TaskStatus.ForceTerminated:
+                _notificationService.ShowError($"任务“{task.Name}”执行失败：{task.Message}", "后台任务");
+                break;
+        }
+
+        await UpdateRunningTasksAsync();
+    }
+
+    private void OnNotificationNavigationRequested(object? sender, NotificationNavigationTarget target)
+    {
+        IsNotificationPanelOpen = false;
+        switch (target)
+        {
+            case NotificationNavigationTarget.Library:
+                NavigateToLibrary();
+                break;
+            case NotificationNavigationTarget.Profiles:
+                NavigateToProfiles();
+                break;
+            case NotificationNavigationTarget.Settings:
+                NavigateToSettings();
+                break;
+            case NotificationNavigationTarget.More:
+                NavigateToTools();
+                break;
+            case NotificationNavigationTarget.Tasks:
+                NavigateToTasks();
+                break;
+        }
+    }
+
+    private Task OnActiveProfileChanged() => QueueUiRefreshAsync(async () =>
+    {
+        await _libraryViewModel.RefreshProfileStateAsync();
+        UpdateCurrentProfile();
+    });
+
+    private void OnModsChanged(object? sender, EventArgs e)
+    {
+        if (Compatibility?.IsMutating == true) return;
+        // 模组增删后联动刷新配置文件页（库页自行重载）
+        QueueUiRefresh(async () =>
+        {
+            _conflictsViewModel.InvalidateResults();
+            await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            if (Hd2IASManagementViewModel != null)
+                await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
+        });
+    }
+
+    private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
+    {
+        // 在事件发布时捕获；排队刷新执行时，本地操作的抑制范围可能已经结束。
+        var isLocalChange = _profileViewModel.IsApplyingLocalChange;
+        // 配置文件数据变更（含模组成员/启用状态）联动刷新配置文件页与库页统计、归属状态
+        QueueUiRefresh(async () =>
+        {
+            if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
+            if (!isLocalChange) await _profileViewModel.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
+            await _libraryViewModel.RefreshProfileStateAsync();
+            SyncConflictProfile();
+            UpdateCurrentProfile();
+        });
+    }
+
+    private Task OnBackupRestoredAsync() => _refreshes.Enqueue(ReloadAfterBackupAsync);
+
+    private async Task ReloadAfterBackupAsync()
+    {
+        await RestoreNexusCredentialsAsync();
+        await _profileService.InitializeAsync();
+        await _settingsViewModel.LoadAsync();
+        await _libraryViewModel.InitializeAsync();
+        await _profileViewModel.LoadProfilesAsync();
+        await _taskCenterViewModel.LoadAsync();
+        await _externalToolsViewModel.InitializeAsync();
+        await _pluginManagementViewModel.InitializeAsync();
+        UpdateCurrentProfile();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await RestoreNexusCredentialsAsync();
+        await _profileService.InitializeAsync();
+        await _libraryViewModel.InitializeAsync();
+        await _profileViewModel.LoadProfilesAsync();
+        SyncConflictProfile();
+        await _settingsViewModel.LoadAsync();
+        ApplyTheme(_settingsViewModel.Theme);
+        ApplyTransparencyBrushes();
+        _libraryViewModel.ApplyListDensity(_settingsViewModel.ListDensity);
+        await ApplyAppearanceAsync();
+        await _taskCenterViewModel.LoadAsync();
+        await _externalToolsViewModel.InitializeAsync();
+        await _pluginManagementViewModel.InitializeAsync();
+        await _backupViewModel.InitializeAsync();
+        await _logViewModel.InitializeAsync();
+        await UpdateRunningTasksAsync();
+
+        // 官方来源按设置决定是否扫描常见安装位置；HellForge 只应用已配置目录。
+        if (_settingsViewModel.IsOfficialGameSource && _settingsViewModel.AutoDetectGame)
+        {
+            await _gameDetectionService.AutoDetectAsync();
+        }
+        else
+        {
+            await _gameDetectionService.ApplyConfiguredGameAsync();
+        }
+
+        // 更新当前配置
+        UpdateCurrentProfile();
+
+        // 显示欢迎通知
+        if (Hd2IASManagementViewModel != null)
+            await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
+        _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
+
+        await WaitForRefreshesAsync();
+        StatusBarText = "Application initialized";
+        if (!_startupCompatibilityStarted)
+        {
+            _startupCompatibilityStarted = true;
+            StartupCompatibilityTask = RunStartupCompatibilityAsync();
+        }
+    }
+
+    private async Task RunStartupCompatibilityAsync()
+    {
+        await _settingsViewModel.UpdateStaleCompatibilityDataAsync();
+        if (!_closingCompatibility) await _libraryViewModel.CheckCompatibilityOnStartupAsync();
+    }
+
+    private async Task RestoreNexusCredentialsAsync()
+    {
+        if (_settingsViewModel.AyakaAccount != null) await _settingsViewModel.AyakaAccount.RestoreAsync();
+        try { await _nexusModsTestService.RestoreApiKeyAsync(); }
+        catch
+        {
+            _notificationService.ShowWarning("无法读取已保存的 N 网凭据，请在设置的账号页重新登录，或在开发工具重新填写个人 Key。", "N 网认证");
+        }
+    }
+
+    private void UpdateCurrentProfile()
+    {
+        var activeProfile = _profileViewModel.Profiles.FirstOrDefault(p => p.IsActive);
+        CurrentProfileName = activeProfile?.Name ?? "No Profile";
+    }
+
+    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true;
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToProfiles()
+    {
+        SelectedTabIndex = 0;
+        CurrentView = _profileViewModel;
+        StatusBarText = "配置文件";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToLibrary()
+    {
+        SelectedTabIndex = 1;
+        CurrentView = _libraryViewModel;
+        StatusBarText = "模组库";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToModCreation()
+    {
+        SelectedTabIndex = 6;
+        CurrentView = ModCreationViewModel;
+        StatusBarText = "模组创建";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private async Task NavigateToBrowseAsync()
+    {
+        SelectedTabIndex = 5;
+        CurrentView = BrowseModsViewModel;
+        StatusBarText = "浏览模组";
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.EnsureLoadedAsync();
+    }
+
+    partial void OnSelectedTabIndexChanged(int oldValue, int newValue)
+    {
+        if (oldValue == 5 && newValue != 5 && BrowseModsViewModel != null)
+            _ = BrowseModsViewModel.LeavePageAsync();
+        if (oldValue == 4 && newValue != 4) _ = _settingsViewModel.StopAccountsAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToConflicts()
+    {
+        SyncConflictProfile();
+        SelectedTabIndex = 2;
+        CurrentView = _conflictsViewModel;
+        StatusBarText = "冲突";
+    }
+
+    private void SyncConflictProfile() => _conflictsViewModel.SetProfile(
+        _profileViewModel.SelectedProfile?.Id, _profileViewModel.SelectedProfile?.Name);
+
+    private void SyncConflictBadges() => _profileViewModel.ApplyConflictIndex(
+        _conflictsViewModel.HasScanned ? _conflictsViewModel.CardIndex : ConflictCardIndex.Empty);
+
+    private bool CanScanProfileConflicts() => _profileViewModel.HasSelectedProfile && !_conflictsViewModel.IsScanning;
+
+    /// <summary>直接检查正在查看的配置，保持当前页面并回填卡片提示。</summary>
+    [RelayCommand(CanExecute = nameof(CanScanProfileConflicts))]
+    private async Task ScanProfileConflictsAsync()
+    {
+        SyncConflictProfile();
+        await _conflictsViewModel.ScanCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private void NavigateToTasks()
+    {
+        IsTaskCenterOpen = true;
+        _taskCenterViewModel.StartAutoRefresh();
+        _ = UpdateRunningTasksAsync();
+        StatusBarText = "任务中心";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToSettings()
+    {
+        SelectedTabIndex = 4;
+        StatusBarText = "设置";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private void NavigateToTools()
+    {
+        SelectedTabIndex = 3;
+        StatusBarText = "工具";
+    }
+
+    [RelayCommand]
+    private void CloseTaskCenter()
+    {
+        IsTaskCenterOpen = false;
+        _taskCenterViewModel.StopAutoRefresh();
+    }
+
+    [RelayCommand]
+    private void OpenTaskCenter()
+    {
+        NavigateToTasks();
+    }
+
+    [RelayCommand]
+    private void OpenNotifications()
+    {
+        IsNotificationPanelOpen = !IsNotificationPanelOpen;
+        if (IsNotificationPanelOpen)
+        {
+            _notificationService.MarkAllAsRead();
+            UnreadNotificationCount = 0;
+        }
+    }
+
+    [RelayCommand]
+    private void CloseNotifications() => IsNotificationPanelOpen = false;
+
+    partial void OnIsNotificationPanelOpenChanged(bool value)
+    {
+        NotificationPanelViewModel.IsHistoryOpen = value;
+        if (value) NotificationPanelViewModel.DismissAllToasts();
+    }
+
+    [RelayCommand]
+    private void CloseOverlays()
+    {
+        if (Compatibility?.IsOpen == true) { Compatibility.CloseCommand.Execute(null); return; }
+        if (_libraryViewModel.ModOnline?.IsOpen == true)
+        {
+            _libraryViewModel.ModOnline.CloseCommand.Execute(null);
+            return;
+        }
+        if (Tutorial.IsOpen)
+        {
+            Tutorial.CloseCommand.Execute(null);
+            return;
+        }
+        if (_libraryViewModel.Import.IsOpen)
+        {
+            if (SelectedTabIndex == 5 && _libraryViewModel.Import.IsImporting)
+                _libraryViewModel.Import.CancelCommand.Execute(null);
+            else _libraryViewModel.Import.CloseCommand.Execute(null);
+            return;
+        }
+        if (_libraryViewModel.IsDeploymentProgressOpen)
+        {
+            _libraryViewModel.CloseDeploymentProgressCommand.Execute(null);
+            return;
+        }
+        if (_imagePreview.IsOpen)
+        {
+            _imagePreview.Close();
+            return;
+        }
+        if (_libraryViewModel.IsAddToProfileDialogOpen)
+        {
+            _libraryViewModel.CancelAddToProfileCommand.Execute(null);
+            return;
+        }
+        if (SelectedTabIndex == 5 && BrowseModsViewModel is { } browse)
+        {
+            if (browse.IsLoadingImage) { browse.CancelImagePreview(); return; }
+            if (browse.IsBusy) { browse.CancelCommand.Execute(null); return; }
+        }
+        if (SelectedTabIndex == 6 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+            ModCreationViewModel?.CancelSorting();
+
+        if (SelectedTabIndex == 0 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+        {
+            if (_profileViewModel.IsDetailPanelOpen)
+                _profileViewModel.CloseDetailPanelCommand.Execute(null);
+            else if (_profileViewModel.IsConflictPickerOpen)
+                _profileViewModel.CloseConflictPickerCommand.Execute(null);
+            else if (_profileViewModel.IsMoveToPositionDialogOpen)
+                _profileViewModel.CancelMoveToPositionCommand.Execute(null);
+            else if (_profileViewModel.IsModOptionsDialogOpen)
+                _profileViewModel.CloseModOptionsCommand.Execute(null);
+            else if (_profileViewModel.IsAddModOpen)
+                _profileViewModel.CloseAddModCommand.Execute(null);
+            else if (!_libraryViewModel.IsDeploying)
+                _profileViewModel.ClearModSelectionCommand.Execute(null);
+        }
+        if (SelectedTabIndex == 1 && !IsTaskCenterOpen && !IsNotificationPanelOpen)
+        {
+            if (_libraryViewModel.ModLink?.IsOpen == true)
+                _libraryViewModel.ModLink.CloseCommand.Execute(null);
+            else if (_libraryViewModel.IsAddToProfileDialogOpen)
+                _libraryViewModel.CancelAddToProfileCommand.Execute(null);
+            else if (_libraryViewModel.IsDetailPanelOpen)
+                _libraryViewModel.CloseDetailPanelCommand.Execute(null);
+            else
+                _libraryViewModel.ClearSelectionCommand.Execute(null);
+        }
+
+        IsTaskCenterOpen = false;
+        IsNotificationPanelOpen = false;
+        _taskCenterViewModel.StopAutoRefresh();
+    }
+
+    public void AttachOwner(Avalonia.Controls.Window owner) => _confirmationService.SetOwner(owner);
+
+    public void ReceiveBrowserProtocolLink(string value)
+    {
+        if (value.Length == 0) return;
+        if (BrowseModsViewModel is { IsWaitingForWebsite: true } browse && browse.TryReceiveProtocolLink(value, ignoreMismatch: true)) return;
+        if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } waitingOnline &&
+            waitingOnline.TryReceiveProtocolLink(value, ignoreMismatch: true)) return;
+        if (BrowseModsViewModel is { IsWaitingForWebsite: true } waitingBrowse)
+        {
+            waitingBrowse.TryReceiveProtocolLink(value);
+            return;
+        }
+        if (_libraryViewModel.ModOnline is { IsWaitingForWebsite: true } online)
+        {
+            online.TryReceiveProtocolLink(value);
+            return;
+        }
+        if (BrowseModsViewModel?.IsCancelledProtocolLink(value) == true ||
+            _libraryViewModel.ModOnline?.IsCancelledProtocolLink(value) == true)
+        {
+            _notificationService.ShowWarning(
+                "对应的网页下载任务已取消。请重新发起下载。", "N 网下载");
+            return;
+        }
+        if (BrowseModsViewModel is not { IsBusy: false } receiver || !receiver.PlatformChange.IsCompleted ||
+            _libraryViewModel.ModOnline?.IsBusy == true)
+        {
+            _notificationService.ShowWarning("当前下载操作尚未结束，请完成或取消后重新打开 N 网下载链接。", "N 网下载");
+            return;
+        }
+        SelectedTabIndex = 5;
+        CurrentView = receiver;
+        StatusBarText = "浏览模组";
+        _ = receiver.DownloadProtocolLinkAsync(value);
+    }
+
+    public async Task<bool> CanCloseAsync()
+    {
+        _closingCompatibility = true;
+        await _settingsViewModel.StopCompatibilityDataAsync();
+        if (Compatibility != null) await Compatibility.StopAsync();
+        await StartupCompatibilityTask;
+        _closingCompatibility = false;
+        await _libraryViewModel.CancelDeploymentAndWaitAsync();
+        if (ModCreationViewModel != null)
+        {
+            await ModCreationViewModel.StopAsync();
+            if (!await ModCreationViewModel.ConfirmDiscardAsync()) return false;
+        }
+        await _profileViewModel.CloseModDetailAsync();
+        await _libraryViewModel.LocalVersions.StopAsync();
+        await _settingsViewModel.StopAccountsAsync();
+        if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
+        if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
+        if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
+        if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.LeavePageAsync();
+        if (ManagerMigrationViewModel is { IsBusy: true } migration)
+        {
+            await migration.CancelAndWaitAsync();
+        }
+        if (_libraryViewModel.ModOnline is { } online)
+            await online.CloseCommand.ExecuteAsync(null);
+        if (!_libraryViewModel.ImportCompletion.IsCompleted)
+        {
+            if (!await _confirmationService.ConfirmAsync("退出应用", "模组仍在添加中。是否取消添加并在清理完成后退出？"))
+                return false;
+            _libraryViewModel.Import.CancelCommand.Execute(null);
+            await _libraryViewModel.ImportCompletion;
+        }
+        var runningTasks = await _taskService.GetRunningTasksAsync();
+        if (!runningTasks.Any())
+        {
+            if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
+            await _conflictsViewModel.StopScanAsync();
+            _taskCenterViewModel.StopAutoRefresh();
+            await StopPlatformDownloadsAsync();
+            await _taskService.CancelAllAndWaitAsync();
+            await WaitForRefreshesAsync();
+            return true;
+        }
+
+        var canClose = await _confirmationService.ConfirmAsync(
+            "退出应用",
+            $"当前仍有 {runningTasks.Count()} 个后台任务运行中。将取消任务并等待清理完成，确定退出吗？");
+        if (canClose)
+        {
+            if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.StopAutomaticChecksAsync();
+            await _conflictsViewModel.StopScanAsync();
+            _taskCenterViewModel.StopAutoRefresh();
+            await StopPlatformDownloadsAsync();
+            await _taskService.CancelAllAndWaitAsync();
+            await WaitForRefreshesAsync();
+        }
+
+        return canClose;
+    }
+
+    private async Task StopPlatformDownloadsAsync()
+    {
+        if (BrowseModsViewModel != null) await BrowseModsViewModel.CloseAsync();
+        if (_libraryViewModel.ModOnline is { } online) await online.StopAsync();
+    }
+
+    private void OnThemeChanged(object? sender, string theme)
+    {
+        ApplyTheme(theme);
+        ApplyTransparencyBrushes();
+    }
+
+    private void OnAppearanceChanged(object? sender, EventArgs e) => QueueUiRefresh(ApplyAppearanceAsync);
+
+    /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
+    public async Task ApplyAppearanceAsync()
+    {
+        BackgroundImageOpacity = Math.Clamp(_settingsViewModel.BackgroundImageOpacity, 0, 100) / 100.0;
+        BackgroundBlurRadius = Math.Clamp(_settingsViewModel.BackgroundBlur, 0, 40);
+
+        var path = _settingsViewModel.BackgroundImagePath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            BackgroundImage = null;
+            HasBackgroundImage = false;
+        }
+        else
+        {
+            try
+            {
+                var bitmap = await Task.Run(() => new Bitmap(path));
+                BackgroundImage = bitmap;
+                HasBackgroundImage = true;
+            }
+            catch
+            {
+                BackgroundImage = null;
+                HasBackgroundImage = false;
+                _notificationService.ShowWarning("背景图片加载失败，已回退为纯色背景", "外观");
+            }
+        }
+
+        ApplyTransparencyBrushes();
+    }
+
+    /// <summary>只更新表面透明度，颜色由 FluentAvalonia 动态资源随主题更新。卡片半透明透出背景图；
+    /// 有背景图时顶栏/底栏跟随卡片透明度、内容区全透明露出背景图；无背景图时全部恢复不透明（默认观感）。</summary>
+    private void ApplyTransparencyBrushes()
+    {
+        var app = global::Avalonia.Application.Current;
+        if (app == null) return;
+
+        var percent = Math.Clamp(_settingsViewModel.CardOpacity, 5, 100);
+        app.Resources["CardSurfaceOpacity"] = percent / 100.0;
+        app.Resources["ChromeSurfaceOpacity"] = HasBackgroundImage ? percent / 100.0 : 1.0;
+        app.Resources["ContentSurfaceOpacity"] = HasBackgroundImage ? 0.0 : 1.0;
+    }
+
+    private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);
+
+
+    private static void ApplyTheme(string theme)
+    {
+        if (global::Avalonia.Application.Current == null) return;
+        global::Avalonia.Application.Current.RequestedThemeVariant = theme switch
+        {
+            "Light" => ThemeVariant.Light,
+            "System" => ThemeVariant.Default,
+            _ => ThemeVariant.Dark
+        };
+    }
+
+    [RelayCommand]
+    private async Task RefreshGameStatusAsync()
+    {
+        GameStatus = "Checking...";
+        await _gameDetectionService.AutoDetectAsync();
+    }
+
+    [RelayCommand]
+    private async Task UpdateRunningTasksAsync()
+    {
+        var runningTasks = await _taskService.GetRunningTasksAsync();
+        RunningTaskCount = runningTasks.Count();
+        TaskStatusText = RunningTaskCount > 0 ? $"{RunningTaskCount} Running" : "Idle";
+    }
+
+    [RelayCommand]
+    private void OpenDevTools()
+    {
+        var devToolsViewModel = new DevToolsViewModel(_testDataService, _profileService, _nexusModsTestService)
+        { AyakaAccount = _settingsViewModel.AyakaAccount, BrowseMods = BrowseModsViewModel };
+        var devToolsWindow = new DevToolsWindow
+        {
+            DataContext = devToolsViewModel
+        };
+        devToolsWindow.Show();
+    }
+}

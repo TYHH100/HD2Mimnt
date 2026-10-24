@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:core="using:HD2Mimnt.Core.Hd2IAS"
+             x:Class="HD2Mimnt.UI.Views.Hd2IASManagementView" x:DataType="vm:Hd2IASManagementViewModel">
+  <StackPanel Classes="section" Spacing="12">
+    <TextBlock x:Name="Hd2IASTitle" Text="{loc:Loc IAS.Title}" Classes="section-title" />
+    <TextBlock Text="{loc:Loc IAS.Description}" Classes="muted" TextWrapping="Wrap" />
+    <Border x:Name="Hd2IASRuntimeRequired" IsVisible="{Binding NeedsRuntimeInstallation}" Classes="card" Padding="12">
+      <TextBlock Text="{Binding RuntimeRequiredMessage}" TextWrapping="Wrap" />
+    </Border>
+    <Border x:Name="Hd2IASDataRequired" IsVisible="{Binding NeedsDataGeneration}" Classes="card" Padding="12">
+      <TextBlock Text="{Binding DataRequiredMessage}" TextWrapping="Wrap" />
+    </Border>
+    <Button Content="{loc:Loc IAS.RefreshInstallation}" Command="{Binding RefreshInstallationCommand}" />
+    <StackPanel IsVisible="{Binding HasInstallationReport}" Spacing="8">
+      <TextBlock x:Name="Hd2IASInstalledBuild" Text="{Binding InstalledBuildSummary}" TextWrapping="Wrap" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding ConfigurationSummary}" TextWrapping="Wrap" Classes="muted" />
+      <Expander Header="{loc:Loc IAS.BuildContents}"><TextBlock Text="{Binding InstalledBuildContents}" TextWrapping="Wrap" /></Expander>
+    </StackPanel>
+    <TextBlock Text="{loc:Loc IAS.OnlineUpdates}" FontWeight="SemiBold" />
+    <TextBlock Text="{loc:Loc IAS.UpdateSource}" Classes="muted" TextWrapping="Wrap" />
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+      <Button x:Name="RefreshHd2IASVersionsButton" Content="{loc:Loc IAS.RefreshVersions}" Command="{Binding RefreshVersionsCommand}" />
+      <ComboBox x:Name="Hd2IASUpdateVersions" Grid.Column="1" ItemsSource="{Binding UpdateVersions}" SelectedItem="{Binding SelectedUpdate}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="core:Hd2IASUpdateVersion"><TextBlock Text="{Binding Version}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button x:Name="DownloadHd2IASUpdateButton" Grid.Column="2" Content="{loc:Loc IAS.DownloadUpdate}" Command="{Binding DownloadUpdateCommand}" />
+    </Grid>
+    <TextBlock Text="{loc:Loc IAS.Package}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBox x:Name="Hd2IASPackagePath" Text="{Binding PackagePath}" PlaceholderText="{loc:Loc IAS.PackagePath}" IsEnabled="{Binding CanEdit}" />
+      <Button Grid.Column="1" Content="{loc:Loc IAS.Browse}" Click="OnBrowseClicked" IsEnabled="{Binding CanEdit}" />
+    </Grid>
+    <TextBlock Text="{loc:Loc IAS.GamePath}" FontWeight="SemiBold" />
+    <TextBlock Text="{Binding GamePath}" TextWrapping="Wrap" Classes="muted" />
+    <TextBlock Text="{loc:Loc IAS.Route}" FontWeight="SemiBold" />
+    <ComboBox x:Name="Hd2IASRoute" ItemsSource="{Binding Routes}" SelectedItem="{Binding SelectedRoute}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch">
+      <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" /></DataTemplate></ComboBox.ItemTemplate>
+    </ComboBox>
+    <WrapPanel>
+      <Button x:Name="InspectHd2IASButton" Content="{loc:Loc IAS.Inspect}" Command="{Binding InspectCommand}" Classes="accent" Margin="0,0,8,8" />
+      <Button x:Name="InstallHd2IASButton" Content="{loc:Loc IAS.Install}" Command="{Binding InstallCommand}" IsEnabled="{Binding CanInstall}" Margin="0,0,8,8" />
+      <Button x:Name="UninstallHd2IASButton" Content="{loc:Loc IAS.Uninstall}" Command="{Binding UninstallCommand}" Margin="0,0,8,8" />
+      <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" Margin="0,0,0,8" />
+    </WrapPanel>
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+    <TextBlock Text="{Binding DownloadProgressText}" Classes="muted" />
+    <TextBlock x:Name="Hd2IASStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" Classes="muted" />
+    <Expander Header="{loc:Loc IAS.OperationLog}"><TextBlock Text="{Binding OperationLog}" TextWrapping="Wrap" /></Expander>
+    <StackPanel IsVisible="{Binding HasReport}" Spacing="12">
+      <Border Classes="card" Padding="16"><StackPanel Spacing="8">
+        <TextBlock Text="{Binding PackageSummary}" TextWrapping="Wrap" />
+        <TextBlock x:Name="Hd2IASInstallation" Text="{Binding InstallationSummary}" TextWrapping="Wrap" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding CompatibilitySummary}" TextWrapping="Wrap" />
+        <TextBlock Text="{loc:Loc IAS.DataNotVerified}" TextWrapping="Wrap" Classes="muted" />
+      </StackPanel></Border>
+      <Expander Header="{loc:Loc IAS.GameChecks}" IsExpanded="True"><TextBlock Text="{Binding GameChecks}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.RuntimeChecks}" IsExpanded="True"><TextBlock Text="{Binding RuntimeChecks}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.FoundationChecks}"><TextBlock Text="{Binding FoundationChecks}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.FilePlan}"><TextBlock Text="{Binding FilePlan}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.PackageChecks}"><TextBlock Text="{Binding PackageChecks}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.Identity}"><TextBlock Text="{Binding IdentitySummary}" TextWrapping="Wrap" /></Expander>
+      <Expander Header="{loc:Loc IAS.Notes}"><TextBlock Text="{Binding UpdateNotes}" TextWrapping="Wrap" /></Expander>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,223 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        xmlns:controls="using:HD2Mimnt.UI.Controls"
+        xmlns:fa="using:FluentAvalonia.UI.Controls"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
+        x:Class="HD2Mimnt.UI.Views.PluginPermissionDialog"
+        x:DataType="vm:PluginPermissionDialogViewModel"
+        Title="{loc:Loc UI.PluginPermissionRequest}"
+        Width="600" Height="700"
+        MinWidth="500" MinHeight="500"
+        MaxWidth="700" MaxHeight="900"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface1Brush}"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:PluginPermissionDialogViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,20">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{loc:Loc UI.PluginPermissionRequest}"
+                          FontSize="20"
+                          FontWeight="SemiBold"
+                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="{loc:Loc UI.ThisPluginRequestsAccessToSystemResources}"
+                          FontSize="13"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
+                          TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="20" Margin="24,20">
+                <!-- Plugin Info Card -->
+                <Border Background="{DynamicResource Surface2Brush}"
+                       CornerRadius="6"
+                       BorderBrush="{DynamicResource BorderBrush}"
+                       BorderThickness="1"
+                       Padding="16">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="80,*">
+                        <!-- Icon -->
+                        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="4"
+                               Width="64" Height="64"
+                               CornerRadius="6"
+                               Background="{DynamicResource Surface3Brush}"
+                               VerticalAlignment="Top"
+                               Margin="0,0,12,0">
+                            <controls:UtilityIcon Kind="Plugin" Width="32" Height="32"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Plugin Name -->
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                  Text="{Binding PluginName}"
+                                  FontSize="16"
+                                  FontWeight="SemiBold"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  Margin="0,0,0,4"/>
+
+                        <!-- Version & Author -->
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
+                            <TextBlock Text="{Binding PluginVersion}"
+                                     FontSize="12"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="•"
+                                     FontSize="12"
+                                     Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock Text="{Binding PluginAuthor}"
+                                     FontSize="12"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Description -->
+                        <TextBlock Grid.Row="2" Grid.Column="1"
+                                  Text="{Binding PluginDescription}"
+                                  FontSize="13"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"
+                                  TextWrapping="Wrap"
+                                  Margin="0,0,0,8"/>
+
+                        <!-- Permission Mode Badge -->
+                        <Border Grid.Row="3" Grid.Column="1"
+                               Background="{DynamicResource BorderBrush}"
+                               CornerRadius="999"
+                               Padding="10,4"
+                               HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <controls:UtilityIcon Kind="{Binding PermissionModeIcon}" Width="16" Height="16"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{loc:LocalizedBinding PermissionMode}"
+                                         FontSize="12"
+                                         FontWeight="Medium"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Warning Banner -->
+                <fa:FAInfoBar IsOpen="{Binding ShowWarning}" Severity="Warning" IsClosable="False" Message="{loc:LocalizedBinding WarningMessage}"/>
+
+                <!-- Requested Permissions Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{loc:Loc UI.RequestedPermissions}"
+                              FontSize="14"
+                              FontWeight="SemiBold"
+                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <ItemsControl ItemsSource="{Binding RequestedPermissions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource Surface2Brush}"
+                                       CornerRadius="6"
+                                       BorderBrush="{DynamicResource BorderBrush}"
+                                       BorderThickness="1"
+                                       Padding="12"
+                                       Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <!-- Icon -->
+                                        <controls:UtilityIcon Grid.Column="0"
+                                                 Kind="{Binding Icon}" Width="20" Height="20"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,0,12,0"/>
+
+                                        <!-- Permission Info -->
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="{loc:LocalizedBinding DisplayName}"
+                                                     FontSize="13"
+                                                     FontWeight="Medium"
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{loc:LocalizedBinding Description}"
+                                                     FontSize="12"
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                     TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Risk and management state -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <Border IsVisible="{Binding IsHighRisk}"
+                                                   Background="{DynamicResource ErrorBackgroundBrush}"
+                                                   BorderBrush="{DynamicResource ErrorBrush}"
+                                                   BorderThickness="1"
+                                                   CornerRadius="999"
+                                                   Padding="8,4">
+                                                <TextBlock Text="{loc:Loc UI.HighRisk}"
+                                                         FontSize="12"
+                                                         FontWeight="Medium"
+                                                         Foreground="{DynamicResource ErrorBrush}"/>
+                                            </Border>
+                                            <CheckBox IsVisible="{Binding CanEdit}"
+                                                     IsChecked="{Binding IsGranted}"
+                                                     VerticalAlignment="Center"
+                                                     ToolTip.Tip="{loc:Loc UI.GrantThisPermission}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Information Text -->
+                <TextBlock IsVisible="{Binding !IsManagementMode}" Text="{loc:Loc UI.AllowOnceGrantPermissionsForThisSessionOnlyAlwaysAllowRememberThisDeci}"
+                          FontSize="12"
+                          Foreground="{DynamicResource TextMutedBrush}"
+                          TextWrapping="Wrap"
+                          Margin="0,8,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Action Buttons -->
+        <Border Grid.Row="2" Padding="24,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsManagementMode}">
+                    <TextBlock Text="{loc:Loc UI.SelectPermissionsToGrant}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                    <Button Content="{loc:Loc UI.Deny}"
+                           IsVisible="{Binding !IsManagementMode}"
+                           Command="{Binding DenyCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           MinWidth="100">
+                    </Button>
+
+                    <Button Content="{loc:Loc UI.AllowOnce}"
+                           IsVisible="{Binding !IsManagementMode}"
+                           Command="{Binding AllowOnceCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           MinWidth="120">
+                    </Button>
+
+                    <Button Classes="accent" Content="{loc:Loc UI.AlwaysAllow}"
+                           IsVisible="{Binding !IsManagementMode}"
+                           Command="{Binding AllowAlwaysCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Padding="24,10"
+                           MinWidth="120">
+                    </Button>
+                    <Button Content="{loc:Loc Common.Cancel}"
+                           IsVisible="{Binding IsManagementMode}"
+                           Command="{Binding CancelEditCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Classes="secondary"/>
+                    <Button Content="{loc:Loc UI.SavePermissions}"
+                           IsVisible="{Binding IsManagementMode}"
+                           Command="{Binding SavePermissionsCommand}"
+                           CommandParameter="{Binding $parent[Window]}"
+                           Classes="accent"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

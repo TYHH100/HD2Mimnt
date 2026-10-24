@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Controls.ModCreationPreview" x:DataType="vm:ModCreationPreviewViewModel">
+  <Border Background="{DynamicResource Surface2Brush}" Padding="24">
+    <StackPanel Spacing="16">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+        <Image Source="{Binding Cover}" Width="96" Height="96" Stretch="Uniform"
+               IsVisible="{Binding Cover, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+        <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Name}" Classes="section-title" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Author}" Classes="muted" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding Description}" TextWrapping="Wrap"/>
+      <controls:ModOptionsSelector/>
+    </StackPanel>
+  </Border>
+</UserControl>

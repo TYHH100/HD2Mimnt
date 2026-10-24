@@ -1,0 +1,37 @@
+# HD2Mimnt 仓库级编辑器与分析器配置
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,props,targets,axaml,xaml,json,xml,md,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.cs]
+# csharp_style 基线与现行代码一致：var 优先、文件作用域命名空间、表达式体适度
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_prefer_braces = true:silent
+dotnet_sort_system_directives_first = false
+dotnet_style_qualification_for_field = false:silent
+
+# 严重级别：平台兼容性已由程序集级 SupportedOSPlatform("windows") 声明，
+# CA1416 只在真正的跨平台边界报告；测试分析器噪声保持建议级
+dotnet_diagnostic.CA1416.severity = warning
+dotnet_diagnostic.CA2022.severity = warning
+dotnet_diagnostic.xUnit2031.severity = suggestion
+dotnet_diagnostic.xUnit1013.severity = none
+dotnet_diagnostic.xUnit2017.severity = suggestion
+
+# xUnit v2 与 v3 双轨（见 Directory.Packages.props），断言 API 差异不视为问题
+dotnet_diagnostic.xUnit2029.severity = suggestion
+dotnet_diagnostic.xUnit1031.severity = suggestion
+
+[*.{csproj,props,targets}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

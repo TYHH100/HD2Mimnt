@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Controls.ModImportOverlay"
+             x:DataType="vm:LibraryViewModel" IsVisible="{Binding Import.IsOpen}">
+  <Border Background="{DynamicResource OverlayScrimBrush}">
+    <Border x:Name="ImportDialog" Background="{DynamicResource Surface2Brush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="{DynamicResource OverlayCornerRadius}" Padding="24" Margin="24"
+            MaxWidth="560" MaxHeight="520" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="20">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <controls:UtilityIcon Kind="Add" Foreground="{DynamicResource AccentBrush}"/>
+            <TextBlock Text="{loc:Loc UI.AddMods}" Classes="section-title"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="icon-button" Command="{Binding Import.CloseCommand}" ToolTip.Tip="{loc:Loc Common.Close}">
+            <controls:UtilityIcon Kind="Close"/>
+          </Button>
+        </Grid>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="16">
+            <TextBlock Text="{Binding Import.CurrentFile}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding Import.CurrentFile}"/>
+            <StackPanel Spacing="6">
+              <TextBlock x:Name="ImportStep" Text="{loc:LocalizedBinding Import.Step}" FontWeight="SemiBold"/>
+              <TextBlock Text="{loc:LocalizedBinding Import.Detail}" Classes="secondary-text" TextWrapping="Wrap" MaxHeight="64" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <StackPanel Spacing="8" IsVisible="{Binding Import.TotalCount, Converter={StaticResource GreaterThanZeroConverter}}">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{loc:Loc UI.CurrentMod}" Classes="caption-text"/>
+                <TextBlock Grid.Column="1" Text="{Binding Import.FileProgress, StringFormat={}{0:0}%}" Classes="caption-text" IsVisible="{Binding !Import.IsIndeterminate}"/>
+              </Grid>
+              <ProgressBar x:Name="ImportFileProgress" Minimum="0" Maximum="100" Value="{Binding Import.FileProgress}" IsIndeterminate="{Binding Import.IsIndeterminate}"/>
+              <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                <TextBlock x:Name="ImportCounts" Text="{loc:LocalizedBinding Import.CountText}"/>
+                <TextBlock Grid.Column="1" Text="{Binding Import.OverallProgress, StringFormat={}{0:0}%}" Classes="caption-text"/>
+              </Grid>
+              <ProgressBar x:Name="ImportTotalProgress" Minimum="0" Maximum="100" Value="{Binding Import.OverallProgress}"/>
+              <TextBlock Text="{loc:LocalizedBinding Import.ResultText}" Classes="caption-text"/>
+            </StackPanel>
+            <Border IsEnabled="{Binding !Import.IsCancelling}"><controls:ArchivePasswordsControl DataContext="{Binding Import.Passwords}"/></Border>
+            <StackPanel Spacing="8" IsVisible="{Binding Import.HasPasswordRequest}">
+              <TextBlock Text="{loc:Loc ArchivePasswords.Prompt}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding Import.PasswordArchive}" TextWrapping="Wrap"/>
+              <TextBox Name="ImportPasswordInput" Text="{Binding Import.Passwords.Password}" PasswordChar="●"
+                       PlaceholderText="{loc:Loc ArchivePasswords.Password}" IsEnabled="{Binding !Import.IsCancelling}"/>
+              <Button Name="SubmitImportPasswordButton" Content="{loc:Loc ArchivePasswords.Retry}" Command="{Binding Import.SubmitPasswordCommand}"
+                      IsEnabled="{Binding !Import.IsCancelling}" Classes="accent"/>
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Import.Errors}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{loc:LocalizedBinding}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorBrush}" Margin="0,0,0,8"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Spacing="8" IsVisible="{Binding Import.HasPendingHd2Ir}">
+              <TextBlock Text="{loc:Loc Hd2Ir.MergeDescription}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding Import.PendingHd2Ir.Reason}" Classes="caption-text" TextWrapping="Wrap"/>
+              <ItemsControl ItemsSource="{Binding Import.PendingHd2Ir.Components}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Spacing="12">
+          <TextBlock Text="{loc:Loc UI.DropArchivesOrFoldersIntoTheWindowToAddMultipleMods}" Classes="caption-text" IsVisible="{Binding Import.CanSelect}"/>
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="{loc:Loc UI.ChooseFolder}" Click="OnSelectFolder" IsVisible="{Binding Import.CanSelect}"/>
+            <Button Content="{loc:Loc UI.ChooseArchives}" Classes="accent" Click="OnSelectArchives" IsVisible="{Binding Import.CanSelect}"/>
+            <Button Content="{loc:Loc UI.CancelImport}" Command="{Binding Import.CancelCommand}" IsVisible="{Binding Import.IsImporting}"/>
+            <Button x:Name="ConfirmHd2IrImportButton" Content="{loc:Loc Hd2Ir.ConfirmImport}" Classes="accent"
+                    Command="{Binding Import.ConfirmHd2IrCommand}" IsVisible="{Binding Import.HasPendingHd2Ir}" IsEnabled="{Binding !Import.IsCancelling}"/>
+            <Button Content="{loc:Loc UI.Done}" Command="{Binding Import.CloseCommand}" IsVisible="{Binding Import.HasResult}"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Border>
+</UserControl>

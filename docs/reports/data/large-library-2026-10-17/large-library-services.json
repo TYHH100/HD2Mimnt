@@ -1,0 +1,203 @@
+{
+  "DateUtc": "2026-10-17T13:19:23.3577719Z",
+  "Runtime": "10.0.12",
+  "ModCount": 10000,
+  "Profiles": 12,
+  "Memberships": 21000,
+  "Measurements": [
+    {
+      "Name": "repository_get_all_10000",
+      "FirstMs": 84.9134,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 86.8904,
+        "P95": 94.7369,
+        "P99": 94.7369,
+        "Max": 94.7369,
+        "Over50": 6,
+        "Over100": 0
+      },
+      "AllocatedMiB": 154.5260009765625
+    },
+    {
+      "Name": "repository_get_by_ids_10000",
+      "FirstMs": 161.926,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 140.0499,
+        "P95": 151.9854,
+        "P99": 151.9854,
+        "Max": 151.9854,
+        "Over50": 6,
+        "Over100": 6
+      },
+      "AllocatedMiB": 181.5316390991211
+    },
+    {
+      "Name": "service_get_all_with_sidecars",
+      "FirstMs": 6807.3108,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 6726.3763,
+        "P95": 6873.6893,
+        "P99": 6873.6893,
+        "Max": 6873.6893,
+        "Over50": 6,
+        "Over100": 6
+      },
+      "AllocatedMiB": 332.959228515625
+    },
+    {
+      "Name": "profiles_12_memberships_21000",
+      "FirstMs": 41.854,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 34.2138,
+        "P95": 43.3692,
+        "P99": 43.3692,
+        "Max": 43.3692,
+        "Over50": 0,
+        "Over100": 0
+      },
+      "AllocatedMiB": 39.17866516113281
+    },
+    {
+      "Name": "profile_normalize_10000",
+      "FirstMs": 163.2096,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 160.4698,
+        "P95": 173.6059,
+        "P99": 173.6059,
+        "Max": 173.6059,
+        "Over50": 6,
+        "Over100": 6
+      },
+      "AllocatedMiB": 211.7972412109375
+    },
+    {
+      "Name": "search_build_index_10000",
+      "FirstMs": 2505.5621,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 2420.2543,
+        "P95": 2731.7345,
+        "P99": 2731.7345,
+        "Max": 2731.7345,
+        "Over50": 6,
+        "Over100": 6
+      },
+      "AllocatedMiB": 333.0667724609375
+    },
+    {
+      "Name": "search_common_5000_results",
+      "FirstMs": 70.9444,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 57.7377,
+        "P95": 76.5561,
+        "P99": 76.5561,
+        "Max": 76.5561,
+        "Over50": 6,
+        "Over100": 0
+      },
+      "AllocatedMiB": 18.154808044433594
+    },
+    {
+      "Name": "statistics_10000",
+      "FirstMs": 101.0904,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 95.512,
+        "P95": 115.4567,
+        "P99": 115.4567,
+        "Max": 115.4567,
+        "Over50": 6,
+        "Over100": 2
+      },
+      "AllocatedMiB": 158.8697738647461
+    },
+    {
+      "Name": "profile_toggle_1000",
+      "FirstMs": 305.525,
+      "WarmMs": {
+        "Count": 6,
+        "P50": 272.3489,
+        "P95": 291.4791,
+        "P99": 291.4791,
+        "Max": 291.4791,
+        "Over50": 6,
+        "Over100": 6
+      },
+      "AllocatedMiB": 360.8501968383789
+    }
+  ],
+  "SqlFlood": {
+    "Statements": 100000,
+    "Writes": 5000,
+    "ElapsedMs": 7657.261,
+    "StatementsPerSecond": 13059.47441361654,
+    "Workers": [
+      {
+        "Worker": 0,
+        "Statements": 25000,
+        "Writes": 1250,
+        "Rows": 23750,
+        "LatencyMs": {
+          "Count": 25000,
+          "P50": 0.02,
+          "P95": 0.513,
+          "P99": 0.7157,
+          "Max": 2952.4606,
+          "Over50": 5,
+          "Over100": 5
+        }
+      },
+      {
+        "Worker": 1,
+        "Statements": 25000,
+        "Writes": 1250,
+        "Rows": 23750,
+        "LatencyMs": {
+          "Count": 25000,
+          "P50": 0.0197,
+          "P95": 0.5106,
+          "P99": 0.7212,
+          "Max": 933.1769,
+          "Over50": 7,
+          "Over100": 7
+        }
+      },
+      {
+        "Worker": 2,
+        "Statements": 25000,
+        "Writes": 1250,
+        "Rows": 23750,
+        "LatencyMs": {
+          "Count": 25000,
+          "P50": 0.0196,
+          "P95": 0.5021,
+          "P99": 0.7123,
+          "Max": 1086.4516,
+          "Over50": 9,
+          "Over100": 9
+        }
+      },
+      {
+        "Worker": 3,
+        "Statements": 25000,
+        "Writes": 1250,
+        "Rows": 23750,
+        "LatencyMs": {
+          "Count": 25000,
+          "P50": 0.02,
+          "P95": 0.5118,
+          "P99": 0.7321,
+          "Max": 934.0847,
+          "Over50": 7,
+          "Over100": 7
+        }
+      }
+    ]
+  }
+}

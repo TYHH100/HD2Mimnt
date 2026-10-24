@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.BackupView" x:DataType="vm:BackupViewModel">
+  <Grid RowDefinitions="Auto,*,Auto" MinHeight="300">
+    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+      <StackPanel Spacing="3"><TextBlock Text="{loc:Loc UI.DataBackupAndRestore}" FontSize="18" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Text="{loc:Loc UI.BackupsIncludeTheModDatabaseAndApplicationSettingsRestoringRequiresCon}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/></StackPanel>
+      <Button Grid.Column="1" Content="{loc:Loc UI.Refresh}" Command="{Binding RefreshCommand}" Classes="secondary" Margin="8,0,0,0"/><Button x:Name="CreateBackupButton" Grid.Column="2" Content="{loc:Loc UI.CreateBackup}" Command="{Binding CreateCommand}" Classes="accent" Margin="8,0,0,0"/>
+    </Grid>
+    <ListBox Grid.Row="1" ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}" MaxHeight="380">
+      <ListBox.ItemTemplate><DataTemplate>
+        <Border Background="Transparent" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,10"><Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+          <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimaryBrush}"/><TextBlock Grid.Column="1" Text="{Binding DisplayDate}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="12,0,0,0"/><TextBlock Grid.Row="1" Text="{Binding DisplaySize}" Foreground="{DynamicResource TextMutedBrush}"/>
+          <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0"><Button Content="{loc:Loc UI.Restore}" Command="{Binding $parent[ListBox].((vm:BackupViewModel)DataContext).RestoreCommand}" CommandParameter="{Binding}" Classes="secondary"/><Button Content="{loc:Loc Common.Delete}" Command="{Binding $parent[ListBox].((vm:BackupViewModel)DataContext).DeleteCommand}" CommandParameter="{Binding}" Classes="danger"/></StackPanel>
+        </Grid></Border>
+      </DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0"><TextBlock Text="{loc:LocalizedBinding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/><TextBlock Grid.Column="1" Text="{loc:Loc UI.Working}" Foreground="{DynamicResource TextSecondaryBrush}" IsVisible="{Binding IsLoading}"/></Grid>
+  </Grid>
+</UserControl>

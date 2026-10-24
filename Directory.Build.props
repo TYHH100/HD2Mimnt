@@ -1,0 +1,18 @@
+<Project>
+
+  <!-- 仓库级公共属性：所有项目共享，项目文件只保留差异项 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- 本应用仅面向 Windows（DPAPI/GDI+/硬链接/命名管道 CurrentUserOnly）；
+       程序集级声明让 CA1416 只在真正的跨平台边界报告，而不是每个调用点 -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>windows</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>

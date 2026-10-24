@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             x:Class="HD2Mimnt.UI.Controls.ModVersionsPanel" x:DataType="vm:ModVersionsViewModel">
+  <StackPanel Spacing="8">
+    <TextBlock Text="{loc:Loc Versions.Title}" Classes="detail-label"/>
+    <TextBlock Text="{loc:Loc Versions.Help}" TextWrapping="Wrap" Classes="caption-text"/>
+    <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
+      <Button x:Name="UpdateLocalArchiveButton" Content="{loc:Loc Versions.UpdateArchive}" Click="PickArchive" HorizontalAlignment="Stretch"/>
+      <TextBlock Text="{loc:Loc Versions.Empty}" IsVisible="{Binding !HasVersions}" TextWrapping="Wrap" Classes="caption-text"/>
+      <ComboBox x:Name="LocalVersionInput" ItemsSource="{Binding Versions}" SelectedItem="{Binding SelectedVersion}" HorizontalAlignment="Stretch" IsVisible="{Binding HasVersions}">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:LocalModVersionChoice"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <WrapPanel IsVisible="{Binding HasVersions}">
+        <Button x:Name="SwitchLocalVersionButton" Content="{loc:Loc Versions.Switch}" Command="{Binding SwitchCommand}" Margin="0,0,8,4"/>
+        <Button Content="{loc:Loc Versions.Delete}" Command="{Binding DeleteCommand}" Margin="0,0,0,4"/>
+      </WrapPanel>
+    </StackPanel>
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
+    <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
+    <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+  </StackPanel>
+</UserControl>

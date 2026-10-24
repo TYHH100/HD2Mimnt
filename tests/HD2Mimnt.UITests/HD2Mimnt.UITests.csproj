@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit"/>
+    <PackageReference Include="Microsoft.NET.Test.Sdk"/>
+    <PackageReference Include="xunit.v3"/>
+    <PackageReference Include="xunit.runner.visualstudio"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit"/>
+    <ProjectReference Include="../../src/HD2Mimnt.UI/HD2Mimnt.UI.csproj"/>
+    <Compile Include="../HD2Mimnt.Tests/Services/CompatibilityFixture.cs" Link="Compatibility/CompatibilityFixture.cs"/>
+    <Compile Include="../HD2Mimnt.Tests/Services/SoundFixFixture.cs" Link="SoundFix/SoundFixFixture.cs"/>
+    <Compile Include="../HD2Mimnt.PerformanceTests/LargeLibraryWorkload.cs" Link="Performance/LargeLibraryWorkload.cs"/>
+  </ItemGroup>
+</Project>

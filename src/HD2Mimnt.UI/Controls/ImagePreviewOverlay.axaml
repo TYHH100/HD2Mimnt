@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="using:HD2Mimnt.UI.Controls" xmlns:services="using:HD2Mimnt.UI.Services"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600" d:DataContext="{x:Null}"
+             x:DataType="services:ImagePreviewService"
+             x:Class="HD2Mimnt.UI.Controls.ImagePreviewOverlay">
+  <!-- 应用内图片预览覆盖层：DataContext 为 ImagePreviewService。
+       图片按原始像素显示（超过窗口时等比缩小，小图不放大），点击背景或关闭按钮关闭。 -->
+  <Border x:Name="Root" IsVisible="{Binding IsOpen}" Background="{DynamicResource ImagePreviewBackgroundBrush}" Tapped="Root_Tapped">
+    <Panel>
+      <Image x:Name="PreviewImage" Source="{Binding Image}" Stretch="Uniform"
+             HorizontalAlignment="Center" VerticalAlignment="Center" Margin="56,64"/>
+      <Button Classes="icon-button" Command="{Binding CloseCommand}" HorizontalAlignment="Right" VerticalAlignment="Top"
+              Margin="0,16,16,0" ToolTip.Tip="{loc:Loc UI.ClosePreviewEsc}" Foreground="{DynamicResource ImagePreviewForegroundBrush}">
+        <controls:UtilityIcon Kind="Close"/>
+      </Button>
+      <TextBlock Text="{Binding Title}" Classes="caption-text" Foreground="{DynamicResource ImagePreviewForegroundBrush}"
+                 HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,18"
+                 MaxWidth="640" TextTrimming="CharacterEllipsis" TextAlignment="Center"/>
+    </Panel>
+  </Border>
+</UserControl>

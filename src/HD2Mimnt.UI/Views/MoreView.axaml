@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:views="using:HD2Mimnt.UI.Views" x:Class="HD2Mimnt.UI.Views.MoreView" x:DataType="vm:MainWindowViewModel">
+  <Grid ColumnDefinitions="180,*" Margin="24,16,24,20" ColumnSpacing="24">
+    <StackPanel Grid.Column="0" Spacing="4">
+      <TextBlock Text="{loc:Loc UI.Tools}" Classes="page-title" Margin="0,0,0,12" />
+      <ListBox ItemsSource="{Binding MoreViewModel.Categories}" SelectedItem="{Binding MoreViewModel.SelectedCategory}">
+        <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" Padding="8,9" /></DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <Grid Grid.Column="1" IsVisible="{Binding MoreViewModel.IsLogsVisible}">
+      <views:LogView DataContext="{Binding LogViewModel}"/>
+    </Grid>
+    <ScrollViewer Grid.Column="1" IsVisible="{Binding !MoreViewModel.IsLogsVisible}">
+      <StackPanel MaxWidth="880" Spacing="0">
+        <StackPanel IsVisible="{Binding MoreViewModel.IsTutorialVisible}" Classes="section" Spacing="12">
+          <TextBlock Text="{loc:Loc UI.FeatureTutorial}" Classes="section-title"/>
+          <TextBlock Text="{loc:Loc UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh}" Classes="muted" TextWrapping="Wrap"/>
+          <TextBlock Text="{loc:Loc UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN}" Classes="muted" TextWrapping="Wrap"/>
+          <Button Content="{loc:Loc UI.StartTutorial}" Classes="accent" Command="{Binding Tutorial.StartCommand}" HorizontalAlignment="Left"/>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsPluginsVisible}">
+          <views:PluginManagementView DataContext="{Binding PluginManagementViewModel}" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsBackupVisible}">
+          <views:BackupView DataContext="{Binding BackupViewModel}" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsMigrationVisible}"><views:ManagerMigrationView DataContext="{Binding ManagerMigrationViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsCrashDiagnosticsVisible}"><views:CrashDiagnosticsView DataContext="{Binding CrashDiagnosticsViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsDirectDownloadVisible}"><views:DirectDownloadView DataContext="{Binding DirectDownloadViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsHd2IASVisible}"><views:Hd2IASManagementView DataContext="{Binding Hd2IASManagementViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsSoundFixVisible}"><views:SoundFixView DataContext="{Binding SoundFixViewModel}"/></StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsExternalToolsVisible}" Classes="section" Spacing="12">
+          <TextBlock Text="{loc:Loc UI.ExternalTools}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc UI.RegisterLocalExecutablesToOpenModResources}" Classes="muted" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:LocalizedBinding ExternalToolsViewModel.StatusMessage}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" Content="{loc:Loc UI.AddTool}" Classes="accent" Command="{Binding ExternalToolsViewModel.AddToolCommand}" />
+          </Grid>
+          <ItemsControl ItemsSource="{Binding ExternalToolsViewModel.Tools}">
+            <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:ExternalToolItemViewModel"><Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,8"><StackPanel Spacing="2"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding ExecutablePath}" Classes="muted" TextWrapping="Wrap" /></StackPanel><CheckBox Grid.Column="1" Content="{loc:Loc UI.Enable}" IsChecked="{Binding IsEnabled, Mode=OneWay}" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).ToggleToolEnabledCommand}" CommandParameter="{Binding}" Margin="12,0" /><Button Grid.Column="2" Content="{loc:Loc UI.Edit}" Command="{Binding $parent[ItemsControl].((vm:ExternalToolsViewModel)DataContext).EditToolCommand}" CommandParameter="{Binding}" /><Button Grid.Column="3" Content="{loc:Loc UI.Launch}" Classes="accent" Click="OnLaunchToolClicked" Margin="8,0,0,0" /></Grid></DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock IsVisible="{Binding ExternalToolsViewModel.IsLoading}" Text="{loc:Loc UI.LoadingExternalTools}" Classes="muted" />
+          <TextBlock IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen, Converter={StaticResource InverseBoolConverter}}" Text="{loc:Loc UI.NoExternalToolsRegistered}" Classes="muted" />
+          <StackPanel IsVisible="{Binding ExternalToolsViewModel.IsEditorOpen}" Spacing="8">
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12">
+              <TextBlock Text="{loc:Loc UI.Name}" Classes="muted" /><TextBox Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditName}" />
+              <TextBlock Grid.Row="1" Text="{loc:Loc UI.Executable}" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditExecutablePath}" Margin="0,8,0,0" />
+              <TextBlock Grid.Row="2" Text="{loc:Loc UI.ArgumentTemplate}" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditArguments}" Margin="0,8,0,0" />
+              <TextBlock Grid.Row="3" Text="{loc:Loc UI.WorkingDirectory}" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditWorkingDirectory}" Margin="0,8,0,0" />
+              <TextBlock Grid.Row="4" Text="{loc:Loc UI.Extensions}" Classes="muted" Margin="0,8,0,0" /><TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ExternalToolsViewModel.EditSupportedExtensions}" Margin="0,8,0,0" />
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="{loc:Loc Common.Save}" Classes="accent" Command="{Binding ExternalToolsViewModel.SaveToolCommand}" /><Button Content="{loc:Loc Common.Cancel}" Command="{Binding ExternalToolsViewModel.CancelEditCommand}" /></StackPanel>
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsDevToolsVisible}" Classes="section" Spacing="12">
+          <TextBlock Text="{loc:Loc UI.DeveloperTools}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc UI.GenerateOrRemoveTestModDataForLocalValidation}" Classes="muted" />
+          <Button Content="{loc:Loc UI.OpenDeveloperTools}" Classes="accent" Command="{Binding OpenDevToolsCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding MoreViewModel.IsAboutVisible}" Classes="section" Spacing="8">
+          <TextBlock Text="{loc:Loc UI.AboutHDMimnt}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc UI.HelldiversModManagerVersionAlpha}" Classes="muted" />
+          <TextBlock Text="{loc:Loc UI.ProjectHttpsGithubComTYHHHDMimnt}" Classes="muted" TextWrapping="Wrap" />
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

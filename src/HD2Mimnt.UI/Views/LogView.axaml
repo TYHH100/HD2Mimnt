@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.LogView" x:DataType="vm:LogViewModel">
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,120,Auto,*,Auto,Auto" RowSpacing="8">
+    <TextBlock Text="{loc:Loc UI.LogsAndDiagnostics}" Classes="section-title"/>
+    <TextBlock Grid.Row="1" Text="{loc:Loc Logs.Help}" Classes="muted" TextWrapping="Wrap"/>
+    <WrapPanel Grid.Row="2">
+      <StackPanel Spacing="4" Margin="0,0,12,8">
+        <TextBlock Text="{loc:Loc Logs.DisplayLevel}" Classes="muted"/>
+        <ComboBox x:Name="LogDisplayLevelInput" ItemsSource="{Binding DisplayLevels}" SelectedItem="{Binding DisplayLevel, Mode=TwoWay}" MinWidth="140">
+          <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding .}"/></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <StackPanel Spacing="4" Margin="0,0,12,8">
+        <TextBlock Text="{loc:Loc Logs.RecentLimit}" Classes="muted"/>
+        <ComboBox ItemsSource="{Binding RecentLimits}" SelectedItem="{Binding RecentLimit, Mode=TwoWay}" MinWidth="95"/>
+      </StackPanel>
+      <StackPanel Spacing="4" Margin="0,0,0,8">
+        <TextBlock Text="{loc:Loc Logs.Search}" Classes="muted"/>
+        <TextBox x:Name="LogSearchInput" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc Logs.SearchHint}" Width="230"/>
+      </StackPanel>
+    </WrapPanel>
+    <WrapPanel Grid.Row="3">
+      <Button Content="{loc:Loc UI.Refresh}" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
+      <Button Content="{loc:Loc Logs.CopyVisible}" Command="{Binding CopyCommand}" Margin="0,0,8,0"/>
+      <Button Content="{loc:Loc Logs.ExportAll}" Command="{Binding ExportCommand}"/>
+    </WrapPanel>
+    <Border Grid.Row="4" Classes="card" Padding="0">
+      <ListBox x:Name="LogEntryList" ItemsSource="{Binding EntryItems}" SelectedItem="{Binding SelectedEntry, Mode=TwoWay}">
+        <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:LogEntryViewModel">
+            <Grid RowDefinitions="Auto,Auto,Auto" Margin="8,6" RowSpacing="4">
+              <WrapPanel>
+                <TextBlock Text="{Binding TimestampText}" FontSize="12" FontFamily="Consolas" Classes="muted" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding LevelText}" FontSize="12" FontWeight="SemiBold" Classes.warning="{Binding IsWarning}" Classes.error="{Binding IsError}" Classes.accent-text="{Binding IsInformation}" Classes.muted="{Binding IsDiagnostic}">
+                  <TextBlock.Styles>
+                    <Style Selector="TextBlock.warning"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/></Style>
+                    <Style Selector="TextBlock.error"><Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/></Style>
+                  </TextBlock.Styles>
+                </TextBlock>
+              </WrapPanel>
+              <TextBlock Grid.Row="1" Text="{Binding ShortLogger}" ToolTip.Tip="{Binding Logger}" FontSize="12" Classes="muted" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Grid.Row="2" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" MaxLines="1" FontSize="13"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+    <Grid Grid.Row="5" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBlock Text="{loc:Loc Logs.Detail}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" Content="{loc:Loc Logs.CopySelected}" Command="{Binding CopySelectedCommand}"/>
+    </Grid>
+    <TextBox Grid.Row="6" x:Name="LogDetailText" Text="{Binding SelectedEntry.Detail, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" MinHeight="70" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+    <TextBlock Grid.Row="7" Text="{loc:LocalizedBinding StatusMessage}" Classes="muted" TextWrapping="Wrap"/>
+    <TextBlock Grid.Row="8" Text="{Binding LogFilePath}" Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+  </Grid>
+</UserControl>

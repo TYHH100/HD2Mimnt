@@ -1,0 +1,98 @@
+[
+  {
+    "Source": "auto-off",
+    "Started": "2026-10-17T21:52:09.1242069+08:00",
+    "Finished": "2026-10-17T21:54:16.9314257+08:00",
+    "Counters": {
+      "total": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    "Tests": [
+      {
+        "Name": "HD2Mimnt.Tests.UI.FluentAvaloniaUiTests.LargeLibrary_ConflictPatches_AutomaticCheckingDisabled",
+        "Outcome": "Passed",
+        "Duration": "00:02:04.8635738",
+        "Started": "2026-10-17T21:52:11.5757970+08:00",
+        "Finished": "2026-10-17T21:54:16.4478251+08:00"
+      }
+    ]
+  },
+  {
+    "Source": "auto-on",
+    "Started": "2026-10-17T21:45:35.1823129+08:00",
+    "Finished": "2026-10-17T21:49:05.0339270+08:00",
+    "Counters": {
+      "total": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    "Tests": [
+      {
+        "Name": "HD2Mimnt.Tests.UI.FluentAvaloniaUiTests.LargeLibrary_ConflictPatches_AutomaticCheckingEnabled",
+        "Outcome": "Passed",
+        "Duration": "00:03:27.2551137",
+        "Started": "2026-10-17T21:45:37.2536714+08:00",
+        "Finished": "2026-10-17T21:49:04.5180925+08:00"
+      }
+    ]
+  },
+  {
+    "Source": "auto-regression",
+    "Started": "2026-10-17T21:54:41.8767270+08:00",
+    "Finished": "2026-10-17T21:54:55.2117028+08:00",
+    "Counters": {
+      "total": 1,
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    "Tests": [
+      {
+        "Name": "HD2Mimnt.Tests.UI.FluentAvaloniaUiTests.AutomaticConflicts_ShouldSaveDefaultOffDebounceChangesAndStopOnClose",
+        "Outcome": "Passed",
+        "Duration": "00:00:11.3866503",
+        "Started": "2026-10-17T21:54:43.6828101+08:00",
+        "Finished": "2026-10-17T21:54:55.0799777+08:00"
+      }
+    ]
+  }
+]

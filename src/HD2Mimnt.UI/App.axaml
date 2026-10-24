@@ -1,0 +1,25 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sty="using:FluentAvalonia.Styling"
+             xmlns:converters="using:HD2Mimnt.UI.Converters"
+             x:Class="HD2Mimnt.UI.App" RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://HD2Mimnt.UI/Styles/AppResources.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+      <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
+      <converters:EqualConverter x:Key="EqualConverter"/>
+      <converters:NotNullConverter x:Key="NotNullConverter"/>
+      <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
+      <converters:LevelToSeverityConverter x:Key="LevelToSeverityConverter"/>
+      <converters:NotificationLevelLabelConverter x:Key="NotificationLevelLabelConverter"/>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <!-- 主题选择由设置页控制，禁止组件库用系统事件覆盖用户的显式选择。 -->
+    <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="False" CustomAccentColor="#0078D4"/>
+    <StyleInclude Source="avares://HD2Mimnt.UI/Styles/AppStyles.axaml"/>
+  </Application.Styles>
+</Application>

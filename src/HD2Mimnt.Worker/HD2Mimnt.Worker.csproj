@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- VS 发布会把主项目 pubxml 的 PublishSingleFile 作为全局属性流入，
+         触发 SDK"单文件发布隐含自包含"推断，把本项目误判为自包含（NETSDK1151）。
+         应用为框架依赖部署，这里显式固定发布自包含开关；命令行 -p:SelfContained 仍可覆盖。 -->
+    <PublishSelfContained>false</PublishSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+
+</Project>

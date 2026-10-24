@@ -1,0 +1,38 @@
+# 文档导航
+
+按用途读取下列文档。实现说明、设计计划和历史验收各有适用范围，版本及功能现状仍需核对当前代码；归档中的“已完成”仅表示当时阶段结论。
+
+| 用途 | 入口 |
+| --- | --- |
+| 开发协作与易错点 | [仓库规则](../AGENTS.md)，按索引读取 `agent-guides/` |
+| 构建与发布流程、版本标签规范 | [RELEASE_PROCESS.md](RELEASE_PROCESS.md) |
+| Nexus Mods 接入、认证与在线更新 | [NEXUS_MODS.md](features/NEXUS_MODS.md) |
+| Ayaka Mods 接入、工具密钥与 OAuth2 配置 | [AYAKA_MODS.md](features/AYAKA_MODS.md) |
+| 模组来源、版本与作者 JSON、网站跳转 | [MOD_SOURCE_METADATA.md](features/MOD_SOURCE_METADATA.md) |
+| 本地版本保留、切换与重复导入开关 | [MOD_VERSION_HISTORY.md](features/MOD_VERSION_HISTORY.md) |
+| 兼容性结构检查、元数据修复与备份后端 | [MOD_COMPATIBILITY.md](features/MOD_COMPATIBILITY.md) |
+| 模组库音效扫描、修复与备份恢复 | [SOUND_FIX.md](features/SOUND_FIX.md) |
+| HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
+| 外部管理器双向迁移、工具入口与原生格式限制 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
+| 离线模组库、配置与实际部署接口及旧版本保底 | [OFFLINE_MOD_INTERFACE.md](features/OFFLINE_MOD_INTERFACE.md) |
+| 图形化清单编辑、密码库与完整模组 7z／ZIP 导出 | [MOD_CREATION.md](features/MOD_CREATION.md) |
+| HD2IR 嵌套角色包、组件选项与部署接入 | [HD2IR_INTEGRATION.md](features/HD2IR_INTEGRATION.md) |
+| 散装文件夹 / 包裹压缩包的多模组合集与两级选项 | [MOD_COLLECTION_IMPORT.md](features/MOD_COLLECTION_IMPORT.md) |
+| HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
+| 游戏崩溃转储、部署时间线与模组变化排查 | [CRASH_DIAGNOSTICS.md](features/CRASH_DIAGNOSTICS.md) |
+| Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
+| 总体设计与路线 | [v2 总体开发计划](plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)；计划不等于已实现功能 |
+| 自动冲突检查与性能测量边界 | [性能评估](reports/automatic-conflict-check-performance.md) |
+| 1 万模组、配图与大量 SQL 联合压力测试 | [2026-10-17 实测](reports/large-library-performance-2026-10-17.md) |
+| 历史架构、UI、HD2IR 阶段报告 | [归档索引](Archive%20records/README.md) |
+
+## 文档维护
+
+- `agent-guides/`：稳定协作规则与反复出现的易错点，按领域维护，不堆进根 `AGENTS.md`。
+- `features/`：当前模块的接口、使用与实现说明；行为变动时更新原文，不新增重复说明。
+- `references/`：外部规范和契约快照，保留原始文件并注明来源；快照不代表远端最新版。
+- `plans/`：设计目标与路线；`reports/`：注明日期、环境、数据规模及验证边界的报告。
+- `Archive records/`：旧阶段计划、总结与验收。通过分类索引检索，不作为当前实现或测试通过的证据。
+- 移动文档时同步修复相对链接及入口索引；无完全重复内容的历史记录保留，避免丢失独有结论。
+
+外部参考：[GitHub 相对链接规则](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#relative-links)、[Nexus Mods API](https://api-docs.nexusmods.com/)。

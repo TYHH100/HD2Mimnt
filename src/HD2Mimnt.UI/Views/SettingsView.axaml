@@ -1,0 +1,308 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:fa="using:FluentAvalonia.UI.Controls"
+             x:Class="HD2Mimnt.UI.Views.SettingsView" x:DataType="vm:SettingsViewModel">
+  <Grid ColumnDefinitions="180,*" Margin="24,16,24,20" ColumnSpacing="24">
+    <StackPanel Spacing="12">
+      <TextBlock Text="{loc:Loc Settings.Title}" Classes="page-title"/>
+      <ListBox x:Name="SettingsCategoryList" ItemsSource="{Binding SettingsCategories}" SelectedItem="{Binding SelectedCategory}">
+        <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}" Padding="8,9"/></DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+    </StackPanel>
+    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" MaxWidth="880" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="4" Margin="0,0,0,20">
+        <TextBlock Text="{loc:Loc UI.ApplicationSettings}" Classes="page-title"/>
+        <TextBlock Text="{loc:Loc UI.ManageGamePathsDeploymentDownloadsAndInterfacePreferences}" Classes="page-subtitle"/>
+      </StackPanel>
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="12" Margin="0,0,4,0">
+        <fa:FASettingsExpander x:Name="CompatibilitySettings" Header="{loc:Loc Settings.Compatibility.Title}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsCompatibilityCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Startup}" Description="{loc:Loc Settings.Compatibility.StartupHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityStartupToggle" IsChecked="{Binding CompatibilityCheckOnStartup, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Batch}" Description="{loc:Loc Settings.Compatibility.BatchHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityBatchToggle" IsChecked="{Binding CompatibilityEnableBatchRepair, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Description="{loc:Loc Settings.Compatibility.Help}"/>
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="10">
+              <TextBlock Text="{loc:Loc Settings.Compatibility.Data.Title}" Classes="section-title"/>
+              <TextBlock Text="{loc:Loc Settings.Compatibility.Data.Help}" TextWrapping="Wrap" Classes="caption-text"/>
+              <TextBlock x:Name="CompatibilityDataStatus" Text="{Binding CompatibilityDataStatusText}" TextWrapping="Wrap"/>
+              <WrapPanel IsEnabled="{Binding !IsCompatibilityDataBusy}">
+                <Button x:Name="BuildCompatibilityDataButton" Content="{loc:Loc Settings.Compatibility.Data.Build}" Command="{Binding BuildCompatibilityDataCommand}" Margin="0,0,8,6"/>
+                <Button x:Name="RefreshCompatibilityNamesButton" Content="{loc:Loc Compatibility.RefreshNames}" Command="{Binding RefreshCompatibilityNamesCommand}" Margin="0,0,0,6"/>
+              </WrapPanel>
+              <StackPanel IsVisible="{Binding IsCompatibilityDataBusy}" Spacing="8">
+                <ProgressBar IsIndeterminate="True"/>
+                <TextBlock Text="{Binding CompatibilityDataProgress}"/>
+                <Button x:Name="CancelCompatibilityDataButton" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCompatibilityDataCommand}" HorizontalAlignment="Left"/>
+              </StackPanel>
+              <TextBlock Text="{loc:LocalizedBinding CompatibilityDataMessage}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander Header="{loc:Loc Logs.Recording}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsLogCategoryVisible}">
+          <fa:FASettingsExpanderItem Description="{loc:Loc Logs.RecordingHelp}">
+            <StackPanel Spacing="12">
+              <ComboBox x:Name="LogRecordingLevelInput" ItemsSource="{Binding LogRecordingLevels}" SelectedItem="{Binding LogRecordingLevel, Mode=TwoWay}" MinWidth="180" HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding .}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Text="{loc:Loc Logs.PrivacyHelp}" Classes="muted" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <StackPanel IsVisible="{Binding IsEntriesCategoryVisible}" Spacing="12">
+          <TextBlock Text="{loc:Loc Settings.Entries.Help}" TextWrapping="Wrap" Classes="page-subtitle"/>
+          <fa:FASettingsExpander Header="{loc:Loc Settings.Entries.Navigation}" IconSource="Setting" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <ItemsControl x:Name="NavigationEntryOptions" ItemsSource="{Binding NavigationEntries}">
+                <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:EntryVisibilityOption">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,8">
+                    <TextBlock Text="{loc:LocalizedBinding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsVisible, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+          <fa:FASettingsExpander Header="{loc:Loc Settings.Entries.Categories}" IconSource="Setting" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <ItemsControl x:Name="SettingsEntryOptions" ItemsSource="{Binding SettingsEntries}">
+                <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:EntryVisibilityOption">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,8">
+                    <TextBlock Text="{loc:LocalizedBinding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsVisible, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  </Grid>
+                </DataTemplate></ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+        </StackPanel>
+        <StackPanel IsVisible="{Binding IsAccountCategoryVisible}" Spacing="12">
+          <fa:FASettingsExpander x:Name="NexusAccountSettings" Header="Nexus Mods" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <StackPanel DataContext="{Binding NexusAccount}" x:DataType="vm:NexusModsAccountViewModel" Spacing="12">
+                <TextBlock x:Name="SettingsNexusAccountStatus" Text="{loc:LocalizedBinding Status}" TextWrapping="Wrap"/>
+                <WrapPanel>
+                  <Button x:Name="SettingsNexusLoginButton" Command="{Binding LoginCommand}" Content="{loc:Loc Nexus.Login}" Classes="accent" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusLogoutButton" Command="{Binding LogoutCommand}" Content="{loc:Loc Nexus.Logout}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusCancelLoginButton" Command="{Binding CancelLoginCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsBusy}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsNexusManageAuthorizationButton" Command="{Binding ManageAuthorizationCommand}" Content="{loc:Loc Nexus.ManageAuthorization}" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusAccountTestingHint" Text="{loc:Loc Nexus.AccountTestingHint}"
+                           IsVisible="{Binding !HasAuthentication}" Classes="caption-text" TextWrapping="Wrap"/>
+                <Separator/>
+                <TextBlock Text="Rate Limiting" Classes="section-title"/>
+                <TextBlock Text="{loc:Loc Nexus.QuotaHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusHourlyQuota" Text="{Binding HourlyRateLimitText}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NexusDailyQuota" Text="{Binding DailyRateLimitText}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding HourlyResetText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding DailyResetText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding RateLimitUpdatedText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{Binding RateLimitRetryText}" TextWrapping="Wrap" Classes="caption-text"/>
+                <Button x:Name="SettingsNexusRefreshQuotaButton" Command="{Binding RefreshRateLimitCommand}" Content="{loc:Loc Nexus.RefreshQuota}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{loc:LocalizedBinding RateLimitMessage}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+          <fa:FASettingsExpander x:Name="AyakaAccountSettings" Header="Ayaka Mods" IsExpanded="True">
+            <fa:FASettingsExpanderItem>
+              <StackPanel DataContext="{Binding AyakaAccount}" x:DataType="vm:AyakaModsAccountViewModel" Spacing="10">
+                <TextBlock x:Name="SettingsAyakaOAuthStatus" Text="{loc:LocalizedBinding OAuthStatus}" TextWrapping="Wrap"/>
+                <WrapPanel>
+                  <Button x:Name="SettingsAyakaLoginButton" Command="{Binding LoginCommand}" Content="{loc:Loc Accounts.AyakaLogin}" Classes="accent" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsAyakaLogoutButton" Command="{Binding LogoutCommand}" Content="{loc:Loc Ayaka.OAuth.Logout}" Margin="0,0,8,8"/>
+                  <Button x:Name="SettingsAyakaCancelLoginButton" Command="{Binding CancelLoginCommand}" Content="{loc:Loc Common.Cancel}" IsVisible="{Binding IsLoggingIn}" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <TextBlock Text="{loc:Loc Ayaka.OAuth.Help}" TextWrapping="Wrap" Classes="caption-text"/>
+                <Separator/>
+                <TextBlock x:Name="SettingsAyakaStatus" Text="{loc:LocalizedBinding Status}" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:Loc Ayaka.KeyHelp}" TextWrapping="Wrap" Classes="caption-text"/>
+                <TextBlock Text="{loc:LocalizedBinding Message}" TextWrapping="Wrap"/>
+                <Button x:Name="SettingsAyakaClearKeyButton" Command="{Binding ClearApiKeyCommand}" Content="{loc:Loc UI.ClearKey}" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem>
+          </fa:FASettingsExpander>
+        </StackPanel>
+        <fa:FASettingsExpander Header="{loc:Loc UI.GameDirectory}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsGameCategoryVisible}">
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="8">
+              <TextBlock Text="{loc:Loc UI.GameSource}"/>
+              <WrapPanel>
+                <RadioButton x:Name="OfficialGameSourceRadio" GroupName="GameSource" Content="{loc:Loc UI.GameSourceOfficial}"
+                             IsChecked="{Binding IsOfficialGameSource}" Margin="0,0,20,4"/>
+                <RadioButton x:Name="HellForgeGameSourceRadio" GroupName="GameSource" Content="{loc:Loc UI.GameSourceHellForge}"
+                             IsChecked="{Binding IsHellForgeGameSource}" Margin="0,0,0,4"/>
+              </WrapPanel>
+              <TextBlock Text="{loc:Loc UI.GameSourceHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="OfficialGamePathItem" IsVisible="{Binding IsOfficialGameSource}">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+              <TextBlock Text="{loc:Loc UI.HelldiversInstallationDirectory}"/>
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox x:Name="GamePathInput" Text="{Binding GamePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ChooseGameInstallationDirectory}"/>
+                <Button Grid.Column="1" Content="{loc:Loc UI.Validate}" Command="{Binding ValidateGameCommand}"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.AutoDetect}" Command="{Binding DetectGameCommand}"/>
+              </Grid>
+            </Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="HellForgeGamePathItem" IsVisible="{Binding IsHellForgeGameSource}">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Text="{loc:Loc UI.HellForgeInstallationDirectory}"/>
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox x:Name="HellForgePathInput" Text="{Binding HellForgePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ChooseHellForgeInstallationDirectory}"/>
+                <Button x:Name="BrowseHellForgeButton" Grid.Column="1" Content="{loc:Loc UI.Browse}" Click="OnPickHellForgeClicked"/>
+                <Button x:Name="ValidateHellForgeButton" Grid.Column="2" Content="{loc:Loc UI.Validate}" Command="{Binding ValidateGameCommand}"/>
+              </Grid>
+              <TextBlock Grid.Row="2" Text="{loc:Loc UI.HellForgeDirectoryHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="AutoDetectGameItem" Content="{loc:Loc UI.AutoDetectGameAtStartup}" IsVisible="{Binding IsOfficialGameSource}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="ProfileSettings" Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoAddImportedModsToggle" IsChecked="{Binding AutoAddImportedMods}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ApplyProfileWhenSelected}" Description="{loc:Loc UI.WhenOffRightClickAProfileAndChooseSetAsCurrent}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CheckConflictsAutomatically}" Description="{loc:Loc UI.CheckResourceOverlapsInTheCurrentProfileAfterProfilesOrModsChangeOffBy}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoCheckConflictsToggle" IsChecked="{Binding AutoCheckConflicts}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="DeploymentSettings" Header="{loc:Loc UI.Deployment}" IconSource="Upload" IsExpanded="True" IsVisible="{Binding IsDeploymentCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.DefaultDeploymentMethod}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox x:Name="DeploymentMethodInput" ItemsSource="{Binding DeploymentMethods}" SelectedItem="{Binding DefaultDeploymentMethod}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CheckTargetDirectoryBeforeDeployment}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding CheckBeforeDeploy}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.DeployFromBottomToTop}" Description="{loc:Loc UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="LibrarySettings" Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.KeepVersions}" Description="{loc:Loc Settings.Library.KeepVersionsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="KeepModVersionsToggle" IsChecked="{Binding KeepModVersions, Mode=OneWay}" Command="{Binding ToggleKeepModVersionsCommand}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.AllowDuplicates}" Description="{loc:Loc Settings.Library.AllowDuplicatesHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AllowDuplicateImportsToggle" IsChecked="{Binding AllowDuplicateImports}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ForceManifestV1}" Description="{loc:Loc Settings.Library.ForceManifestV1Help}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ForceManifestV1Toggle" IsChecked="{Binding ForceManifestV1}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="SearchSettingsExpander" Header="{loc:Loc Settings.Search.Title}" IconSource="Search" IsExpanded="True" IsVisible="{Binding IsSearchCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Search.Fuzzy}" Description="{loc:Loc Settings.Search.FuzzyHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchFuzzyToggle" IsChecked="{Binding SearchFuzzy}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Search.Pinyin}" Description="{loc:Loc Settings.Search.PinyinHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchPinyinToggle" IsChecked="{Binding SearchPinyin}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Downloads}" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="{loc:Loc UI.SavedChangesApplyToNewOrRetriedDownloads}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="16" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.MinimumSegmentSizeMiB}" Description="{loc:Loc UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles}">
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadSegmentInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadSegmentSizeMiB}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.RetriesAfterASegmentFails}" Description="{loc:Loc UI.ExcludesTheInitialRequestDisablesRetries}">
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadRetriesInput" Minimum="0" Maximum="10" Increment="1" FormatString="0" Value="{Binding DownloadMaxRetries}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.RetryDelayMilliseconds}" Description="{loc:Loc UI.RangeMilliseconds}">
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadRetryDelayInput" Minimum="0" Maximum="60000" Increment="100" FormatString="0" Value="{Binding DownloadRetryDelayMs}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ResumeInterruptedDownloads}" Description="{loc:Loc UI.KeepInterruptedProgressWhenSupportedByTheWebsiteDownloadingTheSameFile}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="DownloadResumeToggle" IsChecked="{Binding DownloadEnableResume}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="StorageSettings" Header="{loc:Loc Settings.Storage.Title}" IconSource="Folder" IsExpanded="True" IsVisible="{Binding IsStorageCategoryVisible}" Description="{loc:Loc Settings.Storage.RestartHelp}">
+          <fa:FASettingsExpanderItem>
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{loc:Loc Settings.Storage.AppData}"/><Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="AppDataPathInput" Text="{Binding AppDataPath, UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="{loc:Loc UI.Choose}" Click="OnPickAppDataClicked"/></Grid></Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem>
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{loc:Loc Settings.Storage.Mods}"/><Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="ModsStoragePathInput" Text="{Binding ModsStoragePath, UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="{loc:Loc UI.Choose}" Click="OnPickModsClicked"/></Grid></Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem>
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{loc:Loc Settings.Storage.Cache}"/><Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="TempCachePathInput" Text="{Binding TempCachePath, UpdateSourceTrigger=PropertyChanged}"/><Button Grid.Column="1" Content="{loc:Loc UI.Choose}" Click="OnPickCacheClicked"/></Grid></Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="6"><TextBlock Text="{loc:Loc Settings.Storage.Active}"/><TextBlock Text="{Binding ActiveStoragePaths}" Classes="caption-text" TextWrapping="Wrap"/></StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="CacheSettings" Header="{loc:Loc UI.Cache}" IconSource="Save" IsExpanded="True" IsVisible="{Binding IsCacheCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ImageCache}">
+            <fa:FASettingsExpanderItem.Footer><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="{loc:Loc UI.RefreshInformation}" Command="{Binding RefreshCacheCommand}"/><Button Content="{loc:Loc UI.CleanUp}" Command="{Binding ClearImageCacheCommand}"/></StackPanel></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:LocalizedBinding CacheStatus}"/>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander Header="{loc:Loc UI.Appearance}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Language}" Description="{loc:Loc Settings.Language.Help}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Spacing="6" Width="220">
+                <ComboBox x:Name="LanguageInput" ItemsSource="{Binding LanguageOptions}"
+                          SelectedValue="{Binding SelectedLanguageCode}" SelectedValueBinding="{Binding Code}"
+                          IsEnabled="{Binding !IsChangingLanguage}" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding NativeName}"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock x:Name="CurrentLanguageLabel" Text="{Binding CurrentLanguageText}" Classes="caption-text" TextWrapping="Wrap"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.Theme}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.ListDensity}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ListDensityOptions}" SelectedItem="{Binding ListDensity}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.EnableInterfaceAnimations}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding EnableAnimations}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander Header="{loc:Loc UI.CustomBackground}" IconSource="BrowsePhotos" Description="{loc:Loc UI.AppliesAfterSavingLowerCardOpacityToRevealTheBackgroundImage}" IsExpanded="True" IsVisible="{Binding IsAppearanceCategoryVisible}">
+          <fa:FASettingsExpanderItem>
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+              <TextBlock Text="{loc:Loc UI.BackgroundImage}"/>
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding BackgroundImagePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{loc:Loc UI.ImagePathLeaveEmptyToDisable}"/>
+                <Button Grid.Column="1" Content="{loc:Loc UI.ChooseImage}" Click="OnPickBackgroundClicked"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.Clear}" Command="{Binding ClearBackgroundImageCommand}"/>
+              </Grid>
+            </Grid>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.BackgroundImageOpacity}">
+            <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="0" Maximum="100" Value="{Binding BackgroundImageOpacity}"/><TextBlock Grid.Column="1" Text="{Binding BackgroundImageOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.BackgroundImageBlur}">
+            <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="0" Maximum="40" Value="{Binding BackgroundBlur}"/><TextBlock Grid.Column="1" Text="{Binding BackgroundBlur, StringFormat='{}{0:0}'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.CardOpacity}">
+            <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="20" Maximum="100" Value="{Binding CardOpacity}"/><TextBlock Grid.Column="1" Text="{Binding CardOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        </StackPanel>
+      </ScrollViewer>
+      <StackPanel Grid.Row="2" Spacing="8" Margin="0,20,0,0">
+        <TextBlock Text="{loc:LocalizedBinding StatusMessage}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullConverter}}"/>
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsAccountCategoryVisible}">
+          <Button x:Name="SaveSettingsButton" Content="{loc:Loc UI.SaveSettings}" Classes="accent" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsLoading}"/>
+          <Button Content="{loc:Loc UI.RestoreDefaults}" Command="{Binding ResetCommand}" IsEnabled="{Binding !IsLoading}"/>
+        </StackPanel>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

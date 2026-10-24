@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             x:Class="HD2Mimnt.UI.Controls.AddToProfileOverlay" x:DataType="vm:LibraryViewModel"
+             IsVisible="{Binding IsAddToProfileDialogOpen, FallbackValue=False}">
+    <!-- 加入配置文件弹窗：勾选目标配置文件，可多选批量加入 -->
+    <Grid IsVisible="{Binding IsAddToProfileDialogOpen}" ZIndex="110">
+        <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnAddToProfileBackgroundPressed"/>
+        <Border Name="AddToProfileDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}" Width="400" MaxHeight="480" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+                <TextBlock Text="{loc:LocalizedBinding AddToProfileDialogTitle}" Classes="section-title" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Row="1" Text="{loc:Loc UI.SelectOneOrMoreProfilesTheModWillBeEnabledByDefaultInEachSelectedProfi}" Classes="caption-text" TextWrapping="Wrap"/>
+                <ListBox Grid.Row="2" ItemsSource="{Binding AddToProfileChoices}" ScrollViewer.VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProfileChoiceViewModel">
+                            <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Stretch" Margin="2,3">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{loc:LocalizedBinding ModCount, FormatKey=UI.Mods}" Classes="caption-text" VerticalAlignment="Center"/>
+                                    <Border Classes="chip" IsVisible="{Binding IsActive}">
+                                        <TextBlock Text="{loc:Loc UI.Current}" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelAddToProfileCommand}" Classes="secondary"/>
+                    <Button Content="{loc:Loc UI.Add}" Command="{Binding ConfirmAddToProfileCommand}" Classes="accent"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+
+</UserControl>

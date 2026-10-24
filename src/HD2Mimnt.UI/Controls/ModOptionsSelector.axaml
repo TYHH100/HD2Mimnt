@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             x:Class="HD2Mimnt.UI.Controls.ModOptionsSelector" x:DataType="vm:IModOptionsSelection">
+  <UserControl.Resources>
+    <DataTemplate x:Key="ModOptionHeaderTemplate" x:DataType="vm:ProfileModOptionCardViewModel">
+      <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="12">
+        <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                PointerPressed="OptionPreview_PointerPressed" Tapped="PreviewImage_Tapped"
+                Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+          <Panel>
+            <TextBlock Text="{loc:Loc UI.NoPreview}" Classes="caption-text" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
+            <Image Source="{Binding Image}" Width="64" Height="64" Stretch="Uniform"/>
+          </Panel>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+                     IsVisible="{Binding HasDescription}"/>
+        </StackPanel>
+        <Border Grid.Column="2" Width="32" IsVisible="{Binding HasSubOptions}" IsHitTestVisible="False"/>
+        <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
+                  IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                  Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).ToggleOptionCommand}"
+                  CommandParameter="{Binding}"
+                  ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
+      </Grid>
+    </DataTemplate>
+    <!-- 一级组件卡片：进入二级页配置该组件的选项与子选项。 -->
+    <DataTemplate x:Key="ModOptionGroupTemplate" x:DataType="vm:ProfileModOptionGroupViewModel">
+      <Grid ColumnDefinitions="64,*,Auto,Auto" ColumnSpacing="12">
+        <Border Width="64" Height="64" CornerRadius="6" Background="{DynamicResource Surface3Brush}"
+                PointerPressed="OptionPreview_PointerPressed" Tapped="PreviewImage_Tapped"
+                Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+          <Panel>
+            <TextBlock Text="{loc:Loc UI.NoPreview}" Classes="caption-text" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
+            <Image Source="{Binding Image}" Width="64" Height="64" Stretch="Uniform"/>
+          </Panel>
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
+                    Tapped="GroupCard_Tapped" Cursor="Hand">
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+                     IsVisible="{Binding HasDescription}"/>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="secondary" VerticalAlignment="Center" Content="{loc:Loc UI.Configure}"
+                Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).OpenGroupCommand}"
+                CommandParameter="{Binding}" IsVisible="{Binding CanOpen}"/>
+        <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
+                  IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                  Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).ToggleGroupCommand}"
+                  CommandParameter="{Binding}"
+                  ToolTip.Tip="{loc:Loc UI.EnableDisableOptionDisabledFilesAreExcludedFromDeployment}"/>
+      </Grid>
+    </DataTemplate>
+  </UserControl.Resources>
+
+<UserControl.Styles>
+  <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <!-- 原生箭头放在头部预留槽位，所有选项的勾选框保持最右侧对齐。 -->
+  <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+    <Setter Property="Grid.Column" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="Margin" Value="0,0,44,0"/>
+  </Style>
+  <!-- 复用 FluentAvalonia 原生 ListBoxItem 模板，只调整内容布局，不覆盖选中态模板。 -->
+  <Style Selector="ListBoxItem.option-choice-item">
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0,4"/>
+  </Style>
+</UserControl.Styles>
+            <StackPanel>
+              <!-- 一级：HD2IAS 组件列表（进入二级页配置组件内选项） -->
+              <ItemsControl ItemsSource="{Binding GroupCards}" IsVisible="{Binding ShowGroupList}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileModOptionGroupViewModel">
+                    <Border Classes="option-card" Margin="0,6">
+                      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ModOptionGroupTemplate}"
+                                      HorizontalContentAlignment="Stretch"/>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- v1：选项卡片（独立开关 + 子选项多选一）；组件页只显示当前组件选项 -->
+              <ItemsControl ItemsSource="{Binding VisibleOptionCards}"
+                            IsVisible="{Binding ShowOptionList}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileModOptionCardViewModel">
+                    <Border Classes="option-card" Margin="0,6">
+                      <StackPanel>
+                        <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ModOptionHeaderTemplate}"
+                                        HorizontalContentAlignment="Stretch" IsVisible="{Binding !HasSubOptions}"/>
+                        <!-- 选项头部直接展开子选项，勾选框与预览图保留独立操作。 -->
+                        <Expander Classes="mod-option" Header="{Binding}" HeaderTemplate="{StaticResource ModOptionHeaderTemplate}"
+                                  IsExpanded="False" Padding="0,8,0,0" Background="Transparent" BorderThickness="0"
+                                  HorizontalAlignment="Stretch" IsVisible="{Binding HasSubOptions}">
+                          <ItemsControl ItemsSource="{Binding SubOptions}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileModSubOptionChoiceViewModel">
+                              <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}" Classes="option-choice-item"
+                                           Tapped="SubChoice_Tapped">
+                                <Border Classes="sub-choice">
+                                  <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                    <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
+                                            Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+                                      <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                      <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                                 ToolTip.Tip="{Binding Name}"/>
+                                      <TextBlock Text="{Binding Description}" Classes="caption-text"
+                                                 TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
+                                    </StackPanel>
+                                  </Grid>
+                                </Border>
+                              </ListBoxItem>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </Expander>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- v0：互斥选择列表（部署时只使用选中的那个子目录） -->
+              <ItemsControl ItemsSource="{Binding LegacyChoices}"
+                            IsVisible="{Binding IsLegacyMode}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileModLegacyChoiceViewModel">
+                    <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}" Classes="option-choice-item"
+                                 Tapped="LegacyChoice_Tapped">
+                      <Border Classes="sub-choice">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+                      </Border>
+                    </ListBoxItem>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+</UserControl>

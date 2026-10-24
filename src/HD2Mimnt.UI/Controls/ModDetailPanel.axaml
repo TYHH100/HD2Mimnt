@@ -1,0 +1,288 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="800"
+             x:Class="HD2Mimnt.UI.Controls.ModDetailPanel"
+             x:DataType="vm:ModItemViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.detail-label">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+    <Style Selector="TextBlock.detail-value">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="{DynamicResource Surface1Brush}"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="1,0,0,0"
+          Padding="24">
+
+    <ScrollViewer>
+      <StackPanel Spacing="16">
+
+        <!-- Header -->
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0"
+                     Text="{loc:Loc UI.ModDetails}"
+                     FontSize="20"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+          <Button Grid.Column="2"
+                  Content="✕"
+                  Classes="icon-button"
+                  Command="{Binding CloseDetailPanelCommand}"
+                  ToolTip.Tip="{loc:Loc Common.Close}"/>
+        </Grid>
+
+        <!-- Mod Icon -->
+        <Border Classes="section">
+          <StackPanel>
+            <Border Width="120"
+                    Height="120"
+                    CornerRadius="6"
+                    ClipToBounds="True"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,16"
+                    Tapped="Icon_Tapped"
+                    Cursor="Hand"
+                    ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+              <Image Source="{Binding IconBitmap}"
+                     Stretch="UniformToFill"/>
+            </Border>
+
+            <!-- Mod Name -->
+            <TextBlock Text="{Binding Name}"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,8"/>
+
+            <!-- Version -->
+            <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                       FontSize="14"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       TextAlignment="Center"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Status Badges -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="{loc:Loc UI.Status}" Classes="detail-label"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Background="{DynamicResource SuccessBrush}"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsProfileEnabled}">
+                <TextBlock Text="{loc:Loc UI.Enabled}"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="{DynamicResource DisabledBrush}"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsProfileMemberDisabled}">
+                <TextBlock Text="{loc:Loc UI.AddedDisabled}"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="{DynamicResource AccentBrush}"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsDeployed}">
+                <TextBlock Text="{loc:Loc UI.Deployed}"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+
+              <Border Background="{DynamicResource TextMutedBrush}"
+                      CornerRadius="4"
+                      Padding="8,4"
+                      IsVisible="{Binding IsNotInCurrentProfile}">
+                <TextBlock Text="{loc:Loc UI.NotInTheCurrentProfile}"
+                           FontSize="12"
+                           Foreground="White"/>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Basic Info -->
+        <Border Classes="section" IsVisible="{Binding LocalVersions, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <controls:ModVersionsPanel DataContext="{Binding LocalVersions}"/>
+        </Border>
+        <Border Classes="section" IsVisible="{Binding HasPlatformLink}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc UI.ModLink}" FontSize="16" FontWeight="SemiBold" />
+            <TextBlock Text="{loc:LocalizedBinding PlatformLink}" TextWrapping="Wrap" />
+            <TextBox Text="{Binding PlatformLinkUrl, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" />
+            <Button x:Name="OpenModSourcePageButton" Content="{loc:Loc Metadata.OpenSource}" Command="{Binding OpenSourcePageCommand}" />
+            <TextBox Text="{Binding AuthorPageUrl, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" IsVisible="{Binding HasAuthorPage}" />
+            <Button x:Name="OpenModAuthorPageButton" Content="{loc:Loc Metadata.OpenAuthor}" Command="{Binding OpenAuthorPageCommand}" IsVisible="{Binding HasAuthorPage}" />
+            <Button x:Name="CheckModUpdatesButton" Content="{loc:Loc Metadata.CheckUpdates}" Command="{Binding CheckUpdatesCommand}" IsVisible="{Binding CanCheckUpdates}" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="{loc:Loc UI.BasicInformation}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="{loc:Loc UI.Author}" Classes="detail-label"/>
+            <TextBlock Text="{Binding Author}" Classes="detail-value"/>
+
+            <TextBlock Text="{loc:Loc UI.Category}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding CategoryDisplay, TranslateParts=True}" Classes="detail-value" TextWrapping="Wrap" ToolTip.Tip="{loc:LocalizedBinding ResourceTypeDetails, TranslateParts=True}"/>
+
+            <TextBlock Text="{loc:Loc UI.Description}" Classes="detail-label"/>
+            <TextBlock Text="{Binding Description}" Classes="detail-value"/>
+            <StackPanel IsVisible="{Binding IsHd2Ir}" Spacing="6" Margin="0,0,0,16">
+              <TextBlock Text="{loc:Loc Hd2Ir.Components}" Classes="detail-label"/>
+              <TextBlock Text="{loc:Loc Hd2Ir.DeploymentDescription}" TextWrapping="Wrap" Classes="caption-text"/>
+              <ItemsControl ItemsSource="{Binding Hd2IrComponents}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <TextBlock Text="{loc:Loc UI.Tags}"
+                       Classes="detail-label"
+                       IsVisible="{Binding HasTags}"/>
+            <ItemsControl ItemsSource="{Binding Tags}"
+                          IsVisible="{Binding HasTags}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource Surface3Brush}"
+                          CornerRadius="4"
+                          Padding="8,4"
+                          Margin="0,0,8,8">
+                    <TextBlock Text="{Binding}"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="section" IsVisible="{Binding CheckCompatibilityCommand, Converter={StaticResource NotNullConverter}}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc Compatibility.Title}" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{loc:Loc Compatibility.DetailHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            <Button x:Name="CheckDetailCompatibilityButton" Content="{loc:Loc Compatibility.Open}" Command="{Binding CheckCompatibilityCommand}" HorizontalAlignment="Stretch"/>
+          </StackPanel>
+        </Border>
+        <!-- File Info -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="{loc:Loc UI.FileInformation}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="{loc:Loc UI.Path}" Classes="detail-label"/>
+            <TextBlock Text="{Binding Path}" Classes="detail-value"/>
+
+            <TextBlock Text="{loc:Loc UI.Size}" Classes="detail-label"/>
+            <TextBlock Text="{Binding SizeFormatted}" Classes="detail-value"/>
+
+            <TextBlock Text="{loc:Loc UI.Hash}" Classes="detail-label"/>
+            <TextBlock x:Name="ModHashValue" Text="{loc:LocalizedBinding HashDisplay}"
+                       Classes="detail-value"
+                       TextWrapping="Wrap" FontFamily="Consolas"/>
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsCalculatingHash}" Margin="0,4,0,8"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Timestamps -->
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="{loc:Loc UI.Timestamps}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <TextBlock Text="{loc:Loc UI.Imported}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding ImportedAtDisplay}"
+                       Classes="detail-value"/>
+
+            <TextBlock Text="{loc:Loc UI.Modified}" Classes="detail-label"/>
+            <TextBlock Text="{loc:LocalizedBinding ModifiedAtDisplay}"
+                       Classes="detail-value"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Actions -->
+        <Border Classes="section">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:Loc UI.Actions}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,12"/>
+
+            <Button Content="{loc:LocalizedBinding EnableButtonText}"
+                    Command="{Binding ToggleEnabledCommand}"
+                    Classes="accent"
+                    HorizontalAlignment="Stretch"
+                    Height="36"/>
+
+            <Button Content="{loc:Loc UI.RemoveFromCurrentProfile}"
+                    Command="{Binding RemoveFromProfileCommand}"
+                    Classes="secondary"
+                    HorizontalAlignment="Stretch"
+                    Height="36"
+                    IsVisible="{Binding IsInCurrentProfile}"/>
+
+            <Button Content="{loc:Loc UI.DeleteModFromLibrary}"
+                    Command="{Binding DeleteCommand}"
+                    Classes="danger"
+                    HorizontalAlignment="Stretch"
+                    Height="36"/>
+
+            <Button Content="{loc:Loc UI.OpenFolder}"
+                    Command="{Binding OpenFolderCommand}"
+                    Classes="secondary"
+                    HorizontalAlignment="Stretch"
+                    Height="36"/>
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+
+</UserControl>
