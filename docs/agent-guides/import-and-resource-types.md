@@ -73,4 +73,6 @@
 
 - 密码压缩包不能共享静态 `ReaderOptions`：逐次创建并通过 Application 密码库提供候选；ZIP 采用显式 ZipArchive 的逐条提取，7z 采用 Archive API 的 ExtractAllEntries，其它复合流保留 ReaderFactory。密码重试使用独立暂存目录，失败清理后再尝试；7z 加密头部错误密码可能表现为 LZMA DataError。加密输出经 7-Zip 标准输入传密码，禁止将密码放入日志、命令行或包内清单；当前 ZIP 仅 ASCII 密码，Unicode 使用 7z。行为、验证范围和许可证见[模组创建](../features/MOD_CREATION.md#密码库与加密压缩包)。来源：[SharpCompress 格式支持](https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md)、[7-Zip 参数解析源码](https://github.com/ip7z/7zip/blob/main/CPP/Common/CommandLineParser.cpp)。
 
+- SharpCompress 版本不得低于 0.50.6：0.50.4/0.50.5 的 `SevenZipFilePart.IsEncrypted` 对无数据流的空文件（`Folder == null`）误判为加密，未加密的 7z 也会弹出密码框，且输入任意密码即可继续。判断压缩包是否真要密码必须以实际解压结果为准；升级该依赖后先跑 `SevenZipWithEmptyFile_ShouldExtractWithoutRequestingPassword` 回归测试。来源：[0.50.6 修复实现](https://github.com/adamhathcock/sharpcompress/blob/0.50.6/src/SharpCompress/Common/SevenZip/SevenZipFilePart.cs)。
+
 - 音效修复的补丁包解析不得整包 `ReadAllBytes`：数百 MB 级 `.patch_*` 通过 `Package.Load(path)`（MemoryMappedFile 按需区间读取）访问，哈希用流式 `SHA256.HashDataAsync`；重建结果以 `MemoryStream` 传给 `SoundFixTransaction.StageAsync(Stream)` 落临时文件，恢复流程同样按流校验/搬运，任何阶段都不整包驻留内存。来源：https://learn.microsoft.com/dotnet/api/system.io.memorymappedfiles.memorymappedfile
