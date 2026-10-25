@@ -1915,8 +1915,8 @@
   <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
     <value>依賴載入器的模組與 Lua 載入器</value>
   </data>
-  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
-    <value>依賴 → BSL / MDL / BML（三選一）→ SmoothBoot（最高優先級）· 按部署方向排列</value>
+  <data name="UI.LuaGroupSequenceSummary" xml:space="preserve">
+    <value>依賴 → {0}（三選一）→ {1}（最高優先級）· 按部署方向排列</value>
   </data>
   <data name="UI.All" xml:space="preserve">
     <value>全部</value>
@@ -2084,14 +2084,11 @@
 
 詳細資訊請查看“沖突”頁。</value>
   </data>
-  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
-    <value>SmoothBoot · 最高優先級</value>
+  <data name="UI.SmoothBootPriorityHighest" xml:space="preserve">
+    <value>{0} · 最高優先級</value>
   </data>
-  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
-    <value>BSL / MDL · 固定在依賴之后</value>
-  </data>
-  <data name="UI.BMLFixedAfterDependencies" xml:space="preserve">
-    <value>Boot Mod Loader · 固定在依賴之後</value>
+  <data name="UI.LoaderPriorityFixedAfterDependencies" xml:space="preserve">
+    <value>{0} · 固定在依賴之後</value>
   </data>
   <data name="UI.LoaderDependency" xml:space="preserve">
     <value>依賴載入器</value>

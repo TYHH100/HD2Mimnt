@@ -228,6 +228,8 @@ public partial class App : Avalonia.Application
         var storageLocations = storageSettings.Current;
         var appDataPath = storageLocations.AppDataPath;
         Directory.CreateDirectory(appDataPath);
+        // 加载器识别配置：内嵌默认 + <AppData>/loaders.json 覆盖，规则变化由 ruleVersion 驱动重扫。
+        HD2Mimnt.Infrastructure.Analysis.LoaderRegistry.Initialize(appDataPath);
 
         var dbPath = storageLocations.DatabasePath;
         var modsStoragePath = storageLocations.ModsPath;

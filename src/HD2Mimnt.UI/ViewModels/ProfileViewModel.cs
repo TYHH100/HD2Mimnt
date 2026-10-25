@@ -310,7 +310,7 @@ public partial class ProfileViewModel : ObservableObject
     {
         IsSeparator = true,
         ModName = "依赖加载器的模组与 Lua 加载器",
-        ModVersion = "依赖 → BSL / MDL / BML（三选一）→ SmoothBoot（最高优先级）· 按部署方向排列"
+        ModVersion = $"依赖 → {BslProfilePolicy.LoaderNames}（三选一）→ {BslProfilePolicy.SmoothBootNames}（最高优先级）· 按部署方向排列"
     };
 
     private bool _bottomToTop;

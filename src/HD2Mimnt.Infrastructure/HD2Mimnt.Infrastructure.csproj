@@ -7,6 +7,7 @@
   <ItemGroup>
     <Content Include="Tools\7zip\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="ThirdParty\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Analysis\LoaderCatalog.json" />
   </ItemGroup>
 
   <ItemGroup>

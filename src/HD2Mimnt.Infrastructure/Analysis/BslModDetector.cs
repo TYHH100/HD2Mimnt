@@ -8,28 +8,20 @@ using HD2Mimnt.Core.Services;
 
 namespace HD2Mimnt.Infrastructure.Analysis;
 
-/// <summary>只读包内声明及 Lua 索引/入口，不执行脚本，不按显示名称或补丁前缀猜测。</summary>
+/// <summary>只读包内声明及 Lua 索引/入口，不执行脚本，不按显示名称或补丁前缀猜测。
+/// 识别特征来自 LoaderRegistry 配置；规则版本提升后旧缓存按需重扫。</summary>
 public static partial class BslModDetector
 {
-    public const int DetectionVersion = 3;
+    // 以下 GUID 与内嵌 LoaderCatalog.json 同步，仅供既有调用方/测试引用；以配置为准。
     public static readonly Guid LoaderGuid = new("612eaf70-d682-43c7-9efd-16dcc695f977");
     public static readonly Guid MdlGuid = new("761188b2-c45b-4607-9241-f89ca221c47b");
     public static readonly Guid SmoothBootGuid = new("7c3e9a52-1b84-4f6a-9c2d-8e5f0a1b2c3d");
     public static readonly Guid BootModLoaderGuid = new("3f7a2c91-6d4e-4b58-9a0c-e15b82d4f6a7");
-    public static BslModRole? KnownRole(Guid? guid) => guid == LoaderGuid ? BslModRole.Loader
-        : guid == MdlGuid ? BslModRole.MdlLoader : guid == SmoothBootGuid ? BslModRole.SmoothBoot
-        : guid == BootModLoaderGuid ? BslModRole.BmlLoader : null;
-    private const ulong LuaType = 0xa14e8dfa2cd117e2;
-    private static readonly HashSet<ulong> RegisteredModules = new[]
-    {
-        "vanilla_plus_megapack", "better_stratagem_bounce", "hellpod_steering_unlocked",
-        "reinforcement_beacon_fix_data", "consistent_vaulting", "shallow_water_dive",
-        "sentry_aim_retention", "corpse_collision_repair", "vehicle_stability",
-        "hover_pack_cancel", "enemy_intelligence", "armory_preview_cache"
-    }.Select(name => ResourceHash("mods/cowboybingus/" + name)).ToHashSet();
 
-    [GeneratedRegex(@"\bRequires?\s+Bingus\s+Shared\s+Loader\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex RequiresPattern();
+    public static int DetectionVersion => LoaderRegistry.Current.RuleVersion;
+    public static BslModRole? KnownRole(Guid? guid) => LoaderRegistry.Current.DefinitionOf(guid)?.Role;
+
+    private const ulong LuaType = 0xa14e8dfa2cd117e2;
 
     [GeneratedRegex(@"^-- HD2-Addon: (mods/[A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)*)\r?\n", RegexOptions.CultureInvariant)]
     private static partial Regex AddonPattern();
@@ -47,9 +39,11 @@ public static partial class BslModDetector
 
     private static BslModRole? Detect(Mod mod, CancellationToken cancellationToken)
     {
+        // 全程使用同一份配置快照，避免扫描中途配置替换造成混合判断。
+        var snapshot = LoaderRegistry.Current;
         if (cancellationToken.IsCancellationRequested) return null;
-        if (KnownRole(mod.Manifest?.Guid) is { } knownRole) return knownRole;
-        var declaredDependency = RequiresPattern().IsMatch(mod.Manifest?.Description ?? mod.Description);
+        if (snapshot.DefinitionOf(mod.Manifest?.Guid) is { } knownRole) return knownRole.Role;
+        var declaredDependency = snapshot.RequiresPatterns.Any(pattern => pattern.IsMatch(mod.Manifest?.Description ?? mod.Description));
         if (!Directory.Exists(mod.Path)) return declaredDependency ? BslModRole.Dependency : null;
 
         // 官方发行包的 *-manifest.json 是 provenance，requires 不在管理器 manifest 的 Options 中。
@@ -67,22 +61,22 @@ public static partial class BslModDetector
             foreach (var property in doc.RootElement.EnumerateObject())
                 if (property.Name.Equals("Guid", StringComparison.OrdinalIgnoreCase)
                     && property.Value.ValueKind == JsonValueKind.String
-                    && Guid.TryParse(property.Value.GetString(), out var guid) && KnownRole(guid) is { } packageRole)
-                    return packageRole;
+                    && Guid.TryParse(property.Value.GetString(), out var guid) && snapshot.DefinitionOf(guid) is { } packageRole)
+                    return packageRole.Role;
             foreach (var property in doc.RootElement.EnumerateObject())
             {
                 if (property.Name.Equals("Description", StringComparison.OrdinalIgnoreCase)
                     && property.Value.ValueKind == JsonValueKind.String
-                    && RequiresPattern().IsMatch(property.Value.GetString() ?? "")) declaredDependency = true;
+                    && snapshot.RequiresPatterns.Any(pattern => pattern.IsMatch(property.Value.GetString() ?? ""))) declaredDependency = true;
                 if ((property.Name.Equals("requires", StringComparison.OrdinalIgnoreCase)
                      || property.Name.Equals("dependencies", StringComparison.OrdinalIgnoreCase))
-                    && DeclaresBsl(property.Value)) declaredDependency = true;
+                    && DeclaresLoader(property.Value, snapshot)) declaredDependency = true;
             }
         }
 
         var registered = false;
         var ownsStartup = false;
-        var bslStartup = false;
+        BslModRole? startupRole = null;
         Span<byte> header = stackalloc byte[72];
         Span<byte> entry = stackalloc byte[80];
         foreach (var path in Directory.EnumerateFiles(mod.Path, "*.patch_*", SearchOption.AllDirectories))
@@ -106,10 +100,10 @@ public static partial class BslModDetector
                 stream.ReadExactly(entry);
                 if (BinaryPrimitives.ReadUInt64LittleEndian(entry[8..]) != LuaType) continue;
                 var name = BinaryPrimitives.ReadUInt64LittleEndian(entry);
-                var isWwiseStartup = name == ResourceHash("core/wwise/lua/wwise_flow_callbacks");
-                var isBootStartup = name == ResourceHash("boot");
-                ownsStartup |= isWwiseStartup || isBootStartup;
-                registered |= RegisteredModules.Contains(name);
+                // 配置声明启动资源的包一律视为自带启动脚本；是否是该加载器本体仍须正文标记确认。
+                var startupChecks = snapshot.ByStartupHash.TryGetValue(name, out var checks) ? checks : null;
+                ownsStartup |= startupChecks != null;
+                registered |= snapshot.ByRegisteredModuleHash.ContainsKey(name);
                 var offset = BinaryPrimitives.ReadUInt64LittleEndian(entry[16..]);
                 var size = BinaryPrimitives.ReadUInt32LittleEndian(entry[56..]);
                 if (offset > (ulong)stream.Length || size > (ulong)stream.Length - offset)
@@ -122,55 +116,48 @@ public static partial class BslModDetector
                 var bodyLength = BinaryPrimitives.ReadUInt32LittleEndian(prefix);
                 if (bodyLength > size - 8) throw new InvalidDataException("BSL Lua 内容不完整");
                 // GUID 缺失/变化时，仍以独有 Lua 资源身份兜底；首先校验索引与 Lua envelope。
-                if (name == ResourceHash("mods/mdl/runtime")) return BslModRole.MdlLoader;
-                if (name == ResourceHash("mods/codex/smoothboot")) return BslModRole.SmoothBoot;
-                if (isBootStartup)
+                if (snapshot.ByEntryHash.TryGetValue(name, out var entryDefinition)) return entryDefinition.Role;
+                if (startupChecks != null)
                 {
-                    // BML 只接管 boot；三个正文标记同时存在才认定，避免把其它 boot 替换当作加载器。
-                    var body = new byte[Math.Min(bodyLength, 8u * 1024 * 1024)];
-                    stream.Position = (long)offset + 8;
-                    stream.ReadExactly(body);
-                    if (cancellationToken.IsCancellationRequested) return null;
-                    if (body.AsSpan().IndexOf("boot-mod-loader-"u8) >= 0
-                        && body.AsSpan().IndexOf("__boot_mod_loader"u8) >= 0
-                        && body.AsSpan().IndexOf("boot_mod_loader.log"u8) >= 0)
-                        return BslModRole.BmlLoader;
-                }
-                if (isWwiseStartup)
-                {
-                    // 普通 Wwise 替换和 MDL 都可能使用同一资源，必须同时匹配 BSL 自身的运行时与日志标记。
+                    // 启动资源正文须同时包含全部配置标记，避免把其它 boot/Wwise 替换当作加载器。
                     // LuaJIT 编译后的字符串常量也保留这些标记，不执行或反编译脚本。
                     var body = new byte[Math.Min(bodyLength, 8u * 1024 * 1024)];
                     stream.Position = (long)offset + 8;
                     stream.ReadExactly(body);
                     if (cancellationToken.IsCancellationRequested) return null;
-                    bslStartup |= body.AsSpan().IndexOf("CowboyBingusModLoader"u8) >= 0
-                        && body.AsSpan().IndexOf("BingusSharedLoader.log"u8) >= 0
-                        && body.AsSpan().IndexOf("mods/cowboybingus/"u8) >= 0;
+                    foreach (var (definition, check) in startupChecks)
+                        if (check.Markers.All(marker => body.AsSpan().IndexOf(marker) >= 0))
+                        {
+                            startupRole ??= definition.Role;
+                            break;
+                        }
                 }
                 var match = AddonPattern().Match(Encoding.UTF8.GetString(prefix, 8, (int)Math.Min(bodyLength, (uint)prefix.Length - 8)));
-                if (match.Success && match.Groups[1].Value != "mods/codex/loader"
+                if (match.Success && !snapshot.AddonExcludes.Contains(match.Groups[1].Value)
                     && ResourceHash(match.Groups[1].Value) == name) declaredDependency = true;
             }
         }
-        // 完成所有资源扫描后再确认 BSL，保证 MDL 的独有 runtime 可以覆盖共有 API 标记。
-        if (bslStartup) return BslModRole.Loader;
+        // 完成所有资源扫描后再确认启动标记命中，保证入口资源（如 MDL runtime）可覆盖共有 API 标记。
+        if (startupRole is { } role) return role;
         // 旧版自带启动脚本的独立包不能仅凭同名资源被认定为依赖；可选 HUD Overlay 不在依赖名单中。
         return declaredDependency || registered && !ownsStartup ? BslModRole.Dependency : BslModRole.None;
     }
 
-    private static bool DeclaresBsl(JsonElement value)
+    private static bool DeclaresLoader(JsonElement value, LoaderRegistry.Snapshot snapshot)
     {
         if (value.ValueKind == JsonValueKind.String)
-            return value.GetString() is { } text && (text.Equals("Bingus Shared Loader", StringComparison.OrdinalIgnoreCase)
-                || text.Equals("BingusSharedLoader", StringComparison.OrdinalIgnoreCase)
-                || text.Equals("BSL", StringComparison.OrdinalIgnoreCase) || Guid.TryParse(text, out var id) && id == LoaderGuid);
-        if (value.ValueKind == JsonValueKind.Array) return value.EnumerateArray().Any(DeclaresBsl);
+        {
+            var text = value.GetString();
+            return text is { } name && (snapshot.DependencyNames.Contains(name)
+                || Guid.TryParse(name, out var id) && snapshot.DependencyGuids.Contains(id));
+        }
+        if (value.ValueKind == JsonValueKind.Array) return value.EnumerateArray().Any(item => DeclaresLoader(item, snapshot));
         if (value.ValueKind != JsonValueKind.Object) return false;
         return value.EnumerateObject().Any(property =>
-            (property.Name.Equals("shared_loader_api", StringComparison.OrdinalIgnoreCase)
-                && property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var api) && api > 0)
-            || DeclaresBsl(property.Value));
+            (snapshot.DependencyKeys.Contains(property.Name)
+                && property.Value.ValueKind == JsonValueKind.Number
+                && property.Value.TryGetInt32(out var api) && api > 0)
+            || DeclaresLoader(property.Value, snapshot));
     }
 
     /// <summary>BSL 的 seed-zero MurmurHash64A；资源名使用 ASCII。</summary>

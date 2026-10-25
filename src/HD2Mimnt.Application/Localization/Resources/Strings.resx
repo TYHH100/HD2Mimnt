@@ -1915,8 +1915,8 @@ Still waiting for valid authorization for the selected file.</value>
   <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
     <value>Loader dependencies and Lua loaders</value>
   </data>
-  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
-    <value>Dependencies → BSL / MDL / BML (choose one) → SmoothBoot (highest priority) · follows deployment direction</value>
+  <data name="UI.LuaGroupSequenceSummary" xml:space="preserve">
+    <value>Dependencies → {0} (choose one) → {1} (highest priority) · follows deployment direction</value>
   </data>
   <data name="UI.All" xml:space="preserve">
     <value>All</value>
@@ -2084,14 +2084,11 @@ Still waiting for valid authorization for the selected file.</value>
 
 See the Conflicts page for details.</value>
   </data>
-  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
-    <value>SmoothBoot · Highest priority</value>
+  <data name="UI.SmoothBootPriorityHighest" xml:space="preserve">
+    <value>{0} · Highest priority</value>
   </data>
-  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
-    <value>BSL / MDL · Fixed after dependencies</value>
-  </data>
-  <data name="UI.BMLFixedAfterDependencies" xml:space="preserve">
-    <value>Boot Mod Loader · Fixed after dependencies</value>
+  <data name="UI.LoaderPriorityFixedAfterDependencies" xml:space="preserve">
+    <value>{0} · Fixed after dependencies</value>
   </data>
   <data name="UI.LoaderDependency" xml:space="preserve">
     <value>Loader dependency</value>

@@ -5,18 +5,17 @@ using HD2Mimnt.Infrastructure.Analysis;
 
 namespace HD2Mimnt.Application.Services;
 
-/// <summary>规范顺序为普通模组、依赖加载器模组、BSL/MDL/BML、SmoothBoot；固定区域始终在实际部署末尾。</summary>
+/// <summary>规范顺序为普通模组、依赖加载器模组、BSL/MDL/BML、SmoothBoot；固定区域始终在实际部署末尾。
+/// 段位与互斥组来自 LoaderRegistry 配置，按优先级数值通用分段，新增加载器无需改代码。</summary>
 public static class BslProfilePolicy
 {
     public static BslModRole Role(Mod mod) => BslModDetector.KnownRole(mod.Manifest?.Guid) ?? mod.BslRole ?? BslModRole.None;
-    public static bool IsLoader(BslModRole role) => role is BslModRole.Loader or BslModRole.MdlLoader or BslModRole.BmlLoader;
-    public static int PriorityRank(BslModRole role) => role switch
-    {
-        BslModRole.Dependency => 1,
-        BslModRole.Loader or BslModRole.MdlLoader or BslModRole.BmlLoader => 2,
-        BslModRole.SmoothBoot => 3,
-        _ => 0
-    };
+    public static bool IsLoader(BslModRole role) => LoaderRegistry.Current.IsMutex(role);
+    public static int PriorityRank(BslModRole role) => LoaderRegistry.Current.PriorityRank(role);
+    /// <summary>互斥组加载器显示名（配置顺序，如 “BSL / MDL / Boot Mod Loader”）。</summary>
+    public static string LoaderNames => LoaderRegistry.Current.LoaderNames;
+    /// <summary>末位部署槽位加载器显示名（如 “SmoothBoot”）。</summary>
+    public static string SmoothBootNames => LoaderRegistry.Current.SmoothBootNames;
 
     public static async Task EnsureDetectedAsync(Mod mod, IModRepository repository, CancellationToken cancellationToken)
     {
@@ -57,7 +56,7 @@ public static class BslProfilePolicy
     public static bool SelectLoader(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, IReadOnlyCollection<Guid> requestedIds)
     {
         var selected = requestedIds.Distinct().Where(id => mods.TryGetValue(id, out var mod) && IsLoader(Role(mod))).ToList();
-        if (selected.Count > 1) throw new InvalidOperationException("BSL / MDL / Boot Mod Loader 三选一，请只选择一个加载器启用");
+        if (selected.Count > 1) throw new InvalidOperationException($"{LoaderRegistry.Current.LoaderNames} 为互斥加载器，请只选择一个加载器启用");
         if (selected.Count == 0) return false;
         var changed = false;
         foreach (var item in profile.Mods.Where(item => item.ModId != selected[0] && item.Enabled
@@ -72,13 +71,17 @@ public static class BslProfilePolicy
     public static List<ProfileMod> DeploymentSequence(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, DeploymentOrder direction, bool lockLoaders = true)
     {
         BslModRole GetRole(ProfileMod item) => mods.TryGetValue(item.ModId, out var mod) ? Role(mod) : BslModRole.None;
+        var snapshot = LoaderRegistry.Current;
         var enabled = profile.Mods.Where(item => item.Enabled).OrderBy(item => item.Order).ToList();
         if (!lockLoaders)
             return direction == DeploymentOrder.BottomToTop ? enabled.AsEnumerable().Reverse().ToList() : enabled;
         var normal = enabled.Where(item => GetRole(item) == BslModRole.None);
         if (direction == DeploymentOrder.BottomToTop) normal = normal.Reverse();
-        return normal.Concat(enabled.Where(item => GetRole(item) == BslModRole.Dependency))
-            .Concat(enabled.Where(item => IsLoader(GetRole(item))))
-            .Concat(enabled.Where(item => GetRole(item) == BslModRole.SmoothBoot)).ToList();
+        // 依赖 → 各加载器段 → 末位槽位按配置优先级分段；同段保持配置页顺序。
+        var rest = enabled.Where(item => GetRole(item) != BslModRole.None)
+            .GroupBy(item => snapshot.PriorityRank(GetRole(item)))
+            .OrderBy(group => group.Key)
+            .SelectMany(group => group);
+        return normal.Concat(rest).ToList();
     }
 }
