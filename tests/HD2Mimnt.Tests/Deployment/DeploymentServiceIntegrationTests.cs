@@ -927,6 +927,56 @@ public class DeploymentServiceIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteMod_ExternallyDeletedRemainingTargets_ShouldSucceedAndSyncTracking()
+    {
+        var first = await AddPatchModAsync("first", "aaaaaaaaaaaaaaaa.patch_0");
+        var second = await AddPatchModAsync("second", "aaaaaaaaaaaaaaaa.patch_0");
+        File.WriteAllText(Path.Combine(second.Path, "aaaaaaaaaaaaaaaa.patch_0.stream"), "second-stream");
+        var profile = await AddPatchProfileAsync(first, second);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        var remainingRecord = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        Assert.All(remainingRecord.Files, file => Assert.Contains(".patch_1", file.TargetPath));
+        // 模拟用户在游戏目录手动删除全部部署文件。
+        Directory.Delete(Path.Combine(_testTargetDir, "data"), true);
+
+        await _deploymentService.DeleteModDeploymentRecordsAsync(first.Id);
+
+        Assert.Empty(await _deploymentService.GetModDeploymentHistoryAsync(first.Id));
+        var compacted = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        Assert.All(compacted.Files, file =>
+        {
+            Assert.Contains(".patch_0", file.TargetPath);
+            Assert.False(File.Exists(file.TargetPath));
+        });
+        // 缺失文件按清理成功计数并删除记录，不残留追踪。
+        var (filesDeleted, recordsDeleted) = await _deploymentService.PreDeploymentCleanupAsync();
+        Assert.Equal(2, filesDeleted);
+        Assert.Equal(1, recordsDeleted);
+        Assert.Empty(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+    }
+
+    [Fact]
+    public async Task DeleteMod_PartiallyDeletedRemainingTargets_ShouldMoveExistingAndSyncMissing()
+    {
+        var first = await AddPatchModAsync("first", "aaaaaaaaaaaaaaaa.patch_0");
+        var second = await AddPatchModAsync("second", "aaaaaaaaaaaaaaaa.patch_0");
+        File.WriteAllText(Path.Combine(second.Path, "aaaaaaaaaaaaaaaa.patch_0.stream"), "second-stream");
+        var profile = await AddPatchProfileAsync(first, second);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _testTargetDir);
+        var remainingRecord = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        // 仅外部删除主文件，sidecar 仍在磁盘上。
+        File.Delete(remainingRecord.Files.Single(file => file.TargetPath.EndsWith(".patch_1", StringComparison.Ordinal)).TargetPath);
+
+        await _deploymentService.DeleteModDeploymentRecordsAsync(first.Id);
+
+        var compacted = Assert.Single(await _deploymentService.GetModDeploymentHistoryAsync(second.Id));
+        var stream = compacted.Files.Single(file => file.TargetPath.EndsWith(".stream", StringComparison.Ordinal));
+        var baseFile = compacted.Files.Single(file => file.TargetPath.EndsWith(".patch_0", StringComparison.Ordinal));
+        Assert.Equal("second-stream", File.ReadAllText(stream.TargetPath));
+        Assert.False(File.Exists(baseFile.TargetPath));
+    }
+
+    [Fact]
     public async Task DeleteMod_CleanupFailure_ShouldKeepModFilesAndRecordsForRetry()
     {
         var mod = await AddPatchModAsync("keep", "aaaaaaaaaaaaaaaa.patch_0");

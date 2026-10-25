@@ -408,6 +408,9 @@ public class DeploymentService
             // 移动阶段不接受半途取消；按升序填补空位，不覆盖未追踪文件，链接移动不触碰源文件。
             foreach (var rename in renames)
             {
+                // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
+                if (!DeploymentTargetExists(rename.File.TargetPath))
+                    continue;
                 File.Move(rename.File.TargetPath, rename.TargetPath);
                 moved.Add((rename.File.TargetPath, rename.TargetPath));
             }
@@ -419,6 +422,20 @@ public class DeploymentService
             foreach (var move in moved.AsEnumerable().Reverse())
                 File.Move(move.Target, move.Original);
             throw;
+        }
+    }
+
+    // 与 DeploymentReconciler 的存在判断一致：悬空符号链接仍算存在，交给物理移动抛出真实异常。
+    private static bool DeploymentTargetExists(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) return true;
+            return new FileInfo(path).LinkTarget != null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -467,6 +484,9 @@ public class DeploymentService
         {
             foreach (var rename in renames)
             {
+                // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
+                if (!DeploymentTargetExists(rename.File.TargetPath))
+                    continue;
                 File.Move(rename.File.TargetPath, rename.TargetPath);
                 moved.Add((rename.File.TargetPath, rename.TargetPath));
             }

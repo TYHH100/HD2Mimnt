@@ -38,7 +38,7 @@
 
 - 删除模组前必须先按 DeploymentFiles.TargetPath 清理游戏文件，成功后才删除部署记录和模组；文件清理失败或取消保留记录以供重试，不能直接丢失追踪。删除提交必须显式删除 `DeploymentFiles` 行，不能只依赖外键级联；按模组所在的每个 `GamePath` 分别压缩剩余编号。清理使用每个文件的 Method（旧空值才回退记录方式），链接部署的普通占位文件用 Copy；符号链接源文件缺失时仍要删除链接本身，不能仅用 File.Exists 判断。来源：https://learn.microsoft.com/dotnet/api/system.io.fileinfo.linktarget
 
-- 删除已部署模组后按现有游戏目标编号保留实际部署顺序，为每个资源前缀独立从 patch_0 补齐连续编号；主文件、stream、gpu_resources 和占位文件一起移动，库内原文件不改名。改名完成后在同一数据库事务中更新剩余 TargetPath 并删除被移除模组的部署记录；移动或提交失败逆序回滚改名，不能覆盖未知目标文件或留下追踪旧路径的记录。来源：https://learn.microsoft.com/dotnet/api/system.io.file.move
+- 删除已部署模组后按现有游戏目标编号保留实际部署顺序，为每个资源前缀独立从 patch_0 补齐连续编号；主文件、stream、gpu_resources 和占位文件一起移动，库内原文件不改名。改名完成后在同一数据库事务中更新剩余 TargetPath 并删除被移除模组的部署记录；移动或提交失败逆序回滚改名，不能覆盖未知目标文件或留下追踪旧路径的记录。压缩编号前先判断目标是否仍存在（悬空符号链接算存在，与部署对账判断一致）：追踪文件被外部删除时跳过物理移动但仍同步记录编号，否则删除模组会因 `FileNotFoundException` 整体失败；缺失内容由下次部署对账按内容不匹配重写。依据：2026-10-25 用户手动删除游戏 data 目录后删除模组报 Could not find file。来源：https://learn.microsoft.com/dotnet/api/system.io.file.move
 
 - 配置文件批量启用/禁用必须在 ProfileService 内一次读取、一次更新；启用不在 ProfileMods 中的模组要先加入并分配稳定顺序，不能在 UI 中逐条提交。
 
