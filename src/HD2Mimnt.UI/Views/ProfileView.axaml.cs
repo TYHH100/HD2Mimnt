@@ -650,7 +650,7 @@ public partial class ProfileView : UserControl
         var title = moving.Length == 1 ? moving[0].IsUserSeparator
             ? $"{moving[0].ModName} · 整组 {moving[0].GroupModCount} 个模组" : moving[0].ModName
             : $"{moving[0].ModName} 等 {moving.Length} 个模组";
-        var destination = anchor == Guid.Empty ? "松开放到 BSL 分隔符之前"
+        var destination = anchor == Guid.Empty ? "松开放到 Lua 分组之前"
             : anchor is { } id ? $"松开放到「{vm.ProfileMods.Concat(vm.ProfileSeparators).First(mod => mod.ModId == id).ModName}」之前"
             : "松开放到列表末尾";
         ShowSortPreview(ModItemsControl, ModScrollViewer, slot, title, destination);

@@ -30,7 +30,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +41,6 @@ public partial class App : Avalonia.Application
     public static IServiceProvider? ServiceProvider { get; private set; }
     private RuntimeMetricsWriter? _runtimeMetricsWriter;
     private static WindowIcon? _appIcon;
-    private static int _splashClosed;
     private StorageSettingsService? _startupStorage;
 
     public override void Initialize()
@@ -118,24 +116,21 @@ public partial class App : Avalonia.Application
             localization.StartMonitoring();
             desktop.Exit += (_, _) => localization.Dispose();
 
-            // 开屏窗口：纯展示，关闭由 Opened 事件与兜底计时器异步触发，
-            // 不参与启动流程、没有任何等待关系，结构上不可能与启动互相死锁
-            SplashWindow? splash = null;
-            long splashShownAt = Stopwatch.GetTimestamp();
-            try
-            {
-                splash = new SplashWindow();
-                splash.Show();
-                desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Splash screen failed to show: {ex}");
-            }
-
             // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
+
+            // 旧会话式部署记录先收养为当前安装状态，再做离线快照/UI 读取。
+            try
+            {
+                await ServiceProvider.GetRequiredService<DeploymentStateMigrationService>().EnsureMigratedAsync(
+                    ServiceProvider.GetRequiredService<SettingsService>().GetEffectiveGamePath(), cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<DeploymentStateMigrationService>>()
+                    ?.LogWarning(ex, "部署状态迁移失败，继续使用原记录");
+            }
 
             var taskService = ServiceProvider.GetRequiredService<TaskService>();
             var workers = ServiceProvider.GetServices<IWorker>();
@@ -156,16 +151,7 @@ public partial class App : Avalonia.Application
             desktop.MainWindow = mainWindow;
             running = false;
             startup?.Close();
-            if (splash == null) desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
-
-            if (splash != null)
-            {
-                // 主窗口展示后关闭开屏（最短展示 1.5s）；另有 6s 兜底强制关闭，
-                // 两条路径都只是"往队列里塞一个关窗动作"，先到者生效、互不等待
-                mainWindow.Opened += (_, _) =>
-                    _ = CloseSplashAsync(desktop, splash, splashShownAt, minDisplay: true);
-                _ = CloseSplashAsync(desktop, splash, splashShownAt, forcedDelay: TimeSpan.FromSeconds(6));
-            }
+            desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
             mainWindow.Show();
 
             // 初始化 ViewModel - 使用异步启动避免死锁
@@ -215,43 +201,6 @@ public partial class App : Avalonia.Application
         {
             CrashGuard.Report(ex, "主窗口初始化失败");
         }
-    }
-
-    /// <summary>关闭开屏；两个触发路径（Opened / 兜底计时器）先到者生效，保证幂等。</summary>
-    private static async Task CloseSplashAsync(
-        IClassicDesktopStyleApplicationLifetime desktop, SplashWindow splash,
-        long splashShownAt, bool minDisplay = false, TimeSpan forcedDelay = default)
-    {
-        if (minDisplay)
-        {
-            // 最短展示 1.5s，数据库初始化太快时避免一闪而过看不到 logo
-            var elapsed = Stopwatch.GetElapsedTime(splashShownAt);
-            var minimum = TimeSpan.FromMilliseconds(1500);
-            if (elapsed < minimum)
-            {
-                await Task.Delay(minimum - elapsed);
-            }
-        }
-        else if (forcedDelay > TimeSpan.Zero)
-        {
-            await Task.Delay(forcedDelay);
-        }
-
-        if (Interlocked.Exchange(ref _splashClosed, 1) != 0)
-        {
-            return;
-        }
-
-        // Background 优先级晚于首帧渲染，无黑闪；即使启动期 UI 繁忙也只会延后、不会丢失
-        await Dispatcher.UIThread.InvokeAsync(
-            () =>
-            {
-                splash.Close();
-                // 调试器启动的进程拿不到前台激活权限，显式把主窗口提到最前
-                desktop.MainWindow?.Activate();
-                desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
-            },
-            DispatcherPriority.Background);
     }
 
     internal static WindowIcon? TryGetAppIcon()
@@ -457,6 +406,7 @@ public partial class App : Avalonia.Application
 
         // 部署相关（补充缺失的注册）
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
+        services.AddSingleton<DeploymentStateMigrationService>();
         services.AddSingleton<ICrashHistoryRepository>(_ => new CrashHistoryRepository(dbPath));
         services.AddSingleton<CrashDeploymentHistoryService>();
         services.AddSingleton<IMinidumpAnalyzer>(sp => new MinidumpStackwalkAnalyzer(
@@ -476,7 +426,8 @@ public partial class App : Avalonia.Application
             sp.GetServices<IDeploymentMethod>(),
             sp.GetService<ILogger<DeploymentService>>(),
             sp.GetRequiredService<CrashDeploymentHistoryService>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<DeploymentStateMigrationService>()));
 
         // 新增核心服务
         services.AddSingleton(sp =>

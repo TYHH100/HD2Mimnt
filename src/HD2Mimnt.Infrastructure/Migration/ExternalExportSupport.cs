@@ -85,7 +85,7 @@ internal static class ExternalExportSupport
         if (reverse) normal.Reverse();
         mapped.Mods.AddRange(normal);
         mapped.Mods.AddRange(source.Mods.Where(member => !Normal(member)).OrderBy(member => mods[member.SourceModId].Role switch
-            { BslModRole.Dependency => 1, BslModRole.Loader or BslModRole.MdlLoader => 2, _ => 3 }));
+            { BslModRole.Dependency => 1, BslModRole.Loader or BslModRole.MdlLoader or BslModRole.BmlLoader => 2, _ => 3 }));
         var separators = source.Separators.OrderBy(separator => separator.Order).ToList();
         for (var i = 0; i < separators.Count; i++)
         {

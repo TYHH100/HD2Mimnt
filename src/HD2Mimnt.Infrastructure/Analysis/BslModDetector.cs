@@ -11,12 +11,14 @@ namespace HD2Mimnt.Infrastructure.Analysis;
 /// <summary>只读包内声明及 Lua 索引/入口，不执行脚本，不按显示名称或补丁前缀猜测。</summary>
 public static partial class BslModDetector
 {
-    public const int DetectionVersion = 2;
+    public const int DetectionVersion = 3;
     public static readonly Guid LoaderGuid = new("612eaf70-d682-43c7-9efd-16dcc695f977");
     public static readonly Guid MdlGuid = new("761188b2-c45b-4607-9241-f89ca221c47b");
     public static readonly Guid SmoothBootGuid = new("7c3e9a52-1b84-4f6a-9c2d-8e5f0a1b2c3d");
+    public static readonly Guid BootModLoaderGuid = new("3f7a2c91-6d4e-4b58-9a0c-e15b82d4f6a7");
     public static BslModRole? KnownRole(Guid? guid) => guid == LoaderGuid ? BslModRole.Loader
-        : guid == MdlGuid ? BslModRole.MdlLoader : guid == SmoothBootGuid ? BslModRole.SmoothBoot : null;
+        : guid == MdlGuid ? BslModRole.MdlLoader : guid == SmoothBootGuid ? BslModRole.SmoothBoot
+        : guid == BootModLoaderGuid ? BslModRole.BmlLoader : null;
     private const ulong LuaType = 0xa14e8dfa2cd117e2;
     private static readonly HashSet<ulong> RegisteredModules = new[]
     {
@@ -105,7 +107,8 @@ public static partial class BslModDetector
                 if (BinaryPrimitives.ReadUInt64LittleEndian(entry[8..]) != LuaType) continue;
                 var name = BinaryPrimitives.ReadUInt64LittleEndian(entry);
                 var isWwiseStartup = name == ResourceHash("core/wwise/lua/wwise_flow_callbacks");
-                ownsStartup |= isWwiseStartup || name == ResourceHash("boot");
+                var isBootStartup = name == ResourceHash("boot");
+                ownsStartup |= isWwiseStartup || isBootStartup;
                 registered |= RegisteredModules.Contains(name);
                 var offset = BinaryPrimitives.ReadUInt64LittleEndian(entry[16..]);
                 var size = BinaryPrimitives.ReadUInt32LittleEndian(entry[56..]);
@@ -121,6 +124,18 @@ public static partial class BslModDetector
                 // GUID 缺失/变化时，仍以独有 Lua 资源身份兜底；首先校验索引与 Lua envelope。
                 if (name == ResourceHash("mods/mdl/runtime")) return BslModRole.MdlLoader;
                 if (name == ResourceHash("mods/codex/smoothboot")) return BslModRole.SmoothBoot;
+                if (isBootStartup)
+                {
+                    // BML 只接管 boot；三个正文标记同时存在才认定，避免把其它 boot 替换当作加载器。
+                    var body = new byte[Math.Min(bodyLength, 8u * 1024 * 1024)];
+                    stream.Position = (long)offset + 8;
+                    stream.ReadExactly(body);
+                    if (cancellationToken.IsCancellationRequested) return null;
+                    if (body.AsSpan().IndexOf("boot-mod-loader-"u8) >= 0
+                        && body.AsSpan().IndexOf("__boot_mod_loader"u8) >= 0
+                        && body.AsSpan().IndexOf("boot_mod_loader.log"u8) >= 0)
+                        return BslModRole.BmlLoader;
+                }
                 if (isWwiseStartup)
                 {
                     // 普通 Wwise 替换和 MDL 都可能使用同一资源，必须同时匹配 BSL 自身的运行时与日志标记。

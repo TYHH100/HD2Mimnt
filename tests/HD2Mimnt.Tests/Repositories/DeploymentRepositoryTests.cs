@@ -102,6 +102,119 @@ public class DeploymentRepositoryTests : IDisposable
         Assert.Equal(2, record.Files.Count);
     }
 
+    [Fact]
+    public async Task GetCurrentDeploymentsAsync_FiltersByGamePathAndLoadsFiles()
+    {
+        var firstRoot = Path.Combine(Path.GetTempPath(), "game-a");
+        var secondRoot = Path.Combine(Path.GetTempPath(), "game-b");
+        var first = CreateRecord(Guid.NewGuid(), modNumber: 1, fileCount: 2);
+        first.GamePath = firstRoot;
+        first.Files.ForEach(file => file.GamePath = firstRoot);
+        var second = CreateRecord(Guid.NewGuid(), modNumber: 2, fileCount: 1);
+        second.GamePath = secondRoot;
+        second.Files.ForEach(file => file.GamePath = secondRoot);
+        await _repository.AddAsync(first);
+        await _repository.AddAsync(second);
+
+        var current = await _repository.GetCurrentDeploymentsAsync(firstRoot);
+
+        var record = Assert.Single(current);
+        Assert.Equal(first.Id, record.Id);
+        Assert.Equal(2, record.Files.Count);
+    }
+
+    [Fact]
+    public async Task UpsertAsync_UpdatesExistingCurrentRecordByGamePathAndMod()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "game-upsert");
+        var record = CreateRecord(Guid.NewGuid(), modNumber: 1, fileCount: 1);
+        record.GamePath = root;
+        await _repository.AddAsync(record);
+
+        var updated = CreateRecord(Guid.NewGuid(), modNumber: 1, fileCount: 1);
+        updated.GamePath = root;
+        updated.Status = "PartiallyFailed";
+        updated.AppliedAt = DateTime.UtcNow;
+        var id = await _repository.UpsertAsync(updated);
+
+        Assert.Equal(record.Id, id);
+        var current = Assert.Single(await _repository.GetCurrentDeploymentsAsync(root));
+        Assert.Equal("PartiallyFailed", current.Status);
+        Assert.NotNull(current.AppliedAt);
+    }
+
+    [Fact]
+    public async Task ReplaceDeploymentFilesAsync_ReplacesAllFileRows()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "game-files");
+        var record = CreateRecord(Guid.NewGuid(), modNumber: 1, fileCount: 2);
+        record.GamePath = root;
+        await _repository.AddAsync(record);
+
+        var replacement = new DeploymentFile
+        {
+            Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = record.ModId,
+            SourcePath = "source.pak", TargetPath = "target.pak", Method = "Copy", GamePath = root
+        };
+        await _repository.ReplaceDeploymentFilesAsync(record.Id, [replacement]);
+
+        var files = (await _repository.GetDeploymentFilesAsync(record.Id)).ToList();
+        var file = Assert.Single(files);
+        Assert.Equal(replacement.Id, file.Id);
+        Assert.Equal(root, file.GamePath);
+    }
+
+    [Fact]
+    public async Task CommitModDeploymentRemovalAsync_DeletesFileRows()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "game-removal");
+        var record = CreateRecord(Guid.NewGuid(), modNumber: 1, fileCount: 2);
+        record.GamePath = root;
+        await _repository.AddAsync(record);
+
+        await _repository.CommitModDeploymentRemovalAsync([record.Id], []);
+
+        Assert.Null(await _repository.GetByIdAsync(record.Id));
+        Assert.Empty(await _repository.GetDeploymentFilesAsync(record.Id));
+    }
+
+    [Fact]
+    public async Task InitializeDatabase_ShouldUpgradeOldDeploymentSchemaBeforeCreatingIndexes()
+    {
+        await using (var connection = await _dbContext.OpenConnectionAsync())
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                DROP INDEX IF EXISTS idx_deployment_gamepath_mod;
+                DROP INDEX IF EXISTS idx_deploymentfiles_gamepath_target;
+                DROP INDEX IF EXISTS idx_deploymentfiles_sourcekey;
+                ALTER TABLE DeploymentRecords DROP COLUMN GamePath;
+                ALTER TABLE DeploymentRecords DROP COLUMN DeploymentOrder;
+                ALTER TABLE DeploymentRecords DROP COLUMN AppliedAt;
+                ALTER TABLE DeploymentFiles DROP COLUMN GamePath;
+                ALTER TABLE DeploymentFiles DROP COLUMN SourceKey;
+                ALTER TABLE DeploymentFiles DROP COLUMN SourceRelativePath;
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await _dbContext.InitializeDatabaseAsync();
+
+        await using var verify = await _dbContext.OpenConnectionAsync();
+        foreach (var (table, column) in new[]
+                 {
+                     ("DeploymentRecords", "GamePath"), ("DeploymentRecords", "DeploymentOrder"),
+                     ("DeploymentRecords", "AppliedAt"), ("DeploymentFiles", "GamePath"),
+                     ("DeploymentFiles", "SourceKey"), ("DeploymentFiles", "SourceRelativePath")
+                 })
+        {
+            using var command = verify.CreateCommand();
+            command.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @Column";
+            command.Parameters.AddWithValue("@Column", column);
+            Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+        }
+    }
+
     private DeploymentRecord CreateRecord(Guid sessionId, int modNumber, int fileCount)
     {
         var record = new DeploymentRecord

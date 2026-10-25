@@ -726,7 +726,7 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.NotEmpty(await _deploymentService.GetDeploymentsBySessionIdAsync(previous.SessionId));
         Assert.Empty(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
         var data = Path.Combine(_testTargetDir, "data");
-        Assert.Equal(1, Directory.GetFiles(data).Length);
+        Assert.Single(Directory.GetFiles(data));
         Assert.Equal("previous", File.ReadAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")));
     }
 
@@ -781,15 +781,10 @@ public class DeploymentServiceIntegrationTests : IDisposable
         var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
             DeploymentOrder.TopToBottom, _testTargetDir);
 
-        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
-        Assert.Equal(0, result.CompletedMods);
-        Assert.Equal(1, result.FailedMods);
-        var record = Assert.Single(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
-        Assert.Equal(DeploymentStatus.Failed.ToString(), record.Status);
-        Assert.Single(await service.GetDeploymentFilesAsync(record.Id));
-        await _deploymentService.PreDeploymentCleanupAsync();
-        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("主文件为空", result.ErrorMessage);
         Assert.Empty(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
     }
 
     [Fact]
@@ -855,15 +850,10 @@ public class DeploymentServiceIntegrationTests : IDisposable
 
         Assert.Equal(DeploymentStatus.Cancelled, result.Status);
         Assert.Equal(0, result.CompletedMods);
-        var record = Assert.Single(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
-        Assert.Equal(DeploymentStatus.Cancelled.ToString(), record.Status);
-        var tracked = (await service.GetDeploymentFilesAsync(record.Id)).ToList();
-        Assert.Single(tracked); // 目标文件在写入前已登记，取消后可清理
-        var file = tracked[0];
-        Assert.Equal("partial", File.ReadAllText(file.TargetPath));
-        await _deploymentService.PreDeploymentCleanupAsync();
-        Assert.False(File.Exists(file.TargetPath));
+        // 取消发生在临时写入阶段：不登记记录，也不留下最终目标。
         Assert.Empty(await service.GetDeploymentsBySessionIdAsync(result.SessionId));
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Empty(Directory.Exists(data) ? Directory.GetFiles(data) : Array.Empty<string>());
     }
 
     [Fact]
@@ -882,10 +872,8 @@ public class DeploymentServiceIntegrationTests : IDisposable
         var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
             DeploymentOrder.TopToBottom, _testTargetDir);
 
-        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
-        var record = Assert.Single(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
-        Assert.Equal(DeploymentStatus.Failed.ToString(), record.Status);
-        Assert.Empty(await _deploymentService.GetDeploymentFilesAsync(record.Id));
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Empty(await _deploymentService.GetDeploymentsBySessionIdAsync(result.SessionId));
         Assert.Empty(Directory.GetFiles(Path.Combine(_testTargetDir, "data")));
     }
 
@@ -1079,7 +1067,8 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.NotEqual(initial.SessionId, result.SessionId);
         // 只重写 first 的 base：second 的 base 与 stream 全部沿用。
         Assert.Equal(2, result.PreservedFiles);
-        Assert.Equal(1, result.FilesDeleted);
+        Assert.Equal(0, result.FilesDeleted);
+        Assert.Equal(1, result.UpdatedFiles);
         Assert.Equal("first-updated", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
         Assert.Equal("second", File.ReadAllText(secondBase));
         Assert.Equal(secondBaseWrite, File.GetLastWriteTimeUtc(secondBase));
@@ -1206,6 +1195,201 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Null(await _deploymentService.GetLatestDeploymentSessionIdAsync());
     }
 
+    [Fact]
+    public async Task DeployProfile_TwoGamePaths_ShouldKeepEachInstallStateIndependent()
+    {
+        var mod = await AddPatchModAsync("isolated", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var secondRoot = Path.Combine(Path.GetTempPath(), $"test_target_second_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(secondRoot);
+        try
+        {
+            var first = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+                DeploymentOrder.TopToBottom, _testTargetDir);
+            var firstFile = Path.Combine(_testTargetDir, "data", "0123456789abcdef.patch_0");
+            Assert.Equal(DeploymentStatus.Completed, first.Status);
+            Assert.Equal("isolated", File.ReadAllText(firstFile));
+
+            var second = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+                DeploymentOrder.TopToBottom, secondRoot);
+            var secondFile = Path.Combine(secondRoot, "data", "0123456789abcdef.patch_0");
+            Assert.Equal(DeploymentStatus.Completed, second.Status);
+            Assert.Equal("isolated", File.ReadAllText(secondFile));
+            Assert.True(File.Exists(firstFile));
+
+            var firstRecords = await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir);
+            var secondRecords = await _deploymentService.GetDeploymentsForGameAsync(secondRoot);
+            var firstRecord = Assert.Single(firstRecords);
+            var secondRecord = Assert.Single(secondRecords);
+            Assert.NotEqual(firstRecord.Id, secondRecord.Id);
+            Assert.Equal(firstRecord.ModId, secondRecord.ModId);
+
+            var third = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+                DeploymentOrder.TopToBottom, _testTargetDir);
+            Assert.Equal(first.SessionId, third.SessionId);
+            Assert.Equal("isolated", File.ReadAllText(secondFile));
+        }
+        finally
+        {
+            if (Directory.Exists(secondRoot)) Directory.Delete(secondRoot, true);
+        }
+    }
+
+    [Fact]
+    public async Task DeployProfile_HardLinkToCopy_ShouldRewriteTargetEvenWhenContentMatches()
+    {
+        var mod = await AddPatchModAsync("switch", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var service = new DeploymentService(_profileRepository, _modRepository, _deploymentRepository,
+            new HD2Mimnt.Core.Interfaces.IDeploymentMethod[]
+            {
+                new CopyDeploymentMethod(), new HardLinkDeploymentMethod()
+            });
+        var source = Path.Combine(mod.Path, "0123456789abcdef.patch_7");
+        var target = Path.Combine(_testTargetDir, "data", "0123456789abcdef.patch_0");
+
+        var hardLink = await service.DeployProfileAsync(profile.Id, DeploymentMethod.HardLink,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, hardLink.Status);
+        Assert.True(HD2Mimnt.Core.IO.FileIdentity.IsSameFile(source, target));
+
+        var copy = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, copy.Status);
+        Assert.False(HD2Mimnt.Core.IO.FileIdentity.IsSameFile(source, target));
+        Assert.Equal("switch", File.ReadAllText(target));
+        var record = Assert.Single(await service.GetDeploymentsForGameAsync(_testTargetDir));
+        Assert.All(record.Files, file => Assert.Equal(DeploymentMethod.Copy.ToString(), file.Method));
+    }
+
+    [Fact]
+    public async Task DeployProfile_ShouldAdoptIdenticalUntrackedTargetWithoutRewriting()
+    {
+        var mod = await AddPatchModAsync("adopt", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var data = Path.Combine(_testTargetDir, "data");
+        Directory.CreateDirectory(data);
+        var target = Path.Combine(data, "0123456789abcdef.patch_0");
+        File.WriteAllText(target, "adopt");
+        var before = File.GetLastWriteTimeUtc(target);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(1, result.AddedFiles);
+        Assert.Equal(0, result.UpdatedFiles);
+        Assert.Equal(before, File.GetLastWriteTimeUtc(target));
+        var record = Assert.Single(await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir));
+        var file = Assert.Single(record.Files);
+        Assert.Equal(target, file.TargetPath, ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task DeployProfile_ChangedFile_ShouldKeepCurrentRecordIdentity()
+    {
+        var mod = await AddPatchModAsync("identity", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var first = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        var firstRecord = Assert.Single(await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir));
+        File.WriteAllText(Path.Combine(mod.Path, "0123456789abcdef.patch_7"), "identity-updated");
+
+        var second = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, second.Status);
+        Assert.NotEqual(first.SessionId, second.SessionId);
+        var record = Assert.Single(await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir));
+        Assert.Equal(firstRecord.Id, record.Id);
+        Assert.Equal("identity-updated",
+            File.ReadAllText(Path.Combine(_testTargetDir, "data", "0123456789abcdef.patch_0")));
+    }
+
+    [Fact]
+    public async Task ReconcileAfterModUpdate_ShouldUpdateOnlyChangedModAndIgnorePendingProfileMods()
+    {
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var second = await AddPatchModAsync("second", "8888888888888888.patch_3");
+        var profile = await AddPatchProfileAsync(first, second);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        var data = Path.Combine(_testTargetDir, "data");
+        var firstTarget = Path.Combine(data, "0123456789abcdef.patch_0");
+        var secondTarget = Path.Combine(data, "8888888888888888.patch_0");
+        var secondWrite = File.GetLastWriteTimeUtc(secondTarget);
+
+        // 更新后内容落在新的 GUID 目录；这是之前增量匹配失效的根因。
+        var updatedPath = Path.Combine(_testSourceDir, "first-updated");
+        Directory.CreateDirectory(updatedPath);
+        File.WriteAllText(Path.Combine(updatedPath, "0123456789abcdef.patch_7"), "first-updated-content");
+        first.Path = updatedPath;
+        await _modRepository.UpdateAsync(first);
+        // 配置页新增一个未部署模组，自动部署不得顺带应用它。
+        var pending = await AddPatchModAsync("pending", "bbbbbbbbbbbbbbbb.patch_1");
+        await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, pending.Id);
+
+        var result = await _deploymentService.ReconcileAfterModUpdateAsync(first.Id, _testTargetDir);
+
+        Assert.NotNull(result);
+        Assert.Equal(DeploymentStatus.Completed, result!.Status);
+        Assert.Equal(1, result.UpdatedFiles);
+        Assert.Equal(1, result.UnchangedFiles);
+        Assert.Equal("first-updated-content", File.ReadAllText(firstTarget));
+        Assert.Equal("second", File.ReadAllText(secondTarget));
+        Assert.Equal(secondWrite, File.GetLastWriteTimeUtc(secondTarget));
+        Assert.False(File.Exists(Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_0")));
+        var records = await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir);
+        Assert.Equal(2, records.Count);
+        var firstRecord = records.Single(record => record.ModId == first.Id);
+        Assert.Contains("first-updated", Assert.Single(firstRecord.Files).SourcePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReconcileAfterModUpdate_IdenticalContentNewSourceFolder_ShouldKeepTargetFile()
+    {
+        var mod = await AddPatchModAsync("stable", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        var target = Path.Combine(_testTargetDir, "data", "0123456789abcdef.patch_0");
+        var before = File.GetLastWriteTimeUtc(target);
+        var updatedPath = Path.Combine(_testSourceDir, "stable-new-folder");
+        Directory.CreateDirectory(updatedPath);
+        File.WriteAllText(Path.Combine(updatedPath, "0123456789abcdef.patch_7"), "stable");
+        mod.Path = updatedPath;
+        await _modRepository.UpdateAsync(mod);
+
+        var result = await _deploymentService.ReconcileAfterModUpdateAsync(mod.Id, _testTargetDir);
+
+        Assert.NotNull(result);
+        Assert.Equal(DeploymentStatus.Completed, result!.Status);
+        Assert.Equal(0, result.UpdatedFiles);
+        Assert.Equal(1, result.UnchangedFiles);
+        Assert.Equal(before, File.GetLastWriteTimeUtc(target));
+        var record = Assert.Single(await _deploymentService.GetDeploymentsForGameAsync(_testTargetDir));
+        Assert.Contains("stable-new-folder", Assert.Single(record.Files).SourcePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReconcileAfterModUpdate_ShouldSkipWhenModDisabledInDeployedProfile()
+    {
+        var mod = await AddPatchModAsync("disabled", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        var target = Path.Combine(_testTargetDir, "data", "0123456789abcdef.patch_0");
+        File.WriteAllText(Path.Combine(mod.Path, "0123456789abcdef.patch_7"), "disabled-updated");
+        await new ProfileService(_profileRepository, _modRepository)
+            .SetModEnabledAsync(profile.Id, mod.Id, false);
+
+        var result = await _deploymentService.ReconcileAfterModUpdateAsync(mod.Id, _testTargetDir);
+
+        Assert.Null(result);
+        Assert.Equal("disabled", File.ReadAllText(target));
+    }
+
     private async Task<Mod> AddPatchModAsync(string name, string fileName)
     {
         var path = Path.Combine(_testSourceDir, name);
@@ -1240,6 +1424,9 @@ public class DeploymentServiceIntegrationTests : IDisposable
             string targetPath,
             IProgress<string>? progress = null,
             CancellationToken cancellationToken = default) => Task.FromResult(true);
+
+        public Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
 
         public Task<bool> CleanupFileAsync(
             string targetPath,

@@ -19,6 +19,7 @@ public sealed class OfflineInteropService : IAsyncDisposable
     private readonly ProfileService _profiles;
     private readonly DeploymentService _deployments;
     private readonly BackupService _backups;
+    private readonly DeploymentStateMigrationService? _stateMigration;
     private readonly ILogger<OfflineInteropService>? _logger;
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly CancellationTokenSource _stop = new();
@@ -33,10 +34,12 @@ public sealed class OfflineInteropService : IAsyncDisposable
 
     public OfflineInteropService(IOfflineInteropSource source, OfflineInteropPublisher publisher,
         StorageSettingsService storage, SettingsService settings, ModService mods, ProfileService profiles,
-        DeploymentService deployments, BackupService backups, ILogger<OfflineInteropService>? logger = null)
+        DeploymentService deployments, BackupService backups, DeploymentStateMigrationService? stateMigration = null,
+        ILogger<OfflineInteropService>? logger = null)
     {
         _source = source; _publisher = publisher; _storage = storage; _settings = settings;
-        _mods = mods; _profiles = profiles; _deployments = deployments; _backups = backups; _logger = logger;
+        _mods = mods; _profiles = profiles; _deployments = deployments; _backups = backups;
+        _stateMigration = stateMigration; _logger = logger;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -91,6 +94,20 @@ public sealed class OfflineInteropService : IAsyncDisposable
         await _publishGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (_stateMigration != null)
+            {
+                try
+                {
+                    await _stateMigration.EnsureMigratedAsync(_settings.GetEffectiveGamePath(), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch (Exception error)
+                {
+                    _logger?.LogWarning(error, "离线快照前部署状态迁移失败，继续使用现有记录");
+                }
+            }
+
             var data = await _source.ReadAsync(cancellationToken).ConfigureAwait(false);
             var byId = data.Mods.ToDictionary(mod => mod.Id);
             var library = new List<OfflineModV1>();
@@ -120,7 +137,9 @@ public sealed class OfflineInteropService : IAsyncDisposable
                         byId.GetValueOrDefault(item.ModId)?.Manifest, item.OptionsJson)))).ToArray(),
                 BslProfilePolicy.DeploymentSequence(profile, byId, direction,
                     _settings.GetSetting(SettingKeys.ProfilesLockLoaders, true)).Select(item => item.ModId).ToArray())).ToArray();
-            var deployments = data.Deployments.Select(ProjectDeployment).ToArray();
+            var deployments = data.Deployments
+                .Where(record => IsCurrentGame(record.GamePath))
+                .Select(ProjectDeployment).ToArray();
             var snapshot = new OfflineRuntimeV1("hd2mimnt-runtime", 1, 0, Guid.NewGuid().ToString("D"),
                 DateTimeOffset.UtcNow, typeof(OfflineInteropService).Assembly.GetName().Version?.ToString() ?? "UNKNOWN",
                 new(_storage.Current.AppDataPath, _storage.Current.ModsPath),
@@ -175,6 +194,16 @@ public sealed class OfflineInteropService : IAsyncDisposable
 
     private static OfflineOptionStateV1 State(ProfileModOptionsState state)
         => new(state.LegacySelectedIndex, state.OptionToggles, state.OptionSelections);
+
+    /// <summary>只导出当前生效游戏安装的当前部署状态；旧会话/其它安装不进入离线快照。</summary>
+    private bool IsCurrentGame(string? recordGamePath)
+    {
+        var gamePath = DeploymentPlanBuilder.NormalizePath(_settings.GetEffectiveGamePath());
+        if (gamePath == null) return false;
+        return string.Equals(DeploymentPlanBuilder.NormalizePath(recordGamePath), gamePath,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static DateTimeOffset Utc(DateTime value) => new(value.Kind == DateTimeKind.Unspecified
         ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime());
     private sealed record CachedFiles((string Path, DateTime ModifiedAt, string Hash) Stamp, bool Complete,

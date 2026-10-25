@@ -34,7 +34,7 @@ public sealed class ModVersionPreferencesTests : IDisposable
         await vm.SaveCommand.ExecuteAsync(null);
         await vm.LoadAsync();
         Assert.True(vm.KeepModVersions); Assert.True(vm.AllowDuplicateImports);
-        confirmation.Verify(c => c.ConfirmAsync(It.IsAny<string>(), It.Is<string>(message => message.Contains("磁盘空间") && message.Contains("重新部署"))), Times.Exactly(2));
+        confirmation.Verify(c => c.ConfirmAsync(It.IsAny<string>(), It.Is<string>(message => message.Contains("磁盘空间") && message.Contains("自动增量更新"))), Times.Exactly(2));
         await vm.ToggleKeepModVersionsCommand.ExecuteAsync(null);
         Assert.False(vm.KeepModVersions);
         confirmation.Verify(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(2));

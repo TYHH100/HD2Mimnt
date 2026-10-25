@@ -5,15 +5,15 @@ using HD2Mimnt.Infrastructure.Analysis;
 
 namespace HD2Mimnt.Application.Services;
 
-/// <summary>规范顺序为普通模组、依赖加载器模组、BSL/MDL、SmoothBoot；固定区域始终在实际部署末尾。</summary>
+/// <summary>规范顺序为普通模组、依赖加载器模组、BSL/MDL/BML、SmoothBoot；固定区域始终在实际部署末尾。</summary>
 public static class BslProfilePolicy
 {
     public static BslModRole Role(Mod mod) => BslModDetector.KnownRole(mod.Manifest?.Guid) ?? mod.BslRole ?? BslModRole.None;
-    public static bool IsLoader(BslModRole role) => role is BslModRole.Loader or BslModRole.MdlLoader;
+    public static bool IsLoader(BslModRole role) => role is BslModRole.Loader or BslModRole.MdlLoader or BslModRole.BmlLoader;
     public static int PriorityRank(BslModRole role) => role switch
     {
         BslModRole.Dependency => 1,
-        BslModRole.Loader or BslModRole.MdlLoader => 2,
+        BslModRole.Loader or BslModRole.MdlLoader or BslModRole.BmlLoader => 2,
         BslModRole.SmoothBoot => 3,
         _ => 0
     };
@@ -57,7 +57,7 @@ public static class BslProfilePolicy
     public static bool SelectLoader(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, IReadOnlyCollection<Guid> requestedIds)
     {
         var selected = requestedIds.Distinct().Where(id => mods.TryGetValue(id, out var mod) && IsLoader(Role(mod))).ToList();
-        if (selected.Count > 1) throw new InvalidOperationException("BSL 与 MDL 二选一，请只选择一个加载器启用");
+        if (selected.Count > 1) throw new InvalidOperationException("BSL / MDL / Boot Mod Loader 三选一，请只选择一个加载器启用");
         if (selected.Count == 0) return false;
         var changed = false;
         foreach (var item in profile.Mods.Where(item => item.ModId != selected[0] && item.Enabled

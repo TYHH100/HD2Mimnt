@@ -96,7 +96,7 @@
 
 - Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
-- 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
+- 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、BML、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
 
 - 当前 FluentAvaloniaTheme 下右键菜单使用 `FAMenuFlyout` / `FAMenuFlyoutItem`；原生 `ContextMenu` 的 IsOpen 为 true 不代表菜单可见，必须实际验证条目布局和鼠标点击。模组列表统一捕获右键冒泡事件并启用 handledEventsToo，兼容子控件吞掉事件。顺序号使用版本号前的独立 chip，不能依赖缩略图占位文字。来源：https://github.com/amwx/FluentAvalonia
 

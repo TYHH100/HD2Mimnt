@@ -145,6 +145,8 @@ public sealed partial class FluentAvaloniaUiTests
             string targetDirectory, CancellationToken cancellationToken = default) => Task.FromResult((true, (string?)null));
         public Task<bool> DeployFileAsync(string sourcePath, string targetPath, IProgress<string>? progress = null,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<bool> CleanupFileAsync(string targetPath, CancellationToken cancellationToken = default)
         {
             RanOnUiThread |= Dispatcher.UIThread.CheckAccess();

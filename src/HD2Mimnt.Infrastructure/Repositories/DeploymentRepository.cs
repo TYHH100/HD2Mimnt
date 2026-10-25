@@ -101,6 +101,89 @@ public class DeploymentRepository : IDeploymentRepository
         return await GetBySessionIdAsync(latestSessionId.Value, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DeploymentRecord>> GetCurrentDeploymentsAsync(string gamePath,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT * FROM DeploymentRecords
+            WHERE GamePath = @GamePath COLLATE NOCASE
+            ORDER BY DeploymentOrderIndex, StartTime, Id";
+        command.Parameters.AddWithValue("@GamePath", gamePath);
+
+        var records = new List<DeploymentRecord>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(MapToDeploymentRecord(reader));
+        }
+
+        await LoadDeploymentFilesAsync(connection, records, cancellationToken);
+        return records;
+    }
+
+    public async Task<DeploymentRecord?> GetCurrentDeploymentAsync(string gamePath, Guid modId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT * FROM DeploymentRecords
+            WHERE GamePath = @GamePath COLLATE NOCASE AND ModId = @ModId
+            LIMIT 1";
+        command.Parameters.AddWithValue("@GamePath", gamePath);
+        command.Parameters.AddWithValue("@ModId", modId.ToString());
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+
+        var record = MapToDeploymentRecord(reader);
+        await reader.CloseAsync();
+        record.Files = (await GetDeploymentFilesAsync(record.Id, cancellationToken)).ToList();
+        return record;
+    }
+
+    public async Task<IReadOnlyList<DeploymentFile>> GetFilesForGameAsync(string gamePath,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM DeploymentFiles WHERE GamePath = @GamePath COLLATE NOCASE ORDER BY TargetPath";
+        command.Parameters.AddWithValue("@GamePath", gamePath);
+
+        var files = new List<DeploymentFile>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            files.Add(MapToDeploymentFile(reader));
+        }
+
+        return files;
+    }
+
+    public async Task<IReadOnlyList<DeploymentFile>> GetFilesByModIdAsync(Guid modId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM DeploymentFiles WHERE ModId = @ModId ORDER BY TargetPath";
+        command.Parameters.AddWithValue("@ModId", modId.ToString());
+
+        var files = new List<DeploymentFile>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            files.Add(MapToDeploymentFile(reader));
+        }
+
+        return files;
+    }
+
     public async Task AddAsync(DeploymentRecord record, CancellationToken cancellationToken = default)
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
@@ -111,8 +194,8 @@ public class DeploymentRepository : IDeploymentRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status, OptionsSnapshotJson, DeploymentOrderIndex, ModVersion)
-                VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status, @OptionsSnapshotJson, @DeploymentOrderIndex, @ModVersion)";
+                INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status, OptionsSnapshotJson, DeploymentOrderIndex, ModVersion, GamePath, DeploymentOrder, AppliedAt)
+                VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status, @OptionsSnapshotJson, @DeploymentOrderIndex, @ModVersion, @GamePath, @DeploymentOrder, @AppliedAt)";
 
             AddDeploymentRecordParameters(command, record);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -142,11 +225,66 @@ public class DeploymentRepository : IDeploymentRepository
             SET SessionId = @SessionId, ProfileId = @ProfileId, ModId = @ModId,
                 Workflow = @Workflow, DeploymentMethod = @DeploymentMethod,
                 StartTime = @StartTime, EndTime = @EndTime, Status = @Status,
-                OptionsSnapshotJson = @OptionsSnapshotJson, DeploymentOrderIndex = @DeploymentOrderIndex, ModVersion = @ModVersion
+                OptionsSnapshotJson = @OptionsSnapshotJson, DeploymentOrderIndex = @DeploymentOrderIndex, ModVersion = @ModVersion,
+                GamePath = @GamePath, DeploymentOrder = @DeploymentOrder, AppliedAt = @AppliedAt
             WHERE Id = @Id";
 
         AddDeploymentRecordParameters(command, record);
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<Guid> UpsertAsync(DeploymentRecord record, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(record.GamePath))
+            throw new ArgumentException("当前部署状态必须包含游戏安装路径", nameof(record));
+
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            using var find = connection.CreateCommand();
+            find.Transaction = transaction;
+            find.CommandText = @"
+                SELECT Id FROM DeploymentRecords
+                WHERE GamePath = @GamePath COLLATE NOCASE AND ModId = @ModId
+                LIMIT 1";
+            find.Parameters.AddWithValue("@GamePath", record.GamePath);
+            find.Parameters.AddWithValue("@ModId", record.ModId.ToString());
+            var existing = await find.ExecuteScalarAsync(cancellationToken);
+
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            if (existing is string existingId)
+            {
+                record.Id = Guid.Parse(existingId);
+                command.CommandText = @"
+                    UPDATE DeploymentRecords
+                    SET SessionId = @SessionId, ProfileId = @ProfileId, ModId = @ModId,
+                        Workflow = @Workflow, DeploymentMethod = @DeploymentMethod,
+                        StartTime = @StartTime, EndTime = @EndTime, Status = @Status,
+                        OptionsSnapshotJson = @OptionsSnapshotJson, DeploymentOrderIndex = @DeploymentOrderIndex,
+                        ModVersion = @ModVersion, GamePath = @GamePath, DeploymentOrder = @DeploymentOrder,
+                        AppliedAt = @AppliedAt
+                    WHERE Id = @Id";
+            }
+            else
+            {
+                if (record.Id == Guid.Empty) record.Id = Guid.NewGuid();
+                command.CommandText = @"
+                    INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status, OptionsSnapshotJson, DeploymentOrderIndex, ModVersion, GamePath, DeploymentOrder, AppliedAt)
+                    VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status, @OptionsSnapshotJson, @DeploymentOrderIndex, @ModVersion, @GamePath, @DeploymentOrder, @AppliedAt)";
+            }
+
+            AddDeploymentRecordParameters(command, record);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return record.Id;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -185,8 +323,8 @@ public class DeploymentRepository : IDeploymentRepository
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO DeploymentFiles (Id, DeploymentId, ModId, SourcePath, TargetPath, Method)
-            VALUES (@Id, @DeploymentId, @ModId, @SourcePath, @TargetPath, @Method)";
+            INSERT INTO DeploymentFiles (Id, DeploymentId, ModId, SourcePath, TargetPath, Method, GamePath, SourceKey, SourceRelativePath)
+            VALUES (@Id, @DeploymentId, @ModId, @SourcePath, @TargetPath, @Method, @GamePath, @SourceKey, @SourceRelativePath)";
 
         AddDeploymentFileParameters(command, file);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -200,6 +338,120 @@ public class DeploymentRepository : IDeploymentRepository
         try
         {
             await AddDeploymentFilesInternalAsync(files, connection, transaction, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task ReplaceDeploymentFilesAsync(Guid deploymentId, IReadOnlyList<DeploymentFile> files,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            using (var delete = connection.CreateCommand())
+            {
+                delete.Transaction = transaction;
+                delete.CommandText = "DELETE FROM DeploymentFiles WHERE DeploymentId = @DeploymentId";
+                delete.Parameters.AddWithValue("@DeploymentId", deploymentId.ToString());
+                await delete.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            foreach (var file in files) file.DeploymentId = deploymentId;
+            await AddDeploymentFilesInternalAsync(files, connection, transaction, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    public async Task SaveReconciledStateAsync(string gamePath, IReadOnlyList<DeploymentRecord> records,
+        IReadOnlyCollection<Guid> removedDeploymentIds, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            foreach (var record in records)
+            {
+                record.GamePath = gamePath;
+                using (var find = connection.CreateCommand())
+                {
+                    find.Transaction = transaction;
+                    find.CommandText = @"
+                        SELECT Id FROM DeploymentRecords
+                        WHERE GamePath = @GamePath COLLATE NOCASE AND ModId = @ModId
+                        LIMIT 1";
+                    find.Parameters.AddWithValue("@GamePath", gamePath);
+                    find.Parameters.AddWithValue("@ModId", record.ModId.ToString());
+                    if (await find.ExecuteScalarAsync(cancellationToken) is string existingId)
+                        record.Id = Guid.Parse(existingId);
+                    else if (record.Id == Guid.Empty)
+                        record.Id = Guid.NewGuid();
+                }
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = @"
+                        UPDATE DeploymentRecords
+                        SET SessionId = @SessionId, ProfileId = @ProfileId, ModId = @ModId,
+                            Workflow = @Workflow, DeploymentMethod = @DeploymentMethod,
+                            StartTime = @StartTime, EndTime = @EndTime, Status = @Status,
+                            OptionsSnapshotJson = @OptionsSnapshotJson, DeploymentOrderIndex = @DeploymentOrderIndex,
+                            ModVersion = @ModVersion, GamePath = @GamePath, DeploymentOrder = @DeploymentOrder,
+                            AppliedAt = @AppliedAt
+                        WHERE Id = @Id";
+                    AddDeploymentRecordParameters(command, record);
+                    if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
+                    {
+                        command.CommandText = @"
+                            INSERT INTO DeploymentRecords (Id, SessionId, ProfileId, ModId, Workflow, DeploymentMethod, StartTime, EndTime, Status, OptionsSnapshotJson, DeploymentOrderIndex, ModVersion, GamePath, DeploymentOrder, AppliedAt)
+                            VALUES (@Id, @SessionId, @ProfileId, @ModId, @Workflow, @DeploymentMethod, @StartTime, @EndTime, @Status, @OptionsSnapshotJson, @DeploymentOrderIndex, @ModVersion, @GamePath, @DeploymentOrder, @AppliedAt)";
+                        await command.ExecuteNonQueryAsync(cancellationToken);
+                    }
+                }
+
+                using (var delete = connection.CreateCommand())
+                {
+                    delete.Transaction = transaction;
+                    delete.CommandText = "DELETE FROM DeploymentFiles WHERE DeploymentId = @DeploymentId";
+                    delete.Parameters.AddWithValue("@DeploymentId", record.Id.ToString());
+                    await delete.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                foreach (var file in record.Files)
+                {
+                    file.DeploymentId = record.Id;
+                    file.GamePath = gamePath;
+                }
+                await AddDeploymentFilesInternalAsync(record.Files, connection, transaction, cancellationToken);
+            }
+
+            foreach (var id in removedDeploymentIds)
+            {
+                using (var files = connection.CreateCommand())
+                {
+                    files.Transaction = transaction;
+                    files.CommandText = "DELETE FROM DeploymentFiles WHERE DeploymentId = @Id";
+                    files.Parameters.AddWithValue("@Id", id.ToString());
+                    await files.ExecuteNonQueryAsync(cancellationToken);
+                }
+                using var record = connection.CreateCommand();
+                record.Transaction = transaction;
+                record.CommandText = "DELETE FROM DeploymentRecords WHERE Id = @Id";
+                record.Parameters.AddWithValue("@Id", id.ToString());
+                await record.ExecuteNonQueryAsync(cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
         }
         catch
@@ -294,8 +546,8 @@ public class DeploymentRepository : IDeploymentRepository
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = @"
-                INSERT INTO DeploymentFiles (Id, DeploymentId, ModId, SourcePath, TargetPath, Method)
-                VALUES (@Id, @DeploymentId, @ModId, @SourcePath, @TargetPath, @Method)";
+                INSERT INTO DeploymentFiles (Id, DeploymentId, ModId, SourcePath, TargetPath, Method, GamePath, SourceKey, SourceRelativePath)
+                VALUES (@Id, @DeploymentId, @ModId, @SourcePath, @TargetPath, @Method, @GamePath, @SourceKey, @SourceRelativePath)";
 
             AddDeploymentFileParameters(command, file);
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -317,7 +569,10 @@ public class DeploymentRepository : IDeploymentRepository
             Status = reader.IsDBNull(reader.GetOrdinal("Status")) ? string.Empty : reader.GetString(reader.GetOrdinal("Status")),
             OptionsSnapshotJson = reader.IsDBNull(reader.GetOrdinal("OptionsSnapshotJson")) ? null : reader.GetString(reader.GetOrdinal("OptionsSnapshotJson")),
             DeploymentOrderIndex = reader.IsDBNull(reader.GetOrdinal("DeploymentOrderIndex")) ? null : reader.GetInt32(reader.GetOrdinal("DeploymentOrderIndex")),
-            ModVersion = reader.IsDBNull(reader.GetOrdinal("ModVersion")) ? null : reader.GetString(reader.GetOrdinal("ModVersion"))
+            ModVersion = reader.IsDBNull(reader.GetOrdinal("ModVersion")) ? null : reader.GetString(reader.GetOrdinal("ModVersion")),
+            GamePath = reader.IsDBNull(reader.GetOrdinal("GamePath")) ? null : reader.GetString(reader.GetOrdinal("GamePath")),
+            DeploymentOrder = reader.IsDBNull(reader.GetOrdinal("DeploymentOrder")) ? null : reader.GetString(reader.GetOrdinal("DeploymentOrder")),
+            AppliedAt = reader.IsDBNull(reader.GetOrdinal("AppliedAt")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("AppliedAt")))
         };
     }
 
@@ -330,7 +585,10 @@ public class DeploymentRepository : IDeploymentRepository
             ModId = Guid.Parse(reader.GetString(reader.GetOrdinal("ModId"))),
             SourcePath = reader.GetString(reader.GetOrdinal("SourcePath")),
             TargetPath = reader.GetString(reader.GetOrdinal("TargetPath")),
-            Method = reader.IsDBNull(reader.GetOrdinal("Method")) ? string.Empty : reader.GetString(reader.GetOrdinal("Method"))
+            Method = reader.IsDBNull(reader.GetOrdinal("Method")) ? string.Empty : reader.GetString(reader.GetOrdinal("Method")),
+            GamePath = reader.IsDBNull(reader.GetOrdinal("GamePath")) ? null : reader.GetString(reader.GetOrdinal("GamePath")),
+            SourceKey = reader.IsDBNull(reader.GetOrdinal("SourceKey")) ? null : reader.GetString(reader.GetOrdinal("SourceKey")),
+            SourceRelativePath = reader.IsDBNull(reader.GetOrdinal("SourceRelativePath")) ? null : reader.GetString(reader.GetOrdinal("SourceRelativePath"))
         };
     }
 
@@ -348,6 +606,9 @@ public class DeploymentRepository : IDeploymentRepository
         command.Parameters.AddWithValue("@OptionsSnapshotJson", (object?)record.OptionsSnapshotJson ?? DBNull.Value);
         command.Parameters.AddWithValue("@DeploymentOrderIndex", (object?)record.DeploymentOrderIndex ?? DBNull.Value);
         command.Parameters.AddWithValue("@ModVersion", (object?)record.ModVersion ?? DBNull.Value);
+        command.Parameters.AddWithValue("@GamePath", (object?)record.GamePath ?? DBNull.Value);
+        command.Parameters.AddWithValue("@DeploymentOrder", (object?)record.DeploymentOrder ?? DBNull.Value);
+        command.Parameters.AddWithValue("@AppliedAt", record.AppliedAt?.ToString("O") ?? (object)DBNull.Value);
     }
 
     private static void AddDeploymentFileParameters(SqliteCommand command, DeploymentFile file)
@@ -358,6 +619,9 @@ public class DeploymentRepository : IDeploymentRepository
         command.Parameters.AddWithValue("@SourcePath", file.SourcePath);
         command.Parameters.AddWithValue("@TargetPath", file.TargetPath);
         command.Parameters.AddWithValue("@Method", file.Method ?? string.Empty);
+        command.Parameters.AddWithValue("@GamePath", (object?)file.GamePath ?? DBNull.Value);
+        command.Parameters.AddWithValue("@SourceKey", (object?)file.SourceKey ?? DBNull.Value);
+        command.Parameters.AddWithValue("@SourceRelativePath", (object?)file.SourceRelativePath ?? DBNull.Value);
     }
 
     public async Task DeleteDeploymentFilesByDeploymentIdAsync(Guid deploymentId, CancellationToken cancellationToken = default)
@@ -388,6 +652,14 @@ public class DeploymentRepository : IDeploymentRepository
         }
         foreach (var id in deploymentIds)
         {
+            using (var files = connection.CreateCommand())
+            {
+                files.Transaction = transaction;
+                files.CommandText = "DELETE FROM DeploymentFiles WHERE DeploymentId = @Id";
+                files.Parameters.AddWithValue("@Id", id.ToString());
+                await files.ExecuteNonQueryAsync(cancellationToken);
+            }
+
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = "DELETE FROM DeploymentRecords WHERE Id = @Id";

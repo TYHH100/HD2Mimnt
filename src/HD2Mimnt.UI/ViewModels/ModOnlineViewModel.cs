@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI.Services;
 
@@ -193,6 +194,11 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
                         Message = p.Step + " · " + p.Detail;
                     });
                 });
+            var deploymentProgress = new InlineProgress<DeploymentProgress>(p => Publish(token, () =>
+            {
+                IsIndeterminate = true;
+                Message = p.Message;
+            }));
             ModReplacementResult result;
             if (IsAyaka)
             {
@@ -206,7 +212,8 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
                     var source = await session.WaitForFileAsync(token);
                     IsWaitingForBrowser = false;
                     Message = "正在导入浏览器下载的文件…";
-                    result = await service.UpdateFromBrowserFileAsync(_modId, link, file, source, importProgress, token);
+                    result = await service.UpdateFromBrowserFileAsync(_modId, link, file, source, importProgress, token,
+                        deploymentProgress);
                 }
                 finally { _browserSession = null; IsWaitingForBrowser = false; }
             }
@@ -214,14 +221,27 @@ public partial class ModOnlineViewModel(ModOnlineService service, Func<Task> ref
             {
                 var authorized = await AuthorizeAsync(link, file, token);
                 Message = "正在下载更新包…";
-                result = await service.UpdateAsync(_modId, link, authorized.File, DownloadReporter(token), importProgress, token, authorized.ProtocolLink);
+                result = await service.UpdateAsync(_modId, link, authorized.File, DownloadReporter(token),
+                    importProgress, token, authorized.ProtocolLink, deploymentProgress);
             }
             _link = result.Mod.PlatformLink;
             LocalVersion = result.Mod.PlatformLink?.InstalledVersion ?? result.Mod.Version;
             OnPropertyChanged(nameof(VersionMessage));
             await refresh();
-            Message = "模组已替换，请检查模组选项。" + (result.DeploymentWasCleaned ? "旧部署已清理，请重新部署。" : "")
-                + result.CleanupWarning;
+            var deploymentText = result.Deployment is { } deployment
+                ? deployment.Status switch
+                {
+                    DeploymentStatus.Completed =>
+                        $"已自动增量部署：新增 {deployment.AddedFiles}、更新 {deployment.UpdatedFiles}、移动 {deployment.MovedFiles}、删除 {deployment.RemovedFiles} 个文件。",
+                    DeploymentStatus.Cancelled => "自动部署已取消，可稍后重试部署。",
+                    _ => $"自动部署未完成：{deployment.ErrorMessage ?? deployment.Message}"
+                }
+                : result.WasDeployed
+                    ? "当前生效部署或游戏目录未就绪，未自动部署。"
+                    : string.Empty;
+            Progress = 100;
+            IsIndeterminate = false;
+            Message = "模组已替换，请检查模组选项。" + deploymentText + result.CleanupWarning;
         }, backgroundDownload: true);
     }
 

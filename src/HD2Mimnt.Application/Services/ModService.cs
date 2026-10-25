@@ -110,19 +110,24 @@ public partial class ModService
     /// <summary>新内容在独立目录准备；数据库提交成功后才删除旧内容，保留原 ID 和配置关联。</summary>
     public Task<ModReplacementResult> ReplaceFromArchiveAsync(Guid id, string archivePath,
         ModPlatformLink expectedLink, PlatformModFile file, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null)
+        IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(file.Version);
-        return ReplaceArchiveCoreAsync(id, archivePath, expectedLink, file, cancellationToken, progress, installedWebsiteFileId);
+        return ReplaceArchiveCoreAsync(id, archivePath, expectedLink, file, cancellationToken, progress,
+            installedWebsiteFileId, deploymentProgress: deploymentProgress);
     }
 
     public Task<ModReplacementResult> UpdateFromLocalArchiveAsync(Guid id, string archivePath,
-        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null)
-        => ReplaceArchiveCoreAsync(id, archivePath, null, null, cancellationToken, progress, null);
+        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
+        => ReplaceArchiveCoreAsync(id, archivePath, null, null, cancellationToken, progress, null,
+            deploymentProgress: deploymentProgress);
 
     private async Task<ModReplacementResult> ReplaceArchiveCoreAsync(Guid id, string archivePath,
         ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
-        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false)
+        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
         var committed = false;
@@ -148,7 +153,7 @@ public partial class ModService
                     throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
                 // 修复缺失的 HD2IAS data 时，数据库中的旧哈希不能证明库文件仍然存在。
                 if (!forceReplacement && prepared.Hash == original.Hash && prepared.Version == original.Version && file == null)
-                    return new(original, false, null);
+                    return new(original, false, null, null);
 
                 var history = new ModVersionStore(_storageDirectory);
                 var previousVersions = await history.ReadAsync(id, cancellationToken);
@@ -160,10 +165,6 @@ public partial class ModService
                     (await _deploymentService.GetModDeploymentHistoryAsync(id, cancellationToken)).Any();
                 prepared.Id = id;
                 var bslRole = await HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectAsync(prepared, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                progress?.Report(new(97, "清理旧部署", original.Name, true));
-                if (_deploymentService != null)
-                    await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
 
                 original.Path = prepared.Path;
@@ -216,8 +217,10 @@ public partial class ModService
                     cleanupWarning = "旧文件清理失败，请查看日志。";
                     _logger?.LogWarning(ex, "模组更新已提交，但旧副本未完全清理: {ModId}", id);
                 }
+                var (deployment, deploymentWarning) = await ReconcileDeploymentAfterUpdateAsync(
+                    id, wasDeployed, deploymentProgress, cancellationToken);
                 RaiseModsChanged();
-                return new(original, wasDeployed, cleanupWarning);
+                return new(original, wasDeployed, deployment, JoinWarnings(cleanupWarning, deploymentWarning));
             }
             finally { _mutationGate.Release(); }
         }
@@ -230,6 +233,33 @@ public partial class ModService
             }
         }
     }
+
+    /// <summary>更新提交后自动对账已部署文件；失败只作为警告返回，不回滚已提交更新。</summary>
+    private async Task<(DeploymentResult? Deployment, string? Warning)> ReconcileDeploymentAfterUpdateAsync(
+        Guid id, bool wasDeployed, IProgress<DeploymentProgress>? deploymentProgress, CancellationToken token)
+    {
+        if (!wasDeployed || _deploymentService == null) return (null, null);
+        try
+        {
+            var deployment = await _deploymentService.ReconcileAfterModUpdateAsync(
+                id, gamePath: null, deploymentProgress, token);
+            return (deployment, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (null, "自动部署已取消，可稍后重试部署。");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "模组更新后的自动部署失败: {ModId}", id);
+            return (null, "自动部署失败：" + ex.Message);
+        }
+    }
+
+    private static string? JoinWarnings(string? first, string? second)
+        => string.IsNullOrWhiteSpace(first) ? second
+            : string.IsNullOrWhiteSpace(second) ? first
+            : first + second;
 
     private bool IsManagedModDirectory(string path) => PathGuard.IsInsideRoot(_storageDirectory, path);
 

@@ -139,9 +139,14 @@ public sealed class CrashDiagnosticsTests : IDisposable
         analyzer.Setup(value => value.AnalyzeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(
             new CrashDumpAnalysis("ACCESS", "0x1", "helldivers2.exe", [new(0, "dxgi.dll", "0x1", "", trust)], modules, _time));
         var deployments = new Mock<IDeploymentRepository>();
-        deployments.Setup(value => value.GetLatestDeploymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([
-            new DeploymentRecord { ModId = id, StartTime = future ? _time.AddDays(1) : _time.AddDays(-1), Status = "Completed",
-                Files = [new DeploymentFile { ModId = id, TargetPath = target }] }]);
+        var record = new DeploymentRecord
+        {
+            ModId = id, StartTime = future ? _time.AddDays(1) : _time.AddDays(-1), Status = "Completed",
+            GamePath = Game, Files = [new DeploymentFile { ModId = id, TargetPath = target, GamePath = Game }]
+        };
+        deployments.Setup(value => value.GetCurrentDeploymentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([record]);
+        deployments.Setup(value => value.GetLatestDeploymentsAsync(It.IsAny<CancellationToken>())).ReturnsAsync([record]);
         var mods = new Mock<IModRepository>();
         mods.Setup(value => value.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync([new Mod { Id = id, Name = "test" }]);
         var history = new Mock<ICrashHistoryRepository>();

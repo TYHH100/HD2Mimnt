@@ -11,7 +11,15 @@ internal static partial class PatchDeploymentPlanner
     [GeneratedRegex(@"^([a-z0-9]{16})\.patch_([0-9]+)(\.(?:stream|gpu_resources))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PatchNameRegex();
 
-    internal sealed record FileEntry(string? SourcePath, string FileName, bool RelativeToGameRoot = false);
+    internal sealed record FileEntry(string? SourcePath, string FileName, bool RelativeToGameRoot = false,
+        string Prefix = "", string Suffix = "", int ResourceOrdinal = 0,
+        string? SourceRelativePath = null, string? SourceKey = null);
+
+    internal static string MakePatchSourceKey(string relativePath)
+        => "patch:" + relativePath.Replace('\\', '/').ToLowerInvariant();
+
+    internal static string MakeNativeSourceKey(string relativeTarget)
+        => "native:" + relativeTarget.Replace('\\', '/').ToLowerInvariant();
 
     internal static bool TryParseTarget(string path, out string prefix, out int index, out string suffix)
     {
@@ -55,9 +63,10 @@ internal static partial class PatchDeploymentPlanner
     }
 
     internal static List<FileEntry> BuildFiles(IReadOnlyList<string> selectedFiles, Dictionary<string, int> nextIndexes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? modRoot = null)
     {
         var result = new List<FileEntry>();
+        var resourceOrdinal = 0;
         foreach (var directory in selectedFiles.GroupBy(Path.GetDirectoryName, StringComparer.OrdinalIgnoreCase))
         {
             var matches = directory.Select(file => (File: file, Match: PatchNameRegex().Match(Path.GetFileName(file)))).ToList();
@@ -75,14 +84,33 @@ internal static partial class PatchDeploymentPlanner
                     if (!triplet.ContainsKey(""))
                         throw new InvalidDataException($"补丁缺少主文件：{Path.Combine(directory.Key!, $"{resource.Key}.patch_{originalIndex}")}");
                     // 游戏不认 0 字节占位（加载即崩溃）：只部署实际存在的伴随文件，缺失项不生成占位。
+                    var ordinal = resourceOrdinal++;
                     foreach (var suffix in new[] { "", ".gpu_resources", ".stream" })
                         if (triplet.TryGetValue(suffix, out var file))
-                            result.Add(new FileEntry(file, $"{resource.Key}.patch_{next}{suffix}"));
+                        {
+                            var relative = SourceRelativePath(modRoot, file);
+                            result.Add(new FileEntry(file, $"{resource.Key}.patch_{next}{suffix}", false,
+                                resource.Key, suffix, ordinal, relative, MakePatchSourceKey(relative)));
+                        }
                     next++;
                 }
                 nextIndexes[resource.Key] = next;
             }
         }
         return result;
+    }
+
+    private static string SourceRelativePath(string? modRoot, string file)
+    {
+        if (string.IsNullOrWhiteSpace(modRoot)) return Path.GetFileName(file);
+        try
+        {
+            var relative = Path.GetRelativePath(modRoot, file);
+            return relative.StartsWith("..", StringComparison.Ordinal) ? Path.GetFileName(file) : relative.Replace('\\', '/');
+        }
+        catch (ArgumentException)
+        {
+            return Path.GetFileName(file);
+        }
     }
 }

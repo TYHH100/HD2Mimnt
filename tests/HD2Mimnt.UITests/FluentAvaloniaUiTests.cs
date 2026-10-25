@@ -1285,7 +1285,8 @@ public sealed partial class FluentAvaloniaUiTests
                 Capture(window, theme.ToString(), "profile-lua-mods");
             }
             foreach (var role in new[] { HD2Mimnt.Core.Enums.BslModRole.Dependency, HD2Mimnt.Core.Enums.BslModRole.Loader,
-                         HD2Mimnt.Core.Enums.BslModRole.MdlLoader, HD2Mimnt.Core.Enums.BslModRole.SmoothBoot })
+                         HD2Mimnt.Core.Enums.BslModRole.MdlLoader, HD2Mimnt.Core.Enums.BslModRole.BmlLoader,
+                         HD2Mimnt.Core.Enums.BslModRole.SmoothBoot })
                 Assert.True(new ProfileModViewModel { BslRole = role }.IsLuaMod);
             Assert.False(new ProfileModViewModel { IsSeparator = true }.IsLuaMod);
         }
@@ -1624,7 +1625,7 @@ public sealed partial class FluentAvaloniaUiTests
                 var before = File.ReadAllText(target);
                 File.AppendAllText(sourcePatch, " changed");
                 Assert.Equal(method == HD2Mimnt.Core.Enums.DeploymentMethod.HardLink ? before + " changed" : before, File.ReadAllText(target));
-                Assert.Equal(6, Directory.GetFiles(Path.Combine(game, "data")).Length);
+                Assert.Equal(2, Directory.GetFiles(Path.Combine(game, "data")).Length);
                 Assert.Empty(Directory.GetFiles(game));
                 Assert.Equal(activeId, (await profiles.GetActiveProfileAsync())!.Id);
             }

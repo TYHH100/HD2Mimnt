@@ -13,7 +13,8 @@ public partial class ModService
         finally { _mutationGate.Release(); }
     }
 
-    public async Task<ModReplacementResult> SwitchLocalVersionAsync(Guid id, Guid versionId, CancellationToken token = default)
+    public async Task<ModReplacementResult> SwitchLocalVersionAsync(Guid id, Guid versionId,
+        CancellationToken token = default, IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         await _mutationGate.WaitAsync(token);
         try
@@ -30,7 +31,6 @@ public partial class ModService
             var next = previous.Where(v => v.Id != versionId).Append(new LocalModVersion(Guid.NewGuid(), DateTime.UtcNow,
                 ModVersionStore.Clone(mod))).ToList();
             var wasDeployed = _deploymentService != null && (await _deploymentService.GetModDeploymentHistoryAsync(id, token)).Any();
-            if (_deploymentService != null) await _deploymentService.DeleteModDeploymentRecordsAsync(id, token);
             token.ThrowIfCancellationRequested();
             var content = selected.Content;
             mod.Path = content.Path;
@@ -61,8 +61,10 @@ public partial class ModService
             await store.WriteAsync(id, next, CancellationToken.None);
             try { await SaveLinkedModAsync(mod, CancellationToken.None); }
             catch { await store.WriteAsync(id, previous, CancellationToken.None); throw; }
+            var (deployment, deploymentWarning) = await ReconcileDeploymentAfterUpdateAsync(
+                id, wasDeployed, deploymentProgress, token);
             RaiseModsChanged();
-            return new(mod, wasDeployed, null);
+            return new(mod, wasDeployed, deployment, deploymentWarning);
         }
         finally { _mutationGate.Release(); }
     }

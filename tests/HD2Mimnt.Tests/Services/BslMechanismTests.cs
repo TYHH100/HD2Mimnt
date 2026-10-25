@@ -357,6 +357,7 @@ public sealed class BslMechanismTests : IDisposable
             {
                 BslModRole.Loader => new ModManifest { Guid = BslModDetector.LoaderGuid },
                 BslModRole.MdlLoader => new ModManifest { Guid = BslModDetector.MdlGuid },
+                BslModRole.BmlLoader => new ModManifest { Guid = BslModDetector.BootModLoaderGuid },
                 BslModRole.SmoothBoot => new ModManifest { Guid = BslModDetector.SmoothBootGuid },
                 _ => null
             } };
@@ -375,11 +376,24 @@ public sealed class BslMechanismTests : IDisposable
         sb.BslRole = BslModRole.Dependency;
         sb.Manifest!.Description = "Requires Bingus Shared Loader v15 or newer / API 1.";
         await _mods.UpdateAsync(sb);
+        var bml = await AddModAsync("已改名", BslModRole.BmlLoader);
+        bml.BslRole = BslModRole.None;
+        await _mods.UpdateAsync(bml);
         await BslProfilePolicy.EnsureDetectedAsync(mdl, _mods, default);
         await BslProfilePolicy.EnsureDetectedAsync(sb, _mods, default);
+        await BslProfilePolicy.EnsureDetectedAsync(bml, _mods, default);
         Assert.Equal(BslModRole.MdlLoader, (await _mods.GetByIdAsync(mdl.Id))!.BslRole);
         Assert.Equal(BslModRole.SmoothBoot, (await _mods.GetByIdAsync(sb.Id))!.BslRole);
+        Assert.Equal(BslModRole.BmlLoader, (await _mods.GetByIdAsync(bml.Id))!.BslRole);
         Assert.Equal(BslModRole.SmoothBoot, await BslModDetector.DetectAsync(sb));
+    }
+
+    [Fact]
+    public async Task KnownBootModLoaderGuid_ShouldBeRecognizedWithoutReadingPackage()
+    {
+        var mod = await AddModAsync("任意名称", BslModRole.BmlLoader);
+        Directory.Delete(mod.Path, true);
+        Assert.Equal(BslModRole.BmlLoader, await BslModDetector.DetectAsync(mod));
     }
 
     [Theory]
@@ -387,6 +401,9 @@ public sealed class BslMechanismTests : IDisposable
     [InlineData("mods/codex/smoothboot", "-- HD2-Addon: mods/codex/smoothboot\nreturn true", BslModRole.SmoothBoot)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.Loader)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader MDL.log", BslModRole.None)]
+    [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader boot_mod_loader.log", BslModRole.BmlLoader)]
+    [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader", BslModRole.None)]
+    [InlineData("boot", "another boot replacement", BslModRole.None)]
     [InlineData("mods/test/unrelated", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.None)]
     public async Task ChangedOrMissingGuid_ShouldUseResourceContractAndRefreshOldCache(string resource, string content, BslModRole expected)
     {
@@ -431,11 +448,32 @@ public sealed class BslMechanismTests : IDisposable
         Assert.Single((await _profiles.GetByIdAsync(profileId))!.Mods, item => item.Enabled);
     }
 
+    [Fact]
+    public async Task SelectingBootModLoader_ShouldReplaceOtherLoaderKinds()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var mdl = await AddModAsync("MDL", BslModRole.MdlLoader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        foreach (var mod in new[] { bsl, mdl, bml })
+            await _service.AddModToProfileAsync(profileId, mod.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == mdl.Id).Enabled);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bml.Id, bsl.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+    }
+
     [Theory]
     [InlineData(DeploymentOrder.TopToBottom, BslModRole.Loader)]
     [InlineData(DeploymentOrder.BottomToTop, BslModRole.Loader)]
     [InlineData(DeploymentOrder.TopToBottom, BslModRole.MdlLoader)]
     [InlineData(DeploymentOrder.BottomToTop, BslModRole.MdlLoader)]
+    [InlineData(DeploymentOrder.TopToBottom, BslModRole.BmlLoader)]
+    [InlineData(DeploymentOrder.BottomToTop, BslModRole.BmlLoader)]
     public async Task SmoothBoot_ShouldFollowEitherLoaderAndHaveHighestPatchPriority(DeploymentOrder direction, BslModRole loaderRole)
     {
         var normal = await AddModAsync("普通");

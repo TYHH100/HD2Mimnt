@@ -104,7 +104,8 @@ public sealed class ModCollectionImportTests : IDisposable
 
         // 只启用第二个组件：只部署它自己的两个选项目录，其余组件不参与。
         var second = await CreateProfile(id, [false, false, true, true, false, false]);
-        Assert.Equal(DeploymentStatus.Completed, (await Deploy(second, game)).Status);
+        var secondResult = await Deploy(second, game);
+        Assert.True(secondResult.Status == DeploymentStatus.Completed, secondResult.ErrorMessage);
         var onlySecond = DeployedPatchMainFiles(game);
         Assert.Equal(2, onlySecond.Length);
         Assert.Equal("RS-67“空密码”潜行中甲-本体",

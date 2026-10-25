@@ -191,6 +191,9 @@ public class HD2MimntDbContext : IDisposable
                 OptionsSnapshotJson TEXT,
                 DeploymentOrderIndex INTEGER,
                 ModVersion TEXT,
+                GamePath TEXT,
+                DeploymentOrder TEXT,
+                AppliedAt TEXT,
                 FOREIGN KEY (ProfileId) REFERENCES Profiles(Id),
                 FOREIGN KEY (ModId) REFERENCES Mods(Id)
             );
@@ -205,6 +208,9 @@ public class HD2MimntDbContext : IDisposable
                 SourcePath TEXT NOT NULL,
                 TargetPath TEXT NOT NULL,
                 Method TEXT,
+                GamePath TEXT,
+                SourceKey TEXT,
+                SourceRelativePath TEXT,
                 FOREIGN KEY (DeploymentId) REFERENCES DeploymentRecords(Id) ON DELETE CASCADE,
                 FOREIGN KEY (ModId) REFERENCES Mods(Id) ON DELETE CASCADE
             );
@@ -548,7 +554,13 @@ public class HD2MimntDbContext : IDisposable
             ("Profiles", "DefaultMigrationStateJson", "TEXT NOT NULL DEFAULT '{}'"),
             ("DeploymentRecords", "OptionsSnapshotJson", "TEXT"),
             ("DeploymentRecords", "DeploymentOrderIndex", "INTEGER"),
-            ("DeploymentRecords", "ModVersion", "TEXT")
+            ("DeploymentRecords", "ModVersion", "TEXT"),
+            ("DeploymentRecords", "GamePath", "TEXT"),
+            ("DeploymentRecords", "DeploymentOrder", "TEXT"),
+            ("DeploymentRecords", "AppliedAt", "TEXT"),
+            ("DeploymentFiles", "GamePath", "TEXT"),
+            ("DeploymentFiles", "SourceKey", "TEXT"),
+            ("DeploymentFiles", "SourceRelativePath", "TEXT")
         })
         {
             using var check = connection.CreateCommand();
@@ -560,6 +572,17 @@ public class HD2MimntDbContext : IDisposable
                 alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
                 await alter.ExecuteNonQueryAsync(cancellationToken);
             }
+        }
+
+        // 这些索引依赖本次新增的列；必须在旧库补列之后创建，不能放进上方初始 SQL。
+        using (var deploymentIndexes = connection.CreateCommand())
+        {
+            deploymentIndexes.CommandText = """
+                CREATE INDEX IF NOT EXISTS idx_deployment_gamepath_mod ON DeploymentRecords(GamePath, ModId);
+                CREATE INDEX IF NOT EXISTS idx_deploymentfiles_gamepath_target ON DeploymentFiles(GamePath, TargetPath);
+                CREATE INDEX IF NOT EXISTS idx_deploymentfiles_sourcekey ON DeploymentFiles(DeploymentId, SourceKey);
+                """;
+            await deploymentIndexes.ExecuteNonQueryAsync(cancellationToken);
         }
 
         using (var checkDefault = connection.CreateCommand())

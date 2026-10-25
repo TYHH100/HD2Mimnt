@@ -71,7 +71,8 @@ public sealed class ModOnlineService(IPlatformRegistry platforms,
 
     public async Task<ModReplacementResult> UpdateAsync(Guid id, ModPlatformLink link, PlatformModFile file,
         IProgress<DownloadProgress>? downloadProgress = null, IProgress<ModImportProgress>? importProgress = null,
-        CancellationToken cancellationToken = default, string? protocolLink = null)
+        CancellationToken cancellationToken = default, string? protocolLink = null,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         if (string.IsNullOrWhiteSpace(file.Version))
             throw new InvalidOperationException("所选文件未提供版本号，无法更新；可以单独下载压缩包。");
@@ -82,7 +83,8 @@ public sealed class ModOnlineService(IPlatformRegistry platforms,
             var archive = Path.Combine(directory, "update.zip");
             await DownloadAsync(id, link, file, archive, downloadProgress, cancellationToken, protocolLink);
             return await Task.Run(() => mods.ReplaceFromArchiveAsync(id, archive, link, file,
-                cancellationToken, importProgress, protocolLink == null ? null : file.WebsiteFileId), cancellationToken);
+                cancellationToken, importProgress, protocolLink == null ? null : file.WebsiteFileId,
+                deploymentProgress), cancellationToken);
         }
         finally
         {
@@ -94,7 +96,8 @@ public sealed class ModOnlineService(IPlatformRegistry platforms,
 
     /// <summary>Replace from an explicitly selected browser download; the source belongs to the user.</summary>
     public async Task<ModReplacementResult> UpdateFromBrowserFileAsync(Guid id, ModPlatformLink link, PlatformModFile file,
-        string path, IProgress<ModImportProgress>? progress = null, CancellationToken token = default)
+        string path, IProgress<ModImportProgress>? progress = null, CancellationToken token = default,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         if (link.PlatformId != "ayakamods") throw new NotSupportedException("此平台不使用浏览器文件接管。");
         if (string.IsNullOrWhiteSpace(file.Version)) throw new InvalidOperationException("所选文件未提供版本号，无法更新；可以单独下载压缩包。");
@@ -107,7 +110,7 @@ public sealed class ModOnlineService(IPlatformRegistry platforms,
         ModReplacementResult? result = null;
         await BrowserDownloadHandoffService.UseFileAsync(path, file, async (source, cancellation) =>
             result = await Task.Run(() => mods.ReplaceFromArchiveAsync(id, source, link, file,
-                cancellation, progress), cancellation), token);
+                cancellation, progress, deploymentProgress: deploymentProgress), cancellation), token);
         return result!;
     }
 

@@ -1,4 +1,5 @@
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using System.Buffers;
 using System.IO;
 
@@ -218,6 +219,25 @@ public class CopyDeploymentMethod : IDeploymentMethod
     /// <param name="targetPath">目标文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否成功</returns>
+    public async Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!File.Exists(sourcePath) || !File.Exists(targetPath)) return false;
+            return await FileIdentity.ContentEqualsAsync(sourcePath, targetPath, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     public async Task<bool> CleanupFileAsync(
         string targetPath,
         CancellationToken cancellationToken = default)

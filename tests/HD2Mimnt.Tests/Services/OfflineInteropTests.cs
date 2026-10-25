@@ -125,6 +125,7 @@ public sealed class OfflineInteropTests : IAsyncLifetime
         var mod = await AddMod("选项模组", variants: true);
         var profile = await AddProfile(mod);
         var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        await _settings.SetSettingAsync(SettingKeys.GamePath, game);
         await _interop.StartAsync();
         var deployed = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
             DeploymentOrder.TopToBottom, game);
@@ -158,14 +159,17 @@ public sealed class OfflineInteropTests : IAsyncLifetime
     public async Task Refresh_LegacyCancelledRecord_ListsOnlyExistingFilesAndKeepsOptionsUnknown()
     {
         var mod = await AddMod("遗留部署"); var profile = await AddProfile(mod);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        await _settings.SetSettingAsync(SettingKeys.GamePath, game);
         var present = Path.Combine(_root, "present.patch_0"); await File.WriteAllTextAsync(present, "partial");
         var missing = Path.Combine(_root, "missing.patch_1");
         var record = new DeploymentRecord { Id = Guid.NewGuid(), SessionId = Guid.NewGuid(), ModId = mod.Id,
-            ProfileId = profile.Id, StartTime = DateTime.UtcNow, Status = "Cancelled", DeploymentMethod = "Copy" };
+            ProfileId = profile.Id, StartTime = DateTime.UtcNow, Status = "Cancelled", DeploymentMethod = "Copy",
+            GamePath = game };
         record.Files = [new() { Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = mod.Id,
-            SourcePath = mod.Path, TargetPath = present, Method = "Copy" },
+            SourcePath = mod.Path, TargetPath = present, Method = "Copy", GamePath = game },
             new() { Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = mod.Id, SourcePath = mod.Path,
-                TargetPath = missing, Method = "Copy" }];
+                TargetPath = missing, Method = "Copy", GamePath = game }];
         await _deployments.AddAsync(record);
         await _interop.RefreshAsync();
         var exported = Assert.Single((await Read()).Deployments);

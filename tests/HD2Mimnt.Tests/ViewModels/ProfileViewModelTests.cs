@@ -143,6 +143,7 @@ public sealed class ProfileViewModelTests : IDisposable
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.MdlLoader },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.BmlLoader },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.SmoothBoot },
             new ProfileModViewModel { IsSeparator = true },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency }

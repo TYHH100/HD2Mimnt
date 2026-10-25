@@ -417,7 +417,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         // 切换控件会先切换自身状态；等待确认期间立即恢复已确认的值。
         OnPropertyChanged(nameof(KeepModVersions));
         if (!KeepModVersions && (_confirmationService == null || !await _confirmationService.ConfirmAsync(
-                "保留模组历史版本", "开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项并重新部署。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？")))
+                "保留模组历史版本", "开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项；若该模组当前已部署，会自动增量更新游戏文件。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？")))
         {
             OnPropertyChanged(nameof(KeepModVersions));
             return;

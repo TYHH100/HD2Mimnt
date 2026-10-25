@@ -1,4 +1,5 @@
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -193,6 +194,24 @@ public class HardLinkDeploymentMethod : IDeploymentMethod
         {
             progress?.Report($"Failed: {Path.GetFileName(sourcePath)} - {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 判断目标是否仍是指向源文件的硬链接。
+    /// </summary>
+    public Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            if (!File.Exists(sourcePath) || !File.Exists(targetPath)) return Task.FromResult(false);
+            return Task.FromResult(FileIdentity.IsSameFile(sourcePath, targetPath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(false);
         }
     }
 

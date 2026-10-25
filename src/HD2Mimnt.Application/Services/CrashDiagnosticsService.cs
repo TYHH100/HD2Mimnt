@@ -63,7 +63,12 @@ public sealed class CrashDiagnosticsService(IMinidumpAnalyzer analyzer, IDeploym
             var names = new Dictionary<Guid, string>();
             try
             {
-                records = (await deployments.GetLatestDeploymentsAsync(cancellationToken).ConfigureAwait(false)).ToList();
+                var gameRoot = string.IsNullOrWhiteSpace(gamePath)
+                    ? null
+                    : DeploymentPlanBuilder.NormalizeGamePath(gamePath);
+                records = gameRoot == null
+                    ? (await deployments.GetLatestDeploymentsAsync(cancellationToken).ConfigureAwait(false)).ToList()
+                    : (await deployments.GetCurrentDeploymentsAsync(gameRoot, cancellationToken).ConfigureAwait(false)).ToList();
                 if (records.Count > 0)
                 {
                     names = (await mods.GetByIdsAsync(records.Select(record => record.ModId).Distinct(), cancellationToken)
