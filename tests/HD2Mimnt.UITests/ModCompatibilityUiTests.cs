@@ -502,4 +502,33 @@ public sealed partial class FluentAvaloniaUiTests
         }
         finally { await vm.StopAsync(); }
     }
+
+    [AvaloniaFact]
+    public async Task Compatibility_QuickRepairBuildsPlanAndRepairsWithoutPreview()
+    {
+        var confirmation = new RecordingConfirmation();
+        await using var scope = await UiScope.CreateAsync(confirmation: confirmation, compatibilityNames: new OfflineCompatibilityNames());
+        var id = await ImportCompatibilityMod(scope, "HD2Mimnt Test quick repair", brokenIndex: true);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == id)], "quick");
+            // 检查后没有计划：修复 Tab 的按钮仍要求先预览，一键按钮按报告可用；批量一键受设置门控。
+            Assert.False(vm.CanRepairSelected);
+            Assert.True(vm.CanQuickRepairSelected);
+            Assert.False(vm.CanQuickRepairScope);
+            vm.RepairUnits = false; vm.MigrateMaterials = false;
+
+            await vm.RepairSelectedCommand.ExecuteAsync(null);
+
+            var mod = (await scope.Services.GetRequiredService<ModService>().GetAllModsAsync()).Single(m => m.Id == id);
+            var repaired = File.ReadAllBytes(Directory.GetFiles(mod.Path, "*.patch_0", SearchOption.AllDirectories).Single());
+            Assert.Equal(1u, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(repaired.AsSpan(180)));
+            Assert.Contains("重新部署", confirmation.Message);
+            Assert.NotEmpty(Directory.GetFiles(mod.Path, "*.hd2mimnt-backup", SearchOption.AllDirectories));
+            Assert.False(vm.CanRepairSelected);
+        }
+        finally { await vm.StopAsync(); }
+    }
 }

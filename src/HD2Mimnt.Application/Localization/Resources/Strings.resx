@@ -4136,6 +4136,7 @@ Last checked: {7}</value>
   <data name="Compatibility.Corrupted" xml:space="preserve"><value>Patch corrupted or required companion file missing</value></data>
   <data name="Compatibility.Scope" xml:space="preserve"><value>Check scope</value></data>
   <data name="Compatibility.NoModels" xml:space="preserve"><value>No model Units found. Lua, skeletons, animations and audio are outside this check and will not receive model repairs.</value></data>
+  <data name="Compatibility.NothingToRepair" xml:space="preserve"><value>No applicable repair actions.</value></data>
   <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>Unconfirmed: {0}</value></data>
   <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>game directory is not configured</value></data>
   <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>current game references could not be read</value></data>

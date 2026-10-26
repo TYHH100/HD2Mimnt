@@ -69,6 +69,8 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     public bool IsIdle => !IsBusy;
     public bool CanRepairSelected => IsIdle && SelectedMod?.Plan?.CanRepair == true;
     public bool CanRepairScope => EnableBatchRepair && IsIdle && Mods.Any(m => m.Plan?.CanRepair == true);
+    public bool CanQuickRepairSelected => IsIdle && SelectedMod?.Report is { Status: not ModCompatibilityStatus.NotApplicable };
+    public bool CanQuickRepairScope => EnableBatchRepair && IsIdle && Mods.Any(m => m.Report is { Status: not ModCompatibilityStatus.NotApplicable });
     public bool HasSelectedMod => SelectedMod != null;
     public bool CanPreviewSelected => SelectedMod?.Report is { Status: not ModCompatibilityStatus.NotApplicable };
     public bool IsMixed => LodStrategy == CompatibilityLodStrategy.Mixed;
@@ -191,9 +193,18 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     [RelayCommand] private Task PreviewScopeAsync() => Start(token => PreviewAsync(Mods.ToArray(), token));
     private async Task PreviewAsync(CompatibilityModRow[] rows, CancellationToken token)
     {
-        rows = rows.Where(row => row.Report is { Status: not ModCompatibilityStatus.NotApplicable }).ToArray();
-        if (rows.Length == 0) { Message = UiLocalization.Current["Compatibility.NoModels"]; return; }
+        if (!rows.Any(row => row.Report is { Status: not ModCompatibilityStatus.NotApplicable }))
+        { Message = UiLocalization.Current["Compatibility.NoModels"]; return; }
         SelectedTab = 1;
+        await BuildPlansAsync(rows, token);
+        Message = UiLocalization.Current["Compatibility.PreviewComplete"];
+    }
+
+    /// <summary>为报告可参与的行生成修复计划；一键修复在执行前也经由这里补建计划。</summary>
+    private async Task<bool> BuildPlansAsync(CompatibilityModRow[] rows, CancellationToken token)
+    {
+        rows = rows.Where(row => row.Report is { Status: not ModCompatibilityStatus.NotApplicable }).ToArray();
+        if (rows.Length == 0) { Message = UiLocalization.Current["Compatibility.NoModels"]; return false; }
         ProgressText = UiLocalization.Current["Compatibility.Previewing"];
         // 生成新预览前清除旧计划，取消/失败后不能误用上一次选项的计划。
         foreach (var row in rows) { row.ApplyPlan(null); row.OperationError = null; row.OperationState = null; }
@@ -204,19 +215,25 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
             progress: progress, cancellationToken: token, perModOptions: options), token);
         foreach (var result in results) ApplyBatch(result);
         RefreshPresentation();
-        Message = UiLocalization.Current["Compatibility.PreviewComplete"];
+        return true;
     }
 
-    [RelayCommand] private Task RepairSelectedAsync() => Start(token => RepairAsync(SelectedMod is { Plan.CanRepair: true } row ? [row] : [], token));
+    [RelayCommand] private Task RepairSelectedAsync() => Start(token => RepairAsync(SelectedMod is { Report: not null } row ? [row] : [], token));
     [RelayCommand] private Task RepairScopeAsync() => !EnableBatchRepair ? Task.CompletedTask
-        : Start(token => RepairAsync(Mods.Where(m => m.Plan?.CanRepair == true).ToArray(), token, batch: true));
+        : Start(token => RepairAsync(Mods.Where(m => m.Report is { Status: not ModCompatibilityStatus.NotApplicable }).ToArray(), token, batch: true));
     private async Task RepairAsync(CompatibilityModRow[] rows, CancellationToken token, bool batch = false)
     {
         if (rows.Length == 0) return;
+        if (batch && !EnableBatchRepair) return;
+        // 一键修复：尚无有效计划时先在后台生成，再进入数量确认。
+        var pendingPlans = rows.Where(row => row.Plan == null
+            && row.Report is { Status: not ModCompatibilityStatus.NotApplicable }).ToArray();
+        if (pendingPlans.Length > 0 && !await BuildPlansAsync(pendingPlans, token)) return;
+        rows = rows.Where(row => row.Plan?.CanRepair == true).ToArray();
+        if (rows.Length == 0) { Message = UiLocalization.Current["Compatibility.NothingToRepair"]; return; }
         if (!await confirmation.ConfirmAsync(UiLocalization.Current["Compatibility.Repair"],
             UiLocalization.Current.Format("Compatibility.ConfirmRepair", rows.Length, rows.Sum(r => r.Plan!.ActionCount)))) return;
         token.ThrowIfCancellationRequested();
-        if (batch && !EnableBatchRepair) return;
         var results = new ConcurrentQueue<CompatibilityBatchItem>();
         var options = rows.ToDictionary(r => r.Id, Options);
         _mutating = true;
@@ -405,7 +422,8 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     public void RefreshPresentation()
     {
         foreach (var name in new[] { nameof(Summary), nameof(SelectedSummary), nameof(HasSelectedMod), nameof(CanPreviewSelected), nameof(Details),
-            nameof(SelectedOperation), nameof(SelectedBackupDetails), nameof(PlanDetails), nameof(UnitChoices), nameof(Backups), nameof(CanRepairSelected), nameof(CanRepairScope) }) OnPropertyChanged(name);
+            nameof(SelectedOperation), nameof(SelectedBackupDetails), nameof(PlanDetails), nameof(UnitChoices), nameof(Backups), nameof(CanRepairSelected), nameof(CanRepairScope),
+            nameof(CanQuickRepairSelected), nameof(CanQuickRepairScope) }) OnPropertyChanged(name);
     }
 }
 

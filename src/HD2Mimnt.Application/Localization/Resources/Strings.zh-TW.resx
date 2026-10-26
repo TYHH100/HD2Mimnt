@@ -4136,6 +4136,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Compatibility.Corrupted" xml:space="preserve"><value>補丁損壞或缺少必需的伴隨檔案</value></data>
   <data name="Compatibility.Scope" xml:space="preserve"><value>檢測範圍</value></data>
   <data name="Compatibility.NoModels" xml:space="preserve"><value>未包含模型 Unit。Lua、骨骼、動畫和音效不屬於此項檢測範圍，不執行模型修復。</value></data>
+  <data name="Compatibility.NothingToRepair" xml:space="preserve"><value>沒有可執行的修復動作。</value></data>
   <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>未確認：{0}</value></data>
   <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>未設定遊戲目錄</value></data>
   <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>無法讀取目前遊戲參考</value></data>
