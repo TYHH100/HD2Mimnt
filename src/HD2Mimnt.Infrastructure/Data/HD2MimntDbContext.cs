@@ -497,6 +497,21 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_transactions_logicalmodid ON DeploymentTransactions(LogicalModId);
             CREATE INDEX IF NOT EXISTS idx_transactions_modid ON DeploymentTransactions(ModId);
             CREATE INDEX IF NOT EXISTS idx_transactions_starttime ON DeploymentTransactions(StartTime DESC);
+
+            -- 兼容性检查结果摘要：跨会话回填角标；ContentStamp 变化即视为模组内容已变更。
+            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            CREATE TABLE IF NOT EXISTS CompatibilityResults (
+                ModId TEXT PRIMARY KEY,
+                Status INTEGER NOT NULL,
+                Reason INTEGER NOT NULL,
+                UnitCount INTEGER NOT NULL,
+                ComparedUnitCount INTEGER NOT NULL,
+                HasBlockingIssues INTEGER NOT NULL,
+                ReferenceSource TEXT,
+                IssuesJson TEXT NOT NULL DEFAULT '[]',
+                CheckedAtUtc TEXT NOT NULL,
+                ContentStamp TEXT NOT NULL
+            );
         ";
 
         using var command = connection.CreateCommand();

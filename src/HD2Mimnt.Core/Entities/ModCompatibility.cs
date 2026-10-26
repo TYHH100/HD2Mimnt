@@ -90,6 +90,13 @@ public sealed class ModCompatibilityReport
         || (p.RequiresStream && !p.HasStream)
         || (p.RequiresGpuResources && !p.HasGpuResources)
         || !p.IndexValid || !p.PayloadRangesValid || !p.TypeDistributionValid || !p.EntryIndicesValid));
+
+    /// <summary>确定损坏：补丁结构不可读（头部/索引/载荷/类型分布）或必需伴随文件缺失。
+    /// 不含 entry_index、GPU 采样等仅警告级诊断，可作为角标依据而不复现历史误报。</summary>
+    public bool HasBlockingStructureIssues => Patches.Any(p => p.ContainsUnitResources != false
+        && (p.Health == CompatibilityPatchHealth.Corrupted
+            || (p.RequiresStream && !p.HasStream)
+            || (p.RequiresGpuResources && !p.HasGpuResources)));
 }
 
 public enum CompatibilityRepairKind

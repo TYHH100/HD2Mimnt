@@ -149,6 +149,24 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
         Message = UiLocalization.Current["Compatibility.CheckComplete"];
     }
 
+    /// <summary>启动时从持久化摘要回填角标；不需要开启启动检查设置。</summary>
+    public async Task RestoreBadgesAsync()
+    {
+        if (_closing || IsBusy) return;
+        await Start(RestoreCoreAsync);
+    }
+
+    private async Task RestoreCoreAsync(CancellationToken token)
+    {
+        var restored = await Task.Run(() => service.RestorePersistedResultsAsync(), token);
+        foreach (var (modId, report) in restored)
+        {
+            if (token.IsCancellationRequested) return;
+            GetBadge(modId).ApplyReport(report);
+            if (_rows.TryGetValue(modId, out var row)) row.ApplyReport(report);
+        }
+    }
+
     private CompatibilityRepairOptions Options(CompatibilityModRow row) => new()
     {
         RepairMetadata = RepairMetadata, RecoverCompanions = RecoverCompanions, RepairUnits = RepairUnits,
@@ -343,6 +361,8 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
         }
         InvalidatePlans();
         if (IsOpen) Message = UiLocalization.Current["Compatibility.Stale"];
+        // 内容变化清空角标后，从持久化摘要恢复未变化模组的结果，避免无关模组丢失检查状态。
+        Start(RestoreCoreAsync);
     }
     private void ClearRows()
     {

@@ -1,5 +1,6 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Services;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -8,15 +9,19 @@ namespace HD2Mimnt.Application.Services;
 /// </summary>
 public sealed partial class ModCompatibilityService
 {
+    private const int MaxPersistedIssues = 8;
+
     private readonly IModRepository _modRepository;
     private readonly IModCompatibilityAnalyzer _analyzer;
     private readonly ModService _mods;
     private readonly IGameUnitReferenceReader? _gameReferences;
     private readonly SettingsService? _settings;
     private readonly ICompatibilityResourceNames? _names;
+    private readonly ICompatibilityResultStore? _resultStore;
 
     public ModCompatibilityService(IModRepository modRepository, IModCompatibilityAnalyzer analyzer, ModService mods,
-        IGameUnitReferenceReader? gameReferences = null, SettingsService? settings = null, ICompatibilityResourceNames? names = null)
+        IGameUnitReferenceReader? gameReferences = null, SettingsService? settings = null, ICompatibilityResourceNames? names = null,
+        ICompatibilityResultStore? resultStore = null)
     {
         _modRepository = modRepository;
         _analyzer = analyzer;
@@ -24,6 +29,7 @@ public sealed partial class ModCompatibilityService
         _gameReferences = gameReferences;
         _settings = settings;
         _names = names;
+        _resultStore = resultStore;
     }
 
     public async Task<ModCompatibilityReport> CheckModAsync(
@@ -37,6 +43,7 @@ public sealed partial class ModCompatibilityService
             referenceVersion.HasValue ? "provided" : null, cancellationToken);
         if (!referenceVersion.HasValue) await ApplyGameReferencesAsync([report], cancellationToken);
         await ApplyNamesAsync([report], cancellationToken);
+        await PersistReportsAsync([report], cancellationToken);
         return report;
     }
 
@@ -63,6 +70,7 @@ public sealed partial class ModCompatibilityService
 
         if (!referenceVersion.HasValue) await ApplyGameReferencesAsync(reports, cancellationToken);
         await ApplyNamesAsync(reports, cancellationToken);
+        await PersistReportsAsync(reports, cancellationToken);
         return reports;
     }
 
@@ -146,6 +154,58 @@ public sealed partial class ModCompatibilityService
                         ? ModCompatibilityReason.ReferenceUnavailable : ModCompatibilityReason.NoComparableUnits;
             }
         }
+    }
+
+    /// <summary>读取持久化摘要，内容戳仍匹配的模组返回轻量报告（不含逐补丁/逐 Unit 详情），供启动或内容失效后回填角标。</summary>
+    public async Task<IReadOnlyDictionary<Guid, ModCompatibilityReport>> RestorePersistedResultsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (_resultStore is null) return new Dictionary<Guid, ModCompatibilityReport>();
+        var mods = (await _modRepository.GetAllAsync(cancellationToken))
+            .Where(mod => !string.IsNullOrWhiteSpace(mod.Path)).ToDictionary(mod => mod.Id);
+        var restored = new Dictionary<Guid, ModCompatibilityReport>();
+        foreach (var row in await _resultStore.GetAllAsync(cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!mods.TryGetValue(row.ModId, out var mod) || row.ContentStamp != ModContentStamp.Calculate(mod.Path)) continue;
+            restored[row.ModId] = new ModCompatibilityReport
+            {
+                ModId = row.ModId,
+                ModPath = mod.Path,
+                Status = row.Status,
+                Reason = row.Reason,
+                UnitCount = row.UnitCount,
+                ComparedUnitCount = row.ComparedUnitCount,
+                ReferenceSource = row.ReferenceSource,
+                CheckedAtUtc = row.CheckedAtUtc,
+                Issues = [.. row.Issues]
+            };
+        }
+        return restored;
+    }
+
+    private async Task PersistReportsAsync(IReadOnlyList<ModCompatibilityReport> reports, CancellationToken token)
+    {
+        if (_resultStore is null || reports.Count == 0) return;
+        var rows = new List<PersistedCompatibilityResult>(reports.Count);
+        foreach (var report in reports)
+        {
+            if (report.ModId is not { } modId) continue;
+            rows.Add(new PersistedCompatibilityResult
+            {
+                ModId = modId,
+                Status = report.Status,
+                Reason = report.Reason,
+                UnitCount = report.UnitCount,
+                ComparedUnitCount = report.ComparedUnitCount,
+                HasBlockingIssues = report.HasBlockingStructureIssues,
+                ReferenceSource = report.ReferenceSource,
+                Issues = report.Issues.Take(MaxPersistedIssues).ToArray(),
+                CheckedAtUtc = report.CheckedAtUtc,
+                ContentStamp = ModContentStamp.Calculate(report.ModPath)
+            });
+        }
+        if (rows.Count > 0) await _resultStore.UpsertAsync(rows, token);
     }
 
     public async Task<CompatibilityRepairPlan> CreateRepairPlanAsync(

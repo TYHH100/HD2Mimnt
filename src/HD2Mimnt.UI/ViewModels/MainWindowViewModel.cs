@@ -593,6 +593,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private async Task RunStartupCompatibilityAsync()
     {
         await _settingsViewModel.UpdateStaleCompatibilityDataAsync();
+        if (_closingCompatibility) return;
+        // 无论是否开启启动扫描，都先从持久化摘要恢复上次检查的角标。
+        await _libraryViewModel.RestoreCompatibilityBadgesAsync();
         if (!_closingCompatibility) await _libraryViewModel.CheckCompatibilityOnStartupAsync();
     }
 

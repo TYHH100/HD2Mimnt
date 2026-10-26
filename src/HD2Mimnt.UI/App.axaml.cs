@@ -375,6 +375,7 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton<ConflictDetectionService>();
         services.AddSingleton<IModCompatibilityAnalyzer, ModCompatibilityAnalyzer>();
+        services.AddSingleton<ICompatibilityResultStore, CompatibilityResultRepository>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("compatibility-names", (_, _) => new System.Net.Http.HttpClient
             { Timeout = TimeSpan.FromSeconds(15) });
         services.AddSingleton<ICompatibilityResourceNames>(sp => new CompatibilityResourceNameProvider(

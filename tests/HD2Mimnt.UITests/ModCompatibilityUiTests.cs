@@ -341,4 +341,81 @@ public sealed partial class FluentAvaloniaUiTests
         await closing; await opening;
         Assert.True(analyzer.Cleaned); Assert.False(vm.IsBusy); Assert.False(vm.IsOpen); Assert.Empty(vm.Mods);
     }
+
+    private static async Task<Guid> ImportUnitVersionMod(UiScope scope, string name, uint version)
+    {
+        var source = Path.Combine(scope.Root, "compat-source-" + Guid.NewGuid().ToString("N"));
+        WritePatch(source, resources: [new(1, UnitType, Unit(version))]);
+        File.WriteAllText(Path.Combine(source, "manifest.json"), "{\"Version\":1,\"Name\":\"" + name + "\"}");
+        return await scope.Services.GetRequiredService<ModService>().ImportModAsync(source);
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_BadgesRestoreFromPersistenceWithoutStartupScan()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.GamePath, game);
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test persisted badge", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == id)], "persisted");
+            await vm.StopAsync();
+            var badge = library.FilteredMods.Single(m => m.Id == id).CompatibilityBadge!;
+            Assert.True(badge.HasWarning);
+
+            // 模拟重启：清空内存结果后走启动恢复路径，角标从持久化摘要回填。
+            badge.ApplyReport(null);
+            Assert.False(badge.HasWarning);
+            await vm.RestoreBadgesAsync();
+            Assert.True(badge.HasWarning);
+            Assert.Contains("模型版本不匹配", badge.Tooltip);
+
+            var db = scope.Services.GetRequiredService<HD2Mimnt.Infrastructure.Data.HD2MimntDbContext>();
+            using var connection = await db.OpenConnectionAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM CompatibilityResults";
+            Assert.Equal(1, Convert.ToInt64(await command.ExecuteScalarAsync()));
+        }
+        finally { await vm.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_InvalidateRestoresUnchangedModsFromPersistence()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.GamePath, game);
+        var mods = scope.Services.GetRequiredService<IModRepository>();
+        var first = await ImportUnitVersionMod(scope, "HD2Mimnt Test invalidate first", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == first)], "invalidate");
+            await vm.StopAsync();
+            var firstBadge = library.FilteredMods.Single(m => m.Id == first).CompatibilityBadge!;
+            Assert.True(firstBadge.HasWarning);
+
+            // 新增模组触发内容失效：已有结果的模组从持久化恢复，新模组保持未检查。
+            var second = await ImportUnitVersionMod(scope, "HD2Mimnt Test invalidate second", CurrentVersion + 1);
+            await library.InitializeAsync();
+            vm.Invalidate();
+            await vm.Completion;
+            Assert.True(firstBadge.HasWarning);
+            Assert.False(library.FilteredMods.Single(m => m.Id == second).CompatibilityBadge!.HasWarning);
+
+            // 内容变化的模组内容戳失效，不再恢复。
+            var entity = await mods.GetByIdAsync(first);
+            await File.AppendAllTextAsync(Path.Combine(entity!.Path, "extra.txt"), "x");
+            vm.Invalidate();
+            await vm.Completion;
+            Assert.False(firstBadge.HasWarning);
+        }
+        finally { await vm.StopAsync(); }
+    }
 }
