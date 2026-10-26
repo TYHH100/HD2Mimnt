@@ -233,6 +233,38 @@ public class HD2MimntDbContext : IDisposable
                 Id TEXT PRIMARY KEY
             );
 
+            CREATE TABLE IF NOT EXISTS DarktideLibrary (
+                InternalName TEXT PRIMARY KEY,
+                DisplayName TEXT NOT NULL,
+                Version TEXT NOT NULL,
+                Author TEXT NOT NULL,
+                Description TEXT NOT NULL,
+                ArchivePath TEXT NOT NULL,
+                ArchiveOriginalName TEXT NOT NULL,
+                ArchiveSha256 TEXT NOT NULL,
+                ArchiveSize INTEGER NOT NULL,
+                DependenciesJson TEXT NOT NULL,
+                ImportedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS DarktideProfiles (
+                Name TEXT PRIMARY KEY,
+                CreatedAt TEXT NOT NULL,
+                ModifiedAt TEXT NOT NULL,
+                IsActive INTEGER NOT NULL DEFAULT 0,
+                EntriesJson TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS DarktideModSeparators (
+                Id TEXT PRIMARY KEY,
+                Name TEXT NOT NULL,
+                [Order] INTEGER NOT NULL,
+                MemberCount INTEGER,
+                IsCollapsed INTEGER NOT NULL DEFAULT 0,
+                Color TEXT NOT NULL DEFAULT ''
+            );
+
             CREATE TABLE IF NOT EXISTS PlatformCaches (
                 Id TEXT PRIMARY KEY,
                 PlatformId TEXT NOT NULL,

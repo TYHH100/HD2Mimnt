@@ -218,7 +218,7 @@ public sealed class StorageSettingsServiceTests : IDisposable
         Assert.Equal(Path.Combine(target.ModsPath, "one"), await ReadAsync(target.DatabasePath, "SELECT Path FROM Mods WHERE Id='one'"));
         Assert.True(File.Exists(Path.Combine(target.ModsPath, "one/mod.patch_0")));
         Assert.True(File.Exists(Path.Combine(old.CachePath, "ImageCache/a.png")));
-        Assert.False(File.Exists(Path.Combine(appDataOnly ? old.AppDataPath : old.ModsPath, appDataOnly ? "hd2mimnt.db" : "one/mod.patch_0")));
+        Assert.False(File.Exists(Path.Combine(appDataOnly ? old.AppDataPath : old.ModsPath, appDataOnly ? "darktidemimnt.db" : "one/mod.patch_0")));
     }
 
     [Fact]

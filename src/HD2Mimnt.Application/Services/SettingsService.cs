@@ -22,7 +22,7 @@ public class SettingsService
     public event EventHandler<SettingChangedEventArgs>? SettingChanged;
 
     public SettingsService(string appDataPath, ILogger<SettingsService>? logger = null)
-        : this(new SettingsRepository(Path.Combine(appDataPath, "hd2mimnt.db")), appDataPath, logger)
+        : this(new SettingsRepository(Path.Combine(appDataPath, "darktidemimnt.db")), appDataPath, logger)
     {
     }
 
@@ -344,6 +344,7 @@ public static class SettingKeys
     public const string BackgroundImageOpacity = "UI.BackgroundOpacity";
     public const string BackgroundBlur = "UI.BackgroundBlur";
     public const string CardOpacity = "UI.CardOpacity";
+    public const string CornerRadius = "UI.CornerRadius";
     public const string WindowWidth = "UI.WindowWidth";
     public const string WindowHeight = "UI.WindowHeight";
     public const string WindowMaximized = "UI.WindowMaximized";

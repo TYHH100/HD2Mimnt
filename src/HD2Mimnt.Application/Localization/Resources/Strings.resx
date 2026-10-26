@@ -4262,4 +4262,227 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Downloads.AyakaTask" xml:space="preserve">
     <value>Ayaka Mods download: {0}</value>
   </data>
+  <data name="Darktide.Title" xml:space="preserve"><value>DarktideMimnt - Warhammer 40,000: Darktide Mod Manager</value></data>
+  <data name="Darktide.Nav.Library" xml:space="preserve"><value>Mod Library</value></data>
+  <data name="Darktide.Nav.LoadOrder" xml:space="preserve"><value>Load Order</value></data>
+  <data name="Darktide.Nav.Profiles" xml:space="preserve"><value>Profiles</value></data>
+  <data name="Darktide.Nav.Loader" xml:space="preserve"><value>Loader</value></data>
+  <data name="Darktide.Nav.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Darktide.Common.Busy" xml:space="preserve"><value>Working...</value></data>
+  <data name="Darktide.Common.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Darktide.Common.Confirm" xml:space="preserve"><value>Confirm</value></data>
+  <data name="Darktide.Common.Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Darktide.Common.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Darktide.Status.Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Darktide.Status.RunningTasks" xml:space="preserve"><value>{0} task(s) running</value></data>
+  <data name="Darktide.Status.Cancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="Darktide.Status.NotConfigured" xml:space="preserve"><value>Game folder not set</value></data>
+  <data name="Darktide.Status.InvalidPath" xml:space="preserve"><value>Invalid game folder</value></data>
+  <data name="Darktide.Status.GameWithoutLoader" xml:space="preserve"><value>Game found; DML not installed</value></data>
+  <data name="Darktide.Status.LoaderIncomplete" xml:space="preserve"><value>DML installation incomplete</value></data>
+  <data name="Darktide.Status.LoaderInstalled" xml:space="preserve"><value>DML ready</value></data>
+  <data name="Darktide.Game.Path" xml:space="preserve"><value>Game folder</value></data>
+  <data name="Darktide.Game.Browse" xml:space="preserve"><value>Browse...</value></data>
+  <data name="Darktide.Game.AutoDetect" xml:space="preserve"><value>Auto detect</value></data>
+  <data name="Darktide.Game.Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Darktide.Game.Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Darktide.Game.NotSet" xml:space="preserve"><value>Not set</value></data>
+  <data name="Darktide.Game.ChooseFolderTitle" xml:space="preserve"><value>Select the Darktide game folder</value></data>
+  <data name="Darktide.Game.Launch" xml:space="preserve"><value>Launch game</value></data>
+  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>Start binaries/Darktide.exe directly. For the Steam version, make sure Steam is running.</value></data>
+  <data name="Darktide.Game.LaunchFailed" xml:space="preserve"><value>Could not start the game.</value></data>
+  <data name="Darktide.Library.Title" xml:space="preserve"><value>Mod Library</value></data>
+  <data name="Darktide.Library.Subtitle" xml:space="preserve"><value>Import, install, update and remove Darktide mods.</value></data>
+  <data name="Darktide.Library.Summary" xml:space="preserve"><value>{0} known · {1} installed · {2} enabled</value></data>
+  <data name="Darktide.Library.Import" xml:space="preserve"><value>Import ZIP</value></data>
+  <data name="Darktide.Library.RegisterAfterImport" xml:space="preserve"><value>Register after import</value></data>
+  <data name="Darktide.Library.Importing" xml:space="preserve"><value>Importing...</value></data>
+  <data name="Darktide.Library.Installing" xml:space="preserve"><value>Installing...</value></data>
+  <data name="Darktide.Library.ImportCompleted" xml:space="preserve"><value>Import completed.</value></data>
+  <data name="Darktide.Library.ImportCompletedDetail" xml:space="preserve"><value>{0} imported ({1}).</value></data>
+  <data name="Darktide.Library.InstallCompleted" xml:space="preserve"><value>{0} installed.</value></data>
+  <data name="Darktide.Library.UninstallCompleted" xml:space="preserve"><value>{0} uninstalled.</value></data>
+  <data name="Darktide.Library.RemoveLibraryCompleted" xml:space="preserve"><value>{0} removed from library.</value></data>
+  <data name="Darktide.Library.InLibrary" xml:space="preserve"><value>In library</value></data>
+  <data name="Darktide.Library.Installed" xml:space="preserve"><value>Installed</value></data>
+  <data name="Darktide.Library.Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Darktide.Library.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="Darktide.Library.Missing" xml:space="preserve"><value>Missing</value></data>
+  <data name="Darktide.Library.Enable" xml:space="preserve"><value>Enable</value></data>
+  <data name="Darktide.Library.Disable" xml:space="preserve"><value>Disable</value></data>
+  <data name="Darktide.Library.ToggleHint" xml:space="preserve"><value>Enabling registers the mod in mod_load_order.txt; disabling only removes the entry and keeps the files.</value></data>
+  <data name="Darktide.Library.Install" xml:space="preserve"><value>Install</value></data>
+  <data name="Darktide.Library.Update" xml:space="preserve"><value>Update</value></data>
+  <data name="Darktide.Library.Uninstall" xml:space="preserve"><value>Uninstall</value></data>
+  <data name="Darktide.Library.RemoveFromLibrary" xml:space="preserve"><value>Remove from library</value></data>
+  <data name="Darktide.Library.AddGroupAbove" xml:space="preserve"><value>Add group above</value></data>
+  <data name="Darktide.Library.AddGroupBelow" xml:space="preserve"><value>Add group below</value></data>
+  <data name="Darktide.Library.RemoveGroupMessage" xml:space="preserve"><value>Deleting the group "{0}" only removes the divider; the {1} mod(s) inside join the previous group and no mod file is touched.</value></data>
+  <data name="Darktide.Library.OpenFolder" xml:space="preserve"><value>Open folder</value></data>
+  <data name="Darktide.Library.Empty" xml:space="preserve"><value>No mods yet</value></data>
+  <data name="Darktide.Library.EmptyHint" xml:space="preserve"><value>Import a mod ZIP to get started. DMF itself is imported from the Loader page.</value></data>
+  <data name="Darktide.Library.NoGame" xml:space="preserve"><value>A complete Darktide Mod Loader (mods and mod_load_order.txt) is required before installing mods.</value></data>
+  <data name="Darktide.Library.SelectArchive" xml:space="preserve"><value>Select mod ZIP</value></data>
+  <data name="Darktide.Library.SelectCandidate" xml:space="preserve"><value>Select the mod folder to install</value></data>
+  <data name="Darktide.Library.InstallAllCandidates" xml:space="preserve"><value>Install all ({0} mods)</value></data>
+  <data name="Darktide.Library.CustomInstallRequired" xml:space="preserve"><value>This archive also contains {0} file(s) outside the mod folders (for example {1}) and needs the author's own installer. The manager will not install only part of it. Read the bundled instructions or run its installer.</value></data>
+  <data name="Darktide.Library.ReplaceMessageMultiple" xml:space="preserve"><value>These mods are already installed: {0}. Replace all of them? Previous files are restored if the update fails.</value></data>
+  <data name="Darktide.Library.BundleCompleted" xml:space="preserve"><value>{0} mods installed and registered in dependency order.</value></data>
+  <data name="Darktide.Library.ReplaceTitle" xml:space="preserve"><value>Replace existing mod</value></data>
+  <data name="Darktide.Library.ReplaceMessage" xml:space="preserve"><value>A mod named {0} is already installed. Replace it? Previous files are restored if the update fails.</value></data>
+  <data name="Darktide.Library.UninstallTitle" xml:space="preserve"><value>Uninstall mod</value></data>
+  <data name="Darktide.Library.UninstallMessage" xml:space="preserve"><value>Uninstall {0} from the game and remove its load order entry? The library archive is kept. Path: {1}</value></data>
+  <data name="Darktide.Library.RemoveLibraryTitle" xml:space="preserve"><value>Remove library entry</value></data>
+  <data name="Darktide.Library.RemoveLibraryMessage" xml:space="preserve"><value>Remove {0} and its managed archive? Installed game files are not changed.</value></data>
+  <data name="Darktide.Library.DmfUseLoader" xml:space="preserve"><value>DMF is a framework. Use Loader → Import DMF ZIP instead of the normal mod import.</value></data>
+  <data name="Darktide.LoadOrder.Title" xml:space="preserve"><value>Load Order</value></data>
+  <data name="Darktide.LoadOrder.Subtitle" xml:space="preserve"><value>Drag or use arrows to reorder. Disabled mods are not loaded.</value></data>
+  <data name="Darktide.LoadOrder.Summary" xml:space="preserve"><value>{0} active · {1} disabled · {2} errors</value></data>
+  <data name="Darktide.LoadOrder.Active" xml:space="preserve"><value>Active load order</value></data>
+  <data name="Darktide.LoadOrder.Disabled" xml:space="preserve"><value>Disabled mods</value></data>
+  <data name="Darktide.LoadOrder.DisabledHint" xml:space="preserve"><value>These mods are installed but not registered in mod_load_order.txt.</value></data>
+  <data name="Darktide.LoadOrder.DragHint" xml:space="preserve"><value>Drag the handle to reorder. Comments and unknown lines are preserved.</value></data>
+  <data name="Darktide.LoadOrder.Empty" xml:space="preserve"><value>No active mods.</value></data>
+  <data name="Darktide.LoadOrder.NoDisabled" xml:space="preserve"><value>All installed mods are enabled.</value></data>
+  <data name="Darktide.LoadOrder.MoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="Darktide.LoadOrder.MoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistration" xml:space="preserve"><value>Remove</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistrationTitle" xml:space="preserve"><value>Remove framework registration</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistrationMessage" xml:space="preserve"><value>Remove the unexpected '{0}' entry from mod_load_order.txt?</value></data>
+  <data name="Darktide.LoadOrder.Framework" xml:space="preserve"><value>Framework</value></data>
+  <data name="Darktide.LoadOrder.Diagnostics" xml:space="preserve"><value>Diagnostics</value></data>
+  <data name="Darktide.LoadOrder.NoDiagnostics" xml:space="preserve"><value>No issues detected.</value></data>
+  <data name="Darktide.LoadOrder.OpenFile" xml:space="preserve"><value>Open file</value></data>
+  <data name="Darktide.LoadOrder.Reload" xml:space="preserve"><value>Reload from disk</value></data>
+  <data name="Darktide.LoadOrder.NoGame" xml:space="preserve"><value>Select a valid Darktide game folder with DML installed.</value></data>
+  <data name="Darktide.LoadOrder.AlternativeLoader" xml:space="preserve"><value>Alternative loader '{0}' detected; mod_load_order.txt may not be authoritative.</value></data>
+  <data name="Darktide.Profiles.Title" xml:space="preserve"><value>Profiles</value></data>
+  <data name="Darktide.Profiles.Subtitle" xml:space="preserve"><value>Save and restore mod combinations and load order.</value></data>
+  <data name="Darktide.Profiles.Create" xml:space="preserve"><value>New profile</value></data>
+  <data name="Darktide.Profiles.SaveCurrent" xml:space="preserve"><value>Save current</value></data>
+  <data name="Darktide.Profiles.Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="Darktide.Profiles.Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Darktide.Profiles.Empty" xml:space="preserve"><value>No profiles</value></data>
+  <data name="Darktide.Profiles.EmptyHint" xml:space="preserve"><value>Create a profile from the current load order.</value></data>
+  <data name="Darktide.Profiles.Preview" xml:space="preserve"><value>Change preview</value></data>
+  <data name="Darktide.Profiles.PreviewHint" xml:space="preserve"><value>The load order file is backed up before applying. Mod folders are never deleted.</value></data>
+  <data name="Darktide.Profiles.PreviewNone" xml:space="preserve"><value>Select a profile to preview changes.</value></data>
+  <data name="Darktide.Profiles.PreviewEnable" xml:space="preserve"><value>Enable: {0}</value></data>
+  <data name="Darktide.Profiles.PreviewDisable" xml:space="preserve"><value>Disable: {0}</value></data>
+  <data name="Darktide.Profiles.PreviewMissing" xml:space="preserve"><value>Missing installed mods: {0}</value></data>
+  <data name="Darktide.Profiles.PreviewUnknown" xml:space="preserve"><value>Mods not in profile (left unchanged): {0}</value></data>
+  <data name="Darktide.Profiles.PreviewOrder" xml:space="preserve"><value>Load order will change.</value></data>
+  <data name="Darktide.Profiles.NoChanges" xml:space="preserve"><value>No changes.</value></data>
+  <data name="Darktide.Profiles.CreateTitle" xml:space="preserve"><value>Create profile</value></data>
+  <data name="Darktide.Profiles.SaveTitle" xml:space="preserve"><value>Save current state as profile</value></data>
+  <data name="Darktide.Profiles.NameLabel" xml:space="preserve"><value>Profile name</value></data>
+  <data name="Darktide.Profiles.OverwriteTitle" xml:space="preserve"><value>Overwrite profile</value></data>
+  <data name="Darktide.Profiles.OverwriteMessage" xml:space="preserve"><value>Profile '{0}' already exists. Overwrite it with the current state?</value></data>
+  <data name="Darktide.Profiles.Saved" xml:space="preserve"><value>Profile '{0}' saved.</value></data>
+  <data name="Darktide.Profiles.ApplyTitle" xml:space="preserve"><value>Apply profile</value></data>
+  <data name="Darktide.Profiles.Applied" xml:space="preserve"><value>Profile '{0}' applied; {1} mods enabled.</value></data>
+  <data name="Darktide.Profiles.MissingMod" xml:space="preserve"><value>Profile mod not installed: {0}</value></data>
+  <data name="Darktide.Profiles.DeleteTitle" xml:space="preserve"><value>Delete profile</value></data>
+  <data name="Darktide.Profiles.DeleteMessage" xml:space="preserve"><value>Delete profile '{0}'? Mod files and the current load order are not changed.</value></data>
+  <data name="Darktide.Profiles.NoGame" xml:space="preserve"><value>Install DML before switching profiles.</value></data>
+  <data name="Darktide.Loader.Title" xml:space="preserve"><value>Loader / Tools</value></data>
+  <data name="Darktide.Loader.Subtitle" xml:space="preserve"><value>Inspect DML and use the official toggle script. This app does not rewrite the game patch.</value></data>
+  <data name="Darktide.Loader.Game" xml:space="preserve"><value>Game and DML status</value></data>
+  <data name="Darktide.Loader.GamePath" xml:space="preserve"><value>Game folder</value></data>
+  <data name="Darktide.Loader.Dml" xml:space="preserve"><value>DML</value></data>
+  <data name="Darktide.Loader.Dmf" xml:space="preserve"><value>DMF</value></data>
+  <data name="Darktide.Loader.Patcher" xml:space="preserve"><value>Official patcher</value></data>
+  <data name="Darktide.Loader.PatchState" xml:space="preserve"><value>Patch state</value></data>
+  <data name="Darktide.Loader.Present" xml:space="preserve"><value>Present</value></data>
+  <data name="Darktide.Loader.Absent" xml:space="preserve"><value>Missing</value></data>
+  <data name="Darktide.Loader.PatchUnknown" xml:space="preserve"><value>Unknown. File presence cannot prove whether the bundle is patched; confirm in game or with the official toggle script.</value></data>
+  <data name="Darktide.Loader.ToggleMissing" xml:space="preserve"><value>toggle_darktide_mods.bat is missing.</value></data>
+  <data name="Darktide.Loader.StatusInstalled" xml:space="preserve"><value>Installed</value></data>
+  <data name="Darktide.Loader.StatusIncomplete" xml:space="preserve"><value>Incomplete</value></data>
+  <data name="Darktide.Loader.StatusMissing" xml:space="preserve"><value>Not installed</value></data>
+  <data name="Darktide.Loader.StatusInvalid" xml:space="preserve"><value>Invalid folder</value></data>
+  <data name="Darktide.Loader.StatusNotConfigured" xml:space="preserve"><value>Not configured</value></data>
+  <data name="Darktide.Loader.AlternativeDetected" xml:space="preserve"><value>Alternative loader '{0}' detected. Standard mod_load_order.txt may not be the actual order.</value></data>
+  <data name="Darktide.Loader.Release" xml:space="preserve"><value>Official release</value></data>
+  <data name="Darktide.Loader.Latest" xml:space="preserve"><value>Latest version</value></data>
+  <data name="Darktide.Loader.Published" xml:space="preserve"><value>Published</value></data>
+  <data name="Darktide.Loader.AvailablePackages" xml:space="preserve"><value>Available packages</value></data>
+  <data name="Darktide.Loader.InstalledRecord" xml:space="preserve"><value>Last installed by this app</value></data>
+  <data name="Darktide.Loader.NotChecked" xml:space="preserve"><value>Not checked</value></data>
+  <data name="Darktide.Loader.VersionUnknown" xml:space="preserve"><value>Unknown (not recorded)</value></data>
+  <data name="Darktide.Loader.PackageFull" xml:space="preserve"><value>Full package</value></data>
+  <data name="Darktide.Loader.PackageUpdateOnly" xml:space="preserve"><value>Update-only package</value></data>
+  <data name="Darktide.Loader.AutoFull" xml:space="preserve"><value>Full package selected: DML is not installed or no update-only package is available.</value></data>
+  <data name="Darktide.Loader.AutoUpdateOnly" xml:space="preserve"><value>Update-only package selected because DML is installed and mod_load_order.txt exists.</value></data>
+  <data name="Darktide.Loader.CheckUpdate" xml:space="preserve"><value>Check latest release</value></data>
+  <data name="Darktide.Loader.ReleasePage" xml:space="preserve"><value>Open release page</value></data>
+  <data name="Darktide.Loader.InstallLatest" xml:space="preserve"><value>Download and install latest</value></data>
+  <data name="Darktide.Loader.InstallFull" xml:space="preserve"><value>Install full package</value></data>
+  <data name="Darktide.Loader.InstallUpdateOnly" xml:space="preserve"><value>Install update-only package</value></data>
+  <data name="Darktide.Loader.InstallTitle" xml:space="preserve"><value>Install Darktide Mod Loader</value></data>
+  <data name="Darktide.Loader.InstallMessage" xml:space="preserve"><value>Install DML {0} ({1}) into: {2} Existing mod_load_order.txt and mods are preserved. Continue?</value></data>
+  <data name="Darktide.Loader.Downloading" xml:space="preserve"><value>Downloading...</value></data>
+  <data name="Darktide.Loader.InstallCompleted" xml:space="preserve"><value>Installer finished.</value></data>
+  <data name="Darktide.Loader.Installed" xml:space="preserve"><value>Darktide Mod Loader {0} installed.</value></data>
+  <data name="Darktide.Loader.BackupCreated" xml:space="preserve"><value>Loader backup: {0}</value></data>
+  <data name="Darktide.Loader.NeedGame" xml:space="preserve"><value>Set a valid game folder first.</value></data>
+  <data name="Darktide.Loader.ReleaseUnavailable" xml:space="preserve"><value>The selected package is not available in this release.</value></data>
+  <data name="Darktide.Loader.Toggle" xml:space="preserve"><value>Official toggle script</value></data>
+  <data name="Darktide.Loader.ToggleHint" xml:space="preserve"><value>The script patches or unpatches the game bundle. Run it after game updates if mods stop loading.</value></data>
+  <data name="Darktide.Loader.ToggleWarning" xml:space="preserve"><value>Only run this while the game is closed. The console window stays open for interaction. This app records the exit code but does not capture interactive output.</value></data>
+  <data name="Darktide.Loader.RunToggle" xml:space="preserve"><value>Run toggle_darktide_mods.bat</value></data>
+  <data name="Darktide.Loader.ToggleTitle" xml:space="preserve"><value>Run official DML toggle script</value></data>
+  <data name="Darktide.Loader.ToggleMessage" xml:space="preserve"><value>Target: {0} Script: {1} A console window will open and wait for input. Continue?</value></data>
+  <data name="Darktide.Loader.ToggleFinished" xml:space="preserve"><value>Toggle script exited with code {0}. Verify the game status.</value></data>
+  <data name="Darktide.Loader.DmfMissingHint" xml:space="preserve"><value>DMF is a separate framework. Download the official DMF ZIP from Nexus or its official page, then import it here. It is not registered as a normal mod.</value></data>
+  <data name="Darktide.Loader.ImportDmf" xml:space="preserve"><value>Import DMF ZIP</value></data>
+  <data name="Darktide.Loader.OpenDmfPage" xml:space="preserve"><value>Open DMF on Nexus</value></data>
+  <data name="Darktide.Loader.DmfNotFound" xml:space="preserve"><value>No dmf/dmf.mod was found in this ZIP.</value></data>
+  <data name="Darktide.Loader.DmfReplaceTitle" xml:space="preserve"><value>Replace DMF</value></data>
+  <data name="Darktide.Loader.DmfReplaceMessage" xml:space="preserve"><value>mods/dmf already exists. Replace it with the selected ZIP? The previous folder is restored if installation fails.</value></data>
+  <data name="Darktide.Loader.DmfInstalled" xml:space="preserve"><value>DMF installed.</value></data>
+  <data name="Darktide.Settings.Title" xml:space="preserve"><value>Settings</value></data>
+  <data name="Darktide.Settings.Subtitle" xml:space="preserve"><value>Game folder, storage and application information.</value></data>
+  <data name="Darktide.Settings.GamePath" xml:space="preserve"><value>Darktide game folder</value></data>
+  <data name="Darktide.Settings.GamePathHint" xml:space="preserve"><value>Select the folder containing binaries/Darktide.exe and bundle. The app never writes here without an explicit action.</value></data>
+  <data name="Darktide.Settings.Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Darktide.Settings.AppearanceHint" xml:space="preserve"><value>Appearance applies to the Darktide window immediately; save to keep it for the next launch.</value></data>
+  <data name="Darktide.Settings.SaveAppearance" xml:space="preserve"><value>Save appearance</value></data>
+  <data name="Darktide.Settings.AppearanceSaved" xml:space="preserve"><value>Appearance saved.</value></data>
+  <data name="Darktide.Settings.CornerRadius" xml:space="preserve"><value>Corner radius</value></data>
+  <data name="Darktide.Settings.Storage" xml:space="preserve"><value>Storage locations</value></data>
+  <data name="Darktide.Settings.StorageHint" xml:space="preserve"><value>Darktide data uses a separate application folder and database from the Helldivers 2 manager.</value></data>
+  <data name="Darktide.Settings.AppData" xml:space="preserve"><value>App data</value></data>
+  <data name="Darktide.Settings.Archives" xml:space="preserve"><value>Managed archives</value></data>
+  <data name="Darktide.Settings.Database" xml:space="preserve"><value>Database</value></data>
+  <data name="Darktide.Settings.Mods" xml:space="preserve"><value>Game mods folder</value></data>
+  <data name="Darktide.Settings.LoaderBackups" xml:space="preserve"><value>Loader backups</value></data>
+  <data name="Darktide.Settings.Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Darktide.Settings.Saved" xml:space="preserve"><value>Game folder saved.</value></data>
+  <data name="Darktide.Settings.AutoDetectFailed" xml:space="preserve"><value>No Darktide installation was detected. Select the folder manually.</value></data>
+  <data name="Darktide.Settings.AutoDetected" xml:space="preserve"><value>Detected game folder: {0}</value></data>
+  <data name="Darktide.Settings.About" xml:space="preserve"><value>About</value></data>
+  <data name="Darktide.Settings.AboutText" xml:space="preserve"><value>DarktideMimnt is a local mod manager for Darktide Mod Loader / Darktide Mod Framework. It does not download mods from third-party sites and does not modify the game patch without your confirmation.</value></data>
+  <data name="Darktide.Settings.Version" xml:space="preserve"><value>Version</value></data>
+  <data name="Darktide.Issue.MissingGamePath" xml:space="preserve"><value>Game folder not set</value></data>
+  <data name="Darktide.Issue.InvalidGamePath" xml:space="preserve"><value>Invalid game folder</value></data>
+  <data name="Darktide.Issue.LoaderNotInstalled" xml:space="preserve"><value>Loader not installed or incomplete</value></data>
+  <data name="Darktide.Issue.AlternativeLoader" xml:space="preserve"><value>Alternative loader detected</value></data>
+  <data name="Darktide.Issue.DmfMissing" xml:space="preserve"><value>DMF missing</value></data>
+  <data name="Darktide.Issue.LoadOrderMissing" xml:space="preserve"><value>Load order file missing</value></data>
+  <data name="Darktide.Issue.LoadOrderUnreadable" xml:space="preserve"><value>Load order file cannot be parsed</value></data>
+  <data name="Darktide.Issue.DuplicateRegistration" xml:space="preserve"><value>Duplicate registration</value></data>
+  <data name="Darktide.Issue.MissingRegisteredMod" xml:space="preserve"><value>Registered mod is missing</value></data>
+  <data name="Darktide.Issue.DirectoryNameMismatch" xml:space="preserve"><value>Directory name and .mod file differ</value></data>
+  <data name="Darktide.Issue.MissingModFile" xml:space="preserve"><value>Missing .mod file</value></data>
+  <data name="Darktide.Issue.InvalidMetadata" xml:space="preserve"><value>Invalid metadata</value></data>
+  <data name="Darktide.Issue.MissingDependency" xml:space="preserve"><value>Missing required dependency</value></data>
+  <data name="Darktide.Issue.DisabledDependency" xml:space="preserve"><value>Required dependency is disabled</value></data>
+  <data name="Darktide.Issue.DependencyOrder" xml:space="preserve"><value>Dependency order is incorrect</value></data>
+  <data name="Darktide.Issue.DependencyCycle" xml:space="preserve"><value>Dependency cycle</value></data>
+  <data name="Darktide.Issue.FrameworkRegistration" xml:space="preserve"><value>Framework registered as a mod</value></data>
+  <data name="Darktide.Issue.OrphanLibraryEntry" xml:space="preserve"><value>Library archive is not installed</value></data>
+  <data name="Darktide.Issue.MissingInstalledFolder" xml:space="preserve"><value>Installed folder is missing</value></data>
+  <data name="Darktide.Issue.UnsafePath" xml:space="preserve"><value>Unsafe path</value></data>
+  <data name="Darktide.Issue.PatchStateUnknown" xml:space="preserve"><value>Patch state unknown</value></data>
 </root>

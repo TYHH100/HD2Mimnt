@@ -6,9 +6,9 @@ public static class RuntimeDataPaths
     public static string GetDefaultApplicationDataPath()
     {
 #if DEBUG
-        const string directoryName = "HD2Mimnt.dev";
+        const string directoryName = "DarktideMimnt.dev";
 #else
-        const string directoryName = "HD2Mimnt";
+        const string directoryName = "DarktideMimnt";
 #endif
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), directoryName);
     }

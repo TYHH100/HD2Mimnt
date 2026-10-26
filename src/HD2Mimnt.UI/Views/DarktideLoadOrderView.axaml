@@ -1,0 +1,157 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels.Darktide"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Views.DarktideLoadOrderView" x:DataType="vm:DarktideLoadOrderViewModel">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="24,18,24,12" RowSpacing="12">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4" VerticalAlignment="Center">
+        <TextBlock Text="{loc:Loc Darktide.LoadOrder.Title}" Classes="page-title"/>
+        <TextBlock Text="{loc:Loc Darktide.LoadOrder.Subtitle}" Classes="page-subtitle"/>
+        <TextBlock Text="{Binding SummaryText}" Classes="caption-text"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Content="{loc:Loc Darktide.LoadOrder.OpenFile}" Command="{Binding OpenLoadOrderCommand}" Classes="secondary"/>
+        <Button Content="{loc:Loc Darktide.LoadOrder.Reload}" Command="{Binding ReloadCommand}" Classes="accent"
+                IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Common.Cancel}" Command="{Binding CancelOperationCommand}" Classes="tertiary"
+                IsVisible="{Binding IsBusy}"/>
+      </StackPanel>
+    </Grid>
+    <Border Grid.Row="1" IsVisible="{Binding HasWarning}" Background="{DynamicResource WarningBackgroundBrush}"
+            CornerRadius="{DynamicResource CardCornerRadius}" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <controls:UtilityIcon Kind="Warning" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"/>
+        <TextBlock Grid.Column="1" Text="{Binding WarningText}" TextWrapping="Wrap"/>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="2" ColumnDefinitions="1.15*,0.85*" ColumnSpacing="16">
+      <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+        <TextBlock Text="{loc:Loc Darktide.LoadOrder.Active}" Classes="section-title"/>
+        <TextBlock Grid.Row="1" Text="{loc:Loc Darktide.LoadOrder.DragHint}" Classes="caption-text"/>
+        <Grid Grid.Row="2">
+          <ListBox x:Name="ActiveList" ItemsSource="{Binding ActiveItems}" SelectedItem="{Binding SelectedItem}"
+                   Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   DragDrop.AllowDrop="True" DragDrop.DragOver="ActiveList_DragOver" DragDrop.DragLeave="ActiveList_DragLeave"
+                   DragDrop.Drop="ActiveList_Drop">
+            <ListBox.Styles>
+              <!-- 卡片自带边框与内边距，容器不再叠加默认内缩，避免选中底色出现双重描边。 -->
+              <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/></Style>
+            </ListBox.Styles>
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DarktideLoadOrderItemViewModel">
+                <Border Classes="mod-card">
+                  <Grid ColumnDefinitions="28,24,*,Auto" ColumnSpacing="10">
+                    <Border Grid.Column="0" Background="Transparent" Cursor="SizeAll" VerticalAlignment="Center"
+                            ToolTip.Tip="{loc:Loc Darktide.LoadOrder.DragHint}"
+                            PointerPressed="DragHandle_PointerPressed">
+                      <controls:UtilityIcon Kind="ListOrdered" Opacity="0.55" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Position}" Classes="caption-text" VerticalAlignment="Center"
+                               HorizontalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+                      <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayName}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding InternalName}" FontSize="12" Classes="muted"/>
+                        <TextBlock Text="·" FontSize="12" Classes="muted"
+                                   IsVisible="{Binding Version, Converter={StaticResource NotNullConverter}}"/>
+                        <TextBlock Text="{Binding Version}" FontSize="12" Classes="muted"
+                                   IsVisible="{Binding Version, Converter={StaticResource NotNullConverter}}"/>
+                        <TextBlock Text="{loc:Loc Darktide.LoadOrder.Framework}" FontSize="12" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsFramework}" Classes="muted"/>
+                        <TextBlock Text="{loc:Loc Darktide.Library.Missing}" FontSize="12" VerticalAlignment="Center"
+                                   IsVisible="{Binding Missing}" Foreground="{DynamicResource ErrorBrush}"/>
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                      <Button Classes="icon-button" ToolTip.Tip="{loc:Loc Darktide.LoadOrder.MoveUp}"
+                              Command="{Binding $parent[UserControl].((vm:DarktideLoadOrderViewModel)DataContext).MoveUpCommand}"
+                              CommandParameter="{Binding}" IsVisible="{Binding CanMove}">
+                        <controls:UtilityIcon Kind="Chevron" RenderTransformOrigin="50%,50%">
+                          <controls:UtilityIcon.RenderTransform><RotateTransform Angle="-90"/></controls:UtilityIcon.RenderTransform>
+                        </controls:UtilityIcon>
+                      </Button>
+                      <Button Classes="icon-button" ToolTip.Tip="{loc:Loc Darktide.LoadOrder.MoveDown}"
+                              Command="{Binding $parent[UserControl].((vm:DarktideLoadOrderViewModel)DataContext).MoveDownCommand}"
+                              CommandParameter="{Binding}" IsVisible="{Binding CanMove}">
+                        <controls:UtilityIcon Kind="Chevron" RenderTransformOrigin="50%,50%">
+                          <controls:UtilityIcon.RenderTransform><RotateTransform Angle="90"/></controls:UtilityIcon.RenderTransform>
+                        </controls:UtilityIcon>
+                      </Button>
+                      <Button Classes="icon-button" ToolTip.Tip="{loc:Loc Darktide.LoadOrder.RemoveRegistration}"
+                              Command="{Binding $parent[UserControl].((vm:DarktideLoadOrderViewModel)DataContext).DisableCommand}"
+                              CommandParameter="{Binding}" IsVisible="{Binding CanToggle}">
+                        <controls:UtilityIcon Kind="Close" Foreground="{DynamicResource ErrorBrush}"/>
+                      </Button>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="{loc:Loc Darktide.LoadOrder.Empty}" IsVisible="{Binding IsActiveEmpty}"
+                     Classes="caption-text" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <!-- 插入位置虚影覆盖在列表之上：不参与布局，也不吃命中。 -->
+          <Canvas x:Name="PreviewLayer" IsHitTestVisible="False" ZIndex="10">
+            <Border x:Name="InsertionMarker" Height="3" CornerRadius="2" IsVisible="False"
+                    Background="{DynamicResource AccentBrush}"/>
+          </Canvas>
+        </Grid>
+      </Grid>
+      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{loc:Loc Darktide.LoadOrder.Disabled}" Classes="section-title"/>
+          <TextBlock Text="{loc:Loc Darktide.LoadOrder.DisabledHint}" Classes="caption-text" TextWrapping="Wrap"/>
+          <ListBox ItemsSource="{Binding DisabledItems}" Background="Transparent" BorderThickness="0" MaxHeight="320"
+                   IsVisible="{Binding HasDisabled}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/></Style>
+            </ListBox.Styles>
+            <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DarktideLoadOrderItemViewModel">
+                <Border Classes="mod-card compact">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayName}"/>
+                      <TextBlock Text="{Binding InternalName}" FontSize="12" Classes="muted"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="{loc:Loc Darktide.Library.Enable}" Classes="accent" VerticalAlignment="Center"
+                            Command="{Binding $parent[UserControl].((vm:DarktideLoadOrderViewModel)DataContext).EnableCommand}"
+                            CommandParameter="{Binding}"/>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="{loc:Loc Darktide.LoadOrder.NoDisabled}" IsVisible="{Binding !HasDisabled}" Classes="caption-text"/>
+          <Border Classes="card" Padding="12" Margin="0,4,0,0">
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc Darktide.LoadOrder.Diagnostics}" Classes="section-title" FontSize="15"/>
+              <ItemsControl ItemsSource="{Binding Diagnostics}" IsVisible="{Binding HasDiagnostics}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:DarktideDiagnosticItemViewModel">
+                    <StackPanel Spacing="1" Margin="0,4">
+                      <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"
+                                 Classes.error="{Binding IsError}" Classes.warning="{Binding IsWarning}"/>
+                      <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Classes="caption-text"
+                                 IsVisible="{Binding HasDetail}"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{loc:Loc Darktide.LoadOrder.NoDiagnostics}" IsVisible="{Binding !HasDiagnostics}"
+                         Classes="caption-text"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</UserControl>

@@ -1,0 +1,91 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels.Darktide"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Views.DarktideProfilesView" x:DataType="vm:DarktideProfilesViewModel">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="24,18,24,12" RowSpacing="12">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4" VerticalAlignment="Center">
+        <TextBlock Text="{loc:Loc Darktide.Profiles.Title}" Classes="page-title"/>
+        <TextBlock Text="{loc:Loc Darktide.Profiles.Subtitle}" Classes="page-subtitle"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Content="{loc:Loc Darktide.Profiles.Create}" Command="{Binding CreateCommand}" Classes="accent" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Profiles.SaveCurrent}" Command="{Binding SaveCurrentCommand}" Classes="secondary" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Common.Refresh}" Command="{Binding RefreshCommand}" Classes="tertiary" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Common.Cancel}" Command="{Binding CancelOperationCommand}" Classes="tertiary" IsVisible="{Binding IsBusy}"/>
+      </StackPanel>
+    </Grid>
+    <Border Grid.Row="1" IsVisible="{Binding HasWarning}" Background="{DynamicResource WarningBackgroundBrush}"
+            CornerRadius="{DynamicResource CardCornerRadius}" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <controls:UtilityIcon Kind="Warning" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"/>
+        <TextBlock Grid.Column="1" Text="{Binding WarningText}" TextWrapping="Wrap"/>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="2" ColumnDefinitions="0.9*,1.1*" ColumnSpacing="16">
+      <Grid RowDefinitions="*">
+        <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Background="Transparent"
+                 BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <ListBox.Styles>
+            <!-- 卡片自带边框与内边距，容器不再叠加默认内缩，避免选中底色出现双重描边。 -->
+            <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0"/></Style>
+          </ListBox.Styles>
+          <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:DarktideProfileItemViewModel">
+              <Border Classes="mod-card">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="{Binding UpdatedText}" FontSize="12" Classes="caption-text"/>
+                      <TextBlock Text="{loc:Loc Darktide.Profiles.Active}" FontSize="12" VerticalAlignment="Center"
+                                 IsVisible="{Binding IsActive}" Foreground="{DynamicResource SuccessBrush}"/>
+                    </StackPanel>
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding Summary}" Classes="caption-text" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+          <controls:UtilityIcon Kind="Folder" Width="40" Height="40" Opacity="0.4" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc Darktide.Profiles.Empty}" FontSize="18" FontWeight="SemiBold" Classes="muted" HorizontalAlignment="Center"/>
+          <TextBlock Text="{loc:Loc Darktide.Profiles.EmptyHint}" FontSize="13" Classes="caption-text" HorizontalAlignment="Center"/>
+          <Button Content="{loc:Loc Darktide.Profiles.Create}" Command="{Binding CreateCommand}" Classes="accent" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Grid>
+      <Border Grid.Column="1" Classes="card" Padding="16">
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:Loc Darktide.Profiles.Preview}" Classes="section-title" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button Content="{loc:Loc Darktide.Profiles.Apply}" Classes="accent" Command="{Binding ApplyCommand}"
+                      IsEnabled="{Binding !IsBusy}"/>
+              <Button Content="{loc:Loc Darktide.Common.Delete}" Classes="danger" Command="{Binding DeleteCommand}"
+                      IsEnabled="{Binding !IsBusy}"/>
+            </StackPanel>
+          </Grid>
+          <TextBlock Grid.Row="1" Text="{loc:Loc Darktide.Profiles.PreviewHint}" Classes="caption-text" TextWrapping="Wrap"/>
+          <Panel Grid.Row="2">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding PreviewLines}" IsVisible="{Binding HasPreview}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,3"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+            <TextBlock Text="{loc:Loc Darktide.Profiles.PreviewNone}" IsVisible="{Binding !HasPreview}"
+                       Classes="caption-text" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Panel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

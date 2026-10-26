@@ -20,6 +20,7 @@
 | 场景 | 指南 |
 | --- | --- |
 | 项目结构、入口、命令、架构 | [`project-basics.md`](docs/agent-guides/project-basics.md) |
+| 暗潮分支、DML/DMF、加载顺序、官方 Release 安装 | [`darktide.md`](docs/agent-guides/darktide.md) |
 | 部署、配置文件、加载器、补丁清理 | [`deployment-and-loaders.md`](docs/agent-guides/deployment-and-loaders.md) |
 | 外部平台、Nexus Mods、下载和凭据 | [`platforms-and-downloads.md`](docs/agent-guides/platforms-and-downloads.md) |
 | Avalonia、FluentAvalonia、选择、拖放和通知 | [`ui-and-avalonia.md`](docs/agent-guides/ui-and-avalonia.md) |
@@ -30,6 +31,7 @@
 ## 快速工作基线
 
 - 解决方案：`HD2Mimnt.slnx`；常用检查为 `dotnet build HD2Mimnt.slnx --no-restore` 和相关 `dotnet test`。
+- 当前分支 `feature/darktide-mod-manager` 的启动入口是暗潮主窗口；HD2 页面与旧服务保留用于构建，不在暗潮导航中暴露。暗潮默认数据目录与数据库独立，不要改回复用 HD2 的 `%LOCALAPPDATA%/HD2Mimnt` 或 `hd2mimnt.db`。
 - 分支模型：`master` 只保存稳定版本（`dev` 压缩合并回 `master` 并打 `V` 版本标签），日常开发与提交都在 `dev`；流程见 [RELEASE_PROCESS](docs/RELEASE_PROCESS.md)。
 - 变更前先查看 `git status` 和目标文件的现有差异，避免误处理用户的脏工作区。
 - 分隔符的持久化、折叠、颜色与固定区域边界见 [UI 指南](docs/agent-guides/ui-and-avalonia.md)。

@@ -35,7 +35,7 @@ public sealed class SettingsViewModelTests : IDisposable
         using var vm = CreateViewModel(game);
         vm.AutoDetectGame = false;
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_rootDirectory, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER fail_game BEFORE UPDATE ON Settings WHEN NEW.Key = 'Game.AutoDetect' BEGIN SELECT RAISE(ABORT, 'test failure'); END";
@@ -88,7 +88,7 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync(); vm.SelectedCategory = category;
         vm.LockLoaders = true; vm.ImportAutoClose = true; vm.SearchFuzzy = true;
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_rootDirectory, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = $"CREATE TRIGGER fail_save BEFORE INSERT ON Settings WHEN NEW.Key = '{failureKey}' BEGIN SELECT RAISE(ABORT, 'test save failure'); END";
@@ -112,7 +112,7 @@ public sealed class SettingsViewModelTests : IDisposable
         using var vm = CreateViewModel("invalid-game-path");
         await vm.LoadAsync(); vm.SelectedCategory = category;
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_rootDirectory, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = $"CREATE TRIGGER fail_reset BEFORE DELETE ON Settings WHEN OLD.Key = '{failureKey}' BEGIN SELECT RAISE(ABORT, 'test reset failure'); END";
@@ -133,7 +133,7 @@ public sealed class SettingsViewModelTests : IDisposable
         using var vm = CreateViewModel("invalid-game-path");
         await vm.LoadAsync();
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_rootDirectory, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_rootDirectory, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER fail_background BEFORE UPDATE ON Settings BEGIN SELECT RAISE(ABORT, 'test failure'); END";

@@ -160,7 +160,7 @@ public sealed class LocalizationServiceTests : IDisposable
         var eventCount = 0;
         service.LanguageChanged += (_, _) => eventCount++;
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_root, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_root, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER fail_settings BEFORE UPDATE ON Settings BEGIN SELECT RAISE(ABORT, 'test failure'); END";

@@ -15,7 +15,7 @@ public sealed class BackupServiceTests
         HD2MimntDbContext? dbContext = null;
         try
         {
-            var databasePath = Path.Combine(root, "hd2mimnt.db");
+            var databasePath = Path.Combine(root, "darktidemimnt.db");
             dbContext = new HD2MimntDbContext(databasePath);
             await dbContext.InitializeDatabaseAsync();
             var settings = new SettingsService(root);
@@ -33,7 +33,7 @@ public sealed class BackupServiceTests
             Assert.True(File.Exists(created.FullPath));
             using (var archive = ZipFile.OpenRead(created.FullPath))
             {
-                Assert.NotNull(archive.GetEntry("hd2mimnt.db"));
+                Assert.NotNull(archive.GetEntry("darktidemimnt.db"));
                 Assert.Null(archive.GetEntry("settings.json"));
             }
             Assert.Contains(await service.ListBackupsAsync(), backup => backup.FullPath == created.FullPath);
@@ -70,7 +70,7 @@ public sealed class BackupServiceTests
     {
         var root = Path.Combine(Path.GetTempPath(), "HD2MimntBackupTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        using var db = new HD2MimntDbContext(Path.Combine(root, "hd2mimnt.db"));
+        using var db = new HD2MimntDbContext(Path.Combine(root, "darktidemimnt.db"));
         try
         {
             await db.InitializeDatabaseAsync();
@@ -83,7 +83,7 @@ public sealed class BackupServiceTests
             var backupPath = Path.Combine(root, "Backups", "legacy.hd2backup");
             using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Create))
             {
-                archive.CreateEntryFromFile(legacyPath, "hd2mimnt.db");
+                archive.CreateEntryFromFile(legacyPath, "darktidemimnt.db");
                 if (includeJson)
                 {
                     using var writer = new StreamWriter(archive.CreateEntry("settings.json").Open());
@@ -108,7 +108,7 @@ public sealed class BackupServiceTests
     {
         var root = Path.Combine(Path.GetTempPath(), "HD2MimntBackupTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        using var db = new HD2MimntDbContext(Path.Combine(root, "hd2mimnt.db"));
+        using var db = new HD2MimntDbContext(Path.Combine(root, "darktidemimnt.db"));
         try
         {
             await db.InitializeDatabaseAsync();
@@ -121,7 +121,7 @@ public sealed class BackupServiceTests
             var backupPath = Path.Combine(root, "Backups", "invalid.hd2backup");
             using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Create))
             {
-                archive.CreateEntryFromFile(legacyPath, "hd2mimnt.db");
+                archive.CreateEntryFromFile(legacyPath, "darktidemimnt.db");
                 using var writer = new StreamWriter(archive.CreateEntry("settings.json").Open());
                 await writer.WriteAsync("{broken");
             }
@@ -142,7 +142,7 @@ public sealed class BackupServiceTests
         Directory.CreateDirectory(root);
         try
         {
-            var dbContext = new HD2MimntDbContext(Path.Combine(root, "hd2mimnt.db"));
+            var dbContext = new HD2MimntDbContext(Path.Combine(root, "darktidemimnt.db"));
             await dbContext.InitializeDatabaseAsync();
             var service = new BackupService(root, dbContext, new SettingsService(root));
             await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteBackupAsync(Path.Combine(root, "outside.hd2backup")));

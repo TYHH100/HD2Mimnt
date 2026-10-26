@@ -113,7 +113,7 @@ public sealed class StorageMigration(StorageLocationStore store)
                     };
                     if (File.Exists(Current.DatabasePath))
                     {
-                        var snapshot = Path.Combine(scratch, "hd2mimnt.db");
+                        var snapshot = Path.Combine(scratch, "darktidemimnt.db");
                         await SnapshotAsync(Current.DatabasePath, snapshot, token).ConfigureAwait(false);
                         await RewriteDatabaseAsync(snapshot, references, token).ConfigureAwait(false);
                         if (!Same(Current.AppDataPath, next.AppDataPath))
@@ -138,7 +138,7 @@ public sealed class StorageMigration(StorageLocationStore store)
                 }
             }
             // ReadyToCommit 之后不接受取消；这段只发布小文件，失败时保留日志供下次启动重试。
-            var candidate = Path.Combine(Scratch(next, store.State.MigrationId!), "hd2mimnt.db");
+            var candidate = Path.Combine(Scratch(next, store.State.MigrationId!), "darktidemimnt.db");
             if (File.Exists(candidate))
             {
                 Directory.CreateDirectory(next.AppDataPath);
@@ -216,8 +216,8 @@ public sealed class StorageMigration(StorageLocationStore store)
             }
             else
             {
-                if (entry.EndsWith("hd2mimnt.db-wal", StringComparison.OrdinalIgnoreCase) ||
-                    entry.EndsWith("hd2mimnt.db-shm", StringComparison.OrdinalIgnoreCase)) continue;
+                if (entry.EndsWith("darktidemimnt.db-wal", StringComparison.OrdinalIgnoreCase) ||
+                    entry.EndsWith("darktidemimnt.db-shm", StringComparison.OrdinalIgnoreCase)) continue;
                 await using var input = new FileStream(entry, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, true);
                 await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 131072, true);
                 await input.CopyToAsync(output, token).ConfigureAwait(false);

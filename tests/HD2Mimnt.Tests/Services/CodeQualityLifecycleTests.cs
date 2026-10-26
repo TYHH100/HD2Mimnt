@@ -139,7 +139,7 @@ public sealed class CodeQualityLifecycleTests
         Directory.CreateDirectory(root);
         try
         {
-            using var db = new HD2MimntDbContext(Path.Combine(root, "hd2mimnt.db"));
+            using var db = new HD2MimntDbContext(Path.Combine(root, "darktidemimnt.db"));
             await db.InitializeDatabaseAsync();
             var backups = new BackupService(root, db, new SettingsService(root));
             var backup = await backups.CreateBackupAsync();

@@ -103,7 +103,7 @@ public sealed class SettingsServiceTests : IDisposable
     public async Task Constructor_LegacyJson_ShouldMigrateTypesAndKeepExistingDatabaseValues()
     {
         Directory.CreateDirectory(_root);
-        var repository = new SettingsRepository(Path.Combine(_root, "hd2mimnt.db"));
+        var repository = new SettingsRepository(Path.Combine(_root, "darktidemimnt.db"));
         await repository.ApplyAsync(new Dictionary<string, string> { [SettingKeys.Theme] = "\"Dark\"" }, Array.Empty<string>());
         var path = Path.Combine(_root, "settings.json");
         await File.WriteAllTextAsync(path, """
@@ -150,7 +150,7 @@ public sealed class SettingsServiceTests : IDisposable
 
         Assert.Throws<JsonException>(() => new SettingsService(_root));
         Assert.Equal("{broken", await File.ReadAllTextAsync(path));
-        var repository = new SettingsRepository(Path.Combine(_root, "hd2mimnt.db"));
+        var repository = new SettingsRepository(Path.Combine(_root, "darktidemimnt.db"));
         Assert.False(repository.IsLegacyMigrationComplete());
         Assert.Empty(repository.ReadAll());
 
@@ -166,7 +166,7 @@ public sealed class SettingsServiceTests : IDisposable
         var changes = 0;
         service.SettingChanged += (_, _) => changes++;
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        { DataSource = Path.Combine(_root, "hd2mimnt.db"), Pooling = false }.ToString());
+        { DataSource = Path.Combine(_root, "darktidemimnt.db"), Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER fail_settings BEFORE INSERT ON Settings WHEN NEW.Key = 'Test.Fail' BEGIN SELECT RAISE(ABORT, 'test failure'); END";

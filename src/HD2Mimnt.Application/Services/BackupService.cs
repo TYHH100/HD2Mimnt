@@ -10,7 +10,7 @@ namespace HD2Mimnt.Application.Services;
 /// </summary>
 public sealed class BackupService
 {
-    private const string DatabaseEntryName = "hd2mimnt.db";
+    private const string DatabaseEntryName = "darktidemimnt.db";
     private const string SettingsEntryName = "settings.json";
 
     private readonly string _appDataPath;

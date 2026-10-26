@@ -5,6 +5,7 @@
 | 用途 | 入口 |
 | --- | --- |
 | 开发协作与易错点 | [仓库规则](../AGENTS.md)，按索引读取 `agent-guides/` |
+| 暗潮分支实现、DML 安装包审计、手动验收 | [暗潮模组管理器](darktide/README.md)；规则见 [暗潮指南](agent-guides/darktide.md) |
 | 构建与发布流程、版本标签规范 | [RELEASE_PROCESS.md](RELEASE_PROCESS.md) |
 | Nexus Mods 接入、认证与在线更新 | [NEXUS_MODS.md](features/NEXUS_MODS.md) |
 | Ayaka Mods 接入、工具密钥与 OAuth2 配置 | [AYAKA_MODS.md](features/AYAKA_MODS.md) |

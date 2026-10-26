@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels.Darktide"
+             x:Class="HD2Mimnt.UI.Views.DarktideSettingsView" x:DataType="vm:DarktideSettingsViewModel">
+  <Grid RowDefinitions="Auto,*" Margin="24,18,24,12" RowSpacing="12">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4" VerticalAlignment="Center">
+        <TextBlock Text="{loc:Loc Darktide.Settings.Title}" Classes="page-title"/>
+        <TextBlock Text="{loc:Loc Darktide.Settings.Subtitle}" Classes="page-subtitle"/>
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Content="{loc:Loc Darktide.Common.Refresh}" Command="{Binding RefreshCommand}" Classes="tertiary" IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Common.Cancel}" Command="{Binding CancelOperationCommand}" Classes="tertiary" IsVisible="{Binding IsBusy}"/>
+      </StackPanel>
+    </Grid>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="14">
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{loc:Loc Darktide.Settings.GamePath}" Classes="section-title"/>
+            <TextBlock Text="{loc:Loc Darktide.Settings.GamePathHint}" Classes="caption-text" TextWrapping="Wrap"/>
+            <TextBox Text="{Binding GamePath}" PlaceholderText="{loc:Loc Darktide.Game.NotSet}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="{loc:Loc Darktide.Game.Browse}" Command="{Binding BrowseGameFolderCommand}" Classes="secondary" IsEnabled="{Binding !IsBusy}"/>
+              <Button Content="{loc:Loc Darktide.Game.AutoDetect}" Command="{Binding AutoDetectCommand}" Classes="secondary" IsEnabled="{Binding !IsBusy}"/>
+              <Button Content="{loc:Loc Darktide.Game.Save}" Command="{Binding SaveGamePathCommand}" Classes="accent" IsEnabled="{Binding !IsBusy}"/>
+              <Button Content="{loc:Loc Darktide.Game.Clear}" Command="{Binding ClearGamePathCommand}" Classes="tertiary" IsEnabled="{Binding !IsBusy}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{loc:Loc Darktide.Settings.Status}" Classes="caption-text" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding GameStatusText}" FontWeight="SemiBold"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{loc:Loc UI.Appearance}" Classes="section-title"/>
+            <TextBlock Text="{loc:Loc Darktide.Settings.AppearanceHint}" Classes="caption-text" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Text="{loc:Loc UI.Theme}" Classes="caption-text" VerticalAlignment="Center"/>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedThemeValue}"
+                        Width="180" HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Grid.Row="1" Text="{loc:Loc UI.CardOpacity}" Classes="caption-text" VerticalAlignment="Center"/>
+              <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto">
+                <Slider Minimum="20" Maximum="100" Value="{Binding CardOpacity}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding CardOpacity, StringFormat={}{0:0}%}" Classes="caption-text"
+                           Width="44" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+              <TextBlock Grid.Row="2" Text="{loc:Loc Darktide.Settings.CornerRadius}" Classes="caption-text" VerticalAlignment="Center"/>
+              <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto">
+                <Slider Minimum="0" Maximum="16" Value="{Binding CornerRadius}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding CornerRadius, StringFormat={}{0:0}px}" Classes="caption-text"
+                           Width="44" TextAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Grid>
+            <StackPanel Spacing="6">
+              <TextBlock Text="{loc:Loc UI.BackgroundImage}" Classes="caption-text"/>
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox Text="{Binding BackgroundImagePath}" PlaceholderText="{loc:Loc UI.ImagePathLeaveEmptyToDisable}"/>
+                <Button Grid.Column="1" Content="{loc:Loc UI.ChooseImage}" Command="{Binding PickBackgroundImageCommand}"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.Clear}" Command="{Binding ClearBackgroundImageCommand}"/>
+              </Grid>
+              <Grid ColumnDefinitions="170,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                <TextBlock Text="{loc:Loc UI.BackgroundImageOpacity}" Classes="caption-text" VerticalAlignment="Center"/>
+                <Grid Grid.Column="1" ColumnDefinitions="*,Auto">
+                  <Slider Minimum="0" Maximum="100" Value="{Binding BackgroundImageOpacity}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding BackgroundImageOpacity, StringFormat={}{0:0}%}" Classes="caption-text"
+                             Width="44" TextAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Grid.Row="1" Text="{loc:Loc UI.BackgroundImageBlur}" Classes="caption-text" VerticalAlignment="Center"/>
+                <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto">
+                  <Slider Minimum="0" Maximum="40" Value="{Binding BackgroundBlur}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding BackgroundBlur, StringFormat={}{0:0}}" Classes="caption-text"
+                             Width="44" TextAlignment="Right" VerticalAlignment="Center"/>
+                </Grid>
+              </Grid>
+              <TextBlock Text="{loc:Loc UI.AppliesAfterSavingLowerCardOpacityToRevealTheBackgroundImage}"
+                         Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button Content="{loc:Loc Darktide.Settings.SaveAppearance}" Command="{Binding SaveAppearanceCommand}"
+                    Classes="accent" HorizontalAlignment="Left"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{loc:Loc Darktide.Settings.Storage}" Classes="section-title"/>
+            <TextBlock Text="{loc:Loc Darktide.Settings.StorageHint}" Classes="caption-text" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="170,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+              <TextBlock Text="{loc:Loc Darktide.Settings.AppData}" Classes="caption-text"/>
+              <TextBlock Grid.Column="1" Text="{Binding AppDataPath}" TextWrapping="Wrap"/>
+              <Button Grid.Column="2" Content="{loc:Loc Darktide.Settings.Open}" Command="{Binding OpenAppDataCommand}" Classes="tertiary"/>
+              <TextBlock Grid.Row="1" Text="{loc:Loc Darktide.Settings.Archives}" Classes="caption-text"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ArchivePath}" TextWrapping="Wrap"/>
+              <Button Grid.Row="1" Grid.Column="2" Content="{loc:Loc Darktide.Settings.Open}" Command="{Binding OpenArchivesCommand}" Classes="tertiary"/>
+              <TextBlock Grid.Row="2" Text="{loc:Loc Darktide.Settings.Database}" Classes="caption-text"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DatabasePath}" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="3" Text="{loc:Loc Darktide.Settings.Mods}" Classes="caption-text"/>
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ModsPath}" TextWrapping="Wrap"/>
+              <Button Grid.Row="3" Grid.Column="2" Content="{loc:Loc Darktide.Settings.Open}" Command="{Binding OpenModsCommand}" Classes="tertiary"/>
+              <TextBlock Grid.Row="4" Text="{loc:Loc Darktide.Settings.LoaderBackups}" Classes="caption-text"/>
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LoaderBackupsPath}" TextWrapping="Wrap"/>
+              <Button Grid.Row="4" Grid.Column="2" Content="{loc:Loc Darktide.Settings.Open}" Command="{Binding OpenLoaderBackupsCommand}" Classes="tertiary"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{loc:Loc Darktide.Settings.About}" Classes="section-title"/>
+            <TextBlock Text="{loc:Loc Darktide.Settings.AboutText}" TextWrapping="Wrap"/>
+            <TextBlock Text="{loc:Loc Darktide.Settings.Version}" Classes="caption-text"/>
+            <TextBlock Text="{Binding VersionText}" Classes="caption-text"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

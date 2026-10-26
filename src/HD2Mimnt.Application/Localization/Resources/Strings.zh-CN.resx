@@ -4262,4 +4262,227 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Downloads.AyakaTask" xml:space="preserve">
     <value>A 网下载：{0}</value>
   </data>
+  <data name="Darktide.Title" xml:space="preserve"><value>DarktideMimnt - 战锤 40K：暗潮模组管理器</value></data>
+  <data name="Darktide.Nav.Library" xml:space="preserve"><value>模组库</value></data>
+  <data name="Darktide.Nav.LoadOrder" xml:space="preserve"><value>加载顺序</value></data>
+  <data name="Darktide.Nav.Profiles" xml:space="preserve"><value>配置档</value></data>
+  <data name="Darktide.Nav.Loader" xml:space="preserve"><value>加载器</value></data>
+  <data name="Darktide.Nav.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="Darktide.Common.Busy" xml:space="preserve"><value>处理中...</value></data>
+  <data name="Darktide.Common.Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="Darktide.Common.Confirm" xml:space="preserve"><value>确认</value></data>
+  <data name="Darktide.Common.Delete" xml:space="preserve"><value>删除</value></data>
+  <data name="Darktide.Common.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="Darktide.Status.Ready" xml:space="preserve"><value>就绪</value></data>
+  <data name="Darktide.Status.RunningTasks" xml:space="preserve"><value>正在执行 {0} 个任务</value></data>
+  <data name="Darktide.Status.Cancelled" xml:space="preserve"><value>已取消</value></data>
+  <data name="Darktide.Status.NotConfigured" xml:space="preserve"><value>未设置游戏目录</value></data>
+  <data name="Darktide.Status.InvalidPath" xml:space="preserve"><value>游戏目录无效</value></data>
+  <data name="Darktide.Status.GameWithoutLoader" xml:space="preserve"><value>已找到游戏，未安装 DML</value></data>
+  <data name="Darktide.Status.LoaderIncomplete" xml:space="preserve"><value>DML 安装不完整</value></data>
+  <data name="Darktide.Status.LoaderInstalled" xml:space="preserve"><value>DML 就绪</value></data>
+  <data name="Darktide.Game.Path" xml:space="preserve"><value>游戏目录</value></data>
+  <data name="Darktide.Game.Browse" xml:space="preserve"><value>浏览...</value></data>
+  <data name="Darktide.Game.AutoDetect" xml:space="preserve"><value>自动检测</value></data>
+  <data name="Darktide.Game.Save" xml:space="preserve"><value>保存</value></data>
+  <data name="Darktide.Game.Clear" xml:space="preserve"><value>清除</value></data>
+  <data name="Darktide.Game.NotSet" xml:space="preserve"><value>未设置</value></data>
+  <data name="Darktide.Game.ChooseFolderTitle" xml:space="preserve"><value>选择暗潮游戏目录</value></data>
+  <data name="Darktide.Game.Launch" xml:space="preserve"><value>启动游戏</value></data>
+  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>直接启动 binaries/Darktide.exe；Steam 版请先确保 Steam 已运行。</value></data>
+  <data name="Darktide.Game.LaunchFailed" xml:space="preserve"><value>无法启动游戏。</value></data>
+  <data name="Darktide.Library.Title" xml:space="preserve"><value>模组库</value></data>
+  <data name="Darktide.Library.Subtitle" xml:space="preserve"><value>导入、安装、更新和卸载暗潮模组。</value></data>
+  <data name="Darktide.Library.Summary" xml:space="preserve"><value>共 {0} 个 · 已安装 {1} 个 · 已启用 {2} 个</value></data>
+  <data name="Darktide.Library.Import" xml:space="preserve"><value>导入 ZIP</value></data>
+  <data name="Darktide.Library.RegisterAfterImport" xml:space="preserve"><value>导入后登记加载</value></data>
+  <data name="Darktide.Library.Importing" xml:space="preserve"><value>正在导入...</value></data>
+  <data name="Darktide.Library.Installing" xml:space="preserve"><value>正在安装...</value></data>
+  <data name="Darktide.Library.ImportCompleted" xml:space="preserve"><value>导入完成。</value></data>
+  <data name="Darktide.Library.ImportCompletedDetail" xml:space="preserve"><value>{0} 已导入（{1}）。</value></data>
+  <data name="Darktide.Library.InstallCompleted" xml:space="preserve"><value>{0} 已安装。</value></data>
+  <data name="Darktide.Library.UninstallCompleted" xml:space="preserve"><value>{0} 已卸载。</value></data>
+  <data name="Darktide.Library.RemoveLibraryCompleted" xml:space="preserve"><value>{0} 已从模组库移除。</value></data>
+  <data name="Darktide.Library.InLibrary" xml:space="preserve"><value>库中</value></data>
+  <data name="Darktide.Library.Installed" xml:space="preserve"><value>已安装</value></data>
+  <data name="Darktide.Library.Enabled" xml:space="preserve"><value>已启用</value></data>
+  <data name="Darktide.Library.Disabled" xml:space="preserve"><value>未启用</value></data>
+  <data name="Darktide.Library.Missing" xml:space="preserve"><value>缺失</value></data>
+  <data name="Darktide.Library.Enable" xml:space="preserve"><value>启用</value></data>
+  <data name="Darktide.Library.Disable" xml:space="preserve"><value>禁用</value></data>
+  <data name="Darktide.Library.ToggleHint" xml:space="preserve"><value>启用即登记到 mod_load_order.txt，禁用只取消登记，不会删除模组文件。</value></data>
+  <data name="Darktide.Library.Install" xml:space="preserve"><value>安装</value></data>
+  <data name="Darktide.Library.Update" xml:space="preserve"><value>更新</value></data>
+  <data name="Darktide.Library.Uninstall" xml:space="preserve"><value>卸载</value></data>
+  <data name="Darktide.Library.RemoveFromLibrary" xml:space="preserve"><value>从库中删除</value></data>
+  <data name="Darktide.Library.AddGroupAbove" xml:space="preserve"><value>在本组上方添加分组</value></data>
+  <data name="Darktide.Library.AddGroupBelow" xml:space="preserve"><value>在本组下方添加分组</value></data>
+  <data name="Darktide.Library.RemoveGroupMessage" xml:space="preserve"><value>删除分组「{0}」只移除分隔符，组内 {1} 个模组并入上一组，不会改动模组文件。</value></data>
+  <data name="Darktide.Library.OpenFolder" xml:space="preserve"><value>打开目录</value></data>
+  <data name="Darktide.Library.Empty" xml:space="preserve"><value>还没有模组</value></data>
+  <data name="Darktide.Library.EmptyHint" xml:space="preserve"><value>导入一个模组 ZIP 开始使用；DMF 框架请在“加载器”页导入。</value></data>
+  <data name="Darktide.Library.NoGame" xml:space="preserve"><value>安装模组前需要完整的 Darktide Mod Loader（mods 和 mod_load_order.txt）。</value></data>
+  <data name="Darktide.Library.SelectArchive" xml:space="preserve"><value>选择模组 ZIP</value></data>
+  <data name="Darktide.Library.SelectCandidate" xml:space="preserve"><value>选择要安装的模组目录</value></data>
+  <data name="Darktide.Library.InstallAllCandidates" xml:space="preserve"><value>全部安装（{0} 个模组）</value></data>
+  <data name="Darktide.Library.CustomInstallRequired" xml:space="preserve"><value>该压缩包还包含 {0} 个模组目录之外的文件（例如 {1}），需要作者自己的安装流程。管理器不会只安装其中一部分，请按压缩包内说明或使用其自带安装脚本。</value></data>
+  <data name="Darktide.Library.ReplaceMessageMultiple" xml:space="preserve"><value>以下模组已经安装：{0}。是否全部替换？更新失败时会恢复原有文件。</value></data>
+  <data name="Darktide.Library.BundleCompleted" xml:space="preserve"><value>已安装 {0} 个模组，并按依赖顺序登记。</value></data>
+  <data name="Darktide.Library.ReplaceTitle" xml:space="preserve"><value>替换已有模组</value></data>
+  <data name="Darktide.Library.ReplaceMessage" xml:space="preserve"><value>已安装名为 {0} 的模组。是否替换？更新失败时会恢复原有文件。</value></data>
+  <data name="Darktide.Library.UninstallTitle" xml:space="preserve"><value>卸载模组</value></data>
+  <data name="Darktide.Library.UninstallMessage" xml:space="preserve"><value>从游戏卸载 {0} 并移除加载顺序登记？模组库归档会保留。路径：{1}</value></data>
+  <data name="Darktide.Library.RemoveLibraryTitle" xml:space="preserve"><value>移除库记录</value></data>
+  <data name="Darktide.Library.RemoveLibraryMessage" xml:space="preserve"><value>从模组库删除 {0} 及其归档？游戏目录中的文件不会改变。</value></data>
+  <data name="Darktide.Library.DmfUseLoader" xml:space="preserve"><value>DMF 是框架，请使用“加载器 → 导入 DMF ZIP”，不要走普通模组导入。</value></data>
+  <data name="Darktide.LoadOrder.Title" xml:space="preserve"><value>加载顺序</value></data>
+  <data name="Darktide.LoadOrder.Subtitle" xml:space="preserve"><value>拖动或使用箭头调整顺序；未启用的模组不会被加载。</value></data>
+  <data name="Darktide.LoadOrder.Summary" xml:space="preserve"><value>已启用 {0} 个 · 未启用 {1} 个 · {2} 个错误</value></data>
+  <data name="Darktide.LoadOrder.Active" xml:space="preserve"><value>当前加载顺序</value></data>
+  <data name="Darktide.LoadOrder.Disabled" xml:space="preserve"><value>未启用模组</value></data>
+  <data name="Darktide.LoadOrder.DisabledHint" xml:space="preserve"><value>这些模组已安装，但未登记到 mod_load_order.txt。</value></data>
+  <data name="Darktide.LoadOrder.DragHint" xml:space="preserve"><value>拖动左侧手柄排序。注释和未知条目会原样保留。</value></data>
+  <data name="Darktide.LoadOrder.Empty" xml:space="preserve"><value>没有启用的模组。</value></data>
+  <data name="Darktide.LoadOrder.NoDisabled" xml:space="preserve"><value>所有已安装模组均已启用。</value></data>
+  <data name="Darktide.LoadOrder.MoveUp" xml:space="preserve"><value>上移</value></data>
+  <data name="Darktide.LoadOrder.MoveDown" xml:space="preserve"><value>下移</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistration" xml:space="preserve"><value>移除</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistrationTitle" xml:space="preserve"><value>移除框架登记</value></data>
+  <data name="Darktide.LoadOrder.RemoveRegistrationMessage" xml:space="preserve"><value>从 mod_load_order.txt 移除不该登记的 “{0}”？</value></data>
+  <data name="Darktide.LoadOrder.Framework" xml:space="preserve"><value>框架</value></data>
+  <data name="Darktide.LoadOrder.Diagnostics" xml:space="preserve"><value>诊断</value></data>
+  <data name="Darktide.LoadOrder.NoDiagnostics" xml:space="preserve"><value>未发现问题。</value></data>
+  <data name="Darktide.LoadOrder.OpenFile" xml:space="preserve"><value>打开文件</value></data>
+  <data name="Darktide.LoadOrder.Reload" xml:space="preserve"><value>从磁盘重新读取</value></data>
+  <data name="Darktide.LoadOrder.NoGame" xml:space="preserve"><value>请选择已安装 DML 的有效暗潮游戏目录。</value></data>
+  <data name="Darktide.LoadOrder.AlternativeLoader" xml:space="preserve"><value>检测到替代加载器 “{0}”；mod_load_order.txt 可能不是实际加载顺序。</value></data>
+  <data name="Darktide.Profiles.Title" xml:space="preserve"><value>配置档</value></data>
+  <data name="Darktide.Profiles.Subtitle" xml:space="preserve"><value>保存和恢复模组组合与加载顺序。</value></data>
+  <data name="Darktide.Profiles.Create" xml:space="preserve"><value>新建配置档</value></data>
+  <data name="Darktide.Profiles.SaveCurrent" xml:space="preserve"><value>保存当前状态</value></data>
+  <data name="Darktide.Profiles.Apply" xml:space="preserve"><value>应用</value></data>
+  <data name="Darktide.Profiles.Active" xml:space="preserve"><value>当前</value></data>
+  <data name="Darktide.Profiles.Empty" xml:space="preserve"><value>没有配置档</value></data>
+  <data name="Darktide.Profiles.EmptyHint" xml:space="preserve"><value>从当前加载顺序创建配置档。</value></data>
+  <data name="Darktide.Profiles.Preview" xml:space="preserve"><value>变更预览</value></data>
+  <data name="Darktide.Profiles.PreviewHint" xml:space="preserve"><value>应用前会备份加载顺序文件；不会删除任何模组目录。</value></data>
+  <data name="Darktide.Profiles.PreviewNone" xml:space="preserve"><value>选择配置档以预览变更。</value></data>
+  <data name="Darktide.Profiles.PreviewEnable" xml:space="preserve"><value>启用：{0}</value></data>
+  <data name="Darktide.Profiles.PreviewDisable" xml:space="preserve"><value>禁用：{0}</value></data>
+  <data name="Darktide.Profiles.PreviewMissing" xml:space="preserve"><value>缺失的已安装模组：{0}</value></data>
+  <data name="Darktide.Profiles.PreviewUnknown" xml:space="preserve"><value>不在配置档中的模组（保持不变）：{0}</value></data>
+  <data name="Darktide.Profiles.PreviewOrder" xml:space="preserve"><value>加载顺序将发生变化。</value></data>
+  <data name="Darktide.Profiles.NoChanges" xml:space="preserve"><value>没有变化。</value></data>
+  <data name="Darktide.Profiles.CreateTitle" xml:space="preserve"><value>创建配置档</value></data>
+  <data name="Darktide.Profiles.SaveTitle" xml:space="preserve"><value>保存当前状态为配置档</value></data>
+  <data name="Darktide.Profiles.NameLabel" xml:space="preserve"><value>配置档名称</value></data>
+  <data name="Darktide.Profiles.OverwriteTitle" xml:space="preserve"><value>覆盖配置档</value></data>
+  <data name="Darktide.Profiles.OverwriteMessage" xml:space="preserve"><value>配置档 “{0}” 已存在。用当前状态覆盖？</value></data>
+  <data name="Darktide.Profiles.Saved" xml:space="preserve"><value>配置档 “{0}” 已保存。</value></data>
+  <data name="Darktide.Profiles.ApplyTitle" xml:space="preserve"><value>应用配置档</value></data>
+  <data name="Darktide.Profiles.Applied" xml:space="preserve"><value>配置档 “{0}” 已应用，启用 {1} 个模组。</value></data>
+  <data name="Darktide.Profiles.MissingMod" xml:space="preserve"><value>配置档中的模组未安装：{0}</value></data>
+  <data name="Darktide.Profiles.DeleteTitle" xml:space="preserve"><value>删除配置档</value></data>
+  <data name="Darktide.Profiles.DeleteMessage" xml:space="preserve"><value>删除配置档 “{0}”？模组文件和当前加载顺序不会改变。</value></data>
+  <data name="Darktide.Profiles.NoGame" xml:space="preserve"><value>切换配置档前请先安装 DML。</value></data>
+  <data name="Darktide.Loader.Title" xml:space="preserve"><value>加载器 / 工具</value></data>
+  <data name="Darktide.Loader.Subtitle" xml:space="preserve"><value>检查 DML 状态并使用官方切换脚本。本应用不会自行重写游戏补丁。</value></data>
+  <data name="Darktide.Loader.Game" xml:space="preserve"><value>游戏与 DML 状态</value></data>
+  <data name="Darktide.Loader.GamePath" xml:space="preserve"><value>游戏目录</value></data>
+  <data name="Darktide.Loader.Dml" xml:space="preserve"><value>DML</value></data>
+  <data name="Darktide.Loader.Dmf" xml:space="preserve"><value>DMF</value></data>
+  <data name="Darktide.Loader.Patcher" xml:space="preserve"><value>官方补丁工具</value></data>
+  <data name="Darktide.Loader.PatchState" xml:space="preserve"><value>补丁状态</value></data>
+  <data name="Darktide.Loader.Present" xml:space="preserve"><value>存在</value></data>
+  <data name="Darktide.Loader.Absent" xml:space="preserve"><value>缺失</value></data>
+  <data name="Darktide.Loader.PatchUnknown" xml:space="preserve"><value>未知。仅凭文件存在无法确认 bundle 是否已打补丁；请在游戏中确认或运行官方切换脚本。</value></data>
+  <data name="Darktide.Loader.ToggleMissing" xml:space="preserve"><value>缺少 toggle_darktide_mods.bat。</value></data>
+  <data name="Darktide.Loader.StatusInstalled" xml:space="preserve"><value>已安装</value></data>
+  <data name="Darktide.Loader.StatusIncomplete" xml:space="preserve"><value>不完整</value></data>
+  <data name="Darktide.Loader.StatusMissing" xml:space="preserve"><value>未安装</value></data>
+  <data name="Darktide.Loader.StatusInvalid" xml:space="preserve"><value>目录无效</value></data>
+  <data name="Darktide.Loader.StatusNotConfigured" xml:space="preserve"><value>未配置</value></data>
+  <data name="Darktide.Loader.AlternativeDetected" xml:space="preserve"><value>检测到替代加载器 “{0}”。标准 mod_load_order.txt 可能不是实际加载顺序。</value></data>
+  <data name="Darktide.Loader.Release" xml:space="preserve"><value>官方发布</value></data>
+  <data name="Darktide.Loader.Latest" xml:space="preserve"><value>最新版本</value></data>
+  <data name="Darktide.Loader.Published" xml:space="preserve"><value>发布时间</value></data>
+  <data name="Darktide.Loader.AvailablePackages" xml:space="preserve"><value>可用安装包</value></data>
+  <data name="Darktide.Loader.InstalledRecord" xml:space="preserve"><value>本应用最近安装</value></data>
+  <data name="Darktide.Loader.NotChecked" xml:space="preserve"><value>未检查</value></data>
+  <data name="Darktide.Loader.VersionUnknown" xml:space="preserve"><value>未知（未记录）</value></data>
+  <data name="Darktide.Loader.PackageFull" xml:space="preserve"><value>完整包</value></data>
+  <data name="Darktide.Loader.PackageUpdateOnly" xml:space="preserve"><value>仅更新包</value></data>
+  <data name="Darktide.Loader.AutoFull" xml:space="preserve"><value>已选择完整包：DML 尚未安装，或该版本没有仅更新包。</value></data>
+  <data name="Darktide.Loader.AutoUpdateOnly" xml:space="preserve"><value>已选择仅更新包：DML 已安装且 mod_load_order.txt 存在。</value></data>
+  <data name="Darktide.Loader.CheckUpdate" xml:space="preserve"><value>检查最新版本</value></data>
+  <data name="Darktide.Loader.ReleasePage" xml:space="preserve"><value>打开发布页</value></data>
+  <data name="Darktide.Loader.InstallLatest" xml:space="preserve"><value>下载并安装最新版</value></data>
+  <data name="Darktide.Loader.InstallFull" xml:space="preserve"><value>安装完整包</value></data>
+  <data name="Darktide.Loader.InstallUpdateOnly" xml:space="preserve"><value>安装仅更新包</value></data>
+  <data name="Darktide.Loader.InstallTitle" xml:space="preserve"><value>安装 Darktide Mod Loader</value></data>
+  <data name="Darktide.Loader.InstallMessage" xml:space="preserve"><value>将 DML {0}（{1}）安装到：{2} 现有的 mod_load_order.txt 和模组会保留。是否继续？</value></data>
+  <data name="Darktide.Loader.Downloading" xml:space="preserve"><value>正在下载...</value></data>
+  <data name="Darktide.Loader.InstallCompleted" xml:space="preserve"><value>安装程序已完成。</value></data>
+  <data name="Darktide.Loader.Installed" xml:space="preserve"><value>Darktide Mod Loader {0} 已安装。</value></data>
+  <data name="Darktide.Loader.BackupCreated" xml:space="preserve"><value>加载器文件备份：{0}</value></data>
+  <data name="Darktide.Loader.NeedGame" xml:space="preserve"><value>请先设置有效的游戏目录。</value></data>
+  <data name="Darktide.Loader.ReleaseUnavailable" xml:space="preserve"><value>该版本没有所选安装包。</value></data>
+  <data name="Darktide.Loader.Toggle" xml:space="preserve"><value>官方切换脚本</value></data>
+  <data name="Darktide.Loader.ToggleHint" xml:space="preserve"><value>该脚本会打补丁或撤销游戏 bundle 补丁。游戏更新后模组失效时可重新运行。</value></data>
+  <data name="Darktide.Loader.ToggleWarning" xml:space="preserve"><value>请只在游戏关闭时运行。控制台窗口会保留以供交互；本应用记录退出码，但不会捕获交互输出。</value></data>
+  <data name="Darktide.Loader.RunToggle" xml:space="preserve"><value>运行 toggle_darktide_mods.bat</value></data>
+  <data name="Darktide.Loader.ToggleTitle" xml:space="preserve"><value>运行官方 DML 切换脚本</value></data>
+  <data name="Darktide.Loader.ToggleMessage" xml:space="preserve"><value>目标：{0} 脚本：{1} 将打开控制台窗口并等待输入。是否继续？</value></data>
+  <data name="Darktide.Loader.ToggleFinished" xml:space="preserve"><value>切换脚本退出码 {0}。请重新确认游戏状态。</value></data>
+  <data name="Darktide.Loader.DmfMissingHint" xml:space="preserve"><value>DMF 是独立框架，需要单独安装。请从 Nexus 或官方页面下载 DMF ZIP，然后在此导入；它不会登记为普通模组。</value></data>
+  <data name="Darktide.Loader.ImportDmf" xml:space="preserve"><value>导入 DMF ZIP</value></data>
+  <data name="Darktide.Loader.OpenDmfPage" xml:space="preserve"><value>打开 Nexus DMF 页面</value></data>
+  <data name="Darktide.Loader.DmfNotFound" xml:space="preserve"><value>该 ZIP 中未找到 dmf/dmf.mod。</value></data>
+  <data name="Darktide.Loader.DmfReplaceTitle" xml:space="preserve"><value>替换 DMF</value></data>
+  <data name="Darktide.Loader.DmfReplaceMessage" xml:space="preserve"><value>mods/dmf 已存在。是否用所选 ZIP 替换？安装失败时会恢复原有目录。</value></data>
+  <data name="Darktide.Loader.DmfInstalled" xml:space="preserve"><value>DMF 已安装。</value></data>
+  <data name="Darktide.Settings.Title" xml:space="preserve"><value>设置</value></data>
+  <data name="Darktide.Settings.Subtitle" xml:space="preserve"><value>游戏目录、存储位置和应用信息。</value></data>
+  <data name="Darktide.Settings.GamePath" xml:space="preserve"><value>暗潮游戏目录</value></data>
+  <data name="Darktide.Settings.GamePathHint" xml:space="preserve"><value>选择包含 binaries/Darktide.exe 和 bundle 的目录。除非你明确操作，本应用不会在此写入文件。</value></data>
+  <data name="Darktide.Settings.Status" xml:space="preserve"><value>状态</value></data>
+  <data name="Darktide.Settings.AppearanceHint" xml:space="preserve"><value>外观改动对暗潮窗口立即生效，保存后下次启动继续沿用。</value></data>
+  <data name="Darktide.Settings.SaveAppearance" xml:space="preserve"><value>保存外观</value></data>
+  <data name="Darktide.Settings.AppearanceSaved" xml:space="preserve"><value>外观已保存。</value></data>
+  <data name="Darktide.Settings.CornerRadius" xml:space="preserve"><value>卡片圆角</value></data>
+  <data name="Darktide.Settings.Storage" xml:space="preserve"><value>存储位置</value></data>
+  <data name="Darktide.Settings.StorageHint" xml:space="preserve"><value>暗潮版使用独立的应用程序目录和数据库，不会与《绝地潜兵 2》管理器共享。</value></data>
+  <data name="Darktide.Settings.AppData" xml:space="preserve"><value>应用数据</value></data>
+  <data name="Darktide.Settings.Archives" xml:space="preserve"><value>托管归档</value></data>
+  <data name="Darktide.Settings.Database" xml:space="preserve"><value>数据库</value></data>
+  <data name="Darktide.Settings.Mods" xml:space="preserve"><value>游戏模组目录</value></data>
+  <data name="Darktide.Settings.LoaderBackups" xml:space="preserve"><value>加载器备份</value></data>
+  <data name="Darktide.Settings.Open" xml:space="preserve"><value>打开</value></data>
+  <data name="Darktide.Settings.Saved" xml:space="preserve"><value>游戏目录已保存。</value></data>
+  <data name="Darktide.Settings.AutoDetectFailed" xml:space="preserve"><value>未检测到暗潮安装，请手动选择目录。</value></data>
+  <data name="Darktide.Settings.AutoDetected" xml:space="preserve"><value>已检测到游戏目录：{0}</value></data>
+  <data name="Darktide.Settings.About" xml:space="preserve"><value>关于</value></data>
+  <data name="Darktide.Settings.AboutText" xml:space="preserve"><value>DarktideMimnt 是面向 Darktide Mod Loader / Darktide Mod Framework 的本地模组管理器。它不会从第三方站点下载模组，也不会在未经确认的情况下修改游戏补丁。</value></data>
+  <data name="Darktide.Settings.Version" xml:space="preserve"><value>版本</value></data>
+  <data name="Darktide.Issue.MissingGamePath" xml:space="preserve"><value>未设置游戏目录</value></data>
+  <data name="Darktide.Issue.InvalidGamePath" xml:space="preserve"><value>游戏目录无效</value></data>
+  <data name="Darktide.Issue.LoaderNotInstalled" xml:space="preserve"><value>加载器未安装或不完整</value></data>
+  <data name="Darktide.Issue.AlternativeLoader" xml:space="preserve"><value>检测到替代加载器</value></data>
+  <data name="Darktide.Issue.DmfMissing" xml:space="preserve"><value>缺少 DMF</value></data>
+  <data name="Darktide.Issue.LoadOrderMissing" xml:space="preserve"><value>缺少加载顺序文件</value></data>
+  <data name="Darktide.Issue.LoadOrderUnreadable" xml:space="preserve"><value>加载顺序文件无法解析</value></data>
+  <data name="Darktide.Issue.DuplicateRegistration" xml:space="preserve"><value>重复登记</value></data>
+  <data name="Darktide.Issue.MissingRegisteredMod" xml:space="preserve"><value>登记的模组缺失</value></data>
+  <data name="Darktide.Issue.DirectoryNameMismatch" xml:space="preserve"><value>目录名与 .mod 不一致</value></data>
+  <data name="Darktide.Issue.MissingModFile" xml:space="preserve"><value>缺少 .mod 文件</value></data>
+  <data name="Darktide.Issue.InvalidMetadata" xml:space="preserve"><value>元数据无效</value></data>
+  <data name="Darktide.Issue.MissingDependency" xml:space="preserve"><value>缺少必需依赖</value></data>
+  <data name="Darktide.Issue.DisabledDependency" xml:space="preserve"><value>必需依赖未启用</value></data>
+  <data name="Darktide.Issue.DependencyOrder" xml:space="preserve"><value>依赖顺序不正确</value></data>
+  <data name="Darktide.Issue.DependencyCycle" xml:space="preserve"><value>依赖循环</value></data>
+  <data name="Darktide.Issue.FrameworkRegistration" xml:space="preserve"><value>框架被错误登记为模组</value></data>
+  <data name="Darktide.Issue.OrphanLibraryEntry" xml:space="preserve"><value>库中有归档但未安装</value></data>
+  <data name="Darktide.Issue.MissingInstalledFolder" xml:space="preserve"><value>已安装目录缺失</value></data>
+  <data name="Darktide.Issue.UnsafePath" xml:space="preserve"><value>路径不安全</value></data>
+  <data name="Darktide.Issue.PatchStateUnknown" xml:space="preserve"><value>补丁状态未知</value></data>
 </root>

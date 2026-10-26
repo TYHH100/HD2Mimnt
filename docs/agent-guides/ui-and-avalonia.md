@@ -80,7 +80,7 @@
 
 - 模组创建页排序必须移动原有选项对象，并通知草稿变更和 JSON 预览；只改界面顺序会让保存和 ZIP 导出失序，重建对象会丢失绑定在对象上的扩展字段。选项行可拖动，子选项仅从手柄启动且限制在所属选项内，输入框保留文本选择。预览和松开共用移除源项前的插入槽位，向下移动只扣减一次源项索引；原位、Escape、越界、捕获丢失及页面卸载均不提交，并清理透明度和插入线。回归实际拖动两级列表、双向滚轮和保存／ZIP 内清单顺序。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://learn.microsoft.com/dotnet/api/system.collections.objectmodel.observablecollection-1.move
 
-- 拖放排序预览必须与 Drop 共用插入位置计算，覆盖层设置 IsHitTestVisible=False 且不参与列表布局；DragLeave 可能从子控件冒泡，只有指针真正离开列表视口才隐藏预览，避免鼠标跨过文字/图片时闪烁。取消、完成、DataContext 变化和视图卸载都要恢复拖动源透明度。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
+- 拖放排序预览必须与 Drop 共用插入位置计算，覆盖层设置 IsHitTestVisible=False 且不参与列表布局；DragLeave 可能从子控件冒泡，只有指针真正离开列表视口才隐藏预览，避免鼠标跨过文字/图片时闪烁。取消、完成、DataContext 变化和视图卸载都要恢复拖动源透明度。“跳过拖动源”的分支只能在落点正好压在源卡片上时生效，否则列表末尾的落点会被拉回源卡片下方（暗潮加载顺序实测）。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
 - 配置页内部排序使用页面指针捕获，避免系统拖放循环接管输入后滚轮失效；捕获后滚轮要明确滚动正在排序的列表，并在虚拟化布局完成后重算预览。滚动回收容器时重新按当前数据应用源透明度，不能让复用的其他卡片变淡。松开沿用同一 DragOver/Drop 落点校验，Escape、捕获丢失和卸载均释放捕获与数据。回归通过实际 MouseDown/MouseMove/MouseWheel/MouseUp 验证两类列表、双向滚动及保存/取消，Headless 移动和滚轮事件须显式传入 LeftMouseButton。来源：https://docs.avaloniaui.net/docs/concepts/input/pointer 、https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Input/DragDrop.cs
 
@@ -122,3 +122,12 @@
 - 搜索设置“模糊搜索/拼音搜索”位于“设置 → 搜索”，分类标识 `搜索`、入口 ID `settings.search`、键 `Search.Fuzzy`/`Search.Pinyin`，默认关闭；保存后用 `SettingsService.SettingChanged` 让模组库、配置文件和日志中已有查询立即重算。所有本地搜索框共用 `SearchMatcher`：关闭时保持原有连续包含匹配，模糊搜索只增加不连续字符匹配，拼音搜索使用 `PinyinData.g.cs` 的全拼和首字母（含常见多音字候选），不引入运行时包；在线平台搜索由服务端执行，不套用本地规则。新增此类设置要同时接入三语、分类重置、入口自定义和真实控件回归；拼音表通过 `tools/generate-pinyin-data.py` 重新生成。来源：[xUnit](https://xunit.net/)、[Avalonia Headless](https://docs.avaloniaui.net/docs/concepts/headless/)。
 
 - 创建页的压缩格式、档位、加密和密码库集中在“打包设置”标签页，避免继续增高顶部 Auto 区域、挤压编辑内容。TabControl 与表单 ScrollViewer 的内容显式 Stretch；长路径输入不能撑出右侧按钮。布局回归检查窄窗口、中英文和深浅主题下的实际控件边界、Extent/Viewport 与展开后的滚动，不能只检查 IsEffectivelyVisible。来源：[TabControl](https://docs.avaloniaui.net/controls/navigation/tabcontrol)、[ScrollViewer](https://docs.avaloniaui.net/controls/layout/containers/scrollviewer)。
+
+- 暗潮页面复用本家（HD2 主窗口）的卡片与信息层级时，按暗潮实际数据裁剪：`DarktideModMetadata` 没有封面字段，卡片不得预留 52px 图片槽（会永久显示空灰块）；排序手柄、上下移动和移除入口用 `UtilityIcon`（`ListOrdered`、`Chevron` 旋转、`Close`）配 ToolTip，不能写 ⋮、↑、↓ 文本符号，字形与 `icon-button` 内边距不一致；状态用 12px 文字加语义前景色（`SuccessBrush`/`ErrorBrush`），不要实心 `SuccessBrush` 底配白色文字，也不要在 `chip` 上叠 `ErrorBackgroundBrush`；警告条只用 `WarningBackgroundBrush` 底色加 `Warning` 图标，不再叠 1px `WarningBrush` 亮边框；同一信息只在导航栏或状态栏出现一次（游戏状态在导航栏、路径在状态栏），页面内不再重复铺游戏路径行；空状态统一为图标 + 标题 + 提示 + `accent` 主操作按钮。`ListBox` 卡片列表须在 `ListBox.Styles` 内把 `ListBoxItem` 的 `Padding`/`Margin` 归零，否则原生选中底色与卡片边框形成双层描边。来源：[Fluent 图标使用规范](https://learn.microsoft.com/windows/apps/design/style/icons)、[Avalonia ListBox](https://docs.avaloniaui.net/docs/reference/controls/listbox)。
+
+- 视觉走查不能只看 XAML：暗潮窗口可用 headless `Window.CaptureRenderedFrame()` 逐页导出 PNG（切换 `RequestedThemeVariant` 覆盖深浅色、切换 `SelectedTabIndex` 触发各页刷新），临时测试与输出目录用后即删。来源：[Avalonia Headless](https://docs.avaloniaui.net/docs/concepts/headless/)。
+- 暗潮外观：`{loc:LocalizedBinding}` 只翻译 `UiLocalization.OptionKeys` 注册过的取值（`Dark`/`Light`/`System` 已在表内映射到 `Options.*`），不是任意 resx 键；未注册的值原样显示。因此主题下拉直接绑 `"Dark"/"Light"/"System"` 字符串，不要自造 `Xxx.Theme.Dark` 键再指望它翻译。来源：[Avalonia 数据绑定](https://docs.avaloniaui.net/docs/basics/data-bindings/)。
+
+- 暗潮设置页刷新（`LoadAsync`）不得回读外观项：切页会把用户尚未保存的滑块与背景图调整冲回已保存值，外观只在启动时 `LoadAppearance()` 应用一次，改动即时预览、点“保存外观”才落盘。背景图存在时 `ContentSurfaceOpacity=0`、`ChromeSurfaceOpacity` 跟随卡片透明度，无背景图两者恢复 1.0；换下和清空的原生位图必须 `Dispose`，解码在 `Task.Run` 中完成并用忙标记合并连续触发。来源：[Fluent 透明材质](https://learn.microsoft.com/windows/apps/design/style/seven-essential-elements-of-fluent-design)。
+
+- 顶部导航 `PaneFooter` 的宽度会挤占菜单项空间：带文字的“启动游戏”按钮会让英文界面在 1080 最小宽度下把“设置”推进溢出菜单。页脚操作使用紧凑图标按钮（如 36px 的 `accent` 播放图标）并保留 ToolTip；改动页脚后必须在 1080 宽、English 下确认五个导航项仍直接可见。来源：[FluentAvalonia NavigationView](https://github.com/amwx/FluentAvalonia)。

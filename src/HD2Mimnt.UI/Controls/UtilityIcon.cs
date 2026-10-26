@@ -22,7 +22,7 @@ public sealed class UtilityIcon : FASymbolIcon
         ["Deploy"] = FASymbol.Upload, ["Clean"] = FASymbol.Delete, ["Check"] = FASymbol.Checkmark,
         ["Copy"] = FASymbol.Copy, ["Edit"] = FASymbol.Edit, ["Home"] = FASymbol.Home,
         ["ListOrdered"] = FASymbol.List, ["Warning"] = FASymbol.Important, ["Wrench"] = FASymbol.Repair,
-        ["Globe"] = FASymbol.Globe, ["Lock"] = FASymbol.Admin
+        ["Globe"] = FASymbol.Globe, ["Lock"] = FASymbol.Admin, ["Play"] = FASymbol.Play
     };
 
     public UtilityIcon()

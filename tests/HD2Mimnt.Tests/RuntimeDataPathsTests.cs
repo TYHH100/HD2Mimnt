@@ -8,9 +8,9 @@ public class RuntimeDataPathsTests
     public void GetDefaultApplicationDataPath_UsesBuildConfigurationDirectory()
     {
 #if DEBUG
-        const string expectedDirectoryName = "HD2Mimnt.dev";
+        const string expectedDirectoryName = "DarktideMimnt.dev";
 #else
-        const string expectedDirectoryName = "HD2Mimnt";
+        const string expectedDirectoryName = "DarktideMimnt";
 #endif
 
         Assert.Equal(expectedDirectoryName, Path.GetFileName(RuntimeDataPaths.GetDefaultApplicationDataPath()));

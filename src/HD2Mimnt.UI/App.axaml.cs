@@ -6,11 +6,14 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Application.Services.Darktide;
 using HD2Mimnt.Application.Localization;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Darktide;
 using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Darktide;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
@@ -22,6 +25,7 @@ using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.Infrastructure.Storage;
 using HD2Mimnt.Infrastructure.Migration;
 using HD2Mimnt.UI.ViewModels;
+using HD2Mimnt.UI.ViewModels.Darktide;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Localization;
@@ -116,38 +120,20 @@ public partial class App : Avalonia.Application
             localization.StartMonitoring();
             desktop.Exit += (_, _) => localization.Dispose();
 
-            // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
+            // 初始化数据库；暗潮版不再执行 HD2 部署状态迁移和 N 网互操作启动。
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
 
-            // 旧会话式部署记录先收养为当前安装状态，再做离线快照/UI 读取。
-            try
-            {
-                await ServiceProvider.GetRequiredService<DeploymentStateMigrationService>().EnsureMigratedAsync(
-                    ServiceProvider.GetRequiredService<SettingsService>().GetEffectiveGamePath(), cancellation.Token);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                ServiceProvider.GetService<ILogger<DeploymentStateMigrationService>>()
-                    ?.LogWarning(ex, "部署状态迁移失败，继续使用原记录");
-            }
-
-            var taskService = ServiceProvider.GetRequiredService<TaskService>();
-            var workers = ServiceProvider.GetServices<IWorker>();
-            foreach (var worker in workers)
-            {
-                taskService.RegisterWorker(worker);
-            }
-
-            // 创建并展示主窗口。
-            var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
-            Program.MainWindowViewModel = mainViewModel;
-            var mainWindow = new MainWindow
+            // 创建并展示暗潮主窗口。
+            var mainViewModel = ServiceProvider.GetRequiredService<DarktideMainWindowViewModel>();
+            Program.DarktideMainViewModel = mainViewModel;
+            var mainWindow = new DarktideMainWindow
             {
                 DataContext = mainViewModel,
                 Icon = TryGetAppIcon()
             };
-            mainViewModel.AttachOwner(mainWindow);
+            ServiceProvider.GetRequiredService<ConfirmationService>().SetOwner(mainWindow);
+            ServiceProvider.GetRequiredService<IDarktideDialogService>().SetOwner(mainWindow);
             desktop.MainWindow = mainWindow;
             running = false;
             startup?.Close();
@@ -155,7 +141,7 @@ public partial class App : Avalonia.Application
             mainWindow.Show();
 
             // 初始化 ViewModel - 使用异步启动避免死锁
-            _ = InitializeMainWindowAsync(mainViewModel, mainWindow);
+            _ = InitializeDarktideAsync(mainViewModel);
         }
         catch (OperationCanceledException)
         {
@@ -171,6 +157,22 @@ public partial class App : Avalonia.Application
                 ? UiLocalization.Current.Format("Settings.Storage.AccessDenied", ex.Message)
                 : ex.Message;
             startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", detail));
+        }
+    }
+
+    private static async Task InitializeDarktideAsync(DarktideMainWindowViewModel main)
+    {
+        try
+        {
+            await main.InitializeAsync();
+            if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
+                ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(storageMessage,
+                    UiLocalization.Current["Settings.Storage.Title"]);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            CrashGuard.Report(ex, "暗潮主窗口初始化失败");
         }
     }
 
@@ -239,6 +241,45 @@ public partial class App : Avalonia.Application
         Directory.CreateDirectory(storageLocations.DownloadsPath);
         Directory.CreateDirectory(storageLocations.TempPath);
         services.AddSingleton(storageSettings);
+
+        var darktideStorage = DarktideStoragePaths.Create(storageLocations);
+        darktideStorage.EnsureDirectories();
+        services.AddSingleton(darktideStorage);
+        services.AddSingleton<DarktideRepository>();
+        services.AddSingleton<DarktideGameLocator>();
+        services.AddSingleton<DarktideModMetadataReader>();
+        services.AddSingleton<DarktideArchiveInspector>();
+        services.AddSingleton<DarktideModInstaller>();
+        services.AddSingleton<DarktideLoaderPackageInspector>();
+        services.AddSingleton<DarktideLoaderInstaller>();
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("darktide-github", (_, _) =>
+            new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(10) });
+        services.AddSingleton(sp => new DarktideReleaseClient(
+            sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("darktide-github")));
+        services.AddSingleton(sp => new DarktideManagerService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<DarktideRepository>(),
+            sp.GetRequiredService<DarktideGameLocator>(),
+            sp.GetRequiredService<DarktideModMetadataReader>(),
+            sp.GetRequiredService<DarktideArchiveInspector>(),
+            sp.GetRequiredService<DarktideModInstaller>(),
+            sp.GetRequiredService<DarktideStoragePaths>(),
+            sp.GetService<ILogger<DarktideManagerService>>()));
+        services.AddSingleton(sp => new DarktideLoaderService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<DarktideGameLocator>(),
+            sp.GetRequiredService<DarktideReleaseClient>(),
+            sp.GetRequiredService<DarktideLoaderPackageInspector>(),
+            sp.GetRequiredService<DarktideLoaderInstaller>(),
+            sp.GetRequiredService<DarktideStoragePaths>(),
+            sp.GetService<ILogger<DarktideLoaderService>>()));
+        services.AddSingleton<IDarktideDialogService, DarktideDialogService>();
+        services.AddTransient<DarktideLibraryViewModel>();
+        services.AddTransient<DarktideLoadOrderViewModel>();
+        services.AddTransient<DarktideProfilesViewModel>();
+        services.AddTransient<DarktideLoaderViewModel>();
+        services.AddTransient<DarktideSettingsViewModel>();
+        services.AddTransient<DarktideMainWindowViewModel>();
 
         var diagnosticLogSettings = new DiagnosticLogSettings();
         services.AddSingleton(diagnosticLogSettings);

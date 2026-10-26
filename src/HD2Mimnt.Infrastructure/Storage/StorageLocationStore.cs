@@ -15,7 +15,10 @@ public sealed class StorageLocationStore
 
     public StorageLocationStore(string? bootstrapPath = null)
     {
-        var environmentPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
+        var environmentPath = Environment.GetEnvironmentVariable("DARKTIDEMIMNT_DATA_PATH");
+        // 兼容既有隔离测试设置；默认目录已经是独立的 DarktideMimnt，不会与 HD2 共用数据。
+        if (string.IsNullOrWhiteSpace(environmentPath))
+            environmentPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         BootstrapPath = Normalize(bootstrapPath ?? (string.IsNullOrWhiteSpace(environmentPath)
             ? RuntimeDataPaths.GetDefaultApplicationDataPath()
             : environmentPath));

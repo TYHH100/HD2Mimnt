@@ -22,7 +22,7 @@ public sealed class BrowserProtocolHost : IDisposable
     public BrowserProtocolHost(string scope)
     {
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(scope)));
-        _pipeName = "HD2Mimnt-" + hash;
+        _pipeName = "DarktideMimnt-" + hash;
         _instance = new Mutex(false, @"Local\" + _pipeName, out var created);
         IsPrimary = created;
         _listener = created ? ListenAsync() : Task.CompletedTask;
@@ -30,7 +30,8 @@ public sealed class BrowserProtocolHost : IDisposable
 
     public static string GetScope()
     {
-        var data = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
+        var data = Environment.GetEnvironmentVariable("DARKTIDEMIMNT_DATA_PATH")
+                   ?? Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
         var directory = string.IsNullOrWhiteSpace(data)
             ? RuntimeDataPaths.GetDefaultApplicationDataPath()
             : Path.GetFullPath(data);

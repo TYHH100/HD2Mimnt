@@ -13,7 +13,7 @@ public sealed class FileLogServiceTests
         var root = Path.Combine(Path.GetTempPath(), "HD2MimntLogTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         var logPath = Path.Combine(root, "application.log");
-        var databasePath = Path.Combine(root, "hd2mimnt.db");
+        var databasePath = Path.Combine(root, "darktidemimnt.db");
         try
         {
             using var factory = LoggerFactory.Create(builder => builder.AddProvider(new FileLogProvider(logPath)));
