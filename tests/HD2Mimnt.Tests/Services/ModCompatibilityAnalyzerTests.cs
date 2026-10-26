@@ -219,6 +219,30 @@ public sealed class ModCompatibilityAnalyzerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_CachedReportIsClonedAndInvalidatedWithCompanions()
+    {
+        var path = CompatibilityFixture.WritePatch(_root,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(), Stream: new byte[8])]);
+        var analyzer = new ModCompatibilityAnalyzer();
+        var first = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.True(Assert.Single(first.Patches).HasStream);
+        first.Units[0].ResourceName = "mutated";
+        first.Patches[0].ArchiveName = "mutated-archive";
+
+        // 缓存命中返回深拷贝，对上一份报告的修改不会串到新报告。
+        var second = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.NotSame(first.Units[0], second.Units[0]);
+        Assert.Null(second.Units[0].ResourceName);
+        Assert.Null(second.Patches[0].ArchiveName);
+
+        // 缓存键包含伴随文件指纹：删除伴随文件后重新分析必须反映变化。
+        File.Delete(path + ".stream");
+        var third = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.False(Assert.Single(third.Patches).HasStream);
+        Assert.True(third.HasBlockingStructureIssues);
+    }
+
+    [Fact]
     public async Task RestoreBackupAsync_BackupOutsideMod_IsRejected()
     {
         var analyzer = new ModCompatibilityAnalyzer();

@@ -467,4 +467,39 @@ public sealed partial class FluentAvaloniaUiTests
         }
         finally { await vm.StopAsync(); }
     }
+
+    [AvaloniaFact]
+    public async Task Compatibility_StartupCheckOnlyRescansChangedMods()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.GamePath, game);
+        await settings.SetSettingAsync(SettingKeys.CompatibilityCheckOnStartup, true);
+        var mods = scope.Services.GetRequiredService<IModRepository>();
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test incremental", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            // 首次启动检查：全量检查并落库。
+            await library.CheckCompatibilityOnStartupAsync();
+            var firstCheckedAt = vm.Mods.Single().Report!.CheckedAtUtc;
+            Assert.Equal(ModCompatibilityStatus.Incompatible, vm.Mods.Single().Report!.Status);
+
+            // 第二次启动检查：内容未变，直接回填持久化结果（CheckedAtUtc 不变）。
+            await vm.StopAsync();
+            await library.CheckCompatibilityOnStartupAsync();
+            Assert.Equal(firstCheckedAt, vm.Mods.Single().Report!.CheckedAtUtc);
+
+            // 模组内容变化后重扫该模组。
+            await vm.StopAsync();
+            var entity = await mods.GetByIdAsync(id);
+            await File.AppendAllTextAsync(Path.Combine(entity!.Path, "extra.txt"), "x");
+            await library.CheckCompatibilityOnStartupAsync();
+            Assert.True(vm.Mods.Single().Report!.CheckedAtUtc > firstCheckedAt);
+        }
+        finally { await vm.StopAsync(); }
+    }
 }

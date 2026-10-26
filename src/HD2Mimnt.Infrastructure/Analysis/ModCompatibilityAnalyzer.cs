@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
@@ -77,7 +79,7 @@ public sealed partial class ModCompatibilityAnalyzer : IModCompatibilityAnalyzer
         foreach (var patchPath in patchFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var patch = await AnalyzePatchAsync(fullPath, patchPath, cancellationToken);
+            var patch = await GetOrAnalyzePatchAsync(fullPath, patchPath, cancellationToken);
             report.Patches.Add(patch);
             report.Units.AddRange(patch.Units);
             foreach (var unit in patch.Units)
@@ -219,6 +221,82 @@ public sealed partial class ModCompatibilityAnalyzer : IModCompatibilityAnalyzer
             RepairGate.Release();
         }
     }
+
+    private static readonly ConcurrentDictionary<string, CompatibilityPatchReport> PatchAnalysisCache = new();
+    private const int MaxCachedPatchAnalyses = 512;
+
+    /// <summary>
+    /// 检查路径的 patch 报告缓存：键含主补丁与伴随文件的长度+mtime，命中返回深拷贝。
+    /// 修复/验证路径（companionSource 非空或临时文件）不缓存；上限超限整体清空。
+    /// </summary>
+    private static async Task<CompatibilityPatchReport> GetOrAnalyzePatchAsync(string root, string path, CancellationToken token)
+    {
+        var key = PatchCacheKey(path);
+        if (key.Length > 0 && PatchAnalysisCache.TryGetValue(key, out var cached))
+            return ClonePatchReport(cached);
+        var report = await AnalyzePatchAsync(root, path, token);
+        if (key.Length > 0)
+        {
+            if (PatchAnalysisCache.Count >= MaxCachedPatchAnalyses) PatchAnalysisCache.Clear();
+            // 缓存保留原始报告，调用方拿深拷贝；对报告/Unit 的后续修改不会污染缓存。
+            PatchAnalysisCache[key] = report;
+            return ClonePatchReport(report);
+        }
+        return report;
+    }
+
+    private static string PatchCacheKey(string path)
+    {
+        var main = new FileInfo(path);
+        if (!main.Exists) return string.Empty;
+        var key = new StringBuilder(path.Length * 3);
+        AppendFileFingerprint(key, main);
+        AppendFileFingerprint(key, new FileInfo(path + ".stream"));
+        AppendFileFingerprint(key, new FileInfo(path + ".gpu_resources"));
+        return key.ToString();
+    }
+
+    private static void AppendFileFingerprint(StringBuilder builder, FileInfo file)
+    {
+        builder.Append('|');
+        if (!file.Exists)
+        {
+            builder.Append("missing");
+            return;
+        }
+        builder.Append(file.Length).Append('|').Append(file.LastWriteTimeUtc.Ticks);
+    }
+
+    private static CompatibilityPatchReport ClonePatchReport(CompatibilityPatchReport report) => new()
+    {
+        RelativePath = report.RelativePath,
+        ArchiveName = report.ArchiveName,
+        FileSize = report.FileSize,
+        Health = report.Health,
+        ContainsUnitResources = report.ContainsUnitResources,
+        HeaderValid = report.HeaderValid,
+        IndexValid = report.IndexValid,
+        PayloadRangesValid = report.PayloadRangesValid,
+        EntryIndicesValid = report.EntryIndicesValid,
+        TypeDistributionValid = report.TypeDistributionValid,
+        RequiresStream = report.RequiresStream,
+        RequiresGpuResources = report.RequiresGpuResources,
+        HasStream = report.HasStream,
+        HasGpuResources = report.HasGpuResources,
+        TypeCount = report.TypeCount,
+        ResourceCount = report.ResourceCount,
+        Units = report.Units.Select(unit => new CompatibilityUnit
+        {
+            FileName = unit.FileName,
+            ResourceId = unit.ResourceId,
+            Version = unit.Version,
+            DataSize = unit.DataSize,
+            StreamSize = unit.StreamSize,
+            GpuSize = unit.GpuSize,
+            Analysis = unit.Analysis
+        }).ToList(),
+        Issues = [.. report.Issues]
+    };
 
     private static async Task<CompatibilityPatchReport> AnalyzePatchAsync(
         string root, string path, CancellationToken cancellationToken, string? companionSource = null)

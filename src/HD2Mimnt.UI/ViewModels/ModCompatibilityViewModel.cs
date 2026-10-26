@@ -113,13 +113,24 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     {
         if (_settings?.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false) != true || IsBusy || IsOpen || _closing) return;
         ClearRows(); _stale = false; ScopeName = UiLocalization.Current["Compatibility.LibraryScope"];
+        // 增量：内容戳未变的模组直接回填持久化结果，只重扫其余模组。
+        var restored = await Task.Run(() => service.RestorePersistedResultsAsync());
         foreach (var target in targets.DistinctBy(m => m.Id))
-        { var row = new CompatibilityModRow(target); _rows.Add(row.Id, row); Mods.Add(row); }
+        {
+            var row = new CompatibilityModRow(target);
+            _rows.Add(row.Id, row); Mods.Add(row);
+            if (restored.TryGetValue(row.Id, out var report))
+            {
+                GetBadge(row.Id).ApplyReport(report);
+                row.ApplyReport(report);
+            }
+        }
         if (Mods.Count == 0) return;
         SelectedMod = Mods[0]; SelectedTab = 0; _startupCheck = true;
         try
         {
-            await Start(CheckCoreAsync);
+            var pending = Mods.Where(m => m.Report == null).ToArray();
+            if (pending.Length > 0) await Start(token => CheckCoreAsync(pending, token));
             if (Mods.Count > 0 && Mods.All(m => m.Report != null))
                 notifications.ShowWithAction(NotificationLevel.Info, Summary, UiLocalization.Current["Settings.Compatibility.ShowResults"],
                     () => Dispatcher.UIThread.Post(() => IsOpen = true), UiLocalization.Current["Compatibility.Title"]);
@@ -128,10 +139,12 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand] private Task CheckAsync() => Start(CheckCoreAsync);
-    private async Task CheckCoreAsync(CancellationToken token)
+    private Task CheckCoreAsync(CancellationToken token) => CheckCoreAsync([.. Mods], token);
+
+    private async Task CheckCoreAsync(CompatibilityModRow[] rows, CancellationToken token)
     {
         ProgressText = UiLocalization.Current["Compatibility.Checking"];
-        var ids = Mods.Select(m => m.Id).ToArray();
+        var ids = rows.Select(m => m.Id).ToArray();
         var reports = await Task.Run(() => service.CheckModsAsync(ids, cancellationToken: token), token);
         token.ThrowIfCancellationRequested();
         foreach (var report in reports)
