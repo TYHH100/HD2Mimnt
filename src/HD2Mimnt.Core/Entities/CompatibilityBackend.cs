@@ -14,6 +14,14 @@ public sealed class CompatibilityUnitAnalysis
     public List<string> Errors { get; } = [];
     public List<string> Warnings { get; } = [];
     public bool IsValid => HeaderValid && SizeMatches && LodValid && Errors.Count == 0;
+
+    /// <summary>"GPU 采样"类错误是对未修改 GPU 载荷的启发式抽查（首顶点位置/权重/索引采样，
+    /// 2026-10-18 起不参与兼容判定），反映作者网格数据特征而非迁移或结构损坏，
+    /// 不作为修复复检的阻断条件；其余错误与结构有效性一起构成阻断依据。</summary>
+    public const string SamplingErrorPrefix = "GPU 采样";
+
+    public bool HasStructuralErrors => !HeaderValid || !SizeMatches || !LodValid
+        || Errors.Any(error => !error.StartsWith(SamplingErrorPrefix, StringComparison.Ordinal));
 }
 
 public enum CompatibilityLodStrategy { PreserveMod, UseGameReference, Automatic, Mixed }

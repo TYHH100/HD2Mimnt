@@ -145,6 +145,36 @@ public sealed class CompatibilityBackendTests(ITestOutputHelper output) : IDispo
         Assert.Equal(ModCompatibilityStatus.Compatible, (await analyzer.AnalyzeAsync(ModPath, CurrentVersion)).Status);
     }
 
+    [Fact]
+    public async Task FullRepair_LegacyUnitWithUnnormalizedWeights_SamplingErrorsDoNotBlock()
+    {
+        // 旧版 Unit 的 GPU 载荷自带首顶点权重不归一（0.2x4）：迁移到当前版本后深度检验
+        // 会报"GPU 采样权重总和无效"。这是作者网格数据特征而非迁移损坏（GPU 载荷未被修改），
+        // 按旧管理器行为只作警告，不阻断修复。
+        var legacy = GpuUnit(unnormalizedWeights: true);
+        Put32(legacy.Data, 0x2c, 1);
+        Put32(legacy.Data, 0x98 + 12, 31); // 旧版 Layout itemFormat 需 +4，迁移后为 35（half4 权重分量）
+        var path = WritePatch(ModPath, resources: [legacy]);
+        var current = legacy.Data.ToArray();
+        Put32(current, 0x2c, CurrentVersion);
+        Put32(current, 0x98 + 12, 35);
+        WriteGame(GamePath, legacy with { Data = current });
+        var analyzer = new ModCompatibilityAnalyzer();
+
+        var result = await analyzer.RepairFullAsync(ModPath, GamePath, [], new() { LodStrategy = CompatibilityLodStrategy.PreserveMod });
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.Changed);
+        var bytes = File.ReadAllBytes(path);
+        Assert.Equal(CurrentVersion, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(184 + 0x2c)));
+        Assert.Equal(35u, BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(184 + 0x98 + 12)));
+
+        // 修复后的检查仍保留采样诊断（Health=Warning），但版本结论不受影响。
+        var report = await analyzer.AnalyzeAsync(ModPath, CurrentVersion);
+        Assert.Equal(ModCompatibilityStatus.Compatible, report.Status);
+        Assert.Contains(report.Units[0].Analysis!.Errors, error => error.StartsWith("GPU 采样", StringComparison.Ordinal));
+        Assert.True(report.Units[0].Analysis!.HasStructuralErrors == false);
+    }
+
     [Theory]
     [InlineData(false, 320, 0x8F669F365F24594EUL)]
     [InlineData(true, 480, 0xC6042E3403385D40UL)]

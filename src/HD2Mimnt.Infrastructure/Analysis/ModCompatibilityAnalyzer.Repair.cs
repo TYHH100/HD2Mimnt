@@ -115,7 +115,7 @@ public sealed partial class ModCompatibilityAnalyzer
                     rebuiltHash = await RebuildResourcesAsync(root, patch.Original, input, patch.Temporary, raw, references, options, prepared.Plan, token);
                 var validation = await ReadPatchMetadataAsync(File.Exists(patch.Temporary) ? patch.Temporary : patch.Original, token, patch.Original, patch.Companions);
                 if (!validation.PayloadRangesValid || !validation.EntryIndicesValid || !validation.TypeDistributionValid
-                    || options.RepairUnits && validation.Units.Any(u => u.Analysis is { IsValid: false }))
+                    || options.RepairUnits && validation.Units.Any(u => u.Analysis is { HasStructuralErrors: true }))
                 { prepared.Plan.BlockingReasons.Add($"{patch.Original}: 修复结果未通过结构或 Unit 深度复检。"); continue; }
                 if (File.Exists(patch.Temporary))
                     prepared.Files.Add(new PreparedFile(patch.Original, patch.Temporary, patch.Hash ?? rebuiltHash
