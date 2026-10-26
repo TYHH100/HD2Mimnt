@@ -400,10 +400,15 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
 public sealed class ModCompatibilityBadgeViewModel : ObservableObject
 {
     private ModCompatibilityReport? _report;
-    public bool HasWarning => _report?.Status == ModCompatibilityStatus.Incompatible;
+    public bool HasWarning => _report is { } report
+        && (report.Status == ModCompatibilityStatus.Incompatible || report.HasBlockingStructureIssues);
     public string Tooltip => _report == null ? string.Empty : UiLocalization.Current["Compatibility.Title"] + "："
-        + CompatibilityPresentation.Status(_report)
+        + BadgeStatus(_report)
         + string.Concat(_report.Issues.Take(3).Select(issue => Environment.NewLine + issue));
+    private static string BadgeStatus(ModCompatibilityReport report)
+        => report.Status == ModCompatibilityStatus.Incompatible || !report.HasBlockingStructureIssues
+            ? CompatibilityPresentation.Status(report)
+            : UiLocalization.Current["Compatibility.Corrupted"];
     public void ApplyReport(ModCompatibilityReport? report)
     {
         _report = report;

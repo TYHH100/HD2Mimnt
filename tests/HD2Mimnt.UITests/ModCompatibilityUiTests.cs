@@ -418,4 +418,53 @@ public sealed partial class FluentAvaloniaUiTests
         }
         finally { await vm.StopAsync(); }
     }
+
+    [AvaloniaFact]
+    public async Task Compatibility_CorruptedBadgeShowsWhileWarningsStayOff()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test corrupted badge", CurrentVersion);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            var badge = library.FilteredMods.Single(m => m.Id == id).CompatibilityBadge!;
+            badge.ApplyReport(new ModCompatibilityReport { ModId = id, Status = ModCompatibilityStatus.Compatible });
+            Assert.False(badge.HasWarning);
+
+            // 诊断性警告（entry_index 不连续）不上角标。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Compatible,
+                Patches = [new CompatibilityPatchReport { Health = CompatibilityPatchHealth.Warning, EntryIndicesValid = false, ContainsUnitResources = true }]
+            });
+            Assert.False(badge.HasWarning);
+
+            // 确定损坏：版本匹配也亮角标并显示损坏文案。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Compatible,
+                Patches = [new CompatibilityPatchReport { Health = CompatibilityPatchHealth.Corrupted, ContainsUnitResources = true }]
+            });
+            Assert.True(badge.HasWarning);
+            Assert.Contains("补丁损坏", badge.Tooltip);
+
+            // 必需伴随缺失同样亮角标。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Unknown,
+                Patches = [new CompatibilityPatchReport { RequiresStream = true, HasStream = false, ContainsUnitResources = true }]
+            });
+            Assert.True(badge.HasWarning);
+            Assert.Contains("补丁损坏", badge.Tooltip);
+
+            // 持久化恢复的轻量报告直接携带损坏标志。
+            badge.ApplyReport(new ModCompatibilityReport { ModId = id, Status = ModCompatibilityStatus.Compatible, HasBlockingStructureIssues = true });
+            Assert.True(badge.HasWarning);
+        }
+        finally { await vm.StopAsync(); }
+    }
 }

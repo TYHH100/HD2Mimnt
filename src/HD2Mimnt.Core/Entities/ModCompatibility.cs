@@ -91,12 +91,19 @@ public sealed class ModCompatibilityReport
         || (p.RequiresGpuResources && !p.HasGpuResources)
         || !p.IndexValid || !p.PayloadRangesValid || !p.TypeDistributionValid || !p.EntryIndicesValid));
 
+    private bool? _hasBlockingStructureIssues;
+
     /// <summary>确定损坏：补丁结构不可读（头部/索引/载荷/类型分布）或必需伴随文件缺失。
-    /// 不含 entry_index、GPU 采样等仅警告级诊断，可作为角标依据而不复现历史误报。</summary>
-    public bool HasBlockingStructureIssues => Patches.Any(p => p.ContainsUnitResources != false
-        && (p.Health == CompatibilityPatchHealth.Corrupted
-            || (p.RequiresStream && !p.HasStream)
-            || (p.RequiresGpuResources && !p.HasGpuResources)));
+    /// 不含 entry_index、GPU 采样等仅警告级诊断，可作为角标依据而不复现历史误报。
+    /// 持久化恢复的轻量报告直接携带标志；否则按补丁列表计算。</summary>
+    public bool HasBlockingStructureIssues
+    {
+        get => _hasBlockingStructureIssues ?? Patches.Any(p => p.ContainsUnitResources != false
+            && (p.Health == CompatibilityPatchHealth.Corrupted
+                || (p.RequiresStream && !p.HasStream)
+                || (p.RequiresGpuResources && !p.HasGpuResources)));
+        init => _hasBlockingStructureIssues = value;
+    }
 }
 
 public enum CompatibilityRepairKind

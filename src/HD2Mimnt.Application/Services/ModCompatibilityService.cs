@@ -176,6 +176,7 @@ public sealed partial class ModCompatibilityService
                 Reason = row.Reason,
                 UnitCount = row.UnitCount,
                 ComparedUnitCount = row.ComparedUnitCount,
+                HasBlockingStructureIssues = row.HasBlockingIssues,
                 ReferenceSource = row.ReferenceSource,
                 CheckedAtUtc = row.CheckedAtUtc,
                 Issues = [.. row.Issues]

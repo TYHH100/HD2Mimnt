@@ -190,6 +190,35 @@ public sealed class ModCompatibilityAnalyzerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_WarningOnlyDiagnostics_DoNotFlagStructure()
+    {
+        var path = CompatibilityFixture.WritePatch(_root,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit())]);
+        var bytes = File.ReadAllBytes(path);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(104 + 76), 7);
+        File.WriteAllBytes(path, bytes);
+        var report = await new ModCompatibilityAnalyzer().AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        var patch = Assert.Single(report.Patches);
+        Assert.False(patch.EntryIndicesValid);
+        Assert.Equal(ModCompatibilityStatus.Compatible, report.Status);
+        Assert.False(report.HasBlockingStructureIssues);
+        Assert.True(report.HasBlockingIssues);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_MissingRequiredCompanion_FlagsStructureWhileVersionStaysCompatible()
+    {
+        CompatibilityFixture.WritePatch(_root, "3333333333333333.patch_0", companions: false,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(), Stream: new byte[8])]);
+        var report = await new ModCompatibilityAnalyzer().AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        var patch = Assert.Single(report.Patches);
+        Assert.True(patch.RequiresStream);
+        Assert.False(patch.HasStream);
+        Assert.Equal(ModCompatibilityStatus.Compatible, report.Status);
+        Assert.True(report.HasBlockingStructureIssues);
+    }
+
+    [Fact]
     public async Task RestoreBackupAsync_BackupOutsideMod_IsRejected()
     {
         var analyzer = new ModCompatibilityAnalyzer();

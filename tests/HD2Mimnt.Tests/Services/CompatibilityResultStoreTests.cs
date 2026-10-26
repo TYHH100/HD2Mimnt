@@ -124,6 +124,24 @@ public sealed class CompatibilityResultStoreTests : IDisposable
         Assert.Empty(await _store.GetAllAsync());
     }
 
+    [Fact]
+    public async Task Restore_CarriesPersistedBlockingIssueFlag()
+    {
+        var modDir = Path.Combine(_root, "flagged");
+        WritePatch(modDir, resources: [new(1, UnitType, Unit())]);
+        var modId = Guid.NewGuid();
+        await InsertModsAsync((modId, "flagged"));
+        await _store.UpsertAsync([new PersistedCompatibilityResult
+        {
+            ModId = modId, Status = ModCompatibilityStatus.Compatible, Reason = ModCompatibilityReason.None,
+            HasBlockingIssues = true, CheckedAtUtc = DateTime.UtcNow, ContentStamp = ModContentStamp.Calculate(modDir)
+        }]);
+
+        var service = BuildService(new Mod { Id = modId, Path = modDir, Name = "flagged" });
+        var restored = await service.RestorePersistedResultsAsync();
+        Assert.True(restored[modId].HasBlockingStructureIssues);
+    }
+
     private ModCompatibilityService BuildService(params Mod[] mods)
     {
         var repository = new Mock<IModRepository>();

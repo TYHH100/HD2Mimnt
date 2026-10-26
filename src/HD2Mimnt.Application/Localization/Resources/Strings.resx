@@ -4133,6 +4133,7 @@ Last checked: {7}</value>
   <data name="Compatibility.Unknown" xml:space="preserve"><value>Unconfirmed</value></data>
   <data name="Compatibility.Error" xml:space="preserve"><value>Check failed</value></data>
   <data name="Compatibility.NotApplicable" xml:space="preserve"><value>No model check needed</value></data>
+  <data name="Compatibility.Corrupted" xml:space="preserve"><value>Patch corrupted or required companion file missing</value></data>
   <data name="Compatibility.Scope" xml:space="preserve"><value>Check scope</value></data>
   <data name="Compatibility.NoModels" xml:space="preserve"><value>No model Units found. Lua, skeletons, animations and audio are outside this check and will not receive model repairs.</value></data>
   <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>Unconfirmed: {0}</value></data>
