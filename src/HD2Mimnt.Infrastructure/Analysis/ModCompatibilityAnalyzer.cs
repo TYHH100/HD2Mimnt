@@ -249,7 +249,9 @@ public sealed partial class ModCompatibilityAnalyzer : IModCompatibilityAnalyzer
     {
         var main = new FileInfo(path);
         if (!main.Exists) return string.Empty;
-        var key = new StringBuilder(path.Length * 3);
+        // 路径必须参与键：不同模组的补丁可能同长度同 mtime，仅凭指纹会互相串包。
+        var key = new StringBuilder(path.Length * 3 + 64);
+        key.Append(path);
         AppendFileFingerprint(key, main);
         AppendFileFingerprint(key, new FileInfo(path + ".stream"));
         AppendFileFingerprint(key, new FileInfo(path + ".gpu_resources"));
