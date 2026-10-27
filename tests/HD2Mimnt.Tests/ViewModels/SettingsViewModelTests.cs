@@ -225,15 +225,19 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync(); vm.SelectedCategory = "兼容性";
         Assert.Contains("兼容性", vm.SettingsCategories); Assert.True(vm.IsCompatibilityCategoryVisible);
         Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
-        vm.CompatibilityCheckOnStartup = true; vm.CompatibilityEnableBatchRepair = true;
+        Assert.False(vm.CompatibilityAutoCheckImport);
+        vm.CompatibilityCheckOnStartup = true; vm.CompatibilityEnableBatchRepair = true; vm.CompatibilityAutoCheckImport = true;
         await vm.SaveCommand.ExecuteAsync(null);
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(reopened.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false));
         Assert.True(reopened.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false));
+        Assert.True(reopened.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false));
         using var reloaded = new SettingsViewModel(reopened, _gameDetectionService, new NotificationService(), _imageCache.Object);
         await reloaded.LoadAsync(); Assert.True(reloaded.CompatibilityCheckOnStartup); Assert.True(reloaded.CompatibilityEnableBatchRepair);
+        Assert.True(reloaded.CompatibilityAutoCheckImport);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
+        Assert.False(vm.CompatibilityAutoCheckImport);
         Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
     }
 

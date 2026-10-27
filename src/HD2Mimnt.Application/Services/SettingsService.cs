@@ -326,6 +326,7 @@ public static class SettingKeys
     // 兼容性：耗时的启动检查需要用户明确开启。
     public const string CompatibilityCheckOnStartup = "Compatibility.CheckOnStartup";
     public const string CompatibilityEnableBatchRepair = "Compatibility.EnableBatchRepair";
+    public const string CompatibilityAutoCheckImport = "Compatibility.AutoCheckImport";
 
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";

@@ -103,6 +103,9 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     private int _failedCount;
 
     public ObservableCollection<string> Errors { get; } = new();
+    private readonly List<Guid> _importedIds = [];
+    /// <summary>本批次成功落库的模组 ID；新批次开始时清空。</summary>
+    public IReadOnlyList<Guid> ImportedIds => _importedIds;
     public bool CanSelect => !IsImporting;
     public bool CanClose => !IsImporting;
     public bool CanCancel => IsImporting && !IsCancelling;
@@ -121,6 +124,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     {
         HasResult = false;
         Errors.Clear();
+        _importedIds.Clear();
         TotalCount = ProcessedCount = SuccessCount = FailedCount = 0;
         FileProgress = OverallProgress = 0;
         CurrentFile = string.Empty;
@@ -187,7 +191,8 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
                 });
                 try
                 {
-                    await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
+                    var modId = await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
+                    _importedIds.Add(modId);
                     SuccessCount++;
                     FileProgress = 100;
                 }

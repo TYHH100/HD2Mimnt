@@ -4078,6 +4078,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Compatibility.Open" xml:space="preserve"><value>開啟相容性檢查</value></data>
   <data name="Compatibility.LibraryScope" xml:space="preserve"><value>模組庫全部模組</value></data>
   <data name="Compatibility.SelectionScope" xml:space="preserve"><value>所選模組</value></data>
+  <data name="Compatibility.ImportScope" xml:space="preserve"><value>本次匯入的模組</value></data>
   <data name="Compatibility.ProfileScope" xml:space="preserve"><value>設定檔：{0}</value></data>
   <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} 個模組 · {1} 模型通過 · {2} 需處理 · {3} 未確認 · {4} 檢測失敗 · {5} 無需模型檢測</value></data>
   <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} 個補丁 · {3} 個 Unit · {4:yyyy-MM-dd HH:mm:ss}</value></data>
@@ -4177,6 +4178,8 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Title" xml:space="preserve"><value>相容性</value></data>
   <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>啟動時檢查模組相容性</value></data>
   <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>預設關閉。儲存後下次啟動在背景檢查全庫，完成後可從通知查看結果，不會自動修復。</value></data>
+  <data name="Settings.Compatibility.AutoCheckImport" xml:space="preserve"><value>自動檢查新匯入的模組</value></data>
+  <data name="Settings.Compatibility.AutoCheckImportHelp" xml:space="preserve"><value>預設關閉。開啟後每次匯入批次完成時，在背景統一檢查本次匯入的模組，完成後可從通知查看結果，不會自動修復。</value></data>
   <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>允許批次修復</value></data>
   <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>預設關閉。開啟後在修復預覽顯示批次修復按鈕，執行前仍需確認。</value></data>
   <data name="Settings.Compatibility.Help" xml:space="preserve"><value>儲存後生效。單一模組檢查、預覽與修復始終可用，入口位於模組庫、設定檔與模組詳細資訊。</value></data>

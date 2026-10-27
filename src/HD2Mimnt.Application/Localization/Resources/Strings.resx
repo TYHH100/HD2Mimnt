@@ -4078,6 +4078,7 @@ Last checked: {7}</value>
   <data name="Compatibility.Open" xml:space="preserve"><value>Open compatibility check</value></data>
   <data name="Compatibility.LibraryScope" xml:space="preserve"><value>All library mods</value></data>
   <data name="Compatibility.SelectionScope" xml:space="preserve"><value>Selected mods</value></data>
+  <data name="Compatibility.ImportScope" xml:space="preserve"><value>Imported mods</value></data>
   <data name="Compatibility.ProfileScope" xml:space="preserve"><value>Profile: {0}</value></data>
   <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} mods · {1} model checks passed · {2} need attention · {3} unconfirmed · {4} check failures · {5} need no model check</value></data>
   <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} patches · {3} Units · {4:yyyy-MM-dd HH:mm:ss}</value></data>
@@ -4177,6 +4178,8 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Title" xml:space="preserve"><value>Compatibility</value></data>
   <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>Check mod compatibility on startup</value></data>
   <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>Off by default. After saving, the next startup checks the library in the background. Open results from the notification. No automatic repairs.</value></data>
+  <data name="Settings.Compatibility.AutoCheckImport" xml:space="preserve"><value>Check newly imported mods automatically</value></data>
+  <data name="Settings.Compatibility.AutoCheckImportHelp" xml:space="preserve"><value>Off by default. When enabled, mods from each import batch are checked together in the background once the batch finishes. Open results from the notification. No automatic repairs.</value></data>
   <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>Allow batch repair</value></data>
   <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>Off by default. Shows the batch repair button in repair previews. Execution still requires confirmation.</value></data>
   <data name="Settings.Compatibility.Help" xml:space="preserve"><value>Changes apply after saving. Individual checks, previews and repairs remain available in the library, profiles and mod details.</value></data>

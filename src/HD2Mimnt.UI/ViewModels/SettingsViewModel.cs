@@ -72,6 +72,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _allowDuplicateImports;
     [ObservableProperty] private bool _compatibilityCheckOnStartup;
     [ObservableProperty] private bool _compatibilityEnableBatchRepair;
+    [ObservableProperty] private bool _compatibilityAutoCheckImport;
     [ObservableProperty] private bool _forceManifestV1 = true;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
@@ -346,7 +347,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     "兼容性" => new Dictionary<string, object>
                     {
                         [SettingKeys.CompatibilityCheckOnStartup] = CompatibilityCheckOnStartup,
-                        [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair
+                        [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair,
+                        [SettingKeys.CompatibilityAutoCheckImport] = CompatibilityAutoCheckImport
                     },
                     _ => throw new InvalidOperationException("请选择有效的设置分类。")
                 };
@@ -587,6 +589,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         CompatibilityCheckOnStartup = _settingsService.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false);
         CompatibilityEnableBatchRepair = _settingsService.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false);
+        CompatibilityAutoCheckImport = _settingsService.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false);
     }
 
     partial void OnForceManifestV1Changed(bool value)

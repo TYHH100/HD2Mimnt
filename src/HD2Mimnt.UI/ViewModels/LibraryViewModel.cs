@@ -1075,6 +1075,24 @@ public partial class LibraryViewModel : ObservableObject
         {
             IsLoading = false;
         }
+        // 批次结束（含取消）后统一检查本次导入的模组；不并入 ImportCompletion，下载交接无需等待检查。
+        _ = CheckImportedCompatibilityAsync();
+    }
+
+    /// <summary>整批导入完成后按导入自动检查设置在后台检查新模组；一次批次只触发一次。</summary>
+    private async Task CheckImportedCompatibilityAsync()
+    {
+        try
+        {
+            if (Compatibility == null || Import.ImportedIds.Count == 0) return;
+            var importedIds = Import.ImportedIds.ToArray();
+            var imported = _allMods.Where(mod => importedIds.Contains(mod.Id)).ToArray();
+            if (imported.Length > 0) await Compatibility.CheckAfterImportAsync(imported, _notificationService);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"导入后兼容性检查失败: {ex.Message}", "兼容性检查");
+        }
     }
 
     /// <summary>

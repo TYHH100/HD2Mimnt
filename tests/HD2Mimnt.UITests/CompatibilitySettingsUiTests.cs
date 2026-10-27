@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -146,5 +147,74 @@ public sealed partial class FluentAvaloniaUiTests
         try { window.Show(); input.Focus(); window.KeyTextInput("responsive"); Assert.Equal("responsive", input.Text); }
         finally { analyzer.ReleaseCleanup.TrySetResult(); window.Close(); }
         await closing; await scan; Assert.True(analyzer.Cleaned); Assert.False(vm.IsBusy);
+    }
+
+    private static async Task<string[]> CreateImportZipsAsync(UiScope scope, params string[] names)
+    {
+        var zips = new string[names.Length];
+        for (var i = 0; i < names.Length; i++)
+        {
+            var source = Path.Combine(scope.Root, "import-src-" + Guid.NewGuid().ToString("N"));
+            WritePatch(source, resources: [new(1, UnitType, Unit())]);
+            File.WriteAllText(Path.Combine(source, "manifest.json"), "{\"Version\":1,\"Name\":\"" + names[i] + "\"}");
+            zips[i] = Path.Combine(scope.Root, names[i] + ".zip");
+            ZipFile.CreateFromDirectory(source, zips[i]);
+        }
+        return zips;
+    }
+
+    [AvaloniaFact]
+    public async Task CompatibilitySettings_ImportAutoCheckDisabledByDefaultSkipsCheckAndTracksBatch()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var library = scope.Services.GetRequiredService<LibraryViewModel>();
+        await library.InitializeAsync();
+        var compatibility = library.Compatibility!;
+        var notifications = scope.Services.GetRequiredService<NotificationService>();
+        try
+        {
+            var zips = await CreateImportZipsAsync(scope, "ImportCheckFirst", "ImportCheckSecond");
+            await library.ImportPathsAsync(zips);
+            await compatibility.Completion.WaitAsync(TimeSpan.FromSeconds(20));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(2, library.Import.ImportedIds.Count);
+            Assert.Empty(compatibility.Mods);
+            Assert.False(compatibility.IsOpen);
+            Assert.DoesNotContain(notifications.GetRecentNotifications(),
+                notification => notification.ActionText == UiLocalization.Current["Settings.Compatibility.ShowResults"]);
+        }
+        finally { await compatibility.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task CompatibilitySettings_ImportAutoCheckChecksWholeBatchAfterImportCompletes()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        var library = scope.Services.GetRequiredService<LibraryViewModel>();
+        await library.InitializeAsync();
+        await settings.SetSettingAsync(SettingKeys.CompatibilityAutoCheckImport, true);
+        var compatibility = library.Compatibility!;
+        var notifications = scope.Services.GetRequiredService<NotificationService>();
+        try
+        {
+            // 一次调用导入多个压缩包属于同一批次，批次结束后统一检查一次。
+            var zips = await CreateImportZipsAsync(scope, "ImportCheckAlpha", "ImportCheckBeta");
+            await library.ImportPathsAsync(zips);
+            await compatibility.Completion.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Equal(2, compatibility.Mods.Count);
+            Assert.All(compatibility.Mods, row => Assert.NotNull(row.Report));
+            Assert.Equal(UiLocalization.Current["Compatibility.ImportScope"], compatibility.ScopeName);
+            Assert.False(compatibility.IsOpen);
+            Assert.Contains(notifications.GetRecentNotifications(),
+                notification => notification.ActionText == UiLocalization.Current["Settings.Compatibility.ShowResults"]);
+
+            // 下一批导入只检查本批新模组，不重扫上一批。
+            var more = await CreateImportZipsAsync(scope, "ImportCheckGamma");
+            await library.ImportPathsAsync(more);
+            await compatibility.Completion.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Equal(library.Import.ImportedIds.Single(), compatibility.Mods.Single().Id);
+        }
+        finally { await compatibility.StopAsync(); }
     }
 }

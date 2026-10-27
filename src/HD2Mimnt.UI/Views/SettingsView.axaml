@@ -19,6 +19,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Startup}" Description="{loc:Loc Settings.Compatibility.StartupHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityStartupToggle" IsChecked="{Binding CompatibilityCheckOnStartup, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.AutoCheckImport}" Description="{loc:Loc Settings.Compatibility.AutoCheckImportHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityAutoImportToggle" IsChecked="{Binding CompatibilityAutoCheckImport, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Batch}" Description="{loc:Loc Settings.Compatibility.BatchHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityBatchToggle" IsChecked="{Binding CompatibilityEnableBatchRepair, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

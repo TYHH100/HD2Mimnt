@@ -17,6 +17,7 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     private readonly IConfirmationService confirmation;
     private readonly SettingsService? _settings;
     private bool _startupCheck;
+    private bool _importCheck;
     public ModCompatibilityViewModel(ModCompatibilityService service, IConfirmationService confirmation, SettingsService? settings = null)
     {
         this.service = service; this.confirmation = confirmation; _settings = settings;
@@ -29,6 +30,8 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
         {
             if (args.Key == SettingKeys.CompatibilityCheckOnStartup && _startupCheck
                 && _settings?.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false) != true) Cancel();
+            if (args.Key == SettingKeys.CompatibilityAutoCheckImport && _importCheck
+                && _settings?.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false) != true) Cancel();
             if (args.Key == SettingKeys.CompatibilityEnableBatchRepair)
             { OnPropertyChanged(nameof(EnableBatchRepair)); RefreshPresentation(); }
         }
@@ -138,6 +141,32 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
                     () => Dispatcher.UIThread.Post(() => IsOpen = true), UiLocalization.Current["Compatibility.Title"]);
         }
         finally { _startupCheck = false; }
+    }
+
+    /// <summary>导入批次完成后在后台检查本次导入的模组；需要开启导入自动检查设置。</summary>
+    public async Task CheckAfterImportAsync(IEnumerable<ModItemViewModel> targets, NotificationService notifications)
+    {
+        if (_settings?.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false) != true || IsBusy || IsOpen || _closing) return;
+        var fresh = targets.DistinctBy(m => m.Id).ToArray();
+        if (fresh.Length == 0) return;
+        ClearRows(); _stale = false;
+        ScopeName = UiLocalization.Current["Compatibility.ImportScope"];
+        Message = string.Empty; SelectedTab = 0;
+        foreach (var target in fresh)
+        {
+            var row = new CompatibilityModRow(target);
+            _rows.Add(row.Id, row); Mods.Add(row);
+        }
+        SelectedMod = Mods[0];
+        _importCheck = true;
+        try
+        {
+            await Start(token => CheckCoreAsync([.. Mods], token));
+            if (Mods.Count > 0 && Mods.All(m => m.Report != null))
+                notifications.ShowWithAction(NotificationLevel.Info, Summary, UiLocalization.Current["Settings.Compatibility.ShowResults"],
+                    () => Dispatcher.UIThread.Post(() => IsOpen = true), UiLocalization.Current["Compatibility.Title"]);
+        }
+        finally { _importCheck = false; }
     }
 
     [RelayCommand] private Task CheckAsync() => Start(CheckCoreAsync);
