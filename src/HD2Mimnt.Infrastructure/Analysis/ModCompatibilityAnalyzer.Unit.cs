@@ -8,6 +8,12 @@ public sealed partial class ModCompatibilityAnalyzer
     private const uint ModernUnitVersion = 0xA4CD36; // 十进制 10800438，两种写法是同一版本。
     private const int MaxUnitBytes = 64 * 1024 * 1024;
 
+    // 自动 LOD 策略分类阈值，与旧管理器 VersionCheckAssistedRepairService 保持一致。
+    private const double AutomaticMeshGpuExpansionRatio = 6.0;
+    private const uint AutomaticLargeCustomGpuBytes = 5U * 1024 * 1024;
+    private const double AutomaticLargeCustomGpuExpansionRatio = 8.0;
+    private const double AutomaticWholePatchCustomDensity = 0.5;
+
     private static async Task<byte[]> ReadAtAsync(FileStream stream, ulong offset, int size, CancellationToken token)
     {
         if (size < 0 || offset > (ulong)stream.Length || (ulong)size > (ulong)stream.Length - offset)

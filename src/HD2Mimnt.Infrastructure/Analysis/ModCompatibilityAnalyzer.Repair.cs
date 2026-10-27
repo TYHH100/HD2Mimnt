@@ -239,7 +239,7 @@ public sealed partial class ModCompatibilityAnalyzer
         var characterPack = options.MigrateMaterials && raw.Entries.Any(entry => entry.TypeId == MaterialTypeId
             && entry.DataSize <= MaxUnitBytes && entry.DataSize >= 0x88
             && CompatibilityResourceTransforms.TryGetLegacyMaterialParentMigration(resources[entry.Position], out _, out _));
-        var decisions = new Dictionary<int, (GameUnitReference Reference, byte[] Data, bool Custom)>();
+        var decisions = new Dictionary<int, UnitMigrationDecision>();
         foreach (var entry in raw.Entries)
         {
             token.ThrowIfCancellationRequested();
@@ -268,10 +268,14 @@ public sealed partial class ModCompatibilityAnalyzer
                 if (originalVersion == reference.Version && options.LodStrategy == CompatibilityLodStrategy.Automatic) continue;
                 var mesh = ReadMeshIds(unit);
                 var meshDiffers = mesh.Length > 0 && reference.MeshIds.Length > 0 && !mesh.AsSpan().SequenceEqual(reference.MeshIds);
-                // 自动策略保留有自定义网格证据的 Unit；不把同包其他 Unit 一并推定为自定义。
-                var custom = meshDiffers || entry.GpuSize >= 5 * 1024 * 1024
-                    && (reference.GpuSize == 0 || entry.GpuSize / (double)reference.GpuSize >= 8);
-                decisions[entry.Position] = (reference, unit, custom);
+                // 强自定义信号与旧管理器一致：mesh 差异需要 GPU 显著膨胀佐证，或大体积 GPU 且膨胀 ≥8 倍。
+                var gpuExpansionRatio = reference.GpuSize > 0 ? entry.GpuSize / (double)reference.GpuSize
+                    : entry.GpuSize > 0 ? double.PositiveInfinity : 1.0;
+                var strongCustom = (meshDiffers && gpuExpansionRatio >= AutomaticMeshGpuExpansionRatio)
+                    || (entry.GpuSize >= AutomaticLargeCustomGpuBytes && gpuExpansionRatio >= AutomaticLargeCustomGpuExpansionRatio);
+                decisions[entry.Position] = new UnitMigrationDecision(entry.ResourceId, reference, unit, meshDiffers,
+                    strongCustom, LodDataDiffers(unit, reference.LodGroupData), Signature(mesh),
+                    CompatibilityUnitInspection.TryReadCustomizationInfo(unit).Slot);
             }
             else if (entry.TypeId == MaterialTypeId && options.MigrateMaterials)
             {
@@ -286,13 +290,24 @@ public sealed partial class ModCompatibilityAnalyzer
                     ResourceId = entry.ResourceId, OldSize = entry.DataSize, NewSize = updated.Length, Description = "按已知材质语义及参数布局迁移。" });
             }
         }
+        // 整包自动分类（移植自旧管理器 ClassifyAutomaticLodActions）：强自定义或 mesh 差异
+        // 占整包一半以上时整包保留，并按 mesh 签名与自定义槽位传播保留。缺少该规则时，
+        // 同包内与游戏同 mesh 但 GPU 被作者精简的 Unit 会被换成引用完整游戏 GPU 的 LOD，
+        // 进游戏必然崩溃（2026-10-27 依据真实模组 RE-1861 只读复现补齐）。
+        HashSet<ulong>? automaticPreserveIds = null;
+        if (options.LodStrategy == CompatibilityLodStrategy.Automatic)
+            automaticPreserveIds = ClassifyAutomaticLodPreserveIds(decisions.Values);
         foreach (var entry in raw.Entries.Where(e => decisions.ContainsKey(e.Position)))
         {
             token.ThrowIfCancellationRequested();
-            var (reference, unit, custom) = decisions[entry.Position];
+            var decision = decisions[entry.Position];
+            var reference = decision.Reference;
+            var unit = decision.Data;
             var strategy = options.LodStrategy switch
             {
-                CompatibilityLodStrategy.Automatic => custom ? CompatibilityLodStrategy.PreserveMod : CompatibilityLodStrategy.UseGameReference,
+                CompatibilityLodStrategy.Automatic => automaticPreserveIds!.Contains(entry.ResourceId)
+                    ? CompatibilityLodStrategy.PreserveMod
+                    : CompatibilityLodStrategy.UseGameReference,
                 CompatibilityLodStrategy.Mixed => options.PreserveModLodUnitIds.Contains(entry.ResourceId) ? CompatibilityLodStrategy.PreserveMod : CompatibilityLodStrategy.UseGameReference,
                 _ => options.LodStrategy
             };
@@ -356,5 +371,77 @@ public sealed partial class ModCompatibilityAnalyzer
     {
         await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
         return Convert.ToHexString(await SHA256.HashDataAsync(input, token));
+    }
+
+    private sealed record UnitMigrationDecision(
+        ulong ResourceId,
+        GameUnitReference Reference,
+        byte[] Data,
+        bool MeshDiffers,
+        bool StrongCustom,
+        bool LodDiffers,
+        string Signature,
+        CompatibilityCustomizationSlot Slot);
+
+    private static bool LodDataDiffers(byte[] unit, byte[] referenceLod)
+    {
+        var lodStart = U32(unit, 0x30);
+        var lodEnd = U32(unit, 0x34);
+        if (lodStart == 0 && lodEnd == 0)
+            return referenceLod.Length != 0;
+        return lodEnd <= lodStart || lodEnd > unit.Length
+            || referenceLod.Length != lodEnd - lodStart
+            || !unit.AsSpan(checked((int)lodStart), checked((int)(lodEnd - lodStart))).SequenceEqual(referenceLod);
+    }
+
+    private static string Signature(uint[] mesh) =>
+        mesh.Length == 0 ? string.Empty : string.Join(',', mesh.Select(id => id.ToString("X8")));
+
+    /// <summary>
+    /// 移植自旧管理器 ClassifyAutomaticLodActions：按整包密度与同签名/同槽位传播决定保留集合。
+    /// </summary>
+    private static HashSet<ulong> ClassifyAutomaticLodPreserveIds(
+        IReadOnlyCollection<UnitMigrationDecision> decisions)
+    {
+        var preserve = new HashSet<ulong>();
+        var units = decisions
+            .Where(d => d.LodDiffers)
+            .GroupBy(d => d.ResourceId)
+            .Select(group => new
+            {
+                ResourceId = group.Key,
+                MeshDiffers = group.Any(d => d.MeshDiffers),
+                StrongCustom = group.Any(d => d.StrongCustom),
+                Signature = group.Select(d => d.Signature).FirstOrDefault(s => !string.IsNullOrEmpty(s)) ?? string.Empty,
+                Slot = group.Select(d => d.Slot).FirstOrDefault(s => s != CompatibilityCustomizationSlot.Unknown)
+            })
+            .ToList();
+        if (units.Count == 0)
+            return preserve;
+
+        var strongCount = units.Count(unit => unit.StrongCustom);
+        var meshDiffCount = units.Count(unit => unit.MeshDiffers);
+        var wholePatchIsCustom = strongCount > 0 &&
+            strongCount / (double)units.Count >= AutomaticWholePatchCustomDensity;
+        var wholePatchHasCustomMeshes = meshDiffCount > 0 &&
+            meshDiffCount / (double)units.Count >= AutomaticWholePatchCustomDensity;
+        var strongCustomMeshSignatures = units
+            .Where(unit => (unit.StrongCustom || unit.MeshDiffers) && !string.IsNullOrEmpty(unit.Signature))
+            .Select(unit => unit.Signature)
+            .ToHashSet(StringComparer.Ordinal);
+        var strongCustomSlots = units
+            .Where(unit => unit.StrongCustom && unit.Slot != CompatibilityCustomizationSlot.Unknown)
+            .Select(unit => unit.Slot)
+            .ToHashSet();
+        foreach (var unit in units.Where(unit =>
+                     unit.StrongCustom ||
+                     unit.MeshDiffers ||
+                     wholePatchIsCustom ||
+                     wholePatchHasCustomMeshes ||
+                     strongCustomSlots.Contains(unit.Slot) ||
+                     (!string.IsNullOrEmpty(unit.Signature) && strongCustomMeshSignatures.Contains(unit.Signature))))
+            preserve.Add(unit.ResourceId);
+
+        return preserve;
     }
 }

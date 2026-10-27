@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Text;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Core.Interfaces;
@@ -440,10 +441,116 @@ public sealed class CompatibilityBackendTests(ITestOutputHelper output) : IDispo
         Assert.Empty(Directory.GetFiles(ModPath, "*.tmp"));
     }
 
-    [Theory]
-    [InlineData(CompatibilityLodStrategy.Automatic)]
-    [InlineData(CompatibilityLodStrategy.Mixed)]
-    public async Task FullRepair_PerUnitLodDecision_DoesNotSpreadCustomMeshToOtherUnits(CompatibilityLodStrategy strategy)
+    /// <summary>构造带 StreamInfo、meshInfo（0x64 表）与可选自定义槽位文本（0x4C 指向块）的 Unit。</summary>
+    private static byte[] InspectableGpuUnit(uint version, uint meshId, string? slot = null, byte lodByte = 3)
+    {
+        var list = 0x88;
+        var info = list + 16;
+        var meshInfo = info + 0x1b0 + 8;
+        var customization = meshInfo + 12;
+        var slotText = slot is null ? [] : Encoding.UTF8.GetBytes(slot + "\0");
+        var unit = new byte[customization + 28 + slotText.Length];
+        Put32(unit, 0x2c, version);
+        Put32(unit, 0x30, 0x78);
+        Put32(unit, 0x34, (uint)list);
+        Put32(unit, 0x5c, (uint)list);
+        Put32(unit, 0x60, (uint)unit.Length - 8);
+        Put32(unit, 0x64, (uint)meshInfo);
+        if (slot is not null) Put32(unit, 0x4c, (uint)customization);
+        Put32(unit, list, 1);
+        Put32(unit, list + 4, 16);
+        Put64(unit, info + 0x148, 1);
+        Put32(unit, info + 0x160, 1);
+        Put32(unit, info + 0x164, 12);
+        Put32(unit, info + 0x188, 3);
+        Put32(unit, info + 0x1a4, 12);
+        Put32(unit, info + 0x1a8, 12);
+        Put32(unit, info + 0x1ac, 6);
+        unit.AsSpan(0x78, list - 0x78).Fill(lodByte);
+        Put32(unit, meshInfo, 1);
+        Put32(unit, meshInfo + 8, meshId);
+        if (slot is not null)
+        {
+            // customization 块：24 字节保留 + 空体型字符串 + 槽位文本
+            Put32(unit, customization + 24, 0);
+            slotText.CopyTo(unit, customization + 28);
+        }
+        return unit;
+    }
+
+    /// <summary>构造无 GPU 的几何空 Unit，仅带 meshInfo 与可选槽位。</summary>
+    private static byte[] InspectableUnit(uint version, uint meshId, string? slot = null, byte lodByte = 3)
+    {
+        var list = 0x78 + 16;
+        var meshInfo = list + 16;
+        var customization = meshInfo + 12;
+        var slotText = slot is null ? [] : Encoding.UTF8.GetBytes(slot + "\0");
+        var unit = new byte[customization + 28 + slotText.Length];
+        Put32(unit, 0x2c, version);
+        Put32(unit, 0x30, 0x78);
+        Put32(unit, 0x34, (uint)list);
+        Put32(unit, 0x60, (uint)unit.Length - 8);
+        Put32(unit, 0x64, (uint)meshInfo);
+        if (slot is not null) Put32(unit, 0x4c, (uint)customization);
+        unit.AsSpan(0x78, 16).Fill(lodByte);
+        Put32(unit, meshInfo, 1);
+        Put32(unit, meshInfo + 8, meshId);
+        if (slot is not null)
+        {
+            Put32(unit, customization + 24, 0);
+            slotText.CopyTo(unit, customization + 28);
+        }
+        return unit;
+    }
+
+    [Fact]
+    public async Task FullRepair_Automatic_WholePackDensity_PreservesGameMeshUnits()
+    {
+        // A 自定义 mesh 且游戏参考没有 GPU（膨胀比无穷大，强自定义）；B mesh 与游戏一致、
+        // GPU 被作者精简。强自定义占整包 1/2 达到密度阈值：B 必须随整包保留模组 LOD
+        // （旧管理器整包规则）。否则 B 被换成引用完整游戏 GPU 的 LOD，而模组 GPU 无法
+        // 满足其缓冲范围，进游戏崩溃（2026-10-27 RE-1861 真实模组回归）。
+        WritePatch(ModPath, resources:
+        [
+            new(1, UnitType, InspectableGpuUnit(1, 0xAAAA, lodByte: 3), Gpu: new byte[18]),
+            new(2, UnitType, InspectableUnit(1, 0xCCCC, lodByte: 3)),
+        ]);
+        WriteGame(GamePath,
+            new Resource(1, UnitType, InspectableUnit(CurrentVersion, 0xBBBB, lodByte: 9)),
+            new Resource(2, UnitType, InspectableUnit(CurrentVersion, 0xCCCC, lodByte: 9)));
+
+        var plan = await new ModCompatibilityAnalyzer().CreateFullRepairPlanAsync(ModPath, GamePath, [], new CompatibilityRepairOptions());
+        Assert.True(plan.CanRepair, string.Join(";", plan.BlockingReasons));
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 1).LodStrategy);
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 2).LodStrategy);
+        Assert.True((await new ModCompatibilityAnalyzer().RepairFullAsync(ModPath, GamePath, [], new CompatibilityRepairOptions())).Success);
+    }
+
+    [Fact]
+    public async Task FullRepair_Automatic_SlotPropagation_PreservesSameSlotUnits()
+    {
+        // 强自定义占 1/3 未达整包密度：自定义槽位（Torso）传播保留同槽位、mesh 与游戏
+        // 一致且 GPU 精简的 B；无槽位且 mesh 一致的 C 仍按游戏 LOD 处理。
+        WritePatch(ModPath, resources:
+        [
+            new(1, UnitType, InspectableGpuUnit(1, 0xAAAA, "HelldiverCustomizationSlot_Torso", lodByte: 3), Gpu: new byte[18]),
+            new(2, UnitType, InspectableUnit(1, 0xCCCC, "HelldiverCustomizationSlot_Torso", lodByte: 3)),
+            new(3, UnitType, InspectableUnit(1, 0xDDDD, lodByte: 3)),
+        ]);
+        WriteGame(GamePath,
+            new Resource(1, UnitType, InspectableUnit(CurrentVersion, 0xBBBB, lodByte: 9)),
+            new Resource(2, UnitType, InspectableUnit(CurrentVersion, 0xCCCC, lodByte: 9)),
+            new Resource(3, UnitType, InspectableUnit(CurrentVersion, 0xDDDD, lodByte: 9)));
+
+        var plan = await new ModCompatibilityAnalyzer().CreateFullRepairPlanAsync(ModPath, GamePath, [], new CompatibilityRepairOptions());
+        Assert.True(plan.CanRepair, string.Join(";", plan.BlockingReasons));
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 1).LodStrategy);
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 2).LodStrategy);
+        Assert.Equal(CompatibilityLodStrategy.UseGameReference, plan.Actions.Single(a => a.ResourceId == 3).LodStrategy);
+    }
+
+    [Fact]
+    public async Task FullRepair_MixedLod_ExplicitPreserveSet_DoesNotSpread()
     {
         byte[] MeshUnit(uint version, uint mesh, byte lod)
         {
@@ -455,13 +562,35 @@ public sealed class CompatibilityBackendTests(ITestOutputHelper output) : IDispo
         }
         WritePatch(ModPath, resources: [new(1, UnitType, MeshUnit(1, 99, 3)), new(2, UnitType, MeshUnit(1, 1, 3))]);
         WriteGame(GamePath, new Resource(1, UnitType, MeshUnit(CurrentVersion, 1, 9)), new(2, UnitType, MeshUnit(CurrentVersion, 1, 9)));
-        var options = new CompatibilityRepairOptions { LodStrategy = strategy, PreserveModLodUnitIds = new HashSet<ulong> { 1 } };
+        var options = new CompatibilityRepairOptions { LodStrategy = CompatibilityLodStrategy.Mixed, PreserveModLodUnitIds = new HashSet<ulong> { 1 } };
         var analyzer = new ModCompatibilityAnalyzer();
         var plan = await analyzer.CreateFullRepairPlanAsync(ModPath, GamePath, [], options);
         Assert.True(plan.CanRepair, string.Join(";", plan.BlockingReasons));
         Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 1).LodStrategy);
         Assert.Equal(CompatibilityLodStrategy.UseGameReference, plan.Actions.Single(a => a.ResourceId == 2).LodStrategy);
         Assert.True((await analyzer.RepairFullAsync(ModPath, GamePath, [], options)).Success);
+    }
+
+    [Fact]
+    public async Task FullRepair_Automatic_CustomMeshDensity_PreservesWholePack()
+    {
+        // 两个 Unit 均无 GPU：自定义 mesh 占整包 1/2 达到 mesh 密度阈值，mesh 与游戏
+        // 一致的第二个 Unit 同样保留模组 LOD（旧管理器整包 mesh 密度规则）。
+        byte[] MeshUnit(uint version, uint mesh, byte lod)
+        {
+            var unit = Unit(version, 16, lod);
+            Put32(unit, 0x64, 0x88);
+            Put32(unit, 0x88, 1);
+            Put32(unit, 0x90, mesh);
+            return unit;
+        }
+        WritePatch(ModPath, resources: [new(1, UnitType, MeshUnit(1, 99, 3)), new(2, UnitType, MeshUnit(1, 1, 3))]);
+        WriteGame(GamePath, new Resource(1, UnitType, MeshUnit(CurrentVersion, 1, 9)), new(2, UnitType, MeshUnit(CurrentVersion, 1, 9)));
+
+        var plan = await new ModCompatibilityAnalyzer().CreateFullRepairPlanAsync(ModPath, GamePath, [], new CompatibilityRepairOptions());
+        Assert.True(plan.CanRepair, string.Join(";", plan.BlockingReasons));
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 1).LodStrategy);
+        Assert.Equal(CompatibilityLodStrategy.PreserveMod, plan.Actions.Single(a => a.ResourceId == 2).LodStrategy);
     }
 
     [Fact]
