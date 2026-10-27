@@ -12,14 +12,21 @@ namespace HD2Mimnt.UI;
 
 public partial class MainWindow : Window
 {
+    private const int JellyClickThreshold = 7;
+    private static readonly TimeSpan JellyClickWindow = TimeSpan.FromSeconds(3);
+
+    private readonly PageJellyAnimator _pageJelly;
     private bool _closeConfirmed;
     private bool _closingInFlight;
     private MainWindowViewModel? _viewModel;
     private bool _importingDrop;
+    private int _versionClickCount;
+    private DateTime _versionClickWindowStartUtc;
 
     public MainWindow()
     {
         InitializeComponent();
+        _pageJelly = new PageJellyAnimator(ApplicationSurface, StatusBar);
         DragDrop.SetAllowDrop(this, true);
         // DragDrop 使用冒泡路由；即使子控件标记已处理，窗口仍统一接收外部文件。
         AddHandler(DragDrop.DragOverEvent, OnFileDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -30,6 +37,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             ImportDragHint.IsVisible = false;
+            _pageJelly.Stop();
             if (_viewModel != null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         };
         NavigationView.SelectedItem = NavigationView.MenuItems[0];
@@ -118,6 +126,24 @@ public partial class MainWindow : Window
         var index = _viewModel?.SelectedTabIndex ?? 0;
         NavigationView.SelectedItem = NavigationView.MenuItems.OfType<FANavigationViewItem>()
             .FirstOrDefault(item => item.Tag?.ToString() == index.ToString());
+    }
+
+    private void OnVersionBadgePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(VersionBadge).Properties.IsLeftButtonPressed) return;
+
+        var now = DateTime.UtcNow;
+        if (_versionClickCount == 0 || now - _versionClickWindowStartUtc > JellyClickWindow)
+        {
+            _versionClickCount = 0;
+            _versionClickWindowStartUtc = now;
+        }
+        _versionClickCount++;
+        if (_versionClickCount < JellyClickThreshold) return;
+
+        _versionClickCount = 0;
+        _pageJelly.Toggle();
+        e.Handled = true;
     }
 
     private void OnNavigationSelectionChanged(object? sender, FANavigationViewSelectionChangedEventArgs e)

@@ -46,6 +46,8 @@
 
 - 弹出通知的计时器随视图挂载/卸载启动和停止，横幅收起不能删除通知历史；后台通知事件先派发到 UI 线程。Avalonia 位移动画使用已创建的 `TranslateTransform` 和 `TranslateTransform.X`，不要直接对 `RenderTransform` 写关键帧，否则可能编译通过但运行时报无 Animator；必须用 Headless 实际显示通知验证。来源：https://docs.avaloniaui.net/docs/guides/graphics-and-animation/keyframe-animations
 
+- 页面整体“Q弹”彩蛋使用组合器动画（`ElementComposition.GetElementVisual` 后动画 `CompositionVisual.Scale`），不要用 `DispatcherTimer` 逐帧修改大量元素的 `RenderTransform`，否则 UI 线程和渲染会掉帧；`CenterPoint` 设为元素底部中心实现底部固定、宽高反向的压扁/拉长。组合器 `StopAnimation` 会保留服务端最后一帧，必须再启动一个极短的复位关键帧动画把原 `Scale` 写回，单纯给 `Scale` 赋同值不会重新提交；组合缩放不参与命中测试，持续模式要保留稳定的关闭入口（例如排除状态栏后连点版本号切换）。参考动效：[DesktopJelly](https://github.com/chadaidai01/DesktopJelly)。
+
 - 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，“模组创建”为 6、Ctrl+7，显示在模组库和浏览模组之后。数字快捷键的 XAML Gesture 必须写 Ctrl+D1 等枚举名，不能写 Ctrl+1：当前 KeyGesture 会将纯数字按枚举整数解析（例如 7 变成 Pause）。隐藏主页面标签的样式限定为 TabControl#PageHost > TabItem，不能用宽泛 TabItem 选择器，否则页面内部的编辑标签也会被隐藏；教程打开时还需在导航 RelayCommand 的 CanExecute 阻止快捷导航：窗口 KeyBinding 可能早于 KeyDown 隧道处理，单靠事件 Handled 不足以拦截。教程自身通过内部导航方法切换页面。回归使用真实按键和内部标签点击。来源：https://github.com/amwx/FluentAvalonia 、https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Input/KeyGesture.cs 、https://docs.avaloniaui.net/docs/reference/styles/style-selector-syntax
 
 - “设置 → 入口自定义”将隐藏项保存为 `UI.HiddenEntries` 中的稳定英文 ID，显示标签继续本地化；保存独立于游戏路径验证，恢复默认只恢复入口显示。顶部“设置”和设置分类“入口自定义”始终保留，隐藏仅影响入口显示，不停用功能或改变导航 Tag。设置分类刷新 ItemsSource 时先保存当前分类，刷新后恢复仍可见的分类，否则回到入口自定义，避免 ListBox 清空 SelectedItem 导致空白页。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
