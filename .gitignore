@@ -150,5 +150,6 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .artifacts/
 .clean-code-check/
 .claude/
+.zcode/
 .layout-validation/
 .tmp-platform-download-*/
