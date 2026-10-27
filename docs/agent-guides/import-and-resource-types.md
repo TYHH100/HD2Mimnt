@@ -55,6 +55,10 @@
 
 - SharpCompress `ReaderFactory` 的流式格式不包含 7z；先按内容签名检测 7z 并重置流位置，再用 `ArchiveFactory.OpenArchive` + `ExtractAllEntries`，其它格式保留 ReaderFactory 以支持 tar.gz 等复合流。格式支持测试必须实际生成/读取该格式，不能用 tar.gz 通过来代表 7z 已支持，也不能只凭扩展名选择读取器。来源：https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md
 
+- 无清单压缩包先按旧管理器语义拍平“唯一根文件夹且根上无文件、内部没有任何 manifest.json”的一层目录再识别：简装补丁包的补丁在同名子文件夹里，不拍平时会推断出无 `Include` 的 V1 选项，部署按“缺 Include 回退全量目录”只扫模组根直属文件，收集不到补丁导致整包被跳过。带清单的包保持原结构，交给嵌套清单查找与 HD2IR/合集识别；HD2IR 检测按路径片段匹配对拍平不敏感，合集对唯一包裹层已有独立处理。来源：[旧管理器根目录拍平](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/ModManagement/ModService.Import.cs)。
+
+- 整棵解压树没有清单时，外层压缩包不是模组，必须展开其中的嵌套压缩包再识别：内层包解到同名同级目录、拍平包内唯一包裹层、成功后删除原包，否则库内只会保存一堆内层压缩包，部署扫不到补丁（用户 2026-10-27 的“5 个 RAR”样本）。展开只针对压缩包导入的临时树，不删用户文件夹与迁移源，且只展开根目录与一层子目录、只跑一轮；`.hd2irpack.zip` 保持不展开，HD2IR 识别也要先于展开，否则所有内层包会被并成一个 HD2IAS 组件。展开出的补丁目录只作为合集组件（默认启用、整目录一个 Include），普通散装目录没有清单时不得改判合集，根目录自带补丁时也不按合集处理。来源：[SharpCompress 支持的格式](https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md)、[合集导入](../features/MOD_COLLECTION_IMPORT.md)。
+
 - 开发工具批量生成启用状态也必须调用批量接口，不能通过 AddModToProfileAsync 与 SetModEnabledAsync 的逐条组合模拟批量操作。
 
 - 开发工具生成测试模组必须通过 Application 层服务完成导入和删除；ViewModel 不得直接创建 manifest、复制模组或删除模组目录，临时源目录必须按每项完成/失败清理。

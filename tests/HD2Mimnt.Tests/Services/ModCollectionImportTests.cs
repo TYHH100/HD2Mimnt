@@ -193,6 +193,140 @@ public sealed class ModCollectionImportTests : IDisposable
         Assert.False(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
     }
 
+    [Fact]
+    public async Task NestedArchivePackage_ExpandsIntoPatchComponentCollection()
+    {
+        // 用户 2026-10-27 样本：外层压缩包只有一个包裹目录，里面是多个无清单的补丁压缩包。
+        // 旧行为把内层压缩包原样当模组文件保存，部署收不到任何补丁。
+        var staging = Path.Combine(_root, "nested-staging");
+        var wrapper = Path.Combine(staging, "修复合集");
+        Directory.CreateDirectory(wrapper);
+        foreach (var name in new[] { "56 替换TG-8", "摘下口罩", "移除帘子" })
+            CreatePatchPackage(Path.Combine(wrapper, name + ".zip"), name);
+
+        var archive = Path.Combine(_root, "NestedPackage.zip");
+        ZipFile.CreateFromDirectory(staging, archive);
+
+        var id = await _import.ImportModAsync(archive);
+        var mod = (await _mods.GetByIdAsync(id))!;
+
+        // 一个库条目：内层包各是一级组件，补丁目录默认启用。
+        Assert.Equal("NestedPackage", mod.Name);
+        Assert.Equal(ModSource.LocalZip, mod.Source);
+        Assert.Equal(new[] { "56 替换TG-8", "摘下口罩", "移除帘子" },
+            mod.Manifest!.OptionGroups!.Select(group => group.Name));
+        Assert.Equal(3, mod.Manifest.Options!.Count);
+        Assert.All(mod.Manifest.Options, option => Assert.True(option.DefaultEnabled));
+        Assert.Equal("摘下口罩", Assert.Single(mod.Manifest.Options[1].Include!));
+
+        // 内层压缩包已展开：库内保存目录与补丁文件，而不是原压缩包。
+        Assert.True(File.Exists(Path.Combine(mod.Path, "摘下口罩", $"{PatchPrefix}.patch_0")));
+        Assert.Empty(Directory.EnumerateFiles(mod.Path, "*.zip", SearchOption.AllDirectories));
+        Assert.True(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
+
+        // 全部启用：三个组件的补丁按资源前缀重新编号后落盘。
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var all = await CreateProfile(id, [true, true, true]);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(all, game)).Status);
+        var deployed = DeployedPatchMainFiles(game);
+        Assert.Equal(3, deployed.Length);
+        Assert.Equal("56 替换TG-8", await File.ReadAllTextAsync(Path.Combine(game, "data", $"{PatchPrefix}.patch_0")));
+        Assert.Equal("移除帘子", await File.ReadAllTextAsync(Path.Combine(game, "data", $"{PatchPrefix}.patch_2")));
+
+        // 只启用第二个组件：只部署它自己的补丁，其余组件不参与。
+        var onlyMask = await CreateProfile(id, [false, true, false]);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(onlyMask, game)).Status);
+        var onlySecond = DeployedPatchMainFiles(game);
+        Assert.Single(onlySecond);
+        Assert.Equal("摘下口罩", await File.ReadAllTextAsync(onlySecond[0]));
+
+        // 重复导入按展开后的完整内容判重。
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _import.ImportModAsync(archive));
+        Assert.Single(await _mods.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task SingleNestedPatchArchive_IsFlattenedIntoModRoot()
+    {
+        // 只有一个内层补丁包时不算合集：展开后拍平到模组根，普通部署即可收集补丁。
+        var staging = Path.Combine(_root, "single-staging");
+        Directory.CreateDirectory(staging);
+        CreatePatchPackage(Path.Combine(staging, "Milltina替换TG-8.zip"), "替换补丁");
+        var archive = Path.Combine(_root, "SinglePackage.zip");
+        ZipFile.CreateFromDirectory(staging, archive);
+
+        var id = await _import.ImportModAsync(archive);
+        var mod = (await _mods.GetByIdAsync(id))!;
+
+        Assert.Equal("SinglePackage", mod.Name);
+        Assert.Null(mod.Manifest);
+        Assert.True(File.Exists(Path.Combine(mod.Path, $"{PatchPrefix}.patch_0")));
+        Assert.Empty(Directory.EnumerateFiles(mod.Path, "*.zip", SearchOption.AllDirectories));
+
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var profile = await CreateProfile(id, []);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Equal("替换补丁", await File.ReadAllTextAsync(Assert.Single(DeployedPatchMainFiles(game))));
+    }
+
+    [Fact]
+    public async Task ModWithRootManifest_KeepsNestedArchiveAsContent()
+    {
+        // 作者根清单已声明这是模组：包内压缩包是素材内容，不能展开或删除。
+        var staging = Path.Combine(_root, "content-staging");
+        Directory.CreateDirectory(staging);
+        await File.WriteAllTextAsync(Path.Combine(staging, "manifest.json"),
+            """{"Version":1,"Name":"带素材包的模组","Description":"作者清单"}""");
+        CreatePatchPackage(Path.Combine(staging, "素材包.zip"), "素材");
+
+        var archive = Path.Combine(_root, "ModWithContent.zip");
+        ZipFile.CreateFromDirectory(staging, archive);
+
+        var id = await _import.ImportModAsync(archive);
+        var mod = (await _mods.GetByIdAsync(id))!;
+
+        Assert.Equal("带素材包的模组", mod.Name);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "素材包.zip")));
+        Assert.False(Directory.Exists(Path.Combine(mod.Path, "素材包")));
+    }
+
+    [Fact]
+    public async Task LoosePatchSubdirectoriesWithoutManifest_KeepInferredManifestNotCollection()
+    {
+        // 普通散装目录没有清单：仍按旧语义推断选项，不能因为子目录是补丁目录就改判成合集。
+        var source = Path.Combine(_root, "LegacyPatchLayout");
+        foreach (var name in new[] { "本体", "材质包" })
+        {
+            var directory = Path.Combine(source, name);
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, $"{PatchPrefix}.patch_0"), name);
+        }
+
+        var id = await _import.ImportModAsync(source);
+        var mod = (await _mods.GetByIdAsync(id))!;
+
+        Assert.Null(mod.Manifest!.OptionGroups);
+        Assert.Equal(2, mod.Manifest.Options!.Count);
+        Assert.False(File.Exists(Path.Combine(mod.Path, ".hd2mimnt-options.json")));
+    }
+
+    private static void CreatePatchPackage(string zipPath, string marker)
+    {
+        var content = Path.Combine(Path.GetDirectoryName(zipPath)!, $"payload-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(content);
+        try
+        {
+            File.WriteAllText(Path.Combine(content, $"{PatchPrefix}.patch_0"), marker);
+            ZipFile.CreateFromDirectory(content, zipPath);
+        }
+        finally
+        {
+            Directory.Delete(content, true);
+        }
+    }
+
     private static string CreateV1Child(string parent, string directoryName, string manifestName)
     {
         var child = Path.Combine(parent, directoryName);

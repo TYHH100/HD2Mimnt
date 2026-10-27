@@ -174,6 +174,7 @@ public class ModImportService
                 isArchiveFile = true;
                 progress?.Report(new(5, "解压模组", Path.GetFileName(sourcePath), true));
                 await _archiveExtractor.ExtractToDirectoryAsync(sourcePath, tempExtractPath, cancellationToken);
+                FlattenSingleRootFolder(tempExtractPath, cancellationToken);
                 modRootPath = tempExtractPath;
                 // manifest 缺失时的回退名：压缩包文件名，而不是临时解压目录的 GUID
                 fallbackName = Path.GetFileNameWithoutExtension(sourcePath);
@@ -194,12 +195,22 @@ public class ModImportService
                 if (hd2Ir != null) modRootPath = hd2Ir.Root;
             }
 
+            // 整棵解压树都没有清单时，外层不是模组：展开其中的嵌套压缩包，内层包才是真正的模组或补丁包。
+            // HD2IR 识别优先（它自己按包分组嵌套压缩包）；已有的嵌套清单查找和合集识别在展开后照常生效。
+            HashSet<string>? nestedPackages = null;
+            if (migration == null && hd2Ir == null && isArchiveFile && !ContainsManifest(modRootPath))
+            {
+                nestedPackages = await ExpandNestedArchivesAsync(modRootPath, progress, cancellationToken);
+                if (nestedPackages.Count > 0) FlattenSingleRootFolder(modRootPath, cancellationToken);
+            }
+
             // 散装文件夹合集：外层没有清单、每个子目录各自是模组时，按一个模组导入并生成两级组件选项。
             // HD2IR/HD2IAS 已识别的内容优先，合集只在普通模组路径生效；识别只枚举目录，不单独占用进度步骤。
             ModCollectionImporter.Collection? collection = null;
             if (migration == null && hd2Ir == null)
             {
-                collection = await ModCollectionImporter.TryBuildAsync(modRootPath, fallbackName, cancellationToken);
+                collection = await ModCollectionImporter.TryBuildAsync(modRootPath, fallbackName, cancellationToken,
+                    nestedPackages);
                 if (collection != null) modRootPath = collection.Root;
             }
 
@@ -338,6 +349,124 @@ public class ModImportService
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 与旧管理器一致，压缩包解压出“唯一根文件夹且根上无文件”时拍平一层目录。
+    /// 仅处理内部完全没有 manifest.json 的包：简装补丁包的补丁在同名子文件夹里，
+    /// 不拍平会落入“推断出无 Include 的 V1 选项 → 部署回退全量目录只扫根直属文件”
+    /// 而收集不到任何补丁；带清单的包保持原结构，交给嵌套清单查找和 HD2IR/合集识别。
+    /// </summary>
+    private static void FlattenSingleRootFolder(string root, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var directories = Directory.GetDirectories(root);
+        if (directories.Length != 1 || Directory.GetFiles(root).Length != 0) return;
+        var inner = directories[0];
+        if (Directory.EnumerateFiles(inner, "manifest.json", SearchOption.AllDirectories).Any()) return;
+
+        foreach (var directory in Directory.EnumerateDirectories(inner))
+            Directory.Move(directory, Path.Combine(root, Path.GetFileName(directory)));
+        foreach (var file in Directory.EnumerateFiles(inner))
+            File.Move(file, Path.Combine(root, Path.GetFileName(file)));
+        Directory.Delete(inner, true);
+    }
+
+    /// <summary>
+    /// 展开解压树根部的嵌套压缩包：每个包解到同名的同级目录，成功后删除原压缩包。
+    /// 只在整棵树没有任何清单时调用——外层本身不是模组，内层包才是发布单位（常见于“一个角色多套补丁”打包）。
+    /// 只展开一轮：内层包再套压缩包请先解包，避免把已展开模组自带的素材压缩包也解掉。
+    /// 返回展开出的目录（绝对路径），供合集识别只把这些目录当作无清单组件。
+    /// </summary>
+    private async Task<HashSet<string>> ExpandNestedArchivesAsync(string root, IProgress<ModImportProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var expanded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var archive in EnumerateNestedArchives(root))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new(12, "展开嵌套压缩包", Path.GetFileName(archive), true));
+            var destination = CreatePackageDirectory(Path.GetDirectoryName(archive)!, Path.GetFileName(archive));
+            try
+            {
+                await _archiveExtractor.ExtractToDirectoryAsync(archive, destination, cancellationToken);
+                FlattenPackageWrapper(destination, cancellationToken);
+            }
+            catch
+            {
+                if (Directory.Exists(destination)) Directory.Delete(destination, true);
+                throw;
+            }
+
+            File.Delete(archive);
+            expanded.Add(Path.TrimEndingDirectorySeparator(destination));
+            _logger?.LogInformation("已展开嵌套压缩包: {ArchivePath} -> {Destination}", archive, destination);
+        }
+        return expanded;
+    }
+
+    /// <summary>只展开根目录和一层子目录里的压缩包；更深层的多是模组自带的素材包，保持原样。</summary>
+    private List<string> EnumerateNestedArchives(string root)
+    {
+        var archives = new List<string>();
+        void Walk(string directory, int depth)
+        {
+            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                // .hd2irpack.zip 由 Hd2IR 识别按文件名判断，展开成目录会丢失扩展名证据。
+                if (_archiveExtractor.IsArchiveFile(file)
+                    && !file.EndsWith(".hd2irpack.zip", StringComparison.OrdinalIgnoreCase))
+                    archives.Add(file);
+            }
+            if (depth >= 1) return;
+            foreach (var child in Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
+                Walk(child, depth + 1);
+        }
+        Walk(root, 0);
+        return archives.Order(StringComparer.Ordinal).ToList();
+    }
+
+    private static string CreatePackageDirectory(string parent, string archiveName)
+    {
+        var stem = StripArchiveExtension(archiveName);
+        if (stem.Length == 0) stem = "package";
+        var destination = Path.Combine(parent, stem);
+        for (var index = 2; Directory.Exists(destination) || File.Exists(destination); index++)
+            destination = Path.Combine(parent, $"{stem} ({index})");
+        return destination;
+    }
+
+    private static string StripArchiveExtension(string name)
+    {
+        foreach (var suffix in new[] { ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2",
+                     ".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz" })
+            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && name.Length > suffix.Length)
+                return name[..^suffix.Length];
+        return Path.GetFileNameWithoutExtension(name);
+    }
+
+    /// <summary>
+    /// 内层包解出的唯一包裹目录拍平。这里不看清单：包裹层只是打包习惯，
+    /// 清单随内容一起上移，Include 仍相对清单所在目录，语义不变。
+    /// </summary>
+    private static void FlattenPackageWrapper(string root, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var directories = Directory.GetDirectories(root);
+        if (directories.Length != 1 || Directory.GetFiles(root).Length != 0) return;
+        var inner = directories[0];
+        foreach (var directory in Directory.EnumerateDirectories(inner))
+            Directory.Move(directory, Path.Combine(root, Path.GetFileName(directory)));
+        foreach (var file in Directory.EnumerateFiles(inner))
+            File.Move(file, Path.Combine(root, Path.GetFileName(file)));
+        Directory.Delete(inner, true);
+    }
+
+    private static bool ContainsManifest(string root)
+    {
+        if (!Directory.Exists(root)) return false;
+        return File.Exists(Path.Combine(root, "manifest.json"))
+            || Directory.EnumerateFiles(root, "manifest.json", SearchOption.AllDirectories).Any();
     }
 
     /// <summary>清单图片以模组目录为基准，导入副本和历史回填使用同一规则。</summary>

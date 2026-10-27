@@ -1,7 +1,9 @@
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Archive;
 using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Application.Services;
 using System.IO.Compression;
@@ -104,7 +106,7 @@ public sealed class ModImportServiceTests : IDisposable
 
         using (var targetStream = File.Create(tarGzPath))
         using (var gzipStream = new GZipStream(targetStream, CompressionMode.Compress))
-        using (var writer = WriterFactory.OpenWriter(gzipStream, ArchiveType.Tar, new WriterOptions(CompressionType.None)))
+        using (var writer = WriterFactory.OpenWriter(gzipStream, SharpCompress.Common.ArchiveType.Tar, new WriterOptions(CompressionType.None)))
         {
             writer.WriteAll(contentRoot, "*", SearchOption.AllDirectories);
         }
@@ -127,7 +129,7 @@ public sealed class ModImportServiceTests : IDisposable
         File.WriteAllText(Path.Combine(sourceRoot, "armor.patch"), "sevenzip content");
         var archivePath = Path.Combine(_tempDirectory, "mod" + extension);
         using (var output = File.Create(archivePath))
-        using (var writer = WriterFactory.OpenWriter(output, ArchiveType.SevenZip, new WriterOptions(CompressionType.LZMA)))
+        using (var writer = WriterFactory.OpenWriter(output, SharpCompress.Common.ArchiveType.SevenZip, new WriterOptions(CompressionType.LZMA)))
             writer.WriteAll(sourceRoot, "*", SearchOption.AllDirectories);
 
         var importedId = await CreateService().ImportModAsync(archivePath);
@@ -213,6 +215,63 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.NotNull(mod.Manifest);
         Assert.Equal(ManifestVersion.Legacy, mod.Manifest!.ManifestVersion);
         Assert.Equal(new List<string> { "VariantA", "VariantB" }, mod.Manifest.LegacyOptions);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_SingleRootFolderNoManifest_ShouldFlattenAndDeploy()
+    {
+        // 旧管理器同款简装包：唯一根文件夹套着补丁、没有清单。不拍平时会推断出无 Include 的
+        // V1 选项，部署回退全量目录只扫模组根直属文件，整个模组被跳过（“没有可部署的补丁”）。
+        var zipPath = await CreateZipAsync(zipRoot =>
+        {
+            var modDir = Path.Combine(zipRoot, "尖峰t58拖拉机");
+            Directory.CreateDirectory(modDir);
+            File.WriteAllText(Path.Combine(modDir, "a193a00ce4bbd529.patch_0"), "patch-content");
+        });
+
+        var importedId = await CreateService().ImportModAsync(zipPath);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+
+        // 拍平后补丁位于模组根目录，没有子目录可推断选项（清单为 null → 部署走全量根扫描）
+        Assert.Null(mod.Manifest);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "a193a00ce4bbd529.patch_0")));
+        Assert.False(Directory.Exists(Path.Combine(mod.Path, "尖峰t58拖拉机")));
+
+        // 端到端：加入配置并部署，补丁应出现在游戏 data 目录
+        var gameDir = Path.Combine(_tempDirectory, "game");
+        Directory.CreateDirectory(gameDir);
+        var profileRepository = new ProfileRepository(_dbContext);
+        var profileService = new ProfileService(profileRepository, _modRepository);
+        var profileId = await profileService.CreateProfileAsync("简装包");
+        await profileService.AddModToProfileAsync(profileId, importedId);
+        IDeploymentRepository deploymentRepository = new DeploymentRepository(_dbContext);
+        var deploymentService = new DeploymentService(profileRepository, _modRepository, deploymentRepository,
+            new IDeploymentMethod[] { new CopyDeploymentMethod() });
+        var result = await deploymentService.DeployProfileAsync(profileId, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, gameDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("patch-content",
+            await File.ReadAllTextAsync(Path.Combine(gameDir, "data", "a193a00ce4bbd529.patch_0")));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_SingleRootFolderWithManifest_ShouldNotFlatten()
+    {
+        // 带清单的包不拍平：结构交给嵌套清单查找，模组内容与清单声明保持一致
+        var zipPath = await CreateZipAsync(zipRoot =>
+        {
+            var modDir = Path.Combine(zipRoot, "Wrapped Mod");
+            Directory.CreateDirectory(modDir);
+            File.WriteAllText(Path.Combine(modDir, "manifest.json"),
+                """{"name":"包裹模组","version":"1.0.0"}""", Encoding.UTF8);
+            File.WriteAllText(Path.Combine(modDir, "body.patch"), "content");
+        });
+
+        var importedId = await CreateService().ImportModAsync(zipPath);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+        Assert.Equal("包裹模组", mod.Name);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "body.patch")));
     }
 
     private ModImportService CreateService(SettingsService? settingsService = null)
