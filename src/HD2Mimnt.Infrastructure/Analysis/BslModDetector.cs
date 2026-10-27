@@ -12,7 +12,7 @@ namespace HD2Mimnt.Infrastructure.Analysis;
 /// 识别特征来自 LoaderRegistry 配置；规则版本提升后旧缓存按需重扫。</summary>
 public static partial class BslModDetector
 {
-    // 以下 GUID 与内嵌 LoaderCatalog.json 同步，仅供既有调用方/测试引用；以配置为准。
+    // 以下 GUID 与随应用分发的 Config/LoaderCatalog.json 同步，仅供既有调用方/测试引用；以配置为准。
     public static readonly Guid LoaderGuid = new("612eaf70-d682-43c7-9efd-16dcc695f977");
     public static readonly Guid MdlGuid = new("761188b2-c45b-4607-9241-f89ca221c47b");
     public static readonly Guid SmoothBootGuid = new("7c3e9a52-1b84-4f6a-9c2d-8e5f0a1b2c3d");

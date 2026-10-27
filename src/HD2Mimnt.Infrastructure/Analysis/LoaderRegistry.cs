@@ -6,8 +6,8 @@ namespace HD2Mimnt.Infrastructure.Analysis;
 
 /// <summary>
 /// Lua 加载器识别与策略配置。识别特征（GUID、入口资源、启动正文标记、注册模块、依赖声明）与
-/// 排序/互斥策略全部来自 <c>LoaderCatalog.json</c>（内嵌默认，可用 <c>&lt;AppData&gt;/loaders.json</c> 覆盖），
-/// 新增加载器不再需要修改代码。快照不可变，识别线程始终读取同一个完整配置。
+/// 排序/互斥策略全部来自 <c>LoaderCatalog.json</c>（随应用分发的 <c>Config/LoaderCatalog.json</c> 默认，
+/// 可用 <c>&lt;AppData&gt;/loaders.json</c> 覆盖），新增加载器不再需要修改代码。快照不可变，识别线程始终读取同一个完整配置。
 /// </summary>
 public static class LoaderRegistry
 {
@@ -70,14 +70,14 @@ public static class LoaderRegistry
         public bool IsMutex(BslModRole role) => MutexRoles.Contains(role);
     }
 
-    private static Snapshot _snapshot = BuildSnapshot(ReadEmbedded());
+    private static Snapshot _snapshot = BuildSnapshot(ReadDistributed());
 
     /// <summary>外部覆盖文件解析失败时的原因；null 表示配置加载正常。</summary>
     public static string? InitializationError { get; private set; }
 
     public static Snapshot Current => _snapshot;
 
-    /// <summary>使用 <paramref name="appDataDirectory"/> 下的 <c>loaders.json</c> 覆盖内嵌默认；文件缺失用默认，解析失败回退默认并记录原因。</summary>
+    /// <summary>使用 <paramref name="appDataDirectory"/> 下的 <c>loaders.json</c> 覆盖分发默认；文件缺失用默认，解析失败回退默认并记录原因。</summary>
     public static void Initialize(string? appDataDirectory)
     {
         InitializationError = null;
@@ -96,23 +96,24 @@ public static class LoaderRegistry
             or FormatException or IOException or UnauthorizedAccessException)
         {
             InitializationError = ex.Message;
-            _snapshot = BuildSnapshot(ReadEmbedded());
+            _snapshot = BuildSnapshot(ReadDistributed());
         }
     }
 
-    /// <summary>丢弃外部覆盖并恢复内嵌默认；测试隔离用。</summary>
-    public static void ResetToDefault() => _snapshot = BuildSnapshot(ReadEmbedded());
+    /// <summary>丢弃外部覆盖并恢复分发默认；测试隔离用。</summary>
+    public static void ResetToDefault() => _snapshot = BuildSnapshot(ReadDistributed());
 
-    private static JsonElement ReadEmbedded()
+    private const string CatalogFileName = "LoaderCatalog.json";
+
+    private static JsonElement ReadDistributed()
     {
-        using var stream = typeof(LoaderRegistry).Assembly.GetManifestResourceStream(EmbeddedResourceName)
-            ?? throw new InvalidOperationException($"缺少内嵌加载器配置 {EmbeddedResourceName}");
+        var path = Path.Combine(AppContext.BaseDirectory, "Config", CatalogFileName);
+        if (!File.Exists(path)) throw new InvalidOperationException($"缺少随应用分发的加载器配置 {path}");
+        using var stream = File.OpenRead(path);
         using var document = JsonDocument.Parse(stream);
         // RootElement 只在 document 生存期内有效，克隆后脱离 using 供 BuildSnapshot 使用。
         return document.RootElement.Clone();
     }
-
-    private const string EmbeddedResourceName = "HD2Mimnt.Infrastructure.Analysis.LoaderCatalog.json";
 
     private static Snapshot BuildSnapshot(JsonElement root)
     {

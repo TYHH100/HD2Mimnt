@@ -6,7 +6,7 @@ using HD2Mimnt.Infrastructure.Analysis;
 
 namespace HD2Mimnt.Tests.Services;
 
-/// <summary>加载器识别配置：内嵌默认、外部覆盖的新加载器零代码适配与坏配置回退。
+/// <summary>加载器识别配置：随应用分发的默认配置、外部覆盖的新加载器零代码适配与坏配置回退。
 /// 测试程序集全局禁用并行，静态快照的覆盖与恢复安全。</summary>
 public sealed class LoaderRegistryTests : IDisposable
 {
@@ -126,7 +126,7 @@ public sealed class LoaderRegistryTests : IDisposable
         try
         {
             Assert.NotNull(LoaderRegistry.InitializationError);
-            // 解析失败回退内嵌默认，识别与策略不中断。
+            // 解析失败回退分发默认，识别与策略不中断。
             Assert.Equal(5, LoaderRegistry.Current.RuleVersion);
             Assert.Equal(BslModRole.Loader, LoaderRegistry.Current.DefinitionOf(BslModDetector.LoaderGuid)?.Role);
         }
