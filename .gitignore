@@ -153,3 +153,4 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .zcode/
 .layout-validation/
 .tmp-platform-download-*/
+tools/
