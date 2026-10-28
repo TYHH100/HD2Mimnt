@@ -260,7 +260,9 @@ public sealed class ModCollectionImportTests : IDisposable
         var mod = (await _mods.GetByIdAsync(id))!;
 
         Assert.Equal("SinglePackage", mod.Name);
-        Assert.Null(mod.Manifest);
+        Assert.NotNull(mod.Manifest);
+        Assert.Null(mod.Manifest!.Options);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "manifest.json")));
         Assert.True(File.Exists(Path.Combine(mod.Path, $"{PatchPrefix}.patch_0")));
         Assert.Empty(Directory.EnumerateFiles(mod.Path, "*.zip", SearchOption.AllDirectories));
 

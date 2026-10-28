@@ -620,6 +620,36 @@ public class ProfileModOptionsTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "readme.txt")));
     }
 
+    [Fact]
+    public async Task DeployProfileAsync_InferredOptionWithoutInclude_PatchUnderDataDirectory_ShouldDeploy()
+    {
+        // 新格式 data 包：补丁在 data/ 下，清单推断出的选项没有 Include 映射。
+        // 全量目录回退只扫根目录会误判为“没有可部署的补丁”并自动跳过。
+        var modDir = Path.Combine(_modDirRoot, "raw_data_pack");
+        Directory.CreateDirectory(Path.Combine(modDir, "data"));
+        await File.WriteAllTextAsync(Path.Combine(modDir, "data", "9ba626afa44a3aa3.patch_0"), "patch");
+
+        var mod = await CreateModAsync("raw_data_pack", new ModManifest
+        {
+            ManifestVersion = ManifestVersion.V1,
+            Options = [new ModOption
+            {
+                Name = "data", Description = "Option for data", DefaultEnabled = true, SubOptions = []
+            }]
+        });
+        mod.Path = modDir;
+        await _modRepository.UpdateAsync(mod);
+
+        var profileId = await _profileService.CreateProfileAsync("DeployRawData");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "9ba626afa44a3aa3.patch_0")));
+    }
+
     private DeploymentService CreateDeploymentService()
     {
         IDeploymentRepository deploymentRepository = new DeploymentRepository(_dbContext);

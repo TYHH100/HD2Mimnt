@@ -21,6 +21,8 @@
 
 - 重复导入不能只比较 ZIP 文件名或常规目录 Hash：旧包规范化会生成清单 GUID，HD2IR 映射含运行时 ID/时间。保留原 Hash 契约，另按作者元数据和完整文件内容判断重复，排除生成身份；检查与落库串行，拒绝后清理准备副本。版本保留与重复导入是两个独立默认关闭的选项；更新/切换统一走 ModService，保持 Mod/Profile 身份并在失败时恢复版本索引。见[本地版本说明](../features/MOD_VERSION_HISTORY.md)。来源：[SHA256](https://learn.microsoft.com/dotnet/api/system.security.cryptography.sha256)、[File.Move](https://learn.microsoft.com/dotnet/api/system.io.file.move)。
 
+- 导入没有作者清单的普通模组时，要把推断档案写入库内模组目录（`ManifestParser.SaveGeneratedToFile`），无子目录也生成基础档案，部署仍按“无选项”全量扫描；子目录推断出的选项默认启用（`DefaultEnabled = true`），选项弹窗不能一打开就全部未勾选。库加载回填时，已在库中且根目录没有 `manifest.json` 的推断模组会补写生成档案（旧推断的空 Guid 同时替换并落库）；旧导入写入的默认关闭清单按“结构与当前子目录一致且无编辑”恢复启用，已有生成档案同步重写；作者清单、合集/HD2IAS 自有选项和用户已保存的选择不受影响。生成标记 `GeneratedManifest` 写入 `hd2mimnt.json` 扩展，根 `manifest.json`/`hd2mimnt.json` 不参与目录哈希和判重元数据，保证同一内容从文件夹、复制或重命名压缩包导入仍同哈希并触发重复导入保护；否则随机 Guid 与来源名会让哈希和作者元数据比较同时失效。合集与 HD2IAS 已有管理器自有选项/映射文件，标准清单又无法表达 `OptionGroups`/`GroupId`，不能写根 `manifest.json`；作者清单保持原字节。升级无清单模组时同样写生成档案。来源：[旧管理器导入生成清单](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/ModManagement/ModService.Import.cs)、[IncrementalHash](https://learn.microsoft.com/dotnet/api/system.security.cryptography.incrementalhash)、[合集导入](../features/MOD_COLLECTION_IMPORT.md)。
+
 - HD2IR 分类结果不等于可部署文件：前端通过 Application 生成库内独立副本和组件映射，组件选择复用配置选项，骨骼与补丁统一登记到原部署追踪；不能只保存 LogicalMod 名称就报告导入成功。作者双文件清单保持原字节，组件映射放独立元数据。嵌套组合需要确认时不得静默合并，更新包不能当作角色包部署。回归原包移除后的部署、独立配置选择及取消清理，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。来源：[Avalonia UI 线程](https://docs.avaloniaui.net/docs/guides/development-guides/accessing-the-ui-thread)、[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)。
 
 - HD2IAS 角色导入的最外层名称必须是导入的压缩包名或文件夹名，内层作者清单名称只用于组件标题，不能覆盖库条目名。外层封面按包层级从外到内解析（该包清单 `IconPath`，其次根级 preview / cover / thumbnail / icon 图片），内层组件图片只作组件卡片预览。生成的组件分组与选项树写入管理器自有 `.hd2mimnt-options.json` 并投影到数据库清单；作者 `manifest.json` 保持原字节，不能把生成选项写回作者清单。配置页一级列组件、二级配置组件内选项与子选项，保存后回到一级；没有生成分组的普通模组保持单级列表。来源：用户 2026-10-18 反馈与本轮回归，见 [HD2IR 接入](../features/HD2IR_INTEGRATION.md)。
@@ -73,7 +75,7 @@
 
 - 模组添加按钮和外部拖放共用导入浮窗及批次入口。阶段进度由 Application 服务报告，未知耗时步骤显示不确定进度；剩余数量包含当前未完成项。排队的 UI 进度回调须校验批次/文件是否仍有效，不能覆盖完成或取消结果；取消不得被通用异常处理吞掉，未落库副本须清理，已落库模组不能因缩略图取消被算作失败。来源：https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation
 
-- 模组详情 Hash 通过 Application 的 `ModHashService` 调用 Core 的 `ModDirectoryHash`，导入与迁回复制校验共用同一算法：规范化相对路径按 Ordinal 排序，以路径长度前缀和完整文件 SHA-256 摘要生成目录指纹；不能用文件名/大小或首尾快速指纹冒充内容哈希。新导入在落库前计算并支持取消；旧记录只在打开详情时补算空值并保存，不能在加载列表时扫描整个库。来源：https://learn.microsoft.com/dotnet/api/system.security.cryptography.incrementalhash
+- 模组详情 Hash 通过 Application 的 `ModHashService` 调用 Core 的 `ModDirectoryHash`，导入与迁回复制校验共用同一算法：规范化相对路径按 Ordinal 排序，以路径长度前缀和完整文件 SHA-256 摘要生成目录指纹；导入自动生成的档案（扩展标记）不参与指纹；不能用文件名/大小或首尾快速指纹冒充内容哈希。新导入在落库前计算并支持取消；旧记录只在打开详情时补算空值并保存，不能在加载列表时扫描整个库。来源：https://learn.microsoft.com/dotnet/api/system.security.cryptography.incrementalhash
 
 - 密码压缩包不能共享静态 `ReaderOptions`：逐次创建并通过 Application 密码库提供候选；ZIP 采用显式 ZipArchive 的逐条提取，7z 采用 Archive API 的 ExtractAllEntries，其它复合流保留 ReaderFactory。密码重试使用独立暂存目录，失败清理后再尝试；7z 加密头部错误密码可能表现为 LZMA DataError。加密输出经 7-Zip 标准输入传密码，禁止将密码放入日志、命令行或包内清单；当前 ZIP 仅 ASCII 密码，Unicode 使用 7z。行为、验证范围和许可证见[模组创建](../features/MOD_CREATION.md#密码库与加密压缩包)。来源：[SharpCompress 格式支持](https://github.com/adamhathcock/sharpcompress/blob/master/docs/FORMATS.md)、[7-Zip 参数解析源码](https://github.com/ip7z/7zip/blob/main/CPP/Common/CommandLineParser.cpp)。
 

@@ -111,6 +111,8 @@ public class ModImportService
         {
             var path = Path.Combine(root, "manifest.json");
             if (!File.Exists(path)) return "";
+            // 导入时自动生成的档案属于生成身份（名称来自来源），不参与作者元数据比较。
+            if (ManifestPackage.IsGeneratedManifest(root)) return "";
             var manifest = await ManifestPackage.ReadAsync(path, ct);
             foreach (var key in manifest.Select(p => p.Key).Where(k => k.Equals("Guid", StringComparison.OrdinalIgnoreCase)).ToArray()) manifest.Remove(key);
             static System.Text.Json.Nodes.JsonNode? Sort(System.Text.Json.Nodes.JsonNode? node) => node switch
@@ -131,11 +133,12 @@ public class ModImportService
             var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, includeFile: path =>
             {
                 var relative = Path.GetRelativePath(mod.Path, path);
-                // 生成身份（组件映射、组件选项树）不参与重复判定；标准清单/扩展清单在旧包规范化时同样排除。
+                // 生成身份（组件映射、组件选项树、导入自动生成的档案）不参与重复判定；
+                // 作者清单的差异由上方元数据比较处理。
                 return !relative.Equals(Hd2IrIntegrationService.MetadataFile, StringComparison.OrdinalIgnoreCase)
                     && !relative.Equals(Hd2IrIntegrationService.OptionsFile, StringComparison.OrdinalIgnoreCase)
-                    && (metadata.Length == 0 || (!relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
-                        && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase)));
+                    && !relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
+                    && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase);
             });
             _duplicateFingerprints[(mod.Path, mod.Hash)] = hash;
             return hash;
@@ -279,6 +282,10 @@ public class ModImportService
                 // 合集：生成的组件分组/选项树只进管理器自有 JSON，作者子清单保持原字节。
                 if (collection != null) await Hd2IrIntegrationService.SaveOptionsAsync(targetPath, manifest!, cancellationToken);
                 else if (hasParsedManifest && hd2Ir == null) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
+                // 无作者清单的普通模组：把推断档案写进库内副本，便于查看和复用；
+                // 文件带生成标记，不参与内容哈希与判重元数据。
+                else if (hd2Ir == null && manifest != null)
+                    _manifestParser.SaveGeneratedToFile(manifest, Path.Combine(targetPath, "manifest.json"));
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             else
@@ -618,8 +625,8 @@ public class ModImportService
 
     /// <summary>
     /// 无 manifest 时的推断（与旧版管理器 InferFromDirectory 语义一致）：
-    /// 有子目录时把子目录名作为互斥的选项；没有子目录时返回 null（模组按整体部署）。
-    /// 根据 ForceManifestV1 设置决定使用 V1 还是 Legacy 格式。导入与历史数据回填共用。
+    /// 有子目录时把子目录名作为互斥的选项；没有子目录时只生成基础档案（模组按整体部署）。
+    /// 根据 ForceManifestV1 设置决定使用 V1 还是 Legacy 格式。导入、档案生成与历史数据回填共用。
     /// </summary>
     public ModManifest? InferManifestFromDirectory(string modRootPath, string fallbackName)
     {
@@ -629,48 +636,92 @@ public class ModImportService
         }
 
         var subDirectories = Directory.GetDirectories(modRootPath);
+        var forceV1 = _settingsService?.GetSetting(SettingKeys.ForceManifestV1, true) ?? true;
+        var manifest = new ModManifest
+        {
+            Guid = Guid.NewGuid(),
+            Name = fallbackName,
+            Description = "A locally imported mod.",
+            Version = "1.0.0",
+            Author = "Unknown",
+            ManifestVersion = forceV1 ? ManifestVersion.V1 : ManifestVersion.Legacy
+        };
         if (subDirectories.Length == 0)
         {
-            return null;
+            return manifest;
         }
-
-        var forceV1 = _settingsService?.GetSetting(SettingKeys.ForceManifestV1, true) ?? true;
 
         if (forceV1)
         {
             // V1 格式：每个子目录作为一个互斥的子选项
-            var options = subDirectories.Select(dir =>
+            manifest.Options = subDirectories.Select(dir =>
             {
                 var dirName = Path.GetFileName(dir) ?? Path.GetDirectoryName(dir) ?? "Unknown";
                 return new ModOption
                 {
                     Name = dirName,
                     Description = $"Option for {dirName}",
-                    DefaultEnabled = false,
+                    DefaultEnabled = true,
                     SubOptions = new List<ModSubOption>()
                 };
             }).ToList();
-
-            return new ModManifest
-            {
-                Name = fallbackName,
-                Description = "A locally imported mod.",
-                ManifestVersion = ManifestVersion.V1,
-                Options = options
-            };
         }
         else
         {
             // Legacy 格式：子目录作为互斥下拉选项
-            return new ModManifest
-            {
-                Name = fallbackName,
-                Description = "A locally imported mod.",
-                ManifestVersion = ManifestVersion.Legacy,
-                LegacyOptions = subDirectories.Select(d => Path.GetFileName(d) ?? "Unknown").ToList()
-            };
+            manifest.LegacyOptions = subDirectories.Select(d => Path.GetFileName(d) ?? "Unknown").ToList();
+        }
+
+        return manifest;
+    }
+
+    /// <summary>清单是否仍是“子目录推断”的原始结构（选项默认关闭、无 Include、描述由推断生成）。</summary>
+    internal static bool IsUntouchedInferredOptions(ModManifest manifest)
+        => manifest.ManifestVersion == ManifestVersion.V1
+            && manifest.Options is { Count: > 0 } options
+            && options.All(option => option.DefaultEnabled == false
+                && option.Include == null
+                && option.SubOptions is not { Count: > 0 }
+                && option.Description == $"Option for {option.Name}");
+
+    /// <summary>在上面的结构判断之外，再要求选项与当前子目录一一对应，避免覆盖用户编辑过的清单。</summary>
+    internal static bool IsUntouchedInferredOptions(ModManifest manifest, string modRootPath)
+        => IsUntouchedInferredOptions(manifest)
+            && HasSameDirectories(manifest.Options!.Select(option => option.Name), modRootPath);
+
+    /// <summary>数据库清单是否由目录推断生成：旧版推断不写 Guid，新版带固定描述且选项与子目录对应。</summary>
+    internal static bool IsManagerInferredManifest(ModManifest manifest, string modRootPath)
+    {
+        if (manifest.Guid == Guid.Empty) return true;
+        if (manifest.Description != "A locally imported mod.") return false;
+        if (manifest.LegacyOptions is { Count: > 0 } legacyOptions)
+            return HasSameDirectories(legacyOptions, modRootPath);
+        if (manifest.ManifestVersion == ManifestVersion.Legacy || manifest.Options is null or { Count: 0 }) return true;
+        return manifest.Options.All(option => option.Include == null
+                && option.SubOptions is not { Count: > 0 }
+                && option.Description == $"Option for {option.Name}")
+            && HasSameDirectories(manifest.Options.Select(option => option.Name), modRootPath);
+    }
+
+    private static bool HasSameDirectories(IEnumerable<string> names, string modRootPath)
+    {
+        try
+        {
+            var directories = Directory.GetDirectories(modRootPath)
+                .Select(dir => Path.GetFileName(dir))
+                .OrderBy(name => name, StringComparer.Ordinal);
+            return names.OrderBy(name => name, StringComparer.Ordinal)
+                .SequenceEqual(directories, StringComparer.Ordinal);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
+
+    /// <summary>把推断档案写入库内模组目录，与数据库清单保持一致（生成档案不参与内容哈希）。</summary>
+    internal void WriteGeneratedManifest(Mod mod)
+        => _manifestParser.SaveGeneratedToFile(mod.Manifest!, Path.Combine(mod.Path, "manifest.json"));
 
     /// <summary>
     /// 分析 Mod 内容
@@ -850,9 +901,10 @@ public class ModImportService
             }
 
             var manifestPath = Path.Combine(mod.Path, "manifest.json");
+            var hadManifest = File.Exists(manifestPath);
             ModManifest? newManifest = null;
 
-            if (File.Exists(manifestPath))
+            if (hadManifest)
             {
                 // 已有清单文件，转换为 V1
                 var currentManifest = await _manifestParser.ParseFromFileAsync(manifestPath, cancellationToken);
@@ -887,7 +939,7 @@ public class ModImportService
                         {
                             Name = option,
                             Description = $"Option for {option}",
-                            DefaultEnabled = false,
+                            DefaultEnabled = true,
                             SubOptions = new List<ModSubOption>()
                         })
                         .ToList();
@@ -905,8 +957,9 @@ public class ModImportService
                 return false;
             }
 
-            // 保存新清单
-            _manifestParser.SaveToFile(newManifest, manifestPath);
+            // 保存新清单：原本没有档案的属生成档案，标记后不参与内容哈希。
+            if (hadManifest) _manifestParser.SaveToFile(newManifest, manifestPath);
+            else _manifestParser.SaveGeneratedToFile(newManifest, manifestPath);
             mod.Manifest = newManifest;
             await _modRepository.UpdateAsync(mod, cancellationToken);
 

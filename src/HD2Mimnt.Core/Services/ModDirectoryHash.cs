@@ -5,7 +5,8 @@ using HD2Mimnt.Core.Entities;
 
 namespace HD2Mimnt.Core.Services;
 
-/// <summary>模组目录指纹：对有序相对路径及每个文件的完整 SHA-256 摘要再次计算 SHA-256。</summary>
+/// <summary>模组目录指纹：对有序相对路径及每个文件的完整 SHA-256 摘要再次计算 SHA-256。
+/// 导入时自动生成的档案不参与，保证同一内容从不同来源导入得到相同指纹。</summary>
 public static class ModDirectoryHash
 {
     public static async Task<string> CalculateAsync(string directory, CancellationToken cancellationToken = default,
@@ -14,8 +15,10 @@ public static class ModDirectoryHash
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException($"模组目录不存在: {directory}");
         progress?.Report(new(84, "计算哈希", "准备计算模组内容 SHA-256", true));
+        var generatedManifest = ManifestPackage.IsGeneratedManifest(directory);
         var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
             .Where(path => includeFile?.Invoke(path) != false)
+            .Where(path => !generatedManifest || !IsGeneratedManifestFile(directory, path))
             .Select(path => (Path: path, Relative: Path.GetRelativePath(directory, path).Replace('\\', '/')))
             .OrderBy(file => file.Relative, StringComparer.Ordinal).ToArray();
         long totalBytes = 0;
@@ -59,5 +62,12 @@ public static class ModDirectoryHash
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new(89, "计算哈希", "SHA-256 计算完成"));
         return Convert.ToHexStringLower(directoryHash.GetHashAndReset());
+    }
+
+    private static bool IsGeneratedManifestFile(string root, string path)
+    {
+        var relative = Path.GetRelativePath(root, path);
+        return relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
+            || relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase);
     }
 }

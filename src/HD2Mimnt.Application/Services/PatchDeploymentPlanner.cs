@@ -38,7 +38,9 @@ internal static partial class PatchDeploymentPlanner
             return new();
 
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(mod.Path));
-        var directories = plan.Scope == OptionDeployScope.DirectoryList ? plan.Directories : new[] { "." };
+        var directories = plan.Scope == OptionDeployScope.DirectoryList
+            ? plan.Directories
+            : FullDirectoryRoots(root);
         var files = new List<string>();
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var relative in directories)
@@ -60,6 +62,13 @@ internal static partial class PatchDeploymentPlanner
             }
         }
         return files;
+    }
+
+    // 清单没有 Include 映射时回退全量部署；只扫描根目录会漏掉新格式 data 包里 data/ 下的补丁。
+    private static IEnumerable<string> FullDirectoryRoots(string root)
+    {
+        yield return ".";
+        if (Directory.Exists(Path.Combine(root, "data"))) yield return "data";
     }
 
     internal static List<FileEntry> BuildFiles(IReadOnlyList<string> selectedFiles, Dictionary<string, int> nextIndexes,

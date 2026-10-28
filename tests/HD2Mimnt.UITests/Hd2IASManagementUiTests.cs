@@ -23,7 +23,7 @@ namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {
-    [AvaloniaFact]
+    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
     public async Task Hd2IAS_ToolsEntryInspectGenerateBothRoutesTranslateAndCancelOnExit()
     {
         var reader = new TestIASPackages(); var compiler = new TestIASCompiler(); var updates = new TestIASUpdates();
@@ -139,7 +139,7 @@ public sealed partial class FluentAvaloniaUiTests
         }
     }
 
-    [AvaloniaFact]
+    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
     public async Task Hd2IAS_MissingDataNotifiesNavigatesTranslatesAndRepairsSameEntry()
     {
         var reader = new TestIASPackages();
@@ -250,7 +250,7 @@ public sealed partial class FluentAvaloniaUiTests
         }
     }
 
-    [AvaloniaFact]
+    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
     public async Task Hd2IAS_MissingRuntimeNotificationNavigatesAndUninstallPreservesReshadeAndData()
     {
         var reader = new TestIASPackages(); var confirmation = new RecordingConfirmation();

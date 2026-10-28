@@ -581,7 +581,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
-            sp.GetRequiredService<Hd2IASManagementViewModel>(),
+            // HD2IAS 管理暂时停用：上游正在大改内测，旧管理页与自动检查不再接线。
+            null,
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>()));
     }
 }

@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
+using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -340,6 +341,7 @@ public partial class ModService
         try
         {
             var changed = false;
+            var writeGeneratedManifest = false;
             // 生成的分组/选项树只来自管理器自有 JSON；作者 manifest.json 保持原样。
             // HD2IAS 组件包与散装文件夹合集都靠该文件恢复生成选项，不能只按 WorkflowType 判断。
             var options = await Hd2IrIntegrationService.ReadOptionsAsync(mod, cancellationToken);
@@ -373,6 +375,31 @@ public partial class ModService
                 if (options.Options is { Count: > 0 }) mod.Manifest.Options = options.Options;
                 changed = true;
             }
+            else if (mod.Manifest is { } inferred
+                && ModImportService.IsUntouchedInferredOptions(inferred)
+                && (inferred.Guid == Guid.Empty || ManifestPackage.IsGeneratedManifest(mod.Path))
+                && ModImportService.IsUntouchedInferredOptions(inferred, mod.Path))
+            {
+                // 旧导入把推断选项写成默认关闭，选项弹窗会全部未勾选；未编辑的推断清单恢复默认启用。
+                foreach (var option in inferred.Options!) option.DefaultEnabled = true;
+                changed = true;
+                writeGeneratedManifest = ManifestPackage.IsGeneratedManifest(mod.Path);
+            }
+
+            // 旧库条目大多在导入时没有档案：管理器推断出的清单在库内补齐 manifest.json（合集/HD2IAS 有自己的选项文件，不写根清单）。
+            if (options == null
+                && mod.WorkflowType != Hd2IrIntegrationService.Workflow
+                && mod.Manifest is { OptionGroups: not { Count: > 0 } } inferredManifest
+                && ModImportService.IsManagerInferredManifest(inferredManifest, mod.Path)
+                && !File.Exists(Path.Combine(mod.Path, "manifest.json")))
+            {
+                if (inferredManifest.Guid == Guid.Empty)
+                {
+                    inferredManifest.Guid = Guid.NewGuid();
+                    changed = true;
+                }
+                writeGeneratedManifest = true;
+            }
 
             if (!File.Exists(mod.ThumbnailPath)
                 && ModImportService.ResolveManifestIconPath(mod.Path, mod.Manifest?.IconPath) is { } image)
@@ -385,6 +412,7 @@ public partial class ModService
                 await _modRepository.UpdateAsync(mod, cancellationToken);
                 _logger?.LogInformation("已回填历史遗漏的清单或预览图: {ModName}", mod.Name);
             }
+            if (writeGeneratedManifest) _importService.WriteGeneratedManifest(mod);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

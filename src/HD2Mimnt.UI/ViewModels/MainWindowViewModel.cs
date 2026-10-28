@@ -579,7 +579,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         // 显示欢迎通知
         if (Hd2IASManagementViewModel != null)
             await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
-        _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
+        // _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
         await WaitForRefreshesAsync();
         StatusBarText = "Application initialized";

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HD2Mimnt.Core.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -173,13 +174,28 @@ public class ManifestParser
     /// </summary>
     public void SaveToFile(ModManifest manifest, string filePath, System.Text.Json.Nodes.JsonObject? original = null)
     {
-        var options = new JsonWriterOptions { Indented = true };
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, options))
-            WriteManifest(writer, manifest);
-        var combined = ManifestPackage.Parse(System.Text.Encoding.UTF8.GetString(stream.ToArray()));
+        var combined = Serialize(manifest);
         if (original != null) combined = ManifestPackage.PreserveUnknownExtensions(combined, original);
         ManifestPackage.Save(filePath, combined);
+    }
+
+    /// <summary>
+    /// 保存导入时自动生成的档案：标准字段与作者清单相同，扩展元数据带生成标记，
+    /// 使内容哈希和判重按“作者内容”比较，不随来源名称或随机 Guid 变化。
+    /// </summary>
+    public void SaveGeneratedToFile(ModManifest manifest, string filePath)
+    {
+        var combined = Serialize(manifest);
+        combined[ManifestPackage.GeneratedManifestExtension] = true;
+        ManifestPackage.Save(filePath, combined);
+    }
+
+    private JsonObject Serialize(ModManifest manifest)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            WriteManifest(writer, manifest);
+        return ManifestPackage.Parse(System.Text.Encoding.UTF8.GetString(stream.ToArray()));
     }
 
     private void WriteManifest(Utf8JsonWriter writer, ModManifest manifest)

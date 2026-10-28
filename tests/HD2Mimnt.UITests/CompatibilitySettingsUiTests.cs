@@ -217,4 +217,43 @@ public sealed partial class FluentAvaloniaUiTests
         }
         finally { await compatibility.StopAsync(); }
     }
+
+    [AvaloniaFact]
+    public async Task CompatibilitySettings_ImportAutoCheckChecksSingleModBatchUnderMainWindowWiring()
+    {
+        // 真实窗口会订阅 ModService.ModsChanged 并触发兼容性失效；单模组批次最快，最容易与这些收尾工作撞车。
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.CompatibilityAutoCheckImport, true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await main.InitializeAsync();
+        var compatibility = main.Compatibility!;
+        var notifications = scope.Services.GetRequiredService<NotificationService>();
+        try
+        {
+            var zips = await CreateImportZipsAsync(scope, "ImportCheckSingle");
+            await library.ImportPathsAsync(zips);
+            await WaitForCompatibilityIdleAsync(compatibility);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(library.Import.ImportedIds.Single(), compatibility.Mods.Single().Id);
+            Assert.NotNull(compatibility.Mods.Single().Report);
+            Assert.Equal(UiLocalization.Current["Compatibility.ImportScope"], compatibility.ScopeName);
+            Assert.Contains(notifications.GetRecentNotifications(),
+                notification => notification.ActionText == UiLocalization.Current["Settings.Compatibility.ShowResults"]);
+        }
+        finally { await compatibility.StopAsync(); }
+    }
+
+    private static async Task WaitForCompatibilityIdleAsync(ModCompatibilityViewModel compatibility)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        while (DateTime.UtcNow < deadline)
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (compatibility.Mods.Count > 0 && !compatibility.IsBusy) return;
+            await Task.Delay(25);
+        }
+        Assert.True(compatibility.Mods.Count > 0 && !compatibility.IsBusy, "导入自动检查没有在超时前完成。");
+    }
 }

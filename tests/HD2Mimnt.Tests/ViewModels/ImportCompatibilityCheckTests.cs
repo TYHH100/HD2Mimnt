@@ -74,5 +74,42 @@ public sealed class ImportCompatibilityCheckTests : IDisposable
         repository.Verify(r => r.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task CheckAfterImport_WhileWindowOpen_QueuesBatchAndChecksAfterClose()
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.CompatibilityAutoCheckImport, true);
+        var other = CreateEmptyMod("other");
+        var imported = CreateEmptyMod("imported");
+        var (service, repository) = CreateService(other, imported);
+        using var vm = new ModCompatibilityViewModel(service, new Mock<IConfirmationService>().Object, settings);
+        var notifications = new NotificationService();
+
+        // 检查窗口已打开时导入的单模组批次不能静默丢失，要排队到窗口关闭后补检。
+        await vm.OpenAsync([new ModItemViewModel(other)], "manual");
+        Assert.True(vm.IsOpen);
+        await vm.CheckAfterImportAsync([new ModItemViewModel(imported)], notifications);
+
+        Assert.DoesNotContain(notifications.GetRecentNotifications(),
+            notification => notification.ActionText == UiLocalization.Current["Settings.Compatibility.ShowResults"]);
+        await vm.CloseCommand.ExecuteAsync(null);
+        await WaitAsync(() => notifications.GetRecentNotifications().Any(
+            notification => notification.ActionText == UiLocalization.Current["Settings.Compatibility.ShowResults"]));
+
+        Assert.False(vm.IsOpen);
+        Assert.Equal(imported.Id, Assert.Single(vm.Mods).Id);
+        Assert.NotNull(vm.Mods[0].Report);
+        Assert.Equal(UiLocalization.Current["Compatibility.ImportScope"], vm.ScopeName);
+        repository.Verify(r => r.GetByIdsAsync(
+            It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { imported.Id })), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static async Task WaitAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = Environment.TickCount64 + timeoutMs;
+        while (!condition() && Environment.TickCount64 < deadline) await Task.Delay(20);
+        Assert.True(condition());
+    }
+
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
 }

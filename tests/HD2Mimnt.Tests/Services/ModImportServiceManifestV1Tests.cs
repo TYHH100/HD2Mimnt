@@ -45,8 +45,8 @@ public class ModImportServiceManifestV1Tests
         Assert.Equal(2, manifest.Options.Count);
         Assert.Equal("Option1", manifest.Options[0].Name);
         Assert.Equal("Option2", manifest.Options[1].Name);
-        Assert.False(manifest.Options[0].DefaultEnabled);
-        Assert.False(manifest.Options[1].DefaultEnabled);
+        Assert.True(manifest.Options[0].DefaultEnabled);
+        Assert.True(manifest.Options[1].DefaultEnabled);
     }
 
     [Fact]
@@ -76,9 +76,9 @@ public class ModImportServiceManifestV1Tests
     }
 
     [Fact]
-    public void InferManifestFromDirectory_WithNoSubdirectories_ReturnsNull()
+    public void InferManifestFromDirectory_WithoutSubdirectories_ReturnsManifestWithoutOptions()
     {
-        // Arrange
+        // 无子目录也要生成基础档案：整包部署由“没有选项”表达，而不是空清单
         var importService = new ModImportService(
             _mockRepository.Object,
             _testStoragePath,
@@ -92,7 +92,12 @@ public class ModImportServiceManifestV1Tests
         var manifest = importService.InferManifestFromDirectory(testDir, "Test Mod");
 
         // Assert
-        Assert.Null(manifest);
+        Assert.NotNull(manifest);
+        Assert.Equal(ManifestVersion.V1, manifest.ManifestVersion);
+        Assert.Equal("Test Mod", manifest.Name);
+        Assert.Null(manifest.Options);
+        Assert.Null(manifest.LegacyOptions);
+        Assert.NotEqual(Guid.Empty, manifest.Guid);
     }
 
     [Fact]

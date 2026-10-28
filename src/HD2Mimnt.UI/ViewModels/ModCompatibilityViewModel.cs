@@ -18,6 +18,7 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     private readonly SettingsService? _settings;
     private bool _startupCheck;
     private bool _importCheck;
+    private (ModItemViewModel[] Targets, NotificationService Notifications)? _pendingImportCheck;
     public ModCompatibilityViewModel(ModCompatibilityService service, IConfirmationService confirmation, SettingsService? settings = null)
     {
         this.service = service; this.confirmation = confirmation; _settings = settings;
@@ -146,13 +147,27 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
     /// <summary>导入批次完成后在后台检查本次导入的模组；需要开启导入自动检查设置。</summary>
     public async Task CheckAfterImportAsync(IEnumerable<ModItemViewModel> targets, NotificationService notifications)
     {
-        if (_settings?.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false) != true || IsBusy || IsOpen || _closing) return;
+        if (_settings?.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false) != true || _closing) return;
         var fresh = targets.DistinctBy(m => m.Id).ToArray();
         if (fresh.Length == 0) return;
+        // 检查窗口忙或已打开时本批不能丢弃：单模组批次最快，最容易被启动回填或上一次检查挤掉，
+        // 先记下本批，等空闲或窗口关闭后补检；同一时间只保留一批，后续批次合并进来。
+        if (IsBusy || IsOpen)
+        {
+            _pendingImportCheck = _pendingImportCheck is { } pending
+                ? (pending.Targets.Concat(fresh).DistinctBy(m => m.Id).ToArray(), notifications)
+                : (fresh, notifications);
+            return;
+        }
+        await RunImportCheckAsync(fresh, notifications);
+    }
+
+    private async Task RunImportCheckAsync(IReadOnlyList<ModItemViewModel> targets, NotificationService notifications)
+    {
         ClearRows(); _stale = false;
         ScopeName = UiLocalization.Current["Compatibility.ImportScope"];
         Message = string.Empty; SelectedTab = 0;
-        foreach (var target in fresh)
+        foreach (var target in targets)
         {
             var row = new CompatibilityModRow(target);
             _rows.Add(row.Id, row); Mods.Add(row);
@@ -166,7 +181,25 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
                 notifications.ShowWithAction(NotificationLevel.Info, Summary, UiLocalization.Current["Settings.Compatibility.ShowResults"],
                     () => Dispatcher.UIThread.Post(() => IsOpen = true), UiLocalization.Current["Compatibility.Title"]);
         }
-        finally { _importCheck = false; }
+        finally
+        {
+            _importCheck = false;
+            // 导入检查收尾后再处理排队的批次；放在这里可避免通知与下一批的 ClearRows 交错。
+            RunPendingImportCheck();
+        }
+    }
+
+    /// <summary>空闲且窗口已关闭时补跑排队的导入批次；仍被占用则留到下一次收尾。</summary>
+    private void RunPendingImportCheck()
+    {
+        if (_pendingImportCheck is not { } pending || IsBusy || IsOpen || _closing) return;
+        if (_settings?.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false) != true)
+        {
+            _pendingImportCheck = null;
+            return;
+        }
+        _pendingImportCheck = null;
+        _ = RunImportCheckAsync(pending.Targets, pending.Notifications);
     }
 
     [RelayCommand] private Task CheckAsync() => Start(CheckCoreAsync);
@@ -396,6 +429,8 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
             _operation = null; ProgressText = string.Empty; IsBusy = false;
             if (_stale) { _stale = false; Invalidate(); }
             RefreshPresentation();
+            // 导入检查自己收尾时由 RunImportCheckAsync 处理排队批次，避免通知与下一批状态交错。
+            if (!_importCheck) RunPendingImportCheck();
         }
     }
     [RelayCommand] public void Cancel() => _operation?.Cancel();
@@ -406,11 +441,20 @@ public partial class ModCompatibilityViewModel : ObservableObject, IDisposable
         _closing = true;
         try { Cancel(); await Completion; IsOpen = false; ClearRows(); }
         finally { _closing = false; }
+        // 用户关闭窗口后补检窗口打开期间排队的导入批次。
+        RunPendingImportCheck();
     }
-    public Task StopAsync() => CloseAsync();
+    /// <summary>关闭并等待清理；退出流程丢弃排队批次，避免关机时又启动检查。</summary>
+    public Task StopAsync()
+    {
+        _pendingImportCheck = null;
+        return CloseAsync();
+    }
     public void Invalidate()
     {
         if (_mutating) return;
+        // 导入检查期间模组库变化来自本批导入本身；取消或清空会让这批结果静默丢失。
+        if (_importCheck) return;
         foreach (var badge in _badges.Values) badge.ApplyReport(null);
         if (IsBusy) { _stale = true; Cancel(); return; }
         foreach (var row in Mods)
