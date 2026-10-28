@@ -474,6 +474,9 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
+        services.AddSingleton<IModelPreviewReader, HD2Mimnt.Infrastructure.ModelPreview.PatchResourceInspectionService>();
+        services.AddSingleton<ModelPreviewService>();
+        services.AddSingleton<ModelPreviewViewModel>();
 
         // UI 层 ViewModels
         services.AddTransient(sp => new LibraryViewModel(
@@ -491,7 +494,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
-            sp.GetRequiredService<PlatformDownloadTaskRunner>()));
+            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -501,7 +504,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),

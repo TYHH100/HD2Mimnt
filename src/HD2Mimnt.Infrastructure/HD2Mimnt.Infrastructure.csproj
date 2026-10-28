@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="SharpCompress" />
     <PackageReference Include="K4os.Compression.LZ4" />
+    <PackageReference Include="BCnEncoder.Net" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 

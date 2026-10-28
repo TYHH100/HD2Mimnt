@@ -59,7 +59,7 @@ public partial class MainWindow : Window
 
     private void OnFileDragOver(object? sender, DragEventArgs e)
     {
-        if (_viewModel?.Compatibility?.IsOpen == true || _viewModel?.Tutorial.IsOpen == true)
+        if (_viewModel?.ModelPreview?.IsOpen == true || _viewModel?.Compatibility?.IsOpen == true || _viewModel?.Tutorial.IsOpen == true)
         {
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
@@ -90,7 +90,7 @@ public partial class MainWindow : Window
         var paths = GetDroppedPaths(e);
         if (paths.Count == 0) return;
         e.Handled = true;
-        if (_viewModel == null || _viewModel.Tutorial.IsOpen || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
+        if (_viewModel == null || _viewModel.Tutorial.IsOpen || _viewModel.ModelPreview?.IsOpen == true || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
         {
             e.DragEffects = DragDropEffects.None;
             return;

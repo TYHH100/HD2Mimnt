@@ -270,8 +270,9 @@ public partial class LibraryViewModel : ObservableObject
         ModOnlineService? modOnlineService = null,
         IWebsiteDownloadLauncher? websiteLauncher = null,
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
-        PlatformDownloadTaskRunner? downloadTasks = null)
+        PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null)
     {
+        ModelPreview = modelPreview;
         Compatibility = compatibility;
         _modService = modService;
         LocalVersions = new(modService, confirmationService, async () =>

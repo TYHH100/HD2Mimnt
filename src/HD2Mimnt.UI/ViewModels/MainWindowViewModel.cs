@@ -120,6 +120,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public MoreViewModel MoreViewModel { get; } = new();
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
+    public ModelPreviewViewModel? ModelPreview => _libraryViewModel.ModelPreview;
     public BrowseModsViewModel? BrowseModsViewModel { get; }
     public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
@@ -184,6 +185,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         }
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
+        if (ModelPreview is { } preview) preview.PropertyChanged += OnModelPreviewChanged;
         _conflictsViewModel = conflictsViewModel;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -429,6 +431,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
         _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
         _backupViewModel.RefreshAfterRestoreAsync = null;
+        if (ModelPreview is { } preview)
+        {
+            preview.PropertyChanged -= OnModelPreviewChanged;
+            await preview.StopAsync();
+        }
         await WaitForRefreshesAsync();
     }
 
@@ -615,7 +622,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         CurrentProfileName = activeProfile?.Name ?? "No Profile";
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true;
+    private void OnModelPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(ModelPreviewViewModel.IsOpen)) return;
+        NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+        NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+        NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+        NavigateToModCreationCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -741,6 +757,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (ModelPreview?.IsOpen == true) { ModelPreview.CloseCommand.Execute(null); return; }
         if (Compatibility?.IsOpen == true) { Compatibility.CloseCommand.Execute(null); return; }
         if (_libraryViewModel.ModOnline?.IsOpen == true)
         {
@@ -854,6 +871,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public async Task<bool> CanCloseAsync()
     {
         _closingCompatibility = true;
+        if (ModelPreview != null) await ModelPreview.StopAsync();
         await _settingsViewModel.StopCompatibilityDataAsync();
         if (Compatibility != null) await Compatibility.StopAsync();
         await StartupCompatibilityTask;

@@ -140,6 +140,7 @@ public partial class ProfileView : UserControl
                 CommandParameter = mod
             }
         };
+        if (vm.ModelPreview != null) modEntries.Add(new ContextMenuItem("模型预览", vm.PreviewModelCommand, "Package") { CommandParameter = mod });
         if (vm.Compatibility != null) modEntries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         modEntries.Add(new ContextMenuItem("添加到其他配置文件…", vm.AddModToOtherProfilesCommand, "Add") { CommandParameter = mod });
         if (mod.CanDrag)
@@ -324,7 +325,7 @@ public partial class ProfileView : UserControl
         }
         if (e.Handled) return;
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.Compatibility?.IsOpen == true || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
+            || vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
             || vm.IsDetailPanelOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;

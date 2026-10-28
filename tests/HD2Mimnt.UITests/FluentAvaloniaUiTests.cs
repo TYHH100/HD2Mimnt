@@ -3568,7 +3568,8 @@ public sealed partial class FluentAvaloniaUiTests
             HD2Mimnt.Core.Interfaces.IDeploymentMethod? deploymentMethod = null,
             HD2Mimnt.Core.Interfaces.ICompatibilityResourceNames? compatibilityNames = null,
             HD2Mimnt.Core.Interfaces.IModCompatibilityAnalyzer? compatibilityAnalyzer = null,
-            HD2Mimnt.Core.Interfaces.IGameSoundBankReader? soundBanks = null)
+            HD2Mimnt.Core.Interfaces.IGameSoundBankReader? soundBanks = null,
+            HD2Mimnt.Core.Interfaces.IModelPreviewReader? modelPreviewReader = null)
         {
             var scope = new UiScope();
             var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
@@ -3593,6 +3594,7 @@ public sealed partial class FluentAvaloniaUiTests
                 if (compatibilityNames != null) services.AddSingleton(compatibilityNames);
                 if (compatibilityAnalyzer != null) services.AddSingleton(compatibilityAnalyzer);
                 if (soundBanks != null) services.AddSingleton(soundBanks);
+                if (modelPreviewReader != null) services.AddSingleton(modelPreviewReader);
                 if (iasPackages != null) services.AddSingleton(iasPackages);
                 if (iasCompiler != null) services.AddSingleton(iasCompiler);
                 if (iasUpdates != null) services.AddSingleton(iasUpdates);

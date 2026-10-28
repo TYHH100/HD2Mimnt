@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
+             x:Class="HD2Mimnt.UI.Controls.ModelPreviewOverlay" x:DataType="vm:ModelPreviewViewModel"
+             IsVisible="{Binding IsOpen, FallbackValue=False}" Focusable="True" KeyboardNavigation.TabNavigation="Cycle">
+  <Border Background="{DynamicResource OverlayScrimBrush}">
+    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="{DynamicResource OverlayCornerRadius}" Margin="12" Padding="16">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="3">
+            <TextBlock x:Name="ModelPreviewTitle" Text="{loc:Loc ModelPreview.Title}" Classes="section-title"/>
+            <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
+          </StackPanel>
+          <Button x:Name="CloseModelPreviewButton" Grid.Column="1" Classes="icon-button" Command="{Binding CloseCommand}" ToolTip.Tip="{loc:Loc Common.Close}">
+            <controls:UtilityIcon Kind="Close"/>
+          </Button>
+        </Grid>
+        <Grid Grid.Row="1" ColumnDefinitions="250,*" ColumnSpacing="12">
+          <TabControl HorizontalContentAlignment="Stretch">
+            <TabItem Header="{loc:Loc ModelPreview.Options}">
+              <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                <TextBlock Text="{loc:Loc ModelPreview.OptionsHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                  <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
+                    <ComboBox ItemsSource="{Binding LegacyOptions}" SelectedIndex="{Binding LegacySelectedIndex}" IsVisible="{Binding HasLegacyOptions}" HorizontalAlignment="Stretch"/>
+                    <ItemsControl ItemsSource="{Binding Options}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ModelPreviewOptionRow">
+                          <StackPanel Margin="0,4,0,10" Spacing="4">
+                            <CheckBox IsChecked="{Binding IsEnabled}"><TextBlock Text="{Binding Name}" TextWrapping="Wrap"/></CheckBox>
+                            <ComboBox ItemsSource="{Binding SubOptions}" SelectedIndex="{Binding SelectedIndex}" IsVisible="{Binding HasSubOptions}" IsEnabled="{Binding IsEnabled}" HorizontalAlignment="Stretch"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Row="2" Spacing="8" IsEnabled="{Binding !IsBusy}">
+                  <TextBlock Text="{loc:Loc ModelPreview.TextureResolution}" Classes="caption-text"/>
+                  <ComboBox ItemsSource="{Binding TextureResolutions}" SelectedItem="{Binding TextureResolution}" HorizontalAlignment="Stretch"/>
+                  <Button x:Name="ReloadModelPreviewButton" Content="{loc:Loc ModelPreview.Apply}" Classes="accent" Command="{Binding ReloadCommand}" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+              </Grid>
+            </TabItem>
+            <TabItem Header="{loc:Loc ModelPreview.Meshes}">
+              <Grid RowDefinitions="Auto,*" RowSpacing="6">
+                <StackPanel>
+                  <CheckBox Content="{loc:Loc ModelPreview.ShowFiltered}" IsChecked="{Binding ShowFilteredMeshes}"/>
+                  <CheckBox Content="{loc:Loc ModelPreview.Isolate}" IsChecked="{Binding IsolateSelectedMesh}"/>
+                </StackPanel>
+                <ListBox Grid.Row="1" ItemsSource="{Binding Meshes}" SelectedItem="{Binding SelectedMesh}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ModelPreviewMeshRow">
+                      <CheckBox IsChecked="{Binding IsVisible}" ToolTip.Tip="{Binding Details}">
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontSize="11"/>
+                      </CheckBox>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Grid>
+            </TabItem>
+          </TabControl>
+          <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+            <WrapPanel>
+              <CheckBox Content="{loc:Loc ModelPreview.Textures}" IsChecked="{Binding UseTextures}" Margin="0,0,12,0"/>
+              <CheckBox Content="{loc:Loc ModelPreview.Wireframe}" IsChecked="{Binding Wireframe}" Margin="0,0,12,0"/>
+              <CheckBox Content="{loc:Loc ModelPreview.Alpha}" IsChecked="{Binding UseAlpha}" Margin="0,0,12,0"/>
+              <CheckBox Content="{loc:Loc ModelPreview.Grid}" IsChecked="{Binding ShowGrid}" Margin="0,0,12,0"/>
+              <CheckBox Content="{loc:Loc ModelPreview.Stocky}" IsChecked="{Binding ShowStockyBody}" IsVisible="{Binding HasBodyShapes}" Margin="0,0,12,0"/>
+              <Button Content="{loc:Loc ModelPreview.ResetCamera}" Click="ResetCamera"/>
+            </WrapPanel>
+            <Border Grid.Row="1" ClipToBounds="True" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+              <Grid>
+                <ContentControl x:Name="ViewportHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+                <StackPanel IsVisible="{Binding IsBusy}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="240">
+                  <ProgressBar IsIndeterminate="True" Width="200"/>
+                  <TextBlock Text="{loc:Loc ModelPreview.Loading}" HorizontalAlignment="Center"/>
+                  <Button x:Name="CancelModelPreviewButton" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <TextBlock Grid.Row="2" Text="{loc:Loc ModelPreview.Controls}" Classes="caption-text" TextWrapping="Wrap" MaxHeight="40"/>
+          </Grid>
+        </Grid>
+        <StackPanel Grid.Row="2" Spacing="4">
+          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{loc:Loc ModelPreview.Limits}" Classes="caption-text" TextWrapping="Wrap" MaxHeight="34" TextTrimming="WordEllipsis" ToolTip.Tip="{loc:Loc ModelPreview.Limits}"/>
+          <TextBlock x:Name="ModelPreviewError" Text="{Binding Error}" IsVisible="{Binding HasError}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" MaxHeight="54" TextTrimming="WordEllipsis" ToolTip.Tip="{Binding Error}"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Border>
+</UserControl>

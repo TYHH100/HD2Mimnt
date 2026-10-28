@@ -13,6 +13,25 @@ public partial class ModDetailPanel : UserControl
         InitializeComponent();
     }
 
+    private async void PreviewModel(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (DataContext is not ModItemViewModel mod) return;
+        foreach (var owner in this.GetVisualAncestors().OfType<UserControl>().Select(view => view.DataContext))
+        {
+            if (owner is LibraryViewModel { ModelPreview: { } preview })
+            {
+                await preview.OpenAsync(mod.Id);
+                return;
+            }
+            if (owner is ProfileViewModel { ModelPreview: { } profilePreview, SelectedProfile: { } selected })
+            {
+                await profilePreview.OpenAsync(mod.Id, selected.Id);
+                return;
+            }
+        }
+    }
+
     /// <summary>点击详情面板大图标：在主窗口顶层的覆盖层预览原图（无图标时无操作）。</summary>
     private async void Icon_Tapped(object? sender, TappedEventArgs e)
     {
