@@ -170,7 +170,6 @@
                       <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                         <TextBlock Text="{loc:LocalizedBinding ModName, LocalizeWhenPath=!IsUserSeparator}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{loc:LocalizedBinding GroupModCount, FormatKey=UI.Mods}" Classes="caption-text"/>
-                        <TextBlock IsVisible="{Binding !IsUserSeparator}" Text="{loc:LocalizedBinding ModVersion}" Classes="caption-text" TextWrapping="Wrap"/>
                       </StackPanel>
                       <Button Grid.Column="2" Classes="icon-button" Click="SeparatorMenu_Click" ToolTip.Tip="{loc:Loc UI.GroupActions}">
                         <controls:UtilityIcon Kind="More"/>
@@ -253,7 +252,6 @@
                       <TextBlock Text="{loc:Loc UI.Deployed}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
                       <TextBlock Text="{loc:Loc Shell.NotDeployed}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !IsDeployed}"/>
                       <TextBlock Text="{loc:Loc UI.HasOptions}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding HasOptions}"/>
-                      <TextBlock Text="{loc:LocalizedBinding PriorityLabel}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsFixedGroupMember}"/>
                       <TextBlock Text="{loc:Loc UI.FixedPosition}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !CanDrag}"/>
                     </StackPanel>
 

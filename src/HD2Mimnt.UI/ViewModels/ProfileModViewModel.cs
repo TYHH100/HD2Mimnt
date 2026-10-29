@@ -87,8 +87,6 @@ public partial class ProfileModViewModel : ObservableObject
     public bool IsLuaDependency => BslRole == BslModRole.Dependency;
     public bool HasLuaResources { get; init; }
     public bool IsLuaMod => HasLuaResources || IsBslMember;
-    public string PriorityLabel => IsSmoothBoot ? $"{BslProfilePolicy.SmoothBootNames} · 最高优先级"
-        : IsBslLoader ? $"{BslProfilePolicy.LoaderNames} · 固定在依赖之后" : "依赖加载器";
     public bool CanSelect => !IsSeparator && (!LoaderLockEnabled || !IsBslLoader && !IsSmoothBoot);
     public bool CanDrag => CanSelect || IsUserSeparator;
 

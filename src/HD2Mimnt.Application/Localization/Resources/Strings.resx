@@ -1915,9 +1915,6 @@ Still waiting for valid authorization for the selected file.</value>
   <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
     <value>Loader dependencies and Lua loaders</value>
   </data>
-  <data name="UI.LuaGroupSequenceSummary" xml:space="preserve">
-    <value>Dependencies → {0} (choose one) → {1} (highest priority) · follows deployment direction</value>
-  </data>
   <data name="UI.All" xml:space="preserve">
     <value>All</value>
   </data>
@@ -2083,15 +2080,6 @@ Still waiting for valid authorization for the selected file.</value>
     <value>
 
 See the Conflicts page for details.</value>
-  </data>
-  <data name="UI.SmoothBootPriorityHighest" xml:space="preserve">
-    <value>{0} · Highest priority</value>
-  </data>
-  <data name="UI.LoaderPriorityFixedAfterDependencies" xml:space="preserve">
-    <value>{0} · Fixed after dependencies</value>
-  </data>
-  <data name="UI.LoaderDependency" xml:space="preserve">
-    <value>Loader dependency</value>
   </data>
   <data name="UI.CacheInformationNotLoaded" xml:space="preserve">
     <value>Cache information not loaded</value>

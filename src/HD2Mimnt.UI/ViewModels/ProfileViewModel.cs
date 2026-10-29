@@ -309,8 +309,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly ProfileModViewModel _luaSeparator = new()
     {
         IsSeparator = true,
-        ModName = "依赖加载器的模组与 Lua 加载器",
-        ModVersion = $"依赖 → {BslProfilePolicy.LoaderNames}（三选一）→ {BslProfilePolicy.SmoothBootNames}（最高优先级）· 按部署方向排列"
+        ModName = "依赖加载器的模组与 Lua 加载器"
     };
 
     private bool _bottomToTop;
