@@ -200,19 +200,24 @@ internal sealed class DeploymentPlanBuilder
         return plan;
     }
 
-    /// <summary>更新可能改变加载器身份；自动部署仍要阻止把已部署配置变成双加载器或缺加载器。</summary>
+    /// <summary>更新可能改变加载器身份；自动部署仍要阻止把已部署配置变成互斥或缺加载器。</summary>
     private static void ValidateTargetedLoaderRole(DeploymentPlan plan, Guid changedModId)
     {
         var changed = plan.Mods.SingleOrDefault(mod => mod.Mod.Id == changedModId);
         if (changed == null) return;
+        var roles = plan.Mods.Select(mod => BslProfilePolicy.Role(mod.Mod)).ToList();
+        try
+        {
+            BslProfilePolicy.ValidateLoaderCombination(roles);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidOperationException($"更新后加载器组合无效：{ex.Message}，已跳过自动部署");
+        }
         var role = BslProfilePolicy.Role(changed.Mod);
-        var otherLoader = plan.Mods.Any(mod => mod.Mod.Id != changedModId
-            && BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod)));
-        if (BslProfilePolicy.IsLoader(role) && otherLoader)
-            throw new InvalidOperationException("更新后该模组成为加载器，但当前配置已有另一个加载器（BSL / MDL / BML 三选一），已跳过自动部署");
-        if (!BslProfilePolicy.IsLoader(role) && (role is BslModRole.Dependency or BslModRole.SmoothBoot)
-            && !plan.Mods.Any(mod => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod))))
-            throw new InvalidOperationException("更新后该模组需要加载器，但当前部署中没有 BSL / MDL / BML，已跳过自动部署");
+        if (!BslProfilePolicy.IsLoader(role) && role is BslModRole.Dependency or BslModRole.SmoothBoot
+            && !roles.Any(BslProfilePolicy.IsLoader))
+            throw new InvalidOperationException("更新后该模组需要加载器，但当前部署中没有 BSL / MDL / BML / Chef Shared Loader，已跳过自动部署");
     }
 
     private static PlannedMod BuildCurrentMod(DeploymentRecord record, Mod mod, string gamePath,
@@ -365,16 +370,13 @@ internal sealed class DeploymentPlanBuilder
     private static void ValidateLoaders(IReadOnlyList<ProfileMod> ordered,
         IReadOnlyDictionary<Guid, Mod> modsById, DeploymentPlan plan)
     {
-        var enabledLoaders = ordered.Count(item => modsById.TryGetValue(item.ModId, out var mod)
-            && BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod)));
-        if (enabledLoaders > 1)
-            throw new InvalidOperationException("BSL / MDL / Boot Mod Loader 互斥，同一配置只能启用一个加载器，请停用另一份或重复副本");
-        var loaderCount = plan.Mods.Count(mod => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod)));
-        if (loaderCount > 1)
-            throw new InvalidOperationException("同一配置只能部署一个 BSL / MDL / Boot Mod Loader 加载器，请停用重复副本");
-        if (loaderCount == 0 && plan.Mods.Any(mod =>
-                BslProfilePolicy.Role(mod.Mod) is BslModRole.Dependency or BslModRole.SmoothBoot))
-            throw new InvalidOperationException("此配置包含依赖加载器模组或 SmoothBoot，请先添加并启用 Bingus Shared Loader、MDL 或 Boot Mod Loader 及其补丁选项");
+        BslModRole RoleOf(ProfileMod item) => modsById.TryGetValue(item.ModId, out var mod) ? BslProfilePolicy.Role(mod) : BslModRole.None;
+        // 主加载器互斥；Chef Shared Loader 只能与 Boot Mod Loader 同组；同角色重复副本一律拒绝。
+        BslProfilePolicy.ValidateLoaderCombination(ordered.Select(RoleOf));
+        BslProfilePolicy.ValidateLoaderCombination(plan.Mods.Select(mod => BslProfilePolicy.Role(mod.Mod)));
+        if (!plan.Mods.Any(mod => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod)))
+            && plan.Mods.Any(mod => BslProfilePolicy.Role(mod.Mod) is BslModRole.Dependency or BslModRole.SmoothBoot))
+            throw new InvalidOperationException("此配置包含依赖加载器模组或 SmoothBoot，请先添加并启用 BSL、MDL、Boot Mod Loader 或 Chef Shared Loader 及其补丁选项");
     }
 
     private static int SuffixRank(string suffix)

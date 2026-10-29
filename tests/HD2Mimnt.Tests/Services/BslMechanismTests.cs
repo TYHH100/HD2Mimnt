@@ -343,9 +343,86 @@ public sealed class BslMechanismTests : IDisposable
         await _service.SetModEnabledAsync(profileId, loader.Id, false);
         result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, direction, game);
         Assert.NotEqual(DeploymentStatus.Completed, result.Status);
-        Assert.Contains("Bingus Shared Loader", result.ErrorMessage);
+        Assert.Contains("BSL", result.ErrorMessage);
         // 缺失依赖的预检不能先清理掉之前成功部署的文件。
         Assert.Equal("Loader", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_3")));
+    }
+
+    [Theory]
+    [InlineData(true, DeploymentOrder.TopToBottom)]
+    [InlineData(true, DeploymentOrder.BottomToTop)]
+    [InlineData(false, DeploymentOrder.TopToBottom)]
+    [InlineData(false, DeploymentOrder.BottomToTop)]
+    public async Task BootModLoaderAndChefSharedLoader_ShouldCoexistWithChefDeployedFirst(bool chefFirst, DeploymentOrder direction)
+    {
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var normal = await AddModAsync("普通");
+        foreach (var mod in new[] { bml, csl, normal })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("双加载器");
+        await _service.AddModToProfileAsync(profileId, chefFirst ? csl.Id : bml.Id);
+        await _service.AddModToProfileAsync(profileId, chefFirst ? bml.Id : csl.Id);
+        await _service.AddModToProfileAsync(profileId, normal.Id);
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
+        Assert.All(profile.Mods, item => Assert.True(item.Enabled));
+        // BML 托管 CSL：CSL 固定在 BML 之前，BML 的补丁号更高，游戏才会运行 BML 的 boot。
+        Assert.Equal(new[] { normal.Id, csl.Id, bml.Id }, profile.Mods.Select(item => item.ModId));
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, direction, game);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("普通", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_1")));
+        Assert.Equal("BML", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_2")));
+    }
+
+    [Fact]
+    public async Task ChefSharedLoaderSelection_ShouldFollowBootModLoaderAndRejectBslBatch()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == csl.Id).Enabled);
+        // BSL 无法托管 CSL，批量启用两种加载器必须拒绝。
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bsl.Id, csl.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        // 切到 BSL 会替换整套加载器组合。
+        await _service.SetModEnabledAsync(profileId, bsl.Id, true);
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == csl.Id).Enabled);
+    }
+
+    [Fact]
+    public async Task UnhostedChefSharedLoaderDeployment_ShouldFailBeforeCleanup()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        foreach (var mod in new[] { bsl, csl })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var first = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, first.Status);
+        // 绕过服务写入的旧配置也必须拒绝 BSL 与 CSL 同时部署。
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        profile.Mods.Add(new ProfileMod { ProfileId = profileId, ModId = bsl.Id, Enabled = true, Order = -1 });
+        await _profiles.UpdateAsync(profile);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.NotEqual(DeploymentStatus.Completed, result.Status);
+        Assert.Contains("Chef Shared Loader", result.ErrorMessage);
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
     }
 
     private async Task<Mod> AddModAsync(string name, BslModRole? role = null)
@@ -358,6 +435,7 @@ public sealed class BslMechanismTests : IDisposable
                 BslModRole.Loader => new ModManifest { Guid = BslModDetector.LoaderGuid },
                 BslModRole.MdlLoader => new ModManifest { Guid = BslModDetector.MdlGuid },
                 BslModRole.BmlLoader => new ModManifest { Guid = BslModDetector.BootModLoaderGuid },
+                BslModRole.CslLoader => new ModManifest { Guid = BslModDetector.CslGuid },
                 BslModRole.SmoothBoot => new ModManifest { Guid = BslModDetector.SmoothBootGuid },
                 _ => null
             } };

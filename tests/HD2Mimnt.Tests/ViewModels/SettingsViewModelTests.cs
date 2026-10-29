@@ -444,8 +444,24 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal("Light", await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark"));
     }
 
+    [Fact]
+    public async Task DownloadCategory_Above_64_Connections_Should_Save_With_Warning()
+    {
+        var notifications = new NotificationService();
+        var viewModel = CreateViewModel("", notifications);
+        viewModel.SelectedCategory = "下载";
+        viewModel.DownloadParallelSegments = 128;
+        await viewModel.SaveCommand.ExecuteAsync(null);
+        Assert.Contains("并发连接数超过 64", viewModel.StatusMessage);
+        var notification = Assert.Single(notifications.GetRecentNotifications());
+        Assert.Equal(NotificationLevel.Warning, notification.Level);
+        var options = await new DownloadSettingsService(new SettingsService(_rootDirectory)).GetOptionsAsync();
+        Assert.Equal(128, options.MaxParallelSegments);
+    }
+
     [Theory]
     [InlineData(0, 4, 2, 500)]
+    [InlineData(257, 4, 2, 500)]
     [InlineData(4, 0, 2, 500)]
     [InlineData(4, 257, 2, 500)]
     [InlineData(4, 4, 11, 500)]
@@ -484,12 +500,12 @@ public sealed class SettingsViewModelTests : IDisposable
         return root;
     }
 
-    private SettingsViewModel CreateViewModel(string gamePath)
+    private SettingsViewModel CreateViewModel(string gamePath, NotificationService? notificationService = null)
     {
         var viewModel = new SettingsViewModel(
             _settingsService,
             _gameDetectionService,
-            new NotificationService(),
+            notificationService ?? new NotificationService(),
             _imageCache.Object)
         {
             GamePath = gamePath

@@ -19,22 +19,32 @@ public sealed class LoaderRegistryTests : IDisposable
     {
         var snapshot = LoaderRegistry.Current;
         Assert.Null(LoaderRegistry.InitializationError);
-        Assert.Equal(5, snapshot.RuleVersion);
+        Assert.Equal(6, snapshot.RuleVersion);
         Assert.Equal(5, snapshot.Loaders.Length);
         Assert.Equal(BslModRole.Loader, snapshot.DefinitionOf(BslModDetector.LoaderGuid)?.Role);
         Assert.Equal(BslModRole.MdlLoader, snapshot.DefinitionOf(BslModDetector.MdlGuid)?.Role);
         Assert.Equal(BslModRole.BmlLoader, snapshot.DefinitionOf(BslModDetector.BootModLoaderGuid)?.Role);
-        Assert.Equal(BslModRole.Loader, snapshot.DefinitionOf(Guid.Parse("2d6f0b8e-91c4-4a37-b5e2-7c0a94f13d58"))?.Role);
+        Assert.Equal(BslModRole.CslLoader, snapshot.DefinitionOf(BslModDetector.CslGuid)?.Role);
         Assert.Equal(BslModRole.SmoothBoot, snapshot.DefinitionOf(BslModDetector.SmoothBootGuid)?.Role);
-        Assert.Equal("BSL / MDL / Boot Mod Loader / Chef Shared Loader", snapshot.LoaderNames);
+        Assert.Equal("BSL / MDL / Boot Mod Loader", snapshot.LoaderNames);
+        Assert.Equal("Chef Shared Loader", snapshot.GuestLoaderNames);
+        Assert.Equal("Boot Mod Loader", snapshot.HostLoaderNames);
         Assert.Equal(0, snapshot.PriorityRank(BslModRole.None));
         Assert.Equal(1, snapshot.PriorityRank(BslModRole.Dependency));
-        Assert.Equal(2, snapshot.PriorityRank(BslModRole.Loader));
-        Assert.Equal(2, snapshot.PriorityRank(BslModRole.MdlLoader));
-        Assert.Equal(3, snapshot.PriorityRank(BslModRole.SmoothBoot));
-        Assert.True(snapshot.IsMutex(BslModRole.Loader));
-        Assert.True(snapshot.IsMutex(BslModRole.BmlLoader));
-        Assert.False(snapshot.IsMutex(BslModRole.SmoothBoot));
+        Assert.Equal(2, snapshot.PriorityRank(BslModRole.CslLoader));
+        Assert.Equal(3, snapshot.PriorityRank(BslModRole.Loader));
+        Assert.Equal(3, snapshot.PriorityRank(BslModRole.MdlLoader));
+        Assert.Equal(3, snapshot.PriorityRank(BslModRole.BmlLoader));
+        Assert.Equal(4, snapshot.PriorityRank(BslModRole.SmoothBoot));
+        Assert.True(snapshot.IsPrimary(BslModRole.Loader));
+        Assert.True(snapshot.IsPrimary(BslModRole.BmlLoader));
+        Assert.False(snapshot.IsPrimary(BslModRole.CslLoader));
+        Assert.True(snapshot.IsGuest(BslModRole.CslLoader));
+        Assert.False(snapshot.IsGuest(BslModRole.Loader));
+        Assert.True(snapshot.CanHost(BslModRole.BmlLoader, BslModRole.CslLoader));
+        Assert.False(snapshot.CanHost(BslModRole.Loader, BslModRole.CslLoader));
+        Assert.False(snapshot.IsPrimary(BslModRole.SmoothBoot));
+        Assert.False(snapshot.IsLoader(BslModRole.SmoothBoot));
         // 识别特征与配置一致：MDL 入口、BML/BSL 启动标记、BSL 注册模块与依赖声明。
         Assert.Contains(BslModDetector.ResourceHash("mods/mdl/runtime"), snapshot.ByEntryHash.Keys);
         Assert.Contains(BslModDetector.ResourceHash("mods/codex/smoothboot"), snapshot.ByEntryHash.Keys);
@@ -127,7 +137,7 @@ public sealed class LoaderRegistryTests : IDisposable
         {
             Assert.NotNull(LoaderRegistry.InitializationError);
             // 解析失败回退分发默认，识别与策略不中断。
-            Assert.Equal(5, LoaderRegistry.Current.RuleVersion);
+            Assert.Equal(6, LoaderRegistry.Current.RuleVersion);
             Assert.Equal(BslModRole.Loader, LoaderRegistry.Current.DefinitionOf(BslModDetector.LoaderGuid)?.Role);
         }
         finally
@@ -144,10 +154,10 @@ public sealed class LoaderRegistryTests : IDisposable
         // 官方包：清单 GUID 快速路径。
         var official = new Mod { Name = "Chef Shared Loader 1.2.0", Path = WriteEntryPackage("mods/chef_shared_loader/core_1", core) };
         official.Manifest = new ModManifest { Guid = Guid.Parse(cslGuid) };
-        Assert.Equal(BslModRole.Loader, await BslModDetector.DetectAsync(official));
+        Assert.Equal(BslModRole.CslLoader, await BslModDetector.DetectAsync(official));
         // 重打包丢失清单时，独有核心资源仍可识别。
         var repacked = new Mod { Name = "Chef Shared Loader", Path = WriteEntryPackage("mods/chef_shared_loader/core_1", core) };
-        Assert.Equal(BslModRole.Loader, await BslModDetector.DetectAsync(repacked));
+        Assert.Equal(BslModRole.CslLoader, await BslModDetector.DetectAsync(repacked));
         // 官方允许任意模组原样携带 stub 作为自己的 boot：携带者不是加载器本体。
         var stubCarrier = new Mod
         {
@@ -169,7 +179,7 @@ public sealed class LoaderRegistryTests : IDisposable
         try
         {
             Assert.Null(LoaderRegistry.InitializationError);
-            Assert.Equal(5, LoaderRegistry.Current.RuleVersion);
+            Assert.Equal(6, LoaderRegistry.Current.RuleVersion);
         }
         finally
         {

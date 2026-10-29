@@ -1,6 +1,6 @@
 {
   "//": "Lua 加载器识别与策略配置。新增或更新加载器时修改本文件（或放置 <AppData>/loaders.json 覆盖），无需改代码。ruleVersion 提升会触发已缓存识别结果重扫。",
-  "ruleVersion": 5,
+  "ruleVersion": 6,
   "dependencyPriority": 1,
   "addonExcludes": [ "mods/codex/loader" ],
   "loaders": [
@@ -8,7 +8,7 @@
       "id": "bsl",
       "displayName": "BSL",
       "role": "loader",
-      "priority": 2,
+      "priority": 3,
       "mutexGroup": "primary",
       "guids": [ "612eaf70-d682-43c7-9efd-16dcc695f977" ],
       "startupChecks": [
@@ -39,7 +39,7 @@
       "id": "mdl",
       "displayName": "MDL",
       "role": "mdl",
-      "priority": 2,
+      "priority": 3,
       "mutexGroup": "primary",
       "guids": [ "761188b2-c45b-4607-9241-f89ca221c47b" ],
       "entryResources": [ "mods/mdl/runtime" ]
@@ -48,7 +48,7 @@
       "id": "bml",
       "displayName": "Boot Mod Loader",
       "role": "bml",
-      "priority": 2,
+      "priority": 3,
       "mutexGroup": "primary",
       "guids": [ "3f7a2c91-6d4e-4b58-9a0c-e15b82d4f6a7" ],
       "startupChecks": [
@@ -61,9 +61,9 @@
     {
       "id": "csl",
       "displayName": "Chef Shared Loader",
-      "role": "loader",
+      "role": "csl",
       "priority": 2,
-      "mutexGroup": "primary",
+      "guestOf": "bml",
       "guids": [ "2d6f0b8e-91c4-4a37-b5e2-7c0a94f13d58" ],
       "entryResources": [ "mods/chef_shared_loader/core_1" ],
       "requiresPatterns": [ "\\b(?:Requires?|Needs)\\s+Chef\\s+Shared\\s+Loader\\b" ],
@@ -73,7 +73,7 @@
       "id": "smoothboot",
       "displayName": "SmoothBoot",
       "role": "smoothboot",
-      "priority": 3,
+      "priority": 4,
       "guids": [ "7c3e9a52-1b84-4f6a-9c2d-8e5f0a1b2c3d" ],
       "entryResources": [ "mods/codex/smoothboot" ]
     }

@@ -870,7 +870,10 @@
     <value>每個檔案的并發連接數</value>
   </data>
   <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
-    <value>伺服器支持分段時使用；檔案較小時自動減少連接。</value>
+    <value>伺服器支持分段時使用；范圍 1–256，超過 64 時會提示。檔案較小時自動減少連接。</value>
+  </data>
+  <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
+    <value>下載設定已儲存；并發連接數超過 64，可能被伺服器限速或拒絕，建議保持在 64 以內。</value>
   </data>
   <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
     <value>最小分段大小（MiB）</value>
@@ -3615,7 +3618,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>入口顯示設定已儲存並生效</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>已恢復顯示全部入口</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>鎖定載入器</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>預設開啟：固定 Lua 相依、BSL/MDL/Boot Mod Loader 和 SmoothBoot 分組及位置。關閉後可像一般模組一樣選取和排序，部署遵循儲存的順序；BSL、MDL 與 Boot Mod Loader 仍為三選一。</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>預設開啟：固定 Lua 相依、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 分組及位置。關閉後可像一般模組一樣選取和排序，部署遵循儲存的順序；BSL、MDL 與 Boot Mod Loader 仍為三選一，Chef Shared Loader 可與 Boot Mod Loader 同時啟用並固定在其之前。</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>此模組尚未發布。請稍後重試，或在 N 網查看發布狀態。</value></data>
   <data name="Browse.ModUnavailable" xml:space="preserve"><value>N 網回應此模組目前無法使用。請在 N 網查看狀態並稍後重試；API 未說明具體原因。</value></data>
   <data name="Logs.Help" xml:space="preserve"><value>選取日誌查看完整內容；篩選僅影響顯示。記錄層級在「設定 → 日誌」中設定。</value></data>

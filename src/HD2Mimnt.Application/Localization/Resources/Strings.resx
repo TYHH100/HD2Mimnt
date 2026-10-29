@@ -870,7 +870,10 @@ Deny: do not install this plugin</value>
     <value>Concurrent connections per file</value>
   </data>
   <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
-    <value>Used when the server supports segments; fewer connections are used for small files.</value>
+    <value>Used when the server supports segments. Range: 1–256; values above 64 trigger a warning. Fewer connections are used for small files.</value>
+  </data>
+  <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
+    <value>Download settings saved. More than 64 concurrent connections may be throttled or rejected by the server; keeping it at 64 or lower is recommended.</value>
   </data>
   <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
     <value>Minimum segment size (MiB)</value>
@@ -3615,7 +3618,7 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>Entry visibility saved and applied</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>All entries are visible again</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>Lock loader positions</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL/Boot Mod Loader and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order. BSL, MDL and Boot Mod Loader remain mutually exclusive.</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL/Boot Mod Loader, Chef Shared Loader and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order. BSL, MDL and Boot Mod Loader remain mutually exclusive; Chef Shared Loader can be enabled alongside Boot Mod Loader and deploys right before it.</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>This mod has not been published yet. Try again later or check its publication status on Nexus Mods.</value></data>
   <data name="Browse.ModUnavailable" xml:space="preserve"><value>Nexus Mods reports that this mod is currently unavailable. Check its status on Nexus Mods and try again later; the API did not specify the cause.</value></data>
   <data name="Logs.Help" xml:space="preserve"><value>Select an entry to read its full details. Filters affect display only. Configure recording in Settings → Logs.</value></data>

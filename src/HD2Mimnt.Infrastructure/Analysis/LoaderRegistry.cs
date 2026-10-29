@@ -26,6 +26,8 @@ public static class LoaderRegistry
         public required BslModRole Role { get; init; }
         public required int Priority { get; init; }
         public string? MutexGroup { get; init; }
+        /// <summary>从属加载器：需由该 id 的主加载器托管才能与其它加载器共存（如 Chef Shared Loader 由 Boot Mod Loader 启动）。</summary>
+        public string? GuestOf { get; init; }
         public required Guid[] Guids { get; init; }
         public ulong[] EntryHashes { get; init; } = [];
         public StartupCheck[] StartupChecks { get; init; } = [];
@@ -51,8 +53,14 @@ public static class LoaderRegistry
         public required HashSet<Guid> DependencyGuids { get; init; }
         public required HashSet<string> DependencyKeys { get; init; }
         public required HashSet<BslModRole> MutexRoles { get; init; }
-        /// <summary>互斥组加载器显示名，按配置顺序（如 “BSL / MDL / Boot Mod Loader”）。</summary>
+        /// <summary>从属加载器角色 → 托管它的主加载器角色。</summary>
+        public required IReadOnlyDictionary<BslModRole, BslModRole> GuestHosts { get; init; }
+        /// <summary>主互斥组加载器显示名，按配置顺序（如 “BSL / MDL / Boot Mod Loader”）。</summary>
         public required string LoaderNames { get; init; }
+        /// <summary>从属加载器显示名（如 “Chef Shared Loader”）。</summary>
+        public required string GuestLoaderNames { get; init; }
+        /// <summary>托管从属加载器的主加载器显示名（如 “Boot Mod Loader”）。</summary>
+        public required string HostLoaderNames { get; init; }
         /// <summary>末位部署槽位（SmoothBoot 类）加载器显示名。</summary>
         public required string SmoothBootNames { get; init; }
 
@@ -60,14 +68,28 @@ public static class LoaderRegistry
             => guid is { } value && ByGuid.TryGetValue(value, out var definition) ? definition : null;
 
         /// <summary>配置槽位的部署排序权重；配置已移除的历史角色按主加载器段兜底，不能退回普通模组段。</summary>
-        public int PriorityRank(BslModRole role) => role switch
+        public int PriorityRank(BslModRole role)
         {
-            BslModRole.None => 0,
-            BslModRole.Dependency => DependencyPriority,
-            _ => Loaders.Where(loader => loader.Role == role).Select(loader => loader.Priority).DefaultIfEmpty(2).Min()
-        };
+            if (role == BslModRole.None) return 0;
+            if (role == BslModRole.Dependency) return DependencyPriority;
+            var ranks = Loaders.Where(loader => loader.Role == role).Select(loader => loader.Priority).ToList();
+            if (ranks.Count > 0) return ranks.Min();
+            return Loaders.Where(loader => loader.MutexGroup != null).Select(loader => loader.Priority).DefaultIfEmpty(2).Min();
+        }
 
-        public bool IsMutex(BslModRole role) => MutexRoles.Contains(role);
+        /// <summary>受管理的加载器（主互斥组成员或从属加载器），部署时固定在配置页末段。</summary>
+        public bool IsLoader(BslModRole role) => MutexRoles.Contains(role) || GuestHosts.ContainsKey(role);
+
+        /// <summary>主互斥组成员：彼此只能启用一个。</summary>
+        public bool IsPrimary(BslModRole role) => MutexRoles.Contains(role);
+
+        public bool IsGuest(BslModRole role) => GuestHosts.ContainsKey(role);
+
+        public bool CanHost(BslModRole host, BslModRole guest)
+            => GuestHosts.TryGetValue(guest, out var value) && value == host;
+
+        public string DisplayNameOf(BslModRole role)
+            => Loaders.FirstOrDefault(loader => loader.Role == role)?.DisplayName ?? role.ToString();
     }
 
     private static Snapshot _snapshot = BuildSnapshot(ReadDistributed());
@@ -137,6 +159,8 @@ public static class LoaderRegistry
         var guids = new HashSet<Guid>();
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mutexRoles = new HashSet<BslModRole>();
+        var guestHosts = new Dictionary<BslModRole, BslModRole>();
+        var byId = definitions.ToDictionary(loader => loader.Id, StringComparer.OrdinalIgnoreCase);
 
         foreach (var definition in definitions)
         {
@@ -154,6 +178,13 @@ public static class LoaderRegistry
             foreach (var key in definition.DependencyKeys) keys.Add(key);
             if (definition.MutexGroup != null) mutexRoles.Add(definition.Role);
         }
+        foreach (var definition in definitions.Where(loader => loader.GuestOf != null))
+        {
+            if (!byId.TryGetValue(definition.GuestOf!, out var host) || host.MutexGroup == null)
+                throw new InvalidOperationException($"加载器 {definition.Id} 的 guestOf 指向未知或非互斥加载器: {definition.GuestOf}");
+            guestHosts[definition.Role] = host.Role;
+        }
+        var hostRoles = guestHosts.Values.ToHashSet();
 
         return new Snapshot
         {
@@ -170,7 +201,10 @@ public static class LoaderRegistry
             DependencyGuids = guids,
             DependencyKeys = keys,
             MutexRoles = mutexRoles,
+            GuestHosts = guestHosts,
             LoaderNames = string.Join(" / ", definitions.Where(item => item.MutexGroup != null).Select(item => item.DisplayName)),
+            GuestLoaderNames = string.Join(" / ", definitions.Where(item => item.GuestOf != null).Select(item => item.DisplayName)),
+            HostLoaderNames = string.Join(" / ", definitions.Where(item => hostRoles.Contains(item.Role)).Select(item => item.DisplayName)),
             SmoothBootNames = string.Join(" / ", definitions.Where(item => item.Role == BslModRole.SmoothBoot).Select(item => item.DisplayName))
         };
     }
@@ -184,6 +218,7 @@ public static class LoaderRegistry
             "loader" => BslModRole.Loader,
             "mdl" => BslModRole.MdlLoader,
             "bml" => BslModRole.BmlLoader,
+            "csl" => BslModRole.CslLoader,
             "smoothboot" => BslModRole.SmoothBoot,
             _ => throw new InvalidOperationException($"加载器配置的 role 未知: {roleText}")
         };
@@ -205,6 +240,7 @@ public static class LoaderRegistry
             Role = role,
             Priority = element.TryGetProperty("priority", out var priority) && priority.ValueKind == JsonValueKind.Number ? priority.GetInt32() : 2,
             MutexGroup = element.TryGetProperty("mutexGroup", out var mutex) && mutex.ValueKind == JsonValueKind.String ? mutex.GetString() : null,
+            GuestOf = element.TryGetProperty("guestOf", out var guest) && guest.ValueKind == JsonValueKind.String ? guest.GetString() : null,
             Guids = guids,
             EntryHashes = StringArray(element, "entryResources").Select(BslModDetector.ResourceHash).ToArray(),
             StartupChecks = startupChecks,

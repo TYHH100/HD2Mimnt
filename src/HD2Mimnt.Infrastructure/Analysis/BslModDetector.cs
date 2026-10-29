@@ -17,6 +17,7 @@ public static partial class BslModDetector
     public static readonly Guid MdlGuid = new("761188b2-c45b-4607-9241-f89ca221c47b");
     public static readonly Guid SmoothBootGuid = new("7c3e9a52-1b84-4f6a-9c2d-8e5f0a1b2c3d");
     public static readonly Guid BootModLoaderGuid = new("3f7a2c91-6d4e-4b58-9a0c-e15b82d4f6a7");
+    public static readonly Guid CslGuid = new("2d6f0b8e-91c4-4a37-b5e2-7c0a94f13d58");
 
     public static int DetectionVersion => LoaderRegistry.Current.RuleVersion;
     public static BslModRole? KnownRole(Guid? guid) => LoaderRegistry.Current.DefinitionOf(guid)?.Role;

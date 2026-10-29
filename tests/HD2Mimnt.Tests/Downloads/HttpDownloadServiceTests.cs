@@ -268,13 +268,21 @@ public sealed class HttpDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public void DownloadOptions_MaxParallelSegments_Should_Allow_Up_To_256()
+    {
+        new DownloadOptions { MaxParallelSegments = 256 }.Validate();
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new DownloadOptions { MaxParallelSegments = 257 }.Validate());
+    }
+
+    [Fact]
     public async Task DownloadAsync_Invalid_Options_Should_Fail_Before_Network_IO()
     {
         using var client = new HttpClient(new Handler((_, _) => throw new Xunit.Sdk.XunitException("Unexpected request")));
         var service = new HttpDownloadService(client);
         await Assert.ThrowsAsync<ArgumentException>(() => service.DownloadAsync(new Uri("file:///mod.zip")));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.DownloadAsync(Address,
-            new DownloadOptions { MaxParallelSegments = 17 }));
+            new DownloadOptions { MaxParallelSegments = 257 }));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.DownloadAsync(Address,
             new DownloadOptions { MinimumSegmentSize = 0 }));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.DownloadAsync(Address,

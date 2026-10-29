@@ -325,6 +325,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     EnableResume = DownloadEnableResume
                 };
                 await _downloadSettingsService.SaveAsync(downloads);
+                if (DownloadParallelSegments > DownloadOptions.ParallelSegmentsWarningThreshold)
+                {
+                    StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Download.HighConcurrencyWarning"];
+                    _notificationService.ShowWarning(StatusMessage, "设置");
+                    return;
+                }
                 StatusMessage = "下载设置已保存，下次下载生效";
             }
             else if (category == "游戏")

@@ -19,7 +19,7 @@ public sealed class DownloadSettingsService(SettingsService settingsService) : I
         var defaults = new DownloadOptions();
         var options = new DownloadOptions
         {
-            MaxParallelSegments = Math.Clamp(Read(SettingKeys.DownloadParallelSegments, defaults.MaxParallelSegments), 1, 16),
+            MaxParallelSegments = Math.Clamp(Read(SettingKeys.DownloadParallelSegments, defaults.MaxParallelSegments), 1, DownloadOptions.MaxAllowedParallelSegments),
             MinimumSegmentSize = Math.Clamp(Read(SettingKeys.DownloadSegmentSizeMiB, 4), 1, 256) * 1024L * 1024,
             MaxRetries = Math.Clamp(Read(SettingKeys.DownloadMaxRetries, defaults.MaxRetries), 0, 10),
             RetryDelay = TimeSpan.FromMilliseconds(Math.Clamp(Read(SettingKeys.DownloadRetryDelayMs, 500), 0, 60000)),
