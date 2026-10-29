@@ -366,12 +366,19 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 if (hasUv && source.ColorTextureId is { } textureId &&
                     scene.Textures.TryGetValue(textureId, out var texture) && texture.BgraPixels is not null)
                 {
-                    if (!_textures.TryGetValue(textureId, out var gpuTexture))
+                    // 原始分辨率可能超过 GPU 上限，跳过该贴图比让整场渲染失败更安全。
+                    if (texture.Width > maxTextureSize || texture.Height > maxTextureSize)
+                        System.Diagnostics.Trace.TraceWarning("Texture {0:x16} {1}x{2} exceeds max texture size {3}; skipped.",
+                            textureId, texture.Width, texture.Height, maxTextureSize);
+                    else
                     {
-                        gpuTexture = UploadTexture(gl, api, texture, maxTextureSize);
-                        _textures.Add(textureId, gpuTexture);
+                        if (!_textures.TryGetValue(textureId, out var gpuTexture))
+                        {
+                            gpuTexture = UploadTexture(gl, api, texture, maxTextureSize);
+                            _textures.Add(textureId, gpuTexture);
+                        }
+                        mesh.Texture = gpuTexture;
                     }
-                    mesh.Texture = gpuTexture;
                 }
             }
             _meshes.Add(mesh);

@@ -632,7 +632,7 @@ public partial class ModService
 
     #region Metadata Operations
 
-    public async Task UpdateModMetadataAsync(
+    public async Task<Mod> UpdateModMetadataAsync(
         Guid id,
         string? name = null,
         string? description = null,
@@ -641,21 +641,27 @@ public partial class ModService
         ModCategory? category = null,
         CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
+            if (mod == null)
+            {
+                throw new InvalidOperationException($"Mod not found: {id}");
+            }
+
+            if (name != null) mod.Name = name;
+            if (description != null) mod.Description = description;
+            if (author != null) mod.Author = author;
+            if (version != null) mod.Version = version;
+            if (category.HasValue) mod.Category = category.Value;
+
+            mod.ModifiedAt = DateTime.UtcNow;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
+            return mod;
         }
-
-        if (name != null) mod.Name = name;
-        if (description != null) mod.Description = description;
-        if (author != null) mod.Author = author;
-        if (version != null) mod.Version = version;
-        if (category.HasValue) mod.Category = category.Value;
-
-        mod.ModifiedAt = DateTime.UtcNow;
-        await _modRepository.UpdateAsync(mod, cancellationToken);
-        RaiseModsChanged();
+        finally { _mutationGate.Release(); }
     }
 
     #endregion
@@ -709,40 +715,50 @@ public partial class ModService
 
     public async Task<string?> GenerateThumbnailAsync(Guid modId, CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            return null;
-        }
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+            if (mod == null)
+            {
+                return null;
+            }
 
-        var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
-        if (thumbnailPath != null)
-        {
-            mod.ThumbnailPath = thumbnailPath;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
-            RaiseModsChanged();
-        }
+            var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
+            if (thumbnailPath != null)
+            {
+                mod.ThumbnailPath = thumbnailPath;
+                await _modRepository.UpdateAsync(mod, cancellationToken);
+                RaiseModsChanged();
+            }
 
-        return thumbnailPath;
+            return thumbnailPath;
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task<string?> SetCustomThumbnailAsync(Guid modId, string imagePath, CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            return null;
-        }
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+            if (mod == null)
+            {
+                return null;
+            }
 
-        var thumbnailPath = await _thumbnailService.CreateThumbnailFromImageAsync(modId, imagePath, cancellationToken);
-        if (thumbnailPath != null)
-        {
-            mod.ThumbnailPath = thumbnailPath;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
-            RaiseModsChanged();
-        }
+            var thumbnailPath = await _thumbnailService.CreateThumbnailFromImageAsync(modId, imagePath, cancellationToken);
+            if (thumbnailPath != null)
+            {
+                mod.ThumbnailPath = thumbnailPath;
+                await _modRepository.UpdateAsync(mod, cancellationToken);
+                RaiseModsChanged();
+            }
 
-        return thumbnailPath;
+            return thumbnailPath;
+        }
+        finally { _mutationGate.Release(); }
     }
 
     /// <summary>读取卡片所对应的原始图片，放大预览不读取生成的缩略图。</summary>

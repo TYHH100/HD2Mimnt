@@ -170,6 +170,22 @@ public partial class ProfileModViewModel : ObservableObject
         HasOptions = ProfileModOptionResolver.HasOptions(manifest);
     }
 
+    /// <summary>图片文件已替换但路径不变，丢弃当前位图并按新的修改时间重新解码。</summary>
+    public async Task ReloadIconAsync(CancellationToken cancellationToken = default)
+    {
+        Icon = null;
+        if (string.IsNullOrEmpty(ThumbnailPath)) return;
+        try
+        {
+            Icon = await ModImageCache.DecodeAsync(ThumbnailPath, 256, cancellationToken);
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            // 图标加载失败，保持为 null
+        }
+    }
+
     /// <summary>与库页共享缩略图解码缓存；失败保持 null 以显示序号占位。</summary>
     public async Task LoadIconAsync(CancellationToken cancellationToken = default)
     {

@@ -16,6 +16,8 @@ namespace HD2Mimnt.UI.ViewModels;
 public sealed record ModelPreviewScene(IReadOnlyList<ModelPreviewMesh> Meshes,
     IReadOnlyDictionary<ulong, TexturePreviewData> Textures, Matrix4x4 PresentationTransform);
 
+public sealed record ModelPreviewResolutionOption(string Display, int Value);
+
 public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
 {
     private readonly ModelPreviewService _service;
@@ -58,7 +60,11 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty] private ModelPreviewMeshRow? _selectedMesh;
     [ObservableProperty] private int _textureResolution = 1024;
     [ObservableProperty] private int _legacySelectedIndex;
-    public int[] TextureResolutions { get; } = [512, 1024, 2048];
+    public IReadOnlyList<ModelPreviewResolutionOption> TextureResolutions { get; } =
+    [
+        new("512", 512), new("1024", 1024), new("2048", 2048),
+        new("Original", ModelPreviewService.OriginalTextureResolution)
+    ];
     public ObservableCollection<ModelPreviewOptionRow> Options { get; } = [];
     public ObservableCollection<ModelPreviewMeshRow> Meshes { get; } = [];
     public ObservableCollection<string> LegacyOptions { get; } = [];
@@ -170,7 +176,10 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             try
             {
                 using var stream = new MemoryStream(bytes);
-                using var bitmap = Bitmap.DecodeToWidth(stream, Math.Min(resolution, texture.Width));
+                var targetWidth = resolution == ModelPreviewService.OriginalTextureResolution
+                    ? texture.Width
+                    : Math.Min(resolution, texture.Width);
+                using var bitmap = Bitmap.DecodeToWidth(stream, targetWidth);
                 using var converted = new WriteableBitmap(bitmap.PixelSize, bitmap.Dpi,
                     Avalonia.Platform.PixelFormat.Bgra8888, Avalonia.Platform.AlphaFormat.Unpremul);
                 using var buffer = converted.Lock();

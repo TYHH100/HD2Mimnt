@@ -1,9 +1,10 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Raw;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FluentAvalonia.UI.Controls;
@@ -239,5 +240,207 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.False(vm.IsDetailPanelOpen);
         Assert.False(detail.IsCalculatingHash);
         await vm.CloseModDetailAsync();
+    }
+
+    /// <summary>排空事件触发的刷新和它再投递到 UI 线程的任务，避免测试清理时仍有连接占用临时数据库。</summary>
+    private static async Task SettleUiAsync(MainWindowViewModel main)
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await main.WaitForRefreshesAsync();
+            await Task.Delay(40);
+        }
+        Dispatcher.UIThread.RunJobs();
+        await main.WaitForRefreshesAsync();
+    }
+
+    [AvaloniaFact]
+    public async Task ProfileModDetails_ShouldEditNameAndDescriptionWithoutClosingPanel()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        var mod = vm.ProfileMods.First(row => !row.IsSeparator);
+        vm.ShowModDetailCommand.Execute(mod);
+        var detail = vm.SelectedModDetail!;
+        Assert.False(detail.IsEditingMetadata);
+
+        detail.BeginEditMetadataCommand.Execute(null);
+        Assert.True(detail.IsEditingMetadata);
+        Assert.Equal(detail.Name, detail.EditName);
+        detail.EditName = "详情中改名";
+        detail.EditDescription = "详情中改描述";
+        await detail.SaveMetadataCommand.ExecuteAsync(null);
+
+        Assert.False(detail.IsEditingMetadata);
+        Assert.True(vm.IsDetailPanelOpen);
+        Assert.Same(detail, vm.SelectedModDetail);
+        Assert.Equal("详情中改名", detail.Name);
+        Assert.Equal("详情中改描述", detail.Description);
+        Assert.Equal("详情中改名", mod.ModName);
+
+        var saved = await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(mod.ModId);
+        Assert.Equal("详情中改名", saved!.Name);
+        Assert.Equal("详情中改描述", saved.Description);
+        await vm.CloseModDetailAsync();
+        await SettleUiAsync(main);
+    }
+
+    [AvaloniaFact]
+    public async Task ProfileModDetails_ShouldEditInlineThroughDetailPanelControls()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1200, Height = 950 };
+        try
+        {
+            window.Show();
+            void Layout()
+            { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            void Click(Control control)
+            {
+                control.BringIntoView(); Layout();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left); Layout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var mod = vm.ProfileMods.First(row => !row.IsSeparator);
+            view.FindControl<ItemsControl>("ModItemsControl")!.ScrollIntoView(mod); Layout();
+            vm.ShowModDetailCommand.Execute(mod); Layout();
+            var panel = view.GetVisualDescendants().OfType<ModDetailPanel>().Single();
+            var detail = vm.SelectedModDetail!;
+
+            var editButton = panel.FindControl<Button>("EditModInfoButton")!;
+            Assert.True(editButton.IsEffectivelyVisible);
+            Click(editButton);
+            var nameInput = panel.FindControl<TextBox>("EditModNameInput")!;
+            var descriptionInput = panel.FindControl<TextBox>("EditModDescriptionInput")!;
+            Assert.True(nameInput.IsEffectivelyVisible);
+            Assert.True(descriptionInput.IsEffectivelyVisible);
+            nameInput.Text = "界面改名";
+            descriptionInput.Text = "界面描述";
+            Click(panel.FindControl<Button>("SaveModMetadataButton")!);
+
+            for (var attempt = 0; attempt < 100 && detail.IsEditingMetadata; attempt++) await Task.Delay(20);
+            Assert.False(detail.IsEditingMetadata);
+            Assert.Equal("界面改名", detail.Name);
+            Assert.Equal("界面描述", detail.Description);
+            Assert.True(vm.IsDetailPanelOpen);
+            Assert.False(nameInput.IsEffectivelyVisible);
+            Assert.True(panel.FindControl<Button>("EditModInfoButton")!.IsEffectivelyVisible);
+            var saved = await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(mod.ModId);
+            Assert.Equal("界面改名", saved!.Name);
+            Assert.Equal("界面描述", saved.Description);
+        }
+        finally
+        {
+            await vm.CloseModDetailAsync();
+            window.DataContext = null;
+            window.Close();
+            await SettleUiAsync(main);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task LibraryModDetails_ShouldEditMetadataAndRefreshSearchIndex()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var library = main.LibraryViewModel;
+        var mod = library.FilteredMods.First();
+        library.ShowModDetailCommand.Execute(mod);
+        var detail = library.SelectedModDetail!;
+
+        detail.BeginEditMetadataCommand.Execute(null);
+        detail.EditName = "库页改名";
+        detail.EditDescription = "库页描述";
+        await detail.SaveMetadataCommand.ExecuteAsync(null);
+
+        Assert.False(detail.IsEditingMetadata);
+        Assert.True(library.IsDetailPanelOpen);
+        Assert.Same(detail, library.SelectedModDetail);
+        Assert.Equal("库页改名", detail.Name);
+        Assert.Contains(library.FilteredMods, item => ReferenceEquals(item, detail));
+        var found = await scope.Services.GetRequiredService<SearchService>().SearchAsync("库页改名");
+        Assert.Contains(found, item => item.Id == mod.Id);
+
+        var saved = await scope.Services.GetRequiredService<ModService>().GetModByIdAsync(mod.Id);
+        Assert.Equal("库页改名", saved!.Name);
+        Assert.Equal("库页描述", saved.Description);
+        library.CloseDetailPanelCommand.Execute(null);
+        await SettleUiAsync(main);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ModDetails_ShouldChangeAndRestoreImageFromEitherPage(bool profilePage)
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var mods = scope.Services.GetRequiredService<ModService>();
+        var imagePath = Path.Combine(scope.Root, "custom-cover.png");
+        using (var image = new WriteableBitmap(new PixelSize(32, 32), new Vector(96, 96)))
+            image.Save(imagePath);
+
+        ModItemViewModel detail;
+        ProfileModViewModel? row = null;
+        if (profilePage)
+        {
+            row = main.ProfileViewModel.ProfileMods.First(item => !item.IsSeparator);
+            main.ProfileViewModel.ShowModDetailCommand.Execute(row);
+            detail = main.ProfileViewModel.SelectedModDetail!;
+            await main.ProfileViewModel.ChangeModImageAsync(detail, imagePath);
+
+            Assert.True(main.ProfileViewModel.IsDetailPanelOpen);
+            Assert.False(string.IsNullOrEmpty(row.ThumbnailPath));
+            Assert.NotNull(row.Icon);
+            Assert.NotNull(detail.Icon);
+        }
+        else
+        {
+            detail = main.LibraryViewModel.FilteredMods.First();
+            main.LibraryViewModel.ShowModDetailCommand.Execute(detail);
+            await main.LibraryViewModel.ChangeModImageAsync(detail, imagePath);
+
+            Assert.True(main.LibraryViewModel.IsDetailPanelOpen);
+            Assert.False(string.IsNullOrEmpty(detail.ThumbnailPath));
+            Assert.NotNull(detail.Icon);
+        }
+
+        var saved = (await mods.GetModByIdAsync(detail.Id))!;
+        Assert.Equal(detail.ThumbnailPath, saved.ThumbnailPath);
+        Assert.True(File.Exists(saved.ThumbnailPath));
+        Assert.Equal($"{detail.Id}.png", Path.GetFileName(saved.ThumbnailPath));
+
+        var modPath = saved.Path;
+        Directory.CreateDirectory(modPath);
+        var originalPath = Path.Combine(modPath, "cover.png");
+        using (var image = new WriteableBitmap(new PixelSize(24, 24), new Vector(96, 96)))
+            image.Save(originalPath);
+        if (profilePage)
+        {
+            await main.ProfileViewModel.RestoreModImageAsync(detail);
+            Assert.True(main.ProfileViewModel.IsDetailPanelOpen);
+            Assert.Equal(saved.ThumbnailPath, detail.ThumbnailPath);
+            Assert.NotNull(row!.Icon);
+        }
+        else
+        {
+            await main.LibraryViewModel.RestoreModImageAsync(detail);
+            Assert.True(main.LibraryViewModel.IsDetailPanelOpen);
+            Assert.Equal(saved.ThumbnailPath, detail.ThumbnailPath);
+        }
+        Assert.Equal(saved.ThumbnailPath, (await mods.GetModByIdAsync(detail.Id))!.ThumbnailPath);
+        if (profilePage) await main.ProfileViewModel.CloseModDetailAsync();
+        else main.LibraryViewModel.CloseDetailPanelCommand.Execute(null);
+        await SettleUiAsync(main);
     }
 }

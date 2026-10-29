@@ -218,6 +218,44 @@ public sealed class ModelPreviewServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadTexturesAsync_OriginalResolutionUsesSourcePixelCountAsBudget()
+    {
+        var texture = Texture(1, width: 640, height: 360);
+        var pixels = new List<int>();
+        _reader.Setup(reader => reader.PreviewTextureAsync(It.IsAny<DirectoryInfo>(), It.IsAny<TextureInspectionItem>(),
+                It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Callback<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, _, requested, _) => pixels.Add(requested))
+            .ReturnsAsync(new TexturePreviewData { Width = 640, Height = 360, BgraPixels = new byte[640 * 360 * 4], Description = "DDS" });
+
+        var result = await _service.LoadTexturesAsync(_mod.Id, [texture], [1],
+            maxDimension: ModelPreviewService.OriginalTextureResolution);
+
+        Assert.Single(result);
+        Assert.Equal(640 * 360, Assert.Single(pixels));
+    }
+
+    [Fact]
+    public async Task LoadTexturesAsync_OriginalResolutionAllowsLargerTotalBudget()
+    {
+        var textures = Enumerable.Range(1, 5).Select(id => Texture((ulong)id, width: 2048, height: 2048)).ToArray();
+        _reader.Setup(reader => reader.PreviewTextureAsync(It.IsAny<DirectoryInfo>(), It.IsAny<TextureInspectionItem>(),
+                It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TexturePreviewData
+            {
+                Width = 2048, Height = 2048, EncodedImageBytes = [1], Description = "Size-only fixture"
+            });
+
+        var ids = textures.Select(texture => texture.TextureId).ToArray();
+        var capped = await _service.LoadTexturesAsync(_mod.Id, textures, ids, maxDimension: 2048);
+        var original = await _service.LoadTexturesAsync(_mod.Id, textures, ids,
+            maxDimension: ModelPreviewService.OriginalTextureResolution);
+
+        // 每张按 2048² × 4 字节计费：固定档 64 MiB 只容得下 4 张，原始档 256 MiB 可全部载入。
+        Assert.Equal(4, capped.Count);
+        Assert.Equal(5, original.Count);
+    }
+
+    [Fact]
     public async Task Reader_RejectsPatchAndTexturePathsOutsideModRoot()
     {
         var reader = new PatchResourceInspectionService();
@@ -266,14 +304,15 @@ public sealed class ModelPreviewServiceTests : IDisposable
         Assert.Equal(new[] { 0, 1, 2 }, mesh.TriangleIndices);
     }
 
-    private TextureInspectionItem Texture(ulong id, int patchOrder = 0, string? patchPath = null)
+    private TextureInspectionItem Texture(ulong id, int patchOrder = 0, string? patchPath = null,
+        int width = 1, int height = 1)
     {
         var path = patchPath ?? Path.Combine(_root, $"1234567890abcdef.patch_{patchOrder}");
         return new TextureInspectionItem
         {
             PatchFile = Path.GetFileName(path), PatchPath = path, PatchOrder = patchOrder, TocEntryIndex = 1,
             TextureId = id, MainOffset = 0, MainSize = 0, GpuOffset = 0, GpuSize = 4,
-            StreamOffset = 0, StreamSize = 0, Width = 1, Height = 1, MipCount = 1,
+            StreamOffset = 0, StreamSize = 0, Width = width, Height = height, MipCount = 1,
             DxgiFormat = 28, PayloadKind = "DDS", PayloadSource = "gpu_resources"
         };
     }

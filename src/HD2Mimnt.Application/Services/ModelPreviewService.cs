@@ -8,6 +8,11 @@ namespace HD2Mimnt.Application.Services;
 public sealed class ModelPreviewService(IModRepository mods, IProfileRepository profiles, IModelPreviewReader reader,
     ILogger<ModelPreviewService>? logger = null)
 {
+    public const int OriginalTextureResolution = 0;
+    private const int TextureBudgetBytes = 64 * 1024 * 1024;
+    // 原始分辨率不再降采样，64 MiB 只够一张 4K 贴图；放大总预算以覆盖常见角色材质组。
+    private const int OriginalTextureBudgetBytes = 4 * TextureBudgetBytes;
+
     public async Task<ModelPreviewSource> GetSourceAsync(Guid modId, Guid? profileId = null, CancellationToken cancellationToken = default)
     {
         var mod = await GetModAsync(modId, cancellationToken);
@@ -48,20 +53,25 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
         IReadOnlyList<TextureInspectionItem> textures, IReadOnlyCollection<ulong> textureIds,
         int maxDimension = 1024, CancellationToken cancellationToken = default)
     {
-        if (maxDimension is not (512 or 1024 or 2048)) throw new ArgumentOutOfRangeException(nameof(maxDimension));
+        if (maxDimension is not (OriginalTextureResolution or 512 or 1024 or 2048))
+            throw new ArgumentOutOfRangeException(nameof(maxDimension));
         var mod = await GetModAsync(modId, cancellationToken);
         var index = ModelPreviewTextureIndex.Create(textures);
         var result = new Dictionary<ulong, TexturePreviewData>();
+        var budget = maxDimension == OriginalTextureResolution ? OriginalTextureBudgetBytes : TextureBudgetBytes;
         long bytes = 0;
         foreach (var id in textureIds.Distinct())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (bytes >= 64 * 1024 * 1024) break;
+            if (bytes >= budget) break;
             if (!index.TryGetValue(id, out var texture)) continue;
             TexturePreviewData? decoded;
             try
             {
-                var pixelBudget = (int)Math.Min(maxDimension * maxDimension, (64 * 1024 * 1024 - bytes) / 4);
+                var requestedPixels = maxDimension == OriginalTextureResolution
+                    ? Math.Max((long)texture.Width * texture.Height, 256)
+                    : (long)maxDimension * maxDimension;
+                var pixelBudget = (int)Math.Min(requestedPixels, (budget - bytes) / 4);
                 if (pixelBudget < 256) break;
                 decoded = await reader.PreviewTextureAsync(new DirectoryInfo(mod.Path), texture,
                     pixelBudget, cancellationToken);
@@ -73,7 +83,7 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
             }
             if (decoded is null) continue;
             var size = decoded.BgraPixels?.LongLength ?? (long)decoded.Width * decoded.Height * 4;
-            if (size > 64 * 1024 * 1024 - bytes) continue;
+            if (size > budget - bytes) continue;
             result.Add(id, decoded);
             bytes += size;
         }

@@ -55,6 +55,18 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.True(preview.Scene.Meshes[0].VertexCount > 24);
 
             var overlay = window.FindControl<ModelPreviewOverlay>("ModelPreviewOverlay")!;
+            var resolutionBox = overlay.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => box.ItemsSource is IReadOnlyList<ModelPreviewResolutionOption>);
+            Assert.Equal([512, 1024, 2048, ModelPreviewService.OriginalTextureResolution],
+                resolutionBox.ItemsSource!.Cast<ModelPreviewResolutionOption>().Select(option => option.Value));
+            Assert.Equal(1024, resolutionBox.SelectedValue);
+            Assert.Contains(resolutionBox.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "1024");
+            resolutionBox.SelectedValue = ModelPreviewService.OriginalTextureResolution;
+            Assert.Equal(ModelPreviewService.OriginalTextureResolution, preview.TextureResolution);
+            RenderModelPreviewWindow(window);
+            Assert.Contains(resolutionBox.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text == HD2Mimnt.UI.Localization.UiLocalization.Current["ModelPreview.OriginalResolution"]);
+            resolutionBox.SelectedValue = 1024;
             ClickVersionControl(window, overlay.FindControl<Button>("CloseModelPreviewButton")!);
             await preview.CloseCommand.ExecutionTask!;
             AssertModelPreviewClosed(window, main, viewport);
@@ -306,6 +318,30 @@ public sealed partial class FluentAvaloniaUiTests
         var result = (IReadOnlyDictionary<ulong, TexturePreviewData>)normalize.Invoke(null, [source, 512, CancellationToken.None])!;
         var actual = Assert.Single(result).Value.BgraPixels!;
         for (var index = 0; index < pixels.Length; index++) Assert.InRange(Math.Abs(actual[index] - pixels[index]), 0, 1);
+    }
+
+    [AvaloniaFact]
+    public void ModelPreview_PngNormalizationDecodesOriginalResolutionWithoutDownscale()
+    {
+        using var bitmap = new Avalonia.Media.Imaging.WriteableBitmap(new PixelSize(4, 2), new Vector(96, 96),
+            Avalonia.Platform.PixelFormat.Bgra8888, Avalonia.Platform.AlphaFormat.Unpremul);
+        using (var buffer = bitmap.Lock())
+        {
+            byte[] pixels = Enumerable.Repeat((byte)128, buffer.RowBytes * bitmap.PixelSize.Height).ToArray();
+            System.Runtime.InteropServices.Marshal.Copy(pixels, 0, buffer.Address, pixels.Length);
+        }
+        using var stream = new MemoryStream();
+        bitmap.Save(stream);
+        var source = new Dictionary<ulong, TexturePreviewData> { [1] = new()
+            { Width = 4, Height = 2, Description = "PNG", EncodedImageBytes = stream.ToArray() } };
+        var normalize = typeof(ModelPreviewViewModel).GetMethod("NormalizeTextures",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var result = (IReadOnlyDictionary<ulong, TexturePreviewData>)normalize.Invoke(null,
+            [source, ModelPreviewService.OriginalTextureResolution, CancellationToken.None])!;
+        var texture = Assert.Single(result).Value;
+        Assert.Equal(4, texture.Width);
+        Assert.Equal(2, texture.Height);
+        Assert.Equal(4 * 2 * 4, texture.BgraPixels!.Length);
     }
 
     private static async Task<Guid> ImportModelPreviewMod(UiScope scope, string name)

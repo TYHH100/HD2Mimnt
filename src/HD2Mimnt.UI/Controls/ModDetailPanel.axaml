@@ -44,11 +44,19 @@
                      FontWeight="Bold"
                      Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-          <Button Grid.Column="2"
-                  Content="✕"
-                  Classes="icon-button"
-                  Command="{Binding CloseDetailPanelCommand}"
-                  ToolTip.Tip="{loc:Loc Common.Close}"/>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+            <Button x:Name="EditModInfoButton"
+                    Classes="icon-button"
+                    Command="{Binding BeginEditMetadataCommand}"
+                    IsVisible="{Binding !IsEditingMetadata}"
+                    ToolTip.Tip="{loc:Loc UI.EditModInfo}">
+              <controls:UtilityIcon Kind="Edit" Width="14" Height="14"/>
+            </Button>
+            <Button Content="✕"
+                    Classes="icon-button"
+                    Command="{Binding CloseDetailPanelCommand}"
+                    ToolTip.Tip="{loc:Loc Common.Close}"/>
+          </StackPanel>
         </Grid>
 
         <!-- Mod Icon -->
@@ -59,13 +67,29 @@
                     CornerRadius="6"
                     ClipToBounds="True"
                     HorizontalAlignment="Center"
-                    Margin="0,0,0,16"
+                    Margin="0,0,0,12"
                     Tapped="Icon_Tapped"
                     Cursor="Hand"
                     ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
               <Image Source="{Binding IconBitmap}"
                      Stretch="UniformToFill"/>
             </Border>
+
+            <StackPanel Orientation="Horizontal"
+                        Spacing="8"
+                        HorizontalAlignment="Center"
+                        Margin="0,0,0,16">
+              <Button x:Name="ChangeModImageButton"
+                      Content="{loc:Loc UI.ChangeImage}"
+                      Classes="secondary"
+                      Click="ChangeImage_Click"
+                      IsEnabled="{Binding !IsChangingImage}"/>
+              <Button x:Name="RestoreModImageButton"
+                      Content="{loc:Loc UI.RestoreModImage}"
+                      Classes="tertiary"
+                      Click="RestoreImage_Click"
+                      IsEnabled="{Binding !IsChangingImage}"/>
+            </StackPanel>
 
             <!-- Mod Name -->
             <TextBlock Text="{Binding Name}"
@@ -152,6 +176,13 @@
                        Foreground="{DynamicResource TextPrimaryBrush}"
                        Margin="0,0,0,12"/>
 
+            <StackPanel IsVisible="{Binding IsEditingMetadata}">
+              <TextBlock Text="{loc:Loc UI.Name}" Classes="detail-label"/>
+              <TextBox x:Name="EditModNameInput"
+                       Text="{Binding EditName, Mode=TwoWay}"
+                       Margin="0,0,0,16"/>
+            </StackPanel>
+
             <TextBlock Text="{loc:Loc UI.Author}" Classes="detail-label"/>
             <TextBlock Text="{Binding Author}" Classes="detail-value"/>
 
@@ -159,7 +190,18 @@
             <TextBlock Text="{loc:LocalizedBinding CategoryDisplay, TranslateParts=True}" Classes="detail-value" TextWrapping="Wrap" ToolTip.Tip="{loc:LocalizedBinding ResourceTypeDetails, TranslateParts=True}"/>
 
             <TextBlock Text="{loc:Loc UI.Description}" Classes="detail-label"/>
-            <TextBlock Text="{Binding Description}" Classes="detail-value"/>
+            <TextBlock Text="{Binding Description}"
+                       Classes="detail-value"
+                       IsVisible="{Binding !IsEditingMetadata}"/>
+            <TextBox x:Name="EditModDescriptionInput"
+                     Text="{Binding EditDescription, Mode=TwoWay}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     MinHeight="72"
+                     MaxHeight="160"
+                     IsVisible="{Binding IsEditingMetadata}"
+                     PlaceholderText="{loc:Loc UI.Description}"
+                     Margin="0,0,0,12"/>
             <StackPanel IsVisible="{Binding IsHd2Ir}" Spacing="6" Margin="0,0,0,16">
               <TextBlock Text="{loc:Loc Hd2Ir.Components}" Classes="detail-label"/>
               <TextBlock Text="{loc:Loc Hd2Ir.DeploymentDescription}" TextWrapping="Wrap" Classes="caption-text"/>
@@ -193,6 +235,21 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8"
+                        IsVisible="{Binding IsEditingMetadata}">
+              <Button Content="{loc:Loc Common.Cancel}"
+                      Command="{Binding CancelEditMetadataCommand}"
+                      Classes="secondary"
+                      IsEnabled="{Binding !IsSavingMetadata}"/>
+              <Button x:Name="SaveModMetadataButton"
+                      Content="{loc:Loc Common.Save}"
+                      Command="{Binding SaveMetadataCommand}"
+                      Classes="accent"
+                      IsEnabled="{Binding !IsSavingMetadata}"/>
+            </StackPanel>
           </StackPanel>
         </Border>
 

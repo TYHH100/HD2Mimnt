@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -65,6 +66,8 @@ public partial class ProfileViewModel
             ModUpdatesRequested?.Invoke(this, detail);
             return Task.CompletedTask;
         });
+        detail.SaveMetadataHandler = SaveModMetadataAsync;
+        detail.IsEditingMetadata = false;
         SelectedModDetail = detail;
         IsDetailPanelOpen = true;
         var cancellation = new CancellationTokenSource();
@@ -110,6 +113,99 @@ public partial class ProfileViewModel
             }
             cancellation.Dispose();
         }
+    }
+
+    /// <summary>详情面板内联编辑名称/描述：就地更新卡片，并抑制 ModsChanged 触发的整页重载。</summary>
+    private async Task<bool> SaveModMetadataAsync(ModItemViewModel mod, string name, string description)
+    {
+        if (SelectedProfile == null || !ProfileMods.Any(row => row.ModId == mod.Id)) return false;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            _notificationService.ShowWarning("模组名称不能为空", "编辑模组");
+            return false;
+        }
+        try
+        {
+            Mod saved;
+            _suppressProfilesChangedRefresh = true;
+            try { saved = await _modService.UpdateModMetadataAsync(mod.Id, name: name, description: description); }
+            finally { _suppressProfilesChangedRefresh = false; }
+            mod.ApplyMetadata(saved);
+            var row = ProfileMods.FirstOrDefault(row => row.ModId == mod.Id);
+            if (row != null) row.ModName = saved.Name;
+            ApplyModFilter();
+            _notificationService.ShowSuccess("模组信息已更新", "编辑模组");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"保存失败: {ex.Message}", "编辑模组");
+            return false;
+        }
+    }
+
+    public async Task ChangeModImageAsync(ModItemViewModel mod, string imagePath)
+    {
+        if (mod.IsChangingImage || !ProfileMods.Any(row => row.ModId == mod.Id)) return;
+        mod.IsChangingImage = true;
+        try
+        {
+            string? thumbnailPath;
+            _suppressProfilesChangedRefresh = true;
+            try { thumbnailPath = await _modService.SetCustomThumbnailAsync(mod.Id, imagePath); }
+            finally { _suppressProfilesChangedRefresh = false; }
+            if (thumbnailPath == null)
+            {
+                _notificationService.ShowError("无法使用所选图片，请选择有效的 PNG、JPG 或 BMP 图片。", "更换图片");
+                return;
+            }
+            await ApplyThumbnailAsync(mod, thumbnailPath);
+            _notificationService.ShowSuccess("已更换模组图片", "更换图片");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"更换图片失败: {ex.Message}", "更换图片");
+        }
+        finally { mod.IsChangingImage = false; }
+    }
+
+    public async Task RestoreModImageAsync(ModItemViewModel mod)
+    {
+        if (mod.IsChangingImage || !ProfileMods.Any(row => row.ModId == mod.Id)) return;
+        mod.IsChangingImage = true;
+        try
+        {
+            string? thumbnailPath;
+            _suppressProfilesChangedRefresh = true;
+            try { thumbnailPath = await _modService.GenerateThumbnailAsync(mod.Id); }
+            finally { _suppressProfilesChangedRefresh = false; }
+            if (thumbnailPath == null)
+            {
+                _notificationService.ShowWarning("模组目录中没有可用图片，无法恢复默认图片。", "恢复默认图片");
+                return;
+            }
+            await ApplyThumbnailAsync(mod, thumbnailPath);
+            _notificationService.ShowSuccess("已恢复模组默认图片", "恢复默认图片");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"恢复默认图片失败: {ex.Message}", "恢复默认图片");
+        }
+        finally { mod.IsChangingImage = false; }
+    }
+
+    private async Task ApplyThumbnailAsync(ModItemViewModel mod, string thumbnailPath)
+    {
+        mod.SetThumbnailPath(thumbnailPath);
+        var row = ProfileMods.FirstOrDefault(row => row.ModId == mod.Id);
+        if (row == null)
+        {
+            await mod.ReloadIconAsync();
+            return;
+        }
+        row.ThumbnailPath = thumbnailPath;
+        // 卡片的 Icon 变更会同步回 SourceInfo（详情面板）。
+        await row.ReloadIconAsync();
     }
 
     [RelayCommand]

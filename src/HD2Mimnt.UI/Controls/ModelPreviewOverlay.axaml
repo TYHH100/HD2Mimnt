@@ -38,7 +38,9 @@
                 </ScrollViewer>
                 <StackPanel Grid.Row="2" Spacing="8" IsEnabled="{Binding !IsBusy}">
                   <TextBlock Text="{loc:Loc ModelPreview.TextureResolution}" Classes="caption-text"/>
-                  <ComboBox ItemsSource="{Binding TextureResolutions}" SelectedItem="{Binding TextureResolution}" HorizontalAlignment="Stretch"/>
+                  <ComboBox ItemsSource="{Binding TextureResolutions}" SelectedValue="{Binding TextureResolution}"
+                            SelectedValueBinding="{Binding Value}" DisplayMemberBinding="{loc:LocalizedBinding Display}"
+                            HorizontalAlignment="Stretch"/>
                   <Button x:Name="ReloadModelPreviewButton" Content="{loc:Loc ModelPreview.Apply}" Classes="accent" Command="{Binding ReloadCommand}" HorizontalAlignment="Stretch"/>
                 </StackPanel>
               </Grid>

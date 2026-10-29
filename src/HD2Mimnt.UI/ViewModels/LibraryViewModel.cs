@@ -1263,6 +1263,75 @@ public partial class LibraryViewModel : ObservableObject
     public Task ShowModImagePreviewAsync(Guid modId, string? title)
         => _imagePreview?.ShowOriginalAsync(() => _modService.ReadOriginalPreviewAsync(modId), title) ?? Task.CompletedTask;
 
+    /// <summary>详情面板内联编辑名称/描述：就地更新列表项和搜索索引，不关闭详情。</summary>
+    private async Task<bool> SaveModMetadataAsync(ModItemViewModel mod, string name, string description)
+    {
+        if (!_allMods.Contains(mod)) return false;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            _notificationService.ShowWarning("模组名称不能为空", "编辑模组");
+            return false;
+        }
+        try
+        {
+            var saved = await _modService.UpdateModMetadataAsync(mod.Id, name: name, description: description);
+            mod.ApplyMetadata(saved);
+            _searchService.UpdateModIndex(saved);
+            await ApplyFiltersAsync();
+            _notificationService.ShowSuccess("模组信息已更新", "编辑模组");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"保存失败: {ex.Message}", "编辑模组");
+            return false;
+        }
+    }
+
+    public async Task ChangeModImageAsync(ModItemViewModel mod, string imagePath)
+    {
+        if (mod.IsChangingImage || !_allMods.Contains(mod)) return;
+        mod.IsChangingImage = true;
+        try
+        {
+            var thumbnailPath = await _modService.SetCustomThumbnailAsync(mod.Id, imagePath);
+            if (thumbnailPath == null)
+            {
+                _notificationService.ShowError("无法使用所选图片，请选择有效的 PNG、JPG 或 BMP 图片。", "更换图片");
+                return;
+            }
+            await mod.ApplyThumbnailAsync(thumbnailPath);
+            _notificationService.ShowSuccess("已更换模组图片", "更换图片");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"更换图片失败: {ex.Message}", "更换图片");
+        }
+        finally { mod.IsChangingImage = false; }
+    }
+
+    public async Task RestoreModImageAsync(ModItemViewModel mod)
+    {
+        if (mod.IsChangingImage || !_allMods.Contains(mod)) return;
+        mod.IsChangingImage = true;
+        try
+        {
+            var thumbnailPath = await _modService.GenerateThumbnailAsync(mod.Id);
+            if (thumbnailPath == null)
+            {
+                _notificationService.ShowWarning("模组目录中没有可用图片，无法恢复默认图片。", "恢复默认图片");
+                return;
+            }
+            await mod.ApplyThumbnailAsync(thumbnailPath);
+            _notificationService.ShowSuccess("已恢复模组默认图片", "恢复默认图片");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"恢复默认图片失败: {ex.Message}", "恢复默认图片");
+        }
+        finally { mod.IsChangingImage = false; }
+    }
+
     /// <summary>
     /// 显示模组详情
     /// </summary>
@@ -1284,6 +1353,8 @@ public partial class LibraryViewModel : ObservableObject
         mod.DeleteCommand = new RelayCommand(async () => await DeleteModDetailAsync(mod));
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
         mod.CheckUpdatesCommand = ModOnline == null ? null : new AsyncRelayCommand(() => ModOnline.OpenAsync(mod));
+        mod.SaveMetadataHandler = SaveModMetadataAsync;
+        mod.IsEditingMetadata = false;
         if (string.IsNullOrWhiteSpace(mod.Hash))
         {
             var cancellation = new CancellationTokenSource();

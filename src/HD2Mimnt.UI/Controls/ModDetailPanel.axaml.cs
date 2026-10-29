@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.ViewModels;
 
 namespace HD2Mimnt.UI.Controls;
@@ -30,6 +32,63 @@ public partial class ModDetailPanel : UserControl
                 return;
             }
         }
+    }
+
+    private async void ChangeImage_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not Control { DataContext: ModItemViewModel mod }) return;
+        if (await PickImageAsync() is not { } imagePath) return;
+        foreach (var owner in this.GetVisualAncestors().OfType<UserControl>().Select(view => view.DataContext))
+        {
+            if (owner is LibraryViewModel library)
+            {
+                await library.ChangeModImageAsync(mod, imagePath);
+                return;
+            }
+            if (owner is ProfileViewModel profile)
+            {
+                await profile.ChangeModImageAsync(mod, imagePath);
+                return;
+            }
+        }
+    }
+
+    private async void RestoreImage_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is not Control { DataContext: ModItemViewModel mod }) return;
+        foreach (var owner in this.GetVisualAncestors().OfType<UserControl>().Select(view => view.DataContext))
+        {
+            if (owner is LibraryViewModel library)
+            {
+                await library.RestoreModImageAsync(mod);
+                return;
+            }
+            if (owner is ProfileViewModel profile)
+            {
+                await profile.RestoreModImageAsync(mod);
+                return;
+            }
+        }
+    }
+
+    private async Task<string?> PickImageAsync()
+    {
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage) return null;
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = UiLocalization.Current["UI.ChangeImage"],
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(UiLocalization.Current["UI.ImageFiles"])
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif"]
+                }
+            ]
+        });
+        return files.Count == 0 ? null : files[0].TryGetLocalPath();
     }
 
     /// <summary>点击详情面板大图标：在主窗口顶层的覆盖层预览原图（无图标时无操作）。</summary>

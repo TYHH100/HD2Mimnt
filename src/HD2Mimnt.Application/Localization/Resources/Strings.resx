@@ -4274,6 +4274,7 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="ModelPreview.Options" xml:space="preserve"><value>Mod options</value></data>
   <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>Click Update preview after changing options. Preview changes never modify profiles or deployed files.</value></data>
   <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>Texture preview resolution</value></data>
+  <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>Original</value></data>
   <data name="ModelPreview.Apply" xml:space="preserve"><value>Update preview</value></data>
   <data name="ModelPreview.Meshes" xml:space="preserve"><value>Meshes</value></data>
   <data name="ModelPreview.ShowFiltered" xml:space="preserve"><value>Show filtered helper meshes</value></data>
@@ -4287,4 +4288,7 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="ModelPreview.Controls" xml:space="preserve"><value>Left drag to orbit · Right/middle drag to pan · Scroll to zoom · Double-click to reset</value></data>
   <data name="ModelPreview.Limits" xml:space="preserve"><value>Previews the selected mod options; missing textures appear gray. Game-specific materials may differ from in-game rendering.</value></data>
   <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} textures unavailable (gray fallback)</value></data>
+  <data name="UI.ChangeImage" xml:space="preserve"><value>Change image</value></data>
+  <data name="UI.RestoreModImage" xml:space="preserve"><value>Restore mod image</value></data>
+  <data name="UI.EditModInfo" xml:space="preserve"><value>Edit mod info</value></data>
 </root>

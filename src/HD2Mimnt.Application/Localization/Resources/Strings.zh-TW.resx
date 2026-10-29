@@ -4274,6 +4274,7 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ModelPreview.Options" xml:space="preserve"><value>模組選項</value></data>
   <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>修改後點擊「更新預覽」。這裡只調整預覽，不會修改設定檔或部署檔案。</value></data>
   <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>貼圖預覽解析度</value></data>
+  <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>原始解析度</value></data>
   <data name="ModelPreview.Apply" xml:space="preserve"><value>更新預覽</value></data>
   <data name="ModelPreview.Meshes" xml:space="preserve"><value>網格</value></data>
   <data name="ModelPreview.ShowFiltered" xml:space="preserve"><value>顯示過濾的輔助網格</value></data>
@@ -4287,4 +4288,7 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ModelPreview.Controls" xml:space="preserve"><value>左鍵拖曳旋轉 · 右鍵或中鍵拖曳平移 · 滾輪縮放 · 按兩下重設</value></data>
   <data name="ModelPreview.Limits" xml:space="preserve"><value>按目前模組選項組合預覽；缺少貼圖顯示灰模。遊戲專用材質效果不等同於遊戲內畫面。</value></data>
   <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} 張貼圖無法使用（顯示灰模）</value></data>
+  <data name="UI.ChangeImage" xml:space="preserve"><value>更換圖片</value></data>
+  <data name="UI.RestoreModImage" xml:space="preserve"><value>恢復預設圖片</value></data>
+  <data name="UI.EditModInfo" xml:space="preserve"><value>編輯模組資訊</value></data>
 </root>
