@@ -25,7 +25,8 @@
   <SolidColorBrush x:Key="GroupHeaderFillBrush" Color="#3F3F3F" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="NotificationSurfaceBrush" Color="#3A3A3A" Opacity="0.97"/>
 
-  <FontFamily x:Key="DisplayFontFamily">avares://HD2Mimnt.UI/Assets/Fonts#Monocraft, Microsoft YaHei UI</FontFamily>
+  <!-- 外置字体缺失时的回退；命中应用目录的 Monocraft.ttf 时由 DisplayFontService 覆盖这一项。 -->
+  <FontFamily x:Key="DisplayFontFamily">Segoe UI Variable, Segoe UI, Microsoft YaHei UI</FontFamily>
   <BoxShadows x:Key="CardShadow">0 0 0 2 #0B0B0B</BoxShadows>
   <Thickness x:Key="CardBorderThickness">2</Thickness>
 

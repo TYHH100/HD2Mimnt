@@ -6,7 +6,7 @@
 
 - 换肤入口 [AppThemeService.cs](../../src/HD2Mimnt.UI/Services/AppThemeService.cs) 的 `Apply(string)`：`Dark` / `Light` / `System` 映射 FluentAvalonia 变体；皮肤主题（当前为 `Ore` 与 `Helldivers`，注册在 `Skins` 字典）先卸载上一个皮肤（先移除样式再移除字典），再合并皮肤资源字典并挂载应用级样式，用 `ConditionalWeakTable` 按应用实例记录已挂载内容。
 - 皮肤采用三件套结构，放在 `src/HD2Mimnt.UI/Styles/Skins/`，以 Ore 为例：
-  - `OreSkin.axaml`：语义色 token（`Surface0Brush`–`Surface3Brush`、`BorderBrush`、文字画刷等）、强调色 `SystemAccentColor*`、`DisplayFontFamily`、`CardShadow` / `CardBorderThickness`、圆角 token；
+  - `OreSkin.axaml`：语义色 token（`Surface0Brush`–`Surface3Brush`、`BorderBrush`、文字画刷等）、强调色 `SystemAccentColor*`、`DisplayFontFamily`（外置显示字体的回退值，运行时由 `DisplayFontService` 覆盖）、`CardShadow` / `CardBorderThickness`、圆角 token；
   - `OreControls.axaml`：FluentAvalonia 控件资源覆盖 + 专属 `ControlTheme` / `ControlTemplate`（按钮、开关、输入框、下拉框、滑块、复选框等）；
   - `OreStyles.axaml`：应用级样式——显式设置 `Theme` / `Template`、模板部件覆盖、伪类状态样式。
 - 默认 Fluent 观感的可覆盖 token 定义在 [AppResources.axaml](../../src/HD2Mimnt.UI/Styles/AppResources.axaml) / [AppStyles.axaml](../../src/HD2Mimnt.UI/Styles/AppStyles.axaml)：`DisplayFontFamily`、`CardShadow`、`CardBorderThickness`；未覆盖时保持 Fluent 默认。
@@ -32,7 +32,8 @@
 - **强调色只覆盖 `SystemAccentColor*` 五个颜色**：FluentAvalonia 的全部强调画刷由它们派生，逐个覆盖画刷既费力又容易漏。
 - **白色 2px 描边只作为 `:focus` 状态**：不要写成常驻样式；引入浅色输入控件后，搜索图标等叠在输入框上的前景要跟随 `TextControlForeground`，否则深色图标在浅底上看不清。
 - **隐藏的 `TabItem` 必须在元素上直接设置本地 `IsVisible="False"`**：只靠样式隐藏时，运行时换肤触发样式重算会让页签短暂参与测量，把页签条撑到约 192px，页面内容整体下移（详见 [UI 指南](ui-and-avalonia.md)对应条目）。
-- **素材版权**：不要打包 Minecraft 的纹理、字体、音效（ore-ui 仓库仅开源 @react-facet，MIT，见 <https://github.com/Mojang/ore-ui>）；第三方字体必须连同许可证文件入库（Monocraft 为 OFL-1.1，见 `Assets/Fonts/OFL.txt`），并在 csproj 中设置复制到输出目录。
+- **素材版权**：不要打包 Minecraft 的纹理、字体、音效（ore-ui 仓库仅开源 @react-facet，MIT，见 <https://github.com/Mojang/ore-ui>）；第三方字体必须连同许可证文件入库（Monocraft 为 OFL-1.1，见 `Assets/Fonts/OFL.txt`）。显示字体不写进 `AvaloniaResource`（csproj 用 `Exclude` 从 `Assets\**` glob 剔除），只以 `Content` 复制到输出与发布目录，因此单文件 exe 内不含字体。
+- **显示字体走外置文件**：`DisplayFontService` 在换肤时把应用目录 `Assets/Fonts` 注册成 `fonts:` 字体集合（`EmbeddedFontCollection`），再覆盖皮肤字典里的 `DisplayFontFamily`；字体文件缺失就保留皮肤自带的回退字体。易错点：集合 Key 必须是 `fonts:` 方案并带尾斜杠（如 `fonts:HD2MimntDisplay/`），与 `FontFamily("fonts:HD2MimntDisplay/#Monocraft, …")` 解析出的来源完全一致，否则不报错、直接静默回退系统字体；`new FontFamily(baseUri, names)` 会丢掉 `fonts:` 来源，只能用字符串形式；来源未注册就排版文本会抛 `InvalidOperationException`；字体集合由各自 Application 的 `FontManager` 持有，缓存要按实例（`ConditionalWeakTable`），否则无头测试新建应用时会复用失效注册。XAML 里不要再写 `avares://.../#Monocraft`。来源：[Avalonia FontCollectionBase](https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Media/Fonts/FontCollectionBase.cs)、[Avalonia FontManager](https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Media/FontManager.cs)、[Monocraft](https://github.com/IdreesInc/Monocraft)
 - **改模板前先读对应源码**：FA 控件主题与 Avalonia 控件（如 ToggleSwitch）的滑块驱动方式直接决定模板结构，凭感觉改模板会做出“能编译但状态错乱”的外观。
 
 ## 验收清单

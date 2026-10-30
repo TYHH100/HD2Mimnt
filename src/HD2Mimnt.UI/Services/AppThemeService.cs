@@ -65,6 +65,7 @@ public static class AppThemeService
         foreach (var uri in skin.Dictionaries)
         {
             if (AvaloniaXamlLoader.Load(uri) is not ResourceDictionary dictionary) continue;
+            DisplayFontService.ApplyTo(dictionary);
             app.Resources.MergedDictionaries.Add(dictionary);
             applied.Dictionaries.Add(dictionary);
         }

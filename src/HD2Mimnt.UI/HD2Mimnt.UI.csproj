@@ -17,14 +17,14 @@
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
-    <!-- 进程隔离宿主：运行时按应用目录下的 exe 拉起，必须随主程序输出 -->
     <ProjectReference Include="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
-    <None Update="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Fonts\Monocraft.ttf" />
+    <Content Include="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\Monocraft.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HD2Mimnt.UI.Services;
+using System.Globalization;
 
 namespace HD2Mimnt.UITests;
 
@@ -184,6 +185,53 @@ public class ThemeSkinUiTests
         }
     }
 
+    [AvaloniaFact]
+    public void OreTheme_ShouldResolveDisplayFontFromLooseFile_AndRestoreOnLeave()
+    {
+        var app = global::Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant == ThemeVariant.Light ? AppThemeService.Light
+            : app.RequestedThemeVariant == ThemeVariant.Default ? AppThemeService.System
+            : AppThemeService.Dark;
+        try
+        {
+            // 显示字体以独立文件随包发布：不再内嵌后仍要能从应用目录取到 Monocraft 字形。
+            Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "Monocraft.ttf")));
+
+            AppThemeService.Apply(AppThemeService.Ore);
+            var font = GetDisplayFont(app);
+            Assert.DoesNotContain("avares", font.ToString());
+            Assert.Contains($"{FontManager.FontCollectionScheme}:", font.ToString());
+
+            // Monocraft 是等宽像素字体；一旦回退到系统比例字体，同字数的不同字符宽度就会不一致。
+            Assert.Equal(WidthOf(font, "0000"), WidthOf(font, "IIII"));
+
+            AppThemeService.Apply(AppThemeService.Dark);
+            Assert.DoesNotContain("Monocraft", GetDisplayFont(app).ToString());
+        }
+        finally
+        {
+            AppThemeService.Apply(originalTheme);
+        }
+    }
+
+    [AvaloniaFact]
+    public void HelldiversTheme_ShouldNotInheritOreDisplayFont()
+    {
+        var app = global::Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant == ThemeVariant.Light ? AppThemeService.Light
+            : app.RequestedThemeVariant == ThemeVariant.Default ? AppThemeService.System
+            : AppThemeService.Dark;
+        try
+        {
+            AppThemeService.Apply(AppThemeService.Helldivers);
+            Assert.DoesNotContain("Monocraft", GetDisplayFont(app).ToString());
+        }
+        finally
+        {
+            AppThemeService.Apply(originalTheme);
+        }
+    }
+
     private static Func<Avalonia.Visual, bool> Named(string name) =>
         visual => visual is Avalonia.INamed named && named.Name == name;
 
@@ -219,4 +267,15 @@ public class ThemeSkinUiTests
         Assert.True(app.Resources.TryGetResource(key, app.ActualThemeVariant, out var value), $"缺少资源 {key}");
         return Assert.IsType<CornerRadius>(value);
     }
+
+    private static FontFamily GetDisplayFont(global::Avalonia.Application app)
+    {
+        Assert.True(app.Resources.TryGetResource(DisplayFontService.DisplayFontKey, app.ActualThemeVariant, out var value),
+            "缺少显示字体资源");
+        return Assert.IsType<FontFamily>(value);
+    }
+
+    private static double WidthOf(FontFamily font, string text) =>
+        new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface(font, FontStyle.Normal, FontWeight.Normal, FontStretch.Normal), 20, Brushes.Black).Width;
 }
