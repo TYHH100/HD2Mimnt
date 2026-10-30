@@ -72,13 +72,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private string _currentProfileName = "No Profile";
 
-    // 部署状态
-    [ObservableProperty]
-    private string _deploymentStatus = "Not Deployed";
-
-    [ObservableProperty]
-    private bool _isDeployed = false;
-
     // 任务状态
     [ObservableProperty]
     private int _runningTaskCount = 0;

@@ -614,6 +614,8 @@ public partial class ProfileViewModel : ObservableObject
                     || ProfileContentSignature(selected) != _loadedProfileContent)
                     await LoadProfileModsAsync(SelectedProfile.Id);
             }
+            // 激活配置可能不是正在查看的那个，列表变化后仍需单独重算状态栏标签。
+            await RefreshActiveProfileDeploymentStatusAsync();
         }
         catch (Exception ex)
         {
@@ -1009,6 +1011,7 @@ public partial class ProfileViewModel : ObservableObject
                     .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
                         && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
                     .Select(record => record.ModId).ToHashSet();
+            _deployedModIds = deployedModIds;
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
@@ -1053,6 +1056,7 @@ public partial class ProfileViewModel : ObservableObject
             RenumberProfileMods();
             ApplyModFilter();
             IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
+            await RefreshActiveProfileDeploymentStatusAsync();
             _ = LoadProfileModIconsAsync(cancellationToken);
         }
         catch (OperationCanceledException)
@@ -1080,10 +1084,38 @@ public partial class ProfileViewModel : ObservableObject
 
     public void ApplyDeploymentState(IReadOnlySet<Guid> deployedModIds)
     {
+        _deployedModIds = deployedModIds;
         foreach (var mod in ProfileMods)
             mod.IsDeployed = deployedModIds.Contains(mod.ModId);
         if (SelectedModDetail != null)
             SelectedModDetail.IsDeployed = deployedModIds.Contains(SelectedModDetail.Id);
+        _ = RefreshActiveProfileDeploymentStatusAsync();
+    }
+
+    private IReadOnlySet<Guid> _deployedModIds = new HashSet<Guid>();
+
+    /// <summary>状态栏的部署标签：保存资源原文，由展示层反查重译。</summary>
+    [ObservableProperty]
+    private string _activeProfileDeploymentStatus = "Not Deployed";
+
+    /// <summary>按激活配置中启用模组的部署情况聚合：停用的模组本来就不参与部署，不计入判定。</summary>
+    private async Task RefreshActiveProfileDeploymentStatusAsync()
+    {
+        try
+        {
+            var active = Profiles.FirstOrDefault(profile => profile.IsActive);
+            var enabledMods = active == null ? null
+                : (await _profileService.GetProfileByIdAsync(active.Id))?.Mods
+                    .Where(mod => mod.Enabled).ToList();
+            var total = enabledMods?.Count ?? 0;
+            var deployed = enabledMods?.Count(mod => _deployedModIds.Contains(mod.ModId)) ?? 0;
+            ActiveProfileDeploymentStatus = total == 0 || deployed == 0 ? "Not Deployed"
+                : deployed == total ? "Deployed" : "Partially Deployed";
+        }
+        catch
+        {
+            // 标签读不到时保留上一次结果，不打断配置页流程。
+        }
     }
 
     private void RefreshProfileModStateProperties()

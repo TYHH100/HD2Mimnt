@@ -2387,6 +2387,9 @@ See the Conflicts page for details.</value>
   <data name="Shell.NotDeployed" xml:space="preserve">
     <value>Not Deployed</value>
   </data>
+  <data name="Shell.PartiallyDeployed" xml:space="preserve">
+    <value>Partially Deployed</value>
+  </data>
   <data name="Shell.Idle" xml:space="preserve">
     <value>Idle</value>
   </data>

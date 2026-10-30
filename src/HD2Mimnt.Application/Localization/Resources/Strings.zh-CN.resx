@@ -2387,6 +2387,9 @@
   <data name="Shell.NotDeployed" xml:space="preserve">
     <value>未部署</value>
   </data>
+  <data name="Shell.PartiallyDeployed" xml:space="preserve">
+    <value>部分部署</value>
+  </data>
   <data name="Shell.Idle" xml:space="preserve">
     <value>空闲</value>
   </data>

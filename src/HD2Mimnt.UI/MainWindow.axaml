@@ -85,7 +85,7 @@
           <TextBlock Text="{loc:LocalizedBinding StatusBarText}" Classes="caption-text"/>
           <TextBlock Text="·" Classes="caption-text"/>
           <TextBlock Text="{Binding CurrentProfileName}" Classes="caption-text"/>
-          <TextBlock Text="{loc:LocalizedBinding DeploymentStatus}" Classes="caption-text"/>
+          <TextBlock Text="{loc:LocalizedBinding ProfileViewModel.ActiveProfileDeploymentStatus}" Classes="caption-text"/>
         </StackPanel>
         <Border x:Name="VersionBadge" Grid.Column="1" Background="Transparent" Padding="6,2" VerticalAlignment="Center"
                 PointerPressed="OnVersionBadgePointerPressed">
