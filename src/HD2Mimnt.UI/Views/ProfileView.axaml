@@ -116,7 +116,7 @@
       <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
       <Grid ColumnDefinitions="*,Auto">
         <Grid>
-          <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
+          <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False" Foreground="{DynamicResource TextControlForeground}"/>
           <TextBox x:Name="ProfileModSearchBox" PlaceholderText="{loc:Loc UI.SearchModsInTheCurrentProfile}" Text="{Binding ModSearchText}" Padding="34,6,12,6" VerticalAlignment="Center"/>
         </Grid>
         <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearModSearchCommand}" ToolTip.Tip="{loc:Loc UI.ClearSearch}" Margin="6,0,0,0" VerticalAlignment="Center">
@@ -379,7 +379,7 @@
           <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
             <Grid>
               <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left"
-                                    VerticalAlignment="Center" Margin="10,0,0,0" IsHitTestVisible="False"/>
+                                    VerticalAlignment="Center" Margin="10,0,0,0" IsHitTestVisible="False" Foreground="{DynamicResource TextControlForeground}"/>
               <TextBox x:Name="AddProfileModSearchBox" PlaceholderText="{loc:Loc UI.SearchNameAuthorOrVersion}" Text="{Binding AddModSearchText}"
                        Padding="32,6,10,6"/>
             </Grid>

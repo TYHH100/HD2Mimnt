@@ -51,6 +51,11 @@
   <SolidColorBrush x:Key="ContentFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
   <!-- 分隔符分组色板的默认底色：未设置自定义颜色时跟随主题强调色。 -->
   <SolidColorBrush x:Key="GroupTintFallbackBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.15"/>
+  <!-- 皮肤可覆盖的显示字体：标题与控件文字使用它，正文保持系统字体。 -->
+  <FontFamily x:Key="DisplayFontFamily">Segoe UI Variable, Segoe UI, Microsoft YaHei UI</FontFamily>
+  <!-- 皮肤可覆盖的卡片外描边；默认无阴影，保持 Fluent 观感。 -->
+  <BoxShadows x:Key="CardShadow">0 0 0 0 #00000000</BoxShadows>
+  <Thickness x:Key="CardBorderThickness">1</Thickness>
   <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
   <CornerRadius x:Key="SubtleCornerRadius">2</CornerRadius>
   <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>

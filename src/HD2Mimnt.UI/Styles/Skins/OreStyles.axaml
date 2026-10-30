@@ -1,0 +1,90 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fa="using:FluentAvalonia.UI.Controls"
+        xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives">
+  <!-- 必须显式设置 Theme：隐式 ControlTheme 只在控件挂载时解析，运行时换肤不会刷新已有控件。 -->
+  <Style Selector="Button">
+    <Setter Property="Theme" Value="{DynamicResource OreButtonTheme}"/>
+  </Style>
+  <Style Selector="Button.tertiary, Button.icon-button, Button.side-nav, Button.tool-row">
+    <Setter Property="Theme" Value="{DynamicResource TransparentButton}"/>
+  </Style>
+
+  <Style Selector="fa|FANavigationViewItem">
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}"/>
+  </Style>
+
+  <!-- 直接设置 Template 而不是切换 ControlTheme，运行时换肤才会刷新已有开关并保留模板部件。 -->
+  <Style Selector="ToggleSwitch">
+    <Setter Property="Template" Value="{DynamicResource OreToggleSwitchTemplate}"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    <Setter Property="FocusAdorner" Value="{x:Null}"/>
+  </Style>
+  <!-- 滑块颜色不随开关状态变化：开/关由 I/O 键位槽颜色表达。 -->
+  <Style Selector="ToggleSwitch:pointerover /template/ Border#OreToggleKnob">
+    <Setter Property="Background" Value="{DynamicResource OreToggleKnobPointerOver}"/>
+  </Style>
+  <Style Selector="ToggleSwitch:pressed /template/ Border#OreToggleKnob">
+    <Setter Property="Background" Value="{DynamicResource OreToggleKnobPressed}"/>
+  </Style>
+  <Style Selector="ToggleSwitch:focus /template/ Border#OreToggleKnob">
+    <Setter Property="BorderBrush" Value="{DynamicResource OreToggleFocusBrush}"/>
+  </Style>
+  <Style Selector="ToggleSwitch /template/ ContentPresenter#PART_OffContentPresenter">
+    <Setter Property="Opacity" Value="1"/>
+  </Style>
+  <Style Selector="ToggleSwitch /template/ ContentPresenter#PART_OnContentPresenter">
+    <Setter Property="Opacity" Value="0"/>
+  </Style>
+  <Style Selector="ToggleSwitch:checked /template/ ContentPresenter#PART_OffContentPresenter">
+    <Setter Property="Opacity" Value="0"/>
+  </Style>
+  <Style Selector="ToggleSwitch:checked /template/ ContentPresenter#PART_OnContentPresenter">
+    <Setter Property="Opacity" Value="1"/>
+  </Style>
+  <Style Selector="ToggleSwitch:disabled">
+    <Setter Property="Foreground" Value="{DynamicResource DisabledBrush}"/>
+  </Style>
+  <Style Selector="ToggleSwitch:disabled /template/ Border#OreTrack">
+    <Setter Property="Opacity" Value="0.45"/>
+  </Style>
+
+  <!-- 输入框/下拉框内凹浮雕；复选框与选中页签用凸起浮雕，聚焦时才加白框。 -->
+  <Style Selector="TextBox /template/ Border#PART_BorderElement">
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #40000000, inset 0 -1 0 0 #B3FFFFFF"/>
+  </Style>
+  <Style Selector="ComboBox /template/ Border#Background">
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #40000000, inset 0 -1 0 0 #B3FFFFFF"/>
+  </Style>
+  <Style Selector="CheckBox /template/ Border#NormalRectangle">
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000"/>
+    <Setter Property="BorderBrush" Value="#141414"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="CheckBox:focus /template/ Border#NormalRectangle">
+    <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFF, inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000"/>
+  </Style>
+  <Style Selector="Slider /template/ Thumb /template/ Border">
+    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000"/>
+  </Style>
+  <Style Selector="Slider:focus /template/ Thumb /template/ Border">
+    <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFF, inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000"/>
+  </Style>
+  <!-- 顶部导航分段按钮：样式化 presenter 模板部件加矿石按钮同款描边浮雕，选中悬停/按下跟随绿色渐变。 -->
+  <Style Selector="uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot">
+    <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="BoxShadow" Value="inset 0 2 0 0 #66FFFFFF, inset 0 -3 0 0 #4D000000"/>
+  </Style>
+  <!-- 选中项按矿石风 Toggle 参考图呈按下的凹陷感：内阴影反转并整块下沉。 -->
+  <Style Selector="uip|FANavigationViewItemPresenter:selected /template/ Border#LayoutRoot">
+    <Setter Property="BoxShadow" Value="inset 0 3 0 0 #59000000, inset 0 -2 0 0 #40FFFFFF"/>
+    <Setter Property="Margin" Value="0,3,0,3"/>
+  </Style>
+  <Style Selector="uip|FANavigationViewItemPresenter:selected:pointerover /template/ Border#LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource TopNavigationViewItemBackgroundSelectedPointerOver}"/>
+  </Style>
+  <Style Selector="uip|FANavigationViewItemPresenter:selected:pressed /template/ Border#LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource TopNavigationViewItemBackgroundSelectedPressed}"/>
+  </Style>
+</Styles>

@@ -1,0 +1,314 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- 方块风控件皮肤：形状靠模板与圆角资源，颜色全部走语义画刷。 -->
+  <SolidColorBrush x:Key="OreButtonBackground" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="OreButtonBackgroundPointerOver" Color="#E2E2E2"/>
+  <SolidColorBrush x:Key="OreButtonBackgroundPressed" Color="#A9A9A9"/>
+  <SolidColorBrush x:Key="OreButtonBackgroundDisabled" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="OreButtonForeground" Color="#161616"/>
+  <SolidColorBrush x:Key="OreButtonForegroundDisabled" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="OreButtonBorderBrush" Color="#141414"/>
+  <SolidColorBrush x:Key="OreButtonBorderBrushDisabled" Color="#555555"/>
+  <SolidColorBrush x:Key="OreButtonBorderBrushPointerOver" Color="#2E2E2E"/>
+  <SolidColorBrush x:Key="OreAccentButtonBackground" Color="#3E9A23"/>
+  <SolidColorBrush x:Key="OreAccentButtonBackgroundPointerOver" Color="#4CAD2E"/>
+  <SolidColorBrush x:Key="OreAccentButtonBackgroundPressed" Color="#2E7618"/>
+  <SolidColorBrush x:Key="OreAccentButtonBackgroundDisabled" Color="#32502A"/>
+  <SolidColorBrush x:Key="OreAccentButtonForeground" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="OreAccentButtonForegroundDisabled" Color="#9CB695"/>
+
+  <!-- 输入框与下拉框按设计稿改为浅灰底、深色字，聚焦时白色粗边框。 -->
+  <SolidColorBrush x:Key="TextControlBackground" Color="#D9D9D9"/>
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#E3E3E3"/>
+  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#B8B8B8"/>
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="TextControlForeground" Color="#141414"/>
+  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#000000"/>
+  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#000000"/>
+  <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="#6B6B6B"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#3F3F3F"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#2F2F2F"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#2F2F2F"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled" Color="#7A7A7A"/>
+  <Thickness x:Key="TextControlBorderThemeThicknessFocused">2</Thickness>
+  <Thickness x:Key="TextControlBorderThemeThickness">2</Thickness>
+
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="#D9D9D9"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="#E3E3E3"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="#B8B8B8"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushFocused" Color="#FFFFFF"/>
+  <Thickness x:Key="ComboBoxBackgroundBorderThicknessFocused">2</Thickness>
+  <Thickness x:Key="ComboBoxBorderThemeThickness">2</Thickness>
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="#141414"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPointerOver" Color="#000000"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPressed" Color="#000000"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundFocused" Color="#000000"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundDisabled" Color="#6B6B6B"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#333333"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownGlyphForeground" Color="#141414"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownGlyphForegroundFocused" Color="#000000"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="#17FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundPressed" Color="#26FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="#26FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="#30FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPressed" Color="#3AFFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="#FFFFFF"/>
+  <CornerRadius x:Key="ComboBoxHiglightBorderCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ComboBoxDropDownButtonBackgroundCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ComboBoxItemCornerRadius">0</CornerRadius>
+
+  <!-- 顶部导航项按矿石风分段按钮处理：未选中浅灰块深色字，选中绿色块白字，白色下划线指示器保留。 -->
+  <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#161616"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#000000"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#000000"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundDisabled" Color="#6B6B6B"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackground" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#E2E2E2"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#A9A9A9"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#57B33C"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#63C247"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#4CA332"/>
+  <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#FFFFFF"/>
+  <x:Double x:Key="NavigationViewSelectionIndicatorHeight">2</x:Double>
+  <x:Double x:Key="NavigationViewSelectionIndicatorWidth">28</x:Double>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPointerOver" Color="#E2E2E2"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPressed" Color="#A9A9A9"/>
+  <LinearGradientBrush x:Key="TopNavigationViewItemBackgroundSelected" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#6BC94F"/>
+    <GradientStop Offset="1" Color="#4CA332"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="TopNavigationViewItemBackgroundSelectedPointerOver" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#78D65A"/>
+    <GradientStop Offset="1" Color="#57B33C"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="TopNavigationViewItemBackgroundSelectedPressed" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#4CA332"/>
+    <GradientStop Offset="1" Color="#3E7F28"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="TopNavigationViewItemForeground" Color="#161616"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundPointerOver" Color="#000000"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundPressed" Color="#000000"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundDisabled" Color="#6B6B6B"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelected" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelectedPressed" Color="#FFFFFF"/>
+
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="#C9C9C9"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="#E0E0E0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPressed" Color="#B0B0B0"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedDisabled" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="#141414"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="#141414"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" Color="#141414"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedDisabled" Color="#555555"/>
+
+  <CornerRadius x:Key="ScrollBarCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ScrollBarCornerRadius2x">0</CornerRadius>
+  <SolidColorBrush x:Key="ScrollBarBackground" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarBackgroundPointerOver" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#6A6A6A"/>
+  <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#B0B0B0"/>
+  <SolidColorBrush x:Key="ScrollBarThumbBorderBrush" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarPanningThumbBackground" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent"/>
+
+  <CornerRadius x:Key="SliderTrackCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="SliderThumbCornerRadius">0</CornerRadius>
+  <x:Double x:Key="SliderInnerThumbWidth">0</x:Double>
+  <x:Double x:Key="SliderInnerThumbHeight">0</x:Double>
+  <x:Double x:Key="SliderHorizontalThumbWidth">16</x:Double>
+  <x:Double x:Key="SliderHorizontalThumbHeight">16</x:Double>
+  <x:Double x:Key="SliderTrackThemeHeight">6</x:Double>
+  <SolidColorBrush x:Key="SliderTrackFill" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#565656"/>
+  <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="SliderTrackValueFill" Color="#57B33C"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#63C247"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#4CA332"/>
+  <LinearGradientBrush x:Key="SliderThumbBackground" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#F2F2F2"/>
+    <GradientStop Offset="1" Color="#BDBDBD"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="SliderThumbBackgroundPointerOver" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#FFFFFF"/>
+    <GradientStop Offset="1" Color="#CFCFCF"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="SliderThumbBackgroundPressed" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#D8D8D8"/>
+    <GradientStop Offset="1" Color="#A8A8A8"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="SliderOuterThumbBackground" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Offset="0" Color="#F2F2F2"/>
+    <GradientStop Offset="1" Color="#BDBDBD"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="SliderThumbBorderBrush" Color="#141414"/>
+
+  <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="#3B6FD4"/>
+  <SolidColorBrush x:Key="ToolTipForegroundBrush" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#2A4E99"/>
+
+  <ControlTheme x:Key="OreButtonTheme" TargetType="Button">
+    <Setter Property="Background" Value="{DynamicResource OreButtonBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource OreButtonForeground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="14,6"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                BoxShadow="inset 0 2 0 0 #66FFFFFF, inset 0 -3 0 0 #4D000000">
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            RecognizesAccessKey="True"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover">
+      <Setter Property="Background" Value="{DynamicResource OreButtonBackgroundPointerOver}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrushPointerOver}"/>
+    </Style>
+    <Style Selector="^:focus">
+      <Setter Property="BorderBrush" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector="^:pressed">
+      <Setter Property="Background" Value="{DynamicResource OreButtonBackgroundPressed}"/>
+    </Style>
+    <Style Selector="^:disabled">
+      <Setter Property="Background" Value="{DynamicResource OreButtonBackgroundDisabled}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OreButtonForegroundDisabled}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrushDisabled}"/>
+    </Style>
+    <Style Selector="^.accent">
+      <Setter Property="Background" Value="{DynamicResource OreAccentButtonBackground}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OreAccentButtonForeground}"/>
+      <Style Selector="^:pointerover">
+        <Setter Property="Background" Value="{DynamicResource OreAccentButtonBackgroundPointerOver}"/>
+      </Style>
+      <Style Selector="^:pressed">
+        <Setter Property="Background" Value="{DynamicResource OreAccentButtonBackgroundPressed}"/>
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Background" Value="{DynamicResource OreAccentButtonBackgroundDisabled}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OreAccentButtonForegroundDisabled}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrushDisabled}"/>
+      </Style>
+    </Style>
+  </ControlTheme>
+
+  <!-- 侧栏、图标和工具条按钮保持无边框，只提供悬停/按下反馈。 -->
+  <ControlTheme x:Key="TransparentButton" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="FontFamily" Value="{DynamicResource DisplayFontFamily}"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" CornerRadius="0">
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            RecognizesAccessKey="True"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover"><Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/></Style>
+    <Style Selector="^:pressed"><Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Foreground" Value="{DynamicResource DisabledBrush}"/></Style>
+  </ControlTheme>
+
+  <!-- 方块开关：I/O 两颗键帽背靠背相连（共用描边）加滑动滑块，滑块上下略凸出，聚焦时滑块描边变白。 -->
+  <SolidColorBrush x:Key="OreToggleSlotOn" Color="#3C8527"/>
+  <SolidColorBrush x:Key="OreToggleSlotOff" Color="#8A8B8E"/>
+  <SolidColorBrush x:Key="OreToggleGlyphOn" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="OreToggleGlyphOff" Color="#141414"/>
+  <SolidColorBrush x:Key="OreToggleKnob" Color="#D8D8D8"/>
+  <SolidColorBrush x:Key="OreToggleKnobPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="OreToggleKnobPressed" Color="#C0C0C0"/>
+  <SolidColorBrush x:Key="OreToggleKnobBorder" Color="#141414"/>
+  <SolidColorBrush x:Key="OreToggleTrackBorder" Color="#141414"/>
+  <SolidColorBrush x:Key="OreToggleFocusBrush" Color="#F5F5F5"/>
+
+  <ControlTemplate x:Key="OreToggleSwitchTemplate" TargetType="ToggleSwitch">
+    <Grid ColumnDefinitions="Auto,12,Auto" VerticalAlignment="Center">
+      <Border x:Name="OreTrack" Width="40" Height="22"
+              Background="Transparent" BorderThickness="0" CornerRadius="0">
+        <Panel>
+          <Grid ColumnDefinitions="20,20" Height="18" VerticalAlignment="Center">
+            <Border Background="{DynamicResource OreToggleSlotOn}" BorderBrush="{DynamicResource OreToggleTrackBorder}" BorderThickness="1" CornerRadius="0"
+                    BoxShadow="inset 0 2 0 0 #4DFFFFFF, inset 0 -2 0 0 #59000000">
+              <Panel>
+                <Rectangle Width="2" Height="8" Fill="#66000000" RenderTransform="translate(1px,1px)"/>
+                <Rectangle Width="2" Height="8" Fill="{DynamicResource OreToggleGlyphOn}"/>
+              </Panel>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource OreToggleSlotOff}" BorderBrush="{DynamicResource OreToggleTrackBorder}" BorderThickness="1" CornerRadius="0"
+                    BoxShadow="inset 0 2 0 0 #4DFFFFFF, inset 0 -2 0 0 #59000000">
+              <Panel>
+                <Border Width="8" Height="8" BorderBrush="#66FFFFFF" BorderThickness="2" RenderTransform="translate(1px,1px)"/>
+                <Border Width="8" Height="8" BorderBrush="{DynamicResource OreToggleGlyphOff}" BorderThickness="2"/>
+              </Panel>
+            </Border>
+          </Grid>
+          <Canvas x:Name="PART_SwitchKnob" Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <Grid x:Name="PART_MovingKnobs" Width="20" Height="20">
+              <Border x:Name="FocusRing" BorderBrush="Transparent" BorderThickness="0" CornerRadius="0">
+                <Border x:Name="OreToggleKnob" Background="{DynamicResource OreToggleKnob}"
+                        BorderBrush="{DynamicResource OreToggleKnobBorder}" BorderThickness="2" CornerRadius="0"
+                        BoxShadow="inset 0 2 0 0 #F2FFFFFF, inset 0 -2 0 0 #66000000"/>
+              </Border>
+            </Grid>
+          </Canvas>
+        </Panel>
+      </Border>
+      <ContentPresenter x:Name="PART_OffContentPresenter" Grid.Column="2"
+                        Content="{TemplateBinding OffContent}" ContentTemplate="{TemplateBinding OffContentTemplate}"
+                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+      <ContentPresenter x:Name="PART_OnContentPresenter" Grid.Column="2"
+                        Content="{TemplateBinding OnContent}" ContentTemplate="{TemplateBinding OnContentTemplate}"
+                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+    </Grid>
+  </ControlTemplate>
+</ResourceDictionary>

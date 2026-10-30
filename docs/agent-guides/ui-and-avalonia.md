@@ -74,6 +74,18 @@
 
 - 页面色彩、圆角和间距集中到 `Styles/AppResources.axaml`、`Styles/AppStyles.axaml`；主要按钮使用组件库的 `accent` 类，图标使用 `UtilityIcon`（FluentAvalonia FASymbolIcon）。不要复制页面调色板、文字/emoji 图标或基础控件状态模板。来源：https://github.com/amwx/FluentAvalonia
 
+- Ore 开关按 ore-ui 参考图是"I/O 双键位"设计：没有外圈描边和灰色底槽，`OreTrack` 只是透明布局容器，可见部分是左右两颗键帽（激活侧露出绿色 I 槽/灰色 O 槽，非激活侧被滑块盖住）；滑块颜色不随 IsChecked 变化，悬停变白、按下变深、聚焦时滑块描边变白。Avalonia ToggleSwitch 用 `PART_SwitchKnob.Bounds.Width` 作为滑块行程并平移 `PART_MovingKnobs`，行程 = `PART_SwitchKnob` 宽度 = 容器宽 − 滑块宽，键位槽宽必须与滑块宽对齐（左槽从 0 起、右槽止于容器宽），否则选中态滑块盖不住键位槽。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/ToggleSwitch.cs
+
+- Ore 皮肤的默认按钮与开关使用深色描边，白色 2px 描边只作为 `:focus` 状态；不要把白色描边写成常驻样式。开关滑块尺寸要与 `PART_SwitchKnob` 等分宽度配合，避免滑块贴住或溢出轨道边缘。
+
+- 自定义 ToggleSwitch 模板不要复用 FluentAvalonia 的 `OuterBorder` / `SwitchKnobBounds` 名称：FA 的隐式主题会按名字设置 Opacity，开启态会把轨道隐藏。模板外观元素要用独有名称，并通过应用级样式直接设置 `Template`（而不是切换 ControlTheme），运行时换肤才能保留 `PART_SwitchKnob` / `PART_MovingKnobs` 等必需部件。Ore 皮肤的整体色板、浅色输入框和绿色选中页签以[官方设计系统参考](https://zh.minecraft.wiki/w/Ore_UI?variant=zh#设计系统)为准。来源：https://github.com/amwx/FluentAvalonia/blob/FAv3/src/FluentAvalonia/Styling/ControlThemes/BasicControls/ToggleSwitchStyles.axaml
+
+- 隐藏 TabControl 的页签不能只在 `TabControl.Styles` 里设 `IsVisible=False`：运行时换肤或样式重算会让被隐藏的 TabItem 短暂参与测量，页签条被撑到 192px，内容上方出现大片空白。现有 TabItem 必须直接设本地 `IsVisible="False"`（样式保留用于后续页签），并回归切换深色/浅色/Ore 后内容是否紧贴导航。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/TabControl.cs
+
+- Ore 顶部导航分段按钮必须样式化内层 presenter：`fa|FANavigationViewItem /template/ Border#LayoutRoot` 是死选择器，`/template/` 只匹配 TemplatedParent 为样式目标的元素，LayoutRoot 位于内层 `FANavigationViewItemPresenter` 模板中，应改用 `uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot`（顶部项模板不绑定 Border 属性，描边与浮雕只能这样加）。选中凹陷态用 `:selected` 伪类反转内阴影并加 Margin；模板里硬编码的属性值（如顶部 SelectionIndicator 的 16×3）优先级高于普通样式，覆盖需带激活器的样式或放弃覆盖。来源：https://github.com/amwx/FluentAvalonia/blob/master/src/FluentAvalonia/Styling/ControlThemes/FAControls/NavigationView/NavigationViewItemPresenterStyles.axaml
+
+- 主题切换统一走 `AppThemeService`：Dark/Light/System 映射 FluentAvalonia 变体，Ore 皮肤由 `OreSkin.axaml`（语义色、强调色、字体、圆角）、`OreControls.axaml`（按钮 ControlTheme 与 FluentAvalonia 资源覆盖）和 `OreStyles.axaml`（应用级样式）组成，切走时先移除样式再移除字典。Avalonia 隐式 ControlTheme 只在控件挂载时解析，运行时换肤必须用样式显式设置 `Theme`，否则已有控件不会刷新模板；皮肤也不能在 `App.axaml` 里常驻合并，否则无头 UI 测试和默认外观都会被污染。`CardFillBrush` 等仍要绑定运行时透明度 token，强调色覆盖 `SystemAccentColor*` 即可联动全部 FluentAvalonia 控件；显示字体通过 `DisplayFontFamily` 切换，内置 Monocraft 为 OFL-1.1（许可证见 `Assets/Fonts/OFL.txt`）。不要为皮肤登记自定义 `ThemeVariant`，FluentAvalonia 只按 Light/Dark 解析自身资源。来源：[FluentAvaloniaTheme](https://github.com/amwx/FluentAvalonia/blob/FAv3/src/FluentAvalonia/Styling/Core/FluentAvaloniaTheme.axaml.cs)、[Avalonia ResourceDictionary](https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Controls/ResourceDictionary.cs)、[Monocraft](https://github.com/IdreesInc/Monocraft)
+
 - 运行时背景透明度只更新 `CardSurfaceOpacity`、`ChromeSurfaceOpacity`、`ContentSurfaceOpacity`，不能用新画刷覆盖动态资源，否则跟随系统切换主题时颜色会失联。
 
 - 模态弹窗即使复用 `card` 样式，也必须显式使用不透明的主题背景（如 `{DynamicResource Surface2Brush}`），避免受卡片透明度设置影响而透出底层文字；验证低透明度及深浅主题切换。来源：https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources

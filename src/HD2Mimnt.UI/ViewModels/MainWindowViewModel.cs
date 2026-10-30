@@ -9,7 +9,6 @@ using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
 using Avalonia.Media.Imaging;
-using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -559,7 +558,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _profileViewModel.LoadProfilesAsync();
         SyncConflictProfile();
         await _settingsViewModel.LoadAsync();
-        ApplyTheme(_settingsViewModel.Theme);
+        AppThemeService.Apply(_settingsViewModel.Theme);
         ApplyTransparencyBrushes();
         _libraryViewModel.ApplyListDensity(_settingsViewModel.ListDensity);
         await ApplyAppearanceAsync();
@@ -941,7 +940,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnThemeChanged(object? sender, string theme)
     {
-        ApplyTheme(theme);
+        AppThemeService.Apply(theme);
         ApplyTransparencyBrushes();
     }
 
@@ -993,17 +992,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);
 
-
-    private static void ApplyTheme(string theme)
-    {
-        if (global::Avalonia.Application.Current == null) return;
-        global::Avalonia.Application.Current.RequestedThemeVariant = theme switch
-        {
-            "Light" => ThemeVariant.Light,
-            "System" => ThemeVariant.Default,
-            _ => ThemeVariant.Dark
-        };
-    }
 
     [RelayCommand]
     private async Task RefreshGameStatusAsync()

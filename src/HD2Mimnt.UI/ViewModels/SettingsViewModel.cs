@@ -94,7 +94,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _storageSettings.Current.AppDataPath, _storageSettings.Current.ModsPath, _storageSettings.Current.CachePath);
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
-    public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
+    public IEnumerable<string> ThemeOptions { get; } = new[]
+        { AppThemeService.Dark, AppThemeService.Light, AppThemeService.System, AppThemeService.Ore };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
     public NexusModsAccountViewModel? NexusAccount { get; }
     public AyakaModsAccountViewModel? AyakaAccount { get; }

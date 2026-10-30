@@ -72,7 +72,7 @@
             <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
                 <Grid ColumnDefinitions="*,Auto">
                     <Grid>
-                        <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False"/>
+                        <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False" Foreground="{DynamicResource TextControlForeground}"/>
                         <TextBox x:Name="SearchBox" PlaceholderText="{loc:Loc UI.SearchNameAuthorOrDescriptionSupportsTagFilters}" Text="{Binding SearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnSearchBoxKeyDown"/>
                     </Grid>
                     <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearSearchCommand}" ToolTip.Tip="{loc:Loc UI.ClearSearch}" Margin="6,0,0,0" VerticalAlignment="Center" IsVisible="{Binding SearchText, Converter={StaticResource NotNullConverter}}">

@@ -69,13 +69,13 @@
         <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
         <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
           <TabControl.Styles><Style Selector="TabControl#PageHost > TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
-          <TabItem><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
-          <TabItem><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
-          <TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
-          <TabItem><views:MoreView/></TabItem>
-          <TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
-          <TabItem><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
-          <TabItem><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:MoreView/></TabItem>
+          <TabItem IsVisible="False"><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
         </TabControl>
       </Border>
     </fa:FANavigationView>
