@@ -968,6 +968,21 @@
   <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
     <value>任務中心載入失敗</value>
   </data>
+  <data name="UI.ClearCompletedTasks" xml:space="preserve">
+    <value>清空已完成任務</value>
+  </data>
+  <data name="UI.ClearCompletedTasksHint" xml:space="preserve">
+    <value>只刪除已結束的任務記錄，運行中的任務不受影響</value>
+  </data>
+  <data name="UI.ConfirmClearCompletedTasks" xml:space="preserve">
+    <value>將永久刪除所有已結束的任務記錄，運行中的任務不受影響。確定繼續嗎？</value>
+  </data>
+  <data name="UI.DeleteTaskRecord" xml:space="preserve">
+    <value>刪除任務記錄</value>
+  </data>
+  <data name="UI.FailedToDeleteTask" xml:space="preserve">
+    <value>刪除任務失敗：{0}</value>
+  </data>
   <data name="UI.NexusModsLinkHandler" xml:space="preserve">
     <value>N 網連結接收</value>
   </data>
@@ -2320,6 +2335,9 @@
   </data>
   <data name="Options.System" xml:space="preserve">
     <value>跟隨系統</value>
+  </data>
+  <data name="Options.Ore" xml:space="preserve">
+    <value>礦石風</value>
   </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>舒適</value>

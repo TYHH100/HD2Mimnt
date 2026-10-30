@@ -968,6 +968,21 @@
   <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
     <value>任务中心加载失败</value>
   </data>
+  <data name="UI.ClearCompletedTasks" xml:space="preserve">
+    <value>清空已完成任务</value>
+  </data>
+  <data name="UI.ClearCompletedTasksHint" xml:space="preserve">
+    <value>只删除已结束的任务记录，运行中的任务不受影响</value>
+  </data>
+  <data name="UI.ConfirmClearCompletedTasks" xml:space="preserve">
+    <value>将永久删除所有已结束的任务记录，运行中的任务不受影响。确定继续吗？</value>
+  </data>
+  <data name="UI.DeleteTaskRecord" xml:space="preserve">
+    <value>删除任务记录</value>
+  </data>
+  <data name="UI.FailedToDeleteTask" xml:space="preserve">
+    <value>删除任务失败：{0}</value>
+  </data>
   <data name="UI.NexusModsLinkHandler" xml:space="preserve">
     <value>N 网链接接收</value>
   </data>
@@ -2320,6 +2335,9 @@
   </data>
   <data name="Options.System" xml:space="preserve">
     <value>跟随系统</value>
+  </data>
+  <data name="Options.Ore" xml:space="preserve">
+    <value>矿石风</value>
   </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>舒适</value>

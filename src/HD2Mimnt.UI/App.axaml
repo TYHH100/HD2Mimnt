@@ -11,6 +11,7 @@
       <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
       <converters:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
       <converters:EqualConverter x:Key="EqualConverter"/>
+      <converters:FinishedTaskConverter x:Key="FinishedTaskConverter"/>
       <converters:NotNullConverter x:Key="NotNullConverter"/>
       <converters:TimeAgoConverter x:Key="TimeAgoConverter"/>
       <converters:LevelToSeverityConverter x:Key="LevelToSeverityConverter"/>

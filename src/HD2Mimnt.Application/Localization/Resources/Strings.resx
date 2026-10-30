@@ -968,6 +968,21 @@ Deny: do not install this plugin</value>
   <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
     <value>Failed to load task center</value>
   </data>
+  <data name="UI.ClearCompletedTasks" xml:space="preserve">
+    <value>Clear completed tasks</value>
+  </data>
+  <data name="UI.ClearCompletedTasksHint" xml:space="preserve">
+    <value>Removes finished task records only; running tasks are untouched</value>
+  </data>
+  <data name="UI.ConfirmClearCompletedTasks" xml:space="preserve">
+    <value>Permanently delete all finished task records? Running tasks are not affected.</value>
+  </data>
+  <data name="UI.DeleteTaskRecord" xml:space="preserve">
+    <value>Delete task record</value>
+  </data>
+  <data name="UI.FailedToDeleteTask" xml:space="preserve">
+    <value>Failed to delete task: {0}</value>
+  </data>
   <data name="UI.NexusModsLinkHandler" xml:space="preserve">
     <value>Nexus Mods link handler</value>
   </data>
@@ -2320,6 +2335,9 @@ See the Conflicts page for details.</value>
   </data>
   <data name="Options.System" xml:space="preserve">
     <value>Follow system</value>
+  </data>
+  <data name="Options.Ore" xml:space="preserve">
+    <value>Ore</value>
   </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>Comfortable</value>

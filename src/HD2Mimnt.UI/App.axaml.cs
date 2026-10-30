@@ -522,7 +522,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
             sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
-            sp.GetRequiredService<TaskService>()));
+            sp.GetRequiredService<TaskService>(),
+            sp.GetRequiredService<IConfirmationService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(
             sp.GetRequiredService<IExternalToolService>(),
             sp.GetRequiredService<ConfirmationService>()));

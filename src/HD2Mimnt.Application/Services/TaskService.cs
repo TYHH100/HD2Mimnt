@@ -365,6 +365,36 @@ public class TaskService
     }
 
     /// <summary>
+    /// 已结束的任务才能删除记录；运行中和等待中的任务只能取消。
+    /// </summary>
+    public static bool IsDeletable(ModTask task) =>
+        task.Status is not Core.Entities.TaskStatus.Running and not Core.Entities.TaskStatus.Waiting;
+
+    /// <summary>
+    /// 删除单条已结束的任务记录
+    /// </summary>
+    public async Task<bool> DeleteTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        var task = await _taskRepository.GetByIdAsync(taskId, cancellationToken);
+        if (task == null || !IsDeletable(task)) return false;
+        await _taskRepository.DeleteAsync(taskId, cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// 删除全部已结束的任务记录，返回删除数量
+    /// </summary>
+    public async Task<int> DeleteFinishedTasksAsync(CancellationToken cancellationToken = default)
+    {
+        var finished = (await _taskRepository.GetAllAsync(cancellationToken)).Where(IsDeletable).ToList();
+        foreach (var task in finished)
+        {
+            await _taskRepository.DeleteAsync(task.Id, cancellationToken);
+        }
+        return finished.Count;
+    }
+
+    /// <summary>
     /// 清理旧任务
     /// </summary>
     public async Task CleanupOldTasksAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)

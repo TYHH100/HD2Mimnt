@@ -66,6 +66,18 @@ public class EqualConverter : IValueConverter
     }
 }
 
+/// <summary>已结束的任务才显示删除按钮；运行中和等待中的任务只能取消。</summary>
+public class FinishedTaskConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is HD2Mimnt.Core.Entities.TaskStatus status
+           && status != HD2Mimnt.Core.Entities.TaskStatus.Running
+           && status != HD2Mimnt.Core.Entities.TaskStatus.Waiting;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => BindingOperations.DoNothing;
+}
+
 /// <summary>
 /// 非空转换器
 /// 用于控制元素可见性
