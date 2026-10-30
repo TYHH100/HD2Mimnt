@@ -89,7 +89,7 @@
         </StackPanel>
         <Border x:Name="VersionBadge" Grid.Column="1" Background="Transparent" Padding="6,2" VerticalAlignment="Center"
                 PointerPressed="OnVersionBadgePointerPressed">
-          <TextBlock Text="v0.1.0" Classes="caption-text"/>
+          <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Classes="caption-text"/>
         </Border>
       </Grid>
     </Border>

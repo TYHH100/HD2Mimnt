@@ -64,7 +64,7 @@
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsAboutVisible}" Classes="section" Spacing="8">
           <TextBlock Text="{loc:Loc UI.AboutHDMimnt}" Classes="section-title" />
-          <TextBlock Text="{loc:Loc UI.HelldiversModManagerVersionAlpha}" Classes="muted" />
+          <TextBlock Text="{loc:LocalizedBinding AppVersion, FormatKey=UI.HelldiversModManagerVersionAlpha}" Classes="muted" />
           <TextBlock Text="{loc:Loc UI.ProjectHttpsGithubComTYHHHDMimnt}" Classes="muted" TextWrapping="Wrap" />
         </StackPanel>
 

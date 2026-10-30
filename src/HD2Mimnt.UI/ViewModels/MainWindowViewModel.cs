@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
@@ -42,6 +43,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private string? _tutorialOriginToolsCategory;
     private string? _iasMissingNotifiedPath;
     private string? _iasDataMissingNotifiedPath;
+
+    public string AppVersion => AppInfo.Version;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";

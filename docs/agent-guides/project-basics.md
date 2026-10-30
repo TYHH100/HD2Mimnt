@@ -1,6 +1,6 @@
 # 项目基础与常用命令
 
-首次定位项目结构、增加服务/工作流或查找入口时读取本文件。业务易错点按根目录 [AGENTS.md](../../AGENTS.md) 的索引读取；版本和阶段状态查看当前程序集与项目状态文档，不把旧阶段总结当成实时状态。
+首次定位项目结构、增加服务/工作流或查找入口时读取本文件。业务易错点按根目录 [AGENTS.md](../../AGENTS.md) 的索引读取；版本号以根目录 `Directory.Build.props` 的 `<Version>` 为唯一来源，不把旧阶段总结当成实时状态。
 
 文档统一从 [文档导航](../README.md) 查找。模块说明、契约、计划、实测报告与历史归档按用途存放；移动文档时更新相对链接并检查目标存在，不能只移动文件留下旧入口。维护分类见导航中的“文档维护”。来源：[GitHub 相对链接](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#relative-links)。
 

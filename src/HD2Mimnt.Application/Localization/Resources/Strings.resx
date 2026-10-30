@@ -544,7 +544,7 @@
     <value>About HD2Mimnt</value>
   </data>
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
-    <value>Helldivers 2 mod manager · Version 0.1.0-alpha</value>
+    <value>Helldivers 2 mod manager · Version {0}</value>
   </data>
   <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
     <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
