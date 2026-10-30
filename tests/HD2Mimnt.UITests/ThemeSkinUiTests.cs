@@ -115,6 +115,75 @@ public class ThemeSkinUiTests
         }
     }
 
+    [AvaloniaFact]
+    public void HelldiversTheme_ShouldOverrideSemanticResources_AndRestoreOnLeave()
+    {
+        var app = global::Avalonia.Application.Current!;
+        var originalVariant = app.RequestedThemeVariant;
+        var originalTheme = originalVariant == ThemeVariant.Light ? AppThemeService.Light
+            : originalVariant == ThemeVariant.Default ? AppThemeService.System
+            : AppThemeService.Dark;
+        try
+        {
+            var baseMergedCount = app.Resources.MergedDictionaries.Count;
+            var baseStyleCount = app.Styles.Count;
+
+            AppThemeService.Apply(AppThemeService.Helldivers);
+            Assert.Equal(ThemeVariant.Dark, app.RequestedThemeVariant);
+            Assert.Equal(Color.Parse("#FF121212"), GetBrush(app, "Surface0Brush").Color);
+            Assert.Equal(new CornerRadius(0), GetCornerRadius(app, "CardCornerRadius"));
+            Assert.Equal(baseMergedCount + 2, app.Resources.MergedDictionaries.Count);
+            Assert.Equal(baseStyleCount + 1, app.Styles.Count);
+
+            AppThemeService.Apply(AppThemeService.Helldivers);
+            Assert.Equal(baseMergedCount + 2, app.Resources.MergedDictionaries.Count);
+            Assert.Equal(baseStyleCount + 1, app.Styles.Count);
+
+            AppThemeService.Apply(AppThemeService.Dark);
+            Assert.Equal(baseMergedCount, app.Resources.MergedDictionaries.Count);
+            Assert.Equal(baseStyleCount, app.Styles.Count);
+            Assert.NotEqual(Color.Parse("#FF121212"), GetBrush(app, "Surface0Brush").Color);
+        }
+        finally
+        {
+            app.Resources["CardSurfaceOpacity"] = 1.0;
+            AppThemeService.Apply(originalTheme);
+        }
+    }
+
+    [AvaloniaFact]
+    public void HelldiversTheme_ShouldRestyleExistingControls()
+    {
+        var app = global::Avalonia.Application.Current!;
+        var originalTheme = app.RequestedThemeVariant == ThemeVariant.Light ? AppThemeService.Light
+            : app.RequestedThemeVariant == ThemeVariant.Default ? AppThemeService.System
+            : AppThemeService.Dark;
+        var button = new Button { Content = "test" };
+        var window = new Window { Content = button, Width = 240, Height = 120 };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.IsType<ContentPresenter>(button.GetVisualChildren().Single());
+
+            AppThemeService.Apply(AppThemeService.Helldivers);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.IsType<Border>(button.GetVisualChildren().Single());
+
+            AppThemeService.Apply(AppThemeService.Dark);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.IsType<ContentPresenter>(button.GetVisualChildren().Single());
+        }
+        finally
+        {
+            window.Close();
+            AppThemeService.Apply(originalTheme);
+        }
+    }
+
     private static Func<Avalonia.Visual, bool> Named(string name) =>
         visual => visual is Avalonia.INamed named && named.Name == name;
 

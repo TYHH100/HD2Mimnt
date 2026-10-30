@@ -1,0 +1,46 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Helldivers 皮肤：近黑透明表面、细描边直角、黄色强调与军绿色确认色；透明度继续绑定运行时 token。 -->
+  <SolidColorBrush x:Key="Surface0Brush" Color="#121212"/>
+  <SolidColorBrush x:Key="Surface1Brush" Color="#1A1A1A"/>
+  <SolidColorBrush x:Key="Surface2Brush" Color="#232323"/>
+  <SolidColorBrush x:Key="Surface3Brush" Color="#2D2D2D"/>
+  <SolidColorBrush x:Key="BorderBrush" Color="#737373"/>
+  <SolidColorBrush x:Key="BorderStrongBrush" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="TextMutedBrush" Color="#969696"/>
+  <SolidColorBrush x:Key="HoverSurfaceBrush" Color="#1AFFFFFF"/>
+  <SolidColorBrush x:Key="SelectedSurfaceBrush" Color="#2EF2E33B"/>
+  <SolidColorBrush x:Key="SuccessBrush" Color="#6FCC4E"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="#F5A623"/>
+  <SolidColorBrush x:Key="ErrorBrush" Color="#E5484D"/>
+  <SolidColorBrush x:Key="DisabledBrush" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#26F5A623"/>
+  <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#26E5484D"/>
+  <SolidColorBrush x:Key="OverlayScrimBrush" Color="#CC000000"/>
+
+  <SolidColorBrush x:Key="CardFillBrush" Color="#232323" Opacity="{DynamicResource CardSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="ChromeFillBrush" Color="#1A1A1A" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="ContentFillBrush" Color="#121212" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="GroupHeaderFillBrush" Color="#2D2D2D" Opacity="{DynamicResource CardSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="NotificationSurfaceBrush" Color="#2D2D2D" Opacity="0.97"/>
+
+  <BoxShadows x:Key="CardShadow">0 0 0 0 #00000000</BoxShadows>
+  <Thickness x:Key="CardBorderThickness">1</Thickness>
+
+  <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="SubtleCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="CardCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="NotificationCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ControlCornerRadius">0</CornerRadius>
+
+  <!-- FluentAvalonia 的强调画刷全部派生自这组颜色，覆盖后按钮、开关、选中态会一起换成军械库黄。 -->
+  <Color x:Key="SystemAccentColor">#F2E33B</Color>
+  <Color x:Key="SystemAccentColorLight1">#FFF04F</Color>
+  <Color x:Key="SystemAccentColorLight2">#FFF56E</Color>
+  <Color x:Key="SystemAccentColorLight3">#FFF98F</Color>
+  <Color x:Key="SystemAccentColorDark1">#C9B92A</Color>
+  <Color x:Key="SystemAccentColorDark2">#9C8F1E</Color>
+  <Color x:Key="SystemAccentColorDark3">#6E6514</Color>
+</ResourceDictionary>

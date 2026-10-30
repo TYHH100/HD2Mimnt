@@ -7,13 +7,21 @@ using Avalonia.Styling;
 
 namespace HD2Mimnt.UI.Services;
 
-/// <summary>切换界面主题；Ore 皮肤以深色变体为基础，叠加方块风资源与控件主题。</summary>
+/// <summary>切换界面主题；皮肤主题以深色变体为基础，叠加专属资源与控件主题。</summary>
 public static class AppThemeService
 {
     public const string Dark = "Dark";
     public const string Light = "Light";
     public const string System = "System";
     public const string Ore = "Ore";
+    public const string Helldivers = "Helldivers";
+
+    private static readonly Uri[] HelldiversDictionaryUris =
+    {
+        new("avares://HD2Mimnt.UI/Styles/Skins/HelldiversSkin.axaml"),
+        new("avares://HD2Mimnt.UI/Styles/Skins/HelldiversControls.axaml")
+    };
+    private static readonly Uri HelldiversStylesUri = new("avares://HD2Mimnt.UI/Styles/Skins/HelldiversStyles.axaml");
 
     private static readonly Uri[] OreDictionaryUris =
     {
@@ -21,6 +29,14 @@ public static class AppThemeService
         new("avares://HD2Mimnt.UI/Styles/Skins/OreControls.axaml")
     };
     private static readonly Uri OreStylesUri = new("avares://HD2Mimnt.UI/Styles/Skins/OreStyles.axaml");
+
+    private static readonly IReadOnlyDictionary<string, (Uri[] Dictionaries, Uri Styles)> Skins =
+        new Dictionary<string, (Uri[], Uri)>(StringComparer.OrdinalIgnoreCase)
+        {
+            [Ore] = (OreDictionaryUris, OreStylesUri),
+            [Helldivers] = (HelldiversDictionaryUris, HelldiversStylesUri)
+        };
+
     private static readonly ConditionalWeakTable<global::Avalonia.Application, AppliedSkin> ActiveSkins = new();
 
     public static void Apply(string theme)
@@ -43,17 +59,17 @@ public static class AppThemeService
             _ => ThemeVariant.Dark
         };
 
-        if (!string.Equals(theme, Ore, StringComparison.OrdinalIgnoreCase)) return;
+        if (!Skins.TryGetValue(theme, out var skin)) return;
 
         var applied = new AppliedSkin();
-        foreach (var uri in OreDictionaryUris)
+        foreach (var uri in skin.Dictionaries)
         {
             if (AvaloniaXamlLoader.Load(uri) is not ResourceDictionary dictionary) continue;
             app.Resources.MergedDictionaries.Add(dictionary);
             applied.Dictionaries.Add(dictionary);
         }
 
-        if (AvaloniaXamlLoader.Load(OreStylesUri) is Styles styles)
+        if (AvaloniaXamlLoader.Load(skin.Styles) is Styles styles)
         {
             app.Styles.Add(styles);
             applied.Styles = styles;

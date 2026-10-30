@@ -1,0 +1,20 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fa="using:FluentAvalonia.UI.Controls"
+        xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives">
+  <!-- 必须显式设置 Theme：隐式 ControlTheme 只在控件挂载时解析，运行时换肤不会刷新已有控件。 -->
+  <Style Selector="Button">
+    <Setter Property="Theme" Value="{DynamicResource HdButtonTheme}"/>
+  </Style>
+  <Style Selector="Button.tertiary, Button.icon-button, Button.side-nav, Button.tool-row">
+    <Setter Property="Theme" Value="{DynamicResource TransparentButton}"/>
+  </Style>
+
+  <!-- 选中页签/列表项按军械库列表处理：黄色描边加半透明黄底，聚焦态才加粗描边。 -->
+  <Style Selector="uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot">
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="uip|FANavigationViewItemPresenter:selected /template/ Border#LayoutRoot">
+    <Setter Property="BorderBrush" Value="#F2E33B"/>
+  </Style>
+</Styles>

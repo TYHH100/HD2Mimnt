@@ -2339,6 +2339,9 @@ See the Conflicts page for details.</value>
   <data name="Options.Ore" xml:space="preserve">
     <value>Ore</value>
   </data>
+  <data name="Options.Helldivers" xml:space="preserve">
+    <value>Helldivers</value>
+  </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>Comfortable</value>
   </data>

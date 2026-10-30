@@ -2339,6 +2339,9 @@
   <data name="Options.Ore" xml:space="preserve">
     <value>礦石風</value>
   </data>
+  <data name="Options.Helldivers" xml:space="preserve">
+    <value>絕地潛兵風</value>
+  </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>舒適</value>
   </data>
