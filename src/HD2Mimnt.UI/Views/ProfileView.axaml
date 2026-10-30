@@ -21,7 +21,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
   </Style>
   <Style Selector="Border.sticky-group-header">
-    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+    <Setter Property="Background" Value="{DynamicResource GroupHeaderFillBrush}"/>
   </Style>
   <Style Selector="Border.sticky-group-header.group-drop-target">
     <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
@@ -156,7 +156,7 @@
             <DataTemplate x:DataType="vm:ProfileModViewModel">
               <StackPanel>
                 <Border IsVisible="{Binding IsSeparator}" Padding="12,8" Margin="0,8,0,4"
-                        Classes="profile-separator" Background="{DynamicResource Surface3Brush}"
+                        Classes="profile-separator" Background="{DynamicResource GroupHeaderFillBrush}"
                         PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved"
                         ContextRequested="ModCard_ContextRequested"
                         BorderBrush="{DynamicResource AccentBrush}" BorderThickness="0,1,0,1">

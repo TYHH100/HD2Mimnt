@@ -22,6 +22,7 @@
   <SolidColorBrush x:Key="CardFillBrush" Color="#333333" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ChromeFillBrush" Color="#262626" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ContentFillBrush" Color="#1E1E1E" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
+  <SolidColorBrush x:Key="GroupHeaderFillBrush" Color="#3F3F3F" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="NotificationSurfaceBrush" Color="#3A3A3A" Opacity="0.97"/>
 
   <FontFamily x:Key="DisplayFontFamily">avares://HD2Mimnt.UI/Assets/Fonts#Monocraft, Microsoft YaHei UI</FontFamily>

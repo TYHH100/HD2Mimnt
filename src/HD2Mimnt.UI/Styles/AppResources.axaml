@@ -49,6 +49,8 @@
   <SolidColorBrush x:Key="CardFillBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ChromeFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ContentFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ContentSurfaceOpacity}"/>
+  <!-- 分组头卡片底色：与 Surface3Brush 同色，但透明度跟随外观设置的卡片不透明度。 -->
+  <SolidColorBrush x:Key="GroupHeaderFillBrush" Color="{DynamicResource SolidBackgroundFillColorQuarternary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <!-- 分隔符分组色板的默认底色：未设置自定义颜色时跟随主题强调色。 -->
   <SolidColorBrush x:Key="GroupTintFallbackBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.15"/>
   <!-- 皮肤可覆盖的显示字体：标题与控件文字使用它，正文保持系统字体。 -->
