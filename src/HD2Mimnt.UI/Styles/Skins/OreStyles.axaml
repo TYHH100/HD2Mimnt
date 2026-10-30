@@ -49,37 +49,37 @@
     <Setter Property="Opacity" Value="0.45"/>
   </Style>
 
-  <!-- 输入框/下拉框内凹浮雕；复选框与选中页签用凸起浮雕，聚焦时才加白框。 -->
+  <!-- 输入框/下拉框内凹浮雕；复选框与选中页签用凸起浮雕，聚焦时才加白框。值全部走资源键，切走皮肤才能回落。 -->
   <Style Selector="TextBox /template/ Border#PART_BorderElement">
-    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #40000000, inset 0 -1 0 0 #B3FFFFFF"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreInputShadow}"/>
   </Style>
   <Style Selector="ComboBox /template/ Border#Background">
-    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #40000000, inset 0 -1 0 0 #B3FFFFFF"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreInputShadow}"/>
   </Style>
   <Style Selector="CheckBox /template/ Border#NormalRectangle">
-    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000"/>
-    <Setter Property="BorderBrush" Value="#141414"/>
-    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreCheckShadow}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource OreCheckBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource OreCheckBorderThickness}"/>
   </Style>
   <Style Selector="CheckBox:focus /template/ Border#NormalRectangle">
-    <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFF, inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreCheckFocusShadow}"/>
   </Style>
   <Style Selector="Slider /template/ Thumb /template/ Border">
-    <Setter Property="BoxShadow" Value="inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreThumbShadow}"/>
   </Style>
   <Style Selector="Slider:focus /template/ Thumb /template/ Border">
-    <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFF, inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreThumbFocusShadow}"/>
   </Style>
   <!-- 顶部导航分段按钮：样式化 presenter 模板部件加矿石按钮同款描边浮雕，选中悬停/按下跟随绿色渐变。 -->
   <Style Selector="uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot">
     <Setter Property="BorderBrush" Value="{DynamicResource OreButtonBorderBrush}"/>
-    <Setter Property="BorderThickness" Value="2"/>
-    <Setter Property="BoxShadow" Value="inset 0 2 0 0 #66FFFFFF, inset 0 -3 0 0 #4D000000"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource OreNavBorderThickness}"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreNavShadow}"/>
   </Style>
   <!-- 选中项按矿石风 Toggle 参考图呈按下的凹陷感：内阴影反转并整块下沉。 -->
   <Style Selector="uip|FANavigationViewItemPresenter:selected /template/ Border#LayoutRoot">
-    <Setter Property="BoxShadow" Value="inset 0 3 0 0 #59000000, inset 0 -2 0 0 #40FFFFFF"/>
-    <Setter Property="Margin" Value="0,3,0,3"/>
+    <Setter Property="BoxShadow" Value="{DynamicResource OreNavShadowSelected}"/>
+    <Setter Property="Margin" Value="{DynamicResource OreNavSelectedMargin}"/>
   </Style>
   <Style Selector="uip|FANavigationViewItemPresenter:selected:pointerover /template/ Border#LayoutRoot">
     <Setter Property="Background" Value="{DynamicResource TopNavigationViewItemBackgroundSelectedPointerOver}"/>

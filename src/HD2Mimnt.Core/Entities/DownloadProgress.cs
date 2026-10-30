@@ -1,6 +1,12 @@
 namespace HD2Mimnt.Core.Entities;
 
 /// <summary>
+/// Progress of one HTTP range segment. <see cref="Downloaded"/> is the written offset relative
+/// to <see cref="Start"/>; the segment spans [Start, End].
+/// </summary>
+public sealed record DownloadSegmentProgress(long Start, long End, long Downloaded);
+
+/// <summary>
 /// Represents download progress information.
 /// </summary>
 public class DownloadProgress
@@ -29,4 +35,10 @@ public class DownloadProgress
     /// Gets or sets the current status message.
     /// </summary>
     public string StatusMessage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets per-segment progress for multi-connection downloads; null for
+    /// unknown-length or single-connection transfers.
+    /// </summary>
+    public IReadOnlyList<DownloadSegmentProgress>? Segments { get; set; }
 }

@@ -11,10 +11,10 @@
 
   <!-- 选中页签/列表项按军械库列表处理：黄色描边加半透明黄底，聚焦态才加粗描边。 -->
   <Style Selector="uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot">
-    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HdNavBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="{DynamicResource HdNavBorderThickness}"/>
   </Style>
   <Style Selector="uip|FANavigationViewItemPresenter:selected /template/ Border#LayoutRoot">
-    <Setter Property="BorderBrush" Value="#F2E33B"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HdNavSelectedBorderBrush}"/>
   </Style>
 </Styles>

@@ -6,6 +6,8 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FluentAvalonia.UI.Controls;
+using FluentAvalonia.UI.Controls.Primitives;
 using HD2Mimnt.UI.Services;
 using System.Globalization;
 
@@ -231,6 +233,61 @@ public class ThemeSkinUiTests
             AppThemeService.Apply(originalTheme);
         }
     }
+
+    [AvaloniaFact]
+    public void SkinThemes_ShouldRestoreTemplatePartOverridesOnLeave()
+    {
+        var originalTheme = global::Avalonia.Application.Current!.RequestedThemeVariant == ThemeVariant.Light
+            ? AppThemeService.Light : AppThemeService.Dark;
+        var nav = new FANavigationView
+        {
+            PaneDisplayMode = FANavigationViewPaneDisplayMode.Top,
+            MenuItems = { new FANavigationViewItem { Content = "A" }, new FANavigationViewItem { Content = "B" } }
+        };
+        nav.SelectedItem = nav.MenuItems[0];
+        var panel = new StackPanel { Children = { nav, new CheckBox(), new TextBox() } };
+        var window = new Window { Content = panel, Width = 700, Height = 320 };
+        try
+        {
+            window.Show();
+            Pump(window);
+            var navRoot = Part<FANavigationViewItemPresenter>(nav, "LayoutRoot");
+            var checkRoot = Part<CheckBox>(panel, "NormalRectangle");
+            var inputRoot = Part<TextBox>(panel, "PART_BorderElement");
+            var baseline = Snapshot(navRoot, checkRoot, inputRoot);
+
+            foreach (var skin in new[] { AppThemeService.Ore, AppThemeService.Helldivers })
+            {
+                AppThemeService.Apply(skin);
+                Pump(window);
+                Assert.NotEqual(baseline, Snapshot(navRoot, checkRoot, inputRoot));
+
+                // 切回内置主题后模板部件覆盖必须全部回落：残留的描边/浮雕就是换肤不干净。
+                AppThemeService.Apply(AppThemeService.Dark);
+                Pump(window);
+                Assert.Equal(baseline, Snapshot(navRoot, checkRoot, inputRoot));
+            }
+        }
+        finally
+        {
+            window.Close();
+            AppThemeService.Apply(originalTheme);
+        }
+    }
+
+    private static void Pump(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
+    }
+
+    private static Border Part<T>(Control root, string name) where T : Avalonia.Visual =>
+        root.GetVisualDescendants().OfType<T>().First()
+            .GetVisualDescendants().OfType<Border>().Single(b => b.Name == name);
+
+    private static string Snapshot(Border nav, Border check, Border input) =>
+        $"{nav.BorderBrush}|{nav.BorderThickness}|{nav.BoxShadow}|{nav.Margin}|" +
+        $"{check.BorderBrush}|{check.BorderThickness}|{check.BoxShadow}|{input.BoxShadow}";
 
     private static Func<Avalonia.Visual, bool> Named(string name) =>
         visual => visual is Avalonia.INamed named && named.Name == name;

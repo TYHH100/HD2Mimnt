@@ -226,6 +226,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
             await state.SaveAsync(file, context.MetadataPath);
         }
         reporter.Restore(state.Segments);
+        reporter.SetLayout(state.Segments);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var ignoredRange = false;
         using var slots = new SemaphoreSlim(options.MaxParallelSegments);
@@ -386,6 +387,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
         private long _downloaded;
         private long _restored;
         private readonly Dictionary<long, long> _segments = [];
+        private List<(long Start, long End)>? _layout;
         public long TotalBytes { get; set; } = total;
 
         public void Reset()
@@ -395,7 +397,17 @@ public sealed class HttpDownloadService : IHttpDownloadService
                 _downloaded = 0;
                 _restored = 0;
                 _segments.Clear();
+                _layout = null;
                 _clock.Restart();
+            }
+        }
+
+        public void SetLayout(IReadOnlyList<DownloadSegment> segments)
+        {
+            lock (_gate)
+            {
+                _layout = segments.Select(s => (s.Start, s.End)).ToList();
+                if (_restored > 0) Report("正在续传");
             }
         }
 
@@ -445,12 +457,27 @@ public sealed class HttpDownloadService : IHttpDownloadService
             }
         }
 
-        private void Report(string message) => progress?.Report(new DownloadProgress
+        private void Report(string message)
         {
-            TotalBytes = TotalBytes,
-            DownloadedBytes = _downloaded,
-            BytesPerSecond = (long)((_downloaded - _restored) / Math.Max(_clock.Elapsed.TotalSeconds, 0.001)),
-            StatusMessage = message
-        });
+            IReadOnlyList<DownloadSegmentProgress>? segments = null;
+            if (_layout is { } layout)
+            {
+                var snapshot = new DownloadSegmentProgress[layout.Count];
+                for (var index = 0; index < layout.Count; index++)
+                {
+                    var (start, end) = layout[index];
+                    snapshot[index] = new DownloadSegmentProgress(start, end, _segments.GetValueOrDefault(start));
+                }
+                segments = snapshot;
+            }
+            progress?.Report(new DownloadProgress
+            {
+                TotalBytes = TotalBytes,
+                DownloadedBytes = _downloaded,
+                BytesPerSecond = (long)((_downloaded - _restored) / Math.Max(_clock.Elapsed.TotalSeconds, 0.001)),
+                StatusMessage = message,
+                Segments = segments
+            });
+        }
     }
 }

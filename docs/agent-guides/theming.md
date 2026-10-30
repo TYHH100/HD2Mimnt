@@ -28,6 +28,7 @@
 - **隐式 `ControlTheme` 只在控件挂载时解析**：运行时换肤必须用应用级样式显式设置 `Theme` 或直接设置 `Template`，否则已挂载的控件不会刷新模板（开关与按钮都靠这一机制换装）。
 - **模板部件命名避开 FluentAvalonia 已用名**（`OuterBorder`、`SwitchKnobBounds` 等）：FA 的隐式主题会按名字设置 Opacity，重名元素会在特定状态下被隐藏（曾导致 Ore 开关开启态整体消失）。FA 必需的 `PART_*` 部件必须保留；开关行程 = `PART_SwitchKnob` 宽度，键位槽/滑块尺寸必须与行程对齐，否则选中态盖不住目标位置。
 - **`/template/` 选择器只命中一层 TemplatedParent**：要样式化内层控件（如 `FANavigationViewItemPresenter`）的模板部件，选择器必须按内层控件类型书写；FA 主题在模板里硬编码的属性值优先级高于普通样式，覆盖时需要带激活器（`:selected` 等）的样式，或放弃覆盖。
+- **皮肤样式的 setter 值必须写资源键，不能写字面量**：从 `Application.Styles` 移除皮肤样式容器不会撤销已经生效的 setter（Avalonia 已知行为），写死的 `BorderThickness`、`BoxShadow`、`#F2E33B` 会永久留在已挂载控件上——“切回 Dark/Light/System 后导航黄框还在”就是这个原因（重建模板、切 ThemeVariant、`ApplyTemplate()` 都救不回来，只有把元素从可视树摘下再挂回才会重算）。`DynamicResource` 值会随皮肤字典卸载自动回落，所以皮肤私有键（`HdNav*`、`OreNav*`、`Ore*Shadow`）不要在内置主题里定义，未命中即等于不覆盖。FA 与内置主题同名的键（如 `BorderBrush`）卸载后会落到内置值，仍可能留下隐形描边，需要时用皮肤私有键复制一份。回归断言见 `ThemeSkinUiTests.SkinThemes_ShouldRestoreTemplatePartOverridesOnLeave`：挂载后模板部件快照必须变化，切走后必须回到基线快照。来源：[Avalonia #3495 运行时换样式不会更新全部控件](https://github.com/AvaloniaUI/Avalonia/issues/3495)、[Avalonia Styles 排障文档](https://docs.avaloniaui.net/troubleshooting/ui-development/styles)
 - **透明度 token 不能被新画刷替换**：`CardSurfaceOpacity` / `ChromeSurfaceOpacity` / `ContentSurfaceOpacity` 是运行时绑定目标，皮肤只能覆盖画刷颜色，不能覆盖成丢失绑定的新画刷，否则跟随系统切换主题时颜色失联。
 - **强调色只覆盖 `SystemAccentColor*` 五个颜色**：FluentAvalonia 的全部强调画刷由它们派生，逐个覆盖画刷既费力又容易漏。
 - **白色 2px 描边只作为 `:focus` 状态**：不要写成常驻样式；引入浅色输入控件后，搜索图标等叠在输入框上的前景要跟随 `TextControlForeground`，否则深色图标在浅底上看不清。

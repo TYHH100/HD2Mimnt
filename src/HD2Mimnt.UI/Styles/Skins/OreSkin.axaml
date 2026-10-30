@@ -29,6 +29,19 @@
   <FontFamily x:Key="DisplayFontFamily">Segoe UI Variable, Segoe UI, Microsoft YaHei UI</FontFamily>
   <BoxShadows x:Key="CardShadow">0 0 0 2 #0B0B0B</BoxShadows>
   <Thickness x:Key="CardBorderThickness">2</Thickness>
+  <!-- 顶部导航浮雕走资源键：从 Application.Styles 移除皮肤样式不会撤销已生效的 setter，只有 DynamicResource 值随字典卸载回落。 -->
+  <Thickness x:Key="OreNavBorderThickness">2</Thickness>
+  <BoxShadows x:Key="OreNavShadow">inset 0 2 0 0 #66FFFFFF, inset 0 -3 0 0 #4D000000</BoxShadows>
+  <BoxShadows x:Key="OreNavShadowSelected">inset 0 3 0 0 #59000000, inset 0 -2 0 0 #40FFFFFF</BoxShadows>
+  <Thickness x:Key="OreNavSelectedMargin">0,3,0,3</Thickness>
+  <!-- 输入框/复选框/滑块的浮雕同理。 -->
+  <BoxShadows x:Key="OreInputShadow">inset 0 1 0 0 #40000000, inset 0 -1 0 0 #B3FFFFFF</BoxShadows>
+  <BoxShadows x:Key="OreCheckShadow">inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000</BoxShadows>
+  <BoxShadows x:Key="OreCheckFocusShadow">0 0 0 2 #FFFFFF, inset 0 1 0 0 #80FFFFFF, inset 0 -2 0 0 #59000000</BoxShadows>
+  <SolidColorBrush x:Key="OreCheckBorderBrush" Color="#141414"/>
+  <Thickness x:Key="OreCheckBorderThickness">2</Thickness>
+  <BoxShadows x:Key="OreThumbShadow">inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000</BoxShadows>
+  <BoxShadows x:Key="OreThumbFocusShadow">0 0 0 2 #FFFFFF, inset 0 1 0 0 #B3FFFFFF, inset 0 -2 0 0 #4D000000</BoxShadows>
 
   <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
   <CornerRadius x:Key="SubtleCornerRadius">0</CornerRadius>

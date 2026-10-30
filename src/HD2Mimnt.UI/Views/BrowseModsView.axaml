@@ -47,7 +47,12 @@
         <Button x:Name="BrowsePreviousPageButton" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding CanPreviousPage}" Content="{loc:Loc Browse.PreviousPage}"/>
         <Button x:Name="BrowseNextPageButton" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanNextPage}" Content="{loc:Loc Browse.NextPage}"/>
       </StackPanel>
-      <ProgressBar IsVisible="{Binding IsBusy}" IsIndeterminate="{Binding IsIndeterminate}" Value="{Binding Progress}"/>
+      <Panel IsVisible="{Binding IsBusy}">
+        <ProgressBar IsVisible="{Binding !HasDownloadSegments}" IsIndeterminate="{Binding IsIndeterminate}" Value="{Binding Progress}"/>
+        <controls:SegmentedDownloadBar IsVisible="{Binding HasDownloadSegments}" Segments="{Binding DownloadSegments}" Height="6"
+                                       FillBrush="{DynamicResource AccentBrush}" TrackBrush="{DynamicResource BorderBrush}"/>
+      </Panel>
+      <TextBlock Text="{Binding DownloadProgressText}" Classes="caption-text" IsVisible="{Binding HasDownloadProgress}"/>
       <TextBlock Text="{loc:Loc Browse.LoadingImage}" IsVisible="{Binding IsLoadingImage}" Classes="caption-text"/>
       <TextBlock x:Name="BrowseStatusText" Text="{loc:LocalizedBinding DisplayMessage}" TextWrapping="Wrap" MaxHeight="80"
                  IsVisible="{Binding HasMessage}" ToolTip.Tip="{loc:LocalizedBinding DisplayMessage}"/>

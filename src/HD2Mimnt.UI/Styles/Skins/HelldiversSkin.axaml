@@ -27,6 +27,10 @@
 
   <BoxShadows x:Key="CardShadow">0 0 0 0 #00000000</BoxShadows>
   <Thickness x:Key="CardBorderThickness">1</Thickness>
+  <!-- 顶部导航描边走皮肤私有资源键：从 Application.Styles 移除皮肤样式不会撤销已生效的 setter，只有 DynamicResource 值随字典卸载回落。 -->
+  <SolidColorBrush x:Key="HdNavBorderBrush" Color="#737373"/>
+  <Thickness x:Key="HdNavBorderThickness">1</Thickness>
+  <SolidColorBrush x:Key="HdNavSelectedBorderBrush" Color="#F2E33B"/>
 
   <CornerRadius x:Key="FlatCornerRadius">0</CornerRadius>
   <CornerRadius x:Key="SubtleCornerRadius">0</CornerRadius>
