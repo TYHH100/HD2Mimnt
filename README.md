@@ -1,5 +1,7 @@
 # HD2Mimnt
 
+**中文** | [English](README.en.md)
+
 Helldivers 2（绝地潜兵 2）模组管理器，基于 .NET 10 与 Avalonia 开发，主要面向 Windows 10/11。
 
 ## 主要功能

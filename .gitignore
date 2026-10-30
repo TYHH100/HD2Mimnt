@@ -154,3 +154,4 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .layout-validation/
 .tmp-platform-download-*/
 tools/
+.qoder/
