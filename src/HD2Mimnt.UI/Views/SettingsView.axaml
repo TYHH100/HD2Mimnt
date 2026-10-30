@@ -170,6 +170,12 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoAddImportedModsToggle" IsChecked="{Binding AutoAddImportedMods}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.ChooseGroupWhenAdding}" Description="{loc:Loc Settings.Profiles.ChooseGroupWhenAddingHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ChooseGroupWhenAddingToggle" IsChecked="{Binding ChooseGroupWhenAdding}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.PinExpandedGroups}" Description="{loc:Loc Settings.Profiles.PinExpandedGroupsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="PinExpandedGroupsToggle" IsChecked="{Binding PinExpandedGroups}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

@@ -36,6 +36,8 @@
 
 - 用户分组保存于 `ProfileSeparators`，固定 Lua 分组的折叠及颜色单独保存于 `Profiles`；颜色用 `#RRGGBB`，空值跟随主题，标题保留主题文字并以色条区分。两种分组折叠只影响显示，不改启用/选项/顺序、不参与部署；分隔符添加、删除、改名、颜色和折叠保存仍通知界面刷新，但通过 `ProfilesChangedEventArgs.AffectsConflictResults=false` 保留冲突结果，不能触发重检或取消正在进行的扫描。反向时 Lua 分隔符隐藏其上方固定成员，固定分隔符仍不可拖动或删除。搜索按完整成员显示匹配项，不改变保存的折叠状态；排序事务保存完整模组顺序及用户分隔符落点，不能按折叠/过滤后的索引改变归属。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
 
+- 加入指定分组与展开分组标题冻结：分组移动统一走 `ProfileService.MoveModsToGroupAsync` / `AddModsToProfileGroupAsync`，按“未分组段 + 分组块”重建普通模组顺序与分隔符 `Order`/`MemberCount`，固定加载器模组直接忽略，不能只改界面集合。“展开的分组标题固定在顶部”默认关闭，只把展开的用户分组标题行从 `ProfileDisplayRows` 抽出到滚动区上方的 `FrozenGroupHeaders`，按原顺序堆叠；模组数据顺序和 `ProfileRows` 不变，收起后标题回到原位置。拖动、落点和预览必须使用实际绑定的 `ProfileDisplayRows`，不能再按 `ProfileRows` 的下标取锚点；拖动经过冻结标题时必须高亮该标题，松手调用 `DropModsIntoGroupAsync` 直接加入该分组，不能只把它当作普通排序落点。模组库弹窗只在单选配置文件时提供分组选择，未指定或多选时保留追加逻辑；导入自动添加的分组选择须在批次结束后再显示和应用，不能在导入过程中移动尚未全部落库的成员。来源：https://docs.avaloniaui.net/docs/reference/controls/itemscontrol 、https://docs.avaloniaui.net/docs/concepts/input/pointer
+
 - 依赖加载器分隔符使用 `ChevronAngle` 表达部署方向：常规部署展开箭头向下（90°），从下到上部署向上（-90°）；不要只改固定图标，否则方向切换后 UI 与列表顺序不一致。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 收起的用户分组需要保存 `MemberCount` 结束边界，拖入其下方或移动整组时只保留原有成员，组外模组正常显示；仅保存起点会让后续模组自动归组。旧数据的 null 沿用原范围，操作时补齐边界；展开、搜索、重新加载、复制配置和组内移出/删除都要保持边界一致，排序与边界通过同一次服务写入保存。回归覆盖正反部署方向、末尾分组及实际 DragOver/Drop。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://www.sqlite.org/lang_altertable.html

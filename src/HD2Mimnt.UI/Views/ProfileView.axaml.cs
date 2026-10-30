@@ -28,6 +28,7 @@ public partial class ProfileView : UserControl
     private ItemsControl? _sortList;
     private DataTransfer? _sortData;
     private Func<object?, bool>? _sortIsMoving;
+    private ProfileModViewModel? _groupDropTarget;
 
     private void SubscribeConflictNavigation(ProfileViewModel? viewModel)
     {
@@ -147,10 +148,16 @@ public partial class ProfileView : UserControl
         {
             modEntries.Add(AppContextMenu.Separator);
             if (!mod.IsFixedGroupMember)
+            {
                 modEntries.Add(new ContextMenuItem("在此处添加分组分隔符", vm.OpenAddSeparatorCommand, "Add")
                 {
                     CommandParameter = mod
                 });
+                modEntries.Add(new ContextMenuItem("加入指定分组…", vm.OpenAddToGroupCommand, "Folder")
+                {
+                    CommandParameter = mod
+                });
+            }
             modEntries.Add(new ContextMenuItem("移动到指定位置…", vm.OpenMoveToPositionCommand, "Edit")
             {
                 CommandParameter = mod
@@ -325,7 +332,8 @@ public partial class ProfileView : UserControl
         }
         if (e.Handled) return;
         if (!IsEffectivelyVisible || DataContext is not ProfileViewModel vm || vm.IsModOptionsDialogOpen
-            || vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
+            || vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.IsMoveToPositionDialogOpen
+            || vm.IsAddToGroupDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
             || vm.IsDetailPanelOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
             && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
@@ -441,6 +449,14 @@ public partial class ProfileView : UserControl
         if (_sortList == null || _sortData == null) return;
         // 滚动会回收卡片容器，透明度必须跟随当前数据，不能留在复用后的其他行上。
         if (_sortIsMoving is { } isMoving) DimDragSources(_sortList, isMoving);
+        var group = HitTestFrozenGroupHeader(e);
+        if (group != null)
+        {
+            SetGroupDropTarget(group);
+            ShowGroupDropPreview(e, group);
+            return;
+        }
+        SetGroupDropTarget(null);
         if (!new Rect(SortViewport.Bounds.Size).Contains(e.GetPosition(SortViewport)))
         {
             HideSortPreview();
@@ -463,6 +479,15 @@ public partial class ProfileView : UserControl
         if (_sortPointer != e.Pointer || e.InitialPressMouseButton != MouseButton.Left) return;
         try
         {
+            if (HitTestFrozenGroupHeader(e) is { } group && _sortData != null
+                && TryParseMovingIds(_sortData, out var groupMovingIds))
+            {
+                var viewModel = DataContext as ProfileViewModel;
+                ClearSortPreview();
+                if (viewModel != null) _ = viewModel.DropModsIntoGroupAsync(group, groupMovingIds);
+                e.Handled = true;
+                return;
+            }
             if (_sortList != null && _sortData != null
                 && new Rect(SortViewport.Bounds.Size).Contains(e.GetPosition(SortViewport)))
                 _sortList.RaiseEvent(new DragEventArgs(DragDrop.DropEvent, _sortData, _sortList,
@@ -560,20 +585,73 @@ public partial class ProfileView : UserControl
     private bool TryGetMovingModIds(DragEventArgs e, out List<Guid> movingIds)
     {
         movingIds = new List<Guid>();
-        var text = e.DataTransfer.TryGetText();
-        if (string.IsNullOrEmpty(text)) return false;
-
-        foreach (var part in text.Split(';'))
-        {
-            if (Guid.TryParse(part, out var id))
-            {
-                movingIds.Add(id);
-            }
-        }
-
-        return movingIds.Count > 0 && DataContext is ProfileViewModel vm
+        if (!TryParseMovingIds(e.DataTransfer, out movingIds)) return false;
+        return DataContext is ProfileViewModel vm
             && !vm.IsProfileModsLoading && movingIds.All(id => vm.ProfileMods.Concat(vm.ProfileSeparators)
                 .Any(mod => mod.ModId == id && mod.CanDrag));
+    }
+
+    private static bool TryParseMovingIds(IDataTransfer? data, out List<Guid> movingIds)
+    {
+        movingIds = new List<Guid>();
+        var text = data?.TryGetText();
+        if (string.IsNullOrEmpty(text)) return false;
+        foreach (var part in text.Split(';'))
+            if (Guid.TryParse(part, out var id)) movingIds.Add(id);
+        return movingIds.Count > 0;
+    }
+
+    /// <summary>命中冻结分组标题时返回对应分组，供拖动直接加入分组。</summary>
+    private ProfileModViewModel? HitTestFrozenGroupHeader(PointerEventArgs e)
+    {
+        if (FrozenGroupHeaderList.ItemCount == 0 || !FrozenGroupHeaderList.IsEffectivelyVisible) return null;
+        var position = e.GetPosition(FrozenGroupHeaderList);
+        if (!new Rect(FrozenGroupHeaderList.Bounds.Size).Contains(position)) return null;
+        for (var index = 0; index < FrozenGroupHeaderList.ItemCount; index++)
+        {
+            if (FrozenGroupHeaderList.ContainerFromIndex(index) is not Control container
+                || container.DataContext is not ProfileModViewModel group) continue;
+            if (container.TranslatePoint(default, FrozenGroupHeaderList) is not { } origin) continue;
+            if (new Rect(origin, container.Bounds.Size).Contains(position)) return group;
+        }
+        return null;
+    }
+
+    private void SetGroupDropTarget(ProfileModViewModel? target)
+    {
+        if (ReferenceEquals(_groupDropTarget, target)) return;
+        if (_groupDropTarget != null) _groupDropTarget.IsGroupDropTarget = false;
+        _groupDropTarget = target;
+        if (target != null) target.IsGroupDropTarget = true;
+    }
+
+    private void ShowGroupDropPreview(PointerEventArgs e, ProfileModViewModel group)
+    {
+        if (DataContext is not ProfileViewModel vm || !TryParseMovingIds(_sortData, out var movingIds))
+        {
+            HideSortPreview();
+            return;
+        }
+        var moving = vm.ProfileMods.Concat(vm.ProfileSeparators)
+            .Where(mod => movingIds.Contains(mod.ModId)).ToArray();
+        if (moving.Length == 0) { HideSortPreview(); return; }
+        var title = moving.Length == 1 ? moving[0].IsUserSeparator
+            ? $"{moving[0].ModName} · 整组 {moving[0].GroupModCount} 个模组" : moving[0].ModName
+            : $"{moving[0].ModName} 等 {moving.Length} 个模组";
+        var destination = $"松开放入「{group.ModName}」分组";
+        SortInsertionMarker.IsVisible = false;
+        SortDragTitle.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(title));
+        SortDragDestination.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(destination));
+        var point = e.GetPosition(SortPreviewLayer);
+        var width = Math.Clamp(FrozenGroupHeaderList.Bounds.Width - 8, 200, 360);
+        SortDragGhost.Width = width;
+        SortDragGhost.IsVisible = true;
+        SortDragGhost.Measure(new Size(width, double.PositiveInfinity));
+        var height = SortDragGhost.DesiredSize.Height;
+        var x = Math.Clamp(point.X - width / 2, 4, Math.Max(4, SortPreviewLayer.Bounds.Width - width - 4));
+        var y = Math.Clamp(point.Y + 16, 4, Math.Max(4, SortPreviewLayer.Bounds.Height - height - 4));
+        Canvas.SetLeft(SortDragGhost, x);
+        Canvas.SetTop(SortDragGhost, y);
     }
 
     private bool TryGetMovingProfileId(DragEventArgs e, out Guid profileId)
@@ -601,8 +679,8 @@ public partial class ProfileView : UserControl
         var slot = ComputeModInsertIndex(y);
         var expandedIds = vm.ExpandMovingRows(movingIds);
         // 自身或多选中的卡片不是插入锚点，继续寻找下一个非拖动项。
-        while (slot < vm.ProfileRows.Count && expandedIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
-        return (slot, slot < vm.ProfileRows.Count ? vm.ProfileRows[slot].ModId : null);
+        while (slot < vm.ProfileDisplayRows.Count && expandedIds.Contains(vm.ProfileDisplayRows[slot].ModId)) slot++;
+        return (slot, slot < vm.ProfileDisplayRows.Count ? vm.ProfileDisplayRows[slot].ModId : null);
     }
 
     private void BeginProfileDragPreview(Guid profileId)
@@ -734,6 +812,7 @@ public partial class ProfileView : UserControl
         _pressedArgs = null;
         _pressedMod = null;
         _modPressedArgs = null;
+        SetGroupDropTarget(null);
     }
 
     private void RestoreDragSources()

@@ -91,6 +91,30 @@ public partial class LibraryViewModel : ObservableObject
 
     public ObservableCollection<ProfileChoiceViewModel> AddToProfileChoices { get; } = new();
 
+    /// <summary>“加入配置文件”弹窗中的可选目标分组；仅在选择单个配置文件且设置开启时使用。</summary>
+    public ObservableCollection<ProfileGroupChoiceViewModel> AddToProfileGroups { get; } = new();
+
+    [ObservableProperty]
+    private bool _showAddToProfileGroupPicker;
+
+    [ObservableProperty]
+    private bool _chooseAddToProfileGroup;
+
+    [ObservableProperty]
+    private ProfileGroupChoiceViewModel? _selectedAddToProfileGroup;
+
+    public bool HasSingleAddToProfileChoice => AddToProfileChoices.Count(choice => choice.IsSelected) == 1;
+    public bool AddToProfileGroupHintVisible => ShowAddToProfileGroupPicker && !HasSingleAddToProfileChoice;
+    public bool AddToProfileGroupEmptyHintVisible => ChooseAddToProfileGroup && HasSingleAddToProfileChoice && !HasAddToProfileGroups;
+    public bool HasAddToProfileGroups => AddToProfileGroups.Count > 0;
+
+    partial void OnChooseAddToProfileGroupChanged(bool value)
+    {
+        OnPropertyChanged(nameof(AddToProfileGroupEmptyHintVisible));
+        if (!value || !HasSingleAddToProfileChoice) return;
+        RefreshAddToProfileGroups();
+    }
+
     public string AddToProfileDialogTitle => AddToProfileTarget != null
         ? $"将“{AddToProfileTarget.Name}”加入配置文件"
         : $"将选中的 {SelectedCount} 个 Mod 加入配置文件";
@@ -745,15 +769,58 @@ public partial class LibraryViewModel : ObservableObject
 
         _profilesForAdd = profiles;
         AddToProfileTarget = mod;
-        AddToProfileChoices.Clear();
+        ShowAddToProfileGroupPicker = _settingsService?.GetSetting(SettingKeys.ProfilesChooseGroupWhenAdding, false) == true;
+        ClearAddToProfileChoices();
         foreach (var profile in profiles)
         {
-            AddToProfileChoices.Add(new ProfileChoiceViewModel(
+            var choice = new ProfileChoiceViewModel(
                 profile.Id, profile.Name, profile.Mods.Count,
-                profile.Id == _currentProfile?.Id));
+                profile.Id == _currentProfile?.Id);
+            choice.PropertyChanged += OnAddToProfileChoiceChanged;
+            AddToProfileChoices.Add(choice);
         }
+        RefreshAddToProfileGroups();
         OnPropertyChanged(nameof(AddToProfileDialogTitle));
         IsAddToProfileDialogOpen = true;
+    }
+
+    private void OnAddToProfileChoiceChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ProfileChoiceViewModel.IsSelected)) return;
+        RefreshAddToProfileGroups();
+        OnPropertyChanged(nameof(HasSingleAddToProfileChoice));
+        OnPropertyChanged(nameof(AddToProfileGroupHintVisible));
+        OnPropertyChanged(nameof(AddToProfileGroupEmptyHintVisible));
+    }
+
+    /// <summary>目标分组来自当前唯一勾选的配置文件；多选时保持为空，确认时走原追加逻辑。</summary>
+    private void RefreshAddToProfileGroups()
+    {
+        var selected = AddToProfileChoices.Where(choice => choice.IsSelected).ToList();
+        var profile = selected.Count == 1
+            ? _profilesForAdd?.FirstOrDefault(item => item.Id == selected[0].Id)
+            : null;
+        AddToProfileGroups.Clear();
+        if (profile != null)
+            foreach (var separator in profile.Separators.OrderBy(item => item.Order))
+                AddToProfileGroups.Add(new ProfileGroupChoiceViewModel(separator.Id, separator.Name));
+        SelectedAddToProfileGroup = AddToProfileGroups.FirstOrDefault();
+        OnPropertyChanged(nameof(HasAddToProfileGroups));
+        OnPropertyChanged(nameof(AddToProfileGroupHintVisible));
+        OnPropertyChanged(nameof(AddToProfileGroupEmptyHintVisible));
+    }
+
+    private void ClearAddToProfileChoices()
+    {
+        foreach (var choice in AddToProfileChoices) choice.PropertyChanged -= OnAddToProfileChoiceChanged;
+        AddToProfileChoices.Clear();
+        AddToProfileGroups.Clear();
+        SelectedAddToProfileGroup = null;
+        ChooseAddToProfileGroup = false;
+        OnPropertyChanged(nameof(HasAddToProfileGroups));
+        OnPropertyChanged(nameof(HasSingleAddToProfileChoice));
+        OnPropertyChanged(nameof(AddToProfileGroupHintVisible));
+        OnPropertyChanged(nameof(AddToProfileGroupEmptyHintVisible));
     }
 
     [RelayCommand]
@@ -762,7 +829,8 @@ public partial class LibraryViewModel : ObservableObject
         IsAddToProfileDialogOpen = false;
         AddToProfileTarget = null;
         _profilesForAdd = null;
-        AddToProfileChoices.Clear();
+        ShowAddToProfileGroupPicker = false;
+        ClearAddToProfileChoices();
     }
 
     public async Task OpenAddToOtherProfilesAsync(ModItemViewModel mod, Guid sourceProfileId)
@@ -773,6 +841,7 @@ public partial class LibraryViewModel : ObservableObject
             if (choice.Id == sourceProfileId) AddToProfileChoices.Remove(choice);
             else choice.IsSelected = false;
         }
+        RefreshAddToProfileGroups();
         if (AddToProfileChoices.Count == 0)
         {
             CancelAddToProfile();
@@ -802,9 +871,17 @@ public partial class LibraryViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            foreach (var choice in targets)
+            var group = ChooseAddToProfileGroup && targets.Count == 1 ? SelectedAddToProfileGroup : null;
+            if (group != null)
             {
-                await _profileService.SetModsEnabledAsync(choice.Id, modIds, true);
+                await _profileService.AddModsToProfileGroupAsync(targets[0].Id, modIds, group.Id);
+            }
+            else
+            {
+                foreach (var choice in targets)
+                {
+                    await _profileService.SetModsEnabledAsync(choice.Id, modIds, true);
+                }
             }
 
             var activeProfileId = _currentProfile?.Id;
@@ -1057,8 +1134,9 @@ public partial class LibraryViewModel : ObservableObject
         IsLoading = true;
         try
         {
-            await Import.ImportAsync(sourcePaths, cancellationToken, sourceLink);
+            await Import.ImportAsync(sourcePaths, cancellationToken, sourceLink, PrepareImportGroupSelectionAsync);
             await LoadModsAsync();
+            if (Import.ImportedIds.Count == 0) Import.DismissImportGroupSelection();
             if (Import.FailedCount > 0 || Import.RemainingCount > 0)
                 _notificationService.ShowWarning($"{Import.ResultText}，未完成 {Import.RemainingCount} 个", Import.Step);
             else
@@ -1078,6 +1156,45 @@ public partial class LibraryViewModel : ObservableObject
         }
         // 批次结束（含取消）后统一检查本次导入的模组；不并入 ImportCompletion，下载交接无需等待检查。
         _ = CheckImportedCompatibilityAsync();
+    }
+
+    /// <summary>导入前为自动加入当前配置准备可选分组；任一开关关闭或没有分组时保持原追加逻辑。</summary>
+    private async Task PrepareImportGroupSelectionAsync()
+    {
+        if (_settingsService?.GetSetting(SettingKeys.ProfilesAutoAddImportedMods, false) != true
+            || _settingsService.GetSetting(SettingKeys.ProfilesChooseGroupWhenAdding, false) != true) return;
+        try
+        {
+            var profile = await _profileService.GetActiveProfileAsync();
+            if (profile != null) Import.ShowImportGroupSelection(profile.Id, profile.Separators);
+        }
+        catch
+        {
+            // 读取失败时保持原追加逻辑。
+        }
+    }
+
+    [RelayCommand]
+    private async Task ApplyImportGroupAsync()
+    {
+        var group = Import.SelectedImportGroup;
+        if (group == null || Import.ImportGroupProfileId == Guid.Empty || Import.ImportedIds.Count == 0) return;
+        IsLoading = true;
+        try
+        {
+            var moved = await _profileService.MoveModsToGroupAsync(
+                Import.ImportGroupProfileId, group.Id, Import.ImportedIds.ToArray());
+            Import.DismissImportGroupSelection();
+            if (moved == 0)
+                _notificationService.ShowInfo("本次导入的模组都位于固定加载器区域，不能加入用户分组。", "导入完成");
+            else
+                _notificationService.ShowSuccess($"已将 {moved} 个模组加入分组“{group.Name}”", "导入完成");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"加入分组失败: {ex.Message}", "导入完成");
+        }
+        finally { IsLoading = false; }
     }
 
     /// <summary>整批导入完成后按导入自动检查设置在后台检查新模组；一次批次只触发一次。</summary>

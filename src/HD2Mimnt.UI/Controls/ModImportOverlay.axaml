@@ -56,6 +56,20 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <!-- 开启“添加/导入时可指定分组”后，可在导入完成后把本批模组放入当前配置的某个分组。 -->
+            <StackPanel Spacing="8" IsVisible="{Binding Import.IsImportGroupSelectionVisible}">
+              <TextBlock Text="{loc:Loc UI.ChooseAGroupForTheImportedMods}" Classes="secondary-text" TextWrapping="Wrap"/>
+              <ComboBox x:Name="ImportGroupChoiceBox" ItemsSource="{Binding Import.ImportGroupChoices}"
+                        SelectedItem="{Binding Import.SelectedImportGroup}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileGroupChoiceViewModel">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button x:Name="ApplyImportGroupButton" Content="{loc:Loc UI.ApplyGroup}"
+                      Command="{Binding ApplyImportGroupCommand}" Classes="accent" HorizontalAlignment="Right"/>
+            </StackPanel>
             <StackPanel Spacing="8" IsVisible="{Binding Import.HasPendingHd2Ir}">
               <TextBlock Text="{loc:Loc Hd2Ir.MergeDescription}" TextWrapping="Wrap"/>
               <TextBlock Text="{Binding Import.PendingHd2Ir.Reason}" Classes="caption-text" TextWrapping="Wrap"/>

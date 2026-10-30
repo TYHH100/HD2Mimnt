@@ -67,6 +67,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _autoCheckConflicts;
     [ObservableProperty] private bool _lockLoaders = true;
     [ObservableProperty] private bool _autoAddImportedMods;
+    [ObservableProperty] private bool _chooseGroupWhenAdding;
+    [ObservableProperty] private bool _pinExpandedGroups;
     [ObservableProperty] private bool _importAutoClose;
     [ObservableProperty] private bool _keepModVersions;
     [ObservableProperty] private bool _allowDuplicateImports;
@@ -254,6 +256,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
             LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             AutoAddImportedMods = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false);
+            ChooseGroupWhenAdding = await _settingsService.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false);
+            PinExpandedGroups = await _settingsService.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
@@ -382,6 +386,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private Dictionary<string, object> GetProfilePreferences() => new()
     {
         [SettingKeys.ProfilesAutoAddImportedMods] = AutoAddImportedMods,
+        [SettingKeys.ProfilesChooseGroupWhenAdding] = ChooseGroupWhenAdding,
+        [SettingKeys.ProfilesPinExpandedGroups] = PinExpandedGroups,
         [SettingKeys.ProfilesLockLoaders] = LockLoaders,
         [SettingKeys.ProfilesAutoSwitchOnSelect] = AutoSwitchProfileOnSelect,
         [SettingKeys.ProfilesAutoCheckConflicts] = AutoCheckConflicts

@@ -72,12 +72,16 @@ public partial class ProfileModViewModel : ObservableObject
     private IBrush? _groupTintBrush;
     public bool HasCustomGroupTint => GroupTintBrush != null;
 
-    /// <summary>色板的首/尾成员，决定连贯底色的圆角方向。</summary>
+    /// <summary>分组色板的首/尾成员，决定连贯底色的圆角方向。</summary>
     [ObservableProperty]
     private bool _isSlabStart;
 
     [ObservableProperty]
     private bool _isSlabEnd;
+
+    /// <summary>拖动模组经过冻结分组标题时高亮，松手直接加入该分组。</summary>
+    [ObservableProperty]
+    private bool _isGroupDropTarget;
     public BslModRole BslRole { get; init; }
     public bool IsBslMember => BslRole != BslModRole.None;
     public bool LoaderLockEnabled { get; init; } = true;

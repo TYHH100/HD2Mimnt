@@ -4282,4 +4282,15 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="UI.ChangeImage" xml:space="preserve"><value>Change image</value></data>
   <data name="UI.RestoreModImage" xml:space="preserve"><value>Restore mod image</value></data>
   <data name="UI.EditModInfo" xml:space="preserve"><value>Edit mod info</value></data>
+  <data name="UI.AddToSpecifiedGroup" xml:space="preserve"><value>Add to specified group</value></data>
+  <data name="UI.AddToSpecifiedGroupEllipsis" xml:space="preserve"><value>Add to specified group…</value></data>
+  <data name="UI.SelectASingleProfileToChooseAGroup" xml:space="preserve"><value>Select exactly one profile to choose a target group.</value></data>
+  <data name="UI.ThisProfileHasNoGroups" xml:space="preserve"><value>This profile has no groups yet.</value></data>
+  <data name="UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges" xml:space="preserve"><value>Selected mods move to the end of the group; deployment order changes.</value></data>
+  <data name="UI.ChooseAGroupForTheImportedMods" xml:space="preserve"><value>Imported mods were added to the active profile. Choose a group to move them into, or close to keep them appended at the end.</value></data>
+  <data name="UI.ApplyGroup" xml:space="preserve"><value>Apply group</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>Allow choosing a group when adding mods</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>Shows a group picker in the library "Add to profiles" dialog (single profile only) and after importing with auto-add enabled. Off keeps appending to the end.</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>Freeze expanded group headers</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>Display only: headers of expanded user groups stay above the scrolling mod list in their original order and return to the list when collapsed. Mod order never changes. Drop mods onto a frozen header to add them to that group.</value></data>
 </root>

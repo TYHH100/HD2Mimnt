@@ -56,6 +56,47 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ImportAutoAdd_WithGroupChoice_ShouldMoveImportedModsIntoSelectedGroup()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, true);
+        await settings.SetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, true);
+        await settings.SetSettingAsync(SettingKeys.AllowDuplicateImports, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var active = (await profiles.GetActiveProfileAsync())!;
+        var separator = await profiles.AddSeparatorAsync(active.Id, "导入分组", 1);
+        var library = scope.Services.GetRequiredService<MainWindowViewModel>().LibraryViewModel;
+        await library.InitializeAsync();
+        var source = Path.Combine(scope.Root, "group-import-source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "body.patch"), "group-import");
+        try
+        {
+            await library.ImportPathsAsync([source]);
+
+            Assert.True(library.Import.IsImportGroupSelectionVisible);
+            Assert.Equal(separator.Id, Assert.Single(library.Import.ImportGroupChoices).Id);
+            await library.ApplyImportGroupCommand.ExecuteAsync(null);
+
+            Assert.False(library.Import.IsImportGroupSelectionVisible);
+            var saved = (await profiles.GetProfileByIdAsync(active.Id))!;
+            var importedId = library.Import.ImportedIds.Single();
+            Assert.Equal(importedId, saved.Mods.OrderBy(item => item.Order).Last().ModId);
+            Assert.Equal(1, saved.Separators.Single().Order);
+            Assert.Contains(saved.Mods.Where(item => item.Order >= saved.Separators.Single().Order),
+                item => item.ModId == importedId);
+        }
+        finally
+        {
+            library.Import.CloseCommand.Execute(null);
+            // ProfilesChanged 的异步刷新可能仍在读库；等它结束再释放隔离目录。
+            await Task.Delay(200);
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ImportPreferences_ShouldPersistAndApplyThroughRealServices()
     {
         await using var scope = await UiScope.CreateAsync();

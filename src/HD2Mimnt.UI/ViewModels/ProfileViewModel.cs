@@ -278,6 +278,14 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _profileRows = new();
 
+    /// <summary>实际绑定到滚动列表的行；冻结的分组标题行会从此集合移出。</summary>
+    [ObservableProperty]
+    private ObservableCollection<ProfileModViewModel> _profileDisplayRows = new();
+
+    /// <summary>固定在滚动列表上方的展开用户分组标题，按原列表顺序排列。</summary>
+    [ObservableProperty]
+    private ObservableCollection<ProfileModViewModel> _frozenGroupHeaders = new();
+
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _profileSeparators = new();
 
@@ -313,6 +321,7 @@ public partial class ProfileViewModel : ObservableObject
     };
 
     private bool _bottomToTop;
+    private bool _pinExpandedGroups;
     public event EventHandler? DeploymentDirectionChanged;
 
     [ObservableProperty]
@@ -444,6 +453,17 @@ public partial class ProfileViewModel : ObservableObject
             {
                 if (SelectedProfile != null) _ = LoadProfileModsAsync(SelectedProfile.Id);
                 DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Reload();
+            else Dispatcher.UIThread.Post(Reload);
+            return;
+        }
+        if (e.Key == SettingKeys.ProfilesPinExpandedGroups)
+        {
+            void Reload()
+            {
+                _pinExpandedGroups = e.NewValue is bool enabled && enabled;
+                ApplyModFilter();
             }
             if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Reload();
             else Dispatcher.UIThread.Post(Reload);
@@ -692,6 +712,13 @@ public partial class ProfileViewModel : ObservableObject
         MarkGroupSlabs(rows);
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
         ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
+        var frozenHeaders = _pinExpandedGroups
+            ? rows.Where(row => row.IsUserSeparator && row.IsExpanded).ToList()
+            : new List<ProfileModViewModel>();
+        FrozenGroupHeaders = new ObservableCollection<ProfileModViewModel>(frozenHeaders);
+        var frozenSet = frozenHeaders.ToHashSet();
+        ProfileDisplayRows = new ObservableCollection<ProfileModViewModel>(
+            frozenSet.Count == 0 ? rows : rows.Where(row => !frozenSet.Contains(row)));
         HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
     }
 
@@ -887,6 +914,9 @@ public partial class ProfileViewModel : ObservableObject
         IsAddModOpen = false;
         CloseConflictPicker();
         IsSeparatorDialogOpen = false;
+        IsAddToGroupDialogOpen = false;
+        AddToGroupChoices.Clear();
+        SelectedAddToGroup = null;
         ProfileSeparators.Clear();
         _luaSeparator.IsCollapsed = false;
         _luaSeparator.SeparatorColor = string.Empty;
@@ -948,6 +978,7 @@ public partial class ProfileViewModel : ObservableObject
         {
             _bottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
                 == DeploymentOrder.BottomToTop.ToString();
+            _pinExpandedGroups = await _settingsService.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
             var lockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             var profile = await _profileService.NormalizeProfileAsync(profileId, cancellationToken);
             if (profile == null)
@@ -1513,6 +1544,148 @@ public partial class ProfileViewModel : ObservableObject
 
         await MoveModsAsync(movingIds, anchor);
         CancelMoveToPosition();
+    }
+
+    /// <summary>右键“加入指定分组”：把当前或多选普通模组移动到用户分组末尾。</summary>
+    [ObservableProperty]
+    private bool _isAddToGroupDialogOpen;
+
+    [ObservableProperty]
+    private ProfileGroupChoiceViewModel? _selectedAddToGroup;
+
+    public ObservableCollection<ProfileGroupChoiceViewModel> AddToGroupChoices { get; } = new();
+
+    private Guid _addToGroupProfileId;
+
+    [RelayCommand]
+    private void OpenAddToGroup(ProfileModViewModel? target)
+    {
+        if (SelectedProfile is not { } profile || target is not { IsSeparator: false, CanDrag: true }
+            || target.IsFixedGroupMember || IsProfileModsLoading) return;
+        if (!target.IsSelected)
+        {
+            foreach (var mod in ProfileMods) mod.IsSelected = false;
+            target.IsSelected = true;
+        }
+        SetModSelectionAnchor(target);
+
+        var moving = ProfileMods.Where(mod => mod.IsSelected && mod.CanSelect).ToList();
+        if (moving.Count == 0)
+        {
+            _notificationService.ShowInfo("请先选择要加入分组的普通模组。", "加入指定分组");
+            return;
+        }
+        if (moving.Any(mod => mod.IsFixedGroupMember))
+        {
+            _notificationService.ShowWarning("固定区域中的模组不能加入用户分组。", "加入指定分组");
+            return;
+        }
+
+        var groups = ProfileSeparators.Where(row => row.IsUserSeparator).OrderBy(row => row.Order).ToList();
+        if (groups.Count == 0)
+        {
+            _notificationService.ShowInfo("当前配置文件还没有分组，请先添加分组。", "加入指定分组");
+            return;
+        }
+
+        _addToGroupProfileId = profile.Id;
+        AddToGroupChoices.Clear();
+        foreach (var group in groups)
+            AddToGroupChoices.Add(new ProfileGroupChoiceViewModel(group.ModId, group.ModName));
+        SelectedAddToGroup = AddToGroupChoices[0];
+        IsAddToGroupDialogOpen = true;
+    }
+
+    [RelayCommand]
+    private void CancelAddToGroup()
+    {
+        IsAddToGroupDialogOpen = false;
+        AddToGroupChoices.Clear();
+        SelectedAddToGroup = null;
+    }
+
+    [RelayCommand]
+    private async Task ConfirmAddToGroupAsync()
+    {
+        if (SelectedProfile is not { } profile || SelectedAddToGroup is not { } group
+            || profile.Id != _addToGroupProfileId) return;
+        var movingIds = ProfileMods.Where(mod => mod.IsSelected && mod.CanSelect && !mod.IsFixedGroupMember)
+            .Select(mod => mod.ModId).ToArray();
+        if (movingIds.Length == 0)
+        {
+            CancelAddToGroup();
+            return;
+        }
+        try
+        {
+            var moved = 0;
+            await SuppressLocalChangeAsync(async () =>
+                moved = await _profileService.MoveModsToGroupAsync(profile.Id, group.Id, movingIds));
+            IsAddToGroupDialogOpen = false;
+            AddToGroupChoices.Clear();
+            SelectedAddToGroup = null;
+            await ApplySavedProfileOrderAsync(profile.Id);
+            _notificationService.ShowSuccess($"已将 {moved} 个模组加入分组“{group.Name}”", "加入指定分组");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"加入分组失败: {ex.Message}", "加入指定分组");
+        }
+    }
+
+    /// <summary>拖动模组到冻结分组标题上松手：把拖动集加入该分组。</summary>
+    public async Task DropModsIntoGroupAsync(ProfileModViewModel separator, IReadOnlyList<Guid> movingIds)
+    {
+        if (SelectedProfile is not { } profile || !separator.IsUserSeparator || IsProfileModsLoading) return;
+        var expanded = ExpandMovingRows(movingIds);
+        var modIds = ProfileMods.Where(mod => expanded.Contains(mod.ModId) && mod.CanSelect && !mod.IsFixedGroupMember)
+            .Select(mod => mod.ModId).ToArray();
+        if (modIds.Length == 0) return;
+        var groupName = separator.ModName;
+        try
+        {
+            var moved = 0;
+            await SuppressLocalChangeAsync(async () =>
+                moved = await _profileService.MoveModsToGroupAsync(profile.Id, separator.ModId, modIds));
+            await ApplySavedProfileOrderAsync(profile.Id);
+            if (moved > 0)
+                _notificationService.ShowSuccess($"已将 {moved} 个模组加入分组“{groupName}”", "加入指定分组");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"加入分组失败: {ex.Message}", "加入指定分组");
+        }
+    }
+
+    /// <summary>
+    /// 分组移动只改变顺序和边界：读取已保存配置后就地重排现有卡片，
+    /// 不重建 ProfileMods，避免拖放后整页闪烁和缩略图重新解码。
+    /// </summary>
+    private async Task ApplySavedProfileOrderAsync(Guid profileId)
+    {
+        if (SelectedProfile?.Id != profileId) return;
+        var saved = await _profileService.GetProfileByIdAsync(profileId);
+        if (saved == null || SelectedProfile?.Id != profileId) return;
+        foreach (var separator in saved.Separators)
+        {
+            var row = ProfileSeparators.FirstOrDefault(item => item.ModId == separator.Id);
+            if (row == null) continue;
+            row.Order = separator.Order;
+            row.MemberCount = separator.MemberCount;
+        }
+        var cards = ProfileMods.ToDictionary(row => row.ModId);
+        if (saved.Mods.Count != cards.Count || saved.Mods.Any(item => !cards.ContainsKey(item.ModId)))
+        {
+            await LoadProfileModsAsync(profileId);
+            return;
+        }
+        var ordered = saved.Mods.OrderBy(item => item.Order).Select(item => cards[item.ModId]).ToList();
+        for (var index = 0; index < ordered.Count; index++) ordered[index].Order = index;
+        ProfileMods = new ObservableCollection<ProfileModViewModel>(ordered);
+        RenumberProfileMods();
+        ApplyModFilter();
+        _loadedProfileId = saved.Id;
+        _loadedProfileContent = ProfileContentSignature(saved);
     }
 
     [RelayCommand]

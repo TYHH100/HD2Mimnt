@@ -4282,4 +4282,15 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="UI.ChangeImage" xml:space="preserve"><value>更换图片</value></data>
   <data name="UI.RestoreModImage" xml:space="preserve"><value>恢复默认图片</value></data>
   <data name="UI.EditModInfo" xml:space="preserve"><value>编辑模组信息</value></data>
+  <data name="UI.AddToSpecifiedGroup" xml:space="preserve"><value>添加到指定分组</value></data>
+  <data name="UI.AddToSpecifiedGroupEllipsis" xml:space="preserve"><value>加入指定分组…</value></data>
+  <data name="UI.SelectASingleProfileToChooseAGroup" xml:space="preserve"><value>指定分组时只能选择一个配置文件。</value></data>
+  <data name="UI.ThisProfileHasNoGroups" xml:space="preserve"><value>该配置文件还没有分组。</value></data>
+  <data name="UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges" xml:space="preserve"><value>选中的模组会移动到分组末尾，部署顺序将随之改变。</value></data>
+  <data name="UI.ChooseAGroupForTheImportedMods" xml:space="preserve"><value>本次导入的模组已加入当前配置，可直接选择分组；不选择则保持追加到末尾。</value></data>
+  <data name="UI.ApplyGroup" xml:space="preserve"><value>应用分组</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>添加模组时可指定分组</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模组库“加入配置文件”弹窗（仅单选配置文件）和开启导入自动添加后的完成页提供分组选择；关闭时保持追加到末尾。</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展开的分组标题固定在顶部</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>仅影响显示：展开的用户分组标题固定在模组列表上方，多个按原顺序排列；收起后标题回到列表原位置，模组顺序不变。可将模组拖到冻结标题上直接加入该分组。</value></data>
 </root>

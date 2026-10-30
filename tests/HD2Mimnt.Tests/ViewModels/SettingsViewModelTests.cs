@@ -275,7 +275,11 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.False(vm.AutoCheckConflicts);
         Assert.True(vm.LockLoaders);
         Assert.False(vm.AutoAddImportedMods);
+        Assert.False(vm.ChooseGroupWhenAdding);
+        Assert.False(vm.PinExpandedGroups);
         vm.AutoAddImportedMods = true;
+        vm.ChooseGroupWhenAdding = true;
+        vm.PinExpandedGroups = true;
         vm.GamePath = "invalid-game-path";
         vm.SelectedCategory = "配置文件";
         vm.AutoCheckConflicts = true;
@@ -288,6 +292,8 @@ public sealed class SettingsViewModelTests : IDisposable
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false));
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false));
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false));
         Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true));
         await vm.LoadAsync();
         Assert.True(vm.AutoCheckConflicts);
@@ -295,6 +301,8 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.False(vm.AutoCheckConflicts);
         Assert.False(applied);
         Assert.False(vm.AutoAddImportedMods);
+        Assert.False(vm.ChooseGroupWhenAdding);
+        Assert.False(vm.PinExpandedGroups);
         Assert.True(vm.LockLoaders);
     }
 

@@ -369,6 +369,96 @@ public class ProfileServiceTests : IDisposable
         Assert.Equal(mod2.Id, orderedMods[2].ModId);
     }
 
+    [Fact]
+    public async Task MoveModsToGroup_ShouldAppendMembersAndRebuildSeparatorBoundaries()
+    {
+        var mods = await AddTestModsAsync(5);
+        var profileId = await _profileService.CreateProfileAsync("Groups");
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "A", 2);
+        var second = await _profileService.AddSeparatorAsync(profileId, "B", 4);
+
+        await _profileService.MoveModsToGroupAsync(profileId, first.Id,
+            new[] { mods[0].Id, mods[4].Id });
+
+        var profile = await _profileRepository.GetByIdAsync(profileId);
+        Assert.NotNull(profile);
+        Assert.Equal(new[] { mods[1].Id, mods[2].Id, mods[3].Id, mods[0].Id, mods[4].Id },
+            profile.Mods.OrderBy(item => item.Order).Select(item => item.ModId));
+        var separators = profile.Separators.OrderBy(item => item.Order).ToList();
+        Assert.Equal(first.Id, separators[0].Id);
+        Assert.Equal(1, separators[0].Order);
+        Assert.Equal(second.Id, separators[1].Id);
+        Assert.Equal(5, separators[1].Order);
+        Assert.Null(separators[0].MemberCount);
+
+        await _profileService.SetSeparatorCollapsedAsync(profileId, first.Id, true);
+        var reloaded = await _profileRepository.GetByIdAsync(profileId);
+        Assert.Equal(4, reloaded!.Separators.Single(item => item.Id == first.Id).MemberCount);
+    }
+
+    [Fact]
+    public async Task MoveModsToGroup_ShouldKeepExplicitMemberCountsWhenMovingBetweenGroups()
+    {
+        var mods = await AddTestModsAsync(4);
+        var profileId = await _profileService.CreateProfileAsync("Groups");
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "A", 0);
+        var second = await _profileService.AddSeparatorAsync(profileId, "B", 2);
+        await _profileService.SetSeparatorCollapsedAsync(profileId, first.Id, true);
+        await _profileService.SetSeparatorCollapsedAsync(profileId, second.Id, true);
+
+        await _profileService.MoveModsToGroupAsync(profileId, second.Id, new[] { mods[0].Id });
+
+        var profile = await _profileRepository.GetByIdAsync(profileId);
+        Assert.NotNull(profile);
+        Assert.Equal(new[] { mods[1].Id, mods[2].Id, mods[3].Id, mods[0].Id },
+            profile.Mods.OrderBy(item => item.Order).Select(item => item.ModId));
+        var separators = profile.Separators.OrderBy(item => item.Order).ToList();
+        Assert.Equal(0, separators[0].Order);
+        Assert.Equal(1, separators[0].MemberCount);
+        Assert.Equal(1, separators[1].Order);
+        Assert.Equal(3, separators[1].MemberCount);
+    }
+
+    [Fact]
+    public async Task AddModsToProfileGroup_ShouldEnableAndAppendNewMembers()
+    {
+        var mods = await AddTestModsAsync(5);
+        var profileId = await _profileService.CreateProfileAsync("Groups");
+        await _profileService.AddModToProfileAsync(profileId, mods[0].Id);
+        await _profileService.AddModToProfileAsync(profileId, mods[1].Id);
+        await _profileService.AddModToProfileAsync(profileId, mods[2].Id);
+        await _profileService.AddModToProfileAsync(profileId, mods[3].Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "A", 1);
+        await _profileService.AddSeparatorAsync(profileId, "B", 3);
+
+        await _profileService.AddModsToProfileGroupAsync(profileId,
+            new[] { mods[4].Id, mods[3].Id }, first.Id);
+
+        var profile = await _profileRepository.GetByIdAsync(profileId);
+        Assert.NotNull(profile);
+        Assert.Equal(new[] { mods[0].Id, mods[1].Id, mods[2].Id, mods[3].Id, mods[4].Id },
+            profile.Mods.OrderBy(item => item.Order).Select(item => item.ModId));
+        Assert.All(profile.Mods, item => Assert.True(item.Enabled));
+        var separators = profile.Separators.OrderBy(item => item.Order).ToList();
+        Assert.Equal(1, separators[0].Order);
+        Assert.Equal(5, separators[1].Order);
+    }
+
+    private async Task<Mod[]> AddTestModsAsync(int count)
+    {
+        var mods = Enumerable.Range(1, count).Select(index => new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = $"Mod {index}",
+            Version = "1.0.0",
+            Path = $@"C:\TestMods\Mod{index}"
+        }).ToArray();
+        foreach (var mod in mods) await _modRepository.AddAsync(mod);
+        return mods;
+    }
+
     public void Dispose()
     {
         _dbContext.Dispose();

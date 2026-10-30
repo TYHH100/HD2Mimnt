@@ -305,6 +305,8 @@ public static class SettingKeys
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
     public const string ProfilesLockLoaders = "Profiles.LockLoaders";
     public const string ProfilesAutoAddImportedMods = "Profiles.AutoAddImportedMods";
+    public const string ProfilesChooseGroupWhenAdding = "Profiles.ChooseGroupWhenAdding";
+    public const string ProfilesPinExpandedGroups = "Profiles.PinExpandedGroups";
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";

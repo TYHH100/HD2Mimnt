@@ -20,6 +20,12 @@
   <Style Selector="Border.mod-card.conflict-location">
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
   </Style>
+  <Style Selector="Border.frozen-group-header">
+    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+  </Style>
+  <Style Selector="Border.frozen-group-header.group-drop-target">
+    <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+  </Style>
 </UserControl.Styles>
 
   <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="240,*" Margin="24,16,24,20">
@@ -135,9 +141,47 @@
     <!-- ══ 模组卡片列表 + 状态 + 添加模组抽屉 ══ -->
     <Grid x:Name="ProfileModArea" Grid.Row="1" Grid.Column="1">
       <!-- 模组卡片列表（卡片可拖动排序，支持 Ctrl 多选后整体拖动） -->
+      <!-- 展开的用户分组标题冻结在滚动区域上方；模组内容本身不重排。 -->
+      <DockPanel>
+      <ItemsControl x:Name="FrozenGroupHeaderList" DockPanel.Dock="Top" ItemsSource="{Binding FrozenGroupHeaders}"
+                    IsVisible="{Binding IsProfileModsContentVisible}" Margin="0,0,4,0" Focusable="False">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ProfileModViewModel">
+            <Border IsVisible="{Binding IsSeparator}" Padding="12,8" Margin="0,8,0,4"
+                    Classes="profile-separator frozen-group-header" Classes.group-drop-target="{Binding IsGroupDropTarget}"
+                    ContextRequested="ModCard_ContextRequested"
+                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="0,1,0,1">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <Panel Width="6">
+                  <Border Background="{DynamicResource AccentBrush}" CornerRadius="3"/>
+                  <Border Background="{Binding SeparatorColorBrush}" IsVisible="{Binding HasCustomSeparatorColor}" CornerRadius="3"/>
+                </Panel>
+                <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Button Classes="icon-button group-toggle" ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}"
+                          Command="{Binding $parent[UserControl].((vm:ProfileViewModel)DataContext).ToggleSeparatorCommand}" CommandParameter="{Binding}">
+                    <Panel>
+                      <controls:UtilityIcon Kind="Chevron" IsVisible="{Binding IsCollapsed}"/>
+                      <controls:UtilityIcon Kind="Chevron" IsVisible="{Binding IsExpanded}" RenderTransformOrigin="50%,50%">
+                        <controls:UtilityIcon.RenderTransform><RotateTransform Angle="{Binding ChevronAngle}"/></controls:UtilityIcon.RenderTransform>
+                      </controls:UtilityIcon>
+                    </Panel>
+                  </Button>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{loc:LocalizedBinding ModName, LocalizeWhenPath=!IsUserSeparator}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{loc:LocalizedBinding GroupModCount, FormatKey=UI.Mods}" Classes="caption-text"/>
+                  </StackPanel>
+                  <Button Grid.Column="2" Classes="icon-button" Click="SeparatorMenu_Click" ToolTip.Tip="{loc:Loc UI.GroupActions}">
+                    <controls:UtilityIcon Kind="More"/>
+                  </Button>
+                </Grid>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <ScrollViewer x:Name="ModScrollViewer" IsVisible="{Binding IsProfileModsContentVisible}"
                     Background="Transparent" PointerPressed="ModBackground_PointerPressed">
-        <ItemsControl x:Name="ModItemsControl" ItemsSource="{Binding ProfileRows}" Margin="0,0,4,0" Focusable="True"
+        <ItemsControl x:Name="ModItemsControl" ItemsSource="{Binding ProfileDisplayRows}" Margin="0,0,4,0" Focusable="True"
                       DragDrop.AllowDrop="True" DragDrop.DragOver="ModList_DragOver" DragDrop.DragLeave="SortList_DragLeave" DragDrop.Drop="ModList_Drop">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -281,6 +325,7 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
       </ScrollViewer>
+      </DockPanel>
 
       <!-- 加载中 -->
       <StackPanel Orientation="Vertical" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -410,6 +455,30 @@
           <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelMoveToPositionCommand}" Classes="secondary"/>
             <Button Content="{loc:Loc UI.Move}" Command="{Binding ConfirmMoveToPositionCommand}" Classes="accent"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- 右键“加入指定分组”分组选择面板；与定位面板同样使用不透明主题背景。 -->
+    <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
+            IsVisible="{Binding IsAddToGroupDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="52">
+      <Border Name="AddToGroupDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
+              Width="400" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20">
+        <StackPanel Spacing="12">
+          <TextBlock Text="{loc:Loc UI.AddToSpecifiedGroup}" Classes="section-title"/>
+          <TextBlock Text="{loc:Loc UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges}" Classes="caption-text" TextWrapping="Wrap"/>
+          <ComboBox x:Name="AddToGroupChoiceBox" ItemsSource="{Binding AddToGroupChoices}"
+                    SelectedItem="{Binding SelectedAddToGroup}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:ProfileGroupChoiceViewModel">
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelAddToGroupCommand}" Classes="secondary"/>
+            <Button Content="{loc:Loc UI.Add}" Command="{Binding ConfirmAddToGroupCommand}" Classes="accent"/>
           </StackPanel>
         </StackPanel>
       </Border>

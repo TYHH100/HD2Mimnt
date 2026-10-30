@@ -103,6 +103,36 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     private int _failedCount;
 
     public ObservableCollection<string> Errors { get; } = new();
+
+    /// <summary>整批导入后（自动加入当前配置时）的可选分组；不指定则保持追加到末尾。</summary>
+    public ObservableCollection<ProfileGroupChoiceViewModel> ImportGroupChoices { get; } = new();
+
+    [ObservableProperty]
+    private bool _isImportGroupSelectionVisible;
+
+    [ObservableProperty]
+    private ProfileGroupChoiceViewModel? _selectedImportGroup;
+
+    public Guid ImportGroupProfileId { get; private set; }
+
+    public void ShowImportGroupSelection(Guid profileId, IEnumerable<ProfileSeparator> separators)
+    {
+        ImportGroupProfileId = profileId;
+        ImportGroupChoices.Clear();
+        foreach (var separator in separators.OrderBy(item => item.Order))
+            ImportGroupChoices.Add(new ProfileGroupChoiceViewModel(separator.Id, separator.Name));
+        SelectedImportGroup = ImportGroupChoices.FirstOrDefault();
+        IsImportGroupSelectionVisible = false;
+    }
+
+    public void DismissImportGroupSelection()
+    {
+        IsImportGroupSelectionVisible = false;
+        ImportGroupChoices.Clear();
+        SelectedImportGroup = null;
+        ImportGroupProfileId = Guid.Empty;
+    }
+
     private readonly List<Guid> _importedIds = [];
     /// <summary>本批次成功落库的模组 ID；新批次开始时清空。</summary>
     public IReadOnlyList<Guid> ImportedIds => _importedIds;
@@ -124,6 +154,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     {
         HasResult = false;
         Errors.Clear();
+        DismissImportGroupSelection();
         _importedIds.Clear();
         TotalCount = ProcessedCount = SuccessCount = FailedCount = 0;
         FileProgress = OverallProgress = 0;
@@ -145,7 +176,8 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         _cancellation?.Cancel();
     }
 
-    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null)
+    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null,
+        Func<Task>? prepareGroupSelection = null)
     {
         if (IsImporting) return Task.CompletedTask;
         var sources = paths.Where(path => !string.IsNullOrWhiteSpace(path))
@@ -155,12 +187,18 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         TotalCount = sources.Count;
         IsOpen = IsImporting = true;
         _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Completion = RunAsync(sources, _cancellation.Token, sourceLink);
+        Completion = RunAsync(sources, _cancellation.Token, sourceLink, prepareGroupSelection);
         return Completion;
     }
 
-    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink)
+    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink,
+        Func<Task>? prepareGroupSelection)
     {
+        if (prepareGroupSelection != null)
+        {
+            try { await prepareGroupSelection(); }
+            catch { /* 分组选择失败时保持原追加逻辑 */ }
+        }
         using var passwordScope = PasswordAwareArchiveExtractor.BeginRequest(RequestPasswordAsync);
         var cancelled = false;
         try
@@ -217,9 +255,11 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
             Step = cancelled ? "添加已取消" : FailedCount > 0 ? "添加结束，部分模组失败" : "添加完成";
             Detail = cancelled ? $"还有 {RemainingCount} 个未完成；已添加的模组会保留。" : "可关闭浮窗查看模组库，或继续添加。";
             IsImporting = IsCancelling = false;
+            IsImportGroupSelectionVisible = ImportGroupChoices.Count > 0;
             _cancellation?.Dispose();
             _cancellation = null;
             if (!cancelled && !token.IsCancellationRequested && FailedCount == 0 && Errors.Count == 0
+                && !IsImportGroupSelectionVisible
                 && settingsService?.GetSetting(SettingKeys.ImportAutoClose, false) == true)
                 IsOpen = false;
         }

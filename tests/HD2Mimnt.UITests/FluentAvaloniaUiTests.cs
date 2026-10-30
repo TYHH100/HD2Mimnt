@@ -1251,6 +1251,177 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ProfileRightClick_ShouldMoveModIntoSpecifiedGroupThroughDialog()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "武器", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var mods = vm.ProfileMods.ToArray();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            Border Card(ProfileModViewModel mod) => view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, mod));
+            var card = Card(mods[0]);
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == mods[0].ModName);
+            var point = title.TranslatePoint(new Point(15, 8), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Dispatcher.UIThread.RunJobs();
+            var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            Assert.True(menu.IsOpen);
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+            var item = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "加入指定分组…");
+            var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(item));
+            popup.UpdateLayout();
+            var itemPoint = item.TranslatePoint(new Point(20, 12), popup)!.Value;
+            popup.MouseMove(itemPoint);
+            popup.MouseDown(itemPoint, MouseButton.Left);
+            popup.MouseUp(itemPoint, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(vm.IsAddToGroupDialogOpen);
+            var surface = view.FindControl<Border>("AddToGroupDialogSurface")!;
+            Assert.True(surface.IsEffectivelyVisible);
+            Assert.Equal(separator.Id, Assert.Single(vm.AddToGroupChoices).Id);
+            Assert.NotNull(surface.GetVisualDescendants().OfType<ComboBox>().Single().SelectedItem);
+            var addButton = surface.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "加入"));
+            window.UpdateLayout();
+            var addPoint = addButton.TranslatePoint(new Point(20, 12), window)!.Value;
+            window.MouseMove(addPoint);
+            window.MouseDown(addPoint, MouseButton.Left);
+            window.MouseUp(addPoint, MouseButton.Left);
+            for (var attempt = 0; attempt < 100 && vm.IsAddToGroupDialogOpen; attempt++) await Task.Delay(20);
+
+            Assert.False(vm.IsAddToGroupDialogOpen);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                vm.ProfileMods.Select(mod => mod.ModId));
+            Assert.Contains(mods[0], vm.ProfileMods);
+            var group = vm.ProfileSeparators.Single(row => row.ModId == separator.Id);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                vm.GetSeparatorMembers(group).Select(row => row.ModId));
+            var persisted = await profiles.GetProfileByIdAsync(profileId);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                persisted!.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ExpandedGroupHeaders_ShouldFreezeOutsideScrollingListWhenEnabled()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "冻结标题", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var frozen = view.FindControl<ItemsControl>("FrozenGroupHeaderList")!;
+            var list = view.FindControl<ItemsControl>("ModItemsControl")!;
+
+            Assert.True(frozen.IsEffectivelyVisible);
+            Assert.Equal(separator.Id, Assert.Single(vm.FrozenGroupHeaders).ModId);
+            Assert.Equal(vm.FrozenGroupHeaders.Count, frozen.ItemCount);
+            Assert.Equal(vm.ProfileDisplayRows.Count, list.ItemCount);
+            Assert.DoesNotContain(vm.ProfileDisplayRows, row => row.ModId == separator.Id);
+            Assert.Contains(vm.ProfileRows, row => row.ModId == separator.Id);
+            Assert.True(frozen.Bounds.Height > 0);
+
+            var header = Assert.Single(frozen.GetVisualDescendants().OfType<Border>()
+                .Where(border => border.Classes.Contains("profile-separator")));
+            var toggle = header.GetVisualDescendants().OfType<Button>().First(button => button.Classes.Contains("group-toggle"));
+            var togglePoint = toggle.TranslatePoint(new Point(8, 8), window)!.Value;
+            window.MouseMove(togglePoint);
+            window.MouseDown(togglePoint, MouseButton.Left);
+            window.MouseUp(togglePoint, MouseButton.Left);
+            for (var attempt = 0; attempt < 100 && vm.FrozenGroupHeaders.Count > 0; attempt++) await Task.Delay(20);
+            window.UpdateLayout();
+
+            Assert.Empty(vm.FrozenGroupHeaders);
+            Assert.Contains(vm.ProfileDisplayRows, row => row.ModId == separator.Id);
+            Assert.Equal(vm.ProfileDisplayRows.Count, list.ItemCount);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task FrozenGroupHeader_ShouldAcceptDraggedModOnDrop()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "拖放目标", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var moving = vm.ProfileMods[0];
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 850 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var frozen = view.FindControl<ItemsControl>("FrozenGroupHeaderList")!;
+            var list = view.FindControl<ItemsControl>("ModItemsControl")!;
+            var source = Assert.IsAssignableFrom<Control>(list.ContainerFromIndex(vm.ProfileDisplayRows.IndexOf(moving)));
+            var header = Assert.IsAssignableFrom<Control>(frozen.ContainerFromIndex(0));
+            var sourcePoint = source.TranslatePoint(new Point(source.Bounds.Width / 2, source.Bounds.Height / 2), window)!.Value;
+            var headerPoint = header.TranslatePoint(new Point(header.Bounds.Width / 2, header.Bounds.Height / 2), window)!.Value;
+
+            window.MouseDown(sourcePoint, MouseButton.Left);
+            window.MouseMove(sourcePoint + new Vector(0, 12), RawInputModifiers.LeftMouseButton);
+            window.MouseMove(headerPoint, RawInputModifiers.LeftMouseButton);
+            Layout();
+
+            var groupRow = vm.FrozenGroupHeaders.Single(row => row.ModId == separator.Id);
+            Assert.True(groupRow.IsGroupDropTarget);
+            Assert.True(view.FindControl<Border>("SortDragGhost")!.IsVisible);
+
+            window.MouseUp(headerPoint, MouseButton.Left);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while ((await profiles.GetProfileByIdAsync(profileId))!.Mods.OrderBy(row => row.Order).Last().ModId != moving.ModId)
+                await Task.Delay(10, timeout.Token);
+            Layout();
+            var saved = (await profiles.GetProfileByIdAsync(profileId))!;
+            Assert.Equal(moving.ModId, saved.Mods.OrderBy(row => row.Order).Last().ModId);
+            Assert.Equal(0, saved.Separators.Single().Order);
+            Assert.Same(moving, vm.ProfileMods.Last());
+            Assert.False(view.FindControl<Border>("SortDragGhost")!.IsVisible);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task ProfileCards_ShouldMarkLuaResourcesAndKeepOrdinaryModsUnmarked()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
@@ -1728,6 +1899,52 @@ public sealed partial class FluentAvaloniaUiTests
             app.Resources["CardSurfaceOpacity"] = originalOpacity;
             app.RequestedThemeVariant = originalTheme;
         }
+    }
+
+    [AvaloniaFact]
+    public async Task AddToProfileDialog_ShouldOfferGroupSelectionWhenEnabledAndApplyIt()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "武器", 1);
+        var firstId = (await profiles.GetProfileByIdAsync(profileId))!.Mods.OrderBy(item => item.Order).First().ModId;
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.LibraryViewModel.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var vm = main.LibraryViewModel;
+            var target = vm.FilteredMods.Single(mod => mod.Id == firstId);
+            await vm.OpenAddToProfileDialogCommand.ExecuteAsync(target);
+            window.UpdateLayout();
+            Assert.True(vm.ShowAddToProfileGroupPicker);
+            var overlay = window.GetVisualDescendants().OfType<LibraryView>().Single()
+                .GetVisualDescendants().OfType<HD2Mimnt.UI.Controls.AddToProfileOverlay>().Single();
+            var toggle = overlay.FindControl<CheckBox>("AddToProfileGroupToggle")!;
+            Assert.True(toggle.IsEffectivelyVisible);
+            Assert.False(vm.ChooseAddToProfileGroup);
+
+            vm.ChooseAddToProfileGroup = true;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var groupBox = overlay.FindControl<ComboBox>("AddToProfileGroupBox")!;
+            Assert.True(groupBox.IsEffectivelyVisible);
+            Assert.Equal(separator.Id, Assert.Single(vm.AddToProfileGroups).Id);
+            await vm.ConfirmAddToProfileCommand.ExecuteAsync(null);
+
+            var saved = await profiles.GetProfileByIdAsync(profileId);
+            Assert.Equal(target.Id, saved!.Mods.OrderBy(item => item.Order).Last().ModId);
+            Assert.Equal(firstId, saved.Mods.OrderBy(item => item.Order).Last().ModId);
+            Assert.Contains(saved.Mods.Where(item => item.Order >= saved.Separators.Single().Order),
+                item => item.ModId == target.Id);
+        }
+        finally { window.DataContext = null; window.Close(); }
     }
 
     [AvaloniaFact]

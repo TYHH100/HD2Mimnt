@@ -807,6 +807,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 _profileViewModel.CloseConflictPickerCommand.Execute(null);
             else if (_profileViewModel.IsMoveToPositionDialogOpen)
                 _profileViewModel.CancelMoveToPositionCommand.Execute(null);
+            else if (_profileViewModel.IsAddToGroupDialogOpen)
+                _profileViewModel.CancelAddToGroupCommand.Execute(null);
             else if (_profileViewModel.IsModOptionsDialogOpen)
                 _profileViewModel.CloseModOptionsCommand.Execute(null);
             else if (_profileViewModel.IsAddModOpen)

@@ -4282,4 +4282,15 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="UI.ChangeImage" xml:space="preserve"><value>更換圖片</value></data>
   <data name="UI.RestoreModImage" xml:space="preserve"><value>恢復預設圖片</value></data>
   <data name="UI.EditModInfo" xml:space="preserve"><value>編輯模組資訊</value></data>
+  <data name="UI.AddToSpecifiedGroup" xml:space="preserve"><value>加入指定分組</value></data>
+  <data name="UI.AddToSpecifiedGroupEllipsis" xml:space="preserve"><value>加入指定分組…</value></data>
+  <data name="UI.SelectASingleProfileToChooseAGroup" xml:space="preserve"><value>指定分組時只能選擇一個設定檔。</value></data>
+  <data name="UI.ThisProfileHasNoGroups" xml:space="preserve"><value>該設定檔還沒有分組。</value></data>
+  <data name="UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges" xml:space="preserve"><value>選取的模組會移到分組末端，部署順序將隨之改變。</value></data>
+  <data name="UI.ChooseAGroupForTheImportedMods" xml:space="preserve"><value>本次匯入的模組已加入目前設定檔，可直接選擇分組；不選擇則保持附加到末端。</value></data>
+  <data name="UI.ApplyGroup" xml:space="preserve"><value>套用分組</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>新增模組時可指定分組</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模組庫「加入設定檔」彈窗（僅單選設定檔）和開啟匯入自動新增後的完成頁提供分組選擇；關閉時保持附加到末端。</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展開的分組標題固定在頂部</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>僅影響顯示：展開的使用者分組標題固定在模組列表上方，多個依原順序排列；收起後標題回到列表原位，模組順序不變。可將模組拖到凍結標題上直接加入該分組。</value></data>
 </root>

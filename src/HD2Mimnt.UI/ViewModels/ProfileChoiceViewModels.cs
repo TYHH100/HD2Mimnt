@@ -19,6 +19,9 @@ public partial class LibraryModChoiceViewModel : ObservableObject
     [ObservableProperty] private string _author = string.Empty;
 }
 
+/// <summary>配置页与弹窗共用的用户分组选择项；Id 为分隔符 ID。</summary>
+public sealed record ProfileGroupChoiceViewModel(Guid Id, string Name);
+
 public enum ProfileCompareStatus
 {
     Common,
