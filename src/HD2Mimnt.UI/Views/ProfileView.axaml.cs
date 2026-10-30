@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.ViewModels;
+using System.Collections.ObjectModel;
 
 namespace HD2Mimnt.UI.Views;
 
@@ -29,6 +30,8 @@ public partial class ProfileView : UserControl
     private DataTransfer? _sortData;
     private Func<object?, bool>? _sortIsMoving;
     private ProfileModViewModel? _groupDropTarget;
+    private ObservableCollection<ProfileModViewModel>? _stickyRows;
+    private int _stickyTopIndex = -1;
 
     private void SubscribeConflictNavigation(ProfileViewModel? viewModel)
     {
@@ -67,6 +70,7 @@ public partial class ProfileView : UserControl
         DetachedFromVisualTree += (_, _) =>
         {
             ClearSortPreview();
+            ResetStickyGroupHeader();
             (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
             _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
             SubscribeConflictNavigation(null);
@@ -75,8 +79,10 @@ public partial class ProfileView : UserControl
         DataContextChanged += (_, _) =>
         {
             ClearSortPreview();
+            ResetStickyGroupHeader();
             SubscribeConflictNavigation(DataContext as ProfileViewModel);
         };
+        ModItemsControl.LayoutUpdated += (_, _) => UpdateStickyGroupHeader();
     }
 
     /// <summary>右键配置文件行：经统一的 AppContextMenu 模块弹出操作菜单。</summary>
@@ -449,7 +455,7 @@ public partial class ProfileView : UserControl
         if (_sortList == null || _sortData == null) return;
         // 滚动会回收卡片容器，透明度必须跟随当前数据，不能留在复用后的其他行上。
         if (_sortIsMoving is { } isMoving) DimDragSources(_sortList, isMoving);
-        var group = HitTestFrozenGroupHeader(e);
+        var group = HitTestStickyGroupHeader(e);
         if (group != null)
         {
             SetGroupDropTarget(group);
@@ -479,7 +485,7 @@ public partial class ProfileView : UserControl
         if (_sortPointer != e.Pointer || e.InitialPressMouseButton != MouseButton.Left) return;
         try
         {
-            if (HitTestFrozenGroupHeader(e) is { } group && _sortData != null
+            if (HitTestStickyGroupHeader(e) is { } group && _sortData != null
                 && TryParseMovingIds(_sortData, out var groupMovingIds))
             {
                 var viewModel = DataContext as ProfileViewModel;
@@ -601,20 +607,70 @@ public partial class ProfileView : UserControl
         return movingIds.Count > 0;
     }
 
-    /// <summary>命中冻结分组标题时返回对应分组，供拖动直接加入分组。</summary>
-    private ProfileModViewModel? HitTestFrozenGroupHeader(PointerEventArgs e)
+    /// <summary>命中当前吸顶分组标题时返回对应分组，供拖动直接加入分组。</summary>
+    private ProfileModViewModel? HitTestStickyGroupHeader(PointerEventArgs e)
     {
-        if (FrozenGroupHeaderList.ItemCount == 0 || !FrozenGroupHeaderList.IsEffectivelyVisible) return null;
-        var position = e.GetPosition(FrozenGroupHeaderList);
-        if (!new Rect(FrozenGroupHeaderList.Bounds.Size).Contains(position)) return null;
-        for (var index = 0; index < FrozenGroupHeaderList.ItemCount; index++)
+        if (DataContext is not ProfileViewModel vm || vm.StickyGroupHeader is not { } group
+            || !StickyGroupHeaderHost.IsEffectivelyVisible) return null;
+        var position = e.GetPosition(StickyGroupHeaderHost);
+        return new Rect(StickyGroupHeaderHost.Bounds.Size).Contains(position) ? group : null;
+    }
+
+    private void ModScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e) => UpdateStickyGroupHeader();
+
+    private void UpdateStickyGroupHeader()
+    {
+        if (DataContext is not ProfileViewModel vm || !vm.IsProfileModsContentVisible || vm.ProfileRows.Count == 0)
         {
-            if (FrozenGroupHeaderList.ContainerFromIndex(index) is not Control container
-                || container.DataContext is not ProfileModViewModel group) continue;
-            if (container.TranslatePoint(default, FrozenGroupHeaderList) is not { } origin) continue;
-            if (new Rect(origin, container.Bounds.Size).Contains(position)) return group;
+            if (DataContext is ProfileViewModel current) current.UpdateStickyGroupHeader(null);
+            _stickyRows = null;
+            _stickyTopIndex = -1;
+            return;
         }
-        return null;
+        if (!ReferenceEquals(_stickyRows, vm.ProfileRows))
+        {
+            _stickyRows = vm.ProfileRows;
+            _stickyTopIndex = -1;
+        }
+        var topIndex = FindTopVisibleRowIndex();
+        if (topIndex == _stickyTopIndex) return;
+        _stickyTopIndex = topIndex;
+        vm.UpdateStickyGroupHeader(topIndex < 0 ? null : topIndex);
+    }
+
+    /// <summary>找到覆盖滚动视口顶边的那一行；只使用已实现容器，虚拟化列表无需全部行。</summary>
+    private int FindTopVisibleRowIndex()
+    {
+        var topIndex = -1;
+        var bestTop = double.NegativeInfinity;
+        var fallbackIndex = -1;
+        var fallbackTop = double.PositiveInfinity;
+        foreach (var container in ModItemsControl.GetRealizedContainers())
+        {
+            if (container.TranslatePoint(default, ModScrollViewer) is not { } origin) continue;
+            var index = ModItemsControl.IndexFromContainer(container);
+            if (index < 0) continue;
+            var top = origin.Y;
+            var bottom = top + container.Bounds.Height;
+            if (top <= 1 && bottom > 0 && top >= bestTop)
+            {
+                bestTop = top;
+                topIndex = index;
+            }
+            if (top >= 0 && top < fallbackTop)
+            {
+                fallbackTop = top;
+                fallbackIndex = index;
+            }
+        }
+        return topIndex >= 0 ? topIndex : fallbackIndex;
+    }
+
+    private void ResetStickyGroupHeader()
+    {
+        _stickyRows = null;
+        _stickyTopIndex = -1;
+        (DataContext as ProfileViewModel)?.UpdateStickyGroupHeader(null);
     }
 
     private void SetGroupDropTarget(ProfileModViewModel? target)
@@ -643,7 +699,7 @@ public partial class ProfileView : UserControl
         SortDragTitle.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(title));
         SortDragDestination.Bind(TextBlock.TextProperty, UiLocalization.Current.TextBinding(destination));
         var point = e.GetPosition(SortPreviewLayer);
-        var width = Math.Clamp(FrozenGroupHeaderList.Bounds.Width - 8, 200, 360);
+        var width = Math.Clamp(StickyGroupHeaderHost.Bounds.Width - 8, 200, 360);
         SortDragGhost.Width = width;
         SortDragGhost.IsVisible = true;
         SortDragGhost.Measure(new Size(width, double.PositiveInfinity));
@@ -679,8 +735,8 @@ public partial class ProfileView : UserControl
         var slot = ComputeModInsertIndex(y);
         var expandedIds = vm.ExpandMovingRows(movingIds);
         // 自身或多选中的卡片不是插入锚点，继续寻找下一个非拖动项。
-        while (slot < vm.ProfileDisplayRows.Count && expandedIds.Contains(vm.ProfileDisplayRows[slot].ModId)) slot++;
-        return (slot, slot < vm.ProfileDisplayRows.Count ? vm.ProfileDisplayRows[slot].ModId : null);
+        while (slot < vm.ProfileRows.Count && expandedIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
+        return (slot, slot < vm.ProfileRows.Count ? vm.ProfileRows[slot].ModId : null);
     }
 
     private void BeginProfileDragPreview(Guid profileId)

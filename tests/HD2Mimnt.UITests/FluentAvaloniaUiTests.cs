@@ -1318,67 +1318,29 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
-    public async Task ExpandedGroupHeaders_ShouldFreezeOutsideScrollingListWhenEnabled()
+    public async Task StickyGroupHeader_ShouldFollowScrollAndSwitchAtNextGroup()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
-        var settings = scope.Services.GetRequiredService<SettingsService>();
-        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
-        var profiles = scope.Services.GetRequiredService<ProfileService>();
-        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
-        var separator = await profiles.AddSeparatorAsync(profileId, "冻结标题", 1);
-        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
-        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
-        main.SelectedTabIndex = 0;
-        var vm = main.ProfileViewModel;
-        var window = new MainWindow { DataContext = main };
-        try
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        await data.ImportGeneratedModsAsync(Enumerable.Range(1, 9).Select(index => new Mod
         {
-            window.Show();
-            window.UpdateLayout();
-            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
-            var frozen = view.FindControl<ItemsControl>("FrozenGroupHeaderList")!;
-            var list = view.FindControl<ItemsControl>("ModItemsControl")!;
-
-            Assert.True(frozen.IsEffectivelyVisible);
-            Assert.Equal(separator.Id, Assert.Single(vm.FrozenGroupHeaders).ModId);
-            Assert.Equal(vm.FrozenGroupHeaders.Count, frozen.ItemCount);
-            Assert.Equal(vm.ProfileDisplayRows.Count, list.ItemCount);
-            Assert.DoesNotContain(vm.ProfileDisplayRows, row => row.ModId == separator.Id);
-            Assert.Contains(vm.ProfileRows, row => row.ModId == separator.Id);
-            Assert.True(frozen.Bounds.Height > 0);
-
-            var header = Assert.Single(frozen.GetVisualDescendants().OfType<Border>()
-                .Where(border => border.Classes.Contains("profile-separator")));
-            var toggle = header.GetVisualDescendants().OfType<Button>().First(button => button.Classes.Contains("group-toggle"));
-            var togglePoint = toggle.TranslatePoint(new Point(8, 8), window)!.Value;
-            window.MouseMove(togglePoint);
-            window.MouseDown(togglePoint, MouseButton.Left);
-            window.MouseUp(togglePoint, MouseButton.Left);
-            for (var attempt = 0; attempt < 100 && vm.FrozenGroupHeaders.Count > 0; attempt++) await Task.Delay(20);
-            window.UpdateLayout();
-
-            Assert.Empty(vm.FrozenGroupHeaders);
-            Assert.Contains(vm.ProfileDisplayRows, row => row.ModId == separator.Id);
-            Assert.Equal(vm.ProfileDisplayRows.Count, list.ItemCount);
-        }
-        finally { window.DataContext = null; window.Close(); }
-    }
-
-    [AvaloniaFact]
-    public async Task FrozenGroupHeader_ShouldAcceptDraggedModOnDrop()
-    {
-        await using var scope = await UiScope.CreateAsync(seedMods: true);
-        var settings = scope.Services.GetRequiredService<SettingsService>();
-        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+            Name = $"HD2Mimnt Test Sticky {index:00}", Author = "Helldivers", Version = "1.0.0",
+            Path = Path.Combine(scope.Root, "sticky", index.ToString())
+        }));
         var profiles = scope.Services.GetRequiredService<ProfileService>();
         var profileId = (await profiles.GetActiveProfileAsync())!.Id;
-        var separator = await profiles.AddSeparatorAsync(profileId, "拖放目标", 1);
+        var existingIds = (await profiles.GetProfileByIdAsync(profileId))!.Mods.Select(row => row.ModId).ToHashSet();
+        foreach (var mod in (await data.GetAllModsAsync()).Where(mod => !existingIds.Contains(mod.Id)))
+            await profiles.AddModToProfileAsync(profileId, mod.Id);
+        await scope.Services.GetRequiredService<SettingsService>()
+            .SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        await profiles.AddSeparatorAsync(profileId, "第一组", 1);
+        await profiles.AddSeparatorAsync(profileId, "第二组", 6);
         var main = scope.Services.GetRequiredService<MainWindowViewModel>();
         await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
         main.SelectedTabIndex = 0;
         var vm = main.ProfileViewModel;
-        var moving = vm.ProfileMods[0];
-        var window = new MainWindow { DataContext = main, Width = 1100, Height = 850 };
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 600 };
         try
         {
             window.Show();
@@ -1391,31 +1353,118 @@ public sealed partial class FluentAvaloniaUiTests
             }
             Layout();
             var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
-            var frozen = view.FindControl<ItemsControl>("FrozenGroupHeaderList")!;
+            var scroll = view.FindControl<ScrollViewer>("ModScrollViewer")!;
+            var host = view.FindControl<Control>("StickyGroupHeaderHost")!;
+            var firstRow = vm.ProfileSeparators.Single(row => row.ModName == "第一组");
+            var secondRow = vm.ProfileSeparators.Single(row => row.ModName == "第二组");
+
+            Assert.False(host.IsEffectivelyVisible);
+            scroll.Offset = new Vector(0, 160);
+            Layout();
+            Assert.Same(firstRow, vm.StickyGroupHeader);
+            Assert.True(host.IsEffectivelyVisible);
+            var firstHeaderText = host.GetVisualDescendants().OfType<TextBlock>()
+                .First(text => text.Text == firstRow.ModName);
+            Assert.True(firstHeaderText.IsEffectivelyVisible);
+
+            for (var offset = 200d; offset <= scroll.Extent.Height; offset += 40)
+            {
+                scroll.Offset = new Vector(0, offset);
+                Layout();
+                if (ReferenceEquals(vm.StickyGroupHeader, secondRow)) break;
+            }
+            Assert.Same(secondRow, vm.StickyGroupHeader);
+            Assert.Contains(host.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == secondRow.ModName);
+
+            scroll.Offset = new Vector(0, 0);
+            Layout();
+            Assert.Null(vm.StickyGroupHeader);
+            Assert.False(host.IsEffectivelyVisible);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task StickyGroupHeader_ShouldAcceptDraggedModOnDrop()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        await data.ImportGeneratedModsAsync(Enumerable.Range(1, 9).Select(index => new Mod
+        {
+            Name = $"HD2Mimnt Test Sticky Drop {index:00}", Author = "Helldivers", Version = "1.0.0",
+            Path = Path.Combine(scope.Root, "sticky-drop", index.ToString())
+        }));
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var existingIds = (await profiles.GetProfileByIdAsync(profileId))!.Mods.Select(row => row.ModId).ToHashSet();
+        foreach (var mod in (await data.GetAllModsAsync()).Where(mod => !existingIds.Contains(mod.Id)))
+            await profiles.AddModToProfileAsync(profileId, mod.Id);
+        await scope.Services.GetRequiredService<SettingsService>()
+            .SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        var separator = await profiles.AddSeparatorAsync(profileId, "拖放目标", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 600 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var scroll = view.FindControl<ScrollViewer>("ModScrollViewer")!;
             var list = view.FindControl<ItemsControl>("ModItemsControl")!;
-            var source = Assert.IsAssignableFrom<Control>(list.ContainerFromIndex(vm.ProfileDisplayRows.IndexOf(moving)));
-            var header = Assert.IsAssignableFrom<Control>(frozen.ContainerFromIndex(0));
+            var host = view.FindControl<Control>("StickyGroupHeaderHost")!;
+            scroll.Offset = new Vector(0, 160);
+            Layout();
+            var groupRow = vm.ProfileSeparators.Single(row => row.ModId == separator.Id);
+            Assert.Same(groupRow, vm.StickyGroupHeader);
+            Assert.True(host.IsEffectivelyVisible);
+            var members = vm.GetSeparatorMembers(groupRow);
+            var memberSet = members.ToHashSet();
+            var lastMember = members[^1];
+            var hostBottom = host.TranslatePoint(new Point(0, host.Bounds.Height), window)!.Value.Y;
+            Control? source = null;
+            ProfileModViewModel? moving = null;
+            foreach (var container in list.GetRealizedContainers())
+            {
+                if (container.DataContext is not ProfileModViewModel row || !memberSet.Contains(row)
+                    || ReferenceEquals(row, lastMember)) continue;
+                if (container.TranslatePoint(new Point(container.Bounds.Width / 2, container.Bounds.Height / 2), window) is not { } point
+                    || point.Y <= hostBottom + 8 || point.Y >= window.Bounds.Height - 20) continue;
+                source = container;
+                moving = row;
+                break;
+            }
+            Assert.NotNull(source);
+            Assert.NotNull(moving);
             var sourcePoint = source.TranslatePoint(new Point(source.Bounds.Width / 2, source.Bounds.Height / 2), window)!.Value;
-            var headerPoint = header.TranslatePoint(new Point(header.Bounds.Width / 2, header.Bounds.Height / 2), window)!.Value;
+            var hostPoint = host.TranslatePoint(new Point(host.Bounds.Width / 2, host.Bounds.Height / 2), window)!.Value;
 
             window.MouseDown(sourcePoint, MouseButton.Left);
             window.MouseMove(sourcePoint + new Vector(0, 12), RawInputModifiers.LeftMouseButton);
-            window.MouseMove(headerPoint, RawInputModifiers.LeftMouseButton);
+            window.MouseMove(hostPoint, RawInputModifiers.LeftMouseButton);
             Layout();
 
-            var groupRow = vm.FrozenGroupHeaders.Single(row => row.ModId == separator.Id);
             Assert.True(groupRow.IsGroupDropTarget);
             Assert.True(view.FindControl<Border>("SortDragGhost")!.IsVisible);
 
-            window.MouseUp(headerPoint, MouseButton.Left);
+            window.MouseUp(hostPoint, MouseButton.Left);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            while ((await profiles.GetProfileByIdAsync(profileId))!.Mods.OrderBy(row => row.Order).Last().ModId != moving.ModId)
+            while (!ReferenceEquals(vm.ProfileMods.LastOrDefault(), moving))
                 await Task.Delay(10, timeout.Token);
             Layout();
+            Assert.Same(moving, vm.ProfileMods.Last());
+            Assert.Equal(moving.ModId, vm.GetSeparatorMembers(vm.ProfileSeparators.Single()).Last().ModId);
             var saved = (await profiles.GetProfileByIdAsync(profileId))!;
             Assert.Equal(moving.ModId, saved.Mods.OrderBy(row => row.Order).Last().ModId);
-            Assert.Equal(0, saved.Separators.Single().Order);
-            Assert.Same(moving, vm.ProfileMods.Last());
             Assert.False(view.FindControl<Border>("SortDragGhost")!.IsVisible);
         }
         finally { window.DataContext = null; window.Close(); }

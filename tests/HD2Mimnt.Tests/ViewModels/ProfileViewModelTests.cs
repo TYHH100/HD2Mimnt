@@ -730,11 +730,11 @@ public sealed class ProfileViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task PinExpandedGroups_ShouldFreezeExpandedHeadersWithoutReorderingMods()
+    public async Task PinExpandedGroups_ShouldStickOnlyCurrentExpandedGroupHeader()
     {
         var mods = new List<Mod>();
         for (var index = 0; index < 4; index++) mods.Add(await AddModAsync($"Pin {index}"));
-        var profileId = await _profileService.CreateProfileAsync("冻结分组标题");
+        var profileId = await _profileService.CreateProfileAsync("吸顶分组标题");
         await _profileService.SetActiveProfileAsync(profileId);
         foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
         var first = await _profileService.AddSeparatorAsync(profileId, "第一组", 1);
@@ -744,31 +744,41 @@ public sealed class ProfileViewModelTests : IDisposable
         var vm = CreateViewModel(settings);
         await vm.LoadProfilesCommand.ExecuteAsync(null);
 
-        // 数据顺序不变，展开的分组标题只从滚动列表抽出并冻结在顶部。
+        // 数据顺序保持原样，标题仍在列表中，只根据视口顶部行决定当前吸顶标题。
         Assert.Equal(new[] { mods[0].Id, first.Id, mods[1].Id, mods[2].Id, second.Id, mods[3].Id },
             vm.ProfileRows.Select(row => row.ModId));
-        Assert.Equal(new[] { first.Id, second.Id }, vm.FrozenGroupHeaders.Select(row => row.ModId));
-        Assert.Equal(new[] { mods[0].Id, mods[1].Id, mods[2].Id, mods[3].Id },
-            vm.ProfileDisplayRows.Select(row => row.ModId));
+        var firstRow = vm.ProfileSeparators.Single(row => row.ModId == first.Id);
+        var secondRow = vm.ProfileSeparators.Single(row => row.ModId == second.Id);
+        var firstMember = vm.ProfileRows.First(row => row.ModId == mods[1].Id);
+        var secondMember = vm.ProfileRows.First(row => row.ModId == mods[3].Id);
 
-        await vm.ToggleSeparatorCommand.ExecuteAsync(vm.ProfileSeparators.Single(row => row.ModId == first.Id));
-        Assert.Equal(new[] { second.Id }, vm.FrozenGroupHeaders.Select(row => row.ModId));
-        Assert.Equal(new[] { mods[0].Id, first.Id, mods[3].Id },
-            vm.ProfileDisplayRows.Select(row => row.ModId));
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(firstMember));
+        Assert.Same(firstRow, vm.StickyGroupHeader);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondMember));
+        Assert.Same(secondRow, vm.StickyGroupHeader);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondRow));
+        Assert.Null(vm.StickyGroupHeader);
 
-        await vm.ToggleSeparatorCommand.ExecuteAsync(vm.ProfileSeparators.Single(row => row.ModId == first.Id));
-        Assert.Equal(new[] { first.Id, second.Id }, vm.FrozenGroupHeaders.Select(row => row.ModId));
+        await vm.ToggleSeparatorCommand.ExecuteAsync(firstRow);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondMember));
+        Assert.Same(secondRow, vm.StickyGroupHeader);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(secondRow);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(firstRow));
+        Assert.Null(vm.StickyGroupHeader);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(firstRow);
+        var restoredMember = vm.ProfileRows.First(row => row.ModId == mods[1].Id);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(restoredMember));
+        Assert.Same(firstRow, vm.StickyGroupHeader);
+
         var added = await AddModAsync("Pin new");
         await _profileService.SetModsEnabledAsync(profileId, new[] { added.Id }, true);
         await vm.LoadProfilesCommand.ExecuteAsync(null);
-        Assert.Equal(new[] { first.Id, second.Id }, vm.FrozenGroupHeaders.Select(row => row.ModId));
-        Assert.Equal(new[] { mods[0].Id, mods[1].Id, mods[2].Id, mods[3].Id, added.Id },
-            vm.ProfileDisplayRows.Select(row => row.ModId));
         Assert.Equal(mods.Append(added).Select(mod => mod.Id), vm.ProfileMods.Select(mod => mod.ModId));
 
         await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
-        Assert.Empty(vm.FrozenGroupHeaders);
-        Assert.Equal(vm.ProfileRows.Select(row => row.ModId), vm.ProfileDisplayRows.Select(row => row.ModId));
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.Count - 1);
+        Assert.Null(vm.StickyGroupHeader);
+        Assert.Equal(mods.Append(added).Select(mod => mod.Id), vm.ProfileMods.Select(mod => mod.ModId));
     }
 
     [Fact]

@@ -4291,6 +4291,6 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="UI.ApplyGroup" xml:space="preserve"><value>应用分组</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>添加模组时可指定分组</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模组库“加入配置文件”弹窗（仅单选配置文件）和开启导入自动添加后的完成页提供分组选择；关闭时保持追加到末尾。</value></data>
-  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展开的分组标题固定在顶部</value></data>
-  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>仅影响显示：展开的用户分组标题固定在模组列表上方，多个按原顺序排列；收起后标题回到列表原位置，模组顺序不变。可将模组拖到冻结标题上直接加入该分组。</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展开的分组标题滚动时吸附在顶部</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>仅影响显示：滚动时当前展开的用户分组标题吸附在模组列表顶部，继续滚动到下一个分组时自动替换；其它标题保持原位置，模组顺序不变。可将模组拖到吸顶标题上直接加入该分组。</value></data>
 </root>

@@ -4291,6 +4291,6 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="UI.ApplyGroup" xml:space="preserve"><value>Apply group</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>Allow choosing a group when adding mods</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>Shows a group picker in the library "Add to profiles" dialog (single profile only) and after importing with auto-add enabled. Off keeps appending to the end.</value></data>
-  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>Freeze expanded group headers</value></data>
-  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>Display only: headers of expanded user groups stay above the scrolling mod list in their original order and return to the list when collapsed. Mod order never changes. Drop mods onto a frozen header to add them to that group.</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>Stick the current expanded group header while scrolling</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>Display only: while scrolling, the current expanded user group header sticks to the top of the mod list. Scrolling into the next group replaces it, and other headers keep their normal position. Mod order never changes. Drop mods onto the sticky header to add them to that group.</value></data>
 </root>

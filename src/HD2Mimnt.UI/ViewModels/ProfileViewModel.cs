@@ -278,13 +278,9 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _profileRows = new();
 
-    /// <summary>实际绑定到滚动列表的行；冻结的分组标题行会从此集合移出。</summary>
+    /// <summary>当前滚动到视口顶部、需要吸附在列表上方的展开分组标题；同一时间只有一个。</summary>
     [ObservableProperty]
-    private ObservableCollection<ProfileModViewModel> _profileDisplayRows = new();
-
-    /// <summary>固定在滚动列表上方的展开用户分组标题，按原列表顺序排列。</summary>
-    [ObservableProperty]
-    private ObservableCollection<ProfileModViewModel> _frozenGroupHeaders = new();
+    private ProfileModViewModel? _stickyGroupHeader;
 
     [ObservableProperty]
     private ObservableCollection<ProfileModViewModel> _profileSeparators = new();
@@ -712,14 +708,29 @@ public partial class ProfileViewModel : ObservableObject
         MarkGroupSlabs(rows);
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
         ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
-        var frozenHeaders = _pinExpandedGroups
-            ? rows.Where(row => row.IsUserSeparator && row.IsExpanded).ToList()
-            : new List<ProfileModViewModel>();
-        FrozenGroupHeaders = new ObservableCollection<ProfileModViewModel>(frozenHeaders);
-        var frozenSet = frozenHeaders.ToHashSet();
-        ProfileDisplayRows = new ObservableCollection<ProfileModViewModel>(
-            frozenSet.Count == 0 ? rows : rows.Where(row => !frozenSet.Contains(row)));
+        StickyGroupHeader = null;
         HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
+    }
+
+    /// <summary>按视口顶部行更新吸顶标题：只吸附当前展开用户分组，进入下一个分组时自然替换。</summary>
+    public void UpdateStickyGroupHeader(int? topRowIndex)
+    {
+        if (!_pinExpandedGroups || topRowIndex is not { } index
+            || index < 0 || index >= ProfileRows.Count)
+        {
+            StickyGroupHeader = null;
+            return;
+        }
+        var top = ProfileRows[index];
+        for (var cursor = index - 1; cursor >= 0; cursor--)
+        {
+            var row = ProfileRows[cursor];
+            if (!row.IsSeparator) continue;
+            StickyGroupHeader = row.IsUserSeparator && row.IsExpanded && GetSeparatorMembers(row).Contains(top)
+                ? row : null;
+            return;
+        }
+        StickyGroupHeader = null;
     }
 
     private int GetLuaGroupBoundary(IEnumerable<ProfileModViewModel> mods)
@@ -917,6 +928,7 @@ public partial class ProfileViewModel : ObservableObject
         IsAddToGroupDialogOpen = false;
         AddToGroupChoices.Clear();
         SelectedAddToGroup = null;
+        StickyGroupHeader = null;
         ProfileSeparators.Clear();
         _luaSeparator.IsCollapsed = false;
         _luaSeparator.SeparatorColor = string.Empty;
@@ -965,6 +977,7 @@ public partial class ProfileViewModel : ObservableObject
     private async Task LoadProfileModsAsync(Guid profileId)
     {
         CloseDetailPanel();
+        StickyGroupHeader = null;
         _profileModsCts?.Cancel();
         _profileModsCts?.Dispose();
         _profileModsCts = new CancellationTokenSource();

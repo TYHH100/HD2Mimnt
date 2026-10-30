@@ -4291,6 +4291,6 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="UI.ApplyGroup" xml:space="preserve"><value>套用分組</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>新增模組時可指定分組</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模組庫「加入設定檔」彈窗（僅單選設定檔）和開啟匯入自動新增後的完成頁提供分組選擇；關閉時保持附加到末端。</value></data>
-  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展開的分組標題固定在頂部</value></data>
-  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>僅影響顯示：展開的使用者分組標題固定在模組列表上方，多個依原順序排列；收起後標題回到列表原位，模組順序不變。可將模組拖到凍結標題上直接加入該分組。</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展開的分組標題捲動時吸附在頂部</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>僅影響顯示：捲動時目前展開的使用者分組標題吸附在模組列表頂部，繼續捲動到下一個分組時自動替換；其他標題保持原位，模組順序不變。可將模組拖到吸頂標題上直接加入該分組。</value></data>
 </root>
