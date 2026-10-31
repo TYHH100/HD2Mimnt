@@ -43,6 +43,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     private int _normalLocation;
     private int _texturedLocation;
     private int _alphaPassLocation;
+    private int _opaqueOverrideLocation;
     private int _unlitLocation;
     private int _emissiveTexturedLocation;
     private int _colorLocation;
@@ -207,6 +208,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 api.SetMatrix(_normalLocation, Matrix4x4.Identity);
                 gl.Uniform1i(_texturedLocation, 0);
                 gl.Uniform1i(_alphaPassLocation, 0);
+                gl.Uniform1i(_opaqueOverrideLocation, 0);
                 gl.Uniform1i(_unlitLocation, 1);
                 api.Uniform3f(_colorLocation, 0.25f, 0.28f, 0.32f);
                 DrawGeometry(gl, _grid, false, Gl.Lines);
@@ -333,6 +335,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             _normalLocation = gl.GetUniformLocationString(_program, "uNormal");
             _texturedLocation = gl.GetUniformLocationString(_program, "uTextured");
             _alphaPassLocation = gl.GetUniformLocationString(_program, "uAlphaPass");
+            _opaqueOverrideLocation = gl.GetUniformLocationString(_program, "uOpaqueOverride");
             _unlitLocation = gl.GetUniformLocationString(_program, "uUnlit");
             _emissiveTexturedLocation = gl.GetUniformLocationString(_program, "uEmissiveTextured");
             _colorLocation = gl.GetUniformLocationString(_program, "uColor");
@@ -677,6 +680,10 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         gl.BindTexture(Gl.Texture2D, emissiveTextured ? mesh.EmissiveTexture!.Id : 0);
         gl.Uniform1i(_emissiveTexturedLocation, emissiveTextured ? 1 : 0);
         gl.Uniform1i(_alphaPassLocation, alphaPass);
+        // 不透明基趟 + "使用贴图透明度"关闭 + 带 alpha 的颜色贴图：半透明像素按
+        // 不透明渲染（开关的语义就是忽略贴图透明度），而不是被 alpha 剔除挖成洞。
+        gl.Uniform1i(_opaqueOverrideLocation,
+            alphaPass == 1 && UseTextures && !UseAlpha && mesh.Texture is { HasAlpha: true } ? 1 : 0);
         gl.Uniform1i(_unlitLocation, Wireframe || mesh.RenderClass != ModelPreviewMaterialRenderClass.Opaque ? 1 : 0);
         DrawGeometry(gl, mesh, Wireframe, Gl.Triangles);
     }
@@ -1103,6 +1110,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         uniform int uTextured;
         uniform int uEmissiveTextured;
         uniform int uAlphaPass;
+        uniform int uOpaqueOverride;
         uniform int uUnlit;
         uniform vec3 uColor;
         out vec4 fragColor;
@@ -1110,6 +1118,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         {
             vec4 color = uTextured != 0 ? texture(uTexture, vUv) : vec4(uColor, 1.0);
             vec3 emissive = uEmissiveTextured != 0 ? texture(uEmissive, vUv).rgb : vec3(0.0);
+            // "使用贴图透明度"关闭时带 alpha 的网格仍留在不透明基趟，此时用户语义是
+            // "忽略贴图透明度"，半透明像素必须按不透明渲染；否则基趟的 alpha 剔除
+            // 会把蕾丝/刺绣等半透明纹素挖成洞，露出底下的其他网格（实测白点噪斑）。
+            if (uOpaqueOverride == 1)
+                color.a = 1.0;
             if (uAlphaPass == 1 && color.a < 0.999) discard;
             if (uAlphaPass == 2 && (color.a >= 0.999 || color.a <= 0.001)) discard;
             vec3 normal = vNormal / max(length(vNormal), 0.00001);

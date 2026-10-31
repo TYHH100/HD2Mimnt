@@ -36,10 +36,16 @@ public static class ModelPreviewCharacterOrientation
         // 质心差方向不显著（实测 VRC Milltina Marette：裙摆/臂饰把两质心的横向
         // 差拉开，撞上 dominance 门槛返回 None）时回退顶点分布路径，而不是放弃
         // 旋转——"证据弱"不等于"模型不需要旋转"。
+        // 解剖学一致性门槛：HD2 人物资源 Z-up、脚底在原点，"腿"的质心必须低于
+        // "躯干"。标注与几何矛盾（实测 VRC Shinano Frilletta：转换工具把头发/
+        // 披风件标成 LeftLeg/RightLeg，"腿"质心反而高于躯干）说明槽位标注与本
+        // 模组几何无关，整条地标证据作废，交给顶点分布路径——否则会推导出
+        // "上方向 = -Z" 把人物渲染成头着地。
         if (HasEnoughLabeledPoints(meshes, TorsoSlots, totalPointCount) &&
             HasEnoughLabeledPoints(meshes, LegSlots, totalPointCount) &&
             TryGetCentroid(meshes, TorsoSlots, out var torso) &&
-            TryGetCentroid(meshes, LegSlots, out var legs))
+            TryGetCentroid(meshes, LegSlots, out var legs) &&
+            legs.Z < torso.Z)
         {
             var rotation = GetRotation(torso, legs);
             if (rotation != ModelPreviewPresentationRotation.None)
