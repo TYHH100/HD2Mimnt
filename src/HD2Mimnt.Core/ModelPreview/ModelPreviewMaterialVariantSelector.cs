@@ -78,35 +78,23 @@ public static class ModelPreviewMaterialVariantSelector
         return selected;
     }
 
-    public static bool IsBc7PureBlackPlaceholder(ReadOnlySpan<byte> data)
-    {
-        const int blockSize = 16;
-        const int requiredBytes = blockSize * 4;
-        if (data.Length < requiredBytes)
-            return false;
-
-        var firstBlock = data[..blockSize];
-        for (var blockIndex = 0; blockIndex < data.Length / blockSize; blockIndex++)
-        {
-            var block = data.Slice(blockIndex * blockSize, blockSize);
-            var nonZeroCount = 0;
-            foreach (var value in block)
-                nonZeroCount += value == 0 ? 0 : 1;
-            if (!block.SequenceEqual(firstBlock) || nonZeroCount > 6)
-                return false;
-        }
-
-        return true;
-    }
-
+    /// <summary>
+    /// Decoded-BGRA check for pure-black placeholder textures (duplicate variant sections
+    /// some mod exports ship with a black color map). RGB must be exactly zero; the alpha
+    /// check tolerates BCn endpoint quantization because re-encoded placeholders decode to
+    /// 231–254 instead of 255 (measured), while real transparency/cutout planes keep low or
+    /// mixed alpha values and never pass.
+    /// </summary>
     public static bool IsOpaqueBgraPureBlack(ReadOnlySpan<byte> pixels)
     {
+        const byte opaqueAlphaThreshold = 230;
         if (pixels.Length < 4 || pixels.Length % 4 != 0)
             return false;
 
         for (var offset = 0; offset < pixels.Length; offset += 4)
         {
-            if (pixels[offset] != 0 || pixels[offset + 1] != 0 || pixels[offset + 2] != 0 || pixels[offset + 3] != byte.MaxValue)
+            if (pixels[offset] != 0 || pixels[offset + 1] != 0 || pixels[offset + 2] != 0 ||
+                pixels[offset + 3] < opaqueAlphaThreshold)
                 return false;
         }
 

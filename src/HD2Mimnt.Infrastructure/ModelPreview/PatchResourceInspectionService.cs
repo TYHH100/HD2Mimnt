@@ -342,16 +342,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             !header.AsSpan(0, 4).SequenceEqual("DDS "u8))
             return null;
 
-        var format = texture.DxgiFormat switch
-        {
-            28 or 29 => CompressionFormat.Rgba,
-            71 or 72 => CompressionFormat.Bc1WithAlpha,
-            77 or 78 => CompressionFormat.Bc3,
-            83 or 84 => CompressionFormat.Bc5,
-            98 or 99 => CompressionFormat.Bc7,
-            _ => CompressionFormat.Unknown
-        };
-        if (format == CompressionFormat.Unknown)
+        var format = DxgiTextureFormats.FromDxgiFormat(texture.DxgiFormat);
+        if (format is PreviewTextureFormat.Unknown or PreviewTextureFormat.Bc6h)
             return null;
 
         var previewWidth = texture.Width;
@@ -395,15 +387,9 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         // The payload starts at the selected mip level, so its dimensions must match
         // the chosen mip rather than the source texture's top-level dimensions.
         cancellationToken.ThrowIfCancellationRequested();
-        var pixels = new BcDecoder().DecodeRaw(payload, previewWidth, previewHeight, format);
-        var bgra = new byte[pixels.Length * 4];
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            bgra[i * 4] = pixels[i].b;
-            bgra[i * 4 + 1] = pixels[i].g;
-            bgra[i * 4 + 2] = pixels[i].r;
-            bgra[i * 4 + 3] = pixels[i].a;
-        }
+        if (DecodePayload(payload, previewWidth, previewHeight, format) is not { } bgra)
+            return null;
+        NormalizeDecodedAlpha(bgra);
 
         return new TexturePreviewData
         {
@@ -418,7 +404,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         FileStream stream,
         ulong payloadOffset,
         uint payloadSize,
-        CompressionFormat format,
+        PreviewTextureFormat format,
         int width,
         int height,
         int maxPreviewPixels,
@@ -440,30 +426,34 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             sampledHeight = Math.Max(1, (int)(((long)height + factor - 1) / factor));
         }
 
-        if (format == CompressionFormat.Rgba)
+        var bytesPerPixel = DxgiTextureFormats.GetBlockByteCount(format);
+        if (!DxgiTextureFormats.IsBlockCompressed(format))
         {
-            var sampled = new byte[checked(sampledWidth * sampledHeight * 4)];
-            var sourceRow = new byte[checked(width * 4)];
-        for (var targetY = 0; targetY < sampledHeight; targetY++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var sourceY = MapSampleCoordinate(targetY, sampledHeight, height);
+            if (bytesPerPixel <= 0)
+                return null;
+            var sampled = new byte[checked(sampledWidth * sampledHeight * bytesPerPixel)];
+            var sourceRow = new byte[checked(width * bytesPerPixel)];
+            for (var targetY = 0; targetY < sampledHeight; targetY++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var sourceY = MapSampleCoordinate(targetY, sampledHeight, height);
                 var sourceRowOffset = (long)sourceY * sourceRow.Length;
                 if (payloadOffset > (ulong)long.MaxValue - (ulong)sourceRowOffset ||
                     !await ReadAtAsync(stream, (long)payloadOffset + sourceRowOffset, sourceRow, cancellationToken))
                     return null;
 
-                var targetRowOffset = targetY * sampledWidth * 4;
+                var targetRowOffset = targetY * sampledWidth * bytesPerPixel;
                 for (var targetX = 0; targetX < sampledWidth; targetX++)
                 {
                     var sourceX = MapSampleCoordinate(targetX, sampledWidth, width);
-                    sourceRow.AsSpan(sourceX * 4, 4).CopyTo(sampled.AsSpan(targetRowOffset + targetX * 4, 4));
+                    sourceRow.AsSpan(sourceX * bytesPerPixel, bytesPerPixel)
+                        .CopyTo(sampled.AsSpan(targetRowOffset + targetX * bytesPerPixel, bytesPerPixel));
                 }
             }
             return (sampled, sampledWidth, sampledHeight, factor);
         }
 
-        var blockSize = GetBlockByteCount(format);
+        var blockSize = bytesPerPixel;
         if (blockSize == 0)
             return null;
 
@@ -496,102 +486,89 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
     private static int MapSampleCoordinate(int targetCoordinate, int targetSize, int sourceSize) =>
         Math.Min(sourceSize - 1, (int)(((2L * targetCoordinate + 1) * sourceSize) / (2L * targetSize)));
 
-    private static int GetBlockByteCount(CompressionFormat format) => format switch
+    private static long GetTopMipByteCount(PreviewTextureFormat format, int width, int height)
     {
-        CompressionFormat.Bc1 or CompressionFormat.Bc1WithAlpha => 8,
-        CompressionFormat.Bc3 or CompressionFormat.Bc5 or CompressionFormat.Bc7 => 16,
-        _ => 0
-    };
-
-    private static long GetTopMipByteCount(CompressionFormat format, int width, int height)
-    {
+        var blockBytes = DxgiTextureFormats.GetBlockByteCount(format);
+        if (blockBytes == 0)
+            return 0;
+        if (!DxgiTextureFormats.IsBlockCompressed(format))
+            return (long)width * height * blockBytes;
         var blockWidth = Math.Max(1, (width + 3) / 4);
         var blockHeight = Math.Max(1, (height + 3) / 4);
-        return format switch
-        {
-            CompressionFormat.Bc1 or CompressionFormat.Bc1WithAlpha => (long)blockWidth * blockHeight * 8,
-            CompressionFormat.Bc3 or CompressionFormat.Bc5 or CompressionFormat.Bc7 => (long)blockWidth * blockHeight * 16,
-            CompressionFormat.Rgba => (long)width * height * 4,
-            _ => 0
-        };
+        return (long)blockWidth * blockHeight * blockBytes;
     }
 
-    /// <summary>DDS DXGI 格式 → BCn 解码格式；模组补丁与游戏归档共用同一套贴图资源格式。</summary>
-    internal static CompressionFormat GetCompressionFormat(int dxgiFormat) => dxgiFormat switch
+    /// <summary>
+    /// 把选中 mip 的负载解码为 BGRA 像素：BCn 家族走 BCn 解码器，未压缩与单/双通道
+    /// 格式走 <see cref="DxgiTextureFormats.TryDecodeRawToBgra"/> 的手工像素转换。
+    /// </summary>
+    private static byte[]? DecodePayload(byte[] payload, int width, int height, PreviewTextureFormat format)
     {
-        28 or 29 => CompressionFormat.Rgba,
-        71 or 72 => CompressionFormat.Bc1WithAlpha,
-        77 or 78 => CompressionFormat.Bc3,
-        83 or 84 => CompressionFormat.Bc5,
-        98 or 99 => CompressionFormat.Bc7,
-        _ => CompressionFormat.Unknown
-    };
-
-    internal static long GetTopMipByteSize(CompressionFormat format, int width, int height) =>
-        GetTopMipByteCount(format, width, height);
-
-    internal readonly record struct TextureMipPlan(
-        int Width,
-        int Height,
-        int MipLevel,
-        ulong SkipBytes,
-        long ByteCount);
-
-    /// <summary>按预览像素上限选定 mip；调用方据此只读取所选 mip 的字节，绝不整体载入。</summary>
-    internal static TextureMipPlan? PlanTopMip(
-        CompressionFormat format,
-        int sourceWidth,
-        int sourceHeight,
-        int sourceMipCount,
-        int maxPreviewPixels)
-    {
-        var previewWidth = sourceWidth;
-        var previewHeight = sourceHeight;
-        ulong skipBytes = 0;
-        var mipLevel = 0;
-        while ((long)previewWidth * previewHeight > maxPreviewPixels && mipLevel + 1 < sourceMipCount)
+        if (!DxgiTextureFormats.IsBlockCompressed(format))
         {
-            var previousMipSize = GetTopMipByteCount(format, previewWidth, previewHeight);
-            if (previousMipSize <= 0)
-                return null;
-            skipBytes += (ulong)previousMipSize;
-            previewWidth = Math.Max(1, previewWidth / 2);
-            previewHeight = Math.Max(1, previewHeight / 2);
-            mipLevel++;
+            var bgra = new byte[checked(width * height * 4)];
+            return DxgiTextureFormats.TryDecodeRawToBgra(payload, width, height, format, bgra) ? bgra : null;
         }
 
-        var byteCount = GetTopMipByteCount(format, previewWidth, previewHeight);
-        return byteCount > 0
-            ? new TextureMipPlan(previewWidth, previewHeight, mipLevel, skipBytes, byteCount)
-            : null;
-    }
-
-    /// <summary>把从所选 mip 起点读出的负载解码为 BGRA 像素。</summary>
-    internal static TexturePreviewData? DecodeMipPayload(
-        byte[] mipPayload,
-        TextureMipPlan plan,
-        int dxgiFormat)
-    {
-        if (mipPayload.Length < plan.ByteCount)
+        var compression = format switch
+        {
+            PreviewTextureFormat.Bc1 => CompressionFormat.Bc1WithAlpha,
+            PreviewTextureFormat.Bc2 => CompressionFormat.Bc2,
+            PreviewTextureFormat.Bc3 => CompressionFormat.Bc3,
+            PreviewTextureFormat.Bc4 => CompressionFormat.Bc4,
+            PreviewTextureFormat.Bc5 => CompressionFormat.Bc5,
+            PreviewTextureFormat.Bc7 => CompressionFormat.Bc7,
+            _ => CompressionFormat.Unknown
+        };
+        if (compression == CompressionFormat.Unknown)
             return null;
-
-        var pixels = new BcDecoder().DecodeRaw(mipPayload, plan.Width, plan.Height, GetCompressionFormat(dxgiFormat));
-        var bgra = new byte[pixels.Length * 4];
+        var pixels = new BcDecoder().DecodeRaw(payload, width, height, compression);
+        var output = new byte[pixels.Length * 4];
         for (var i = 0; i < pixels.Length; i++)
         {
-            bgra[i * 4] = pixels[i].b;
-            bgra[i * 4 + 1] = pixels[i].g;
-            bgra[i * 4 + 2] = pixels[i].r;
-            bgra[i * 4 + 3] = pixels[i].a;
+            if (format == PreviewTextureFormat.Bc4)
+            {
+                // BC4 只有 R 通道：按灰度显示，避免单通道数据渲染成纯红色。
+                output[i * 4] = pixels[i].r;
+                output[i * 4 + 1] = pixels[i].r;
+                output[i * 4 + 2] = pixels[i].r;
+            }
+            else
+            {
+                output[i * 4] = pixels[i].b;
+                output[i * 4 + 1] = pixels[i].g;
+                output[i * 4 + 2] = pixels[i].r;
+            }
+            output[i * 4 + 3] = pixels[i].a;
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// 部分导出工具（常见于 VRChat 模型转 HD2 的模组）把纯 RGB 内容编码为 BC7，
+    /// alpha 通道整体接近全 0。游戏材质不采样 alpha 所以正常渲染；预览若把它当
+    /// 透明度使用，不透明趟与混合趟都会把像素剔除，网格只剩 alpha 压缩噪声的碎
+    /// 片（实测"本体"皮肤贴图 94% 像素 alpha=0）。判定规则：几乎整张透明（alpha
+    /// ≥128 的像素不足 1%）即视为"无有效 alpha"，整张回填为不透明。真正的镂空/
+    /// 半透明贴图总有成片的不透明或半透明区域，不会被误伤。
+    /// </summary>
+    private const float MinOpaquePixelFraction = 0.01f;
+
+    internal static void NormalizeDecodedAlpha(byte[] bgra)
+    {
+        var opaqueThreshold = (int)(bgra.Length / 4 * MinOpaquePixelFraction);
+        var opaquePixels = 0;
+        for (var i = 3; i < bgra.Length; i += 4)
+        {
+            if (bgra[i] < 128)
+                continue;
+            opaquePixels++;
+            if (opaquePixels >= opaqueThreshold)
+                return;
         }
 
-        return new TexturePreviewData
-        {
-            Width = plan.Width,
-            Height = plan.Height,
-            BgraPixels = bgra,
-            Description = $"DXGI {dxgiFormat}, mip {plan.MipLevel}"
-        };
+        for (var i = 3; i < bgra.Length; i += 4)
+            bgra[i] = byte.MaxValue;
     }
 
     private static async Task InspectPatchAsync(
@@ -1099,6 +1076,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                 ulong? colorTextureId = null;
                 ModelPreviewMaterialTextureSet? materialTextureSet = null;
                 ulong? materialIdForSection = null;
+                var renderClass = ModelPreviewMaterialRenderClass.Opaque;
                 if (materialBySlot.TryGetValue(rawSection.Slot, out var materialId) &&
                     materialTextures.TryGetValue(materialId, out var resolvedTextures))
                 {
@@ -1106,6 +1084,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                     colorTextureId = resolvedTextures.ColorTextureId;
                     materialTextureSet = resolvedTextures.ToTextureSet();
                     materialIdForSection = materialId;
+                    renderClass = ModelPreviewMaterialClassifier.Classify(resolvedTextures.ParentMaterialId, materialTextureSet);
                 }
 
                 var sections = sectionsByStream[streamIndex];
@@ -1125,7 +1104,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                     materialIdForSection,
                     lodIndex,
                     rawSection.MaterialIndex,
-                    transformIndex));
+                    transformIndex,
+                    renderClass));
             }
         }
 
@@ -1151,6 +1131,10 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         var textureCount = ReadInt32(data, textureCountOffset);
         if (textureCount <= 0 || textureCount > 4096)
             return null;
+
+        // 父材质 ID 位于 0x18（布局依据见 CompatibilityResourceTransforms），标识材质
+        // 所属着色器族，是预览器无法执行着色器程序时近似其效果的最强分类信号。
+        var parentMaterialId = ReadUInt64(data, 0x18);
 
         var semanticBytes = (long)textureCount * sizeof(uint);
         var textureIdsOffset = (long)textureTableOffset + semanticBytes;
@@ -1189,7 +1173,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                 texturesByRole.ToDictionary(
                     static pair => pair.Key,
                     static pair => (IReadOnlyList<ulong>)pair.Value),
-                inputs)
+                inputs,
+                parentMaterialId)
             : null;
     }
 
@@ -1478,7 +1463,9 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
 
         var candidates = textures
             .Where(texture => referencedColorTextureIds.Contains(texture.TextureId) &&
-                texture.PayloadKind == "DDS" && texture.DxgiFormat is 71 or 72 or 98 or 99)
+                texture.PayloadKind == "DDS" &&
+                DxgiTextureFormats.FromDxgiFormat(texture.DxgiFormat) is not
+                    (PreviewTextureFormat.Unknown or PreviewTextureFormat.Bc6h))
             .GroupBy(static texture => texture.TextureId)
             .Select(static group => group.First())
             .ToArray();
@@ -1492,79 +1479,21 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             },
             async (texture, token) =>
             {
-                if (await IsBc7PureBlackPlaceholderAsync(modDirectory, texture, token))
+                if (await IsPureBlackPlaceholderAsync(modDirectory, texture, token))
                     pureBlackIds.TryAdd(texture.TextureId, 0);
             });
         return pureBlackIds.Keys.ToHashSet();
     }
 
-    private static async Task<bool> IsBc7PureBlackPlaceholderAsync(
+    private static async Task<bool> IsPureBlackPlaceholderAsync(
         DirectoryInfo modDirectory,
         TextureInspectionItem texture,
         CancellationToken cancellationToken)
     {
-        // BC1 块 8 字节，BC3/BC7 块 16 字节；采样以块为粒度对齐。
-        var blockBytes = texture.DxgiFormat is 71 or 72 ? 8 : 16;
-        const int blocksPerSample = 4;
-        var sampleByteCount = blockBytes * blocksPerSample;
-        var patchPath = PathGuard.ResolveInsideRoot(modDirectory.FullName,
-            Path.IsPathFullyQualified(texture.PatchPath)
-                ? texture.PatchPath
-                : Path.Combine(modDirectory.FullName, texture.PatchPath));
-        var payloadPath = texture.PayloadSource.Equals("stream", StringComparison.OrdinalIgnoreCase)
-            ? patchPath + ".stream"
-            : patchPath + ".gpu_resources";
-        if (!File.Exists(payloadPath))
-            return false;
-
-        var payloadOffset = texture.PayloadSource.Equals("stream", StringComparison.OrdinalIgnoreCase)
-            ? texture.StreamOffset
-            : texture.GpuOffset;
-        var payloadSize = texture.PayloadSource.Equals("stream", StringComparison.OrdinalIgnoreCase)
-            ? texture.StreamSize
-            : texture.GpuSize;
-        var blockCount = (long)Math.Max(1, (texture.Width + 3) / 4) * Math.Max(1, (texture.Height + 3) / 4);
-        if (blockCount < blocksPerSample || payloadSize < (ulong)sampleByteCount)
-            return false;
-
-        var lastSampleStart = blockCount - blocksPerSample;
-        var sampleStarts = new[]
-        {
-            0L,
-            lastSampleStart / 4,
-            lastSampleStart / 2,
-            lastSampleStart - lastSampleStart / 4,
-            lastSampleStart
-        }.Distinct().ToArray();
-        await using var stream = OpenRead(modDirectory, new FileInfo(payloadPath));
-        if (!IsRangeInBounds(payloadOffset, payloadSize, stream.Length))
-            return false;
-
-        var sampledBlocks = new byte[checked(sampleStarts.Length * sampleByteCount)];
-        var sample = new byte[sampleByteCount];
-        for (var sampleIndex = 0; sampleIndex < sampleStarts.Length; sampleIndex++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var sampleOffset = sampleStarts[sampleIndex] * blockBytes;
-            if (sampleOffset > (long)payloadSize - sampleByteCount ||
-                payloadOffset > (ulong)long.MaxValue - (ulong)sampleOffset ||
-                !await ReadAtAsync(
-                    stream,
-                    (long)(payloadOffset + (ulong)sampleOffset),
-                    sample,
-                    cancellationToken))
-            {
-                return false;
-            }
-            Buffer.BlockCopy(sample, 0, sampledBlocks, sampleIndex * sampleByteCount, sampleByteCount);
-        }
-
-        if (!ModelPreviewMaterialVariantSelector.IsBc7PureBlackPlaceholder(sampledBlocks))
-            return false;
-
-        // Some exports retain a sparse or empty highest-resolution mip while the
-        // lower mip chain contains the actual albedo. Confirm with decoded pixels so
-        // a real face/body texture is never removed based on compressed headers alone.
+        // 直接解码低分辨率 mip 做像素判定，不按压缩块字节模式预筛：导出工具重编码的
+        // 纯黑占位图块间存在量化微差（实测夏安原皮模组的 BC7 黑块仅"近似相同"且
+        // alpha 254），块一致性检查会漏判。解码确认同时保证真实人脸/身体贴图永远不会
+        // 仅凭压缩头部被剔除。
         var preview = await PreviewTextureCoreAsync(modDirectory, texture, 65_536, cancellationToken);
         return preview?.BgraPixels is { } pixels && ModelPreviewMaterialVariantSelector.IsOpaqueBgraPureBlack(pixels);
     }
@@ -2044,7 +1973,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                     },
                     fallbackTextureIds,
                     fallbackColorTextureId)),
-            IsCullingBody = section.IsCullingBody
+            IsCullingBody = section.IsCullingBody,
+            RenderClass = section.RenderClass
         };
     }
 
@@ -2365,7 +2295,11 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             ColorTextureId = section.ColorTextureId ?? source.ColorTextureId,
             MaterialId = section.MaterialId,
             MaterialTextures = section.MaterialTextures ?? source.MaterialTextures,
-            IsCullingBody = section.IsCullingBody
+            IsCullingBody = section.IsCullingBody,
+            // 合成的单 section 视图若未携带材质信息，保留源 mesh 的分类而非降级为 Opaque。
+            RenderClass = section.RenderClass != ModelPreviewMaterialRenderClass.Opaque
+                ? section.RenderClass
+                : source.RenderClass
         };
     }
 

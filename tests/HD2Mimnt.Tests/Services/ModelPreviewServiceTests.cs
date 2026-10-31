@@ -15,6 +15,7 @@ public sealed class ModelPreviewServiceTests : IDisposable
     private readonly Mock<IModelPreviewReader> _reader = new();
     private readonly Mod _mod;
     private readonly ModelPreviewService _service;
+    private readonly List<(ulong Id, int Pixels)> _textureCalls = [];
 
     public ModelPreviewServiceTests()
     {
@@ -183,38 +184,55 @@ public sealed class ModelPreviewServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadTexturesAsync_PassesRemaining64MiBBudgetAndStopsWhenFull()
+    public async Task LoadTexturesAsync_ScalesBudgetWithRequestedTextureCount()
     {
         var textures = Enumerable.Range(1, 6).Select(id => Texture((ulong)id)).ToArray();
-        // 仅模拟解码后的尺寸，不分配 64 MiB 像素。无 BGRA 数组时按 Width * Height * 4 计费。
+        // 仅模拟解码后的尺寸，不分配真实像素。无 BGRA 数组时按 Width * Height * 4 计费。
         var full = new TexturePreviewData { Width = 2048, Height = 2048, EncodedImageBytes = [1], Description = "Size-only fixture" };
         var almostFull = new TexturePreviewData { Width = 2048, Height = 2047, EncodedImageBytes = [1], Description = "Size-only fixture" };
-        var remainder = new TexturePreviewData { Width = 64, Height = 32, EncodedImageBytes = [1], Description = "Size-only fixture" };
-        var calls = new List<(ulong Id, int Pixels)>();
         _reader.Setup(reader => reader.PreviewTextureAsync(It.IsAny<DirectoryInfo>(), It.IsAny<TextureInspectionItem>(),
                 It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Callback<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, texture, pixels, _) =>
-                calls.Add((texture.TextureId, pixels)))
+            .Callback<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, texture, pixels, _) => _textureCalls.Add((texture.TextureId, pixels)))
             .Returns<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, texture, _, _) =>
-                Task.FromResult<TexturePreviewData?>(texture.TextureId switch
-                {
-                    <= 3 => full,
-                    4 => almostFull,
-                    _ => remainder
-                }));
+                Task.FromResult<TexturePreviewData?>(texture.TextureId == 4 ? almostFull : full));
 
+        // 6 张 2048² 请求总预算 96 MiB：固定 64 MiB 时代后排贴图会被整体丢弃。
         var result = await _service.LoadTexturesAsync(_mod.Id, textures,
             textures.Select(texture => texture.TextureId).ToArray(), maxDimension: 2048);
 
-        Assert.Equal(5, result.Count);
-        Assert.Equal(new ulong[] { 1, 2, 3, 4, 5 }, result.Keys.OrderBy(id => id));
-        Assert.Equal(new (ulong Id, int Pixels)[]
-        {
-            (1, 2048 * 2048), (2, 2048 * 2048), (3, 2048 * 2048), (4, 2048 * 2048), (5, 2048)
-        }, calls);
+        Assert.Equal(6, result.Count);
+        Assert.Equal(textures.Select(texture => texture.TextureId), _textureCalls.Select(call => call.Id));
+        Assert.All(_textureCalls, call => Assert.Equal(2048 * 2048, call.Pixels));
         Assert.Same(almostFull, result[4]);
-        Assert.Same(remainder, result[5]);
-        Assert.Equal(64L * 1024 * 1024, result.Values.Sum(texture => (long)texture.Width * texture.Height * 4));
+        Assert.Equal(5L * 2048 * 2048 * 4 + 2048L * 2047 * 4,
+            result.Values.Sum(texture => (long)texture.Width * texture.Height * 4));
+    }
+
+    [Fact]
+    public async Task LoadTexturesAsync_DegradesResolutionEvenlyWhenBudgetCapped()
+    {
+        var textureCount = 200;
+        var textures = Enumerable.Range(1, textureCount).Select(id => Texture((ulong)id, width: 2048, height: 2048)).ToArray();
+        // 模拟读取端尊重请求像素：返回 sqrt(pixels) 见方的尺寸占位。
+        _reader.Setup(reader => reader.PreviewTextureAsync(It.IsAny<DirectoryInfo>(), It.IsAny<TextureInspectionItem>(),
+                It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Callback<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, _, pixels, _) => _textureCalls.Add((0, pixels)))
+            .Returns<DirectoryInfo, TextureInspectionItem, int, CancellationToken>((_, _, pixels, _) =>
+            {
+                var side = (int)Math.Sqrt(pixels);
+                return Task.FromResult<TexturePreviewData?>(new()
+                    { Width = side, Height = side, EncodedImageBytes = [1], Description = "Degraded fixture" });
+            });
+
+        // 200 张 2048² 请求 3.2 GiB，超过 2 GiB 硬上限：全部贴图都应载入，只是分辨率均摊降档。
+        var result = await _service.LoadTexturesAsync(_mod.Id, textures,
+            textures.Select(texture => texture.TextureId).ToArray(), maxDimension: 2048);
+
+        Assert.Equal(textureCount, result.Count);
+        Assert.Equal(textureCount, _textureCalls.Count);
+        Assert.All(_textureCalls, call => Assert.True(call.Pixels <= 2048 * 2048));
+        Assert.True(_textureCalls[0].Pixels < 2048 * 2048);
+        Assert.True(_textureCalls[^1].Pixels >= 256);
     }
 
     [Fact]
@@ -235,7 +253,7 @@ public sealed class ModelPreviewServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadTexturesAsync_OriginalResolutionAllowsLargerTotalBudget()
+    public async Task LoadTexturesAsync_FixedPresetAndOriginalResolutionLoadAllRequestedTextures()
     {
         var textures = Enumerable.Range(1, 5).Select(id => Texture((ulong)id, width: 2048, height: 2048)).ToArray();
         _reader.Setup(reader => reader.PreviewTextureAsync(It.IsAny<DirectoryInfo>(), It.IsAny<TextureInspectionItem>(),
@@ -250,8 +268,8 @@ public sealed class ModelPreviewServiceTests : IDisposable
         var original = await _service.LoadTexturesAsync(_mod.Id, textures, ids,
             maxDimension: ModelPreviewService.OriginalTextureResolution);
 
-        // 每张按 2048² × 4 字节计费：固定档 64 MiB 只容得下 4 张，原始档 256 MiB 可全部载入。
-        Assert.Equal(4, capped.Count);
+        // 预算随请求总量放大（5 × 2048² × 4 = 80 MiB）与随实际尺寸放大（原始档）都应全部载入。
+        Assert.Equal(5, capped.Count);
         Assert.Equal(5, original.Count);
     }
 

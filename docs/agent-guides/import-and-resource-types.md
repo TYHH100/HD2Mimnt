@@ -82,3 +82,5 @@
 - SharpCompress 版本不得低于 0.50.6：0.50.4/0.50.5 的 `SevenZipFilePart.IsEncrypted` 对无数据流的空文件（`Folder == null`）误判为加密，未加密的 7z 也会弹出密码框，且输入任意密码即可继续。判断压缩包是否真要密码必须以实际解压结果为准；升级该依赖后先跑 `SevenZipWithEmptyFile_ShouldExtractWithoutRequestingPassword` 回归测试。来源：[0.50.6 修复实现](https://github.com/adamhathcock/sharpcompress/blob/0.50.6/src/SharpCompress/Common/SevenZip/SevenZipFilePart.cs)。
 
 - 音效修复的补丁包解析不得整包 `ReadAllBytes`：数百 MB 级 `.patch_*` 通过 `Package.Load(path)`（MemoryMappedFile 按需区间读取）访问，哈希用流式 `SHA256.HashDataAsync`；重建结果以 `MemoryStream` 传给 `SoundFixTransaction.StageAsync(Stream)` 落临时文件，恢复流程同样按流校验/搬运，任何阶段都不整包驻留内存。来源：https://learn.microsoft.com/dotnet/api/system.io.memorymappedfiles.memorymappedfile
+
+- 模型预览解码补丁贴图（DXGI 98/99 即 BC7）时，alpha 通道不能无条件当作透明度：部分导出工具（常见于 VRChat 转 HD2 模组）把纯 RGB 内容编码成 BC7，alpha 平面接近全 0，游戏材质不采样 alpha 所以正常；预览若当真会把整块网格在 alpha 剔除后只剩碎片（2026-10-31 用户"本体"贴图实测 94.5% 像素 alpha=0）。解码后按"alpha≥128 的像素不足 1% 即视为无效 alpha 并整张回填不透明"归一化（`PatchResourceInspectionService.NormalizeDecodedAlpha`），镂空/半透明贴图有成片不透明或半透明区域不会被误伤。DXGI 记牢：95/96/97 才是 BC6H，98/99/100 是 BC7。

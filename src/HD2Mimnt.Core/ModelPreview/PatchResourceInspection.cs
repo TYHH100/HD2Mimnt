@@ -123,6 +123,12 @@ public sealed class ModelPreviewMesh : System.ComponentModel.INotifyPropertyChan
     /// </summary>
     public ModelPreviewMaterialTextureSet MaterialTextures { get; init; } = ModelPreviewMaterialTextureSet.Empty;
     /// <summary>
+    /// Preview shading class resolved from the material's parent-material fingerprint. The
+    /// renderer cannot execute the game's shader programs, so this drives the closest static
+    /// approximation (additive glow, unlit HUD, blended glass) with the generic preview shader.
+    /// </summary>
+    public ModelPreviewMaterialRenderClass RenderClass { get; init; } = ModelPreviewMaterialRenderClass.Opaque;
+    /// <summary>
     /// Normalized archive IDs of armor packages that reuse this Unit. Empty means shared
     /// or unresolved and is deliberately kept visible for every armor selection.
     /// </summary>

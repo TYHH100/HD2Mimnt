@@ -10,8 +10,11 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
 {
     public const int OriginalTextureResolution = 0;
     private const int TextureBudgetBytes = 64 * 1024 * 1024;
-    // 原始分辨率不再降采样，64 MiB 只够一张 4K 贴图；放大总预算以覆盖常见角色材质组。
-    private const int OriginalTextureBudgetBytes = 4 * TextureBudgetBytes;
+    // 预算必须覆盖“贴图数量 × 单张需求”：少一张贴图就是一个无材质网格，比整体降分
+    // 辨率严重得多。材质包模组每个变体都带独立贴图组，固定预算在 2048/Original 档会
+    // 把后排贴图整体丢弃（实测袜子等部位变成无材质）。超过硬上限时不再丢图，改为把
+    // 剩余预算均摊给剩余贴图均匀降档；渲染端另有 GPU 最大尺寸保护。
+    private const long MaxTextureBudgetBytes = 2L * 1024 * 1024 * 1024;
 
     public async Task<ModelPreviewSource> GetSourceAsync(Guid modId, Guid? profileId = null, CancellationToken cancellationToken = default)
     {
@@ -58,21 +61,31 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
         var mod = await GetModAsync(modId, cancellationToken);
         var index = ModelPreviewTextureIndex.Create(textures);
         var result = new Dictionary<ulong, TexturePreviewData>();
-        var budget = maxDimension == OriginalTextureResolution ? OriginalTextureBudgetBytes : TextureBudgetBytes;
-        long bytes = 0;
+        var requested = new List<(ulong Id, TextureInspectionItem Texture, long Pixels)>();
         foreach (var id in textureIds.Distinct())
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (bytes >= budget) break;
             if (!index.TryGetValue(id, out var texture)) continue;
+            requested.Add((id, texture, maxDimension == OriginalTextureResolution
+                ? Math.Max((long)texture.Width * texture.Height, 256)
+                : (long)maxDimension * maxDimension));
+        }
+
+        // 用户显式选择分辨率即承诺每张贴图都按该分辨率解码，总预算随请求总量放大；
+        // 只有超过硬上限时才按剩余份额降档。
+        var requestedPixels = requested.Sum(static item => item.Pixels);
+        var budget = Math.Min(Math.Max(TextureBudgetBytes, requestedPixels * 4), MaxTextureBudgetBytes);
+        long bytes = 0;
+        for (var position = 0; position < requested.Count; position++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (budget - bytes < 256 * 4) break;
+            var (id, texture, requestedForTexture) = requested[position];
+            var remainingCount = requested.Count - position;
+            var share = Math.Max((budget - bytes) / 4 / remainingCount, 256);
+            var pixelBudget = (int)Math.Min(requestedForTexture, share);
             TexturePreviewData? decoded;
             try
             {
-                var requestedPixels = maxDimension == OriginalTextureResolution
-                    ? Math.Max((long)texture.Width * texture.Height, 256)
-                    : (long)maxDimension * maxDimension;
-                var pixelBudget = (int)Math.Min(requestedPixels, (budget - bytes) / 4);
-                if (pixelBudget < 256) break;
                 decoded = await reader.PreviewTextureAsync(new DirectoryInfo(mod.Path), texture,
                     pixelBudget, cancellationToken);
             }

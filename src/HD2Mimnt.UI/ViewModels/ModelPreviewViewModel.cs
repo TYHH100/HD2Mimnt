@@ -141,7 +141,18 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         token.ThrowIfCancellationRequested();
         var (selection, rotation) = await Task.Run(() => (ModelPreviewMeshSelector.Select(result.Meshes),
             ModelPreviewCharacterOrientation.GetRequiredRotation(result.Meshes)), token);
-        var textureIds = selection.VisibleMeshes.Select(mesh => mesh.ColorTextureId).OfType<ulong>().Distinct().ToArray();
+        // 除颜色贴图外同时解码自发光贴图：渲染器对任意 mesh 叠加自发光层，
+        // 现代护甲的局部发光件与纯发光材质都依赖这些输入。
+        var textureIds = selection.VisibleMeshes
+            .SelectMany(static mesh =>
+            {
+                IEnumerable<ulong> ids = mesh.MaterialTextures.Get(ModelPreviewTextureRole.Emissive);
+                if (mesh.ColorTextureId is { } colorId)
+                    ids = ids.Prepend(colorId);
+                return ids;
+            })
+            .Distinct()
+            .ToArray();
         var textures = await _service.LoadTexturesAsync(source.ModId, result.Textures, textureIds, resolution, token);
         var normalized = await Task.Run(() => NormalizeTextures(textures, resolution, token), token);
         token.ThrowIfCancellationRequested();

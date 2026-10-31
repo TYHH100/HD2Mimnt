@@ -22,4 +22,9 @@
   <PropertyGroup>
   </PropertyGroup>
 
+  <!-- 仅测试工程可见内部实现（贴图解码助手等）；不对其他程序集开放 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HD2Mimnt.Tests" />
+  </ItemGroup>
+
 </Project>

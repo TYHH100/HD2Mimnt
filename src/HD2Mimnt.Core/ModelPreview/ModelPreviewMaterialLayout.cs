@@ -89,7 +89,8 @@ public sealed record ModelPreviewMaterialTextures(
     IReadOnlyList<ulong> TextureIds,
     ulong? ColorTextureId,
     IReadOnlyDictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>>? TexturesByRole = null,
-    IReadOnlyList<ModelPreviewMaterialInput>? Inputs = null)
+    IReadOnlyList<ModelPreviewMaterialInput>? Inputs = null,
+    ulong? ParentMaterialId = null)
 {
     public ModelPreviewMaterialTextureSet ToTextureSet() => new(
         TexturesByRole ?? new Dictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>>(),
@@ -172,7 +173,8 @@ public sealed record ModelPreviewMaterialSection(
     /// <summary>MeshInfo 的挂接变换索引。Unit 变换表与骨骼层级共用同一张表，
     /// 因此对无顶点蒙皮数据的刚性挂接件（弹挂、尾巴、徽章等），该索引即其在
     /// 骨架中的挂接骨骼；负值表示缺失。</summary>
-    int TransformIndex = -1);
+    int TransformIndex = -1,
+    ModelPreviewMaterialRenderClass RenderClass = ModelPreviewMaterialRenderClass.Opaque);
 
 public readonly record struct ModelPreviewTransform(
     float M11, float M12, float M13, float M14,

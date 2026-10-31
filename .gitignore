@@ -155,3 +155,4 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .tmp-platform-download-*/
 tools/
 .qoder/
+.mimosa/

@@ -44,6 +44,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     private int _texturedLocation;
     private int _alphaPassLocation;
     private int _unlitLocation;
+    private int _emissiveTexturedLocation;
     private int _colorLocation;
     private bool _sceneDirty = true;
     private bool _failed;
@@ -214,18 +215,36 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             api.SetMatrix(_modelLocation, _model);
             api.SetMatrix(_normalLocation, _normal);
             api.Uniform3f(_colorLocation, 0.72f, 0.75f, 0.8f);
-            gl.Uniform1i(_unlitLocation, Wireframe ? 1 : 0);
-            foreach (var mesh in _meshes)
-                DrawMesh(gl, mesh, IsTransparent(mesh) ? 1 : 0);
+            // 不透明/受光照分趟：Emissive 材质只进加色趟，Translucent 材质只进混合趟，
+            // 避免它们在不透明趟里以全强度写入颜色和深度（玻璃/发光件会因此挡住内部结构）。
+            foreach (var mesh in _meshes.Where(IsBasePass))
+                DrawMesh(gl, mesh, 1);
 
-            if (UseAlpha && UseTextures)
+            if (UseTextures)
             {
-                gl.Enable(Gl.Blend);
-                api.BlendFuncSeparate(Gl.SrcAlpha, Gl.OneMinusSrcAlpha, Gl.One, Gl.OneMinusSrcAlpha);
-                gl.DepthMask(0);
-                foreach (var mesh in _meshes.Where(IsTransparent)
-                             .OrderBy(mesh => Vector3.Transform(mesh.Center, view).Z))
-                    DrawMesh(gl, mesh, 2);
+                var blended = _meshes.Where(IsBlended)
+                    .OrderBy(mesh => Vector3.Transform(mesh.Center, view).Z)
+                    .ToList();
+                if (blended.Count > 0)
+                {
+                    gl.Enable(Gl.Blend);
+                    api.BlendFuncSeparate(Gl.SrcAlpha, Gl.OneMinusSrcAlpha, Gl.One, Gl.OneMinusSrcAlpha);
+                    gl.DepthMask(0);
+                    foreach (var mesh in blended)
+                        DrawMesh(gl, mesh, 2);
+                }
+
+                // 发光材质用加色混合近似游戏的 additive pass：黑色纹素贡献为零，
+                // 与绘制次序无关，因此不排序。
+                var emissive = _meshes.Where(IsEmissive).ToList();
+                if (emissive.Count > 0)
+                {
+                    gl.Enable(Gl.Blend);
+                    api.BlendFuncSeparate(Gl.One, Gl.One, Gl.One, Gl.One);
+                    gl.DepthMask(0);
+                    foreach (var mesh in emissive)
+                        DrawMesh(gl, mesh, 3);
+                }
             }
             api.ThrowIfError();
         }
@@ -315,9 +334,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             _texturedLocation = gl.GetUniformLocationString(_program, "uTextured");
             _alphaPassLocation = gl.GetUniformLocationString(_program, "uAlphaPass");
             _unlitLocation = gl.GetUniformLocationString(_program, "uUnlit");
+            _emissiveTexturedLocation = gl.GetUniformLocationString(_program, "uEmissiveTextured");
             _colorLocation = gl.GetUniformLocationString(_program, "uColor");
             gl.UseProgram(_program);
             gl.Uniform1i(gl.GetUniformLocationString(_program, "uTexture"), 0);
+            gl.Uniform1i(gl.GetUniformLocationString(_program, "uEmissive"), 1);
             api.ThrowIfError();
         }
         finally
@@ -363,22 +384,16 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 mesh.BoundsMin = meshMin;
                 mesh.BoundsMax = meshMax;
                 mesh.Center = meshMin * 0.5f + meshMax * 0.5f;
-                if (hasUv && source.ColorTextureId is { } textureId &&
-                    scene.Textures.TryGetValue(textureId, out var texture) && texture.BgraPixels is not null)
+                mesh.RenderClass = source.RenderClass;
+                if (hasUv)
                 {
-                    // 原始分辨率可能超过 GPU 上限，跳过该贴图比让整场渲染失败更安全。
-                    if (texture.Width > maxTextureSize || texture.Height > maxTextureSize)
-                        System.Diagnostics.Trace.TraceWarning("Texture {0:x16} {1}x{2} exceeds max texture size {3}; skipped.",
-                            textureId, texture.Width, texture.Height, maxTextureSize);
-                    else
-                    {
-                        if (!_textures.TryGetValue(textureId, out var gpuTexture))
-                        {
-                            gpuTexture = UploadTexture(gl, api, texture, maxTextureSize);
-                            _textures.Add(textureId, gpuTexture);
-                        }
-                        mesh.Texture = gpuTexture;
-                    }
+                    mesh.Texture = source.ColorTextureId is { } colorTextureId
+                        ? ResolveTexture(gl, api, scene, colorTextureId, maxTextureSize)
+                        : null;
+                    mesh.EmissiveTexture = source.MaterialTextures
+                        .Get(ModelPreviewTextureRole.Emissive)
+                        .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
+                        .FirstOrDefault(static texture => texture is not null);
                 }
             }
             _meshes.Add(mesh);
@@ -521,6 +536,26 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         WithPinned(data, pointer => gl.BufferData(target, checked((nint)data.Length * elementSize), pointer, Gl.StaticDraw));
     }
 
+    /// <summary>按 ID 解析并上传场景贴图，超限或缺失时返回 null（跳过比整场失败更安全）。</summary>
+    private GpuTexture? ResolveTexture(GlInterface gl, GlApi api, ModelPreviewScene scene, ulong textureId, int maxTextureSize)
+    {
+        if (!scene.Textures.TryGetValue(textureId, out var texture) || texture.BgraPixels is null)
+            return null;
+        // 原始分辨率可能超过 GPU 上限，跳过该贴图比让整场渲染失败更安全。
+        if (texture.Width > maxTextureSize || texture.Height > maxTextureSize)
+        {
+            System.Diagnostics.Trace.TraceWarning("Texture {0:x16} {1}x{2} exceeds max texture size {3}; skipped.",
+                textureId, texture.Width, texture.Height, maxTextureSize);
+            return null;
+        }
+        if (!_textures.TryGetValue(textureId, out var gpuTexture))
+        {
+            gpuTexture = UploadTexture(gl, api, texture, maxTextureSize);
+            _textures.Add(textureId, gpuTexture);
+        }
+        return gpuTexture;
+    }
+
     private static GpuTexture UploadTexture(GlInterface gl, GlApi api, TexturePreviewData texture, int maxSize)
     {
         if (texture.Width <= 0 || texture.Height <= 0 || texture.Width > maxSize || texture.Height > maxSize)
@@ -615,14 +650,34 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         return true;
     }
 
-    private bool IsTransparent(GpuMesh mesh) => UseAlpha && UseTextures && mesh.Texture is { HasAlpha: true };
+    /// <summary>不透明基趟：发光与半透明材质除外（纹理开关关闭时半透明材质回退到基趟）。</summary>
+    private bool IsBasePass(GpuMesh mesh) =>
+        !IsEmissive(mesh) && !(UseTextures && mesh.RenderClass == ModelPreviewMaterialRenderClass.Translucent);
+
+    private bool IsEmissive(GpuMesh mesh) =>
+        UseTextures && mesh.RenderClass == ModelPreviewMaterialRenderClass.Emissive;
+
+    /// <summary>混合趟：Translucent 材质始终参与（需纹理才有实际观感），带 alpha 通道
+    /// 颜色贴图的其余材质沿用旧的软边混合行为。</summary>
+    private bool IsBlended(GpuMesh mesh) =>
+        (UseTextures && mesh.RenderClass == ModelPreviewMaterialRenderClass.Translucent) ||
+        (UseAlpha && UseTextures &&
+         mesh.RenderClass != ModelPreviewMaterialRenderClass.Emissive &&
+         mesh.Texture is { HasAlpha: true });
 
     private void DrawMesh(GlInterface gl, GpuMesh mesh, int alphaPass)
     {
         var textured = UseTextures && mesh.Texture is not null;
+        gl.ActiveTexture(Gl.Texture0);
         gl.BindTexture(Gl.Texture2D, textured ? mesh.Texture!.Id : 0);
         gl.Uniform1i(_texturedLocation, textured ? 1 : 0);
+        // 自发光贴图对所有渲染类别生效：护甲的局部发光件与纯发光材质共用同一条叠加路径。
+        var emissiveTextured = UseTextures && mesh.EmissiveTexture is not null;
+        gl.ActiveTexture(Gl.Texture1);
+        gl.BindTexture(Gl.Texture2D, emissiveTextured ? mesh.EmissiveTexture!.Id : 0);
+        gl.Uniform1i(_emissiveTexturedLocation, emissiveTextured ? 1 : 0);
         gl.Uniform1i(_alphaPassLocation, alphaPass);
+        gl.Uniform1i(_unlitLocation, Wireframe || mesh.RenderClass != ModelPreviewMaterialRenderClass.Opaque ? 1 : 0);
         DrawGeometry(gl, mesh, Wireframe, Gl.Triangles);
     }
 
@@ -813,6 +868,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public Vector3 BoundsMin;
         public Vector3 BoundsMax;
         public GpuTexture? Texture;
+        public GpuTexture? EmissiveTexture;
+        public ModelPreviewMaterialRenderClass RenderClass;
     }
 
     private sealed record GpuTexture(int Id, bool HasAlpha);
@@ -1012,7 +1069,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public const int StencilTest = 0x0B90, RasterizerDiscard = 0x8C89, PolygonOffsetFill = 0x8037, Lequal = 0x0203;
         public const int ArrayBuffer = 0x8892, ElementArrayBuffer = 0x8893, PixelUnpackBuffer = 0x88EC, StaticDraw = 0x88E4;
         public const int Float = 0x1406, UnsignedInt = 0x1405, UnsignedByte = 0x1401, Triangles = 4, Lines = 1;
-        public const int Texture0 = 0x84C0, Texture2D = 0x0DE1, Rgba = 0x1908, Rgba8 = 0x8058, MaxTextureSize = 0x0D33;
+        public const int Texture0 = 0x84C0, Texture1 = 0x84C1, Texture2D = 0x0DE1, Rgba = 0x1908, Rgba8 = 0x8058, MaxTextureSize = 0x0D33;
         public const int TextureMinFilter = 0x2801, TextureMagFilter = 0x2800, TextureWrapS = 0x2802, TextureWrapT = 0x2803;
         public const int Linear = 0x2601, Repeat = 0x2901, UnpackAlignment = 0x0CF5, UnpackRowLength = 0x0CF2;
         public const int UnpackSkipRows = 0x0CF3, UnpackSkipPixels = 0x0CF4;
@@ -1042,7 +1099,9 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         in vec3 vNormal;
         in vec2 vUv;
         uniform sampler2D uTexture;
+        uniform sampler2D uEmissive;
         uniform int uTextured;
+        uniform int uEmissiveTextured;
         uniform int uAlphaPass;
         uniform int uUnlit;
         uniform vec3 uColor;
@@ -1050,13 +1109,14 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         void main()
         {
             vec4 color = uTextured != 0 ? texture(uTexture, vUv) : vec4(uColor, 1.0);
+            vec3 emissive = uEmissiveTextured != 0 ? texture(uEmissive, vUv).rgb : vec3(0.0);
             if (uAlphaPass == 1 && color.a < 0.999) discard;
             if (uAlphaPass == 2 && (color.a >= 0.999 || color.a <= 0.001)) discard;
             vec3 normal = vNormal / max(length(vNormal), 0.00001);
             float key = abs(dot(normal, normalize(vec3(0.4, 0.8, 0.6))));
             float fill = abs(dot(normal, normalize(vec3(-0.7, 0.25, -0.4))));
             float light = uUnlit != 0 ? 1.0 : 0.32 + 0.5 * key + 0.18 * fill;
-            fragColor = vec4(color.rgb * light, uAlphaPass == 2 ? color.a : 1.0);
+            fragColor = vec4(color.rgb * light + emissive, uAlphaPass == 2 ? color.a : 1.0);
         }
         """;
 }
