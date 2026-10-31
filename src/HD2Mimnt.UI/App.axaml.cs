@@ -22,6 +22,7 @@ using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.Infrastructure.Storage;
 using HD2Mimnt.Infrastructure.Migration;
+using HD2Mimnt.Infrastructure.NativeCompanion;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
@@ -423,6 +424,11 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, HardLinkDeploymentMethod>();
 
+        // MDL3 原生伴生组件安装（签名校验 + %LOCALAPPDATA%\MDL3 落位）。
+        services.AddSingleton(sp => new Mdl3CompanionService(
+            sp.GetService<IAuthenticodeVerifier>() ?? new AuthenticodeVerifier(),
+            sp.GetService<ILogger<Mdl3CompanionService>>()));
+
         services.AddSingleton(sp => new DeploymentService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
@@ -434,7 +440,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<DeploymentStateMigrationService>(),
             // IAS 模型组件随配置文件部署到 HD2IntegratedArmorSystem 的 armor\rig；延迟解析避免构造环。
             token => sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IIasSystemService>().GetRigTargetRootAsync(token),
-            modsStoragePath));
+            modsStoragePath,
+            sp.GetRequiredService<Mdl3CompanionService>()));
 
         // 新增核心服务
         services.AddSingleton(sp =>

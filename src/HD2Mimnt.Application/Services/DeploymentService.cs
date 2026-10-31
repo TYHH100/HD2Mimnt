@@ -22,6 +22,7 @@ public class DeploymentService
     private readonly SettingsService? _settingsService;
     private readonly DeploymentStateMigrationService? _stateMigration;
     private readonly Func<CancellationToken, Task<string?>>? _iasRigRootProvider;
+    private readonly Mdl3CompanionService? _companionService;
     private readonly string? _modsStoragePath;
     private readonly DeploymentPlanBuilder _planBuilder = new();
     private readonly DeploymentReconciler _reconciler;
@@ -39,7 +40,8 @@ public class DeploymentService
         SettingsService? settingsService = null,
         DeploymentStateMigrationService? stateMigration = null,
         Func<CancellationToken, Task<string?>>? iasRigRootProvider = null,
-        string? modsStoragePath = null)
+        string? modsStoragePath = null,
+        Mdl3CompanionService? companionService = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
@@ -49,6 +51,7 @@ public class DeploymentService
         _settingsService = settingsService;
         _stateMigration = stateMigration;
         _iasRigRootProvider = iasRigRootProvider;
+        _companionService = companionService;
         _modsStoragePath = modsStoragePath;
 
         _deploymentMethods = new Dictionary<DeploymentMethod, IDeploymentMethod>();
@@ -369,6 +372,8 @@ public class DeploymentService
         try
         {
             var records = (await _deploymentRepository.GetByModIdAsync(modId, cancellationToken)).ToList();
+            // 伴生组件清理不依赖部署记录（清理部署后记录可为空）；失败只记录，不阻断模组删除。
+            await RemoveCompanionAsync(modId, cancellationToken);
             if (records.Count == 0) return;
             foreach (var record in records)
             {
@@ -396,6 +401,26 @@ public class DeploymentService
         finally
         {
             _applyGate.Release();
+        }
+    }
+
+    /// <summary>删除模组时移除管理器安装的 MDL3 原生伴生组件；config 与日志按官方语义保留。</summary>
+    private async Task RemoveCompanionAsync(Guid modId, CancellationToken cancellationToken)
+    {
+        if (_companionService == null) return;
+        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+        if (mod == null || BslProfilePolicy.Role(mod) != BslModRole.MdlLoader) return;
+        try
+        {
+            await _companionService.RemoveAsync(mod, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "MDL3 伴生组件清理失败: {ModId}", modId);
         }
     }
 
@@ -692,6 +717,8 @@ public class DeploymentService
                     Stage = "Completed", Message = result.Message, TotalMods = result.TotalMods,
                     CompletedMods = result.CompletedMods
                 });
+                var companionNote = await EnsureCompanionsAsync(plan, progress, cancellationToken);
+                if (!string.IsNullOrEmpty(companionNote)) result.Message += companionNote;
             }
             else if (outcome.Status == DeploymentStatus.Cancelled)
             {
@@ -728,6 +755,43 @@ public class DeploymentService
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// 部署成功后安装 MDL3 类模组的原生伴生组件（签名原生桥 + config + 用户目录）。
+    /// 失败不回滚已部署补丁，只附加警告到结果消息，供下次部署重试。
+    /// </summary>
+    private async Task<string?> EnsureCompanionsAsync(DeploymentPlan plan, IProgress<DeploymentProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (_companionService == null) return null;
+        string? note = null;
+        foreach (var mod in plan.Mods)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (BslProfilePolicy.Role(mod.Mod) != BslModRole.MdlLoader) continue;
+            if (!_companionService.HasCompanionPayload(mod.Mod)) continue;
+            try
+            {
+                var result = await _companionService.EnsureInstalledAsync(mod.Mod, plan.GamePath,
+                    new Progress<string>(message => progress?.Report(new DeploymentProgress
+                    {
+                        Stage = "Companion", Message = message, TotalMods = plan.TotalMods
+                    })),
+                    cancellationToken);
+                note = $"；{result.Message}";
+            }
+            catch (OperationCanceledException)
+            {
+                note = "；MDL3 伴生组件安装被取消，可再次部署补齐";
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "MDL3 伴生组件安装失败: {ModId}", mod.Mod.Id);
+                note = $"；MDL3 伴生组件安装失败：{ex.Message}";
+            }
+        }
+        return note;
     }
 
     private static string BuildSuccessMessage(DeploymentPlan plan, Profile profile,

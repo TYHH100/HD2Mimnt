@@ -474,12 +474,23 @@ public sealed class BslMechanismTests : IDisposable
         Assert.Equal(BslModRole.BmlLoader, await BslModDetector.DetectAsync(mod));
     }
 
+    [Fact]
+    public async Task Mdl3PackageGuid_ShouldBeRecognizedAsMdlLoaderWithoutReadingPackage()
+    {
+        var mod = await AddModAsync("MDL3 预览版", BslModRole.MdlLoader);
+        // MDL3 原生桥包的 manifest GUID 与 MDL 2.x 不同，识别锚点在 LoaderCatalog 的 mdl3 条目。
+        mod.Manifest = new ModManifest { Guid = new Guid("b0ae9d35-4a69-5918-b43d-51d4d10ff001") };
+        Assert.Equal(BslModRole.MdlLoader, await BslModDetector.DetectAsync(mod));
+    }
+
     [Theory]
     [InlineData("mods/mdl/runtime", "-- HD2-Addon: mods/mdl/runtime\nreturn true", BslModRole.MdlLoader)]
     [InlineData("mods/codex/smoothboot", "-- HD2-Addon: mods/codex/smoothboot\nreturn true", BslModRole.SmoothBoot)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.Loader)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader MDL.log", BslModRole.None)]
     [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader boot_mod_loader.log", BslModRole.BmlLoader)]
+    [InlineData("boot", "-- MDL3 3.0.0-dev.21 game boot (PUC Lua 5.1). Signed native host mdl_native_bridge.dll", BslModRole.MdlLoader)]
+    [InlineData("boot", "-- MDL3 game boot via FFI", BslModRole.None)]
     [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader", BslModRole.None)]
     [InlineData("boot", "another boot replacement", BslModRole.None)]
     [InlineData("mods/test/unrelated", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.None)]

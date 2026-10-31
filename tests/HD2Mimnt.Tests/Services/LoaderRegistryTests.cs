@@ -19,14 +19,14 @@ public sealed class LoaderRegistryTests : IDisposable
     {
         var snapshot = LoaderRegistry.Current;
         Assert.Null(LoaderRegistry.InitializationError);
-        Assert.Equal(6, snapshot.RuleVersion);
-        Assert.Equal(5, snapshot.Loaders.Length);
+        Assert.Equal(7, snapshot.RuleVersion);
+        Assert.Equal(6, snapshot.Loaders.Length);
         Assert.Equal(BslModRole.Loader, snapshot.DefinitionOf(BslModDetector.LoaderGuid)?.Role);
         Assert.Equal(BslModRole.MdlLoader, snapshot.DefinitionOf(BslModDetector.MdlGuid)?.Role);
         Assert.Equal(BslModRole.BmlLoader, snapshot.DefinitionOf(BslModDetector.BootModLoaderGuid)?.Role);
         Assert.Equal(BslModRole.CslLoader, snapshot.DefinitionOf(BslModDetector.CslGuid)?.Role);
         Assert.Equal(BslModRole.SmoothBoot, snapshot.DefinitionOf(BslModDetector.SmoothBootGuid)?.Role);
-        Assert.Equal("BSL / MDL / Boot Mod Loader", snapshot.LoaderNames);
+        Assert.Equal("BSL / MDL / MDL3 / Boot Mod Loader", snapshot.LoaderNames);
         Assert.Equal("Chef Shared Loader", snapshot.GuestLoaderNames);
         Assert.Equal("Boot Mod Loader", snapshot.HostLoaderNames);
         Assert.Equal(0, snapshot.PriorityRank(BslModRole.None));
@@ -50,6 +50,10 @@ public sealed class LoaderRegistryTests : IDisposable
         Assert.Contains(BslModDetector.ResourceHash("mods/codex/smoothboot"), snapshot.ByEntryHash.Keys);
         Assert.Contains(BslModDetector.ResourceHash("mods/chef_shared_loader/core_1"), snapshot.ByEntryHash.Keys);
         Assert.Contains(BslModDetector.ResourceHash("boot"), snapshot.ByStartupHash.Keys);
+        // 同一 boot 资源哈希由 BML 与 MDL3 分享，靠正文标记区分。
+        Assert.Equal(2, snapshot.ByStartupHash[BslModDetector.ResourceHash("boot")].Count);
+        Assert.Equal(BslModRole.MdlLoader, snapshot.DefinitionOf(new Guid("b0ae9d35-4a69-5918-b43d-51d4d10ff001"))?.Role);
+        Assert.Contains("MDL3", snapshot.DependencyNames);
         Assert.Contains(BslModDetector.ResourceHash("core/wwise/lua/wwise_flow_callbacks"), snapshot.ByStartupHash.Keys);
         Assert.Contains(BslModDetector.ResourceHash("mods/cowboybingus/vanilla_plus_megapack"), snapshot.ByRegisteredModuleHash.Keys);
         Assert.Contains("BSL", snapshot.DependencyNames);
@@ -137,7 +141,7 @@ public sealed class LoaderRegistryTests : IDisposable
         {
             Assert.NotNull(LoaderRegistry.InitializationError);
             // 解析失败回退分发默认，识别与策略不中断。
-            Assert.Equal(6, LoaderRegistry.Current.RuleVersion);
+            Assert.Equal(7, LoaderRegistry.Current.RuleVersion);
             Assert.Equal(BslModRole.Loader, LoaderRegistry.Current.DefinitionOf(BslModDetector.LoaderGuid)?.Role);
         }
         finally
@@ -179,7 +183,7 @@ public sealed class LoaderRegistryTests : IDisposable
         try
         {
             Assert.Null(LoaderRegistry.InitializationError);
-            Assert.Equal(6, LoaderRegistry.Current.RuleVersion);
+            Assert.Equal(7, LoaderRegistry.Current.RuleVersion);
         }
         finally
         {
