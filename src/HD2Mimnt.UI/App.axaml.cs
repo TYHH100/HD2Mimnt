@@ -10,6 +10,7 @@ using HD2Mimnt.Application.Localization;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
@@ -481,6 +482,12 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ModelPreviewService>();
         services.AddSingleton<ModelPreviewViewModel>();
 
+        services.AddSingleton<IAudioPreviewReader, HD2Mimnt.Infrastructure.AudioPreview.AudioBankInspectionService>();
+        services.AddSingleton<IAudioPlaybackEngine, HD2Mimnt.Infrastructure.AudioPreview.AudioPlaybackEngine>();
+        services.AddSingleton<HD2Mimnt.Infrastructure.AudioPreview.GameAudioBaselineProvider>();
+        services.AddSingleton<AudioPreviewService>();
+        services.AddSingleton<AudioPreviewViewModel>();
+
         // UI 层 ViewModels
         services.AddTransient(sp => new LibraryViewModel(
             sp.GetRequiredService<ModService>(),
@@ -497,7 +504,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
-            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>()));
+            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -507,7 +514,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),

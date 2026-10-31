@@ -150,6 +150,7 @@
       </Border>
     </Border>
     <controls:ModelPreviewOverlay x:Name="ModelPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding ModelPreview}" ZIndex="370"/>
+    <controls:AudioPreviewOverlay x:Name="AudioPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding AudioPreview}" ZIndex="375"/>
     <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="2" DataContext="{Binding Compatibility}" ZIndex="360"/>
     <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
     <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"

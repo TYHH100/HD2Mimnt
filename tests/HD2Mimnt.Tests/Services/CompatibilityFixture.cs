@@ -140,6 +140,9 @@ internal static class CompatibilityFixture
     }
 
     internal static void WriteGame(string root, params Resource[] resources)
+        => WriteGame(root, null, resources);
+
+    internal static void WriteGame(string root, Func<int, string>? packageName, params Resource[] resources)
     {
         var directory = Path.Combine(root, "data");
         Directory.CreateDirectory(directory);
@@ -149,7 +152,7 @@ internal static class CompatibilityFixture
         {
             var patch = PatchData(resources[i]);
             var offset = (uint)(0x1000 + i * 0x100000);
-            var name = $"base_{i}";
+            var name = packageName?.Invoke(i) ?? $"base_{i}";
             packages.Add((name, offset));
             chunks.Add((offset, patch.Main));
             if (patch.Gpu.Length > 0) { packages.Add((name + ".gpu_resources", offset + 0x40000)); chunks.Add((offset + 0x40000, patch.Gpu)); }

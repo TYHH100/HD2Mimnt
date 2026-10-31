@@ -4332,6 +4332,26 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="ModelPreview.Controls" xml:space="preserve"><value>Left drag to orbit · Right/middle drag to pan · Scroll to zoom · Double-click to reset</value></data>
   <data name="ModelPreview.Limits" xml:space="preserve"><value>Previews the selected mod options; missing textures appear gray. Game-specific materials may differ from in-game rendering.</value></data>
   <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} textures unavailable (gray fallback)</value></data>
+  <data name="AudioPreview.Title" xml:space="preserve"><value>Audio preview</value></data>
+  <data name="AudioPreview.Loading" xml:space="preserve"><value>Loading audio entries…</value></data>
+  <data name="AudioPreview.Empty" xml:space="preserve"><value>No previewable audio in the current selection.</value></data>
+  <data name="AudioPreview.LoadFailed" xml:space="preserve"><value>Audio load failed: {0}</value></data>
+  <data name="AudioPreview.PlaybackFailed" xml:space="preserve"><value>Playback failed: {0}</value></data>
+  <data name="AudioPreview.Summary" xml:space="preserve"><value>{0:N0} entries · {1:N0} banks · {2:N0} patches</value></data>
+  <data name="AudioPreview.ModifiedCount" xml:space="preserve"><value>{0:N0} of {1:N0} replaced</value></data>
+  <data name="AudioPreview.Modified" xml:space="preserve"><value>Replaced</value></data>
+  <data name="AudioPreview.Original" xml:space="preserve"><value>Original</value></data>
+  <data name="AudioPreview.OnlyShowModified" xml:space="preserve"><value>Only replaced</value></data>
+  <data name="AudioPreview.UncomparedHint" xml:space="preserve"><value>{0:N0} entries not compared (comparison budget reached)</value></data>
+  <data name="AudioPreview.NoComparison" xml:space="preserve"><value>Game directory not configured; original comparison unavailable.</value></data>
+  <data name="AudioPreview.IssueNotRiff" xml:space="preserve"><value>Not a WEM file</value></data>
+  <data name="AudioPreview.IssueNotVorbis" xml:space="preserve"><value>Unsupported codec</value></data>
+  <data name="AudioPreview.IssueTruncated" xml:space="preserve"><value>Incomplete media</value></data>
+  <data name="AudioPreview.IssueReadFailed" xml:space="preserve"><value>Read failed</value></data>
+  <data name="AudioPreview.LooseStreamsGroup" xml:space="preserve"><value>Standalone audio streams</value></data>
+  <data name="AudioPreview.Play" xml:space="preserve"><value>Play</value></data>
+  <data name="AudioPreview.Pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="AudioPreview.Stop" xml:space="preserve"><value>Stop</value></data>
   <data name="UI.ChangeImage" xml:space="preserve"><value>Change image</value></data>
   <data name="UI.RestoreModImage" xml:space="preserve"><value>Restore mod image</value></data>
   <data name="UI.EditModInfo" xml:space="preserve"><value>Edit mod info</value></data>

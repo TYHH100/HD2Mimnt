@@ -34,6 +34,25 @@ public partial class ModDetailPanel : UserControl
         }
     }
 
+    private async void PreviewAudio(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (DataContext is not ModItemViewModel mod) return;
+        foreach (var owner in this.GetVisualAncestors().OfType<UserControl>().Select(view => view.DataContext))
+        {
+            if (owner is LibraryViewModel { AudioPreview: { } preview })
+            {
+                await preview.OpenAsync(mod.Id);
+                return;
+            }
+            if (owner is ProfileViewModel { AudioPreview: { } audioPreview, SelectedProfile: { } selected })
+            {
+                await audioPreview.OpenAsync(mod.Id, selected.Id);
+                return;
+            }
+        }
+    }
+
     private async void ChangeImage_Click(object? sender, RoutedEventArgs e)
     {
         e.Handled = true;

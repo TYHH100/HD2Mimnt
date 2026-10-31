@@ -213,7 +213,7 @@ public partial class LibraryView : UserControl
 
     private static void ShowModContextMenu(Control card, ModItemViewModel mod, LibraryViewModel vm)
     {
-        if (vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+        if (vm.ModelPreview?.IsOpen == true || vm.AudioPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var entries = new List<object>
         {
             new ContextMenuItem("查看详情", vm.ShowModDetailCommand, "Info") { CommandParameter = mod },
@@ -221,6 +221,7 @@ public partial class LibraryView : UserControl
         };
 
         if (vm.ModelPreview != null) entries.Add(new ContextMenuItem("模型预览", vm.PreviewModelCommand, "Package") { CommandParameter = mod });
+        if (vm.AudioPreview != null) entries.Add(new ContextMenuItem("音频预览", vm.PreviewAudioCommand, "Package") { CommandParameter = mod });
         if (vm.Compatibility != null) entries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         if (mod.HasPlatformLink)
             entries.Add(new ContextMenuItem("打开来源网页", mod.OpenSourcePageCommand, "Globe"));

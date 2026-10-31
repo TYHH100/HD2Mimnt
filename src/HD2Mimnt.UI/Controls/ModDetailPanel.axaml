@@ -254,6 +254,7 @@
         </Border>
 
         <Button x:Name="PreviewDetailModelButton" Content="{loc:Loc ModelPreview.Title}" Click="PreviewModel" HorizontalAlignment="Stretch"/>
+        <Button x:Name="PreviewDetailAudioButton" Content="{loc:Loc AudioPreview.Title}" Click="PreviewAudio" HorizontalAlignment="Stretch"/>
         <Border Classes="section" IsVisible="{Binding CheckCompatibilityCommand, Converter={StaticResource NotNullConverter}}">
           <StackPanel Spacing="8">
             <TextBlock Text="{loc:Loc Compatibility.Title}" FontSize="16" FontWeight="SemiBold"/>

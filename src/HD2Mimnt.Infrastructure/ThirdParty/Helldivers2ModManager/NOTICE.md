@@ -23,3 +23,13 @@
 修改范围：替换命名空间并公开跨程序集契约，移除旧注册特性及依赖；解析器实现 `IModelPreviewReader`。索引后先确定最终生效 Unit，材质布局及第二遍 GPU 解码跳过被覆盖版本；保留纹理与动画资源的覆盖顺序，取消异常继续传播。读路径使用当前 `PathGuard`，PNG 同时限制载荷字节与像素、校验 IHDR。未复制许可不明的动画内嵌／外部名称表，显示名保留 ID／State 回退，不依赖 WPF 资源或旧服务。
 
 纹理解码引用本地已缓存的 BCnEncoder.Net 2.3.0（不复制其源码）。NuGet 包只包含 `MIT OR Unlicense` 声明，没有独立许可证正文；提取声明并选用 Unlicense，正文来源为 [NuGet 官方许可页](https://licenses.nuget.org/Unlicense)，保存在 [BCnEncoder/LICENSE](../BCnEncoder/LICENSE)。
+
+## 音频预览移植
+
+复制原项目 `Services/Audio/AudioBankInspectionService.cs`、`AudioBankChunkReader.cs`、`GameAudioBaseline.cs`（含 GameBundleIndex/GameBundleIndexCache）与 `AudioPlaybackService.cs` 的算法至 `HD2Mimnt.Infrastructure/AudioPreview/`，并适配 `ViewModels/PatchResourceViewerPageViewModel.Audio.cs` 的播放状态机语义至 `HD2Mimnt.UI/ViewModels/AudioPreviewViewModel.cs`。沿用本目录 [Apache 2.0 许可证](LICENSE.txt)。
+
+修改范围：命名空间与分层适配（Core 模型/接口、Application 门面、Avalonia UI）；补丁与基线读取使用 `PatchResourceTypeIds` 常量与既有的 `PathGuard`/共享读句柄模式；slim 布局基线不再自建 DSAR 读取器，改走本仓库 `GameUnitReferenceReader` 的归档会话与解码缓存，移除单槽 item 缓存；文本库（TextBank）比对部分未移植。播放链保持 Ww2Ogg.Core（AoTuV 优先）→ NVorbis → NAudio WASAPI（回退 WaveOutEvent）。
+
+- 本地参考路径：`D:/TYHH10-git/Helldivers2ModManager/`。
+- 本地仓库 HEAD：`65448e7e89ca8a19f1b8864d48758cd5e96cfdd1`（读取的文件以本地工作区为准）。
+- 旧实现的格式常量参考自 [hd2-audio-modder](https://github.com/RaidingForPants/hd2-audio-modder) 的 const.py（unlicensed/ARR 项目），此处同样只引用格式常量，不复制其源码。

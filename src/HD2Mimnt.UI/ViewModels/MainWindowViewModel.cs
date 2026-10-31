@@ -114,6 +114,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
     public ModelPreviewViewModel? ModelPreview => _libraryViewModel.ModelPreview;
+    public AudioPreviewViewModel? AudioPreview => _libraryViewModel.AudioPreview;
     public BrowseModsViewModel? BrowseModsViewModel { get; }
     public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
@@ -181,6 +182,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
         if (ModelPreview is { } preview) preview.PropertyChanged += OnModelPreviewChanged;
+        if (AudioPreview is { } audioPreview) audioPreview.PropertyChanged += OnAudioPreviewChanged;
         _conflictsViewModel = conflictsViewModel;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -422,6 +424,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             preview.PropertyChanged -= OnModelPreviewChanged;
             await preview.StopAsync();
         }
+        if (AudioPreview is { } audioPreview)
+        {
+            audioPreview.PropertyChanged -= OnAudioPreviewChanged;
+            await audioPreview.StopAsync();
+        }
         await WaitForRefreshesAsync();
     }
 
@@ -617,7 +624,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NavigateToModCreationCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true;
+    private void OnAudioPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(AudioPreviewViewModel.IsOpen)) return;
+        NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+        NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+        NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+        NavigateToModCreationCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -744,6 +760,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private void CloseOverlays()
     {
         if (ModelPreview?.IsOpen == true) { ModelPreview.CloseCommand.Execute(null); return; }
+        if (AudioPreview?.IsOpen == true) { AudioPreview.CloseCommand.Execute(null); return; }
         if (Compatibility?.IsOpen == true) { Compatibility.CloseCommand.Execute(null); return; }
         if (_libraryViewModel.ModOnline?.IsOpen == true)
         {
@@ -860,6 +877,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     {
         _closingCompatibility = true;
         if (ModelPreview != null) await ModelPreview.StopAsync();
+        if (AudioPreview != null) await AudioPreview.StopAsync();
         await _settingsViewModel.StopCompatibilityDataAsync();
         if (Compatibility != null) await Compatibility.StopAsync();
         await StartupCompatibilityTask;

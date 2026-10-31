@@ -148,6 +148,7 @@ public partial class ProfileView : UserControl
             }
         };
         if (vm.ModelPreview != null) modEntries.Add(new ContextMenuItem("模型预览", vm.PreviewModelCommand, "Package") { CommandParameter = mod });
+        if (vm.AudioPreview != null) modEntries.Add(new ContextMenuItem("音频预览", vm.PreviewAudioCommand, "Package") { CommandParameter = mod });
         if (vm.Compatibility != null) modEntries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         modEntries.Add(new ContextMenuItem("添加到其他配置文件…", vm.AddModToOtherProfilesCommand, "Add") { CommandParameter = mod });
         if (mod.CanDrag)

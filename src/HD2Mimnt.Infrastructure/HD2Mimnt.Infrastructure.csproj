@@ -17,6 +17,9 @@
     <PackageReference Include="K4os.Compression.LZ4" />
     <PackageReference Include="BCnEncoder.Net" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="NAudio" />
+    <PackageReference Include="NVorbis" />
+    <PackageReference Include="Ww2Ogg.Core" />
   </ItemGroup>
 
   <PropertyGroup>

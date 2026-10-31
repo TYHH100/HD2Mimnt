@@ -103,6 +103,8 @@
     <Setter Property="Padding" Value="12,8"/><Setter Property="MinHeight" Value="36"/><Setter Property="Margin" Value="0,2"/>
   </Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+  <!-- 悬停立即展开滚动条（默认 ShowDelay 0.5s，且收起态滑块命中区只有缩放后的细条，导致必须等展开才能拖动）。 -->
+  <Style Selector="ScrollBar"><Setter Property="ShowDelay" Value="0:0:0"/></Style>
   <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="MinHeight" Value="36"/></Style>
   <Style Selector="TextBlock.caption-text.success"><Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/></Style>
   <Style Selector="TextBlock.caption-text.warning"><Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/></Style>

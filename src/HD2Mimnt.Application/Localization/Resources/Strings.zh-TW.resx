@@ -4332,6 +4332,26 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ModelPreview.Controls" xml:space="preserve"><value>左鍵拖曳旋轉 · 右鍵或中鍵拖曳平移 · 滾輪縮放 · 按兩下重設</value></data>
   <data name="ModelPreview.Limits" xml:space="preserve"><value>按目前模組選項組合預覽；缺少貼圖顯示灰模。遊戲專用材質效果不等同於遊戲內畫面。</value></data>
   <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} 張貼圖無法使用（顯示灰模）</value></data>
+  <data name="AudioPreview.Title" xml:space="preserve"><value>音訊預覽</value></data>
+  <data name="AudioPreview.Loading" xml:space="preserve"><value>正在讀取音訊項目…</value></data>
+  <data name="AudioPreview.Empty" xml:space="preserve"><value>目前選項沒有可預覽的音訊。</value></data>
+  <data name="AudioPreview.LoadFailed" xml:space="preserve"><value>音訊讀取失敗：{0}</value></data>
+  <data name="AudioPreview.PlaybackFailed" xml:space="preserve"><value>播放失敗：{0}</value></data>
+  <data name="AudioPreview.Summary" xml:space="preserve"><value>{0:N0} 條音訊 · {1:N0} 個音訊庫 · {2:N0} 個補丁</value></data>
+  <data name="AudioPreview.ModifiedCount" xml:space="preserve"><value>已替換 {0:N0} / {1:N0}</value></data>
+  <data name="AudioPreview.Modified" xml:space="preserve"><value>已替換</value></data>
+  <data name="AudioPreview.Original" xml:space="preserve"><value>原版</value></data>
+  <data name="AudioPreview.OnlyShowModified" xml:space="preserve"><value>只看已替換</value></data>
+  <data name="AudioPreview.UncomparedHint" xml:space="preserve"><value>{0:N0} 條未比對（已達比對預算）</value></data>
+  <data name="AudioPreview.NoComparison" xml:space="preserve"><value>未設定遊戲目錄，無法比對原版。</value></data>
+  <data name="AudioPreview.IssueNotRiff" xml:space="preserve"><value>不是 WEM 檔案</value></data>
+  <data name="AudioPreview.IssueNotVorbis" xml:space="preserve"><value>不支援的編碼</value></data>
+  <data name="AudioPreview.IssueTruncated" xml:space="preserve"><value>媒體不完整</value></data>
+  <data name="AudioPreview.IssueReadFailed" xml:space="preserve"><value>讀取失敗</value></data>
+  <data name="AudioPreview.LooseStreamsGroup" xml:space="preserve"><value>獨立音訊流</value></data>
+  <data name="AudioPreview.Play" xml:space="preserve"><value>播放</value></data>
+  <data name="AudioPreview.Pause" xml:space="preserve"><value>暫停</value></data>
+  <data name="AudioPreview.Stop" xml:space="preserve"><value>停止</value></data>
   <data name="UI.ChangeImage" xml:space="preserve"><value>更換圖片</value></data>
   <data name="UI.RestoreModImage" xml:space="preserve"><value>恢復預設圖片</value></data>
   <data name="UI.EditModInfo" xml:space="preserve"><value>編輯模組資訊</value></data>
