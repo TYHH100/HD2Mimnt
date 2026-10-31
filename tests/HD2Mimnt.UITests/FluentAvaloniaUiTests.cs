@@ -3912,7 +3912,18 @@ public sealed partial class FluentAvaloniaUiTests
             Dispatcher.UIThread.RunJobs();
             await Services.DisposeAsync();
             Dispatcher.UIThread.RunJobs();
-            if (Directory.Exists(_root)) Directory.Delete(_root, true);
+            // 服务释放后连接会回到 SQLite 连接池并继续持有 hd2mimnt.db，删临时目录前必须清池；
+            // 杀软/索引器也可能瞬时持锁，带退避重试删除。
+            for (var attempt = 0; Directory.Exists(_root); attempt++)
+            {
+                try { Directory.Delete(_root, true); break; }
+                catch (Exception ex) when (attempt < 5 && ex is IOException or UnauthorizedAccessException)
+                {
+                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                    GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                    await Task.Delay(200 * (attempt + 1));
+                }
+            }
         }
     }
 }

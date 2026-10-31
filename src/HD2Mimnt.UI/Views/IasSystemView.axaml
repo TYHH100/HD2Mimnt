@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             x:Class="HD2Mimnt.UI.Views.IasSystemView" x:DataType="vm:IasSystemViewModel">
+  <StackPanel Classes="section" Spacing="12">
+    <TextBlock x:Name="IasSystemTitle" Text="{loc:Loc IasSystem.Title}" Classes="section-title" />
+    <TextBlock Text="{loc:Loc IasSystem.Description}" Classes="muted" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc IasSystem.Location}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBox x:Name="IasSystemLocation" Text="{Binding Location}" PlaceholderText="{loc:Loc IasSystem.LocationPlaceholder}" IsEnabled="{Binding CanEdit}" />
+      <Button x:Name="BrowseIasSystemButton" Grid.Column="1" Content="{loc:Loc IasSystem.Browse}" Click="OnBrowseClicked" IsEnabled="{Binding CanEdit}" />
+    </Grid>
+    <TextBlock Text="{loc:Loc IasSystem.RuntimeId}" FontWeight="SemiBold" />
+    <ComboBox x:Name="IasSystemRuntimeIds" ItemsSource="{Binding RuntimeIds}" SelectedItem="{Binding SelectedRuntimeId}"
+              IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch" />
+    <!-- 模型组件与部署操作一般用不到，整块默认折叠，展开后再操作。 -->
+    <Expander x:Name="ModelsExpander">
+      <Expander.Header>
+        <TextBlock Text="{loc:Loc IasSystem.Models}" FontWeight="SemiBold" />
+      </Expander.Header>
+      <StackPanel Spacing="12">
+        <TextBlock x:Name="IasSystemComponents" Text="{Binding ComponentSummary}" Classes="muted" TextWrapping="Wrap" />
+        <Border x:Name="IasSystemCopyFallback" IsVisible="{Binding HasCopyFallbackNotice}" Classes="card" Padding="12">
+          <TextBlock Text="{Binding CopyFallbackNotice}" TextWrapping="Wrap" />
+        </Border>
+        <WrapPanel>
+          <Button x:Name="DeployIasSystemButton" Content="{loc:Loc IasSystem.Deploy}" Command="{Binding DeployCommand}" Classes="accent" Margin="0,0,8,8" />
+          <Button x:Name="UninstallIasSystemButton" Content="{loc:Loc IasSystem.Uninstall}" Command="{Binding UninstallCommand}" Margin="0,0,8,8" />
+          <Button x:Name="RefreshIasSystemButton" Content="{loc:Loc IasSystem.Refresh}" Command="{Binding RefreshCommand}" Margin="0,0,8,8" />
+          <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" Margin="0,0,0,8" />
+        </WrapPanel>
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+        <TextBlock x:Name="IasSystemStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" Classes="muted" />
+        <Expander x:Name="OperationLogExpander" Header="{loc:Loc IasSystem.OperationLog}"><TextBlock Text="{Binding OperationLog}" TextWrapping="Wrap" /></Expander>
+      </StackPanel>
+    </Expander>
+  </StackPanel>
+</UserControl>

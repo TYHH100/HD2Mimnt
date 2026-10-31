@@ -21,6 +21,8 @@ public class DeploymentService
     private readonly CrashDeploymentHistoryService? _crashHistory;
     private readonly SettingsService? _settingsService;
     private readonly DeploymentStateMigrationService? _stateMigration;
+    private readonly Func<CancellationToken, Task<string?>>? _iasRigRootProvider;
+    private readonly string? _modsStoragePath;
     private readonly DeploymentPlanBuilder _planBuilder = new();
     private readonly DeploymentReconciler _reconciler;
     private readonly SemaphoreSlim _applyGate = new(1, 1);
@@ -35,7 +37,9 @@ public class DeploymentService
         ILogger<DeploymentService>? logger = null,
         CrashDeploymentHistoryService? crashHistory = null,
         SettingsService? settingsService = null,
-        DeploymentStateMigrationService? stateMigration = null)
+        DeploymentStateMigrationService? stateMigration = null,
+        Func<CancellationToken, Task<string?>>? iasRigRootProvider = null,
+        string? modsStoragePath = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
@@ -44,6 +48,8 @@ public class DeploymentService
         _crashHistory = crashHistory;
         _settingsService = settingsService;
         _stateMigration = stateMigration;
+        _iasRigRootProvider = iasRigRootProvider;
+        _modsStoragePath = modsStoragePath;
 
         _deploymentMethods = new Dictionary<DeploymentMethod, IDeploymentMethod>();
         foreach (var method in deploymentMethods)
@@ -539,8 +545,9 @@ public class DeploymentService
 
             var lockLoaders = _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
             var trackedTargets = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
+            var iasRigRoot = _iasRigRootProvider == null ? null : await _iasRigRootProvider(cancellationToken);
             var plan = await _planBuilder.BuildProfilePlanAsync(profile, modsById, method, order, gamePath,
-                lockLoaders, trackedTargets, cancellationToken);
+                lockLoaders, trackedTargets, iasRigRoot, _modsStoragePath, cancellationToken);
             return await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -592,8 +599,9 @@ public class DeploymentService
                 ?? DeploymentPlanBuilder.ParseOrder(_settingsService?.GetSetting(
                     SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString()))
                 ?? DeploymentOrder.TopToBottom;
+            var iasRigRoot = _iasRigRootProvider == null ? null : await _iasRigRootProvider(cancellationToken);
             var plan = await _planBuilder.BuildTargetedPlanAsync(effective, modId, profile, current, modsById,
-                fallbackMethod, fallbackOrder, cancellationToken);
+                fallbackMethod, fallbackOrder, iasRigRoot, _modsStoragePath, cancellationToken);
             return await ApplyPlanAsync(plan, profile, progress, targeted: true, cancellationToken);
         }
         catch (OperationCanceledException)

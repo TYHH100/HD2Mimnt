@@ -4018,6 +4018,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="IAS.Browse" xml:space="preserve"><value>選擇執行套件</value></data>
   <data name="IAS.GamePath" xml:space="preserve"><value>遊戲目錄（來自設定）</value></data>
   <data name="IAS.Route" xml:space="preserve"><value>檢查的路線</value></data>
+  <data name="IAS.InstallActions" xml:space="preserve"><value>安裝操作</value></data>
   <data name="IAS.Inspect" xml:space="preserve"><value>檢查執行套件與安裝狀態</value></data>
   <data name="IAS.Working" xml:space="preserve"><value>正在校驗執行套件檔案與遊戲指紋…</value></data>
   <data name="IAS.Failed" xml:space="preserve"><value>操作失敗：{0}</value></data>
@@ -4044,6 +4045,32 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="IAS.FileMatch" xml:space="preserve"><value>相符</value></data>
   <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>認可的舊雜湊</value></data>
   <data name="IAS.FileUnknown" xml:space="preserve"><value>未知／不符</value></data>
+  <data name="IAS.LegacyTag" xml:space="preserve"><value>EAC 之前舊版 · 已廢棄</value></data>
+  <data name="IasSystem.Title" xml:space="preserve"><value>HD2IAS 系統部署</value></data>
+  <data name="IasSystem.NavItem" xml:space="preserve"><value>HD2IAS 系統</value></data>
+  <data name="IasSystem.Description" xml:space="preserve"><value>把模組庫中的 HD2IAS 模型組件部署到 HD2IAS 系統（HD2IntegratedArmorSystem）安裝位置的 Runtime 目錄。舊版 HD2IAS 管理已廢棄。</value></data>
+  <data name="IasSystem.Location" xml:space="preserve"><value>HD2IAS 系統安裝位置</value></data>
+  <data name="IasSystem.LocationPlaceholder" xml:space="preserve"><value>例如 D:\Games\HD2IntegratedArmorSystem</value></data>
+  <data name="IasSystem.Browse" xml:space="preserve"><value>瀏覽…</value></data>
+  <data name="IasSystem.RuntimeId" xml:space="preserve"><value>執行階段目錄（Runtime）</value></data>
+  <data name="IasSystem.NoRuntime" xml:space="preserve"><value>未找到 Runtime 目錄，請確認 HD2IAS 系統已安裝。</value></data>
+  <data name="IasSystem.Models" xml:space="preserve"><value>HD2IAS 模型組件</value></data>
+  <data name="IasSystem.NoModels" xml:space="preserve"><value>模組庫中沒有可部署的 HD2IAS 模型組件。</value></data>
+  <data name="IasSystem.FileCount" xml:space="preserve"><value>{0} 個檔案</value></data>
+  <data name="IasSystem.Deploy" xml:space="preserve"><value>部署模型</value></data>
+  <data name="IasSystem.Uninstall" xml:space="preserve"><value>解除部署</value></data>
+  <data name="IasSystem.UninstallConfirm" xml:space="preserve"><value>將刪除已部署到 armor\rig 的檔案，模組庫不受影響。確定解除嗎？</value></data>
+  <data name="IasSystem.Refresh" xml:space="preserve"><value>重新整理</value></data>
+  <data name="IasSystem.OperationLog" xml:space="preserve"><value>操作日誌</value></data>
+  <data name="IasSystem.Working" xml:space="preserve"><value>正在部署模型…</value></data>
+  <data name="IasSystem.ReadingLocation" xml:space="preserve"><value>正在讀取 HD2IAS 系統位置…</value></data>
+  <data name="IasSystem.Uninstalling" xml:space="preserve"><value>正在解除…</value></data>
+  <data name="IasSystem.Deployed" xml:space="preserve"><value>已部署 {0} 個檔案到：{1}</value></data>
+  <data name="IasSystem.Skipped" xml:space="preserve"><value>（{0} 個檔案已是最新，略過）</value></data>
+  <data name="IasSystem.CopyFallback" xml:space="preserve"><value>目標與模組庫不在同一磁碟代號，已自動改用檔案複製。</value></data>
+  <data name="IasSystem.Uninstalled" xml:space="preserve"><value>已解除 {0} 個部署檔案。</value></data>
+  <data name="IasSystem.Failed" xml:space="preserve"><value>操作失敗：{0}</value></data>
+  <data name="IasSystem.SelectLocation" xml:space="preserve"><value>請先填寫 HD2IAS 系統安裝位置。</value></data>
   <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua 路線</value></data>
   <data name="IAS.NativeRoute" xml:space="preserve"><value>Native 路線</value></data>
   <data name="IAS.Generate" xml:space="preserve"><value>產生系統 data ZIP</value></data>
@@ -4053,6 +4080,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="IAS.UpdateSource" xml:space="preserve"><value>官方 GitHub 更新記錄 · 預設選擇 Native 路線。</value></data>
   <data name="IAS.RefreshVersions" xml:space="preserve"><value>檢查版本</value></data>
   <data name="IAS.DownloadUpdate" xml:space="preserve"><value>下載並檢查</value></data>
+  <data name="IAS.CheckReport" xml:space="preserve"><value>檢查報告</value></data>
   <data name="IAS.CheckingUpdates" xml:space="preserve"><value>正在讀取官方更新記錄…</value></data>
   <data name="IAS.Downloading" xml:space="preserve"><value>正在下載並驗證更新套件…</value></data>
   <data name="IAS.VersionsReady" xml:space="preserve"><value>找到 {0} 個版本，已選擇最高版本；可下載或選擇其他版本。</value></data>
@@ -4076,6 +4104,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>認可的舊檔案 · 需要更新</value></data>
   <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>認可的退役檔案 · 需要清理</value></data>
   <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>來源未知或驗證失敗 · 阻止自動替換</value></data>
+  <data name="IAS.InstalledStatus" xml:space="preserve"><value>本機安裝狀態</value></data>
   <data name="IAS.Install" xml:space="preserve"><value>安裝執行套件並更新 data 模組</value></data>
   <data name="IAS.Installing" xml:space="preserve"><value>正在安裝執行套件並更新模組庫中的 data…</value></data>
   <data name="IAS.Installed" xml:space="preserve"><value>執行套件已安裝，data 已儲存至模組庫：{0}。請透過設定檔部署。</value></data>

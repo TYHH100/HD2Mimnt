@@ -453,6 +453,29 @@ public sealed class ModImportServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ImportModAsync_DuplicateCheckFingerprint_ShouldReportComparisonStep()
+    {
+        // 相同作者清单、不同内容：判重无法走哈希快路径，会对两个目录再算一轮指纹。
+        const string manifest = """{"Name":"DupProbe","Version":"1.0"}""";
+        var first = Path.Combine(_tempDirectory, "dup-first");
+        Directory.CreateDirectory(first);
+        File.WriteAllText(Path.Combine(first, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(first, "body.patch"), "first");
+        var second = Path.Combine(_tempDirectory, "dup-second");
+        Directory.CreateDirectory(second);
+        File.WriteAllText(Path.Combine(second, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(second, "body.patch"), "second");
+
+        await CreateService().ImportModAsync(first);
+        var reports = new List<ModImportProgress>();
+        await CreateService().ImportModAsync(second, progress: new InlineProgress(reports.Add));
+
+        Assert.Contains(reports, p => p.Step == "判重比对");
+        Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
+        Assert.Equal(2, (await _modRepository.GetAllAsync()).Count());
+    }
+
+    [Fact]
     public async Task EnsureModHashAsync_ShouldBackfillMissingHashAndReusePersistedValue()
     {
         var folder = Path.Combine(_tempDirectory, "legacy");

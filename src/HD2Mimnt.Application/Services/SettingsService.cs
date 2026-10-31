@@ -300,6 +300,10 @@ public static class SettingKeys
     public const string GameMode = "Game.Mode";
     public const string HellForgePath = "Game.HellForgePath";
 
+    // IAS 系统（HD2IntegratedArmorSystem）相关
+    public const string IasInstallLocation = "IAS.InstallLocation";
+    public const string IasActiveRuntimeId = "IAS.ActiveRuntimeId";
+
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";

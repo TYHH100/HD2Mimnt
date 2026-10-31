@@ -156,3 +156,4 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 tools/
 .qoder/
 .mimosa/
+.tmp-outdir/

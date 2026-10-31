@@ -67,6 +67,8 @@ internal sealed class DeploymentPlan
 internal sealed class DeploymentPlanBuilder
 {
     private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
+    /// <summary>旧版 IAS 模型在游戏目录内的目标前缀；新版部署到 IAS 系统安装位置的 armor\rig。</summary>
+    internal const string IasRigTargetPrefix = "bin/HD2IndependentRig/";
     private static readonly string[] SuffixOrder = ["", ".gpu_resources", ".stream"];
 
     public async Task<DeploymentPlan> BuildProfilePlanAsync(
@@ -77,6 +79,8 @@ internal sealed class DeploymentPlanBuilder
         string gamePath,
         bool lockLoaders,
         IReadOnlySet<string> trackedTargets,
+        string? iasRigRoot = null,
+        string? modsStoragePath = null,
         CancellationToken cancellationToken = default)
     {
         var normalizedGamePath = NormalizeGamePath(gamePath);
@@ -106,14 +110,17 @@ internal sealed class DeploymentPlanBuilder
             }
 
             var patches = BuildPatchResources(mod, profileMod.OptionsJson, method, cancellationToken);
-            var native = mod.WorkflowType == Hd2IrIntegrationService.Workflow
+            // IAS 模型组件随配置文件部署到 IAS 系统的 armor\rig；未配置 IAS 位置时静默跳过。
+            var native = mod.WorkflowType == Hd2IrIntegrationService.Workflow && iasRigRoot != null
                 ? await Hd2IrIntegrationService.GetNativeFilesAsync(mod, profileMod.OptionsJson, cancellationToken)
                 : [];
-            var fixedFiles = BuildNativeFiles(mod, native, method, normalizedGamePath, trackedTargets,
-                nativeTargets, cancellationToken);
+            var fixedFiles = BuildNativeFiles(mod, native, ResolveIasMethod(method, iasRigRoot, modsStoragePath, normalizedGamePath),
+                normalizedGamePath, trackedTargets, nativeTargets, cancellationToken, iasRigRoot);
             if (patches.Count == 0 && fixedFiles.Count == 0)
             {
-                plan.SkippedModNames.Add(mod.Name);
+                // 纯 IAS 模型组件的选择本来就不产生游戏内文件，不算被跳过。
+                if (mod.WorkflowType != Hd2IrIntegrationService.Workflow)
+                    plan.SkippedModNames.Add(mod.Name);
                 continue;
             }
 
@@ -142,6 +149,8 @@ internal sealed class DeploymentPlanBuilder
         IReadOnlyDictionary<Guid, Mod> modsById,
         DeploymentMethod fallbackMethod,
         DeploymentOrder order,
+        string? iasRigRoot = null,
+        string? modsStoragePath = null,
         CancellationToken cancellationToken = default)
     {
         var normalizedGamePath = NormalizeGamePath(gamePath);
@@ -178,11 +187,12 @@ internal sealed class DeploymentPlanBuilder
             if (record.ModId == changedModId)
             {
                 var patches = BuildPatchResources(mod, record.OptionsSnapshotJson, changedMethod, cancellationToken);
-                var native = mod.WorkflowType == Hd2IrIntegrationService.Workflow
+                // IAS 模型组件随配置文件部署到 IAS 系统的 armor\rig；未配置 IAS 位置时静默跳过。
+                var native = mod.WorkflowType == Hd2IrIntegrationService.Workflow && iasRigRoot != null
                     ? await Hd2IrIntegrationService.GetNativeFilesAsync(mod, record.OptionsSnapshotJson, cancellationToken)
                     : [];
-                var fixedFiles = BuildNativeFiles(mod, native, changedMethod, normalizedGamePath, trackedTargets,
-                    nativeTargets, cancellationToken);
+                var fixedFiles = BuildNativeFiles(mod, native, ResolveIasMethod(changedMethod, iasRigRoot, modsStoragePath, normalizedGamePath),
+                    normalizedGamePath, trackedTargets, nativeTargets, cancellationToken, iasRigRoot);
                 plan.Mods.Add(new PlannedMod(mod, record.ProfileId, record.OptionsSnapshotJson,
                     record.DeploymentOrderIndex ?? plan.Mods.Count, mod.Version, changedMethod,
                     mod.WorkflowType ?? record.Workflow, patches, fixedFiles));
@@ -249,9 +259,22 @@ internal sealed class DeploymentPlanBuilder
 
             if (IsUnder(file.TargetPath, dataPath))
                 throw new InvalidDataException($"当前部署包含无法识别的补丁目标：{file.TargetPath}，请手动部署。");
+            var workflowNative = record.Workflow == Hd2IrIntegrationService.Workflow;
+            // 旧版游戏 bin 内的 HD2IAS 模型文件已迁到 IAS 系统目录：不再沿用，交给部署差异清理。
+            if (workflowNative && file.TargetPath.Replace('\\', '/')
+                    .StartsWith(IasRigTargetPrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
             var relative = Path.GetRelativePath(gamePath, file.TargetPath);
             if (relative.StartsWith("..", StringComparison.Ordinal))
-                throw new InvalidDataException($"部署目标不在当前游戏目录：{file.TargetPath}，请手动部署。");
+            {
+                // 游戏目录外的 IAS 模型目标（armor\rig）：以绝对路径沿用当前部署。
+                if (!workflowNative)
+                    throw new InvalidDataException($"部署目标不在当前游戏目录：{file.TargetPath}，请手动部署。");
+                sourceKey ??= PatchDeploymentPlanner.MakeNativeSourceKey(file.TargetPath.Replace('\\', '/'));
+                fixedFiles.Add(new PlannedFixedFile(NormalizePath(file.TargetPath)!, file.SourcePath,
+                    file.SourceRelativePath ?? file.TargetPath, sourceKey, method, file.Id, true));
+                continue;
+            }
             sourceKey ??= PatchDeploymentPlanner.MakeNativeSourceKey(relative);
             fixedFiles.Add(new PlannedFixedFile(relative.Replace('\\', '/'), file.SourcePath,
                 file.SourceRelativePath ?? relative, sourceKey, method, file.Id, true));
@@ -298,21 +321,37 @@ internal sealed class DeploymentPlanBuilder
 
     private static List<PlannedFixedFile> BuildNativeFiles(Mod mod, IReadOnlyList<PatchDeploymentPlanner.FileEntry> files,
         DeploymentMethod method, string gamePath, IReadOnlySet<string> trackedTargets,
-        IDictionary<string, string> nativeTargets, CancellationToken cancellationToken)
+        IDictionary<string, string> nativeTargets, CancellationToken cancellationToken, string? rigRoot = null)
     {
         var result = new List<PlannedFixedFile>();
         foreach (var entry in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relative = entry.FileName.Replace('\\', '/');
-            RegisterNativeTarget(relative, gamePath, mod.Name, trackedTargets, nativeTargets);
-            result.Add(new PlannedFixedFile(relative, entry.SourcePath!,
+            string targetRelative;
+            if (rigRoot != null)
+            {
+                if (!relative.StartsWith(IasRigTargetPrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var rigRelative = relative[IasRigTargetPrefix.Length..].Replace('/', Path.DirectorySeparatorChar);
+                targetRelative = Path.Combine(rigRoot, rigRelative);
+            }
+            else
+            {
+                targetRelative = relative;
+            }
+            RegisterNativeTarget(targetRelative, gamePath, mod.Name, trackedTargets, nativeTargets);
+            result.Add(new PlannedFixedFile(targetRelative, entry.SourcePath!,
                 entry.SourceRelativePath ?? relative,
                 entry.SourceKey ?? PatchDeploymentPlanner.MakeNativeSourceKey(relative),
                 method));
         }
         return result;
     }
+
+    /// <summary>IAS 模型文件部署方式：硬链接要求 rig 目录与模组库同盘符，跨盘自动降级为复制。</summary>
+    private static DeploymentMethod ResolveIasMethod(DeploymentMethod method, string? iasRigRoot, string? modsStoragePath, string gamePath)
+        => iasRigRoot == null ? method
+            : IasSystemService.ResolveMethod(method, modsStoragePath ?? gamePath, iasRigRoot);
 
     private static void RegisterNativeTarget(string relativeTarget, string gamePath, string modName,
         IReadOnlySet<string> trackedTargets, IDictionary<string, string> nativeTargets)

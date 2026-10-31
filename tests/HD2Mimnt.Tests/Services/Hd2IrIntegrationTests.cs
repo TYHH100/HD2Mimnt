@@ -48,14 +48,16 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var native = Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin");
         var patch = Path.Combine(game, "data", "0123456789abcdef.patch_0");
 
+        // IAS 模型组件的 native 文件改由 IAS 系统页面独立部署，配置文件只部署 data 补丁。
         Assert.Equal(DeploymentStatus.Completed, (await Deploy(full, game)).Status);
-        Assert.Equal("rig", await File.ReadAllTextAsync(native));
+        Assert.False(File.Exists(native));
         Assert.Equal("patch", await File.ReadAllTextAsync(patch));
         var records = (await _deployment.GetLatestDeploymentsAsync()).ToList();
         var files = (await _deployment.GetDeploymentFilesAsync(Assert.Single(records).Id)).ToList();
-        Assert.Contains(files, file => file.TargetPath == native);
+        Assert.DoesNotContain(files, file => file.TargetPath == native);
+        // 纯 rig 选择的配置没有任何游戏内文件：静默跳过并清理已部署补丁。
         Assert.Equal(DeploymentStatus.Completed, (await Deploy(rigOnly, game)).Status);
-        Assert.True(File.Exists(native)); Assert.False(File.Exists(patch));
+        Assert.False(File.Exists(native)); Assert.False(File.Exists(patch));
         Assert.Equal(DeploymentStatus.Completed, (await Deploy(patchOnly, game)).Status);
         Assert.False(File.Exists(native)); Assert.True(File.Exists(patch));
         await _deployment.PreDeploymentCleanupAsync();
@@ -86,7 +88,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task NativeTargetAlreadyExists_PreflightPreservesOriginalFile()
+    public async Task NativeTargetAlreadyExists_ProfileDeployLeavesExternalFileUntouched()
     {
         var source = CreateNestedPackage();
         var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
@@ -95,11 +97,11 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var native = Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin");
         Directory.CreateDirectory(Path.GetDirectoryName(native)!);
         await File.WriteAllTextAsync(native, "external");
+        // native 目标不再属于配置文件部署：外部文件保持原样，补丁正常部署。
         var result = await Deploy(profile, game);
-        Assert.Equal(DeploymentStatus.Failed, result.Status);
-        Assert.Contains("不属于当前部署", result.ErrorMessage);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
         Assert.Equal("external", await File.ReadAllTextAsync(native));
-        Assert.Empty(await _deployment.GetLatestDeploymentsAsync());
+        Assert.True(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
     }
 
     [Fact]
@@ -217,12 +219,77 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var profile = await CreateProfile(id, [true, true]);
         var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
         Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
-        Assert.True(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin")));
+        Assert.False(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin")));
         Assert.False(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.hd2author")));
         Assert.True(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
         var record = Assert.Single((await _deployment.GetLatestDeploymentsAsync()).ToList());
-        Assert.DoesNotContain((await _deployment.GetDeploymentFilesAsync(record.Id)).ToList(),
+        var recordFiles = (await _deployment.GetDeploymentFilesAsync(record.Id)).ToList();
+        Assert.DoesNotContain(recordFiles,
             file => file.TargetPath.EndsWith(".hd2author", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(recordFiles, file => file.TargetPath.Contains("HD2IndependentRig"));
+    }
+
+    [Fact]
+    public async Task ProfileDeploy_WritesNativeToConfiguredRigRoot()
+    {
+        // 配置了 IAS 系统安装位置时，模型组件的 native 文件随配置文件部署到 armor/rig，不写游戏 bin。
+        var source = CreateNestedPackage();
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var profile = await CreateProfile(id, [true, true]);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        var rigRoot = Path.Combine(_root, "ias", "HD2IntegratedArmorSystem", "Runtime", "rt-1", "armor", "rig");
+        var deployment = new DeploymentService(_profiles, _mods, _deployments,
+            new HD2Mimnt.Core.Interfaces.IDeploymentMethod[] { new CopyDeploymentMethod(), new HardLinkDeploymentMethod() },
+            iasRigRootProvider: _ => Task.FromResult<string?>(rigRoot),
+            modsStoragePath: Path.Combine(_root, "library"));
+
+        Assert.Equal(DeploymentStatus.Completed,
+            (await deployment.DeployProfileAsync(profile, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game)).Status);
+        Assert.Equal("rig", await File.ReadAllTextAsync(Path.Combine(rigRoot, "hero.rigbin")));
+        Assert.True(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
+        Assert.False(File.Exists(Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin")));
+
+        // 部署记录使用绝对 rig 目标；重复部署按最新状态增量跳过。
+        var record = Assert.Single((await deployment.GetLatestDeploymentsAsync()).ToList());
+        Assert.Contains((await deployment.GetDeploymentFilesAsync(record.Id)).ToList(),
+            file => file.TargetPath == Path.Combine(rigRoot, "hero.rigbin"));
+        Assert.Equal(DeploymentStatus.Completed,
+            (await deployment.DeployProfileAsync(profile, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game)).Status);
+        Assert.Equal("rig", await File.ReadAllTextAsync(Path.Combine(rigRoot, "hero.rigbin")));
+    }
+
+    [Fact]
+    public async Task LegacyNativeRecord_IsCleanedOnNextProfileDeploy()
+    {
+        // 旧版本曾把 IAS 模型 native 文件部署进游戏 bin；新行为下重新部署应把残留清理掉。
+        var source = CreateNestedPackage();
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var profile = await CreateProfile(id, [true, true]);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        var native = Path.Combine(game, "bin", "HD2IndependentRig", "hero.rigbin");
+        Directory.CreateDirectory(Path.GetDirectoryName(native)!);
+        await File.WriteAllTextAsync(native, "legacy");
+        var record = new DeploymentRecord
+        {
+            Id = Guid.NewGuid(), SessionId = Guid.NewGuid(), ProfileId = profile, ModId = id,
+            Workflow = "HD2IAS", DeploymentMethod = "Copy", StartTime = DateTime.UtcNow, Status = "Completed",
+            GamePath = game, DeploymentOrder = "TopToBottom", AppliedAt = DateTime.UtcNow,
+            OptionsSnapshotJson = new ProfileModOptionsState { OptionToggles = [true, true] }.ToJson()
+        };
+        record.Files.Add(new DeploymentFile
+        {
+            Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = id,
+            SourcePath = Path.Combine(_root, "library", "src"), TargetPath = native, Method = "Copy",
+            GamePath = game, SourceKey = "native:bin/HD2IndependentRig/hero.rigbin"
+        });
+        await _deployments.AddAsync(record);
+
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.False(File.Exists(native));
+        Assert.True(File.Exists(Path.Combine(game, "data", "0123456789abcdef.patch_0")));
+        var latest = Assert.Single((await _deployment.GetLatestDeploymentsAsync()).ToList());
+        Assert.DoesNotContain((await _deployment.GetDeploymentFilesAsync(latest.Id)).ToList(),
+            file => file.TargetPath == native);
     }
 
     private string CreateNestedPackage()

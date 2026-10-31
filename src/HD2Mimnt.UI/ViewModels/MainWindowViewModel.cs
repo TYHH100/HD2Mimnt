@@ -41,8 +41,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
     private string? _tutorialOriginToolsCategory;
-    private string? _iasMissingNotifiedPath;
-    private string? _iasDataMissingNotifiedPath;
 
     public string AppVersion => AppInfo.Version;
 
@@ -122,6 +120,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
+    public IasSystemViewModel? IasSystemViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -151,7 +150,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         DirectDownloadViewModel? directDownloadViewModel = null,
         ModCreationViewModel? modCreationViewModel = null,
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
-        SoundFixViewModel? soundFixViewModel = null)
+        SoundFixViewModel? soundFixViewModel = null,
+        IasSystemViewModel? iasSystemViewModel = null)
     {
         Compatibility = compatibility;
         if (Compatibility != null)
@@ -205,8 +205,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
-        if (Hd2IASManagementViewModel != null)
-            Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
+        IasSystemViewModel = iasSystemViewModel;
+        // 旧版 HD2IAS 的运行时缺失自动提醒暂时停用（上游内测期）；页面与手动刷新保留。
+        // if (Hd2IASManagementViewModel != null)
+        //     Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
         MoreViewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
@@ -218,6 +220,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 ias.Invalidate();
                 if (!ias.IsBusy) _ = ias.RefreshInstallationCommand.ExecuteAsync(null);
             }
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsIasSystemVisible
+                && IasSystemViewModel is { IsBusy: false } system)
+                _ = system.InitializeAsync();
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {
@@ -367,25 +372,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         });
     }
 
-    private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
-    {
-        if (Hd2IASManagementViewModel is not { } ias) return;
-        var localizer = Localization.UiLocalization.Current;
-        NotifyRequirement(ias.NeedsRuntimeInstallation, ref _iasMissingNotifiedPath, ias.RuntimeRequiredMessage, "IAS.GoInstall");
-        NotifyRequirement(ias.NeedsDataGeneration, ref _iasDataMissingNotifiedPath, ias.DataRequiredMessage, "IAS.GoRepairData");
-
-        void NotifyRequirement(bool required, ref string? notifiedPath, string message, string actionKey)
-        {
-            if (!required) { notifiedPath = null; return; }
-            if (string.Equals(notifiedPath, ias.GamePath, StringComparison.OrdinalIgnoreCase)) return;
-            notifiedPath = ias.GamePath;
-            _notificationService.ShowWithAction(NotificationLevel.Warning, message, localizer[actionKey], () =>
-            {
-                MoreViewModel.SelectedCategory = "HD2IAS 管理";
-                NavigateToTools();
-            }, localizer["IAS.Title"]);
-        }
-    }
+    // 旧版 HD2IAS 运行时缺失自动提醒暂时停用；恢复订阅 OnHd2IASRequirementChanged 时一并恢复。
+    // private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
+    // {
+    //     ... 原实现见 git 历史（依赖 _iasMissingNotifiedPath/_iasDataMissingNotifiedPath 字段）。
+    // }
 
     private void OnNotificationAdded(object? sender, Notification e)
     {
@@ -886,6 +877,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
+        if (IasSystemViewModel != null) await IasSystemViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.LeavePageAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {

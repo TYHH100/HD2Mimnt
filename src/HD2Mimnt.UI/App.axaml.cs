@@ -430,7 +430,10 @@ public partial class App : Avalonia.Application
             sp.GetService<ILogger<DeploymentService>>(),
             sp.GetRequiredService<CrashDeploymentHistoryService>(),
             sp.GetRequiredService<SettingsService>(),
-            sp.GetRequiredService<DeploymentStateMigrationService>()));
+            sp.GetRequiredService<DeploymentStateMigrationService>(),
+            // IAS 模型组件随配置文件部署到 HD2IntegratedArmorSystem 的 armor\rig；延迟解析避免构造环。
+            token => sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IIasSystemService>().GetRigTargetRootAsync(token),
+            modsStoragePath));
 
         // 新增核心服务
         services.AddSingleton(sp =>
@@ -557,6 +560,12 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDeploymentStore>(),
             sp.GetRequiredService<IDeploymentRepository>(), sp.GetRequiredService<ModService>()));
         services.AddTransient<Hd2IASManagementViewModel>();
+        // 新版 IAS 系统（HD2IntegratedArmorSystem）模型部署：独立于配置文件部署体系。
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IIasSystemService>(sp =>
+            new IasSystemService(sp.GetRequiredService<ModService>(), sp.GetRequiredService<SettingsService>(),
+                sp.GetServices<HD2Mimnt.Core.Interfaces.IDeploymentMethod>(),
+                Path.Combine(appDataPath, "IAS-System"), modsStoragePath));
+        services.AddTransient<IasSystemViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -585,8 +594,9 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
-            // HD2IAS 管理暂时停用：上游正在大改内测，旧管理页与自动检查不再接线。
-            null,
-            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>()));
+            // HD2IAS 管理：上游仍在内测，旧管理页重新开放入口，页内各区块默认折叠。
+            sp.GetRequiredService<Hd2IASManagementViewModel>(),
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
+            sp.GetRequiredService<IasSystemViewModel>()));
     }
 }

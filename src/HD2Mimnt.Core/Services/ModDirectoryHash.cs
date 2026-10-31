@@ -9,12 +9,16 @@ namespace HD2Mimnt.Core.Services;
 /// 导入时自动生成的档案不参与，保证同一内容从不同来源导入得到相同指纹。</summary>
 public static class ModDirectoryHash
 {
+    /// <param name="stepName">进度阶段名；判重等二次指纹计算用独立阶段名避免误报“计算哈希”。</param>
+    /// <param name="startPercentage">进度区间起点；spanPercentage 为 0 时保持起点不动，仅刷新文件明细。</param>
+    /// <param name="spanPercentage">进度区间跨度；调用方负责分配不回退的区间。</param>
     public static async Task<string> CalculateAsync(string directory, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, Func<string, bool>? includeFile = null)
+        IProgress<ModImportProgress>? progress = null, Func<string, bool>? includeFile = null,
+        string stepName = "计算哈希", double startPercentage = 84, double spanPercentage = 5)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException($"模组目录不存在: {directory}");
-        progress?.Report(new(84, "计算哈希", "准备计算模组内容 SHA-256", true));
+        progress?.Report(new(startPercentage, stepName, "准备计算模组内容 SHA-256", true));
         var generatedManifest = ManifestPackage.IsGeneratedManifest(directory);
         var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
             .Where(path => includeFile?.Invoke(path) != false)
@@ -53,14 +57,14 @@ public static class ModDirectoryHash
                 if (Environment.TickCount64 - lastReport >= 100)
                 {
                     var ratio = totalBytes == 0 ? 1 : Math.Clamp((double)processedBytes / totalBytes, 0, 1);
-                    progress?.Report(new(84 + 5 * ratio, "计算哈希", file.Relative));
+                    progress?.Report(new(startPercentage + spanPercentage * ratio, stepName, file.Relative));
                     lastReport = Environment.TickCount64;
                 }
             }
             directoryHash.AppendData(fileHash.GetHashAndReset());
         }
         cancellationToken.ThrowIfCancellationRequested();
-        progress?.Report(new(89, "计算哈希", "SHA-256 计算完成"));
+        progress?.Report(new(startPercentage + spanPercentage, stepName, "SHA-256 计算完成"));
         return Convert.ToHexStringLower(directoryHash.GetHashAndReset());
     }
 

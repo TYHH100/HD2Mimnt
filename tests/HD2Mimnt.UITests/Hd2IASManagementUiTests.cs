@@ -23,7 +23,7 @@ namespace HD2Mimnt.UITests;
 
 public sealed partial class FluentAvaloniaUiTests
 {
-    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
+    [AvaloniaFact]
     public async Task Hd2IAS_ToolsEntryInspectGenerateBothRoutesTranslateAndCancelOnExit()
     {
         var reader = new TestIASPackages(); var compiler = new TestIASCompiler(); var updates = new TestIASUpdates();
@@ -62,11 +62,13 @@ public sealed partial class FluentAvaloniaUiTests
             Layout(); main.NotificationPanelViewModel.DismissAllToasts(); Layout();
             var more = window.GetVisualDescendants().OfType<MoreView>().Single();
             var categories = more.GetVisualDescendants().OfType<ListBox>().Single(box => ReferenceEquals(box.ItemsSource, main.MoreViewModel.Categories));
-            Assert.Equal("HD2IAS 管理", main.MoreViewModel.Categories[^2]);
+            Assert.Equal("HD2IAS 管理", main.MoreViewModel.Categories[^3]);
             Click((Control)categories.ContainerFromIndex(Array.IndexOf(main.MoreViewModel.Categories, "HD2IAS 管理"))!);
             await vm.RefreshInstallationCommand.ExecutionTask!; Layout();
             Assert.True(main.MoreViewModel.IsHd2IASVisible); Assert.False(main.MoreViewModel.IsAboutVisible);
             var view = window.GetVisualDescendants().OfType<Hd2IASManagementView>().Single();
+            // 页内区块默认全部折叠，测试先展开全部 Expander 再进行点击交互。
+            foreach (var expander in view.GetVisualDescendants().OfType<Expander>().ToList()) expander.IsExpanded = true; Layout();
             Assert.Same(vm, view.DataContext); Assert.True(view.IsEffectivelyVisible);
             Assert.Equal("native", vm.SelectedRoute);
             Assert.True(vm.HasInstallationReport); Assert.False(vm.HasReport); Assert.Equal("", vm.PackagePath);
@@ -139,8 +141,8 @@ public sealed partial class FluentAvaloniaUiTests
         }
     }
 
-    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
-    public async Task Hd2IAS_MissingDataNotifiesNavigatesTranslatesAndRepairsSameEntry()
+    [AvaloniaFact]
+    public async Task Hd2IAS_MissingDataShowsBannerAndRepairsSameEntryWithoutNotification()
     {
         var reader = new TestIASPackages();
         await using var scope = await UiScope.CreateAsync(iasPackages: reader, iasCompiler: new TestIASCompiler(), iasUpdates: new TestIASUpdates());
@@ -155,10 +157,10 @@ public sealed partial class FluentAvaloniaUiTests
         var vm = main.Hd2IASManagementViewModel!; await vm.CheckRuntimeRequirementAsync();
         Assert.True(vm.NeedsDataGeneration); Assert.False(vm.NeedsRuntimeInstallation);
         var notifications = scope.Services.GetRequiredService<NotificationService>();
-        var warning = Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("data 缺失")));
-        warning.Action!(); await vm.CheckRuntimeRequirementAsync();
+        // 运行时缺失自动提醒暂时停用：检查到缺失不再弹通知，只靠页面内警示卡。
+        Assert.DoesNotContain(notifications.GetRecentNotifications(), item => item.Message.Contains("data 缺失"));
+        main.SelectedTabIndex = 3; main.MoreViewModel.SelectedCategory = "HD2IAS 管理";
         Assert.Equal(3, main.SelectedTabIndex); Assert.True(main.MoreViewModel.IsHd2IASVisible);
-        Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("data 缺失")));
         var zip = Path.Combine(scope.Root, "source.zip"); reader.WriteSources(zip); vm.PackagePath = zip;
         var window = new MainWindow { DataContext = main, Width = 1000, Height = 760 };
         try
@@ -178,13 +180,13 @@ public sealed partial class FluentAvaloniaUiTests
             await vm.InstallCommand.ExecuteAsync(null); Layout();
             Assert.Contains("已安装", vm.StatusMessage); Assert.False(vm.NeedsDataGeneration); Assert.False(banner.IsVisible);
             var mod = Assert.Single(await scope.Services.GetRequiredService<ModService>().GetAllModsAsync());
-            notifications.Clear(); // 清除通知服务通用的 5 秒去重窗口，单独验证 HD2IAS 恢复后重新提示。
+            notifications.Clear(); // 清理部署成功后的常规通知，专注验证缺失重检。
             File.Delete(Path.Combine(mod.Path, "data", "9ba626afa44a3aa3.patch_0"));
             await vm.RefreshInstallationCommand.ExecuteAsync(null); Layout();
             Assert.True(banner.IsEffectivelyVisible); Assert.True(vm.NeedsDataGeneration);
-            Assert.NotEqual(warning.Id, Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("data 缺失"))).Id);
+            Assert.DoesNotContain(notifications.GetRecentNotifications(), item => item.Message.Contains("data 缺失"));
             await vm.CheckRuntimeRequirementAsync();
-            Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("data 缺失")));
+            Assert.DoesNotContain(notifications.GetRecentNotifications(), item => item.Message.Contains("data 缺失"));
             await vm.InstallCommand.ExecuteAsync(null); Layout();
             Assert.Contains("已安装", vm.StatusMessage); Assert.False(vm.NeedsDataGeneration); Assert.False(banner.IsVisible);
             Assert.Equal(mod.Id, Assert.Single(await scope.Services.GetRequiredService<ModService>().GetAllModsAsync()).Id);
@@ -250,8 +252,8 @@ public sealed partial class FluentAvaloniaUiTests
         }
     }
 
-    [Fact(Skip = "HD2IAS 管理暂时停用（上游大改内测）")]
-    public async Task Hd2IAS_MissingRuntimeNotificationNavigatesAndUninstallPreservesReshadeAndData()
+    [AvaloniaFact]
+    public async Task Hd2IAS_MissingRuntimeNavigatesAndUninstallPreservesReshadeAndData()
     {
         var reader = new TestIASPackages(); var confirmation = new RecordingConfirmation();
         await using var scope = await UiScope.CreateAsync(iasPackages: reader, iasCompiler: new TestIASCompiler(),
@@ -269,12 +271,10 @@ public sealed partial class FluentAvaloniaUiTests
         var vm = main.Hd2IASManagementViewModel!; await vm.CheckRuntimeRequirementAsync();
         Assert.True(vm.NeedsRuntimeInstallation);
         var notifications = scope.Services.GetRequiredService<NotificationService>();
-        var warning = Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("运行时缺失")));
-        Assert.NotNull(warning.Action); warning.Action!();
-        await vm.CheckRuntimeRequirementAsync();
+        // 运行时缺失自动提醒暂时停用：不再弹通知，直接导航进页面。
+        Assert.DoesNotContain(notifications.GetRecentNotifications(), item => item.Message.Contains("运行时缺失"));
+        main.SelectedTabIndex = 3; main.MoreViewModel.SelectedCategory = "HD2IAS 管理";
         Assert.Equal(3, main.SelectedTabIndex); Assert.True(main.MoreViewModel.IsHd2IASVisible);
-        await vm.CheckRuntimeRequirementAsync();
-        Assert.Single(notifications.GetRecentNotifications().Where(item => item.Message.Contains("运行时缺失")));
         vm.PackagePath = zip;
         var window = new MainWindow { DataContext = main, Width = 1000, Height = 760 };
         try
@@ -290,6 +290,8 @@ public sealed partial class FluentAvaloniaUiTests
             }
             Layout();
             var view = window.GetVisualDescendants().OfType<Hd2IASManagementView>().Single();
+            // 页内区块默认全部折叠，测试先展开全部 Expander 再进行点击交互。
+            foreach (var expander in view.GetVisualDescendants().OfType<Expander>().ToList()) expander.IsExpanded = true; Layout();
             Assert.True(view.FindControl<Border>("Hd2IASRuntimeRequired")!.IsEffectivelyVisible);
             Click(view.FindControl<Button>("InstallHd2IASButton")!); await vm.InstallCommand.ExecutionTask!;
             await vm.CheckRuntimeRequirementAsync(); Layout();

@@ -349,9 +349,16 @@ public sealed partial class FluentAvaloniaUiTests
             void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
             Layout();
             main.NotificationPanelViewModel.DismissAllToasts();
+            var localizer = scope.Services.GetRequiredService<UiLocalization>();
             foreach (var code in new[] { "en-US", "zh-TW" })
             {
                 await service.SetLanguageAsync(code);
+                if (code == "en-US")
+                {
+                    // 工具页侧栏按中文键反查翻译，新增分类时必须补资源，否则英文界面显示中文（zh-TW 与简体可能同文，不在此断言）。
+                    foreach (var category in main.MoreViewModel.Categories)
+                        Assert.True(localizer.Translate(category) != category, $"工具页分类“{category}”在 en-US 下未翻译");
+                }
                 foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
                 {
                     app.RequestedThemeVariant = theme;

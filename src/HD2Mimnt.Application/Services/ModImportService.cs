@@ -59,7 +59,7 @@ public class ModImportService
             await _importGate.WaitAsync(cancellationToken);
             entered = true;
             if (_settingsService?.GetSetting(SettingKeys.AllowDuplicateImports, false) != true)
-                await RejectDuplicateAsync(mod, cancellationToken);
+                await RejectDuplicateAsync(mod, cancellationToken, progress);
             cancellationToken.ThrowIfCancellationRequested();
             if (sourceLink != null)
             {
@@ -87,22 +87,24 @@ public class ModImportService
         }
     }
 
-    private async Task RejectDuplicateAsync(Mod prepared, CancellationToken token)
+    private async Task RejectDuplicateAsync(Mod prepared, CancellationToken token,
+        IProgress<ModImportProgress>? progress = null)
     {
         foreach (var existing in await _modRepository.GetAllAsync(token))
         {
             token.ThrowIfCancellationRequested();
-            if (Directory.Exists(existing.Path) && await IsSameContentAsync(prepared, existing, token))
+            if (Directory.Exists(existing.Path) && await IsSameContentAsync(prepared, existing, token, progress))
                 throw new InvalidOperationException($"模组库中已存在相同内容：{existing.Name}。如需独立副本，请在设置中开启“允许重复导入”。");
             foreach (var version in await new ModVersionStore(_modsStoragePath).ReadAsync(existing.Id, token))
             {
-                if (Directory.Exists(version.Content.Path) && await IsSameContentAsync(prepared, version.Content, token))
+                if (Directory.Exists(version.Content.Path) && await IsSameContentAsync(prepared, version.Content, token, progress))
                     throw new InvalidOperationException($"此内容已保存在 {existing.Name} 的本地版本中，请在模组详情中切换版本。");
             }
         }
     }
 
-    private async Task<bool> IsSameContentAsync(Mod prepared, Mod existing, CancellationToken token)
+    private async Task<bool> IsSameContentAsync(Mod prepared, Mod existing, CancellationToken token,
+        IProgress<ModImportProgress>? progress = null)
     {
         if (!string.IsNullOrWhiteSpace(existing.Hash) && existing.Hash == prepared.Hash) return true;
         // 旧包规范化会生成清单 GUID；HD2IR 映射还包含随机 ID/时间。
@@ -130,7 +132,7 @@ public class ModImportService
         async Task<string> Fingerprint(Mod mod)
         {
             if (_duplicateFingerprints.TryGetValue((mod.Path, mod.Hash), out var cached)) return cached;
-            var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, includeFile: path =>
+            var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, progress: progress, includeFile: path =>
             {
                 var relative = Path.GetRelativePath(mod.Path, path);
                 // 生成身份（组件映射、组件选项树、导入自动生成的档案）不参与重复判定；
@@ -139,7 +141,7 @@ public class ModImportService
                     && !relative.Equals(Hd2IrIntegrationService.OptionsFile, StringComparison.OrdinalIgnoreCase)
                     && !relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
                     && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase);
-            });
+            }, stepName: "判重比对", startPercentage: 89, spanPercentage: 0);
             _duplicateFingerprints[(mod.Path, mod.Hash)] = hash;
             return hash;
         }

@@ -4018,6 +4018,7 @@ Last checked: {7}</value>
   <data name="IAS.Browse" xml:space="preserve"><value>Select package</value></data>
   <data name="IAS.GamePath" xml:space="preserve"><value>Game directory (from Settings)</value></data>
   <data name="IAS.Route" xml:space="preserve"><value>Route to inspect</value></data>
+  <data name="IAS.InstallActions" xml:space="preserve"><value>Install actions</value></data>
   <data name="IAS.Inspect" xml:space="preserve"><value>Inspect package and installation</value></data>
   <data name="IAS.Working" xml:space="preserve"><value>Checking package files and game fingerprints…</value></data>
   <data name="IAS.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
@@ -4044,6 +4045,32 @@ Last checked: {7}</value>
   <data name="IAS.FileMatch" xml:space="preserve"><value>Matches</value></data>
   <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>Recognized older hash</value></data>
   <data name="IAS.FileUnknown" xml:space="preserve"><value>Unknown / mismatch</value></data>
+  <data name="IAS.LegacyTag" xml:space="preserve"><value>Legacy (pre-EAC) · Deprecated</value></data>
+  <data name="IasSystem.Title" xml:space="preserve"><value>HD2IAS system deployment</value></data>
+  <data name="IasSystem.NavItem" xml:space="preserve"><value>HD2IAS system</value></data>
+  <data name="IasSystem.Description" xml:space="preserve"><value>Deploy HD2IAS model components from the mod library to the Runtime folder of the HD2IAS system (HD2IntegratedArmorSystem) installation. The legacy HD2IAS management page is deprecated.</value></data>
+  <data name="IasSystem.Location" xml:space="preserve"><value>HD2IAS system install location</value></data>
+  <data name="IasSystem.LocationPlaceholder" xml:space="preserve"><value>e.g. D:\Games\HD2IntegratedArmorSystem</value></data>
+  <data name="IasSystem.Browse" xml:space="preserve"><value>Browse…</value></data>
+  <data name="IasSystem.RuntimeId" xml:space="preserve"><value>Runtime folder</value></data>
+  <data name="IasSystem.NoRuntime" xml:space="preserve"><value>Runtime folder not found. Make sure the HD2IAS system is installed.</value></data>
+  <data name="IasSystem.Models" xml:space="preserve"><value>HD2IAS model components</value></data>
+  <data name="IasSystem.NoModels" xml:space="preserve"><value>No deployable HD2IAS model components in the mod library.</value></data>
+  <data name="IasSystem.FileCount" xml:space="preserve"><value>{0} files</value></data>
+  <data name="IasSystem.Deploy" xml:space="preserve"><value>Deploy models</value></data>
+  <data name="IasSystem.Uninstall" xml:space="preserve"><value>Uninstall deployment</value></data>
+  <data name="IasSystem.UninstallConfirm" xml:space="preserve"><value>This deletes files deployed under armor\rig. The mod library is not affected. Uninstall now?</value></data>
+  <data name="IasSystem.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="IasSystem.OperationLog" xml:space="preserve"><value>Operation log</value></data>
+  <data name="IasSystem.Working" xml:space="preserve"><value>Deploying models…</value></data>
+  <data name="IasSystem.ReadingLocation" xml:space="preserve"><value>Reading the HD2IAS system location…</value></data>
+  <data name="IasSystem.Uninstalling" xml:space="preserve"><value>Uninstalling…</value></data>
+  <data name="IasSystem.Deployed" xml:space="preserve"><value>Deployed {0} files to: {1}</value></data>
+  <data name="IasSystem.Skipped" xml:space="preserve"><value>({0} files already up to date)</value></data>
+  <data name="IasSystem.CopyFallback" xml:space="preserve"><value>The target is on a different drive than the mod library; file copy was used instead of hard links.</value></data>
+  <data name="IasSystem.Uninstalled" xml:space="preserve"><value>Uninstalled {0} deployed files.</value></data>
+  <data name="IasSystem.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="IasSystem.SelectLocation" xml:space="preserve"><value>Fill in the HD2IAS system install location first.</value></data>
   <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua route</value></data>
   <data name="IAS.NativeRoute" xml:space="preserve"><value>Native route</value></data>
   <data name="IAS.Generate" xml:space="preserve"><value>Generate system data ZIP</value></data>
@@ -4053,6 +4080,7 @@ Last checked: {7}</value>
   <data name="IAS.UpdateSource" xml:space="preserve"><value>Official GitHub update history · Native is selected by default.</value></data>
   <data name="IAS.RefreshVersions" xml:space="preserve"><value>Check versions</value></data>
   <data name="IAS.DownloadUpdate" xml:space="preserve"><value>Download and inspect</value></data>
+  <data name="IAS.CheckReport" xml:space="preserve"><value>Check report</value></data>
   <data name="IAS.CheckingUpdates" xml:space="preserve"><value>Reading the official update history…</value></data>
   <data name="IAS.Downloading" xml:space="preserve"><value>Downloading and verifying the update package…</value></data>
   <data name="IAS.VersionsReady" xml:space="preserve"><value>Found {0} versions. The highest version is selected; download it or choose another version.</value></data>
@@ -4076,6 +4104,7 @@ Last checked: {7}</value>
   <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>Recognized older file · update needed</value></data>
   <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>Recognized retired file · removal needed</value></data>
   <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>Unknown or invalid · automatic replacement blocked</value></data>
+  <data name="IAS.InstalledStatus" xml:space="preserve"><value>Installed build status</value></data>
   <data name="IAS.Install" xml:space="preserve"><value>Install runtime and update data mod</value></data>
   <data name="IAS.Installing" xml:space="preserve"><value>Installing runtime and updating the data mod in the library…</value></data>
   <data name="IAS.Installed" xml:space="preserve"><value>Runtime installed; data saved to the mod library: {0}. Deploy it through a profile.</value></data>
