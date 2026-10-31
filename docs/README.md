@@ -18,6 +18,7 @@
 | 图形化清单编辑、密码库与完整模组 7z／ZIP 导出 | [MOD_CREATION.md](features/MOD_CREATION.md) |
 | HD2IR 嵌套角色包、组件选项与部署接入 | [HD2IR_INTEGRATION.md](features/HD2IR_INTEGRATION.md) |
 | 散装文件夹 / 包裹压缩包的多模组合集与两级选项 | [MOD_COLLECTION_IMPORT.md](features/MOD_COLLECTION_IMPORT.md) |
+| Lua 加载器识别配置的字段说明与手动新增步骤 | 随应用分发：`src/HD2Mimnt.Infrastructure/Config/LoaderCatalog.md` |
 | （暂时停用）HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
 | 游戏崩溃转储、部署时间线与模组变化排查 | [CRASH_DIAGNOSTICS.md](features/CRASH_DIAGNOSTICS.md) |
 | Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
