@@ -3642,7 +3642,7 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>Entry visibility saved and applied</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>All entries are visible again</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>Lock loader positions</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL/Boot Mod Loader, Chef Shared Loader and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order. BSL, MDL and Boot Mod Loader remain mutually exclusive; Chef Shared Loader can be enabled alongside Boot Mod Loader and deploys right before it.</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL/Boot Mod Loader, Chef Shared Loader and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order. BSL, MDL and Boot Mod Loader remain mutually exclusive; Chef Shared Loader and MDL3 can be enabled alongside Boot Mod Loader and deploy right before it.</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>This mod has not been published yet. Try again later or check its publication status on Nexus Mods.</value></data>
   <data name="Browse.ModUnavailable" xml:space="preserve"><value>Nexus Mods reports that this mod is currently unavailable. Check its status on Nexus Mods and try again later; the API did not specify the cause.</value></data>
   <data name="Logs.Help" xml:space="preserve"><value>Select an entry to read its full details. Filters affect display only. Configure recording in Settings → Logs.</value></data>
@@ -4048,7 +4048,7 @@ Last checked: {7}</value>
   <data name="IAS.LegacyTag" xml:space="preserve"><value>Legacy (pre-EAC) · Deprecated</value></data>
   <data name="IasSystem.Title" xml:space="preserve"><value>HD2IAS system deployment</value></data>
   <data name="IasSystem.NavItem" xml:space="preserve"><value>HD2IAS system</value></data>
-  <data name="IasSystem.Description" xml:space="preserve"><value>Deploy HD2IAS model components from the mod library to the Runtime folder of the HD2IAS system (HD2IntegratedArmorSystem) installation. The legacy HD2IAS management page is deprecated.</value></data>
+  <data name="IasSystem.Description" xml:space="preserve"><value>Regenerate the HD2IAS armor companion from currently deployed IAS mods with the upstream generator. Requires the HD2IAS system (HD2IntegratedArmorSystem) install location.</value></data>
   <data name="IasSystem.Location" xml:space="preserve"><value>HD2IAS system install location</value></data>
   <data name="IasSystem.LocationPlaceholder" xml:space="preserve"><value>e.g. D:\Games\HD2IntegratedArmorSystem</value></data>
   <data name="IasSystem.Browse" xml:space="preserve"><value>Browse…</value></data>
@@ -4057,19 +4057,15 @@ Last checked: {7}</value>
   <data name="IasSystem.Models" xml:space="preserve"><value>HD2IAS model components</value></data>
   <data name="IasSystem.NoModels" xml:space="preserve"><value>No deployable HD2IAS model components in the mod library.</value></data>
   <data name="IasSystem.FileCount" xml:space="preserve"><value>{0} files</value></data>
-  <data name="IasSystem.Deploy" xml:space="preserve"><value>Deploy models</value></data>
-  <data name="IasSystem.Uninstall" xml:space="preserve"><value>Uninstall deployment</value></data>
-  <data name="IasSystem.UninstallConfirm" xml:space="preserve"><value>This deletes files deployed under armor\rig. The mod library is not affected. Uninstall now?</value></data>
   <data name="IasSystem.Refresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="IasSystem.OperationLog" xml:space="preserve"><value>Operation log</value></data>
-  <data name="IasSystem.Working" xml:space="preserve"><value>Deploying models…</value></data>
   <data name="IasSystem.ReadingLocation" xml:space="preserve"><value>Reading the HD2IAS system location…</value></data>
-  <data name="IasSystem.Uninstalling" xml:space="preserve"><value>Uninstalling…</value></data>
-  <data name="IasSystem.Deployed" xml:space="preserve"><value>Deployed {0} files to: {1}</value></data>
-  <data name="IasSystem.Skipped" xml:space="preserve"><value>({0} files already up to date)</value></data>
-  <data name="IasSystem.CopyFallback" xml:space="preserve"><value>The target is on a different drive than the mod library; file copy was used instead of hard links.</value></data>
-  <data name="IasSystem.Uninstalled" xml:space="preserve"><value>Uninstalled {0} deployed files.</value></data>
   <data name="IasSystem.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="IasSystem.Generate" xml:space="preserve"><value>Generate mod companion</value></data>
+  <data name="IasSystem.Generating" xml:space="preserve"><value>Generating the armor companion…</value></data>
+  <data name="IasSystem.Generated" xml:space="preserve"><value>Companion generated: {0} files written, {1} removed, {2} kept unchanged.</value></data>
+  <data name="IasSystem.SystemReady" xml:space="preserve"><value>Upstream armor component detected. The companion can be generated directly.</value></data>
+  <data name="IasSystem.SystemMissing" xml:space="preserve"><value>Upstream armor component not detected. Complete the system installation in the HD2IAS app first.</value></data>
   <data name="IasSystem.SelectLocation" xml:space="preserve"><value>Fill in the HD2IAS system install location first.</value></data>
   <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua route</value></data>
   <data name="IAS.NativeRoute" xml:space="preserve"><value>Native route</value></data>

@@ -3,9 +3,9 @@ using HD2Mimnt.Core.Hd2IAS;
 namespace HD2Mimnt.Core.Interfaces;
 
 /// <summary>
-/// 新版 IAS 系统（HD2IntegratedArmorSystem）的模型部署服务。
-/// 独立于配置文件部署体系：把模组库中 IAS 模型组件的 native 文件部署到
-/// &lt;安装位置&gt;\HD2IntegratedArmorSystem\Runtime\&lt;已有随机ID&gt;\armor\rig。
+/// 新版 IAS 系统（HD2IntegratedArmorSystem）的安装位置与 Runtime 发现服务。
+/// 模型组件不再由本服务直接部署：armor 配套由 <see cref="IIasCompanionService"/> 调用
+/// 上游生成器生成；本服务只负责定位安装位置与生效的 Runtime 目录。
 /// </summary>
 public interface IIasSystemService
 {
@@ -18,28 +18,18 @@ public interface IIasSystemService
     /// <summary>扫描安装位置下已存在的 Runtime\&lt;随机ID&gt; 目录（沿用上游安装器创建的目录）。</summary>
     Task<IReadOnlyList<string>> DiscoverRuntimeIdsAsync(string location, CancellationToken token = default);
 
-    /// <summary>列出模组库中可部署的 IAS 模型组件及其文件清单。</summary>
+    /// <summary>列出模组库中的 IAS 模型组件及其 native 文件清单（展示用）。</summary>
     Task<IReadOnlyList<IasModelComponent>> GetModelComponentsAsync(CancellationToken token = default);
 
-    /// <summary>把全部 IAS 模型组件部署到指定 Runtime 目录的 armor\rig 下。</summary>
-    Task<IasDeployResult> DeployAsync(string location, string runtimeId,
-        IProgress<string>? progress = null, CancellationToken token = default);
-
-    /// <summary>按部署清单卸载已部署的文件（外部文件缺失时容错）。</summary>
-    Task<IasUninstallResult> UninstallAsync(IProgress<string>? progress = null, CancellationToken token = default);
-
-    /// <summary>是否存在本服务部署的记录。</summary>
-    Task<bool> HasDeploymentAsync(CancellationToken token = default);
-
     /// <summary>
-    /// 解析随配置文件部署使用的 rig 目标根目录（&lt;位置&gt;\HD2IntegratedArmorSystem\Runtime\&lt;ID&gt;\armor\rig）。
-    /// 未配置位置、没有 Runtime 目录时返回 null（此类组件随配置文件部署时静默跳过）。
+    /// 解析当前生效的 Runtime 根目录（&lt;位置&gt;\HD2IntegratedArmorSystem\Runtime\&lt;ID&gt;）。
+    /// 未配置位置、没有 Runtime 目录时返回 null。
     /// </summary>
-    Task<string?> GetRigTargetRootAsync(CancellationToken token = default);
+    Task<string?> GetRuntimeRootAsync(CancellationToken token = default);
 
-    /// <summary>保存随配置文件部署优先使用的 Runtime ID。</summary>
+    /// <summary>保存优先使用的 Runtime ID。</summary>
     Task SaveActiveRuntimeIdAsync(string? runtimeId, CancellationToken token = default);
 
-    /// <summary>读取随配置文件部署优先使用的 Runtime ID。</summary>
+    /// <summary>读取优先使用的 Runtime ID。</summary>
     Task<string?> GetActiveRuntimeIdAsync(CancellationToken token = default);
 }

@@ -8,5 +8,6 @@ public enum BslModRole
     MdlLoader = 3,
     SmoothBoot = 4,
     BmlLoader = 5,
-    CslLoader = 6
+    CslLoader = 6,
+    Mdl3Loader = 7
 }

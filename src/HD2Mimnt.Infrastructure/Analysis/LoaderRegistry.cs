@@ -217,6 +217,7 @@ public static class LoaderRegistry
             // 与 BslModRole 枚举槽位一一对应；新加载器默认用 loader 槽位，特殊部署位置再加新槽位。
             "loader" => BslModRole.Loader,
             "mdl" => BslModRole.MdlLoader,
+            "mdl3" => BslModRole.Mdl3Loader,
             "bml" => BslModRole.BmlLoader,
             "csl" => BslModRole.CslLoader,
             "smoothboot" => BslModRole.SmoothBoot,

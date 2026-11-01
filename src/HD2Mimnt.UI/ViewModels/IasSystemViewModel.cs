@@ -10,19 +10,19 @@ using HD2Mimnt.UI.Services;
 namespace HD2Mimnt.UI.ViewModels;
 
 /// <summary>
-/// 新版 IAS 系统（HD2IntegratedArmorSystem）页面：填写安装位置，把模组库中的
-/// IAS 模型组件独立部署到 Runtime\&lt;随机ID&gt;\armor\rig（旧版 HD2IAS 管理页已废弃）。
+/// 新版 IAS 系统（HD2IntegratedArmorSystem）页面：填写安装位置、发现 Runtime 目录，
+/// 并调用上游生成器把当前部署中的 IAS 模组重新生成为 armor 配套（模型组件不再直写）。
 /// </summary>
 public partial class IasSystemViewModel : ObservableObject, IDisposable
 {
     private readonly IIasSystemService _service;
+    private readonly IIasCompanionService _companion;
     private readonly UiLocalization _localization;
-    private readonly IConfirmationService? _confirmation;
-    private IasDeployResult? _deployed;
-    private IasUninstallResult? _uninstalled;
+    private IasCompanionResult? _generated;
+    private IasCompanionStatus? _status;
     private string? _error;
     private bool _loaded;
-    private string _workingKey = "IasSystem.Working";
+    private string _workingKey = "IasSystem.ReadingLocation";
     private bool _acceptingLocation;
     [ObservableProperty] private string _operationLog = "";
     [ObservableProperty] private bool _isBusy;
@@ -34,30 +34,31 @@ public partial class IasSystemViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _cancellation;
     public Task Completion { get; private set; } = Task.CompletedTask;
 
-    public IasSystemViewModel(IIasSystemService service, UiLocalization localization, IConfirmationService? confirmation = null)
+    public IasSystemViewModel(IIasSystemService service, IIasCompanionService companion,
+        UiLocalization localization)
     {
         _service = service;
+        _companion = companion;
         _localization = localization;
-        _confirmation = confirmation;
         _localization.PropertyChanged += OnLanguageChanged;
     }
 
     public bool CanEdit => !IsBusy;
     public bool HasComponents => Components.Count > 0;
-    public bool HasDeploymentHint { get; private set; }
-    public bool CanDeploy => !IsBusy && _loaded && HasComponents && !string.IsNullOrWhiteSpace(SelectedRuntimeId);
-    public bool CanUninstall => !IsBusy && HasDeploymentHint;
+    public bool RuntimeResolved => _status?.RuntimeResolved ?? false;
+    public bool SystemInstalled => _status?.SystemInstalled ?? false;
+    public bool CanGenerate => !IsBusy && _loaded && SystemInstalled;
     public string ComponentSummary => Components.Count == 0 ? _localization["IasSystem.NoModels"] :
         string.Join("\n", Components.Select(component =>
             $"{component.ModName} · {_localization.Format("IasSystem.FileCount", component.Files.Count)}"));
     public string StatusMessage => IsBusy ? _localization[_workingKey]
         : _error != null ? _localization.Format("IasSystem.Failed", _error)
-        : _uninstalled != null ? _localization.Format("IasSystem.Uninstalled", _uninstalled.RemovedCount)
-        : _deployed != null ? JoinDeployMessage(_deployed)
+        : _generated != null ? JoinGenerateMessage(_generated)
+        : _loaded && RuntimeResolved ? (SystemInstalled
+            ? _localization["IasSystem.SystemReady"]
+            : _localization["IasSystem.SystemMissing"])
         : RuntimeIds.Count == 0 && _loaded && !string.IsNullOrWhiteSpace(Location) ? _localization["IasSystem.NoRuntime"]
         : _localization["IasSystem.SelectLocation"];
-    public string CopyFallbackNotice => _deployed is { UsedCopyFallback: true } ? _localization["IasSystem.CopyFallback"] : "";
-    public bool HasCopyFallbackNotice => _deployed is { UsedCopyFallback: true };
 
     /// <summary>读取已保存位置并做首次发现；类别页选择时也可重复调用。</summary>
     public Task InitializeAsync() => OperateAsync("IasSystem.ReadingLocation", async token =>
@@ -84,39 +85,16 @@ public partial class IasSystemViewModel : ObservableObject, IDisposable
         _loaded = true;
     });
 
-    [RelayCommand(CanExecute = nameof(CanDeploy))]
-    private Task DeployAsync() => OperateAsync("IasSystem.Working", async token =>
+    [RelayCommand(CanExecute = nameof(CanGenerate))]
+    private Task GenerateAsync() => OperateAsync("IasSystem.Generating", async token =>
     {
-        var location = Location.Trim(); var runtimeId = SelectedRuntimeId!;
-        await _service.SaveInstallLocationAsync(location, token);
         var progress = new Progress<string>(message =>
         {
             if (!token.IsCancellationRequested && IsBusy) OperationLog += message + "\n";
         });
-        _deployed = await _service.DeployAsync(location, runtimeId, progress, token);
-        HasDeploymentHint = true;
-        OnPropertyChanged(nameof(CopyFallbackNotice)); OnPropertyChanged(nameof(HasCopyFallbackNotice));
-        _uninstalled = null;
+        // 生成阶段可取消；事务落盘阶段不可中断（服务内部处理）。游戏路径由服务自动解析。
+        _generated = await _companion.RegenerateAsync(null, progress, token);
     });
-
-    [RelayCommand(CanExecute = nameof(CanUninstall))]
-    private async Task UninstallAsync()
-    {
-        if (!CanUninstall || _confirmation == null) return;
-        if (!await _confirmation.ConfirmAsync(_localization["IasSystem.Uninstall"], _localization["IasSystem.UninstallConfirm"])) return;
-        if (!CanUninstall) return;
-        await OperateAsync("IasSystem.Uninstalling", async token =>
-        {
-            var progress = new Progress<string>(message =>
-            {
-                if (!token.IsCancellationRequested && IsBusy) OperationLog += message + "\n";
-            });
-            _uninstalled = await _service.UninstallAsync(progress, token);
-            _deployed = null;
-            HasDeploymentHint = false;
-            OnPropertyChanged(nameof(CopyFallbackNotice)); OnPropertyChanged(nameof(HasCopyFallbackNotice));
-        });
-    }
 
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel() { _cancellation?.Cancel(); CancelCommand.NotifyCanExecuteChanged(); }
@@ -133,22 +111,21 @@ public partial class IasSystemViewModel : ObservableObject, IDisposable
     partial void OnLocationChanged(string value)
     {
         if (_acceptingLocation) return;
-        // 位置被编辑后旧的 Runtime 发现结果失效，等待刷新或部署时重新持久化。
+        // 位置被编辑后旧的 Runtime 发现结果失效，等待刷新或生成时重新持久化。
         RuntimeIds = []; SelectedRuntimeId = null; _loaded = false;
         Refresh();
     }
 
     partial void OnSelectedRuntimeIdChanged(string? value)
     {
-        DeployCommand.NotifyCanExecuteChanged();
         if (_loaded) _ = _service.SaveActiveRuntimeIdAsync(value);
     }
     partial void OnComponentsChanged(IReadOnlyList<IasModelComponent> value) => Refresh();
     partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(StatusMessage));
-        RefreshCommand.NotifyCanExecuteChanged(); DeployCommand.NotifyCanExecuteChanged();
-        UninstallCommand.NotifyCanExecuteChanged(); CancelCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged(); GenerateCommand.NotifyCanExecuteChanged();
+        CancelCommand.NotifyCanExecuteChanged();
     }
 
     private async Task DiscoverAsync(string location, CancellationToken token)
@@ -161,20 +138,19 @@ public partial class IasSystemViewModel : ObservableObject, IDisposable
         SelectedRuntimeId = ids.FirstOrDefault(id => string.Equals(id, saved, StringComparison.OrdinalIgnoreCase))
             ?? ids.FirstOrDefault(id => id == SelectedRuntimeId) ?? ids.FirstOrDefault();
         Components = components;
-        HasDeploymentHint = await _service.HasDeploymentAsync(token);
-        OnPropertyChanged(nameof(CanUninstall)); OnPropertyChanged(nameof(ComponentSummary));
-        OnPropertyChanged(nameof(HasComponents)); OnPropertyChanged(nameof(CanDeploy));
-        UninstallCommand.NotifyCanExecuteChanged(); DeployCommand.NotifyCanExecuteChanged();
+        _status = await _companion.GetStatusAsync(token);
+        OnPropertyChanged(nameof(ComponentSummary));
+        OnPropertyChanged(nameof(HasComponents));
+        OnPropertyChanged(nameof(RuntimeResolved));
+        OnPropertyChanged(nameof(SystemInstalled));
+        OnPropertyChanged(nameof(CanGenerate));
+        GenerateCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanCancel() => IsBusy && _cancellation?.IsCancellationRequested == false;
 
-    private string JoinDeployMessage(IasDeployResult result)
-    {
-        var message = _localization.Format("IasSystem.Deployed", result.DeployedCount, result.TargetRoot);
-        return result.SkippedCount > 0
-            ? $"{message} {_localization.Format("IasSystem.Skipped", result.SkippedCount)}" : message;
-    }
+    private string JoinGenerateMessage(IasCompanionResult result)
+        => _localization.Format("IasSystem.Generated", result.FilesWritten, result.FilesDeleted, result.FilesPreserved);
 
     private async Task OperateAsync(string workingKey, Func<CancellationToken, Task> action)
     {
@@ -198,8 +174,8 @@ public partial class IasSystemViewModel : ObservableObject, IDisposable
 
     private void Refresh()
     {
-        foreach (var property in new[] { nameof(StatusMessage), nameof(ComponentSummary), nameof(CopyFallbackNotice),
-            nameof(HasCopyFallbackNotice), nameof(HasComponents), nameof(CanDeploy), nameof(CanUninstall) }) OnPropertyChanged(property);
+        foreach (var property in new[] { nameof(StatusMessage), nameof(ComponentSummary), nameof(HasComponents),
+            nameof(RuntimeResolved), nameof(SystemInstalled), nameof(CanGenerate) }) OnPropertyChanged(property);
     }
 
     public void Dispose() { _cancellation?.Cancel(); _localization.PropertyChanged -= OnLanguageChanged; }

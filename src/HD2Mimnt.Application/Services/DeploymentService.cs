@@ -21,9 +21,8 @@ public class DeploymentService
     private readonly CrashDeploymentHistoryService? _crashHistory;
     private readonly SettingsService? _settingsService;
     private readonly DeploymentStateMigrationService? _stateMigration;
-    private readonly Func<CancellationToken, Task<string?>>? _iasRigRootProvider;
+    private readonly Func<IIasCompanionService?>? _iasCompanionProvider;
     private readonly Mdl3CompanionService? _companionService;
-    private readonly string? _modsStoragePath;
     private readonly DeploymentPlanBuilder _planBuilder = new();
     private readonly DeploymentReconciler _reconciler;
     private readonly SemaphoreSlim _applyGate = new(1, 1);
@@ -39,8 +38,7 @@ public class DeploymentService
         CrashDeploymentHistoryService? crashHistory = null,
         SettingsService? settingsService = null,
         DeploymentStateMigrationService? stateMigration = null,
-        Func<CancellationToken, Task<string?>>? iasRigRootProvider = null,
-        string? modsStoragePath = null,
+        Func<IIasCompanionService?>? iasCompanionProvider = null,
         Mdl3CompanionService? companionService = null)
     {
         _profileRepository = profileRepository;
@@ -50,9 +48,8 @@ public class DeploymentService
         _crashHistory = crashHistory;
         _settingsService = settingsService;
         _stateMigration = stateMigration;
-        _iasRigRootProvider = iasRigRootProvider;
+        _iasCompanionProvider = iasCompanionProvider;
         _companionService = companionService;
-        _modsStoragePath = modsStoragePath;
 
         _deploymentMethods = new Dictionary<DeploymentMethod, IDeploymentMethod>();
         foreach (var method in deploymentMethods)
@@ -393,6 +390,25 @@ public class DeploymentService
                     await CompactPatchIndexesForGameAsync(group.Key, group.ToList(), cancellationToken);
             }
 
+            // IAS 模组移除后重新生成 armor 配套，让上游运行目录同步少掉对应组件。
+            var companion = _iasCompanionProvider?.Invoke();
+            if (companion != null && records.Any(record => string.Equals(record.Workflow,
+                    Hd2IrIntegrationService.Workflow, StringComparison.OrdinalIgnoreCase)))
+            {
+                foreach (var gamePath in records.Select(record => record.GamePath)
+                             .Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        await companion.RegenerateAsync(gamePath!, null, CancellationToken.None);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        _logger?.LogWarning(ex, "IAS 配套重生成失败: {GamePath}", gamePath);
+                    }
+                }
+            }
+
             RaiseDeploymentsChanged();
             foreach (var sessionId in records.Select(record => record.SessionId).Distinct())
                 await RecordRemovalAsync(sessionId, new[] { modId });
@@ -409,7 +425,7 @@ public class DeploymentService
     {
         if (_companionService == null) return;
         var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null || BslProfilePolicy.Role(mod) != BslModRole.MdlLoader) return;
+        if (mod == null || BslProfilePolicy.Role(mod) is not (BslModRole.MdlLoader or BslModRole.Mdl3Loader)) return;
         try
         {
             await _companionService.RemoveAsync(mod, cancellationToken);
@@ -570,10 +586,11 @@ public class DeploymentService
 
             var lockLoaders = _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
             var trackedTargets = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
-            var iasRigRoot = _iasRigRootProvider == null ? null : await _iasRigRootProvider(cancellationToken);
             var plan = await _planBuilder.BuildProfilePlanAsync(profile, modsById, method, order, gamePath,
-                lockLoaders, trackedTargets, iasRigRoot, _modsStoragePath, cancellationToken);
-            return await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
+                lockLoaders, trackedTargets, cancellationToken);
+            var result = await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
+            await RegenerateIasCompanionAsync(plan, result, cancellationToken);
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -624,10 +641,11 @@ public class DeploymentService
                 ?? DeploymentPlanBuilder.ParseOrder(_settingsService?.GetSetting(
                     SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString()))
                 ?? DeploymentOrder.TopToBottom;
-            var iasRigRoot = _iasRigRootProvider == null ? null : await _iasRigRootProvider(cancellationToken);
             var plan = await _planBuilder.BuildTargetedPlanAsync(effective, modId, profile, current, modsById,
-                fallbackMethod, fallbackOrder, iasRigRoot, _modsStoragePath, cancellationToken);
-            return await ApplyPlanAsync(plan, profile, progress, targeted: true, cancellationToken);
+                fallbackMethod, fallbackOrder, cancellationToken);
+            var result = await ApplyPlanAsync(plan, profile, progress, targeted: true, cancellationToken);
+            await RegenerateIasCompanionAsync(plan, result, cancellationToken);
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -652,6 +670,29 @@ public class DeploymentService
         {
             _applyGate.Release();
             RaiseDeploymentsChanged();
+        }
+    }
+
+    /// <summary>
+    /// 部署成功且计划含 IAS 模组时，自动重新生成上游 armor 配套。生成失败不阻断部署结果，
+    /// 只在结果消息中提示；取消令牌不向下传递（事务落盘阶段不可中断）。
+    /// </summary>
+    private async Task RegenerateIasCompanionAsync(DeploymentPlan plan, DeploymentResult result,
+        CancellationToken cancellationToken)
+    {
+        var companion = _iasCompanionProvider?.Invoke();
+        if (companion == null || result.Status != DeploymentStatus.Completed) return;
+        if (!plan.Mods.Any(mod => mod.Workflow == Hd2IrIntegrationService.Workflow)) return;
+        try
+        {
+            await companion.RegenerateAsync(plan.GamePath, null, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(ex, "IAS 配套自动生成失败: {GamePath}", plan.GamePath);
+            result.Message = string.IsNullOrWhiteSpace(result.Message)
+                ? $"IAS 配套生成失败：{ex.Message}"
+                : $"{result.Message}（IAS 配套生成失败：{ex.Message}）";
         }
     }
 
@@ -769,7 +810,7 @@ public class DeploymentService
         foreach (var mod in plan.Mods)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (BslProfilePolicy.Role(mod.Mod) != BslModRole.MdlLoader) continue;
+            if (BslProfilePolicy.Role(mod.Mod) is not (BslModRole.MdlLoader or BslModRole.Mdl3Loader)) continue;
             if (!_companionService.HasCompanionPayload(mod.Mod)) continue;
             try
             {

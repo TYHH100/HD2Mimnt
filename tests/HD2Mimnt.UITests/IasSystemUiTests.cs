@@ -19,10 +19,9 @@ namespace HD2Mimnt.UITests;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
-    public async Task IasSystem_LocationDiscoveryDeployUninstallAndTranslate()
+    public async Task IasSystem_LocationDiscoveryStatusAndTranslate()
     {
-        var confirmation = new RecordingConfirmation();
-        await using var scope = await UiScope.CreateAsync(confirmation: confirmation);
+        await using var scope = await UiScope.CreateAsync();
         var main = scope.Services.GetRequiredService<MainWindowViewModel>(); await main.InitializeAsync();
         var language = scope.Services.GetRequiredService<ILocalizationService>(); await language.SetLanguageAsync("zh-CN");
 
@@ -36,11 +35,12 @@ public sealed partial class FluentAvaloniaUiTests
         ZipFile.CreateFromDirectory(rigDir, archive);
         await import.ImportModAsync(archive);
 
-        // 伪造 IAS 系统（HD2IntegratedArmorSystem）安装位置：上游安装器已建好 Runtime 目录。
+        // 伪造 IAS 系统（HD2IntegratedArmorSystem）安装位置：上游安装器已建好 Runtime 目录，
+        // 但没有 deployment.json（armor 未安装），页面应显示系统缺失提示且不可生成。
         var location = Path.Combine(scope.Root, "ias");
         Directory.CreateDirectory(Path.Combine(location, "HD2IntegratedArmorSystem", "Runtime", "rt-1"));
         var vm = main.IasSystemViewModel!;
-        Assert.False(vm.CanUninstall);
+        Assert.False(vm.CanGenerate);
 
         vm.AcceptLocation(location);
         await vm.RefreshCommand.ExecutionTask!;
@@ -49,26 +49,18 @@ public sealed partial class FluentAvaloniaUiTests
         Assert.Equal(["rt-1"], vm.RuntimeIds);
         Assert.Equal("rt-1", vm.SelectedRuntimeId);
         Assert.True(vm.HasComponents);
-        Assert.True(vm.CanDeploy);
+        Assert.True(vm.RuntimeResolved);
+        Assert.False(vm.SystemInstalled);
+        Assert.False(vm.CanGenerate);
+        Assert.Contains("armor", vm.StatusMessage);
 
-        // 部署到 armor\rig，不写游戏 bin。
-        await vm.DeployCommand.ExecuteAsync(null);
-        var rigFile = Path.Combine(location, "HD2IntegratedArmorSystem", "Runtime", "rt-1", "armor", "rig", "hero.rigbin");
-        Assert.Equal("rig", await File.ReadAllTextAsync(rigFile));
-        Assert.Contains("已部署", vm.StatusMessage);
-        Assert.True(vm.CanUninstall);
-        Assert.Equal("", vm.CopyFallbackNotice);
-
-        // 卸载删除部署文件，模组库不受影响。
-        confirmation.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var uninstalling = vm.UninstallCommand.ExecuteAsync(null);
-        Assert.True(confirmation.PendingConfirmation);
-        Assert.Contains("armor\\rig", confirmation.Message);
-        confirmation.Pending.SetResult(true);
-        await uninstalling;
-        Assert.False(File.Exists(rigFile));
-        Assert.False(vm.CanUninstall);
-        Assert.Contains("已卸载", vm.StatusMessage);
+        // 部署上游 deployment.json 后页面识别为已安装、可生成。
+        var runtime = Path.Combine(location, "HD2IntegratedArmorSystem", "Runtime", "rt-1");
+        await File.WriteAllTextAsync(Path.Combine(runtime, "deployment.json"),
+            """{"schema":"HD2ExternalDeployment1","game":"G:\\games\\hd2","runtime_root":"X:\\rt","components":[{"component":"armor","version":"1.0.0","files":[],"bootstrap":[]}],"boot_files":[]}""");
+        await vm.RefreshCommand.ExecuteAsync(null);
+        Assert.True(vm.SystemInstalled);
+        Assert.True(vm.CanGenerate);
 
         // 语言切换刷新文案（无窗口环境直接断言 VM 派生状态）。
         await language.SetLanguageAsync("en-US");

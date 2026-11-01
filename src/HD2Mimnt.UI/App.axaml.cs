@@ -438,9 +438,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<CrashDeploymentHistoryService>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<DeploymentStateMigrationService>(),
-            // IAS 模型组件随配置文件部署到 HD2IntegratedArmorSystem 的 armor\rig；延迟解析避免构造环。
-            token => sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IIasSystemService>().GetRigTargetRootAsync(token),
-            modsStoragePath,
+            // IAS armor 配套生成在部署成功后触发；延迟解析避免 ModService↔DeploymentService 构造环。
+            () => sp.GetService<HD2Mimnt.Core.Interfaces.IIasCompanionService>(),
             sp.GetRequiredService<Mdl3CompanionService>()));
 
         // 新增核心服务
@@ -574,11 +573,18 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDeploymentStore>(),
             sp.GetRequiredService<IDeploymentRepository>(), sp.GetRequiredService<ModService>()));
         services.AddTransient<Hd2IASManagementViewModel>();
-        // 新版 IAS 系统（HD2IntegratedArmorSystem）模型部署：独立于配置文件部署体系。
+        // 新版 IAS 系统（HD2IntegratedArmorSystem）：位置/Runtime 发现 + armor 配套生成。
         services.AddSingleton<HD2Mimnt.Core.Interfaces.IIasSystemService>(sp =>
-            new IasSystemService(sp.GetRequiredService<ModService>(), sp.GetRequiredService<SettingsService>(),
-                sp.GetServices<HD2Mimnt.Core.Interfaces.IDeploymentMethod>(),
-                Path.Combine(appDataPath, "IAS-System"), modsStoragePath));
+            new IasSystemService(sp.GetRequiredService<ModService>(), sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IIasCompanionService>(sp =>
+            new IasCompanionService(
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IIasSystemService>(),
+                sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IDeploymentRepository>(),
+                sp.GetRequiredService<SettingsService>(),
+                Path.Combine(appDataPath, "IAS-Transactions"),
+                Path.Combine(appDataPath, "Cache", "IAS-Generator"),
+                Path.Combine(appDataPath, "IAS-System", "deployment.json")));
         services.AddTransient<IasSystemViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));

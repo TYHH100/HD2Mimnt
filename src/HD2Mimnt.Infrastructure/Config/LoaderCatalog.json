@@ -1,6 +1,6 @@
 {
   "//": "Lua 加载器识别与策略配置。新增或更新加载器时修改本文件（或放置 <AppData>/loaders.json 覆盖），无需改代码。ruleVersion 提升会触发已缓存识别结果重扫。",
-  "ruleVersion": 7,
+  "ruleVersion": 8,
   "dependencyPriority": 1,
   "addonExcludes": [ "mods/codex/loader" ],
   "loaders": [
@@ -47,9 +47,9 @@
     {
       "id": "mdl3",
       "displayName": "MDL3",
-      "role": "mdl",
-      "priority": 3,
-      "mutexGroup": "primary",
+      "role": "mdl3",
+      "priority": 2,
+      "guestOf": "bml",
       "guids": [ "b0ae9d35-4a69-5918-b43d-51d4d10ff001" ],
       "startupChecks": [
         {

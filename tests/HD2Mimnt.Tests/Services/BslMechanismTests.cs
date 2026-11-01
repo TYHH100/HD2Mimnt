@@ -378,6 +378,63 @@ public sealed class BslMechanismTests : IDisposable
     }
 
     [Fact]
+    public async Task BootModLoaderMdl3AndChefSharedLoader_ShouldCoexistWithBmlDeployedLast()
+    {
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var mdl3 = await AddModAsync("MDL3", BslModRole.Mdl3Loader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var normal = await AddModAsync("普通");
+        foreach (var mod in new[] { bml, mdl3, csl, normal })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("三加载器");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        await _service.AddModToProfileAsync(profileId, mdl3.Id);
+        await _service.AddModToProfileAsync(profileId, normal.Id);
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
+        Assert.All(profile.Mods, item => Assert.True(item.Enabled));
+        // BML 是 boot 生效者：CSL 与 MDL3 固定在它之前，BML 补丁号最高；从属段内保持配置页顺序。
+        Assert.Equal(new[] { normal.Id, csl.Id, mdl3.Id, bml.Id }, profile.Mods.Select(item => item.ModId));
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("普通", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_1")));
+        Assert.Equal("MDL3", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_2")));
+        Assert.Equal("BML", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_3")));
+    }
+
+    [Fact]
+    public async Task Mdl3Selection_ShouldFollowBootModLoaderAndRejectOtherPrimaries()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var mdl = await AddModAsync("MDL", BslModRole.MdlLoader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var mdl3 = await AddModAsync("MDL3", BslModRole.Mdl3Loader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, mdl3.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+        // MDL3 只能与 BML 搭配：与 BSL/MDL 批量启用必须拒绝。
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bsl.Id, mdl3.Id }, true));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { mdl.Id, mdl3.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+        // 切到 BSL 会替换整套加载器组合（BML 与 MDL3 一起停用）。
+        await _service.SetModEnabledAsync(profileId, bsl.Id, true);
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+    }
+
+    [Fact]
     public async Task ChefSharedLoaderSelection_ShouldFollowBootModLoaderAndRejectBslBatch()
     {
         var bsl = await AddModAsync("BSL", BslModRole.Loader);
@@ -434,6 +491,7 @@ public sealed class BslMechanismTests : IDisposable
             {
                 BslModRole.Loader => new ModManifest { Guid = BslModDetector.LoaderGuid },
                 BslModRole.MdlLoader => new ModManifest { Guid = BslModDetector.MdlGuid },
+                BslModRole.Mdl3Loader => new ModManifest { Guid = BslModDetector.Mdl3Guid },
                 BslModRole.BmlLoader => new ModManifest { Guid = BslModDetector.BootModLoaderGuid },
                 BslModRole.CslLoader => new ModManifest { Guid = BslModDetector.CslGuid },
                 BslModRole.SmoothBoot => new ModManifest { Guid = BslModDetector.SmoothBootGuid },
@@ -475,12 +533,12 @@ public sealed class BslMechanismTests : IDisposable
     }
 
     [Fact]
-    public async Task Mdl3PackageGuid_ShouldBeRecognizedAsMdlLoaderWithoutReadingPackage()
+    public async Task Mdl3PackageGuid_ShouldBeRecognizedAsMdl3LoaderWithoutReadingPackage()
     {
-        var mod = await AddModAsync("MDL3 预览版", BslModRole.MdlLoader);
+        var mod = await AddModAsync("MDL3 预览版", BslModRole.Mdl3Loader);
         // MDL3 原生桥包的 manifest GUID 与 MDL 2.x 不同，识别锚点在 LoaderCatalog 的 mdl3 条目。
-        mod.Manifest = new ModManifest { Guid = new Guid("b0ae9d35-4a69-5918-b43d-51d4d10ff001") };
-        Assert.Equal(BslModRole.MdlLoader, await BslModDetector.DetectAsync(mod));
+        mod.Manifest = new ModManifest { Guid = BslModDetector.Mdl3Guid };
+        Assert.Equal(BslModRole.Mdl3Loader, await BslModDetector.DetectAsync(mod));
     }
 
     [Theory]
@@ -489,7 +547,7 @@ public sealed class BslMechanismTests : IDisposable
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.Loader)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader MDL.log", BslModRole.None)]
     [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader boot_mod_loader.log", BslModRole.BmlLoader)]
-    [InlineData("boot", "-- MDL3 3.0.0-dev.21 game boot (PUC Lua 5.1). Signed native host mdl_native_bridge.dll", BslModRole.MdlLoader)]
+    [InlineData("boot", "-- MDL3 3.0.0-dev.21 game boot (PUC Lua 5.1). Signed native host mdl_native_bridge.dll", BslModRole.Mdl3Loader)]
     [InlineData("boot", "-- MDL3 game boot via FFI", BslModRole.None)]
     [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader", BslModRole.None)]
     [InlineData("boot", "another boot replacement", BslModRole.None)]

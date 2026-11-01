@@ -77,14 +77,24 @@ public static class BslProfilePolicy
                     $"{snapshot.GuestLoaderNames} 只能与 {snapshot.HostLoaderNames} 同时启用，请调整加载器组合");
 
         // 已启用的加载器中保留与本次选择互相成全的组合：BML 在用时启用 CSL 不关闭 BML，反之亦然。
+        // 互相成全是传递闭包（多个从属加载器经主加载器互相成全），须迭代到不动点，单遍会受配置页顺序影响。
         var keep = new HashSet<Guid>(selectedIds);
-        foreach (var item in profile.Mods.Where(item => item.Enabled && !keep.Contains(item.ModId)))
+        bool added;
+        do
         {
-            var role = RoleOf(item.ModId);
-            if (IsGuestLoader(role) && keep.Any(id => snapshot.CanHost(RoleOf(id), role))
-                || IsPrimaryLoader(role) && keep.Any(id => IsGuestLoader(RoleOf(id)) && snapshot.CanHost(role, RoleOf(id))))
-                keep.Add(item.ModId);
+            added = false;
+            foreach (var item in profile.Mods.Where(item => item.Enabled && !keep.Contains(item.ModId)))
+            {
+                var role = RoleOf(item.ModId);
+                if (IsGuestLoader(role) && keep.Any(id => snapshot.CanHost(RoleOf(id), role))
+                    || IsPrimaryLoader(role) && keep.Any(id => IsGuestLoader(RoleOf(id)) && snapshot.CanHost(role, RoleOf(id))))
+                {
+                    keep.Add(item.ModId);
+                    added = true;
+                }
+            }
         }
+        while (added);
 
         var changed = false;
         foreach (var item in profile.Mods.Where(item => item.Enabled && IsLoader(RoleOf(item.ModId)) && !keep.Contains(item.ModId)))
