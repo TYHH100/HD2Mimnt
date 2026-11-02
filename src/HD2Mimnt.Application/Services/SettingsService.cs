@@ -66,14 +66,6 @@ public class SettingsService
             && !ReadSetting(settings, SettingKeys.ProfilesFreeLoaderOrder, false);
     }
 
-    /// <summary>是否处于“自由排序（保留分组）”模式：锁定加载器开启且自由排序开启。</summary>
-    public bool IsLoaderGroupingFreeOrder()
-    {
-        var settings = Volatile.Read(ref _settings);
-        return ReadSetting(settings, SettingKeys.ProfilesLockLoaders, true)
-            && ReadSetting(settings, SettingKeys.ProfilesFreeLoaderOrder, false);
-    }
-
     /// <summary>业务服务统一读取的游戏目录；HellForge 模式解析为安装根下的 game 副本。</summary>
     public string GetEffectiveGamePath()
         => GetGameInstallationMode() == GameInstallationMode.HellForge

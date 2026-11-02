@@ -3642,7 +3642,7 @@ DLL 已載入、資源衝突或最近變更都不能單獨證明原因。其他�
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>入口顯示設定已儲存並生效</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>已恢復顯示全部入口</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>鎖定載入器</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>預設開啟：固定 Lua 相依、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 分組及位置。關閉後可像一般模組一樣選取和排序，部署遵循儲存的順序；BSL、MDL 與 Boot Mod Loader 仍為三選一，Chef Shared Loader 和 MDL3 可與 Boot Mod Loader 同時啟用並固定在其之前。</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>預設開啟：固定 Lua 相依、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 分組及位置。關閉後可像一般模組一樣選取和排序，部署遵循儲存的順序，也不再強制 Lua 相依或 SmoothBoot 必須搭配宿主載入器；BSL、MDL 與 Boot Mod Loader 仍為三選一，Chef Shared Loader 和 MDL3 可與 Boot Mod Loader 同時啟用並固定在其之前。</value></data>
   <data name="Settings.Profiles.FreeLoaderOrder" xml:space="preserve"><value>自由排序（保留分組）</value></data>
   <data name="Settings.Profiles.FreeLoaderOrderHelp" xml:space="preserve"><value>僅在「鎖定載入器」開啟時可用：Lua 相依和載入器分組仍會顯示並自動歸類，但所有模組（包括載入器）都可拖到任意位置；部署按儲存後的順序執行，也不再強制 Lua 相依或 SmoothBoot 必須搭配宿主載入器。</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>此模組尚未發布。請稍後重試，或在 N 網查看發布狀態。</value></data>

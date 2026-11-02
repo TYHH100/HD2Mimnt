@@ -254,14 +254,16 @@ public sealed class BslMechanismTests : IDisposable
         Assert.All(saved.Mods, mod => Assert.True(mod.Enabled));
     }
 
-    [Fact]
-    public async Task FreeLoaderOrderWithGroups_ShouldSkipHostLoaderValidation()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task UnlockedLoaderOrder_ShouldSkipHostLoaderValidation(bool lockLoaders, bool freeLoaderOrder)
     {
         var settings = new SettingsService(_root);
         await settings.SetSettingsAsync(new Dictionary<string, object>
         {
-            [SettingKeys.ProfilesLockLoaders] = true,
-            [SettingKeys.ProfilesFreeLoaderOrder] = true
+            [SettingKeys.ProfilesLockLoaders] = lockLoaders,
+            [SettingKeys.ProfilesFreeLoaderOrder] = freeLoaderOrder
         });
         var service = new ProfileService(_profiles, _mods, settings);
         var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),

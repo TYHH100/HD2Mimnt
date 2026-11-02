@@ -596,10 +596,9 @@ public class DeploymentService
                 await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
 
             var lockLoaders = _settingsService?.IsLoaderOrderLocked() ?? true;
-            var enforceLoaderHost = !(_settingsService?.IsLoaderGroupingFreeOrder() ?? false);
             var trackedTargets = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
             var plan = await _planBuilder.BuildProfilePlanAsync(profile, modsById, method, order, gamePath,
-                lockLoaders, enforceLoaderHost, trackedTargets, cancellationToken);
+                lockLoaders, trackedTargets, cancellationToken);
             var iasModsBefore = await DeployedIasModIdsAsync(gamePath, cancellationToken);
             var result = await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
             await RegenerateIasCompanionAsync(plan, result, iasModsBefore, cancellationToken);

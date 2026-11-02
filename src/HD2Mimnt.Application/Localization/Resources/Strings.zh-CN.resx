@@ -3642,7 +3642,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>入口显示设置已保存并生效</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>已恢复显示全部入口</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>锁定加载器</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>默认开启：固定 Lua 依赖、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 的分组及位置。关闭后可像普通模组一样选择和排序，部署遵循保存的顺序；BSL、MDL 与 Boot Mod Loader 仍为三选一，Chef Shared Loader 和 MDL3 可与 Boot Mod Loader 同时启用并固定在其之前。</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>默认开启：固定 Lua 依赖、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 的分组及位置。关闭后可像普通模组一样选择和排序，部署遵循保存的顺序，也不再强制 Lua 依赖或 SmoothBoot 必须搭配宿主加载器；BSL、MDL 与 Boot Mod Loader 仍为三选一，Chef Shared Loader 和 MDL3 可与 Boot Mod Loader 同时启用并固定在其之前。</value></data>
   <data name="Settings.Profiles.FreeLoaderOrder" xml:space="preserve"><value>自由排序（保留分组）</value></data>
   <data name="Settings.Profiles.FreeLoaderOrderHelp" xml:space="preserve"><value>仅在“锁定加载器”开启时可用：Lua 依赖和加载器分组仍会显示并自动归类，但所有模组（包括加载器）都可拖到任意位置；部署按保存后的顺序执行，也不再强制 Lua 依赖或 SmoothBoot 必须搭配宿主加载器。</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>此模组尚未发布。请稍后重试，或在 N 网查看发布状态。</value></data>
