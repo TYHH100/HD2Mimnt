@@ -145,9 +145,11 @@ public class DeploymentService
         await _applyGate.WaitAsync(cancellationToken);
         try
         {
-            var outcome = await PreDeploymentCleanupCoreAsync(progress, cancellationToken, fileProgress, preserveTargets);
-            await SyncIasCompanionAfterCleanupAsync(progress, cancellationToken);
-            return outcome;
+            var (filesDeleted, recordsDeleted, hadIasDeployments) =
+                await PreDeploymentCleanupCoreAsync(progress, cancellationToken, fileProgress, preserveTargets);
+            if (hadIasDeployments)
+                await SyncIasCompanionAfterCleanupAsync(progress, cancellationToken);
+            return (filesDeleted, recordsDeleted);
         }
         finally
         {
@@ -155,7 +157,7 @@ public class DeploymentService
         }
     }
 
-    private async Task<(int FilesDeleted, int RecordsDeleted)> PreDeploymentCleanupCoreAsync(
+    private async Task<(int FilesDeleted, int RecordsDeleted, bool HadIasDeployments)> PreDeploymentCleanupCoreAsync(
         IProgress<string>? progress,
         CancellationToken cancellationToken,
         IProgress<DeploymentCleanupProgress>? fileProgress,
@@ -177,14 +179,14 @@ public class DeploymentService
                 if (latest == null)
                 {
                     progress?.Report("没有找到当前安装的部署记录");
-                    return (0, 0);
+                    return (0, 0, false);
                 }
                 var legacy = (await GetDeploymentsBySessionIdAsync(latest.Value, cancellationToken))
                     .Where(record => string.IsNullOrWhiteSpace(record.GamePath)).ToList();
                 if (legacy.Count == 0)
                 {
                     progress?.Report("没有找到当前安装的部署记录");
-                    return (0, 0);
+                    return (0, 0, false);
                 }
                 deploymentList = legacy;
                 legacySessionId = latest;
@@ -196,14 +198,14 @@ public class DeploymentService
             if (legacySessionId == null)
             {
                 progress?.Report("没有找到之前的部署记录");
-                return (0, 0);
+                return (0, 0, false);
             }
             progress?.Report($"找到最近部署会话: {legacySessionId}");
             deploymentList = (await GetDeploymentsBySessionIdAsync(legacySessionId.Value, cancellationToken)).ToList();
             if (deploymentList.Count == 0)
             {
                 await CleanupDeploymentRecordsAsync(legacySessionId.Value, cancellationToken);
-                return (0, 1);
+                return (0, 1, false);
             }
         }
 
@@ -225,6 +227,8 @@ public class DeploymentService
         var recordsDeleted = 0;
         var preserved = 0;
         var allRecordsCleaned = true;
+        var hadIasDeployments = deploymentList.Any(record => string.Equals(record.Workflow,
+            Hd2IrIntegrationService.Workflow, StringComparison.OrdinalIgnoreCase));
         foreach (var deployment in deploymentList)
         {
             var result = await CleanupDeploymentFilesAsync(deployment.Id, true, progress, cancellationToken,
@@ -249,7 +253,7 @@ public class DeploymentService
         var preservedSummary = preserved > 0 ? $"，保留未变更 {preserved} 个" : string.Empty;
         var location = legacySessionId.HasValue ? $"会话 {legacySessionId}" : $"安装 {gamePath}";
         progress?.Report($"Pre-Deployment Cleanup 完成: {location}，删除 {filesDeleted} 个文件{preservedSummary}, {recordsDeleted} 个记录");
-        return (filesDeleted, recordsDeleted);
+        return (filesDeleted, recordsDeleted, hadIasDeployments);
     }
 
     /// <summary>
@@ -724,8 +728,10 @@ public class DeploymentService
         => IasModIds(await _deploymentRepository.GetCurrentDeploymentsAsync(gamePath, cancellationToken));
 
     /// <summary>
-    /// 清理部署收口后同步一次上游 armor 配套：此时库索引已空，生成器据此清掉 rig 与模组派生内容，
-    /// armor 组件本体和用户个人文件按上游语义保留。未配置 IAS 系统时跳过；失败只提示，不推翻清理结果。
+    /// 仅当本次清理确实包含 IAS 部署记录时，收口后同步一次上游 armor 配套：此时库索引已空，
+    /// 生成器据此清掉 rig 与模组派生内容，armor 组件本体和用户个人文件按上游语义保留。
+    /// 没有 IAS 部署时即使已配置 IAS 系统也跳过，避免无 IAS 模组的清理出现生成进度和失败提示；
+    /// 失败只提示，不推翻清理结果。
     /// </summary>
     private async Task SyncIasCompanionAfterCleanupAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {

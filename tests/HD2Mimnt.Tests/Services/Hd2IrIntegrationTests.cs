@@ -292,7 +292,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Cleanup_RegeneratesIasCompanionAndSkipsWithoutRuntime()
+    public async Task Cleanup_RegeneratesIasCompanionOnlyWhenIasDeploymentsExist()
     {
         var source = CreateNestedPackage();
         var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
@@ -306,10 +306,26 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         Assert.Equal(2, _companion.Regenerations.Count);
         Assert.Empty(await _deployment.GetLatestDeploymentsAsync());
 
-        // 未配置 IAS 系统（没有 Runtime 目录）时不做无谓的生成。
-        _companion.RuntimeResolved = false;
+        // 部署记录已清空、没有 IAS 部署时不再无谓生成，即使 IAS 系统仍可用。
         await _deployment.PreDeploymentCleanupAsync();
         Assert.Equal(2, _companion.Regenerations.Count);
+    }
+
+    [Fact]
+    public async Task Cleanup_WithoutIasDeployments_DoesNotRegenerateCompanion()
+    {
+        // 非 IAS 模组部署不会产生 armor 配套；清理时即使已配置 IAS 系统也不应触发生成流程。
+        var source = Path.Combine(_root, "plain-mod"); Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "0123456789abcdef.patch_0"), "patch");
+        var id = await _import.ImportModAsync(source);
+        var profile = await CreateProfile(id, []);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Empty(_companion.Regenerations);
+
+        await _deployment.PreDeploymentCleanupAsync();
+        Assert.Empty(_companion.Regenerations);
+        Assert.Empty(await _deployment.GetLatestDeploymentsAsync());
     }
 
     [Fact]
