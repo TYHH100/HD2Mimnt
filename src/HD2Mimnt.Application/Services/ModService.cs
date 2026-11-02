@@ -401,6 +401,17 @@ public partial class ModService
                 writeGeneratedManifest = true;
             }
 
+            // 早期 V1 推断的选项没有 Include：部署会退回只扫根目录的全量模式，选项子目录里的补丁被整体跳过。
+            // 只补未编辑过的推断清单，作者或用户声明的映射保持原样；须在档案生成判断之后执行。
+            if (mod.Manifest is { ManifestVersion: ManifestVersion.V1, Options: { Count: > 0 } inferredOptions }
+                && inferredOptions.All(option => option.Include == null)
+                && ModImportService.IsManagerInferredManifest(mod.Manifest, mod.Path))
+            {
+                foreach (var option in inferredOptions) option.Include = [option.Name];
+                changed = true;
+                if (ManifestPackage.IsGeneratedManifest(mod.Path)) writeGeneratedManifest = true;
+            }
+
             if (!File.Exists(mod.ThumbnailPath)
                 && ModImportService.ResolveManifestIconPath(mod.Path, mod.Manifest?.IconPath) is { } image)
             {

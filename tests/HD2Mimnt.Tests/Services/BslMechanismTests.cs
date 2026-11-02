@@ -254,6 +254,51 @@ public sealed class BslMechanismTests : IDisposable
         Assert.All(saved.Mods, mod => Assert.True(mod.Enabled));
     }
 
+    [Fact]
+    public async Task FreeLoaderOrderWithGroups_ShouldSkipHostLoaderValidation()
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.ProfilesLockLoaders] = true,
+            [SettingKeys.ProfilesFreeLoaderOrder] = true
+        });
+        var service = new ProfileService(_profiles, _mods, settings);
+        var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),
+            new[] { new CopyDeploymentMethod() }, settingsService: settings);
+        var dependency = await AddModAsync("独立依赖", BslModRole.Dependency);
+        await File.WriteAllTextAsync(Path.Combine(dependency.Path, "9ba626afa44a3aa3.patch_0"), dependency.Name);
+        var id = await service.CreateProfileAsync("自由排序部署");
+        await service.SetModsEnabledAsync(id, new[] { dependency.Id }, true);
+        var game = Path.Combine(_root, "free-order-game");
+        Directory.CreateDirectory(game);
+
+        var result = await deployment.DeployProfileAsync(id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(dependency.Name, await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+    }
+
+    [Fact]
+    public async Task LockedLoaders_ShouldStillRejectDependencyWithoutHostLoader()
+    {
+        var settings = new SettingsService(_root);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),
+            new[] { new CopyDeploymentMethod() }, settingsService: settings);
+        var dependency = await AddModAsync("缺少宿主", BslModRole.Dependency);
+        await File.WriteAllTextAsync(Path.Combine(dependency.Path, "9ba626afa44a3aa3.patch_0"), dependency.Name);
+        var id = await service.CreateProfileAsync("锁定校验");
+        await service.SetModsEnabledAsync(id, new[] { dependency.Id }, true);
+        var game = Path.Combine(_root, "locked-game");
+        Directory.CreateDirectory(game);
+
+        var result = await deployment.DeployProfileAsync(id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("请先添加并启用", result.ErrorMessage);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

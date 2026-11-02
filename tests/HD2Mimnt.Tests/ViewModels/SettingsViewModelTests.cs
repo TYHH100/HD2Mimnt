@@ -274,12 +274,14 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync();
         Assert.False(vm.AutoCheckConflicts);
         Assert.True(vm.LockLoaders);
+        Assert.False(vm.FreeLoaderOrder);
         Assert.False(vm.AutoAddImportedMods);
         Assert.False(vm.ChooseGroupWhenAdding);
         Assert.False(vm.PinExpandedGroups);
         vm.AutoAddImportedMods = true;
         vm.ChooseGroupWhenAdding = true;
         vm.PinExpandedGroups = true;
+        vm.FreeLoaderOrder = true;
         vm.GamePath = "invalid-game-path";
         vm.SelectedCategory = "配置文件";
         vm.AutoCheckConflicts = true;
@@ -295,15 +297,37 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false));
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false));
         Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true));
+        Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, true));
         await vm.LoadAsync();
         Assert.True(vm.AutoCheckConflicts);
+        Assert.False(vm.FreeLoaderOrder);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.AutoCheckConflicts);
         Assert.False(applied);
         Assert.False(vm.AutoAddImportedMods);
         Assert.False(vm.ChooseGroupWhenAdding);
         Assert.False(vm.PinExpandedGroups);
+        Assert.False(vm.FreeLoaderOrder);
         Assert.True(vm.LockLoaders);
+    }
+
+    [Fact]
+    public async Task FreeLoaderOrder_ShouldPersistWhileLockedAndResetWhenLockingOff()
+    {
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        vm.SelectedCategory = "配置文件";
+        vm.LockLoaders = true;
+        vm.FreeLoaderOrder = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        var reopened = new SettingsService(_rootDirectory);
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false));
+
+        vm.LockLoaders = false;
+        Assert.False(vm.FreeLoaderOrder);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.False(await new SettingsService(_rootDirectory)
+            .GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, true));
     }
 
     [Fact]

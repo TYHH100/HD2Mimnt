@@ -84,8 +84,12 @@ public partial class ProfileModViewModel : ObservableObject
     private bool _isGroupDropTarget;
     public BslModRole BslRole { get; init; }
     public bool IsBslMember => BslRole != BslModRole.None;
+    /// <summary>加载器是否被固定在首/尾区域；关闭后按保存顺序自由排序。</summary>
     public bool LoaderLockEnabled { get; init; } = true;
+    /// <summary>是否仍显示 Lua/加载器分组；自由排序但保留分组时开启。</summary>
+    public bool KeepLoaderGroups { get; init; } = true;
     public bool IsFixedGroupMember => LoaderLockEnabled && IsBslMember;
+    public bool IsLuaGroupMember => KeepLoaderGroups && IsBslMember;
     public bool IsBslLoader => BslProfilePolicy.IsLoader(BslRole);
     public bool IsSmoothBoot => BslRole == BslModRole.SmoothBoot;
     public bool IsLuaDependency => BslRole == BslModRole.Dependency;

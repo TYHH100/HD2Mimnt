@@ -76,6 +76,7 @@ internal sealed class DeploymentPlanBuilder
         DeploymentOrder order,
         string gamePath,
         bool lockLoaders,
+        bool enforceLoaderHost,
         IReadOnlySet<string> trackedTargets,
         CancellationToken cancellationToken = default)
     {
@@ -119,7 +120,7 @@ internal sealed class DeploymentPlanBuilder
                 plan.Mods.Count, mod.Version, method, mod.WorkflowType ?? string.Empty, patches, fixedFiles));
         }
 
-        ValidateLoaders(ordered, modsById, plan);
+        ValidateLoaders(ordered, modsById, plan, enforceLoaderHost);
         if (plan.Mods.Count == 0 && plan.SkippedModNames.Count > 0)
             throw new InvalidOperationException(
                 $"当前配置没有可部署的补丁，跳过 {plan.SkippedModNames.Count} 个模组：{string.Join("、", plan.SkippedModNames)}");
@@ -349,13 +350,15 @@ internal sealed class DeploymentPlanBuilder
     }
 
     private static void ValidateLoaders(IReadOnlyList<ProfileMod> ordered,
-        IReadOnlyDictionary<Guid, Mod> modsById, DeploymentPlan plan)
+        IReadOnlyDictionary<Guid, Mod> modsById, DeploymentPlan plan, bool enforceLoaderHost)
     {
         BslModRole RoleOf(ProfileMod item) => modsById.TryGetValue(item.ModId, out var mod) ? BslProfilePolicy.Role(mod) : BslModRole.None;
         // 主加载器互斥；Chef Shared Loader 只能与 Boot Mod Loader 同组；同角色重复副本一律拒绝。
         BslProfilePolicy.ValidateLoaderCombination(ordered.Select(RoleOf));
         BslProfilePolicy.ValidateLoaderCombination(plan.Mods.Select(mod => BslProfilePolicy.Role(mod.Mod)));
-        if (!plan.Mods.Any(mod => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod)))
+        // 自由排序（保留分组）允许用户自行决定加载器组合，不再强制依赖/SmoothBoot 必须有宿主加载器。
+        if (enforceLoaderHost
+            && !plan.Mods.Any(mod => BslProfilePolicy.IsLoader(BslProfilePolicy.Role(mod.Mod)))
             && plan.Mods.Any(mod => BslProfilePolicy.Role(mod.Mod) is BslModRole.Dependency or BslModRole.SmoothBoot))
             throw new InvalidOperationException("此配置包含依赖加载器模组或 SmoothBoot，请先添加并启用 BSL、MDL、Boot Mod Loader 或 Chef Shared Loader 及其补丁选项");
     }

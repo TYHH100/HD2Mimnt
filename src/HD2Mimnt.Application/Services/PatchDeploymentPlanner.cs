@@ -32,15 +32,15 @@ internal static partial class PatchDeploymentPlanner
 
     internal static List<string> CollectSelectedFiles(Mod mod, string? optionsJson, CancellationToken cancellationToken)
     {
-        var plan = ProfileModOptionResolver.ResolveDeployPlan(mod.Manifest,
-            ProfileModOptionResolver.ResolveEffective(mod.Manifest, optionsJson));
+        var state = ProfileModOptionResolver.ResolveEffective(mod.Manifest, optionsJson);
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(mod.Manifest, state);
         if (plan.Scope == OptionDeployScope.InvalidSelection)
             return new();
 
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(mod.Path));
         var directories = plan.Scope == OptionDeployScope.DirectoryList
             ? plan.Directories
-            : FullDirectoryRoots(root);
+            : FullDirectoryRoots(root, mod.Manifest, state);
         var files = new List<string>();
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var relative in directories)
@@ -65,10 +65,21 @@ internal static partial class PatchDeploymentPlanner
     }
 
     // 清单没有 Include 映射时回退全量部署；只扫描根目录会漏掉新格式 data 包里 data/ 下的补丁。
-    private static IEnumerable<string> FullDirectoryRoots(string root)
+    // 兜底：全部选项都缺映射且没有子选项（推断清单形态）时，按选项名进入各自子目录，
+    // 即使将来某个清单写入端漏写 Include，也不会把整个模组的补丁静默跳过。
+    private static IEnumerable<string> FullDirectoryRoots(string root, ModManifest? manifest,
+        ProfileModOptionsState state)
     {
         yield return ".";
         if (Directory.Exists(Path.Combine(root, "data"))) yield return "data";
+        if (manifest is not { ManifestVersion: ManifestVersion.V1, Options: { Count: > 0 } options }
+            || options.Any(option => option.Include != null || option.SubOptions is { Count: > 0 }))
+            yield break;
+
+        var toggles = state.OptionToggles;
+        for (var i = 0; i < options.Count; i++)
+            if (toggles == null || i >= toggles.Count || toggles[i])
+                yield return options[i].Name;
     }
 
     internal static List<FileEntry> BuildFiles(IReadOnlyList<string> selectedFiles, Dictionary<string, int> nextIndexes,

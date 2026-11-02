@@ -595,10 +595,11 @@ public class DeploymentService
             foreach (var mod in modsById.Values)
                 await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
 
-            var lockLoaders = _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
+            var lockLoaders = _settingsService?.IsLoaderOrderLocked() ?? true;
+            var enforceLoaderHost = !(_settingsService?.IsLoaderGroupingFreeOrder() ?? false);
             var trackedTargets = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
             var plan = await _planBuilder.BuildProfilePlanAsync(profile, modsById, method, order, gamePath,
-                lockLoaders, trackedTargets, cancellationToken);
+                lockLoaders, enforceLoaderHost, trackedTargets, cancellationToken);
             var iasModsBefore = await DeployedIasModIdsAsync(gamePath, cancellationToken);
             var result = await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
             await RegenerateIasCompanionAsync(plan, result, iasModsBefore, cancellationToken);
@@ -852,7 +853,7 @@ public class DeploymentService
 
     /// <summary>
     /// 部署成功后安装 MDL3 类模组的原生伴生组件（签名原生桥 + config + 用户目录）。
-    /// 失败不回滚已部署补丁，只附加警告到结果消息，供下次部署重试。
+    /// 已是最新时安装器静默跳过、不回报进度也不附加消息；失败不回滚已部署补丁，只附加警告到结果消息，供下次部署重试。
     /// </summary>
     private async Task<string?> EnsureCompanionsAsync(DeploymentPlan plan, IProgress<DeploymentProgress>? progress,
         CancellationToken cancellationToken)
@@ -872,7 +873,7 @@ public class DeploymentService
                         Stage = "Companion", Message = message, TotalMods = plan.TotalMods
                     })),
                     cancellationToken);
-                note = $"；{result.Message}";
+                if (!string.IsNullOrEmpty(result.Message)) note = $"；{result.Message}";
             }
             catch (OperationCanceledException)
             {

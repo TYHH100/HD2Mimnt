@@ -179,6 +179,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.FreeLoaderOrder}" Description="{loc:Loc Settings.Profiles.FreeLoaderOrderHelp}" IsEnabled="{Binding LockLoaders}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="FreeLoaderOrderToggle" IsChecked="{Binding FreeLoaderOrder}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ApplyProfileWhenSelected}" Description="{loc:Loc UI.WhenOffRightClickAProfileAndChooseSetAsCurrent}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

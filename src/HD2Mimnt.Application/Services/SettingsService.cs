@@ -54,6 +54,26 @@ public class SettingsService
             ? mode
             : GameInstallationMode.Official;
 
+    /// <summary>
+    /// 加载器是否仍按固定分组与优先级排序；开启“自由排序（保留分组）”后按保存顺序部署。
+    /// “锁定加载器”关闭时分组本身不再保留，同样按保存顺序处理。
+    /// </summary>
+    public bool IsLoaderOrderLocked()
+    {
+        // 两个键必须取自同一份已发布的只读快照，避免切换设置时读到混合状态。
+        var settings = Volatile.Read(ref _settings);
+        return ReadSetting(settings, SettingKeys.ProfilesLockLoaders, true)
+            && !ReadSetting(settings, SettingKeys.ProfilesFreeLoaderOrder, false);
+    }
+
+    /// <summary>是否处于“自由排序（保留分组）”模式：锁定加载器开启且自由排序开启。</summary>
+    public bool IsLoaderGroupingFreeOrder()
+    {
+        var settings = Volatile.Read(ref _settings);
+        return ReadSetting(settings, SettingKeys.ProfilesLockLoaders, true)
+            && ReadSetting(settings, SettingKeys.ProfilesFreeLoaderOrder, false);
+    }
+
     /// <summary>业务服务统一读取的游戏目录；HellForge 模式解析为安装根下的 game 副本。</summary>
     public string GetEffectiveGamePath()
         => GetGameInstallationMode() == GameInstallationMode.HellForge
@@ -308,6 +328,7 @@ public static class SettingKeys
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
     public const string ProfilesLockLoaders = "Profiles.LockLoaders";
+    public const string ProfilesFreeLoaderOrder = "Profiles.FreeLoaderOrder";
     public const string ProfilesAutoAddImportedMods = "Profiles.AutoAddImportedMods";
     public const string ProfilesChooseGroupWhenAdding = "Profiles.ChooseGroupWhenAdding";
     public const string ProfilesPinExpandedGroups = "Profiles.PinExpandedGroups";

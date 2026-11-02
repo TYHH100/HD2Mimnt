@@ -655,7 +655,8 @@ public class ModImportService
 
         if (forceV1)
         {
-            // V1 格式：每个子目录作为一个互斥的子选项
+            // V1 格式：每个子目录对应一个可独立启停的选项，Include 直接指向该子目录。
+            // 缺少 Include 会退回全量部署，而全量扫描只覆盖根目录和 data/，子目录补丁会被整体跳过。
             manifest.Options = subDirectories.Select(dir =>
             {
                 var dirName = Path.GetFileName(dir) ?? Path.GetDirectoryName(dir) ?? "Unknown";
@@ -664,6 +665,7 @@ public class ModImportService
                     Name = dirName,
                     Description = $"Option for {dirName}",
                     DefaultEnabled = true,
+                    Include = [dirName],
                     SubOptions = new List<ModSubOption>()
                 };
             }).ToList();
@@ -699,9 +701,10 @@ public class ModImportService
         if (manifest.LegacyOptions is { Count: > 0 } legacyOptions)
             return HasSameDirectories(legacyOptions, modRootPath);
         if (manifest.ManifestVersion == ManifestVersion.Legacy || manifest.Options is null or { Count: 0 }) return true;
-        return manifest.Options.All(option => option.Include == null
-                && option.SubOptions is not { Count: > 0 }
-                && option.Description == $"Option for {option.Name}")
+        return manifest.Options.All(option => option.SubOptions is not { Count: > 0 }
+                && option.Description == $"Option for {option.Name}"
+                // 早期推断选项没有 Include，新版推断写入指向自身子目录的映射
+                && (option.Include == null || (option.Include.Count == 1 && option.Include[0] == option.Name)))
             && HasSameDirectories(manifest.Options.Select(option => option.Name), modRootPath);
     }
 
@@ -942,6 +945,7 @@ public class ModImportService
                             Name = option,
                             Description = $"Option for {option}",
                             DefaultEnabled = true,
+                            Include = [option],
                             SubOptions = new List<ModSubOption>()
                         })
                         .ToList();

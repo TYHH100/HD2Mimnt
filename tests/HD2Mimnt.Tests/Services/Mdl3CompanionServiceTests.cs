@@ -152,6 +152,82 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
     }
 
     [Fact]
+    public void Install_ShouldSilentlySkipWhenAlreadyCurrent()
+    {
+        var mod = AddMod("MDL3");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!);
+        var service = CreateService();
+        service.EnsureInstalledAsync(mod, _root).GetAwaiter().GetResult();
+        var configPath = Path.Combine(DataRoot, "config.json");
+        File.SetLastWriteTimeUtc(configPath, new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+        var progress = new CollectingProgress();
+        var result = service.EnsureInstalledAsync(mod, _root, progress).GetAwaiter().GetResult();
+
+        Assert.True(result.Success);
+        Assert.Null(result.Message);
+        // 每次部署都提示“创建目录/写入配置”的根因：内容一致时不应再有任何进度与写文件。
+        Assert.Empty(progress.Messages);
+        Assert.Equal(new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), File.GetLastWriteTimeUtc(configPath));
+        Assert.False(File.Exists(configPath + ".backup"));
+    }
+
+    [Theory]
+    [InlineData("game")]
+    [InlineData("config")]
+    [InlineData("state")]
+    [InlineData("userfolder")]
+    public void Install_ShouldSelfHealWhenPartIsDrifted(string drift)
+    {
+        var mod = AddMod("MDL3");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!);
+        var service = CreateService();
+        service.EnsureInstalledAsync(mod, _root).GetAwaiter().GetResult();
+        // 切换游戏来源（官方/HellForge）或外部删改后须回到安装流程补齐。
+        var gamePath = drift == "game" ? Path.Combine(_root, "other-game") : _root;
+        switch (drift)
+        {
+            case "config":
+                File.Delete(Path.Combine(DataRoot, "config.json"));
+                break;
+            case "state":
+                File.Delete(Path.Combine(DataRoot, "install-state.json"));
+                break;
+            case "userfolder":
+                Directory.Delete(Path.Combine(LibraryPath, "HD2Runtime", "mod_data"), true);
+                break;
+        }
+
+        var result = service.EnsureInstalledAsync(mod, gamePath).GetAwaiter().GetResult();
+
+        Assert.True(result.Success, result.Message);
+        Assert.NotNull(result.Message);
+        Assert.True(File.Exists(Path.Combine(DataRoot, "install-state.json")));
+        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "HD2Runtime", "mod_data")));
+        using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(DataRoot, "config.json")));
+        Assert.Equal(gamePath, config.RootElement.GetProperty("game_dir").GetString());
+        Assert.Equal(CompanionInstallState.Installed, service.GetStatus(mod).State);
+    }
+
+    [Fact]
+    public async Task DeployProfileTwice_ShouldMentionCompanionOnlyOnFirstDeploy()
+    {
+        var (_, profileId) = await AddDeployableMdl3ModAsync();
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(Path.Combine(game, "data"));
+
+        var first = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, first.Status);
+        Assert.Contains("MDL3 原生伴生组件已安装", first.Message);
+
+        var second = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, second.Status);
+        Assert.DoesNotContain("伴生组件", second.Message);
+    }
+
+    [Fact]
     public void Remove_ShouldDeleteDllAndStateButKeepConfigAndUserFolders()
     {
         var mod = AddMod("MDL3");
@@ -264,6 +340,13 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
         public AuthenticodeVerifyResult Result { get; set; } = result;
 
         public AuthenticodeVerifyResult Verify(string filePath) => Result;
+    }
+
+    private sealed class CollectingProgress : IProgress<string>
+    {
+        public List<string> Messages { get; } = [];
+
+        public void Report(string value) => Messages.Add(value);
     }
 
     public void Dispose()

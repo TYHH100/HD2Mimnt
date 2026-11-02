@@ -26,7 +26,7 @@ public class Mdl3CompanionService
 
     public CompanionStatus GetStatus(Mod mod) => _installer.GetStatus(mod.Path);
 
-    /// <summary>确保伴生组件已安装；幂等。游戏运行中或签名/哈希校验失败时抛出异常。</summary>
+    /// <summary>确保伴生组件已安装；已是目标状态时静默跳过（无进度、结果不带消息）。游戏运行中或签名/哈希校验失败时抛出异常。</summary>
     public Task<CompanionOperationResult> EnsureInstalledAsync(Mod mod, string gamePath,
         IProgress<string>? progress = null, CancellationToken cancellationToken = default)
     {

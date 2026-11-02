@@ -66,6 +66,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private bool _autoCheckConflicts;
     [ObservableProperty] private bool _lockLoaders = true;
+    [ObservableProperty] private bool _freeLoaderOrder;
     [ObservableProperty] private bool _autoAddImportedMods;
     [ObservableProperty] private bool _chooseGroupWhenAdding;
     [ObservableProperty] private bool _pinExpandedGroups;
@@ -238,6 +239,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     partial void OnListDensityChanged(string value) => ListDensityChanged?.Invoke(this, value);
 
+    /// <summary>关闭锁定时不再保留“自由排序（保留分组）”，避免重新开启锁定时意外恢复自由顺序。</summary>
+    partial void OnLockLoadersChanged(bool value)
+    {
+        if (!value) FreeLoaderOrder = false;
+    }
+
 
     [RelayCommand]
     public async Task LoadAsync()
@@ -255,6 +262,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
+            FreeLoaderOrder = await _settingsService.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false);
             LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             AutoAddImportedMods = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false);
             ChooseGroupWhenAdding = await _settingsService.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false);
@@ -390,6 +398,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.ProfilesChooseGroupWhenAdding] = ChooseGroupWhenAdding,
         [SettingKeys.ProfilesPinExpandedGroups] = PinExpandedGroups,
         [SettingKeys.ProfilesLockLoaders] = LockLoaders,
+        [SettingKeys.ProfilesFreeLoaderOrder] = FreeLoaderOrder,
         [SettingKeys.ProfilesAutoSwitchOnSelect] = AutoSwitchProfileOnSelect,
         [SettingKeys.ProfilesAutoCheckConflicts] = AutoCheckConflicts
     };

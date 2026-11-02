@@ -110,7 +110,7 @@
 
 - 数字定位转换落点时，正向列表普通模组区域末尾要映射为 `Guid.Empty` 分隔符锚点，不能用第一项 Lua 模组 ID，否则合法的区域内移动被误拒绝；反向列表末尾保留 null 锚点。回归覆盖含 Lua 分组的单选、多选、正反向和越界拒绝。
 
-- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
+- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。开启“自由排序（保留分组）”后分隔符只作显示锚点：组员按保存顺序混排，折叠只隐藏组员，分隔符贴首个（正向）或末个（反向）可见组员；拖放锚点必须跳过该只读分隔符，不能把 `_luaSeparator.ModId` 传给排序服务。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、BML、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
 

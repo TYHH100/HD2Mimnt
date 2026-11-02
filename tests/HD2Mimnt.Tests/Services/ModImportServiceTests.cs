@@ -242,6 +242,8 @@ public sealed class ModImportServiceTests : IDisposable
         // 推断选项默认启用，避免选项弹窗打开即全部未勾选
         Assert.All(mod.Manifest.Options!, option => Assert.True(option.DefaultEnabled));
         Assert.All(generated.Options!, option => Assert.True(option.DefaultEnabled));
+        // 每个推断选项映射自己的子目录，部署才能收集到子目录里的补丁
+        Assert.All(mod.Manifest.Options!, option => Assert.Equal(new[] { option.Name }, option.Include));
     }
 
     [Fact]
@@ -298,6 +300,11 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.True((await _modRepository.GetByIdAsync(legacy.Id))!.Manifest!.Options![0].DefaultEnabled);
         Assert.True((await _modRepository.GetByIdAsync(generated.Id))!.Manifest!.Options![0].DefaultEnabled);
         Assert.False((await _modRepository.GetByIdAsync(authored.Id))!.Manifest!.Options![0].DefaultEnabled);
+        // 早期 V1 推断选项缺少 Include：回填时按选项名补齐子目录映射
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(legacy.Id))!.Manifest!.Options![0].Include);
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(generated.Id))!.Manifest!.Options![0].Include);
+        // 作者清单的显式映射保持原样
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(authored.Id))!.Manifest!.Options![0].Include);
 
         // 旧条目补齐生成档案（旧推断的空 Guid 同步替换），已有生成档案同步默认值
         var legacyFile = await parser.ParseFromFileAsync(Path.Combine(legacyDirectory, "manifest.json"));
@@ -306,6 +313,7 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.True(legacyFile.Options![0].DefaultEnabled);
         var generatedFile = await parser.ParseFromFileAsync(Path.Combine(generatedDirectory, "manifest.json"));
         Assert.True(generatedFile!.Options![0].DefaultEnabled);
+        Assert.Equal(new[] { "data" }, generatedFile.Options[0].Include);
         // 作者清单不补写根档案
         Assert.False(File.Exists(Path.Combine(authoredDirectory, "manifest.json")));
         // 数据库无清单的旧条目推断后同样生成档案

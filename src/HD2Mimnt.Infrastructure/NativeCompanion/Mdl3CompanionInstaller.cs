@@ -39,6 +39,11 @@ public sealed class Mdl3CompanionInstaller
         "schema", "dll", "game_dir", "native_memory_mb", "task_jit", "example_autostart", "integration_selftest"
     };
 
+    private const int ConfigSchema = 1;
+    private const int NativeMemoryMb = 2048;
+    private const string TaskJit = "on";
+    private const string ProductName = "MDL3";
+
     /// <summary>MDL 2.2.1 起共享的用户目录（相对 %LOCALAPPDATA%）；游戏 VM 无法创建目录，须提前建好且永不删除。</summary>
     private static readonly string[] UserFolders =
     [
@@ -78,10 +83,34 @@ public sealed class Mdl3CompanionInstaller
             build);
     }
 
-    /// <summary>安装/刷新伴生组件；幂等，DLL 已一致时只刷新 config 与状态文件。</summary>
+    /// <summary>
+    /// 伴生组件是否已与当前包一致：原生桥哈希、config 托管键、install-state 与共享用户目录全部命中。
+    /// 一致时 <see cref="Install"/> 整段跳过，避免每次部署重写配置并刷一遍进度。
+    /// </summary>
+    public bool IsCurrent(string modDirectory, string gamePath, string? dataRoot = null)
+    {
+        var build = CompanionBuildReader.Read(modDirectory);
+        if (build == null) return false;
+        dataRoot ??= DefaultDataRoot;
+        var root = Path.GetFullPath(dataRoot);
+        var nativeTarget = ResolveNativeTarget(root, build.NativePath);
+        if (!File.Exists(nativeTarget) ||
+            !string.Equals(HashFile(nativeTarget), build.NativeSha256, StringComparison.OrdinalIgnoreCase)) return false;
+        // 游戏 VM 无法自建目录，被外部删除时必须回到安装流程重建。
+        if (!Directory.Exists(Path.Combine(root, "Logs"))) return false;
+        foreach (var folder in UserFolders)
+        {
+            if (!Directory.Exists(Path.Combine(_localApplicationData, folder.Replace('/', '\\')))) return false;
+        }
+        if (!ConfigIsCurrent(Path.Combine(root, ConfigFileName), nativeTarget, gamePath)) return false;
+        return StateIsCurrent(Path.Combine(root, StateFileName), build, root, gamePath, nativeTarget);
+    }
+
+    /// <summary>安装/刷新伴生组件；幂等，已是最新时静默跳过且不产生任何进度或消息。</summary>
     public CompanionOperationResult Install(string modDirectory, string gamePath, string? dataRoot = null,
         Action<string>? progress = null, CancellationToken cancellationToken = default)
     {
+        if (IsCurrent(modDirectory, gamePath, dataRoot)) return new CompanionOperationResult(true);
         var build = CompanionBuildReader.Read(modDirectory)
             ?? throw new InvalidOperationException("模组包没有可安装的原生伴生组件（缺少 BUILD.json 或源 DLL）");
         dataRoot ??= DefaultDataRoot;
@@ -167,6 +196,62 @@ public sealed class Mdl3CompanionInstaller
     private string ResolveNativeTarget(string dataRoot, string nativePath)
         => Path.GetFullPath(Path.Combine(dataRoot, nativePath.Replace('/', '\\')));
 
+    /// <summary>期望的托管键取值；写入与一致性判定共用，避免两处字面量漂移。</summary>
+    private static JsonObject DesiredConfig(string nativeTarget, string gamePath) => new()
+    {
+        ["schema"] = ConfigSchema,
+        ["dll"] = nativeTarget,
+        ["game_dir"] = gamePath,
+        ["native_memory_mb"] = NativeMemoryMb,
+        ["task_jit"] = TaskJit,
+        ["example_autostart"] = false,
+        ["integration_selftest"] = false,
+    };
+
+    /// <summary>托管键逐项等于目标值即视为一致；未知键（未来版本的配置项）不参与判定。</summary>
+    private static bool ConfigIsCurrent(string configPath, string nativeTarget, string gamePath)
+    {
+        JsonObject? config;
+        try
+        {
+            config = JsonNode.Parse(File.ReadAllText(configPath)) as JsonObject;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+        if (config == null) return false;
+        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath))
+        {
+            if (!config.TryGetPropertyValue(name, out var actual) || !JsonNode.DeepEquals(value, actual)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>install-state.json 须仍指向当前包、游戏与原生桥，否则官方脚本会把已装组件当旧版本。</summary>
+    private static bool StateIsCurrent(string statePath, CompanionBuild build, string root, string gamePath,
+        string nativeTarget)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(statePath));
+            var state = document.RootElement;
+            if (state.GetProperty("product").GetString() != ProductName ||
+                state.GetProperty("version").GetString() != build.Version ||
+                state.GetProperty("game").GetString() != gamePath ||
+                state.GetProperty("data").GetString() != root) return false;
+            var file = state.GetProperty("files").EnumerateArray().First();
+            return file.GetProperty("path").GetString() == nativeTarget &&
+                   string.Equals(file.GetProperty("sha256").GetString(), build.NativeSha256,
+                       StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException
+            or InvalidOperationException or KeyNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private static void EnsureNoGameRunning()
     {
         if (Process.GetProcessesByName(GameProcessName).Length == 0) return;
@@ -220,13 +305,8 @@ public sealed class Mdl3CompanionInstaller
             }
         }
 
-        config["schema"] = 1;
-        config["dll"] = nativeTarget;
-        config["game_dir"] = gamePath;
-        config["native_memory_mb"] = 2048;
-        config["task_jit"] = "on";
-        config["example_autostart"] = false;
-        config["integration_selftest"] = false;
+        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath))
+            config[name] = value?.DeepClone();
         File.WriteAllText(configPath, config.ToJsonString(new JsonSerializerOptions
         {
             WriteIndented = true,
@@ -239,7 +319,7 @@ public sealed class Mdl3CompanionInstaller
         var statePath = Path.Combine(root, StateFileName);
         var payload = new Dictionary<string, object?>
         {
-            ["product"] = "MDL3",
+            ["product"] = ProductName,
             ["version"] = build.Version,
             ["game"] = gamePath,
             ["data"] = root,

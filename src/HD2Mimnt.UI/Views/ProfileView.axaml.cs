@@ -735,8 +735,10 @@ public partial class ProfileView : UserControl
         var vm = (ProfileViewModel)DataContext!;
         var slot = ComputeModInsertIndex(y);
         var expandedIds = vm.ExpandMovingRows(movingIds);
-        // 自身或多选中的卡片不是插入锚点，继续寻找下一个非拖动项。
-        while (slot < vm.ProfileRows.Count && expandedIds.Contains(vm.ProfileRows[slot].ModId)) slot++;
+        // 自身、多选中的卡片与仅用于显示的 Lua 分组标题都不是插入锚点，继续寻找下一个有效项。
+        while (slot < vm.ProfileRows.Count
+            && (expandedIds.Contains(vm.ProfileRows[slot].ModId)
+                || vm.ProfileRows[slot] is { IsSeparator: true, IsUserSeparator: false })) slot++;
         return (slot, slot < vm.ProfileRows.Count ? vm.ProfileRows[slot].ModId : null);
     }
 

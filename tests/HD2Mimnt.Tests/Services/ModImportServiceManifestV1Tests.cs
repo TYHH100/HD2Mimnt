@@ -47,6 +47,9 @@ public class ModImportServiceManifestV1Tests
         Assert.Equal("Option2", manifest.Options[1].Name);
         Assert.True(manifest.Options[0].DefaultEnabled);
         Assert.True(manifest.Options[1].DefaultEnabled);
+        // V1 选项可独立启停：每个选项必须映射到自己的子目录，否则部署会漏掉子目录里的补丁
+        Assert.Equal(new[] { "Option1" }, manifest.Options[0].Include);
+        Assert.Equal(new[] { "Option2" }, manifest.Options[1].Include);
     }
 
     [Fact]
@@ -159,6 +162,9 @@ public class ModImportServiceManifestV1Tests
         Assert.Equal(2, mod.Manifest.Options.Count);
         Assert.Equal("Option1", mod.Manifest.Options[0].Name);
         Assert.Equal("Option2", mod.Manifest.Options[1].Name);
+        // Legacy 选项名即子目录名：升级到 V1 时必须保留映射，否则部署会跳过整个模组
+        Assert.Equal(new[] { "Option1" }, mod.Manifest.Options[0].Include);
+        Assert.Equal(new[] { "Option2" }, mod.Manifest.Options[1].Include);
         _mockRepository.Verify(r => r.UpdateAsync(mod, It.IsAny<CancellationToken>()), Times.Once);
     }
 

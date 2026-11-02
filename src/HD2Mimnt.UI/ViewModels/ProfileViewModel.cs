@@ -60,7 +60,7 @@ public partial class ProfileViewModel : ObservableObject
             || SelectedProfile is not { } profile) return;
         CloseConflictPicker();
         ModSearchText = string.Empty;
-        var group = target.IsFixedGroupMember ? _luaSeparator
+        var group = target.IsLuaGroupMember ? _luaSeparator
             : ProfileSeparators.FirstOrDefault(separator => GetSeparatorMembers(separator).Contains(target));
         if (group?.IsCollapsed == true) await ToggleSeparatorAsync(group);
         if (SelectedProfile != profile || !ProfileMods.Contains(target) || !VisibleProfileMods.Contains(target)) return;
@@ -318,6 +318,8 @@ public partial class ProfileViewModel : ObservableObject
 
     private bool _bottomToTop;
     private bool _pinExpandedGroups;
+    private bool _loaderOrderLocked = true;
+    private bool _keepLoaderGroups = true;
     public event EventHandler? DeploymentDirectionChanged;
 
     [ObservableProperty]
@@ -444,7 +446,7 @@ public partial class ProfileViewModel : ObservableObject
             else Dispatcher.UIThread.Post(ApplySearch);
             return;
         }
-        if (e.Key == SettingKeys.ProfilesLockLoaders)
+        if (e.Key is SettingKeys.ProfilesLockLoaders or SettingKeys.ProfilesFreeLoaderOrder)
         {
             void Reload()
             {
@@ -482,7 +484,7 @@ public partial class ProfileViewModel : ObservableObject
 
     private void ArrangeBslDisplay()
     {
-        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+        if (!_loaderOrderLocked)
         {
             ProfileMods = new ObservableCollection<ProfileModViewModel>(ProfileMods.OrderBy(mod => mod.Order));
             return;
@@ -666,7 +668,15 @@ public partial class ProfileViewModel : ObservableObject
         var options = SearchMatchOptions.FromSettings(_settingsService);
         bool Matches(ProfileModViewModel row) =>
             SearchMatcher.MatchAny(query, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
+        var separator = _luaSeparator;
+        var luaMembers = ProfileMods.Where(mod => mod.IsLuaGroupMember).ToList();
+        separator.GroupModCount = luaMembers.Count;
+        // 命中 Lua 分组标题时显示全部组员，避免组员名称不含搜索词时被过滤掉。
+        var separatorMatches = query.Length > 0 && Matches(separator);
+        bool RowMatches(ProfileModViewModel row) => Matches(row) || separatorMatches && row.IsLuaGroupMember;
+
         var ordinary = BuildOrdinaryRows();
+        var freeWithGroups = _keepLoaderGroups && !_loaderOrderLocked;
         var visibleOrdinary = new List<ProfileModViewModel>();
         var group = (ProfileModViewModel?)null;
         var groupMatches = false;
@@ -680,33 +690,56 @@ public partial class ProfileViewModel : ObservableObject
                 var members = GetSeparatorMembers(row);
                 row.GroupModCount = members.Count;
                 remainingMembers = members.Count;
-                if (query.Length == 0 || groupMatches || members.Any(Matches)) visibleOrdinary.Add(row);
+                if (query.Length == 0 || groupMatches || members.Any(RowMatches)) visibleOrdinary.Add(row);
             }
             // 搜索时显示匹配成员，避免折叠组藏住搜索结果；不改变已保存的折叠状态。
             else
             {
                 if (remainingMembers == 0) { group = null; groupMatches = false; }
-                if (query.Length > 0 ? groupMatches || Matches(row) : group?.IsCollapsed != true)
+                if (query.Length > 0 ? groupMatches || RowMatches(row) : group?.IsCollapsed != true)
                     visibleOrdinary.Add(row);
                 if (remainingMembers > 0) remainingMembers--;
             }
         }
-        var separator = _luaSeparator;
-        separator.GroupModCount = ProfileMods.Count(mod => mod.IsFixedGroupMember);
-        var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember
-            && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
+
         var rows = new List<ProfileModViewModel>();
-        if (_bottomToTop)
+        if (freeWithGroups)
         {
-            rows.AddRange(fixedRows);
-            if (separator.GroupModCount > 0) rows.Add(separator);
+            // 分组只负责显示与自动归类，不限制保存顺序；折叠时隐藏组员，展开时按保存顺序混排。
+            if (query.Length == 0 && separator.IsCollapsed)
+                visibleOrdinary.RemoveAll(row => row.IsLuaGroupMember);
             rows.AddRange(visibleOrdinary);
+            if (luaMembers.Count > 0)
+            {
+                var visibleMembers = visibleOrdinary.Where(row => row.IsLuaGroupMember).ToList();
+                if (_bottomToTop)
+                {
+                    if (visibleMembers.Count > 0) rows.Insert(rows.IndexOf(visibleMembers[^1]) + 1, separator);
+                    else rows.Insert(0, separator);
+                }
+                else
+                {
+                    if (visibleMembers.Count > 0) rows.Insert(rows.IndexOf(visibleMembers[0]), separator);
+                    else rows.Add(separator);
+                }
+            }
         }
         else
         {
-            rows.AddRange(visibleOrdinary);
-            if (separator.GroupModCount > 0) rows.Add(separator);
-            rows.AddRange(fixedRows);
+            var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember
+                && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
+            if (_bottomToTop)
+            {
+                rows.AddRange(fixedRows);
+                if (separator.GroupModCount > 0) rows.Add(separator);
+                rows.AddRange(visibleOrdinary);
+            }
+            else
+            {
+                rows.AddRange(visibleOrdinary);
+                if (separator.GroupModCount > 0) rows.Add(separator);
+                rows.AddRange(fixedRows);
+            }
         }
         MarkGroupSlabs(rows);
         VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
@@ -869,7 +902,7 @@ public partial class ProfileViewModel : ObservableObject
         => separator.IsUserSeparator
             ? BuildOrdinaryRows().SkipWhile(row => row != separator).Skip(1).TakeWhile(row => !row.IsUserSeparator)
                 .Take(separator.MemberCount ?? int.MaxValue).ToList()
-            : ProfileMods.Where(row => row.IsFixedGroupMember).ToList();
+            : ProfileMods.Where(row => row.IsLuaGroupMember).ToList();
 
     /// <summary>
     /// 展开的分隔符分组为成员卡片标记连贯半透明色板：颜色取分隔符自定义色，
@@ -888,7 +921,7 @@ public partial class ProfileViewModel : ObservableObject
         foreach (var separator in rows.Where(row => row.IsUserSeparator))
             MarkSlabMembers(GetSeparatorMembers(separator).Where(visible.Contains).ToList(), separator.SeparatorColor);
         if (rows.Contains(_luaSeparator))
-            MarkSlabMembers(ProfileMods.Where(mod => mod.IsFixedGroupMember && visible.Contains(mod)).ToList(),
+            MarkSlabMembers(ProfileMods.Where(mod => mod.IsLuaGroupMember && visible.Contains(mod)).ToList(),
                 _luaSeparator.SeparatorColor);
     }
 
@@ -996,6 +1029,9 @@ public partial class ProfileViewModel : ObservableObject
                 == DeploymentOrder.BottomToTop.ToString();
             _pinExpandedGroups = await _settingsService.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
             var lockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
+            var freeLoaderOrder = await _settingsService.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false);
+            _keepLoaderGroups = lockLoaders;
+            _loaderOrderLocked = lockLoaders && !freeLoaderOrder;
             var profile = await _profileService.NormalizeProfileAsync(profileId, cancellationToken);
             if (profile == null)
             {
@@ -1029,7 +1065,8 @@ public partial class ProfileViewModel : ObservableObject
                         IsDeployed = deployedModIds.Contains(mod.Id),
                         Order = profileMod.Order,
                         BslRole = BslProfilePolicy.Role(mod),
-                        LoaderLockEnabled = lockLoaders,
+                        LoaderLockEnabled = _loaderOrderLocked,
+                        KeepLoaderGroups = _keepLoaderGroups,
                         HasLuaResources = mod.ResourceTypeIds?.Contains(0xa14e8dfa2cd117e2UL) == true,
                         ModPath = mod.Path,
                         ThumbnailPath = mod.ThumbnailPath
@@ -1577,7 +1614,7 @@ public partial class ProfileViewModel : ObservableObject
         var insertIndex = Math.Clamp(targetPosition - 1, 0, others.Count);
         Guid? anchor = insertIndex < others.Count ? others[insertIndex].ModId : null;
         // 分隔符前一组的末尾使用分隔符锚点，不能借用另一组首项的 ID。
-        if (_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true)
+        if (_loaderOrderLocked
             && moving.All(mod => mod.IsFixedGroupMember == _bottomToTop)
             && insertIndex == GetLuaGroupBoundary(others))
             anchor = Guid.Empty;
@@ -1936,7 +1973,7 @@ public partial class ProfileViewModel : ObservableObject
 
     private List<Guid> CanonicalModIds()
     {
-        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+        if (!_loaderOrderLocked)
             return ProfileMods.Select(mod => mod.ModId).ToList();
         var dependencies = ProfileMods.Where(mod => mod.BslRole == BslModRole.Dependency);
         if (_bottomToTop) dependencies = dependencies.Reverse();
@@ -1953,7 +1990,7 @@ public partial class ProfileViewModel : ObservableObject
         var expandedIds = ExpandMovingRows(ids);
         if (anchor is { } target && expandedIds.Contains(target)) return false;
         var moving = rows.Where(mod => expandedIds.Contains(mod.ModId)).ToList();
-        if (!_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true))
+        if (!_loaderOrderLocked)
             return moving.Count > 0 && moving.All(mod => mod.CanDrag)
                 && (anchor == null || rows.Any(row => row.ModId == anchor));
         if (moving.Count == 0 || moving.Any(mod => !mod.CanDrag) || moving.Select(mod => mod.IsFixedGroupMember).Distinct().Count() != 1)

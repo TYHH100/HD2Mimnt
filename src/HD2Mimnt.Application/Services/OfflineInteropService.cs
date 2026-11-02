@@ -136,7 +136,7 @@ public sealed class OfflineInteropService : IAsyncDisposable
                     item.ModId, item.Enabled, item.Order, State(ProfileModOptionResolver.ResolveEffective(
                         byId.GetValueOrDefault(item.ModId)?.Manifest, item.OptionsJson)))).ToArray(),
                 BslProfilePolicy.DeploymentSequence(profile, byId, direction,
-                    _settings.GetSetting(SettingKeys.ProfilesLockLoaders, true)).Select(item => item.ModId).ToArray())).ToArray();
+                    _settings.IsLoaderOrderLocked()).Select(item => item.ModId).ToArray())).ToArray();
             var deployments = data.Deployments
                 .Where(record => IsCurrentGame(record.GamePath))
                 .Select(ProjectDeployment).ToArray();

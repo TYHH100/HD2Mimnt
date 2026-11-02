@@ -17,7 +17,7 @@ public class ProfileService
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
     private readonly SettingsService? _settingsService;
-    private bool LoaderLockEnabled => _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
+    private bool LoaderOrderLocked => _settingsService?.IsLoaderOrderLocked() ?? true;
 
     /// <summary>同一配置的成员、选项、排序、元数据和规范化共用读改写闸门。</summary>
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
@@ -98,9 +98,9 @@ public class ProfileService
         var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToList();
         foreach (var mod in mods) await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
         var byId = mods.ToDictionary(mod => mod.Id);
-        var changed = LoaderLockEnabled && AdjustSeparatorsForLockedLoaders(profile, byId);
+        var changed = LoaderOrderLocked && AdjustSeparatorsForLockedLoaders(profile, byId);
         changed |= enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
-        return BslProfilePolicy.Normalize(profile, byId, LoaderLockEnabled) || changed;
+        return BslProfilePolicy.Normalize(profile, byId, LoaderOrderLocked) || changed;
     }
 
     private static bool AdjustSeparatorsForLockedLoaders(Profile profile, IReadOnlyDictionary<Guid, Mod> mods)
@@ -197,8 +197,8 @@ public class ProfileService
                 item.OptionsJson = ProfileModOptionResolver.ResolveEffective(mod.Manifest, item.OptionsJson).ToJson();
             }
             BslProfilePolicy.SelectLoader(profile, mods, profile.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
-            BslProfilePolicy.Normalize(profile, mods, LoaderLockEnabled);
-            var normalCount = profile.Mods.Count(item => !LoaderLockEnabled || BslProfilePolicy.Role(mods[item.ModId]) == HD2Mimnt.Core.Enums.BslModRole.None);
+            BslProfilePolicy.Normalize(profile, mods, LoaderOrderLocked);
+            var normalCount = profile.Mods.Count(item => !LoaderOrderLocked || BslProfilePolicy.Role(mods[item.ModId]) == HD2Mimnt.Core.Enums.BslModRole.None);
             foreach (var separator in profile.Separators)
             {
                 separator.ProfileId = profile.Id;
@@ -238,7 +238,7 @@ public class ProfileService
         foreach (var mod in await _modRepository.GetByIdsAsync(target.Mods.Select(item => item.ModId), cancellationToken))
             mods.TryAdd(mod.Id, mod);
         bool IsNormal(ProfileMod item) => !mods.TryGetValue(item.ModId, out var mod)
-            || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+            || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
 
         var oldNormal = target.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
         var retained = target.Mods.OrderBy(item => item.Order).Where(item => !importedIds.Contains(item.ModId)).ToList();
@@ -269,7 +269,7 @@ public class ProfileService
             target.Mods[index].Order = index;
         }
         BslProfilePolicy.SelectLoader(target, mods, incoming.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
-        BslProfilePolicy.Normalize(target, mods, LoaderLockEnabled);
+        BslProfilePolicy.Normalize(target, mods, LoaderOrderLocked);
         if (incoming.Mods.Any(item => !IsNormal(item)) || incoming.IsLuaGroupCollapsed || incoming.LuaSeparatorColor.Length > 0)
         {
             target.IsLuaGroupCollapsed = incoming.IsLuaGroupCollapsed;
@@ -464,7 +464,7 @@ public class ProfileService
                 var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                     .ToDictionary(mod => mod.Id);
                 var normal = profile.Mods.OrderBy(item => item.Order).Where(item => !mods.TryGetValue(item.ModId, out var mod)
-                    || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
+                    || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
                 foreach (var separator in profile.Separators)
                 {
                     if (separator.MemberCount != null || separator.IsCollapsed)
@@ -577,7 +577,7 @@ public class ProfileService
         var separator = separators.FirstOrDefault(item => item.Id == separatorId)
             ?? throw new InvalidOperationException("目标分组不存在");
         bool IsNormal(ProfileMod item) => !mods.TryGetValue(item.ModId, out var mod)
-            || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+            || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
         var normal = profile.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
         var movingIds = modIds.Distinct().ToHashSet();
         var moving = normal.Where(item => movingIds.Contains(item.ModId)).ToList();
@@ -820,7 +820,7 @@ public class ProfileService
             var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
             var normalIds = profile.Mods.Where(item => !mods.TryGetValue(item.ModId, out var mod)
-                || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).Select(item => item.ModId).ToHashSet();
+                || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).Select(item => item.ModId).ToHashSet();
             var separatorMap = profile.Separators.ToDictionary(item => item.Id);
             if (modIds.Count != profile.Mods.Count || modIds.Distinct().Count() != modIds.Count
                 || !modIds.ToHashSet().SetEquals(profile.Mods.Select(item => item.ModId))
@@ -833,7 +833,7 @@ public class ProfileService
 
             var modMap = profile.Mods.ToDictionary(item => item.ModId);
             for (var i = 0; i < modIds.Count; i++) modMap[modIds[i]].Order = i;
-            BslProfilePolicy.Normalize(profile, mods, LoaderLockEnabled);
+            BslProfilePolicy.Normalize(profile, mods, LoaderOrderLocked);
             if (!profile.Mods.Select(item => item.ModId).SequenceEqual(modIds))
                 throw new InvalidOperationException("该顺序会破坏 Lua 模组或加载器的固定顺序。");
 
@@ -876,7 +876,7 @@ public class ProfileService
             var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
             var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
-                || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+                || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
             var separator = new ProfileSeparator
             {
                 Id = Guid.NewGuid(), ProfileId = profileId, Name = name.Trim(),
@@ -949,7 +949,7 @@ public class ProfileService
                     var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                         .ToDictionary(mod => mod.Id);
                     var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
-                        || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+                        || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
                     separator.MemberCount = GetSeparatorMemberCount(profile, separator, normalCount);
                 }
                 separator.IsCollapsed = collapsed;

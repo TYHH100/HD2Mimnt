@@ -96,7 +96,7 @@ public class ConflictDetectionService
             : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
         var sequence = BslProfilePolicy.DeploymentSequence(profile, modsById,
             savedDirection == DeploymentOrder.BottomToTop.ToString() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom,
-            _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true);
+            _settingsService?.IsLoaderOrderLocked() ?? true);
 
         return await Task.Run(() =>
         {
