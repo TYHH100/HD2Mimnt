@@ -12,6 +12,7 @@ public class IasSystemService : IIasSystemService
 {
     private const string SystemFolder = "HD2IntegratedArmorSystem";
     private const string RuntimeFolder = "Runtime";
+    private const string ExternalRuntimeFolder = "ExternalRuntime";
     private const string RigTargetPrefix = "bin/HD2IndependentRig/";
 
     private readonly ModService _mods;
@@ -75,6 +76,15 @@ public class IasSystemService : IIasSystemService
         var saved = await GetActiveRuntimeIdAsync(token);
         var runtimeId = saved != null && ids.Contains(saved, StringComparer.OrdinalIgnoreCase) ? saved : ids[0];
         return Path.Combine(ResolveSystemRoot(location), SystemFolder, RuntimeFolder, runtimeId);
+    }
+
+    public async Task<string?> GetExternalRuntimeRootAsync(CancellationToken token = default)
+    {
+        await Task.Yield();
+        token.ThrowIfCancellationRequested();
+        var location = await GetInstallLocationAsync(token);
+        if (string.IsNullOrWhiteSpace(location)) return null;
+        return Path.Combine(ResolveSystemRoot(location), SystemFolder, ExternalRuntimeFolder);
     }
 
     private static string NormalizeLocation(string location)

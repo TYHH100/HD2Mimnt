@@ -88,6 +88,24 @@ public sealed class IasSystemServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExternalRuntimeRoot_IsSiblingOfRuntime()
+    {
+        var service = CreateService();
+        Assert.Null(await service.GetExternalRuntimeRootAsync());
+
+        var location = Path.Combine(_root, "ias");
+        Directory.CreateDirectory(Path.Combine(location, "HD2IntegratedArmorSystem", "Runtime", "rt-1"));
+        await service.SaveInstallLocationAsync(location);
+        Assert.Equal(Path.Combine(location, "HD2IntegratedArmorSystem", "ExternalRuntime"),
+            await service.GetExternalRuntimeRootAsync());
+
+        // 直接选中 HD2IntegratedArmorSystem 时同样解析到其下的 ExternalRuntime。
+        var systemDir = Path.Combine(location, "HD2IntegratedArmorSystem");
+        await service.SaveInstallLocationAsync(systemDir);
+        Assert.Equal(Path.Combine(systemDir, "ExternalRuntime"), await service.GetExternalRuntimeRootAsync());
+    }
+
+    [Fact]
     public async Task GetModelComponents_ListsRigFilesFromLibrary()
     {
         await ImportRigPack();

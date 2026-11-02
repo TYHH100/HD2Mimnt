@@ -27,6 +27,12 @@ public interface IIasSystemService
     /// </summary>
     Task<string?> GetRuntimeRootAsync(CancellationToken token = default);
 
+    /// <summary>
+    /// 解析上游外部运行资源目录（&lt;位置&gt;\HD2IntegratedArmorSystem\ExternalRuntime，
+    /// 与 Runtime 同级，内含 ArmorAssets.zip / Generator.zip）。未配置安装位置时返回 null。
+    /// </summary>
+    Task<string?> GetExternalRuntimeRootAsync(CancellationToken token = default);
+
     /// <summary>保存优先使用的 Runtime ID。</summary>
     Task SaveActiveRuntimeIdAsync(string? runtimeId, CancellationToken token = default);
 

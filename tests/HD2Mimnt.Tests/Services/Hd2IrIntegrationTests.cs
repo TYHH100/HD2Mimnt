@@ -17,6 +17,7 @@ public sealed class Hd2IrIntegrationTests : IDisposable
     private readonly DeploymentRepository _deployments;
     private readonly ModImportService _import;
     private readonly DeploymentService _deployment;
+    private readonly RecordingCompanion _companion = new();
 
     public Hd2IrIntegrationTests()
     {
@@ -25,7 +26,8 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         _db.InitializeDatabaseAsync().GetAwaiter().GetResult();
         _mods = new(_db); _profiles = new(_db); _deployments = new(_db);
         _import = new(_mods, Path.Combine(_root, "library"), tempDirectory: Path.Combine(_root, "temp"));
-        _deployment = new(_profiles, _mods, _deployments, [new CopyDeploymentMethod()]);
+        _deployment = new(_profiles, _mods, _deployments, [new CopyDeploymentMethod()],
+            iasCompanionProvider: () => _companion);
     }
 
     [Fact]
@@ -287,6 +289,66 @@ public sealed class Hd2IrIntegrationTests : IDisposable
         var latest = Assert.Single((await _deployment.GetLatestDeploymentsAsync()).ToList());
         Assert.DoesNotContain((await _deployment.GetDeploymentFilesAsync(latest.Id)).ToList(),
             file => file.TargetPath == native);
+    }
+
+    [Fact]
+    public async Task Cleanup_RegeneratesIasCompanionAndSkipsWithoutRuntime()
+    {
+        var source = CreateNestedPackage();
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var profile = await CreateProfile(id, [true, true]);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Equal(1, _companion.Regenerations.Count);
+
+        // 清理部署删掉的是游戏内补丁；上游 armor 配套必须跟着同步一次，否则 rig 留旧内容。
+        await _deployment.PreDeploymentCleanupAsync();
+        Assert.Equal(2, _companion.Regenerations.Count);
+        Assert.Empty(await _deployment.GetLatestDeploymentsAsync());
+
+        // 未配置 IAS 系统（没有 Runtime 目录）时不做无谓的生成。
+        _companion.RuntimeResolved = false;
+        await _deployment.PreDeploymentCleanupAsync();
+        Assert.Equal(2, _companion.Regenerations.Count);
+    }
+
+    [Fact]
+    public async Task IasModRemovedFromDeployment_RegeneratesCompanion()
+    {
+        var source = CreateNestedPackage();
+        var id = await _import.ImportModAsync(source, confirmHd2Ir: (_, _) => Task.CompletedTask);
+        var profile = await CreateProfile(id, [true, true]);
+        var game = Path.Combine(_root, "game"); Directory.CreateDirectory(game);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Equal(1, _companion.Regenerations.Count);
+
+        // 取消勾选后计划里已无 IAS 模组，但“当前已部署的 IAS 集合”变了，仍要重生成配套清掉 rig。
+        var stored = (await _profiles.GetByIdAsync(profile))!;
+        stored.Mods[0].Enabled = false;
+        await _profiles.UpdateAsync(stored);
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Equal(2, _companion.Regenerations.Count);
+
+        // 与 IAS 无关的再次部署不重复生成。
+        Assert.Equal(DeploymentStatus.Completed, (await Deploy(profile, game)).Status);
+        Assert.Equal(2, _companion.Regenerations.Count);
+    }
+
+    private sealed class RecordingCompanion : HD2Mimnt.Core.Interfaces.IIasCompanionService
+    {
+        public List<string?> Regenerations { get; } = [];
+        public bool RuntimeResolved { get; set; } = true;
+
+        public Task<HD2Mimnt.Core.Hd2IAS.IasCompanionStatus> GetStatusAsync(CancellationToken token = default)
+            => Task.FromResult(new HD2Mimnt.Core.Hd2IAS.IasCompanionStatus(
+                RuntimeResolved, RuntimeResolved, null, null));
+
+        public Task<HD2Mimnt.Core.Hd2IAS.IasCompanionResult> RegenerateAsync(string? gamePath,
+            IProgress<string>? progress = null, CancellationToken token = default)
+        {
+            Regenerations.Add(gamePath);
+            return Task.FromResult(new HD2Mimnt.Core.Hd2IAS.IasCompanionResult(0, 0, 0, string.Empty));
+        }
     }
 
     private string CreateNestedPackage()

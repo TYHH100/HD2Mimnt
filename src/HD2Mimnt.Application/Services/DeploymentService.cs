@@ -145,100 +145,111 @@ public class DeploymentService
         await _applyGate.WaitAsync(cancellationToken);
         try
         {
-            progress?.Report("开始 Pre-Deployment Cleanup...");
-            var gamePath = EffectiveGamePath();
-            await EnsureMigratedAsync(gamePath, cancellationToken);
-            Guid? legacySessionId = null;
-            List<DeploymentRecord> deploymentList;
-            if (gamePath != null)
-            {
-                deploymentList = (await _deploymentRepository.GetCurrentDeploymentsAsync(gamePath, cancellationToken))
-                    .ToList();
-                if (deploymentList.Count == 0)
-                {
-                    // 未迁移的旧记录没有 GamePath；只回退清理这些旧记录，绝不清理其它安装的当前状态。
-                    var latest = await GetLatestDeploymentSessionIdAsync(cancellationToken);
-                    if (latest == null)
-                    {
-                        progress?.Report("没有找到当前安装的部署记录");
-                        return (0, 0);
-                    }
-                    var legacy = (await GetDeploymentsBySessionIdAsync(latest.Value, cancellationToken))
-                        .Where(record => string.IsNullOrWhiteSpace(record.GamePath)).ToList();
-                    if (legacy.Count == 0)
-                    {
-                        progress?.Report("没有找到当前安装的部署记录");
-                        return (0, 0);
-                    }
-                    deploymentList = legacy;
-                    legacySessionId = latest;
-                }
-            }
-            else
-            {
-                legacySessionId = await GetLatestDeploymentSessionIdAsync(cancellationToken);
-                if (legacySessionId == null)
-                {
-                    progress?.Report("没有找到之前的部署记录");
-                    return (0, 0);
-                }
-                progress?.Report($"找到最近部署会话: {legacySessionId}");
-                deploymentList = (await GetDeploymentsBySessionIdAsync(legacySessionId.Value, cancellationToken)).ToList();
-                if (deploymentList.Count == 0)
-                {
-                    await CleanupDeploymentRecordsAsync(legacySessionId.Value, cancellationToken);
-                    return (0, 1);
-                }
-            }
-
-            var totalFiles = deploymentList.Sum(record => record.Files.Count);
-            var processedFiles = 0;
-            var progressClock = System.Diagnostics.Stopwatch.StartNew();
-            fileProgress?.Report(new(0, totalFiles));
-            void FileProcessed()
-            {
-                processedFiles++;
-                if (processedFiles == totalFiles || progressClock.ElapsedMilliseconds >= 100)
-                {
-                    fileProgress?.Report(new(processedFiles, totalFiles));
-                    progressClock.Restart();
-                }
-            }
-
-            var filesDeleted = 0;
-            var recordsDeleted = 0;
-            var preserved = 0;
-            var allRecordsCleaned = true;
-            foreach (var deployment in deploymentList)
-            {
-                var result = await CleanupDeploymentFilesAsync(deployment.Id, true, progress, cancellationToken,
-                    FileProcessed, preserveTargets);
-                filesDeleted += result.FilesDeleted;
-                recordsDeleted += result.RecordDeleted ? 1 : 0;
-                preserved += result.PreservedFiles;
-                allRecordsCleaned &= result.RecordDeleted;
-            }
-
-            if (legacySessionId.HasValue && allRecordsCleaned)
-            {
-                // 旧记录已逐条删除；若会话里还有其它安装的记录不能按会话整删。
-                await RecordRemovalAsync(legacySessionId.Value, null);
-            }
-            else if (gamePath != null && allRecordsCleaned)
-            {
-                foreach (var sessionId in deploymentList.Select(record => record.SessionId).Distinct())
-                    await RecordRemovalAsync(sessionId, null);
-            }
-
-            var preservedSummary = preserved > 0 ? $"，保留未变更 {preserved} 个" : string.Empty;
-            var location = legacySessionId.HasValue ? $"会话 {legacySessionId}" : $"安装 {gamePath}";
-            progress?.Report($"Pre-Deployment Cleanup 完成: {location}，删除 {filesDeleted} 个文件{preservedSummary}, {recordsDeleted} 个记录");
-            return (filesDeleted, recordsDeleted);
+            var outcome = await PreDeploymentCleanupCoreAsync(progress, cancellationToken, fileProgress, preserveTargets);
+            await SyncIasCompanionAfterCleanupAsync(progress, cancellationToken);
+            return outcome;
         }
         finally
         {
             _applyGate.Release();
         }
+    }
+
+    private async Task<(int FilesDeleted, int RecordsDeleted)> PreDeploymentCleanupCoreAsync(
+        IProgress<string>? progress,
+        CancellationToken cancellationToken,
+        IProgress<DeploymentCleanupProgress>? fileProgress,
+        IReadOnlyCollection<string>? preserveTargets)
+    {
+        progress?.Report("开始 Pre-Deployment Cleanup...");
+        var gamePath = EffectiveGamePath();
+        await EnsureMigratedAsync(gamePath, cancellationToken);
+        Guid? legacySessionId = null;
+        List<DeploymentRecord> deploymentList;
+        if (gamePath != null)
+        {
+            deploymentList = (await _deploymentRepository.GetCurrentDeploymentsAsync(gamePath, cancellationToken))
+                .ToList();
+            if (deploymentList.Count == 0)
+            {
+                // 未迁移的旧记录没有 GamePath；只回退清理这些旧记录，绝不清理其它安装的当前状态。
+                var latest = await GetLatestDeploymentSessionIdAsync(cancellationToken);
+                if (latest == null)
+                {
+                    progress?.Report("没有找到当前安装的部署记录");
+                    return (0, 0);
+                }
+                var legacy = (await GetDeploymentsBySessionIdAsync(latest.Value, cancellationToken))
+                    .Where(record => string.IsNullOrWhiteSpace(record.GamePath)).ToList();
+                if (legacy.Count == 0)
+                {
+                    progress?.Report("没有找到当前安装的部署记录");
+                    return (0, 0);
+                }
+                deploymentList = legacy;
+                legacySessionId = latest;
+            }
+        }
+        else
+        {
+            legacySessionId = await GetLatestDeploymentSessionIdAsync(cancellationToken);
+            if (legacySessionId == null)
+            {
+                progress?.Report("没有找到之前的部署记录");
+                return (0, 0);
+            }
+            progress?.Report($"找到最近部署会话: {legacySessionId}");
+            deploymentList = (await GetDeploymentsBySessionIdAsync(legacySessionId.Value, cancellationToken)).ToList();
+            if (deploymentList.Count == 0)
+            {
+                await CleanupDeploymentRecordsAsync(legacySessionId.Value, cancellationToken);
+                return (0, 1);
+            }
+        }
+
+        var totalFiles = deploymentList.Sum(record => record.Files.Count);
+        var processedFiles = 0;
+        var progressClock = System.Diagnostics.Stopwatch.StartNew();
+        fileProgress?.Report(new(0, totalFiles));
+        void FileProcessed()
+        {
+            processedFiles++;
+            if (processedFiles == totalFiles || progressClock.ElapsedMilliseconds >= 100)
+            {
+                fileProgress?.Report(new(processedFiles, totalFiles));
+                progressClock.Restart();
+            }
+        }
+
+        var filesDeleted = 0;
+        var recordsDeleted = 0;
+        var preserved = 0;
+        var allRecordsCleaned = true;
+        foreach (var deployment in deploymentList)
+        {
+            var result = await CleanupDeploymentFilesAsync(deployment.Id, true, progress, cancellationToken,
+                FileProcessed, preserveTargets);
+            filesDeleted += result.FilesDeleted;
+            recordsDeleted += result.RecordDeleted ? 1 : 0;
+            preserved += result.PreservedFiles;
+            allRecordsCleaned &= result.RecordDeleted;
+        }
+
+        if (legacySessionId.HasValue && allRecordsCleaned)
+        {
+            // 旧记录已逐条删除；若会话里还有其它安装的记录不能按会话整删。
+            await RecordRemovalAsync(legacySessionId.Value, null);
+        }
+        else if (gamePath != null && allRecordsCleaned)
+        {
+            foreach (var sessionId in deploymentList.Select(record => record.SessionId).Distinct())
+                await RecordRemovalAsync(sessionId, null);
+        }
+
+        var preservedSummary = preserved > 0 ? $"，保留未变更 {preserved} 个" : string.Empty;
+        var location = legacySessionId.HasValue ? $"会话 {legacySessionId}" : $"安装 {gamePath}";
+        progress?.Report($"Pre-Deployment Cleanup 完成: {location}，删除 {filesDeleted} 个文件{preservedSummary}, {recordsDeleted} 个记录");
+        return (filesDeleted, recordsDeleted);
     }
 
     /// <summary>
@@ -588,8 +599,9 @@ public class DeploymentService
             var trackedTargets = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
             var plan = await _planBuilder.BuildProfilePlanAsync(profile, modsById, method, order, gamePath,
                 lockLoaders, trackedTargets, cancellationToken);
+            var iasModsBefore = await DeployedIasModIdsAsync(gamePath, cancellationToken);
             var result = await ApplyPlanAsync(plan, profile, progress, targeted: false, cancellationToken);
-            await RegenerateIasCompanionAsync(plan, result, cancellationToken);
+            await RegenerateIasCompanionAsync(plan, result, iasModsBefore, cancellationToken);
             return result;
         }
         catch (OperationCanceledException)
@@ -643,8 +655,9 @@ public class DeploymentService
                 ?? DeploymentOrder.TopToBottom;
             var plan = await _planBuilder.BuildTargetedPlanAsync(effective, modId, profile, current, modsById,
                 fallbackMethod, fallbackOrder, cancellationToken);
+            var iasModsBefore = IasModIds(current);
             var result = await ApplyPlanAsync(plan, profile, progress, targeted: true, cancellationToken);
-            await RegenerateIasCompanionAsync(plan, result, cancellationToken);
+            await RegenerateIasCompanionAsync(plan, result, iasModsBefore, cancellationToken);
             return result;
         }
         catch (OperationCanceledException)
@@ -678,11 +691,15 @@ public class DeploymentService
     /// 只在结果消息中提示；取消令牌不向下传递（事务落盘阶段不可中断）。
     /// </summary>
     private async Task RegenerateIasCompanionAsync(DeploymentPlan plan, DeploymentResult result,
-        CancellationToken cancellationToken)
+        HashSet<Guid> iasModsBefore, CancellationToken cancellationToken)
     {
         var companion = _iasCompanionProvider?.Invoke();
         if (companion == null || result.Status != DeploymentStatus.Completed) return;
-        if (!plan.Mods.Any(mod => mod.Workflow == Hd2IrIntegrationService.Workflow)) return;
+        // 计划含 IAS 模组，或本次操作改变了“当前已部署的 IAS 模组集合”（取消勾选、移除、清理）都要同步；
+        // 只看计划会漏掉“IAS 模组已被移出部署”的情况，上游 rig 会留下上一次的残留。
+        var iasModsAfter = await DeployedIasModIdsAsync(plan.GamePath, cancellationToken);
+        if (plan.Mods.All(mod => mod.Workflow != Hd2IrIntegrationService.Workflow)
+            && iasModsBefore.SetEquals(iasModsAfter)) return;
         try
         {
             await companion.RegenerateAsync(plan.GamePath, null, CancellationToken.None);
@@ -693,6 +710,41 @@ public class DeploymentService
             result.Message = string.IsNullOrWhiteSpace(result.Message)
                 ? $"IAS 配套生成失败：{ex.Message}"
                 : $"{result.Message}（IAS 配套生成失败：{ex.Message}）";
+        }
+    }
+
+    /// <summary>当前安装里已部署的 IAS 模组集合，用于判断 armor 配套是否需要同步。</summary>
+    private static HashSet<Guid> IasModIds(IEnumerable<DeploymentRecord> records)
+        => records.Where(record => string.Equals(record.Workflow, Hd2IrIntegrationService.Workflow,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(record => record.ModId)
+            .ToHashSet();
+
+    private async Task<HashSet<Guid>> DeployedIasModIdsAsync(string gamePath, CancellationToken cancellationToken)
+        => IasModIds(await _deploymentRepository.GetCurrentDeploymentsAsync(gamePath, cancellationToken));
+
+    /// <summary>
+    /// 清理部署收口后同步一次上游 armor 配套：此时库索引已空，生成器据此清掉 rig 与模组派生内容，
+    /// armor 组件本体和用户个人文件按上游语义保留。未配置 IAS 系统时跳过；失败只提示，不推翻清理结果。
+    /// </summary>
+    private async Task SyncIasCompanionAfterCleanupAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        var companion = _iasCompanionProvider?.Invoke();
+        if (companion == null) return;
+        try
+        {
+            var status = await companion.GetStatusAsync(cancellationToken);
+            if (!status.RuntimeResolved) return;
+            await companion.RegenerateAsync(EffectiveGamePath(), progress, CancellationToken.None);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "清理部署后的 IAS 配套同步失败");
+            progress?.Report($"IAS 配套同步失败：{ex.Message}");
         }
     }
 

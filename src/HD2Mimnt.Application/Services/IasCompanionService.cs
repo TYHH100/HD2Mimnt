@@ -89,9 +89,8 @@ public class IasCompanionService : IIasCompanionService
             }), token);
 
             progress?.Report("IAS · 准备上游运行资源");
-            var externalRoot = Path.Combine(
-                Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(
-                    Path.TrimEndingDirectorySeparator(runtimeRoot)!))!, "ExternalRuntime");
+            var externalRoot = await _system.GetExternalRuntimeRootAsync(token)
+                ?? throw new InvalidOperationException("未配置 HD2IAS 系统安装位置，无法定位上游运行资源。");
             var assetsDir = IasGeneratorAssets.EnsureExtracted(
                 Path.Combine(externalRoot, IasGeneratorAssets.ArmorAssetsZip), _cacheRoot);
             var generatorDir = IasGeneratorAssets.EnsureExtracted(
@@ -131,32 +130,41 @@ public class IasCompanionService : IIasCompanionService
         }
     }
 
-    /// <summary>从当前部署记录收集 IAS 模组，构造 HD2ModLibrary1 条目并把 rig 文件复制进 blob 快照。</summary>
-    private async Task<List<JsonObject>> BuildLibraryIndexAsync(string gamePath, string blobsDir, CancellationToken token)
+    /// <summary>
+    /// 按部署记录里的选项快照收集 IAS 模组的 rig 文件（配置页取消勾选的组件不进配套），
+    /// 构造 HD2ModLibrary1 条目并把文件复制进 blob 快照。
+    /// </summary>
+    internal async Task<List<JsonObject>> BuildLibraryIndexAsync(string gamePath, string blobsDir, CancellationToken token)
     {
         var records = await _deployments.GetCurrentDeploymentsAsync(gamePath, token);
-        var iasModIds = records
+        var iasGroups = records
             .Where(record => string.Equals(record.Workflow, Hd2IrIntegrationService.Workflow, IgnoreCase))
-            .Select(record => record.ModId)
-            .Distinct()
+            .GroupBy(record => record.ModId)
             .ToList();
         var rows = new List<JsonObject>();
-        if (iasModIds.Count == 0) return rows;
+        if (iasGroups.Count == 0) return rows;
         var modsById = (await _mods.GetAllModsAsync(token)).ToDictionary(mod => mod.Id);
-        foreach (var modId in iasModIds)
+        foreach (var group in iasGroups)
         {
             token.ThrowIfCancellationRequested();
+            var modId = group.Key;
             if (!modsById.TryGetValue(modId, out var mod) || mod.WorkflowType != Hd2IrIntegrationService.Workflow)
                 continue;
             var bundleFiles = new JsonArray();
-            foreach (var file in await Hd2IrIntegrationService.GetNativeFilesAsync(mod, optionsJson: null, token))
+            var collected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // 同一模组可能在多个配置里各有一条当前记录：按各自快照收集后按目标去重取并集。
+            foreach (var record in group)
             {
-                var target = file.FileName.Replace('\\', '/');
-                if (!target.StartsWith("bin/HD2IndependentRig/", IgnoreCase)) continue;
-                var sha = await FileSha256Async(file.SourcePath!, token);
-                var blob = Path.Combine(blobsDir, sha);
-                if (!File.Exists(blob)) File.Copy(file.SourcePath!, blob, true);
-                bundleFiles.Add(new JsonObject { ["path"] = target, ["sha256"] = sha });
+                foreach (var file in await Hd2IrIntegrationService.GetNativeFilesAsync(mod, record.OptionsSnapshotJson, token))
+                {
+                    var target = file.FileName.Replace('\\', '/');
+                    if (!target.StartsWith("bin/HD2IndependentRig/", IgnoreCase)) continue;
+                    if (!collected.Add(target)) continue;
+                    var sha = await FileSha256Async(file.SourcePath!, token);
+                    var blob = Path.Combine(blobsDir, sha);
+                    if (!File.Exists(blob)) File.Copy(file.SourcePath!, blob, true);
+                    bundleFiles.Add(new JsonObject { ["path"] = target, ["sha256"] = sha });
+                }
             }
             var bundleId = $"sdkgroup.{modId:N}";
             rows.Add(new JsonObject
