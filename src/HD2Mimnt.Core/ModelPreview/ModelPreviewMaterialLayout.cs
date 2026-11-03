@@ -143,6 +143,7 @@ public sealed record ModelPreviewMaterialTextureSet(
             ModelPreviewTextureRole.Mask,
             ModelPreviewTextureRole.Normal,
             ModelPreviewTextureRole.NormalOcclusionRoughness,
+            ModelPreviewTextureRole.NormalRoughnessOpacity,
             ModelPreviewTextureRole.MetallicRoughnessOcclusion
         })
         {
@@ -166,6 +167,11 @@ public enum ModelPreviewTextureRole
     /// <summary>Mra：R 金属度、G 粗糙度、B 环境光遮蔽，Alpha 未使用。注意与 glTF 的 ORM
     /// 约定（R=遮蔽、G=粗糙、B=金属）顺序不同，直接套用会把金属和遮蔽颠倒。</summary>
     MetallicRoughnessOcclusion,
+
+    /// <summary>NormalXyRoughnessOpacity（玻璃/透明件常用，往往还是材质唯一的贴图输入）：
+    /// R、G 是切线空间法线 xy，B 是粗糙度，A 是不透明度。与 Nar 的区别是遮蔽换成粗糙度
+    /// 占 B，A 才是透明度，所以着色采样和通用假 alpha 回填都要按另一种布局处理。</summary>
+    NormalRoughnessOpacity,
     Mask,
     Emissive,
     Iridescence

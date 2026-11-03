@@ -212,7 +212,10 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             .OfType<ModelPreviewMaterialTextureSet>()
             .SelectMany(static textures =>
             {
-                var ids = textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness).ToList();
+                // 玻璃布局的 A 是显式不透明度，同样不能被"假 alpha 回填"当成噪声抹掉。
+                var ids = textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
+                    .Concat(textures.Get(ModelPreviewTextureRole.NormalRoughnessOpacity))
+                    .ToList();
                 if (textures.ColorAlphaIsMetallic && textures.ColorTextureId is { } metalColorId)
                     ids.Add(metalColorId);
                 return ids;
@@ -1230,7 +1233,6 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         0x7668E94B or 0xF5C97D31 or 0x2B33D35F or 0x5A3BC7C0 or
         0xCAED6CD6 or // Normal
         0x495C3189 or // NormalArray（AQ flowing）
-        0xDAB4D0EE or // NormalXyRoughnessOpacity（AQ glass）
         0x080B4D6F or // Normals（AQ reticle）
         0xDF3EE984 or // DetailNormal1
         0xE719DA57 or // DetailNormalLeather
@@ -1240,13 +1242,17 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         // NormalXyAoRoughMap 共用同一布局：R、G 是切线空间法线 xy，B 是 AO，A 是粗糙度。
         // 顺序依据 SDK 语义名词序即通道序，且实测分布一致（RG 均值 127 居中、B 高均值
         // 大变化=AO、A 低方差=粗糙度）。它的 A 绝不能当透明度用。
-        // 0xDAB4D0EE（NormalXyRoughnessOpacity）是 B=粗糙度、A=透明度，布局不同，暂留 Normal。
         0x4C567810 or // Nar
         0x1D57DCF3 => ModelPreviewTextureRole.NormalOcclusionRoughness, // NormalXyAoRoughMap
         // Mra：R 金属度、G 粗糙度、B 环境光遮蔽，与 Nar 的 B/A 分工一致但通道序不同，
         // 且与 glTF 的 ORM 约定相反；本体 5 个材质使用，多为旧版 Albedo+Normal+Mra 模板。
         // 0x85C8629F（ColorVariationMra）等变体仍按 Mask 处理，等实测后再单独拆。
         0x756F6FA6 => ModelPreviewTextureRole.MetallicRoughnessOcclusion, // Mra
+        // NormalXyRoughnessOpacity（AQ 玻璃）：R、G 法线 xy、B 粗糙度、A 不透明度。
+        // 实测 512² 样本与此一致：R/G 均值 127.5 低方差（法线居中）、B 均值 250.5 近乎恒定
+        // （粗糙度）、A 从 0 到 255 全范围（印刷/镂空的不透明度）。玻璃材质常常只绑这一张
+        // 贴图，所以它的 A 也是预览唯一可用的透明度来源。
+        0xDAB4D0EE => ModelPreviewTextureRole.NormalRoughnessOpacity, // NormalXyRoughnessOpacity
         0xE97A4617 or 0x85C8629F or 0x204EB619 or 0xE6E80465 or 0xE58FF005 or
         0xCBDE381B or // OpacityClipMap
         0xC2048121 or // Mask（AQ flowing）

@@ -25,6 +25,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         AvaloniaProperty.Register<ModelPreviewViewport, bool>(nameof(ShowGrid), true);
 
     private const float FieldOfView = MathF.PI / 4;
+    private const int PackedLayoutNormalAoRough = 1;
+    private const int PackedLayoutNormalRoughOpacity = 2;
     private const float DefaultYaw = MathF.PI + 0.45f;
     private const float DefaultPitch = 0.22f;
     private readonly List<GpuMesh> _meshes = [];
@@ -46,7 +48,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     private int _opaqueOverrideLocation;
     private int _unlitLocation;
     private int _emissiveTexturedLocation;
-    private int _normalPackedLocation;
+    private int _normalPackedLayoutLocation;
     private int _metalRoughAoTexturedLocation;
     private int _colorAlphaMetalLocation;
     private int _eyeLocation;
@@ -212,7 +214,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 api.SetMatrix(_modelLocation, _gridModel);
                 api.SetMatrix(_normalLocation, Matrix4x4.Identity);
                 gl.Uniform1i(_texturedLocation, 0);
-                gl.Uniform1i(_normalPackedLocation, 0);
+                gl.Uniform1i(_normalPackedLayoutLocation, 0);
                 gl.Uniform1i(_metalRoughAoTexturedLocation, 0);
                 gl.Uniform1i(_colorAlphaMetalLocation, 0);
                 gl.Uniform1i(_alphaPassLocation, 0);
@@ -346,7 +348,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             _opaqueOverrideLocation = gl.GetUniformLocationString(_program, "uOpaqueOverride");
             _unlitLocation = gl.GetUniformLocationString(_program, "uUnlit");
             _emissiveTexturedLocation = gl.GetUniformLocationString(_program, "uEmissiveTextured");
-            _normalPackedLocation = gl.GetUniformLocationString(_program, "uNormalPacked");
+            _normalPackedLayoutLocation = gl.GetUniformLocationString(_program, "uNormalPackedLayout");
             _metalRoughAoTexturedLocation = gl.GetUniformLocationString(_program, "uMetalRoughAoTextured");
             _colorAlphaMetalLocation = gl.GetUniformLocationString(_program, "uColorAlphaMetal");
             _eyeLocation = gl.GetUniformLocationString(_program, "uEye");
@@ -411,10 +413,23 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                         .Get(ModelPreviewTextureRole.Emissive)
                         .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
                         .FirstOrDefault(static texture => texture is not null);
-                    mesh.NormalOcclusionRoughnessTexture = source.MaterialTextures
+                    // 两种打包法线布局共用一个采样器：先按 Nar（B 遮蔽、A 粗糙度），
+                    // 再按玻璃（B 粗糙度、A 不透明度）；前者是护甲主模板，优先。
+                    mesh.PackedNormalTexture = source.MaterialTextures
                         .Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
                         .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
                         .FirstOrDefault(static texture => texture is not null);
+                    if (mesh.PackedNormalTexture is not null)
+                        mesh.PackedNormalLayout = PackedLayoutNormalAoRough;
+                    else
+                    {
+                        mesh.PackedNormalTexture = source.MaterialTextures
+                            .Get(ModelPreviewTextureRole.NormalRoughnessOpacity)
+                            .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
+                            .FirstOrDefault(static texture => texture is not null);
+                        if (mesh.PackedNormalTexture is not null)
+                            mesh.PackedNormalLayout = PackedLayoutNormalRoughOpacity;
+                    }
                     mesh.MetallicRoughnessOcclusionTexture = source.MaterialTextures
                         .Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)
                         .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
@@ -703,10 +718,10 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         gl.BindTexture(Gl.Texture2D, emissiveTextured ? mesh.EmissiveTexture!.Id : 0);
         gl.Uniform1i(_emissiveTexturedLocation, emissiveTextured ? 1 : 0);
         // 打包数据贴图只在有 UV 的网格上被解析出来，所以非空即意味着可采样。
-        var normalPacked = UseTextures && mesh.NormalOcclusionRoughnessTexture is not null;
+        var packedLayout = UseTextures ? mesh.PackedNormalLayout : 0;
         gl.ActiveTexture(Gl.Texture2);
-        gl.BindTexture(Gl.Texture2D, normalPacked ? mesh.NormalOcclusionRoughnessTexture!.Id : 0);
-        gl.Uniform1i(_normalPackedLocation, normalPacked ? 1 : 0);
+        gl.BindTexture(Gl.Texture2D, packedLayout != 0 ? mesh.PackedNormalTexture!.Id : 0);
+        gl.Uniform1i(_normalPackedLayoutLocation, packedLayout);
         var metalRoughAo = UseTextures && mesh.MetallicRoughnessOcclusionTexture is not null;
         gl.ActiveTexture(Gl.Texture3);
         gl.BindTexture(Gl.Texture2D, metalRoughAo ? mesh.MetallicRoughnessOcclusionTexture!.Id : 0);
@@ -912,8 +927,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public GpuTexture? Texture;
         public GpuTexture? EmissiveTexture;
 
-        /// <summary>Nar 类打包数据贴图：RG 法线 xy、B 遮蔽、A 粗糙度。</summary>
-        public GpuTexture? NormalOcclusionRoughnessTexture;
+        /// <summary>打包法线数据贴图，通道布局见 PackedNormalLayout。</summary>
+        public GpuTexture? PackedNormalTexture;
+
+        /// <summary>0 = 无；1 = Nar 布局（B 遮蔽、A 粗糙度）；2 = 玻璃布局（B 粗糙度、A 不透明度）。</summary>
+        public int PackedNormalLayout;
 
         /// <summary>Mra 类打包数据贴图：R 金属度、G 粗糙度、B 遮蔽。</summary>
         public GpuTexture? MetallicRoughnessOcclusionTexture;
@@ -1159,7 +1177,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         uniform sampler2D uMetalRoughAo;
         uniform int uTextured;
         uniform int uEmissiveTextured;
-        uniform int uNormalPacked;
+        uniform int uNormalPackedLayout;
         uniform int uMetalRoughAoTextured;
         uniform int uColorAlphaMetal;
         uniform int uAlphaPass;
@@ -1174,22 +1192,34 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             // BaseColorMetalMap 的金属度就在颜色贴图的 Alpha 里，必须在透明度覆盖之前取。
             float colorAlpha = color.a;
             vec3 emissive = uEmissiveTextured != 0 ? texture(uEmissive, vUv).rgb : vec3(0.0);
-            // "使用贴图透明度"关闭时带 alpha 的网格仍留在不透明基趟，此时用户语义是
-            // "忽略贴图透明度"，半透明像素必须按不透明渲染；否则基趟的 alpha 剔除
-            // 会把蕾丝/刺绣等半透明纹素挖成洞，露出底下的其他网格（实测白点噪斑）。
-            if (uOpaqueOverride == 1)
-                color.a = 1.0;
-            if (uAlphaPass == 1 && color.a < 0.999) discard;
-            if (uAlphaPass == 2 && (color.a >= 0.999 || color.a <= 0.001)) discard;
             vec3 normal = vNormal / max(length(vNormal), 0.00001);
             float occlusion = 1.0;
             float roughness = 0.6;
             float metallic = 0.0;
-            if (uNormalPacked != 0)
+            // 打包数据贴图先采样：玻璃布局（2）的 A 就是不透明度，透明度剔除必须用它，
+            // 而不是颜色贴图的 Alpha——玻璃材质往往只有这一张贴图。
+            vec4 packed = vec4(0.0, 0.0, 1.0, 1.0);
+            if (uNormalPackedLayout != 0)
+                packed = texture(uNormalAoRough, vUv);
+            float surfaceAlpha = uNormalPackedLayout == 2 ? packed.a : colorAlpha;
+            // "使用贴图透明度"关闭时带 alpha 的网格仍留在不透明基趟，此时用户语义是
+            // "忽略贴图透明度"，半透明像素必须按不透明渲染；否则基趟的 alpha 剔除
+            // 会把蕾丝/刺绣等半透明纹素挖成洞，露出底下的其他网格（实测白点噪斑）。
+            if (uOpaqueOverride == 1)
+                surfaceAlpha = 1.0;
+            if (uAlphaPass == 1 && surfaceAlpha < 0.999) discard;
+            if (uAlphaPass == 2 && (surfaceAlpha >= 0.999 || surfaceAlpha <= 0.001)) discard;
+            if (uNormalPackedLayout != 0)
             {
-                vec4 packed = texture(uNormalAoRough, vUv);
-                occlusion = packed.b;
-                roughness = packed.a;
+                if (uNormalPackedLayout == 2)
+                {
+                    roughness = packed.b;
+                }
+                else
+                {
+                    occlusion = packed.b;
+                    roughness = packed.a;
+                }
                 // RG 是切线空间法线的 xy，Z 按单位长度重建；预览顶点流没有导出切线，
                 // 所以 TBN 用位置与 UV 的屏幕导数构造（导数退化时保留原法线）。
                 vec3 dp1 = dFdx(vPosition);
@@ -1210,7 +1240,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             }
             // 金属度有两个来源：专用 Mra 打包图（R 金属、G 粗糙、B 遮蔽）优先，
             // 否则取 BaseColorMetalMap 存在颜色 Alpha 里的金属度。
-            bool hasShadingParams = uNormalPacked != 0;
+            bool hasShadingParams = uNormalPackedLayout != 0;
             if (uMetalRoughAoTextured != 0)
             {
                 vec4 mra = texture(uMetalRoughAo, vUv);
@@ -1241,7 +1271,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 vec3 specularColor = mix(vec3(0.04), color.rgb, metallic);
                 result += specularColor * shape * mix(0.08, 0.6, metallic) * (1.2 - roughness);
             }
-            fragColor = vec4(result + emissive, uAlphaPass == 2 ? color.a : 1.0);
+            fragColor = vec4(result + emissive, uAlphaPass == 2 ? surfaceAlpha : 1.0);
         }
         """;
 }

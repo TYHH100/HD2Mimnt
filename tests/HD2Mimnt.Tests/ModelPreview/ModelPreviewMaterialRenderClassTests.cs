@@ -158,6 +158,31 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
         Assert.False(result.Textures.Single(texture => texture.TextureId == clipTextureId).AlphaIsMaterialParameter);
     }
 
+    [Fact]
+    public async Task Reader_GlassPackedTexture_MarksOpacityAlpha()
+    {
+        // 玻璃材质只绑 NormalXyRoughnessOpacity 一张：A 是显式不透明度，既不能被假 alpha
+        // 回填抹掉，也不能因为"没有颜色贴图"就丢掉透明度信息。
+        const ulong glassTextureId = 0x9101;
+        const ulong materialId = 0x3333;
+        var reader = new PatchResourceInspectionService();
+        var path = CompatibilityFixture.WritePatch(_root, resources:
+        [
+            UnitWithMaterialSlot(1, materialId),
+            new CompatibilityFixture.Resource(materialId, PatchResourceTypeIds.Material, Material(
+                0x84E5DE1CC6B74ADA, // glass 族
+                (0xDAB4D0EE, glassTextureId))),
+            TextureResource(glassTextureId)
+        ]);
+
+        var result = await reader.PreviewModelAsync(new DirectoryInfo(_root), [new FileInfo(path)]);
+        Assert.Null(result.Error);
+        var mesh = Assert.Single(result.Meshes);
+        Assert.Null(mesh.ColorTextureId);
+        Assert.Equal([glassTextureId], mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalRoughnessOpacity));
+        Assert.True(result.Textures.Single(texture => texture.TextureId == glassTextureId).AlphaIsMaterialParameter);
+    }
+
     [Theory]
     [InlineData(0xD3701FC725106C09, ModelPreviewMaterialRenderClass.Emissive)]
     [InlineData(0xC6042E3403385D40, ModelPreviewMaterialRenderClass.Opaque)] // 现代护甲带自发光输入仍按受光照渲染
@@ -251,7 +276,8 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
     {
         var glass = ReadMaterialTextures(0x84E5DE1CC6B74ADA, (0xDAB4D0EE, 0x51));
         Assert.Null(glass.ColorTextureId);
-        Assert.Equal([0x51UL], glass.Get(ModelPreviewTextureRole.Normal));
+        // 玻璃材质常常只绑这一张打包图，预览的透明度也只能由它的 A 通道提供。
+        Assert.Equal([0x51UL], glass.Get(ModelPreviewTextureRole.NormalRoughnessOpacity));
 
         var flowing = ReadMaterialTextures(0x110199A9C3401242,
             (0x55C87149, 0x61), (0x001FF6D4, 0x62), (0xFBEF0214, 0x63),
@@ -287,8 +313,8 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
     // Nar 与 NormalXyAoRoughMap：R、G 法线 xy，B 遮蔽，A 粗糙度。
     [InlineData(0x4C567810, ModelPreviewTextureRole.NormalOcclusionRoughness)]
     [InlineData(0x1D57DCF3, ModelPreviewTextureRole.NormalOcclusionRoughness)]
-    // NormalXyRoughnessOpacity 的 B 是粗糙度、A 是透明度，与上者布局不同，仍按 Normal 处理。
-    [InlineData(0xDAB4D0EE, ModelPreviewTextureRole.Normal)]
+    // NormalXyRoughnessOpacity：B 是粗糙度、A 是不透明度，与 Nar 的 B/A 分工不同。
+    [InlineData(0xDAB4D0EE, ModelPreviewTextureRole.NormalRoughnessOpacity)]
     // Mra：R 金属、G 粗糙、B 遮蔽（与 glTF 的 ORM 顺序相反）。
     [InlineData(0x756F6FA6, ModelPreviewTextureRole.MetallicRoughnessOcclusion)]
     [InlineData(0x90B84A53, ModelPreviewTextureRole.Unknown)] // IlluminateData：数据图，不叠加自发光

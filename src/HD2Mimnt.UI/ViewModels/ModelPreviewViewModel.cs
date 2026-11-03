@@ -159,6 +159,7 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         // 所以不计入"贴图缺失"提示。
         var dataTextureIds = visibleMeshes
             .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
+                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalRoughnessOpacity))
                 .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)))
             .Distinct()
             .ToArray();
