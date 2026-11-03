@@ -15,8 +15,9 @@ public enum ModelPreviewMaterialRenderClass
     /// black texels contribute nothing — the closest static stand-in for the game's additive pass.</summary>
     Emissive,
 
-    /// <summary>Glass/translucent/flowing surfaces: unlit and alpha-blended even when the
-    /// color map carries no alpha channel.</summary>
+    /// <summary>Glass/translucent/flowing surfaces: alpha-blended even when the color map
+    /// carries no alpha channel (opacity usually comes from the packed normal map). Lit like
+    /// opaque geometry once packed shading data is available; only the blend pass differs.</summary>
     Translucent,
 
     /// <summary>Scope overlays and other HUD surfaces: opaque geometry rendered without lighting.</summary>

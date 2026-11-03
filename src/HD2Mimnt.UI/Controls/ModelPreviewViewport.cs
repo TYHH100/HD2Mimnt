@@ -734,7 +734,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         // 不透明渲染（开关的语义就是忽略贴图透明度），而不是被 alpha 剔除挖成洞。
         gl.Uniform1i(_opaqueOverrideLocation,
             alphaPass == 1 && UseTextures && !UseAlpha && mesh.Texture is { HasAlpha: true } ? 1 : 0);
-        gl.Uniform1i(_unlitLocation, Wireframe || mesh.RenderClass != ModelPreviewMaterialRenderClass.Opaque ? 1 : 0);
+        // 透明件现在参与光照：拿到打包法线与粗糙度后，无光照的平色玻璃会显得像贴纸。
+        // 发光面（加色趟）与瞄准镜等 HUD 面仍按无光照渲染。
+        var lit = mesh.RenderClass is ModelPreviewMaterialRenderClass.Opaque
+            or ModelPreviewMaterialRenderClass.Translucent;
+        gl.Uniform1i(_unlitLocation, Wireframe || !lit ? 1 : 0);
         DrawGeometry(gl, mesh, Wireframe, Gl.Triangles);
     }
 
