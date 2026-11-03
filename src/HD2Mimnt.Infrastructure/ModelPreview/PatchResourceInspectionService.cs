@@ -202,6 +202,21 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             unitMaterialLayouts = new Dictionary<(string PatchPath, ulong UnitId), ModelPreviewMaterialLayout>();
         }
 
+        // Nar 这类数据贴图被材质绑定后即打上"Alpha 是材质参数"标记：它的 A 通道是粗糙度，
+        // 走通用的假 alpha 回填会被抹成完全粗糙。标记挂在资源条目上，解码路径无需再判断角色。
+        var materialDataTextureIds = unitMaterialLayouts.Values
+            .SelectMany(static layout => layout.SectionsByStream.Values)
+            .SelectMany(static sections => sections)
+            .Select(static section => section.MaterialTextures)
+            .OfType<ModelPreviewMaterialTextureSet>()
+            .SelectMany(static textures => textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness))
+            .ToHashSet();
+        if (materialDataTextureIds.Count > 0)
+        {
+            foreach (var texture in result.Textures)
+                texture.AlphaIsMaterialParameter = materialDataTextureIds.Contains(texture.TextureId);
+        }
+
         var pureBlackBaseColorTextureIds = await FindPureBlackBaseColorTextureIdsAsync(
             modDirectory,
             result.Textures,
@@ -389,7 +404,9 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         cancellationToken.ThrowIfCancellationRequested();
         if (DecodePayload(payload, previewWidth, previewHeight, format) is not { } bgra)
             return null;
-        NormalizeDecodedAlpha(bgra);
+        // 数据贴图的 Alpha 是粗糙度等材质参数，回填会把它抹成 1.0。
+        if (!texture.AlphaIsMaterialParameter)
+            NormalizeDecodedAlpha(bgra);
 
         return new TexturePreviewData
         {
@@ -1198,7 +1215,6 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         // the first readable input rather than being misclassified as normal maps.
         0x7668E94B or 0xF5C97D31 or 0x2B33D35F or 0x5A3BC7C0 or
         0xCAED6CD6 or // Normal
-        0x1D57DCF3 or // NormalXyAoRoughMap
         0x495C3189 or // NormalArray（AQ flowing）
         0xDAB4D0EE or // NormalXyRoughnessOpacity（AQ glass）
         0x080B4D6F or // Normals（AQ reticle）
@@ -1206,6 +1222,13 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         0xE719DA57 or // DetailNormalLeather
         0x04FB61AD or // DetailNormalPorcelain
         0x736A0029 => ModelPreviewTextureRole.Normal, // WoundNormal
+        // Nar（护甲/角色的主数据贴图，游戏本体 216 个材质里 137 个引用）与
+        // NormalXyAoRoughMap 共用同一布局：R、G 是切线空间法线 xy，B 是 AO，A 是粗糙度。
+        // 顺序依据 SDK 语义名词序即通道序，且实测分布一致（RG 均值 127 居中、B 高均值
+        // 大变化=AO、A 低方差=粗糙度）。它的 A 绝不能当透明度用。
+        // 0xDAB4D0EE（NormalXyRoughnessOpacity）是 B=粗糙度、A=透明度，布局不同，暂留 Normal。
+        0x4C567810 or // Nar
+        0x1D57DCF3 => ModelPreviewTextureRole.NormalOcclusionRoughness, // NormalXyAoRoughMap
         0xE97A4617 or 0x85C8629F or 0x204EB619 or 0xE6E80465 or 0xE58FF005 or
         0x756F6FA6 or // Mra
         0xCBDE381B or // OpacityClipMap
@@ -1237,9 +1260,11 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         // 开启后为 255，见"油光材质"选项实测）。
         0xFF2C91CC => ModelPreviewTextureRole.Iridescence,
         // 保留 Unknown 的输入：EmissiveColor / IlluminateData 疑似调色或照明 LUT，
-        // 直接当作自发光贴图叠加会让整块表面发亮；BaseData / DecalSheet / TextureMap02 / Nar
+        // 直接当作自发光贴图叠加会让整块表面发亮；BaseData / DecalSheet / TextureMap02
         // 无法确认可见颜色作用（DecalSheet 若映射为颜色，会在 AQ cutout_scope 中抢先于
         // CompositeArray 被选中）；0x001FF6D4 在 SDK 两张哈希表中都没有名称。
+        // 0x90B84A53 在角色材质里与 Nar 成对出现（本体 137 次），实测 R=G=B 统计完全相同，
+        // 是灰度蒙版：一旦被当作颜色回退，表面会整体发灰，因此必须留在 Unknown。
         _ => ModelPreviewTextureRole.Unknown
     };
 

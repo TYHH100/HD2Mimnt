@@ -435,6 +435,11 @@ public sealed class TextureInspectionItem : System.ComponentModel.INotifyPropert
     public required int DxgiFormat { get; init; }
     public required string PayloadKind { get; init; }
     public required string PayloadSource { get; init; }
+
+    /// <summary>数据贴图（Nar 这类法线 xy + 遮蔽 + 粗糙度打包图）的 Alpha 承载的是材质
+    /// 参数而不是透明度，解码时必须跳过"假 alpha 回填不透明"。由读取器在解析材质时标记，
+    /// 随资源条目传递，调用方不需要再关心。</summary>
+    public bool AlphaIsMaterialParameter { get; set; }
     public string TextureIdText => $"0x{TextureId:X16}";
     public string SizeText => $"{Width:N0} × {Height:N0}";
     public string FormatText => PayloadKind == "PNG" ? "PNG" : $"DXGI {DxgiFormat}";

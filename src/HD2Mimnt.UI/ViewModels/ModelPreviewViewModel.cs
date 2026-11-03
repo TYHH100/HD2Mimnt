@@ -143,7 +143,8 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             ModelPreviewCharacterOrientation.GetRequiredRotation(result.Meshes)), token);
         // 除颜色贴图外同时解码自发光贴图：渲染器对任意 mesh 叠加自发光层，
         // 现代护甲的局部发光件与纯发光材质都依赖这些输入。
-        var textureIds = selection.VisibleMeshes
+        var visibleMeshes = selection.VisibleMeshes;
+        var colorAndEmissiveIds = visibleMeshes
             .SelectMany(static mesh =>
             {
                 IEnumerable<ulong> ids = mesh.MaterialTextures.Get(ModelPreviewTextureRole.Emissive);
@@ -153,11 +154,19 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             })
             .Distinct()
             .ToArray();
+        // Nar 这类打包数据贴图（法线 xy + AO + 粗糙度）与颜色贴图一起解码；它的 Alpha 由
+        // 读取器标记为材质参数，解码路径会跳过"假 alpha 回填"。缺它只影响细节质感，
+        // 所以不计入"贴图缺失"提示。
+        var dataTextureIds = visibleMeshes
+            .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness))
+            .Distinct()
+            .ToArray();
+        var textureIds = colorAndEmissiveIds.Concat(dataTextureIds).Distinct().ToArray();
         var textures = await _service.LoadTexturesAsync(source.ModId, result.Textures, textureIds, resolution, token);
         var normalized = await Task.Run(() => NormalizeTextures(textures, resolution, token), token);
         token.ThrowIfCancellationRequested();
         _result = result; _textures = normalized;
-        _missingTextureCount = textureIds.Length - normalized.Count;
+        _missingTextureCount = colorAndEmissiveIds.Count(id => !normalized.ContainsKey(id));
         _presentationTransform = GetPresentationTransform(rotation);
         Error = result.Error ?? string.Empty;
         _updatingRows = true;

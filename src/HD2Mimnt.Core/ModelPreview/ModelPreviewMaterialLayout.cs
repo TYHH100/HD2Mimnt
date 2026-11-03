@@ -150,6 +150,11 @@ public enum ModelPreviewTextureRole
     Unknown,
     BaseColor,
     Normal,
+
+    /// <summary>HD2 的 Nar / NormalXyAoRoughMap：R、G 是切线空间法线的 xy，B 是环境光遮蔽，
+    /// A 是粗糙度。通道顺序来自 SDK 语义名（词序即通道序，双分量法线占 RG），并由游戏
+    /// 本体贴图的实测分布交叉验证。它的 A 不是透明度。</summary>
+    NormalOcclusionRoughness,
     Mask,
     Emissive,
     Iridescence

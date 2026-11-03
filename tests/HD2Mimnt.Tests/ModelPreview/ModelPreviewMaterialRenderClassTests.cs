@@ -88,6 +88,34 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
         Assert.Equal([emissiveTextureId], mesh.MaterialTextures.Get(ModelPreviewTextureRole.Emissive));
     }
 
+    [Fact]
+    public async Task Reader_PackedNarBinding_MarksTextureAsMaterialParameter()
+    {
+        // Nar 的 Alpha 是粗糙度：材质绑定后资源条目必须带上"Alpha 是材质参数"标记，
+        // 否则解码按假 alpha 回填，低粗糙度材质会被抹成完全粗糙。
+        const ulong albedoTextureId = 0x1111;
+        const ulong narTextureId = 0x2222;
+        const ulong materialId = 0x3333;
+        var reader = new PatchResourceInspectionService();
+        var path = CompatibilityFixture.WritePatch(_root, resources:
+        [
+            UnitWithMaterialSlot(1, materialId),
+            new CompatibilityFixture.Resource(materialId, PatchResourceTypeIds.Material, Material(
+                0x8F669F365F24594E, // 现代角色/护甲族
+                (0xE67AC0C7, albedoTextureId), (0x4C567810, narTextureId))),
+            TextureResource(albedoTextureId),
+            TextureResource(narTextureId)
+        ]);
+
+        var result = await reader.PreviewModelAsync(new DirectoryInfo(_root), [new FileInfo(path)]);
+        Assert.Null(result.Error);
+        var mesh = Assert.Single(result.Meshes);
+        Assert.Equal(albedoTextureId, mesh.ColorTextureId);
+        Assert.Equal([narTextureId], mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness));
+        Assert.True(result.Textures.Single(texture => texture.TextureId == narTextureId).AlphaIsMaterialParameter);
+        Assert.False(result.Textures.Single(texture => texture.TextureId == albedoTextureId).AlphaIsMaterialParameter);
+    }
+
     [Theory]
     [InlineData(0xD3701FC725106C09, ModelPreviewMaterialRenderClass.Emissive)]
     [InlineData(0xC6042E3403385D40, ModelPreviewMaterialRenderClass.Opaque)] // 现代护甲带自发光输入仍按受光照渲染
@@ -191,12 +219,34 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
         Assert.Equal([0x64UL, 0x65UL], flowing.Get(ModelPreviewTextureRole.Normal));
     }
 
+    [Fact]
+    public void Reader_CharacterArmorTemplate_KeepsPackedNormalOutOfColorSlots()
+    {
+        // 本体 216 个材质里 137 个用的主模板：AlbedoEmissive + Nar + IlluminateData。
+        var textures = ReadMaterialTextures(0x8F669F365F24594E,
+            (0xE67AC0C7, 0x71), (0x4C567810, 0x72), (0x90B84A53, 0x73));
+
+        Assert.Equal(0x71UL, textures.ColorTextureId);
+        Assert.Equal([0x72UL], textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness));
+        // Nar 的 Alpha 是粗糙度：一旦进入颜色槽，预览会把它当不透明颜色图上色并参与
+        // 透明度剔除，低粗糙度区域会被整体抹平。
+        Assert.DoesNotContain(0x72UL, textures.Get(ModelPreviewTextureRole.BaseColor));
+        // IlluminateData 是灰度蒙版（实测 R=G=B），留在 Unknown：颜色槽只有一张。
+        Assert.Equal([0x71UL], textures.Get(ModelPreviewTextureRole.BaseColor));
+        Assert.Empty(textures.Get(ModelPreviewTextureRole.Emissive));
+    }
+
     [Theory]
     [InlineData(0x7CA0D044, ModelPreviewTextureRole.Mask)]    // ClearcoatRoughnessAoSpec
     [InlineData(0xA72CB013, ModelPreviewTextureRole.Mask)]    // BloodTiler
     [InlineData(0xE7BD9019, ModelPreviewTextureRole.Mask)]    // SubsurfaceOpacity
     [InlineData(0xDF3EE984, ModelPreviewTextureRole.Normal)]  // DetailNormal1
     [InlineData(0x736A0029, ModelPreviewTextureRole.Normal)]  // WoundNormal
+    // Nar 与 NormalXyAoRoughMap：R、G 法线 xy，B 遮蔽，A 粗糙度。
+    [InlineData(0x4C567810, ModelPreviewTextureRole.NormalOcclusionRoughness)]
+    [InlineData(0x1D57DCF3, ModelPreviewTextureRole.NormalOcclusionRoughness)]
+    // NormalXyRoughnessOpacity 的 B 是粗糙度、A 是透明度，与上者布局不同，仍按 Normal 处理。
+    [InlineData(0xDAB4D0EE, ModelPreviewTextureRole.Normal)]
     [InlineData(0x90B84A53, ModelPreviewTextureRole.Unknown)] // IlluminateData：数据图，不叠加自发光
     [InlineData(0xC985395A, ModelPreviewTextureRole.Unknown)] // EmissiveColor：疑似调色 LUT，避免整面发亮
     public void Reader_SdkSemanticHashes_MapToExpectedRole(
