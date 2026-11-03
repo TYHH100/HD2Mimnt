@@ -627,12 +627,15 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             api.PixelStorei(Gl.UnpackRowLength, 0);
             api.PixelStorei(Gl.UnpackSkipRows, 0);
             api.PixelStorei(Gl.UnpackSkipPixels, 0);
-            gl.TexParameteri(Gl.Texture2D, Gl.TextureMinFilter, Gl.Linear);
+            gl.TexParameteri(Gl.Texture2D, Gl.TextureMinFilter, Gl.LinearMipmapLinear);
             gl.TexParameteri(Gl.Texture2D, Gl.TextureMagFilter, Gl.Linear);
             gl.TexParameteri(Gl.Texture2D, Gl.TextureWrapS, Gl.Repeat);
             gl.TexParameteri(Gl.Texture2D, Gl.TextureWrapT, Gl.Repeat);
             WithPinned(rgba, pointer => gl.TexImage2D(Gl.Texture2D, 0, Gl.Rgba8, texture.Width,
                 texture.Height, 0, Gl.Rgba, Gl.UnsignedByte, pointer));
+            // 预览会把 4096² 贴图缩到几百像素显示，只有 level 0 时高频细节（尤其是刚接入的
+            // 法线与粗糙度）会严重走样闪烁；生成完整 mip 链后三线性过滤才读得出这些细节。
+            api.GenerateMipmap(Gl.Texture2D);
             api.ThrowIfError();
             return new GpuTexture(id, hasAlpha);
         }
@@ -956,6 +959,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         public delegate void IntPairDelegate(int name, int value);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        public delegate void IntDelegate(int value);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         public delegate void FloatDelegate(float value);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         public delegate void BlendDelegate(int sourceRgb, int destRgb, int sourceAlpha, int destAlpha);
@@ -973,6 +978,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public readonly MatrixDelegate UniformMatrix4fv;
         public readonly Vector3Delegate Uniform3f;
         public readonly IntPairDelegate PixelStorei;
+        public readonly IntDelegate GenerateMipmap;
         public readonly IntPairDelegate BlendEquationSeparate;
         public readonly FloatDelegate LineWidth;
         public readonly BlendDelegate BlendFuncSeparate;
@@ -988,6 +994,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             UniformMatrix4fv = Load<MatrixDelegate>(gl, "glUniformMatrix4fv");
             Uniform3f = Load<Vector3Delegate>(gl, "glUniform3f");
             PixelStorei = Load<IntPairDelegate>(gl, "glPixelStorei");
+            GenerateMipmap = Load<IntDelegate>(gl, "glGenerateMipmap");
             BlendEquationSeparate = Load<IntPairDelegate>(gl, "glBlendEquationSeparate");
             LineWidth = Load<FloatDelegate>(gl, "glLineWidth");
             BlendFuncSeparate = Load<BlendDelegate>(gl, "glBlendFuncSeparate");
@@ -1144,7 +1151,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public const int Float = 0x1406, UnsignedInt = 0x1405, UnsignedByte = 0x1401, Triangles = 4, Lines = 1;
         public const int Texture0 = 0x84C0, Texture1 = 0x84C1, Texture2 = 0x84C2, Texture3 = 0x84C3, Texture2D = 0x0DE1, Rgba = 0x1908, Rgba8 = 0x8058, MaxTextureSize = 0x0D33;
         public const int TextureMinFilter = 0x2801, TextureMagFilter = 0x2800, TextureWrapS = 0x2802, TextureWrapT = 0x2803;
-        public const int Linear = 0x2601, Repeat = 0x2901, UnpackAlignment = 0x0CF5, UnpackRowLength = 0x0CF2;
+        public const int Linear = 0x2601, LinearMipmapLinear = 0x2703, Repeat = 0x2901, UnpackAlignment = 0x0CF5, UnpackRowLength = 0x0CF2;
         public const int UnpackSkipRows = 0x0CF3, UnpackSkipPixels = 0x0CF4;
         public const int VertexShader = 0x8B31, FragmentShader = 0x8B30;
         public const int SrcAlpha = 0x0302, OneMinusSrcAlpha = 0x0303, One = 1;
