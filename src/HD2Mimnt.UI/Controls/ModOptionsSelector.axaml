@@ -14,9 +14,9 @@
           </Panel>
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
                      TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+          <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text" TextWrapping="Wrap"
                      IsVisible="{Binding HasDescription}"/>
         </StackPanel>
         <Border Grid.Column="2" Width="32" IsVisible="{Binding HasSubOptions}" IsHitTestVisible="False"/>
@@ -41,9 +41,9 @@
         </Border>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2"
                     Tapped="GroupCard_Tapped" Cursor="Hand">
-          <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
                      TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-          <TextBlock Text="{Binding Description}" Classes="caption-text" TextWrapping="Wrap"
+          <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text" TextWrapping="Wrap"
                      IsVisible="{Binding HasDescription}"/>
         </StackPanel>
         <Button Grid.Column="2" Classes="secondary" VerticalAlignment="Center" Content="{loc:Loc UI.Configure}"
@@ -115,9 +115,9 @@
                                       <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                      <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
                                                  ToolTip.Tip="{Binding Name}"/>
-                                      <TextBlock Text="{Binding Description}" Classes="caption-text"
+                                      <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
                                                  TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
                                     </StackPanel>
                                   </Grid>
@@ -142,7 +142,7 @@
                                  Tapped="LegacyChoice_Tapped">
                       <Border Classes="sub-choice">
                         <Grid ColumnDefinitions="*,Auto">
-                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </Grid>
                       </Border>
                     </ListBoxItem>

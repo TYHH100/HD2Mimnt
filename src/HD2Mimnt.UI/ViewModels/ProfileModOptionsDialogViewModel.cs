@@ -1,4 +1,6 @@
+using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Core.IO;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,6 +20,9 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     System.Windows.Input.ICommand IModOptionsSelection.ToggleGroupCommand => ToggleGroupCommand;
     System.Windows.Input.ICommand IModOptionsSelection.ReturnCommand => ReturnToGroupsCommand;
     private readonly ProfileViewModel _owner;
+    private readonly OptionTranslationService? _translation;
+    private readonly CancellationTokenSource _lifetimeCts = new();
+    private CancellationTokenSource? _translationCts;
 
     public ProfileModViewModel TargetMod { get; }
 
@@ -44,6 +49,18 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     [ObservableProperty]
     private ProfileModOptionGroupViewModel? _activeGroup;
 
+    [ObservableProperty]
+    private bool _isTranslating;
+
+    [ObservableProperty]
+    private string _translationStatus = string.Empty;
+
+    public bool CanTranslate => _translation != null && GetSourceTexts().Any();
+    public bool HasTranslationStatus => !string.IsNullOrWhiteSpace(TranslationStatus);
+
+    partial void OnTranslationStatusChanged(string value)
+        => OnPropertyChanged(nameof(HasTranslationStatus));
+
     public bool HasGroups => GroupCards.Count > 0;
     public bool ShowGroupList => HasGroups && !IsGroupPage;
     public bool ShowOptionList => !IsLegacyMode && !ShowGroupList;
@@ -62,10 +79,14 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
 
     public string Title => IsGroupPage ? $"{TargetMod.ModName} · {ActiveGroup!.Name}" : TargetMod.ModName;
 
-    public ProfileModOptionsDialogViewModel(ProfileViewModel owner, ProfileModViewModel targetMod)
+    public ProfileModOptionsDialogViewModel(
+        ProfileViewModel owner,
+        ProfileModViewModel targetMod,
+        OptionTranslationService? translation = null)
     {
         _owner = owner;
         TargetMod = targetMod;
+        _translation = translation;
 
         var manifest = targetMod.ManifestRef;
         var state = targetMod.StoredOptions;
@@ -404,11 +425,186 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         }
     }
 
+    /// <summary>打开弹窗后先应用本地缓存译文；失败不阻塞选项配置。</summary>
+    public async Task LoadCachedTranslationsAsync()
+    {
+        if (_translation == null) return;
+
+        var texts = GetSourceTexts().Distinct(StringComparer.Ordinal).ToArray();
+        if (texts.Length == 0) return;
+
+        try
+        {
+            var cached = await _translation.GetCachedTranslationsAsync(texts, _lifetimeCts.Token);
+            if (_disposed || cached.Count == 0) return;
+            ApplyTranslations(cached);
+            TranslationStatus = UiLocalization.Current.Format("UI.AiTranslationCacheLoaded", cached.Count);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            // 缓存读取失败不应阻止打开选项页；手动翻译时会显示具体错误。
+        }
+    }
+
+    [RelayCommand]
+    private async Task TranslateOptionsAsync()
+    {
+        if (_translation == null || IsTranslating) return;
+
+        var texts = GetSourceTexts().Distinct(StringComparer.Ordinal).ToArray();
+        if (texts.Length == 0)
+        {
+            TranslationStatus = UiLocalization.Current["UI.AiTranslationNoText"];
+            return;
+        }
+
+        IsTranslating = true;
+        TranslationStatus = UiLocalization.Current["UI.AiTranslationRunning"];
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+        _translationCts = cancellation;
+        try
+        {
+            var progress = new Progress<OptionTranslationProgress>(item =>
+            {
+                ApplyTranslation(item.Source, item.Translation);
+                if (IsTranslating)
+                {
+                    TranslationStatus = UiLocalization.Current.Format(
+                        "UI.AiTranslationProgress", item.Completed, item.Total);
+                }
+            });
+
+            var result = await _translation.TranslateAsync(
+                texts, progress: progress, cancellationToken: cancellation.Token);
+            if (_disposed) return;
+            ApplyTranslations(result.Translations);
+            TranslationStatus = result.ApiTextCount == 0
+                ? UiLocalization.Current.Format("UI.AiTranslationFromCache", result.LocalCacheHits)
+                : UiLocalization.Current.Format(
+                    "UI.AiTranslationCompleted", result.LocalCacheHits, result.ApiTextCount);
+        }
+        catch (OperationCanceledException)
+        {
+            TranslationStatus = UiLocalization.Current["UI.AiTranslationCanceled"];
+        }
+        catch (Exception ex)
+        {
+            TranslationStatus = UiLocalization.Current.Format("UI.AiTranslationFailed", ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_translationCts, cancellation))
+                _translationCts = null;
+            cancellation.Dispose();
+            IsTranslating = false;
+        }
+    }
+
+    private IEnumerable<string> GetSourceTexts()
+    {
+        foreach (var group in GroupCards)
+        {
+            yield return group.Name;
+            yield return group.Description;
+        }
+
+        foreach (var card in OptionCards)
+        {
+            yield return card.Name;
+            yield return card.Description;
+            foreach (var sub in card.SubOptions)
+            {
+                yield return sub.Name;
+                yield return sub.Description;
+            }
+        }
+
+        foreach (var choice in LegacyChoices)
+            yield return choice.Name;
+    }
+
+    private void ApplyTranslations(IReadOnlyDictionary<string, string> translations)
+    {
+        foreach (var group in GroupCards)
+        {
+            translations.TryGetValue(group.Name, out var name);
+            translations.TryGetValue(group.Description, out var description);
+            group.SetTranslation(name, description);
+        }
+
+        foreach (var card in OptionCards)
+        {
+            translations.TryGetValue(card.Name, out var name);
+            translations.TryGetValue(card.Description, out var description);
+            card.SetTranslation(name, description);
+            foreach (var sub in card.SubOptions)
+            {
+                translations.TryGetValue(sub.Name, out var subName);
+                translations.TryGetValue(sub.Description, out var subDescription);
+                sub.SetTranslation(subName, subDescription);
+            }
+        }
+
+        foreach (var choice in LegacyChoices)
+        {
+            translations.TryGetValue(choice.Name, out var name);
+            choice.SetTranslation(name);
+        }
+    }
+
+    /// <summary>进度回调只更新命中的那一条，避免整表重建导致图片等状态抖动。</summary>
+    private void ApplyTranslation(string source, string translation)
+    {
+        foreach (var group in GroupCards)
+        {
+            if (string.Equals(group.Name, source, StringComparison.Ordinal) ||
+                string.Equals(group.Description, source, StringComparison.Ordinal))
+            {
+                group.SetTranslation(
+                    string.Equals(group.Name, source, StringComparison.Ordinal) ? translation : group.TranslatedName,
+                    string.Equals(group.Description, source, StringComparison.Ordinal) ? translation : group.TranslatedDescription);
+            }
+        }
+
+        foreach (var card in OptionCards)
+        {
+            if (string.Equals(card.Name, source, StringComparison.Ordinal) ||
+                string.Equals(card.Description, source, StringComparison.Ordinal))
+            {
+                card.SetTranslation(
+                    string.Equals(card.Name, source, StringComparison.Ordinal) ? translation : card.TranslatedName,
+                    string.Equals(card.Description, source, StringComparison.Ordinal) ? translation : card.TranslatedDescription);
+            }
+
+            foreach (var sub in card.SubOptions)
+            {
+                if (string.Equals(sub.Name, source, StringComparison.Ordinal) ||
+                    string.Equals(sub.Description, source, StringComparison.Ordinal))
+                {
+                    sub.SetTranslation(
+                        string.Equals(sub.Name, source, StringComparison.Ordinal) ? translation : sub.TranslatedName,
+                        string.Equals(sub.Description, source, StringComparison.Ordinal) ? translation : sub.TranslatedDescription);
+                }
+            }
+        }
+
+        foreach (var choice in LegacyChoices)
+        {
+            if (string.Equals(choice.Name, source, StringComparison.Ordinal))
+                choice.SetTranslation(translation);
+        }
+    }
+
     /// <summary>关闭弹窗后释放本弹窗解码的预览图（含按需解码的原图），避免反复打开累积原生位图内存。</summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _lifetimeCts.Cancel();
+        _translationCts?.Cancel();
         CancelOriginalPreviewLoad();
         ReleaseOriginalPreview();
 

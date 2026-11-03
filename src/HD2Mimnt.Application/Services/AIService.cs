@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -80,6 +81,56 @@ public class AIService : IAIService
         };
 
         return await provider.SendRequestAsync(context, cancellationToken);
+    }
+
+    public async Task<AIBatchTranslationResult> TranslateBatchAsync(
+        IReadOnlyList<string> texts,
+        string targetLanguage,
+        CancellationToken cancellationToken = default)
+    {
+        var distinct = texts
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (distinct.Length == 0)
+        {
+            return new AIBatchTranslationResult { Success = true };
+        }
+
+        var provider = await GetActiveProviderOrFail(cancellationToken);
+        if (provider == null)
+        {
+            return new AIBatchTranslationResult { Error = "未配置 AI 服务，请先在设置中配置。" };
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            items = distinct.Select((text, id) => new { id, text })
+        });
+        var context = new AIAnalysisContext
+        {
+            ContextType = AIContextType.BatchTranslation,
+            TargetLanguage = targetLanguage,
+            Data = new Dictionary<string, string> { ["items"] = payload }
+        };
+
+        var response = await provider.SendRequestAsync(context, cancellationToken);
+        if (!response.Success)
+        {
+            return new AIBatchTranslationResult { Error = response.Error ?? "AI 请求失败" };
+        }
+
+        if (!TranslationResponseParser.TryParse(response.Content, distinct, out var translations, out var parseError))
+        {
+            return new AIBatchTranslationResult { Error = parseError };
+        }
+
+        return new AIBatchTranslationResult
+        {
+            Success = true,
+            Translations = translations,
+            TokensUsed = response.TokensUsed
+        };
     }
 
     public async Task<AIResponse> AnalyzeModAsync(string modId, CancellationToken cancellationToken = default)
@@ -293,7 +344,8 @@ public class AIService : IAIService
             AIProviderType.OpenAI => new OpenAIProvider(config, _openAILogger),
             AIProviderType.Claude => new ClaudeProvider(config, _claudeLogger),
             AIProviderType.LocalLLM => new LocalLLMProvider(config, _localLLMLogger),
-            AIProviderType.Custom => new LocalLLMProvider(config, _localLLMLogger), // Treat custom as local LLM format
+            // 自定义端点通常兼容 OpenAI Chat Completions；Ollama 专用格式只留给 LocalLLM。
+            AIProviderType.Custom => new OpenAIProvider(config, _openAILogger),
             _ => throw new NotSupportedException($"AI provider type not supported: {config.Type}")
         };
     }

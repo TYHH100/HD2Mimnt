@@ -8,7 +8,18 @@ public partial class ProfileModLegacyChoiceViewModel : ObservableObject
     private string _name = string.Empty;
 
     [ObservableProperty]
+    private string? _translatedName;
+
+    [ObservableProperty]
     private bool _isSelected;
+
+    public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnTranslatedNameChanged(string? value) => OnPropertyChanged(nameof(DisplayName));
+
+    public void SetTranslation(string? name) =>
+        TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
 }
 
 public partial class LibraryModChoiceViewModel : ObservableObject

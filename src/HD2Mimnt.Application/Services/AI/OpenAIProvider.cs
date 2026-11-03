@@ -102,8 +102,23 @@ public class OpenAIProvider : IAIProvider
             }
 
             var responseJson = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-            var content = responseJson.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
-            var tokensUsed = responseJson.GetProperty("usage").GetProperty("total_tokens").GetInt32();
+            if (!responseJson.TryGetProperty("choices", out var choices)
+                || choices.ValueKind != JsonValueKind.Array
+                || choices.GetArrayLength() == 0
+                || !choices[0].TryGetProperty("message", out var message)
+                || !message.TryGetProperty("content", out var contentProperty)
+                || contentProperty.ValueKind != JsonValueKind.String)
+            {
+                return new AIResponse { Success = false, Error = "AI 返回格式不是 Chat Completions 格式。" };
+            }
+
+            var content = contentProperty.GetString() ?? string.Empty;
+            // 兼容部分不返回 usage 的 OpenAI 兼容网关。
+            var tokensUsed = responseJson.TryGetProperty("usage", out var usage)
+                && usage.TryGetProperty("total_tokens", out var totalTokens)
+                && totalTokens.TryGetInt32(out var tokens)
+                    ? tokens
+                    : 0;
 
             return new AIResponse
             {
@@ -111,6 +126,10 @@ public class OpenAIProvider : IAIProvider
                 Content = content,
                 TokensUsed = tokensUsed
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -128,6 +147,7 @@ public class OpenAIProvider : IAIProvider
         return context.ContextType switch
         {
             AIContextType.Translation => BuildTranslationPrompt(context),
+            AIContextType.BatchTranslation => BuildBatchTranslationPrompt(context),
             AIContextType.ModAnalysis => BuildModAnalysisPrompt(context),
             AIContextType.LogExplanation => BuildLogExplanationPrompt(context),
             AIContextType.ChangelogSummary => BuildChangelogSummaryPrompt(context),
@@ -148,6 +168,20 @@ Preserve markdown formatting.
 
 Text:
 {text}";
+    }
+
+    private static string BuildBatchTranslationPrompt(AIAnalysisContext context)
+    {
+        var items = context.Data.GetValueOrDefault("items", "{\"items\":[]}");
+        var targetLang = context.TargetLanguage ?? "en";
+
+        return $@"Translate every items[].text into {targetLang}.
+Return one compact JSON object per line using exactly {{""id"":0,""text"":""translation""}}.
+Keep every input id exactly once and in order. Preserve placeholders, file paths, IDs, and line breaks.
+Escape line breaks inside text as \\n. Do not return a JSON array, explanations, or markdown fences.
+
+Input:
+{items}";
     }
 
     private static string BuildModAnalysisPrompt(AIAnalysisContext context)

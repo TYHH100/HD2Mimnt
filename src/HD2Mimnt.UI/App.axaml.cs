@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Application.Localization;
 using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
@@ -264,6 +265,9 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginExecutionRepository, PluginExecutionRepository>();
         services.AddSingleton<IPlatformCredentialStore, PlatformCredentialStore>();
         services.AddSingleton<IPluginHostManager, PluginHostManager>();
+        services.AddSingleton<IAIProviderConfigRepository, AIProviderConfigRepository>();
+        services.AddSingleton<IAIService, AIService>();
+        services.AddSingleton<OptionTranslationService>();
 
         // 图片服务
         services.AddSingleton<IImageCacheService>(sp =>
@@ -520,7 +524,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
+            sp.GetRequiredService<OptionTranslationService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -536,7 +541,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
-            sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>()));
+            sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>(),
+            sp.GetRequiredService<AiTranslationSettingsViewModel>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>(),
             sp.GetRequiredService<IConfirmationService>()));
@@ -546,6 +552,10 @@ public partial class App : Avalonia.Application
         services.AddTransient(sp => new PluginManagementViewModel(
             sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<ConfirmationService>()));
+        services.AddTransient(sp => new AiTranslationSettingsViewModel(
+            sp.GetRequiredService<IAIService>(),
+            sp.GetRequiredService<IAIProviderConfigRepository>(),
+            sp.GetRequiredService<SettingsService>()));
         services.AddTransient(sp => new BackupViewModel(
             sp.GetRequiredService<BackupService>(),
             sp.GetRequiredService<ConfirmationService>(),

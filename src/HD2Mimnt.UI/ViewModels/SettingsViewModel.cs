@@ -116,12 +116,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsDownloadCategoryVisible => IsSectionVisible("下载");
     public bool IsStorageCategoryVisible => IsSectionVisible("存储位置");
     public bool IsAccountCategoryVisible => IsSectionVisible("账号");
+    public bool IsAiCategoryVisible => IsSectionVisible("AI 翻译");
+    public AiTranslationSettingsViewModel? AiTranslation { get; }
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         DownloadSettingsService? downloadSettings = null, UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
-        IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null)
+        IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null,
+        AiTranslationSettingsViewModel? aiTranslation = null)
     {
+        AiTranslation = aiTranslation;
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -232,6 +236,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
+        OnPropertyChanged(nameof(IsAiCategoryVisible));
         OnPropertyChanged(nameof(IsEntriesCategoryVisible));
     }
 
@@ -294,6 +299,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadMaxRetries = downloads.MaxRetries;
             DownloadRetryDelayMs = (int)downloads.RetryDelay.TotalMilliseconds;
             DownloadEnableResume = downloads.EnableResume;
+            if (AiTranslation != null) await AiTranslation.LoadAsync();
             RefreshCacheStatus();
             StatusMessage = "设置已加载";
         }
@@ -313,6 +319,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
             if (category == "账号") return;
+            if (category == "AI 翻译")
+            {
+                if (AiTranslation == null)
+                {
+                    StatusMessage = "AI 设置未初始化";
+                    return;
+                }
+
+                if (!await AiTranslation.SaveAsync())
+                {
+                    StatusMessage = AiTranslation.StatusMessage;
+                    _notificationService.ShowError(StatusMessage, "设置");
+                    return;
+                }
+
+                StatusMessage = AiTranslation.StatusMessage;
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             if (category == "入口自定义")
             {
                 await SaveEntryVisibilityAsync();
@@ -496,6 +521,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var category = SelectedCategory;
         if (category == "账号") return;
+        if (category == "AI 翻译")
+        {
+            if (AiTranslation != null)
+            {
+                await AiTranslation.ResetAsync();
+                StatusMessage = AiTranslation.StatusMessage;
+            }
+            return;
+        }
         if (category == "入口自定义")
         {
             await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, Array.Empty<string>());

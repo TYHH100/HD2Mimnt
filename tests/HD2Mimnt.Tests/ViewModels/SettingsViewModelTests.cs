@@ -152,7 +152,7 @@ public sealed class SettingsViewModelTests : IDisposable
     public async Task MergedCategories_ShouldKeepSectionVisibilityAndLegacyEntryIds()
     {
         using var vm = CreateViewModel("invalid-game-path");
-        Assert.Equal(10, vm.SettingsCategories.Count());
+        Assert.Equal(11, vm.SettingsCategories.Count());
         foreach (var (previous, current) in new[] { ("部署", "配置文件"), ("搜索", "模组库"), ("缓存", "存储位置") })
         {
             Assert.DoesNotContain(previous, vm.SettingsCategories);

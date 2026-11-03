@@ -225,6 +225,36 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchPinyinToggle" IsChecked="{Binding SearchPinyin}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="AiTranslationSettings" Header="{loc:Loc Settings.AiTranslation.Title}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAiCategoryVisible}" Description="{loc:Loc Settings.AiTranslation.Help}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Provider}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox Width="200" ItemsSource="{Binding AiTranslation.ProviderTypes}" SelectedItem="{Binding AiTranslation.ProviderType}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Endpoint}">
+            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" Text="{Binding AiTranslation.Endpoint, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Model}">
+            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" Text="{Binding AiTranslation.Model, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.ApiKey}" Description="{Binding AiTranslation.ApiKeyHint}">
+            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" PasswordChar="●" Text="{Binding AiTranslation.ApiKey, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.TargetLanguage}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox Width="200" ItemsSource="{Binding AiTranslation.TargetLanguages}" SelectedItem="{Binding AiTranslation.SelectedTargetLanguage}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AiTargetLanguageChoice"><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{loc:Loc Settings.AiTranslation.Test}" Command="{Binding AiTranslation.TestCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+                <TextBlock Text="{Binding AiTranslation.StatusMessage}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock Text="{loc:Loc Settings.AiTranslation.SaveHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Downloads}" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="{loc:Loc UI.SavedChangesApplyToNewOrRetriedDownloads}">
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>

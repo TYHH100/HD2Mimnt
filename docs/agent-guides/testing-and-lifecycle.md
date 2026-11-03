@@ -85,3 +85,6 @@
 - 平台兼容警告（CA1416）由 `Directory.Build.props` 统一注入的程序集级 `SupportedOSPlatform("windows")` 治理——本应用仅面向 Windows，新的跨平台边界才需要单独处理；警告基线为 0，提交前保持 `dotnet build` 0 警告。
 
 - UITests 合并运行的 "Cannot get KeyValueStorage on the idle test context" 级联：机制是测试遗留延迟工作（window.Close 级联、未到期定时器）在 xUnit v3 idle 上下文执行并毒化 headless 宿主，且 xUnit 把上一测试的清理失败记到下一测试头上；`UiScope.DisposeAsync` 的 RunJobs 排空可消除确定性触发，但未到期任务仍偶发，新增 UI 测试应在断言完成后排空 dispatcher 并确保后台服务可释放。根治需 Avalonia.Headless.XUnit/xunit.v3 上游修复。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless.XUnit/AvaloniaTestRunner.cs
+
+- 单文件发布只作用于当前项目：被引用的 `PluginHost`/`Worker` 独立进程拿到的是 apphost，其托管依赖已被打进主程序单文件包，子进程看不到，发布版会以 `FileNotFoundException` 启动失败。正确做法是让每个子进程项目各自按“框架依赖单文件”发布，只把生成的 exe 作为 `ExcludeFromSingleFile` 项复制到发布目录；原生库与内容目录由主项目发布目录提供。不要只复制 `$(OutDir)` 里的 `子项目.*`。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
+- 给发布流程挂钩子时不要依赖 `GenerateSingleFileBundle`：产物已最新时该目标会整体跳过，挂在其上的 `BeforeTargets` 不会执行。需要修改 `ResolvedFileToPublish` 时挂到每次发布都会运行、且排在待发布列表计算之后的 `GeneratePublishDependencyFile`，并按 `RelativePath` 而不是 `Filename` 匹配项目引用产生的 apphost。来源：https://learn.microsoft.com/visualstudio/msbuild/target-build-order

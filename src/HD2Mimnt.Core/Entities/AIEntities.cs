@@ -90,6 +90,21 @@ public class AIAnalysisContext
 }
 
 /// <summary>
+/// Result of a batch translation request
+/// </summary>
+public sealed class AIBatchTranslationResult
+{
+    public bool Success { get; init; }
+
+    public IReadOnlyDictionary<string, string> Translations { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    public string? Error { get; init; }
+
+    public int TokensUsed { get; init; }
+}
+
+/// <summary>
 /// AI response
 /// </summary>
 public class AIResponse

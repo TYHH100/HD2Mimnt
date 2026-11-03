@@ -554,9 +554,19 @@
           <!-- 底部 -->
           <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Classes="caption-text" TextWrapping="Wrap" VerticalAlignment="Center" MaxWidth="460"
-                         Text="{loc:Loc UI.UncheckedOptionsAreExcludedFromDeploymentOptionsWithVariantsDeployOnly}"/>
+              <StackPanel Spacing="4" VerticalAlignment="Center" MaxWidth="460">
+                <TextBlock Classes="caption-text" TextWrapping="Wrap"
+                           Text="{loc:Loc UI.UncheckedOptionsAreExcludedFromDeploymentOptionsWithVariantsDeployOnly}"/>
+                <TextBlock Classes="caption-text" TextWrapping="Wrap"
+                           Text="{Binding ModOptionsDialog.TranslationStatus}"
+                           IsVisible="{Binding ModOptionsDialog.HasTranslationStatus}"/>
+              </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button x:Name="ModOptionsTranslateButton" Classes="secondary"
+                        Command="{Binding ModOptionsDialog.TranslateOptionsCommand}"
+                        IsVisible="{Binding ModOptionsDialog.CanTranslate}"
+                        IsEnabled="{Binding !ModOptionsDialog.IsTranslating}"
+                        Content="{loc:Loc UI.AiTranslateOptions}"/>
                 <Button x:Name="ModOptionsSaveAndReturnButton" Classes="secondary"
                         Command="{Binding ModOptionsDialog.ReturnToGroupsCommand}"
                         IsVisible="{Binding ModOptionsDialog.IsGroupPage}"

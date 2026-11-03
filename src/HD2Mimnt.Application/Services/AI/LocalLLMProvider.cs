@@ -113,6 +113,10 @@ public class LocalLLMProvider : IAIProvider
                 TokensUsed = tokensUsed
             };
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Local LLM request failed");
@@ -129,6 +133,7 @@ public class LocalLLMProvider : IAIProvider
         return context.ContextType switch
         {
             AIContextType.Translation => BuildTranslationPrompt(context),
+            AIContextType.BatchTranslation => BuildBatchTranslationPrompt(context),
             AIContextType.ModAnalysis => BuildModAnalysisPrompt(context),
             AIContextType.LogExplanation => BuildLogExplanationPrompt(context),
             AIContextType.ChangelogSummary => BuildChangelogSummaryPrompt(context),
@@ -149,6 +154,20 @@ Preserve markdown formatting.
 
 Text:
 {text}";
+    }
+
+    private static string BuildBatchTranslationPrompt(AIAnalysisContext context)
+    {
+        var items = context.Data.GetValueOrDefault("items", "{\"items\":[]}");
+        var targetLang = context.TargetLanguage ?? "en";
+
+        return $@"Translate every items[].text into {targetLang}.
+Return one compact JSON object per line using exactly {{""id"":0,""text"":""translation""}}.
+Keep every input id exactly once and in order. Preserve placeholders, file paths, IDs, and line breaks.
+Escape line breaks inside text as \\n. Do not return a JSON array, explanations, or markdown fences.
+
+Input:
+{items}";
     }
 
     private static string BuildModAnalysisPrompt(AIAnalysisContext context)

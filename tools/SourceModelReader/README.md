@@ -1,0 +1,279 @@
+# Source Model Reader (alpha 0.8.1)
+
+A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
+
+## What 0.8.1 adds — HD2 package catalog and resource discovery
+
+- Keeps the read-only `hd2-inspect` command for one legacy/DSAR/SLIM package.
+- Adds `hd2-catalog`, which scans all SLIM package TOC headers and resource-type tables to find packages containing Unit, Bones, and CompositeUnit resources.
+- Catalog scanning reads only package metadata ranges; it does not rebuild complete GPU/stream sidecars or load every resource payload.
+- Adds bounded `SlimBundleIndex.reconstruct_range` for partial reads across DSAR bundle chunks.
+- Expands resource type names using the public SDK type-ID table, retaining unknown IDs rather than discarding them.
+- Keeps Unit header, material ID and Bones metadata inspection for individual candidate packages.
+- Does **not** modify game data, write a Patch, decode GPU vertex streams, resolve global Unit dependencies, or reconstruct meshes yet.
+
+First, scan the installed game's complete SLIM package catalog. This is the recommended starting point; the base archive alone is not a representative armor sample:
+
+```powershell
+py -3 source_model_reader.py hd2-catalog "D:\SteamLibrary\steamapps\common\HELLDIVERS 2\data" --json "hd2_package_catalog.json"
+```
+
+The catalog reports packages with Unit, Bones and CompositeUnit resources. It reads TOC type tables only and skips GPU/stream sidecar reconstruction. To limit a diagnostic run, add `--max-packages 100`.
+
+Then inspect one candidate archive/package by its package name or 16-character archive ID:
+
+```powershell
+py -3 source_model_reader.py hd2-inspect "D:\SteamLibrary\steamapps\common\HELLDIVERS 2\data" --package "<candidate_package>" --json "candidate_inventory.json"
+```
+
+A standalone legacy/DSAR package can also be passed directly:
+
+```powershell
+py -3 source_model_reader.py hd2-inspect "D:\HD2Extracted\<candidate_package>"
+```
+
+`hd2-inspect` examines exactly one package. When the input is a game data directory and `--package` is omitted, it defaults to `9ba626afa44a3aa3`; this is a base package, not a scan of the whole game. Use `hd2-catalog` to discover model-bearing archives first.
+
+The output deliberately says **“not present in this package”**, not “missing from the game”: resource dependencies can be stored in other archives. For a SLIM install, `bundles.nxa`, `bundles.XX.nxa`, and the sidecar package entries must be present in the game `data` directory.
+
+## Previous milestone — 0.7.0 SMD animation export
+
+- Reads multi-frame SMD skeleton transforms as time-indexed local bone tracks.
+- Requires an explicit `--fps`; SMD frame indices are not assumed to encode a frame rate.
+- Maps SMD node names and parent names to the compiled MDL skeleton and rejects ambiguous/mismatched hierarchies.
+- Exports the unified character mesh, shared skin, and one animation clip into the same GLB file.
+- Preserves source frame indices and FPS in GLB animation `extras` and the companion JSON report.
+- Keeps sparse tracks sparse: missing transforms are never synthesized. In `auto` mode, dense tracks use `LINEAR` and sparse tracks use `STEP`; choose an explicit interpolation mode to override this policy. Tracks unchanged and equal to the GLB rest transform are omitted to reduce redundant channels.
+- Extends `validate-glb` to validate animation sampler accessors, time ordering, output types/counts, target nodes/paths, duplicate targets, finite values, and rotation quaternion normalization.
+
+Example:
+
+```powershell
+py -3 source_model_reader.py export-animated-glb "D:\Models\addon.gma" --model "aes_yz_pm.mdl" --animation "D:\Models\decompiled\aes_yz_pm_anims\idle_all_01.smd" --fps 30 -o "D:\Export\aes_yz_pm_idle.glb"
+py -3 source_model_reader.py validate-glb "D:\Export\aes_yz_pm_idle.glb"
+```
+
+For an end-to-end smoke test against the sample AES model, use the included **synthetic** 255-bone clip (it is not an original Workshop animation):
+
+```powershell
+py -3 source_model_reader.py export-animated-glb "D:\Models\gmpublisher.gma" --model aes_yz_pm.mdl --animation "examples\animation_fixture\synthetic_arm_pose.smd" --fps 30 -o "synthetic_arm_pose.glb"
+py -3 source_model_reader.py validate-glb "synthetic_arm_pose.glb"
+```
+
+`--fps` is mandatory and must be supplied from known QC/project settings or a trusted source. The tool does not infer it; replace the example `30` with the actual `$sequence` FPS from your QC or project settings. The exporter currently supports ordinary multi-frame animation SMDs; single-pose references, ragdoll poses, proportion/corrective animation semantics, procedural bones, controllers, IK, flexes, and Source runtime animation behaviors are not retargeted. Sparse per-bone records are represented as explicit keys only; `auto` chooses `STEP` for sparse tracks as a conservative glTF playback policy, not a claim about every Source runtime's interpolation semantics. Tracks whose explicit values all equal the target model's GLB rest transform are elided; constant offsets that differ from rest are retained. Validate actual motion in Blender before treating the clip as production-ready.
+
+## Previous milestones retained (0.6.2 and earlier)
+
+- Separates structural parse warnings from informational sparse-frame coverage for animation, proportion, corrective-animation, animation-reference, and ragdoll SMDs.
+- Keeps omitted transforms in model/reference slices and empty animation frames as warnings; undefined bone IDs remain warnings for every SMD type.
+- Reports per-frame declared, explicit, omitted, and unknown transform counts plus coverage ratios. Missing transforms are not synthesized or assumed to inherit a previous frame.
+- Adds a sparse corrective-animation regression matching the observed `1 / 255` transform-record pattern; the overall audit remains `OK` with an informational note.
+- Adds `ROADMAP.md` with milestone goals through 1.0.0 and the HD2 target-resource workstream.
+
+## What 0.6.1 adds
+
+- Classifies common SMD roles: model slices, physics geometry, animation, proportion adjustment, corrective animation, animation reference, ragdoll pose, and unknown.
+- Keeps skeleton node/name/parent checks active for every SMD type, but compares bind/reference poses only between ordinary model slices.
+- Prevents animation frame 0 from being misreported as a bind-pose mismatch. The same policy applies to SMD-to-MDL pose checks.
+- Automatically prefers `AES_T.smd` as the base character slice when present; otherwise selects the first classified model slice. Explicit `--reference` remains available.
+- Reports pose checks as `compared` or `skipped` separately from skeleton structure status, and adds SMD type counts to JSON/console output.
+
+## What 0.6.0 adds
+
+- Reads SMD `nodes` and `skeleton` sections, including multiple pose frames.
+- Audits hierarchy, node IDs/names, parent references, reference-pose transforms, and cross-slice consistency.
+- Compares slices by bone name and parent name; reports numeric node-ID remaps separately.
+- Optionally maps raw SMD skeletons to an MDL bone table by name.
+- Scans SMD files directly from folders, ZIP, or uncompressed GMA archives without extraction.
+
+
+- Reads MDL v48, VVD v4, and VTX v7 (DX90 or DX80).
+- Opens a direct `.mdl`, a model folder, a `.zip` archive, or an uncompressed `.gma` archive directly.
+- Reads GMA members in place; it does not unpack the archive to disk.
+- Checks MDL/VVD/VTX checksums and GMA member CRC32 values.
+- Lists bones, materials, BodyGroups, model options, and mesh metadata.
+- Reconstructs triangle topology from VTX strip/stripgroup indices and maps it to VVD vertices.
+- Builds an internal unified scene with one skeleton, a shared vertex pool, and material-separated primitives.
+- Exports a skinned GLB with positions, normals, UV0, up to three source bone influences (stored in glTF's four-slot attributes), inverse bind matrices, and a unified BodyGroup selection.
+- Converts Source's Z-up coordinate basis to glTF's Y-up basis.
+- Validates the rest-pose skeleton against Source `poseToBone` matrices during scene construction.
+- Retains SMD export as a compatibility option.
+- Writes a companion `.report.json` beside each export.
+- Diagnoses MDL bone definitions separately from the bone indices directly referenced by selected geometry vertex weights; it does not infer semantic/runtime bone roles from weight usage.
+- Adds `bone-matrix` to compare weight-referenced bone dependencies for every BodyGroup option against the all-default configuration, including added and removed bone indices/names.
+- Exports a detailed machine-readable diagnosis JSON containing the complete bone table and all BodyGroup model options.
+- Independently validates an exported GLB container, buffer/accessor ranges, primitive indices, Skin joints, inverse-bind matrices, and normalized skin weights.
+
+## BodyGroup/Bone dependency matrix (0.5.0)
+
+Run a full per-option scan:
+
+```powershell
+py -3 source_model_reader.py bone-matrix "D:\Models\addon.gma" --model "aes_yz_pm.mdl" --json "D:\Export\bone_matrix.json"
+```
+
+The command first measures the all-default BodyGroup selection. It then selects each option one at a time while keeping every other BodyGroup at option 0. For each option it reports geometry coverage, unique bone definitions referenced by positive vertex weights, and the added/removed bone-index sets relative to the all-default selection.
+
+This is a **weight-reference dependency matrix**, not a complete runtime dependency analysis. It cannot infer animation, procedural/jiggle-bone, physics, attachment, or engine-side requirements. An MDL bone definition that is not referenced by the current mesh weights must not be assumed to be useless or safe to delete. SMD source slices may each carry the complete node/skeleton definition even when their triangles use only a subset of that skeleton.
+
+Example shape of the real sample result:
+
+| BodyGroup option | Weighted bone references | Delta vs all-default |
+|---|---:|---:|
+| Glasses `AES_YJ.smd` | 136 | +0 / -0 |
+| Skirt `AES_QZ.smd` | 236 | +100 / -0 |
+
+## SMD skeleton audit (0.6.2)
+
+Scan one SMD file, a directory, ZIP, or uncompressed GMA without extracting archive members. The audit reads the `nodes` and `skeleton` sections, checks node IDs/names/parent references for every file type, classifies common mesh/physics/animation roles, and only compares bind/reference poses when both files are ordinary model slices.
+
+```powershell
+# Audit all raw SMD files in a source folder
+py -3 source_model_reader.py smd-audit "D:\Models\SourceProject" --json "D:\Export\smd_audit.json"
+
+# Compare SMD slices and map each one to the compiled MDL bone table
+py -3 source_model_reader.py smd-audit "D:\Models\SourceProject" --mdl "D:\Models\addon.gma" --model "aes_yz_pm.mdl" --reference "AES_T.smd" --json "D:\Export\smd_audit.json"
+
+# Choose a specific reference slice and a looser tolerance
+py -3 source_model_reader.py smd-audit "D:\Models\SourceProject.zip" --reference "models\body.smd" --tolerance 0.001
+
+# Run the included 31-file synthetic fixture for role classification and pose-skip behavior
+py -3 source_model_reader.py smd-audit "examples\smd_role_fixture" --json "smd_role_audit.json"
+```
+
+Comparison is performed by **bone name**, not numeric node ID. Differences in numeric IDs are reported as remaps; missing/extra names and changed parent-name relationships are checked for every SMD type. Pose comparison is deliberately narrower: it runs only between ordinary geometry slices classified as `model_slice`. Animation, proportion, corrective-animation, animation-reference, ragdoll, physics, and unknown files still receive full node/parent structural checks, but their first frame is not assumed to be a bind pose. The optional `--mdl` argument performs a name-based cross-check against the MDL bone table for all SMDs, while MDL pose comparison is likewise limited to ordinary model slices.
+
+When `--reference` is omitted, the audit prefers `AES_T.smd` when found. Otherwise it chooses the first classified model slice, and only falls back to the first parsed file if no model slice exists. Use `--reference` to select a specific baseline explicitly. Rotation tolerance is measured in radians; translation tolerance uses Source model units. SMD type classification is a conservative path/name/section heuristic, not a claim about the author's exact QC intent; unrecognized files are classified as `unknown` and are excluded from bind-pose comparisons.
+
+Sparse frame records are handled conservatively. In animation-like SMD types, a non-empty frame that explicitly records only some defined nodes is reported as `INFO`, with exact coverage in `frame_coverage`; no missing transform is fabricated or forward-filled. Empty animation frames, unknown node IDs, and incomplete model/physics reference frames remain warnings. This records file contents without claiming a specific runtime inheritance rule.
+
+Run the included sparse corrective-animation fixture to test this behavior:
+
+```powershell
+py -3 source_model_reader.py smd-audit "examples\smd_sparse_fixture" --json "sparse_audit.json"
+```
+
+The supplied sample Workshop package has no raw `.smd` files, only compiled MDL/VVD/VTX/PHY resources and materials. Running `smd-audit` on that package therefore reports `NOT_FOUND` rather than pretending that the source slices were present. For a quick parser smoke test, use `examples/smd_fixture`; for sparse corrective-animation coverage, use `examples/smd_sparse_fixture`.
+
+See [`ROADMAP.md`](ROADMAP.md) for the milestone sequence and [`HD2_FORMAT_NOTES.md`](HD2_FORMAT_NOTES.md) for the currently implemented HD2 binary structures and their limitations. The HD2 inspector is an independent read-only target-side reader; it does not apply GMod animations to the character. The eventual conversion target is the native Helldivers 2 rig and its runtime animation system.
+
+## What the unified GLB represents
+
+The GLB contains one logical character mesh node and one shared skin/skeleton. Material boundaries are preserved as separate glTF primitives inside that mesh. This is intentional: a complete character should not be welded into one material or lose its submesh/material assignments.
+
+Selected BodyGroup variants are combined into that one character scene. The choices that were not selected are not exported into the active scene. BodyGroups are variant selectors, not a command to layer every option on top of each other.
+
+The GLB currently writes placeholder PBR material values and preserves the Source material names. **VMT/VTF texture decoding and conversion are not implemented yet**, so the model may appear grey or use neutral placeholder materials until that stage is added.
+
+## Requirements
+
+- Python 3.10 or newer.
+- No pip packages required by the tool itself.
+
+## Windows quick start
+
+Open PowerShell or Command Prompt in this folder.
+
+Inspect a GMA directly:
+
+```powershell
+py -3 source_model_reader.py inspect "D:\Models\addon.gma" --model "character.mdl"
+```
+
+Diagnose the selected Source model before exporting:
+
+```powershell
+py -3 source_model_reader.py diagnose "D:\Models\addon.gma" --model "aes_yz_pm.mdl" --json "D:\Export\model_diagnosis.json"
+```
+
+Diagnose the glasses + skirt combination:
+
+```powershell
+py -3 source_model_reader.py diagnose "D:\Models\addon.gma" --model "aes_yz_pm.mdl" --bodygroup 4=1 --bodygroup 18=1 --json "D:\Export\parts_diagnosis.json"
+```
+
+Export one unified skinned character to GLB:
+
+```powershell
+py -3 source_model_reader.py export-glb "D:\Models\addon.gma" --model "aes_yz_pm.mdl" -o "D:\Export\aes_yz_pm.glb"
+```
+
+Enable glasses and skirt in the same character scene:
+
+```powershell
+py -3 source_model_reader.py export-glb "D:\Models\addon.gma" --model "aes_yz_pm.mdl" -o "D:\Export\aes_yz_pm_parts.glb" --bodygroup 4=1 --bodygroup 18=1
+```
+
+Validate a GLB after export (independent of the Source parser):
+
+```powershell
+py -3 source_model_reader.py validate-glb "D:\Export\aes_yz_pm.glb" --json "D:\Export\aes_yz_pm_validation.json"
+```
+
+The same commands accept a ZIP, an extracted folder, or a direct MDL path. If an archive contains multiple models, specify the intended one with `--model`.
+
+SMD compatibility export is still available:
+
+```powershell
+py -3 source_model_reader.py export "D:\Models\addon.gma" --model "aes_yz_pm.mdl" -o "D:\Export\aes_yz_pm.smd"
+```
+
+## Import into Blender
+
+Use Blender's built-in glTF 2.0 importer: **File → Import → glTF 2.0 (.glb/.gltf)**, then select the exported `.glb`. The expected result is one character mesh object with material slots/primitives and one armature hierarchy. Check the rest pose, object orientation, vertex groups, and a few deformations. Textures are not embedded in this alpha release, so neutral materials are expected.
+
+## Output files
+
+- `name.glb`: one skinned character scene, with a shared skeleton and material-separated primitives; animated exports also contain a glTF animation clip.
+- `name.report.json`: source archive/model details, BodyGroup choices, counts, material names, output size, and warnings.
+- `name.smd`: optional legacy/compatibility export when using `export`.
+- `model_diagnosis.json`: optional detailed Source-model diagnosis from the `diagnose` command.
+- `model_validation.json`: optional independent GLB structural/skin validation from `validate-glb`.
+
+## Reading diagnostic results
+
+`diagnose` reports both the complete VVD vertex pool and the vertices referenced by the selected BodyGroup combination. It also includes the complete bone table and every BodyGroup option, with per-selection mesh and triangle coverage.
+
+- **Error** means the selected data has a structural issue that needs attention, such as invalid active bone references or a broken hierarchy.
+- **Warning** means the data may still be usable but should be inspected, such as unweighted active vertices or abnormal weight sums.
+- **Info** is not automatically a defect. An MDL bone definition not directly referenced by the current selection's vertex weights is simply unreferenced by those weights; its animation, procedural, physics, attachment, or runtime role is not inferred. VVD vertices not referenced by one selected BodyGroup combination may belong to alternate clothing or accessories.
+
+`validate-glb` reads the emitted GLB independently and checks its container, binary buffer ranges, mesh/primitive attributes, triangle indices, Skin joint references, inverse-bind matrices, and weight sums. It does not replace a Blender visual test or a live pose/deformation test.
+
+## Supported BodyGroup selection
+
+`inspect` prints BodyGroup indices and available model choices. Specify only the options you want to override; unspecified BodyGroups use choice `0`.
+
+```powershell
+--bodygroup 4=1 --bodygroup 18=1
+```
+
+means choose model option 1 for BodyGroups 4 and 18.
+
+## Validation
+
+Run the built-in test suite:
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
+See [`GLB_TEST_REPORT.md`](GLB_TEST_REPORT.md), [`DIAGNOSTICS_TEST_REPORT.md`](DIAGNOSTICS_TEST_REPORT.md), [`BONE_MATRIX_TEST_REPORT.md`](BONE_MATRIX_TEST_REPORT.md), [`SMD_AUDIT_TEST_REPORT.md`](SMD_AUDIT_TEST_REPORT.md), and [`HD2_RESOURCE_TEST_REPORT.md`](HD2_RESOURCE_TEST_REPORT.md) for validation details. `run_bone_matrix.bat` and `run_hd2_inspect.bat` are included as optional Windows helpers.
+
+## Known alpha limitations
+
+- MDL v48 / VVD v4 / VTX v7 only.
+- VVD fixup-table remapping is not applied yet. The sample supplied for this test has zero fixups.
+- LOD 0 is the highest-detail path tested; other LODs have not received equivalent sample validation.
+- Source animation sequence/controller semantics, flexes, jiggle-bone simulation, hitboxes, physics, attachments, and procedural bones are not reconstructed. The separate SMD animation exporter supports ordinary multi-frame animation SMDs only.
+- VMT/VTF texture decoding, shader translation, and material texture embedding are not implemented.
+- GMA v1-v3 uncompressed GMAD archives are supported. Compressed Workshop `.bin` wrappers are not supported; unpack those with GMAD/7-Zip first.
+- The HD2 inspector is read-only and currently inventories archive resources, Unit headers and Bones metadata. GPU vertex decoding, BoneInfo remaps, target skeleton adaptation, material conversion, Unit writing and Patch packaging remain future work.
+
+## Safety / file handling
+
+The reader only opens model resources and writes the requested output files. It does not modify the original archive or game directory. GMA member paths are treated as logical archive paths; extraction is not performed.
+
+## Format references
+
+The bounded Source layout implementation is based on Valve's Source SDK 2013 public headers: [`studio.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/studio.h) and [`optimize.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/optimize.h). The output container follows the glTF 2.0 / GLB structure.

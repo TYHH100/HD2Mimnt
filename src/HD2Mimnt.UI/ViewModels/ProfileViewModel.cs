@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Search;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using Avalonia.Threading;
@@ -24,6 +25,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly NotificationService _notificationService;
     private readonly IConfirmationService _confirmationService;
     private readonly SettingsService _settingsService;
+    private readonly OptionTranslationService? _optionTranslation;
     private readonly ImagePreviewService? _imagePreview;
 
     public Func<Task>? ActiveProfileChanged { get; set; }
@@ -410,8 +412,9 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null)
     {
+        _optionTranslation = optionTranslation;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
@@ -1778,9 +1781,10 @@ public partial class ProfileViewModel : ObservableObject
 
         // 重新打开前先释放上一个弹窗解码的位图，避免连续开关累积原生内存。
         ReleaseModOptionsDialog();
-        ModOptionsDialog = new ProfileModOptionsDialogViewModel(this, profileMod);
+        ModOptionsDialog = new ProfileModOptionsDialogViewModel(this, profileMod, _optionTranslation);
         IsModOptionsDialogOpen = true;
         _ = ModOptionsDialog.LoadImagesAsync();
+        _ = ModOptionsDialog.LoadCachedTranslationsAsync();
     }
 
     [RelayCommand]

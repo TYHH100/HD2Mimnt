@@ -4364,4 +4364,31 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模组库“加入配置文件”弹窗（仅单选配置文件）和开启导入自动添加后的完成页提供分组选择；关闭时保持追加到末尾。</value></data>
   <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展开的分组标题滚动时吸附在顶部</value></data>
   <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>仅影响显示：滚动时当前展开的用户分组标题吸附在模组列表顶部，继续滚动到下一个分组时自动替换；其它标题保持原位置，模组顺序不变。可将模组拖到吸顶标题上直接加入该分组。</value></data>
+  <data name="UI.AiTranslateOptions" xml:space="preserve"><value>AI 翻译选项</value></data>
+  <data name="UI.AiTranslationCacheLoaded" xml:space="preserve"><value>已加载 {0} 条本地缓存译文。</value></data>
+  <data name="UI.AiTranslationNoText" xml:space="preserve"><value>当前选项没有可翻译的文字。</value></data>
+  <data name="UI.AiTranslationRunning" xml:space="preserve"><value>正在翻译选项...</value></data>
+  <data name="UI.AiTranslationProgress" xml:space="preserve"><value>已翻译 {0}/{1}</value></data>
+  <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>已从本地缓存加载 {0} 条译文，未调用 API。</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>翻译完成：本地缓存 {0} 条，API {1} 条。</value></data>
+  <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>翻译已取消。</value></data>
+  <data name="UI.AiTranslationFailed" xml:space="preserve"><value>翻译失败：{0}</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI 翻译设置</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI 翻译</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>配置兼容 OpenAI Chat Completions 的接口，用于翻译模组选项名称和描述。译文缓存在本地，API Key 使用 Windows DPAPI 加密保存。</value></data>
+  <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>服务类型</value></data>
+  <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API 端点</value></data>
+  <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>模型</value></data>
+  <data name="Settings.AiTranslation.ApiKey" xml:space="preserve"><value>API Key</value></data>
+  <data name="Settings.AiTranslation.ApiKeyHint" xml:space="preserve"><value>尚未保存。</value></data>
+  <data name="Settings.AiTranslation.ApiKeySaved" xml:space="preserve"><value>已保存密钥；留空表示不修改。</value></data>
+  <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>目标语言</value></data>
+  <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>保存并测试</value></data>
+  <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>配置修改后请点击页面底部的“保存”。</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI 翻译设置已保存。</value></data>
+  <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>API 端点必须是有效的 HTTP 或 HTTPS 地址。</value></data>
+  <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>请填写模型名称。</value></data>
+  <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>该服务类型需要填写 API Key。</value></data>
+  <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>连接测试成功。</value></data>
+  <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>连接测试失败。</value></data>
 </root>

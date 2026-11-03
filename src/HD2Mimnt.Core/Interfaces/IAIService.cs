@@ -18,6 +18,14 @@ public interface IAIService
     Task<AIResponse> TranslateAsync(string text, string targetLanguage, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Translate multiple short texts in one request; returns source text to translation mappings.
+    /// </summary>
+    Task<AIBatchTranslationResult> TranslateBatchAsync(
+        IReadOnlyList<string> texts,
+        string targetLanguage,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Analyze a mod and provide explanation
     /// </summary>
     Task<AIResponse> AnalyzeModAsync(string modId, CancellationToken cancellationToken = default);

@@ -378,6 +378,9 @@ public static class SettingKeys
     public const string LogLevel = "Advanced.LogLevel";
     public const string ConcurrentImports = "Advanced.ConcurrentImports";
 
+    // AI 翻译
+    public const string AiTranslationTargetLanguage = "AI.TranslationTargetLanguage";
+
     // 清单相关
     public const string ForceManifestV1 = "Manifest.ForceV1";
 }

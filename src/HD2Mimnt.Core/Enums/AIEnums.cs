@@ -42,6 +42,11 @@ public enum AIContextType
     Translation,
 
     /// <summary>
+    /// Batch translation task (multiple short texts in one request)
+    /// </summary>
+    BatchTranslation,
+
+    /// <summary>
     /// Mod analysis and explanation
     /// </summary>
     ModAnalysis,

@@ -4364,4 +4364,31 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>Shows a group picker in the library "Add to profiles" dialog (single profile only) and after importing with auto-add enabled. Off keeps appending to the end.</value></data>
   <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>Stick the current expanded group header while scrolling</value></data>
   <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>Display only: while scrolling, the current expanded user group header sticks to the top of the mod list. Scrolling into the next group replaces it, and other headers keep their normal position. Mod order never changes. Drop mods onto the sticky header to add them to that group.</value></data>
+  <data name="UI.AiTranslateOptions" xml:space="preserve"><value>AI Translate Options</value></data>
+  <data name="UI.AiTranslationCacheLoaded" xml:space="preserve"><value>Loaded {0} cached translations.</value></data>
+  <data name="UI.AiTranslationNoText" xml:space="preserve"><value>There is no option text to translate.</value></data>
+  <data name="UI.AiTranslationRunning" xml:space="preserve"><value>Translating options...</value></data>
+  <data name="UI.AiTranslationProgress" xml:space="preserve"><value>Translated {0}/{1}</value></data>
+  <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>Loaded {0} cached translations without calling the API.</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>Translation complete: {0} from cache, {1} from API.</value></data>
+  <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>Translation canceled.</value></data>
+  <data name="UI.AiTranslationFailed" xml:space="preserve"><value>Translation failed: {0}</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI Translation Settings</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI Translation</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>Configure an OpenAI-compatible Chat Completions service to translate mod option names and descriptions. Translations are cached locally; the API key is encrypted with Windows DPAPI.</value></data>
+  <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>Provider type</value></data>
+  <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API endpoint</value></data>
+  <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>Model</value></data>
+  <data name="Settings.AiTranslation.ApiKey" xml:space="preserve"><value>API key</value></data>
+  <data name="Settings.AiTranslation.ApiKeyHint" xml:space="preserve"><value>Not saved yet.</value></data>
+  <data name="Settings.AiTranslation.ApiKeySaved" xml:space="preserve"><value>A key is already saved; leave blank to keep it.</value></data>
+  <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>Target language</value></data>
+  <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>Save and test</value></data>
+  <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>Use Save at the bottom of the page to store these settings.</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI translation settings saved.</value></data>
+  <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>The API endpoint must be a valid HTTP or HTTPS URL.</value></data>
+  <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>Model is required.</value></data>
+  <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>API key is required for this provider.</value></data>
+  <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>Connection succeeded.</value></data>
+  <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>Connection test failed.</value></data>
 </root>

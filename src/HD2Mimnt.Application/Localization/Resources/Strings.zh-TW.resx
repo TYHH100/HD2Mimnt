@@ -4364,4 +4364,31 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模組庫「加入設定檔」彈窗（僅單選設定檔）和開啟匯入自動新增後的完成頁提供分組選擇；關閉時保持附加到末端。</value></data>
   <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展開的分組標題捲動時吸附在頂部</value></data>
   <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>僅影響顯示：捲動時目前展開的使用者分組標題吸附在模組列表頂部，繼續捲動到下一個分組時自動替換；其他標題保持原位，模組順序不變。可將模組拖到吸頂標題上直接加入該分組。</value></data>
+  <data name="UI.AiTranslateOptions" xml:space="preserve"><value>AI 翻譯選項</value></data>
+  <data name="UI.AiTranslationCacheLoaded" xml:space="preserve"><value>已載入 {0} 條本機快取譯文。</value></data>
+  <data name="UI.AiTranslationNoText" xml:space="preserve"><value>目前選項沒有可翻譯的文字。</value></data>
+  <data name="UI.AiTranslationRunning" xml:space="preserve"><value>正在翻譯選項...</value></data>
+  <data name="UI.AiTranslationProgress" xml:space="preserve"><value>已翻譯 {0}/{1}</value></data>
+  <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>已從本機快取載入 {0} 條譯文，未呼叫 API。</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>翻譯完成：本機快取 {0} 條，API {1} 條。</value></data>
+  <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>翻譯已取消。</value></data>
+  <data name="UI.AiTranslationFailed" xml:space="preserve"><value>翻譯失敗：{0}</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI 翻譯設定</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI 翻譯</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>設定相容 OpenAI Chat Completions 的介面，用於翻譯模組選項名稱與描述。譯文快取在本機，API Key 使用 Windows DPAPI 加密儲存。</value></data>
+  <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>服務類型</value></data>
+  <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API 端點</value></data>
+  <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>模型</value></data>
+  <data name="Settings.AiTranslation.ApiKey" xml:space="preserve"><value>API Key</value></data>
+  <data name="Settings.AiTranslation.ApiKeyHint" xml:space="preserve"><value>尚未儲存。</value></data>
+  <data name="Settings.AiTranslation.ApiKeySaved" xml:space="preserve"><value>已儲存金鑰；留空表示不修改。</value></data>
+  <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>目標語言</value></data>
+  <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>儲存並測試</value></data>
+  <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>設定修改後請點擊頁面底部的「儲存」。</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI 翻譯設定已儲存。</value></data>
+  <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>API 端點必須是有效的 HTTP 或 HTTPS 位址。</value></data>
+  <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>請填寫模型名稱。</value></data>
+  <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>該服務類型需要填寫 API Key。</value></data>
+  <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>連線測試成功。</value></data>
+  <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>連線測試失敗。</value></data>
 </root>
