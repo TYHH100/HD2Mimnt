@@ -47,6 +47,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     private int _unlitLocation;
     private int _emissiveTexturedLocation;
     private int _normalPackedLocation;
+    private int _metalRoughAoTexturedLocation;
+    private int _colorAlphaMetalLocation;
     private int _eyeLocation;
     private int _colorLocation;
     private bool _sceneDirty = true;
@@ -211,6 +213,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 api.SetMatrix(_normalLocation, Matrix4x4.Identity);
                 gl.Uniform1i(_texturedLocation, 0);
                 gl.Uniform1i(_normalPackedLocation, 0);
+                gl.Uniform1i(_metalRoughAoTexturedLocation, 0);
+                gl.Uniform1i(_colorAlphaMetalLocation, 0);
                 gl.Uniform1i(_alphaPassLocation, 0);
                 gl.Uniform1i(_opaqueOverrideLocation, 0);
                 gl.Uniform1i(_unlitLocation, 1);
@@ -343,12 +347,15 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             _unlitLocation = gl.GetUniformLocationString(_program, "uUnlit");
             _emissiveTexturedLocation = gl.GetUniformLocationString(_program, "uEmissiveTextured");
             _normalPackedLocation = gl.GetUniformLocationString(_program, "uNormalPacked");
+            _metalRoughAoTexturedLocation = gl.GetUniformLocationString(_program, "uMetalRoughAoTextured");
+            _colorAlphaMetalLocation = gl.GetUniformLocationString(_program, "uColorAlphaMetal");
             _eyeLocation = gl.GetUniformLocationString(_program, "uEye");
             _colorLocation = gl.GetUniformLocationString(_program, "uColor");
             gl.UseProgram(_program);
             gl.Uniform1i(gl.GetUniformLocationString(_program, "uTexture"), 0);
             gl.Uniform1i(gl.GetUniformLocationString(_program, "uEmissive"), 1);
             gl.Uniform1i(gl.GetUniformLocationString(_program, "uNormalAoRough"), 2);
+            gl.Uniform1i(gl.GetUniformLocationString(_program, "uMetalRoughAo"), 3);
             api.ThrowIfError();
         }
         finally
@@ -408,6 +415,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                         .Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
                         .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
                         .FirstOrDefault(static texture => texture is not null);
+                    mesh.MetallicRoughnessOcclusionTexture = source.MaterialTextures
+                        .Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)
+                        .Select(textureId => ResolveTexture(gl, api, scene, textureId, maxTextureSize))
+                        .FirstOrDefault(static texture => texture is not null);
+                    mesh.ColorAlphaIsMetallic = source.MaterialTextures.ColorAlphaIsMetallic;
                 }
             }
             _meshes.Add(mesh);
@@ -695,6 +707,13 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         gl.ActiveTexture(Gl.Texture2);
         gl.BindTexture(Gl.Texture2D, normalPacked ? mesh.NormalOcclusionRoughnessTexture!.Id : 0);
         gl.Uniform1i(_normalPackedLocation, normalPacked ? 1 : 0);
+        var metalRoughAo = UseTextures && mesh.MetallicRoughnessOcclusionTexture is not null;
+        gl.ActiveTexture(Gl.Texture3);
+        gl.BindTexture(Gl.Texture2D, metalRoughAo ? mesh.MetallicRoughnessOcclusionTexture!.Id : 0);
+        gl.Uniform1i(_metalRoughAoTexturedLocation, metalRoughAo ? 1 : 0);
+        // 金属度优先取专用打包图；没有时才退到颜色贴图的 Alpha（需确有颜色贴图）。
+        var colorAlphaMetal = textured && !metalRoughAo && mesh.ColorAlphaIsMetallic;
+        gl.Uniform1i(_colorAlphaMetalLocation, colorAlphaMetal ? 1 : 0);
         gl.Uniform1i(_alphaPassLocation, alphaPass);
         // 不透明基趟 + "使用贴图透明度"关闭 + 带 alpha 的颜色贴图：半透明像素按
         // 不透明渲染（开关的语义就是忽略贴图透明度），而不是被 alpha 剔除挖成洞。
@@ -895,6 +914,12 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
 
         /// <summary>Nar 类打包数据贴图：RG 法线 xy、B 遮蔽、A 粗糙度。</summary>
         public GpuTexture? NormalOcclusionRoughnessTexture;
+
+        /// <summary>Mra 类打包数据贴图：R 金属度、G 粗糙度、B 遮蔽。</summary>
+        public GpuTexture? MetallicRoughnessOcclusionTexture;
+
+        /// <summary>颜色贴图的 Alpha 是金属度（BaseColorMetalMap），不是透明度。</summary>
+        public bool ColorAlphaIsMetallic;
         public ModelPreviewMaterialRenderClass RenderClass;
     }
 
@@ -1095,7 +1120,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public const int StencilTest = 0x0B90, RasterizerDiscard = 0x8C89, PolygonOffsetFill = 0x8037, Lequal = 0x0203;
         public const int ArrayBuffer = 0x8892, ElementArrayBuffer = 0x8893, PixelUnpackBuffer = 0x88EC, StaticDraw = 0x88E4;
         public const int Float = 0x1406, UnsignedInt = 0x1405, UnsignedByte = 0x1401, Triangles = 4, Lines = 1;
-        public const int Texture0 = 0x84C0, Texture1 = 0x84C1, Texture2 = 0x84C2, Texture2D = 0x0DE1, Rgba = 0x1908, Rgba8 = 0x8058, MaxTextureSize = 0x0D33;
+        public const int Texture0 = 0x84C0, Texture1 = 0x84C1, Texture2 = 0x84C2, Texture3 = 0x84C3, Texture2D = 0x0DE1, Rgba = 0x1908, Rgba8 = 0x8058, MaxTextureSize = 0x0D33;
         public const int TextureMinFilter = 0x2801, TextureMagFilter = 0x2800, TextureWrapS = 0x2802, TextureWrapT = 0x2803;
         public const int Linear = 0x2601, Repeat = 0x2901, UnpackAlignment = 0x0CF5, UnpackRowLength = 0x0CF2;
         public const int UnpackSkipRows = 0x0CF3, UnpackSkipPixels = 0x0CF4;
@@ -1131,9 +1156,12 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         uniform sampler2D uTexture;
         uniform sampler2D uEmissive;
         uniform sampler2D uNormalAoRough;
+        uniform sampler2D uMetalRoughAo;
         uniform int uTextured;
         uniform int uEmissiveTextured;
         uniform int uNormalPacked;
+        uniform int uMetalRoughAoTextured;
+        uniform int uColorAlphaMetal;
         uniform int uAlphaPass;
         uniform int uOpaqueOverride;
         uniform int uUnlit;
@@ -1143,6 +1171,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         void main()
         {
             vec4 color = uTextured != 0 ? texture(uTexture, vUv) : vec4(uColor, 1.0);
+            // BaseColorMetalMap 的金属度就在颜色贴图的 Alpha 里，必须在透明度覆盖之前取。
+            float colorAlpha = color.a;
             vec3 emissive = uEmissiveTextured != 0 ? texture(uEmissive, vUv).rgb : vec3(0.0);
             // "使用贴图透明度"关闭时带 alpha 的网格仍留在不透明基趟，此时用户语义是
             // "忽略贴图透明度"，半透明像素必须按不透明渲染；否则基趟的 alpha 剔除
@@ -1154,6 +1184,7 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             vec3 normal = vNormal / max(length(vNormal), 0.00001);
             float occlusion = 1.0;
             float roughness = 0.6;
+            float metallic = 0.0;
             if (uNormalPacked != 0)
             {
                 vec4 packed = texture(uNormalAoRough, vUv);
@@ -1177,21 +1208,38 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                     normal = normalize(tangent * detail.x + bitangent * detail.y + normal * detail.z);
                 }
             }
+            // 金属度有两个来源：专用 Mra 打包图（R 金属、G 粗糙、B 遮蔽）优先，
+            // 否则取 BaseColorMetalMap 存在颜色 Alpha 里的金属度。
+            bool hasShadingParams = uNormalPacked != 0;
+            if (uMetalRoughAoTextured != 0)
+            {
+                vec4 mra = texture(uMetalRoughAo, vUv);
+                metallic = mra.r;
+                roughness = mra.g;
+                occlusion = mra.b;
+                hasShadingParams = true;
+            }
+            else if (uColorAlphaMetal != 0)
+            {
+                metallic = colorAlpha;
+                hasShadingParams = true;
+            }
             vec3 keyDirection = normalize(vec3(0.4, 0.8, 0.6));
             vec3 fillDirection = normalize(vec3(-0.7, 0.25, -0.4));
             float key = abs(dot(normal, keyDirection));
             float fill = abs(dot(normal, fillDirection));
             // 遮蔽只压环境项，与游戏里 AO 作用于间接光的语义一致。
             float light = uUnlit != 0 ? 1.0 : 0.32 * occlusion + 0.5 * key + 0.18 * fill;
-            vec3 result = color.rgb * light;
-            // 只有拿到真实粗糙度的材质才加高光：近似目标是"看得出质感差异"，
-            // 不是复现游戏的 GGX + 分簇光照。
-            if (uUnlit == 0 && uNormalPacked != 0)
+            // 金属面几乎不产生漫反射，颜色改由高光承载（预览近似，不是游戏的 GGX）。
+            vec3 result = color.rgb * (1.0 - 0.95 * metallic) * light;
+            // 只有拿到真实粗糙度或金属度的材质才加高光：近似目标是"看得出质感差异"。
+            if (uUnlit == 0 && hasShadingParams)
             {
                 vec3 viewDirection = normalize(uEye - vPosition);
                 vec3 halfVector = normalize(keyDirection + viewDirection);
-                float specular = pow(max(dot(normal, halfVector), 0.0), mix(4.0, 110.0, 1.0 - roughness));
-                result += vec3(specular * (0.04 + 0.12 * (1.0 - roughness)));
+                float shape = pow(max(dot(normal, halfVector), 0.0), mix(4.0, 110.0, 1.0 - roughness));
+                vec3 specularColor = mix(vec3(0.04), color.rgb, metallic);
+                result += specularColor * shape * mix(0.08, 0.6, metallic) * (1.2 - roughness);
             }
             fragColor = vec4(result + emissive, uAlphaPass == 2 ? color.a : 1.0);
         }

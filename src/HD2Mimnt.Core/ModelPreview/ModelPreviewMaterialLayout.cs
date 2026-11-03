@@ -90,13 +90,15 @@ public sealed record ModelPreviewMaterialTextures(
     ulong? ColorTextureId,
     IReadOnlyDictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>>? TexturesByRole = null,
     IReadOnlyList<ModelPreviewMaterialInput>? Inputs = null,
-    ulong? ParentMaterialId = null)
+    ulong? ParentMaterialId = null,
+    bool ColorAlphaIsMetallic = false)
 {
     public ModelPreviewMaterialTextureSet ToTextureSet() => new(
         TexturesByRole ?? new Dictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>>(),
         TextureIds,
         ColorTextureId,
-        Inputs);
+        Inputs,
+        ColorAlphaIsMetallic);
 }
 
 /// <summary>
@@ -118,7 +120,10 @@ public sealed record ModelPreviewMaterialTextureSet(
     IReadOnlyDictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>> ByRole,
     IReadOnlyList<ulong> AllTextureIds,
     ulong? ColorTextureId,
-    IReadOnlyList<ModelPreviewMaterialInput>? Inputs = null)
+    IReadOnlyList<ModelPreviewMaterialInput>? Inputs = null,
+    /// <summary>BaseColorMetalMap 这类颜色贴图的 Alpha 是金属度而不是透明度：预览既要用它
+    /// 取颜色，也要用它取金属，因此单独标记，同时它的 Alpha 不能走假 alpha 回填。</summary>
+    bool ColorAlphaIsMetallic = false)
 {
     public static ModelPreviewMaterialTextureSet Empty { get; } = new(
         new Dictionary<ModelPreviewTextureRole, IReadOnlyList<ulong>>(),
@@ -136,7 +141,9 @@ public sealed record ModelPreviewMaterialTextureSet(
             ModelPreviewTextureRole.Emissive,
             ModelPreviewTextureRole.Iridescence,
             ModelPreviewTextureRole.Mask,
-            ModelPreviewTextureRole.Normal
+            ModelPreviewTextureRole.Normal,
+            ModelPreviewTextureRole.NormalOcclusionRoughness,
+            ModelPreviewTextureRole.MetallicRoughnessOcclusion
         })
         {
             foreach (var textureId in Get(role))
@@ -155,6 +162,10 @@ public enum ModelPreviewTextureRole
     /// A 是粗糙度。通道顺序来自 SDK 语义名（词序即通道序，双分量法线占 RG），并由游戏
     /// 本体贴图的实测分布交叉验证。它的 A 不是透明度。</summary>
     NormalOcclusionRoughness,
+
+    /// <summary>Mra：R 金属度、G 粗糙度、B 环境光遮蔽，Alpha 未使用。注意与 glTF 的 ORM
+    /// 约定（R=遮蔽、G=粗糙、B=金属）顺序不同，直接套用会把金属和遮蔽颠倒。</summary>
+    MetallicRoughnessOcclusion,
     Mask,
     Emissive,
     Iridescence

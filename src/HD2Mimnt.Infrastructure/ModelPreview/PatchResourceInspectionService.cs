@@ -202,14 +202,21 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             unitMaterialLayouts = new Dictionary<(string PatchPath, ulong UnitId), ModelPreviewMaterialLayout>();
         }
 
-        // Nar 这类数据贴图被材质绑定后即打上"Alpha 是材质参数"标记：它的 A 通道是粗糙度，
-        // 走通用的假 alpha 回填会被抹成完全粗糙。标记挂在资源条目上，解码路径无需再判断角色。
+        // Alpha 承载材质参数的贴图必须跳过"假 alpha 回填不透明"：Nar 的 A 是粗糙度，
+        // BaseColorMetalMap 的 A 是金属度（全 0 表示无金属，一旦被回填就变成全金属）。
+        // 标记挂在资源条目上，解码路径无需再判断角色。
         var materialDataTextureIds = unitMaterialLayouts.Values
             .SelectMany(static layout => layout.SectionsByStream.Values)
             .SelectMany(static sections => sections)
             .Select(static section => section.MaterialTextures)
             .OfType<ModelPreviewMaterialTextureSet>()
-            .SelectMany(static textures => textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness))
+            .SelectMany(static textures =>
+            {
+                var ids = textures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness).ToList();
+                if (textures.ColorAlphaIsMetallic && textures.ColorTextureId is { } metalColorId)
+                    ids.Add(metalColorId);
+                return ids;
+            })
             .ToHashSet();
         if (materialDataTextureIds.Count > 0)
         {
@@ -1142,6 +1149,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
     {
         const int textureCountOffset = 0x40;
         const int textureTableOffset = 0x88;
+        const uint baseColorMetalMapSemantic = 0x848BA63B;
         if (data.Length < textureTableOffset || availableTextureIds.Count == 0)
             return null;
 
@@ -1163,6 +1171,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         var texturesByRole = new Dictionary<ModelPreviewTextureRole, List<ulong>>();
         var inputs = new List<ModelPreviewMaterialInput>();
         ulong? colorTextureId = null;
+        var colorAlphaIsMetallic = false;
         for (var index = 0; index < textureCount; index++)
         {
             var semanticId = ReadUInt32(data, textureTableOffset + index * sizeof(uint));
@@ -1180,7 +1189,11 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             // （自动贴图选择、首选贴图解析）仍然把流光材质解析到正确的颜色输入。
             if (colorTextureId is null &&
                 (role == ModelPreviewTextureRole.BaseColor || role == ModelPreviewTextureRole.Iridescence))
+            {
                 colorTextureId = textureId;
+                // BaseColorMetalMap（见 GetTextureRole 同名项）= RGB 颜色 + A 金属度。
+                colorAlphaIsMetallic = semanticId == baseColorMetalMapSemantic;
+            }
         }
 
         return textureIds.Count > 0
@@ -1191,7 +1204,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                     static pair => pair.Key,
                     static pair => (IReadOnlyList<ulong>)pair.Value),
                 inputs,
-                parentMaterialId)
+                parentMaterialId,
+                colorAlphaIsMetallic)
             : null;
     }
 
@@ -1229,8 +1243,11 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         // 0xDAB4D0EE（NormalXyRoughnessOpacity）是 B=粗糙度、A=透明度，布局不同，暂留 Normal。
         0x4C567810 or // Nar
         0x1D57DCF3 => ModelPreviewTextureRole.NormalOcclusionRoughness, // NormalXyAoRoughMap
+        // Mra：R 金属度、G 粗糙度、B 环境光遮蔽，与 Nar 的 B/A 分工一致但通道序不同，
+        // 且与 glTF 的 ORM 约定相反；本体 5 个材质使用，多为旧版 Albedo+Normal+Mra 模板。
+        // 0x85C8629F（ColorVariationMra）等变体仍按 Mask 处理，等实测后再单独拆。
+        0x756F6FA6 => ModelPreviewTextureRole.MetallicRoughnessOcclusion, // Mra
         0xE97A4617 or 0x85C8629F or 0x204EB619 or 0xE6E80465 or 0xE58FF005 or
-        0x756F6FA6 or // Mra
         0xCBDE381B or // OpacityClipMap
         0xC2048121 or // Mask（AQ flowing）
         0x7CA0D044 or // ClearcoatRoughnessAoSpec

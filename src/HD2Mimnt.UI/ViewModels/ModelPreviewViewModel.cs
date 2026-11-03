@@ -158,7 +158,8 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         // 读取器标记为材质参数，解码路径会跳过"假 alpha 回填"。缺它只影响细节质感，
         // 所以不计入"贴图缺失"提示。
         var dataTextureIds = visibleMeshes
-            .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness))
+            .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
+                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)))
             .Distinct()
             .ToArray();
         var textureIds = colorAndEmissiveIds.Concat(dataTextureIds).Distinct().ToArray();

@@ -89,6 +89,20 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
     }
 
     [Fact]
+    public void Reader_BaseColorMetalMap_ExposesColorAlphaAsMetallic()
+    {
+        // BaseColorMetalMap = RGB 颜色 + A 金属度：颜色槽仍归它，但要额外告知预览
+        // "这个 Alpha 不是透明度"。普通 Albedo 的 Alpha 没有这层含义。
+        var metal = ReadMaterialTextures(0xC6042E3403385D40, (0x848BA63B, 0x81));
+        Assert.Equal(0x81UL, metal.ColorTextureId);
+        Assert.True(metal.ColorAlphaIsMetallic);
+
+        var plain = ReadMaterialTextures(0xC6042E3403385D40, (0xAC652E43, 0x82));
+        Assert.Equal(0x82UL, plain.ColorTextureId);
+        Assert.False(plain.ColorAlphaIsMetallic);
+    }
+
+    [Fact]
     public async Task Reader_PackedNarBinding_MarksTextureAsMaterialParameter()
     {
         // Nar 的 Alpha 是粗糙度：材质绑定后资源条目必须带上"Alpha 是材质参数"标记，
@@ -114,6 +128,34 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
         Assert.Equal([narTextureId], mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness));
         Assert.True(result.Textures.Single(texture => texture.TextureId == narTextureId).AlphaIsMaterialParameter);
         Assert.False(result.Textures.Single(texture => texture.TextureId == albedoTextureId).AlphaIsMaterialParameter);
+    }
+
+    [Fact]
+    public async Task Reader_MetalTemplateMarksBothAlphaParameterSources()
+    {
+        // 硬表面模板：NormalXyAoRoughMap 的 A 是粗糙度、BaseColorMetalMap 的 A 是金属度，
+        // 两者都不能被假 alpha 回填；OpacityClipMap 的 Alpha 仍是遮罩用途，不标记。
+        const ulong roughTextureId = 0x9001;
+        const ulong metalTextureId = 0x9002;
+        const ulong clipTextureId = 0x9003;
+        const ulong materialId = 0x3333;
+        var reader = new PatchResourceInspectionService();
+        var path = CompatibilityFixture.WritePatch(_root, resources:
+        [
+            UnitWithMaterialSlot(1, materialId),
+            new CompatibilityFixture.Resource(materialId, PatchResourceTypeIds.Material, Material(
+                0xEF9B3FC2FC1BA61E, // advanced 族
+                (0x1D57DCF3, roughTextureId), (0x848BA63B, metalTextureId), (0xCBDE381B, clipTextureId))),
+            TextureResource(roughTextureId),
+            TextureResource(metalTextureId),
+            TextureResource(clipTextureId)
+        ]);
+
+        var result = await reader.PreviewModelAsync(new DirectoryInfo(_root), [new FileInfo(path)]);
+        Assert.Null(result.Error);
+        Assert.True(result.Textures.Single(texture => texture.TextureId == roughTextureId).AlphaIsMaterialParameter);
+        Assert.True(result.Textures.Single(texture => texture.TextureId == metalTextureId).AlphaIsMaterialParameter);
+        Assert.False(result.Textures.Single(texture => texture.TextureId == clipTextureId).AlphaIsMaterialParameter);
     }
 
     [Theory]
@@ -247,6 +289,8 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
     [InlineData(0x1D57DCF3, ModelPreviewTextureRole.NormalOcclusionRoughness)]
     // NormalXyRoughnessOpacity 的 B 是粗糙度、A 是透明度，与上者布局不同，仍按 Normal 处理。
     [InlineData(0xDAB4D0EE, ModelPreviewTextureRole.Normal)]
+    // Mra：R 金属、G 粗糙、B 遮蔽（与 glTF 的 ORM 顺序相反）。
+    [InlineData(0x756F6FA6, ModelPreviewTextureRole.MetallicRoughnessOcclusion)]
     [InlineData(0x90B84A53, ModelPreviewTextureRole.Unknown)] // IlluminateData：数据图，不叠加自发光
     [InlineData(0xC985395A, ModelPreviewTextureRole.Unknown)] // EmissiveColor：疑似调色 LUT，避免整面发亮
     public void Reader_SdkSemanticHashes_MapToExpectedRole(
