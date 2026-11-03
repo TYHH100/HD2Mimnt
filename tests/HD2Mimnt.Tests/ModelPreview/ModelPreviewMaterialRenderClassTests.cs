@@ -120,6 +120,103 @@ public sealed class ModelPreviewMaterialRenderClassTests : IDisposable
         Assert.Equal(ModelPreviewMaterialRenderClass.Opaque, Assert.Single(result.Meshes).RenderClass);
     }
 
+    [Fact]
+    public void Reader_FlowingTemplate_ResolvesAlbedoArrayColorAndEmissive()
+    {
+        var textures = ReadMaterialTextures(0xE2CC05A4988B951D,
+            (0x1DB1694E, 0x11), (0xF5C97D31, 0x12), (0x495C3189, 0x13),
+            (0x12A0F5C0, 0x14), (0xC2048121, 0x15));
+
+        Assert.Equal(0x11UL, textures.ColorTextureId);
+        Assert.Equal([0x14UL], textures.Get(ModelPreviewTextureRole.Emissive));
+        Assert.Equal([0x12UL, 0x13UL], textures.Get(ModelPreviewTextureRole.Normal));
+        Assert.Equal([0x15UL], textures.Get(ModelPreviewTextureRole.Mask));
+        Assert.Equal(ModelPreviewMaterialRenderClass.Translucent,
+            ModelPreviewMaterialClassifier.Classify(0xE2CC05A4988B951D, textures));
+    }
+
+    [Fact]
+    public void Reader_ReticleTemplate_ResolvesReticleColorAndLensEmissive()
+    {
+        var textures = ReadMaterialTextures(0x2D488B210A54DF9D,
+            (0xBDC07044, 0x21), (0x1C8C3930, 0x22), (0x080B4D6F, 0x23), (0x1C121028, 0x24));
+
+        Assert.Equal(0x21UL, textures.ColorTextureId);
+        Assert.Equal([0x24UL], textures.Get(ModelPreviewTextureRole.Emissive));
+        Assert.Equal([0x22UL], textures.Get(ModelPreviewTextureRole.Mask));
+        Assert.Equal([0x23UL], textures.Get(ModelPreviewTextureRole.Normal));
+        Assert.Equal(ModelPreviewMaterialRenderClass.Emissive,
+            ModelPreviewMaterialClassifier.Classify(0x2D488B210A54DF9D, textures));
+    }
+
+    [Fact]
+    public void Reader_CutoutScopeTemplate_ResolvesCompositeArrayColor()
+    {
+        var textures = ReadMaterialTextures(0x6B9F33361B025760,
+            (0x632A8B80, 0x31), (0xA17B45A8, 0x32), (0x81D4C49D, 0x33), (0xC2EB8D6E, 0x34),
+            (0x30E2D136, 0x35), (0xD2F99D38, 0x36), (0x05A27DD5, 0x37), (0xB281E5F2, 0x38),
+            (0x37831285, 0x39), (0x89BBCEC2, 0x3A), (0x7E662968, 0x3B), (0x6834AA9B, 0x3C));
+
+        Assert.Equal(0x32UL, textures.ColorTextureId);
+        Assert.Contains(0x3AUL, textures.Get(ModelPreviewTextureRole.Mask));
+        Assert.Equal(ModelPreviewMaterialRenderClass.Unlit,
+            ModelPreviewMaterialClassifier.Classify(0x6B9F33361B025760, textures));
+    }
+
+    [Fact]
+    public void Reader_ArmorLutTemplate_ResolvesCamoTilerArrayColor()
+    {
+        var textures = ReadMaterialTextures(0xF5EBD93181FDF00C,
+            (0x0F5FF78D, 0x41), (0xA17B45A8, 0x42), (0x81D4C49D, 0x43), (0xC2EB8D6E, 0x44),
+            (0x632A8B80, 0x45), (0x7E662968, 0x46), (0x6834AA9B, 0x47));
+
+        Assert.Equal(0x41UL, textures.ColorTextureId);
+        Assert.Contains(0x46UL, textures.Get(ModelPreviewTextureRole.Mask));
+        Assert.Equal(ModelPreviewMaterialRenderClass.Opaque,
+            ModelPreviewMaterialClassifier.Classify(0xF5EBD93181FDF00C, textures));
+    }
+
+    [Fact]
+    public void Reader_GlassAndTranslucentFlowingTemplates_HaveNoColorTexture()
+    {
+        var glass = ReadMaterialTextures(0x84E5DE1CC6B74ADA, (0xDAB4D0EE, 0x51));
+        Assert.Null(glass.ColorTextureId);
+        Assert.Equal([0x51UL], glass.Get(ModelPreviewTextureRole.Normal));
+
+        var flowing = ReadMaterialTextures(0x110199A9C3401242,
+            (0x55C87149, 0x61), (0x001FF6D4, 0x62), (0xFBEF0214, 0x63),
+            (0x5A3BC7C0, 0x64), (0x2B33D35F, 0x65));
+        Assert.Null(flowing.ColorTextureId);
+        Assert.Equal([0x61UL, 0x63UL], flowing.Get(ModelPreviewTextureRole.Mask));
+        Assert.Equal([0x64UL, 0x65UL], flowing.Get(ModelPreviewTextureRole.Normal));
+    }
+
+    [Theory]
+    [InlineData(0x7CA0D044, ModelPreviewTextureRole.Mask)]    // ClearcoatRoughnessAoSpec
+    [InlineData(0xA72CB013, ModelPreviewTextureRole.Mask)]    // BloodTiler
+    [InlineData(0xE7BD9019, ModelPreviewTextureRole.Mask)]    // SubsurfaceOpacity
+    [InlineData(0xDF3EE984, ModelPreviewTextureRole.Normal)]  // DetailNormal1
+    [InlineData(0x736A0029, ModelPreviewTextureRole.Normal)]  // WoundNormal
+    [InlineData(0x90B84A53, ModelPreviewTextureRole.Unknown)] // IlluminateData：数据图，不叠加自发光
+    [InlineData(0xC985395A, ModelPreviewTextureRole.Unknown)] // EmissiveColor：疑似调色 LUT，避免整面发亮
+    public void Reader_SdkSemanticHashes_MapToExpectedRole(
+        uint semanticId, ModelPreviewTextureRole expected)
+    {
+        var textures = ReadMaterialTextures(0x1234, (semanticId, 0x71));
+
+        Assert.Equal(expected, Assert.Single(textures.Inputs!).Role);
+    }
+
+    private static ModelPreviewMaterialTextureSet ReadMaterialTextures(
+        ulong parentMaterialId, params (uint Semantic, ulong TextureId)[] inputs)
+    {
+        var textures = PatchResourceInspectionService.TryReadMaterialTextures(
+            Material(parentMaterialId, inputs),
+            inputs.Select(static input => input.TextureId).ToHashSet());
+        Assert.NotNull(textures);
+        return textures!.ToTextureSet();
+    }
+
     private static ModelPreviewMaterialTextureSet TexturesByRole(
         params (ModelPreviewTextureRole Role, ulong TextureId)[] inputs)
     {

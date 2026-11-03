@@ -1186,23 +1186,60 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         0x604318CD or // BaseColor
         0x608D8147 or // BaseColorEmissiveMap
         0x848BA63B or // BaseColorMetalMap
-        0x3AA8B87E => ModelPreviewTextureRole.BaseColor,
+        0x3AA8B87E or // DiffuseMap
+        // 名称取自 HD2SDK hashlists/texturetypes.txt。阵列贴图解码时取首层，
+        // 作为该材质的可见颜色近似（AQ flowing / CE armorlut 等模板没有单张 Albedo）。
+        0x1DB1694E or // AlbedoArray（AQ flowing）
+        0xA17B45A8 or // CompositeArray（CE armorlut / AQ cutout_scope）
+        0x0F5FF78D or // CustomizationCamoTilerArray（CE armorlut）
+        0xBDC07044 => ModelPreviewTextureRole.BaseColor, // ReticleTexture（AQ reticle）
         // Common semantic hashes from the Stingray material tables. Unknown semantic
         // values stay Unknown so forward-compatible materials are still visible through
         // the first readable input rather than being misclassified as normal maps.
         0x7668E94B or 0xF5C97D31 or 0x2B33D35F or 0x5A3BC7C0 or
         0xCAED6CD6 or // Normal
-        0x1D57DCF3 => ModelPreviewTextureRole.Normal, // NormalXyAoRoughMap
+        0x1D57DCF3 or // NormalXyAoRoughMap
+        0x495C3189 or // NormalArray（AQ flowing）
+        0xDAB4D0EE or // NormalXyRoughnessOpacity（AQ glass）
+        0x080B4D6F or // Normals（AQ reticle）
+        0xDF3EE984 or // DetailNormal1
+        0xE719DA57 or // DetailNormalLeather
+        0x04FB61AD or // DetailNormalPorcelain
+        0x736A0029 => ModelPreviewTextureRole.Normal, // WoundNormal
         0xE97A4617 or 0x85C8629F or 0x204EB619 or 0xE6E80465 or 0xE58FF005 or
         0x756F6FA6 or // Mra
-        0xCBDE381B => ModelPreviewTextureRole.Mask, // OpacityClipMap
+        0xCBDE381B or // OpacityClipMap
+        0xC2048121 or // Mask（AQ flowing）
+        0x7CA0D044 or // ClearcoatRoughnessAoSpec
+        0x479FB1EF or // SclarFieldOpacity
+        0xE7BD9019 or // SubsurfaceOpacity
+        0xF8E31D7B or // WoundData
+        0xA59F5E11 or // WoundDerivative
+        0xD2F99D38 or // WeatheringSpecial
+        0x6834AA9B or // WeatheringDirt
+        0xA72CB013 or // BloodTiler
+        0x30E2D136 or // BloodSplatterTiler
+        0x37831285 or // BugSplatterTiler
+        0x81D4C49D or // PatternLut
+        0x7E662968 or // MaterialLut
+        0x05A27DD5 or // PatternMasksArray
+        0xB281E5F2 or // IdMasksArray
+        0x89BBCEC2 or // LensCutoutTexture（CE scope / AQ cutout_scope）
+        0x1C8C3930 or // LensOcclusionTexture（AQ reticle）
+        0x55C87149 or // NoiseMap02（AQ translucent_flowing）
+        0xFBEF0214 => ModelPreviewTextureRole.Mask, // NoiseMap01（AQ translucent_flowing）
         0x12A0F5C0 or 0x4DC19F08 or 0x3E6E30E7 or
-        0xCA6F2CF1 => ModelPreviewTextureRole.Emissive, // EmissiveFStop10IntensityMap
+        0xCA6F2CF1 or // EmissiveFStop10IntensityMap
+        0x1C121028 => ModelPreviewTextureRole.Emissive, // LensEmissiveTexture（AQ reticle）
         // AlbedoIridescence（流光/油光材质的颜色输入）。RGB 仍是颜色贴图，因此继续参与
         // BaseColor 回退链并写入 ColorTextureId；单独的 Iridescence 角色让预览给这些
         // 材质叠加流光高光层（实测其 Alpha 承载流光强度：未开启流光的同款贴图 Alpha≈0，
         // 开启后为 255，见"油光材质"选项实测）。
         0xFF2C91CC => ModelPreviewTextureRole.Iridescence,
+        // 保留 Unknown 的输入：EmissiveColor / IlluminateData 疑似调色或照明 LUT，
+        // 直接当作自发光贴图叠加会让整块表面发亮；BaseData / DecalSheet / TextureMap02 / Nar
+        // 无法确认可见颜色作用（DecalSheet 若映射为颜色，会在 AQ cutout_scope 中抢先于
+        // CompositeArray 被选中）；0x001FF6D4 在 SDK 两张哈希表中都没有名称。
         _ => ModelPreviewTextureRole.Unknown
     };
 
