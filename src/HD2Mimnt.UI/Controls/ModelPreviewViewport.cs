@@ -1197,12 +1197,25 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         uniform vec3 uColor;
         uniform vec3 uEye;
         out vec4 fragColor;
+        // 游戏把颜色贴图基本标成 BC7_UNORM（实测 178 张 BaseColor 里 137 张是 98，只有 27 张
+        // 是 _SRGB 的 99），sRGB 解码在着色器里完成，所以预览按材质角色而不是 DXGI 格式判断：
+        // 颜色采样转线性，数据采样（法线/遮蔽/粗糙度/金属）保持原值。
+        // 用 2.2 幂而非分段精确曲线，与输出编码严格互逆，中间调差异在预览精度内可忽略。
+        vec3 toLinear(vec3 value)
+        {
+            return pow(value, vec3(2.2));
+        }
+        vec3 toSrgb(vec3 value)
+        {
+            return pow(max(value, vec3(0.0)), vec3(1.0 / 2.2));
+        }
         void main()
         {
             vec4 color = uTextured != 0 ? texture(uTexture, vUv) : vec4(uColor, 1.0);
             // BaseColorMetalMap 的金属度就在颜色贴图的 Alpha 里，必须在透明度覆盖之前取。
             float colorAlpha = color.a;
-            vec3 emissive = uEmissiveTextured != 0 ? texture(uEmissive, vUv).rgb : vec3(0.0);
+            vec3 albedo = toLinear(color.rgb);
+            vec3 emissive = uEmissiveTextured != 0 ? toLinear(texture(uEmissive, vUv).rgb) : vec3(0.0);
             vec3 normal = vNormal / max(length(vNormal), 0.00001);
             float occlusion = 1.0;
             float roughness = 0.6;
@@ -1272,17 +1285,19 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             // 遮蔽只压环境项，与游戏里 AO 作用于间接光的语义一致。
             float light = uUnlit != 0 ? 1.0 : 0.32 * occlusion + 0.5 * key + 0.18 * fill;
             // 金属面几乎不产生漫反射，颜色改由高光承载（预览近似，不是游戏的 GGX）。
-            vec3 result = color.rgb * (1.0 - 0.95 * metallic) * light;
+            vec3 result = albedo * (1.0 - 0.95 * metallic) * light;
             // 只有拿到真实粗糙度或金属度的材质才加高光：近似目标是"看得出质感差异"。
             if (uUnlit == 0 && hasShadingParams)
             {
                 vec3 viewDirection = normalize(uEye - vPosition);
                 vec3 halfVector = normalize(keyDirection + viewDirection);
                 float shape = pow(max(dot(normal, halfVector), 0.0), mix(4.0, 110.0, 1.0 - roughness));
-                vec3 specularColor = mix(vec3(0.04), color.rgb, metallic);
+                vec3 specularColor = mix(vec3(0.04), albedo, metallic);
                 result += specularColor * shape * mix(0.08, 0.6, metallic) * (1.2 - roughness);
             }
-            fragColor = vec4(result + emissive, uAlphaPass == 2 ? surfaceAlpha : 1.0);
+            // 光照在线性空间算完后编码回显示色；无光照材质（light=1）正好一进一出还原原色。
+            fragColor = vec4(toSrgb(clamp(result + emissive, vec3(0.0), vec3(1.0))),
+                uAlphaPass == 2 ? surfaceAlpha : 1.0);
         }
         """;
 }
