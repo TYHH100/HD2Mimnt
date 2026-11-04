@@ -1,6 +1,22 @@
-# Source Model Reader (alpha 0.8.2)
+# Source Model Reader (alpha 0.8.2.1)
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
+
+## What 0.8.2.1 adds — packed normal and weight decoding
+
+The 0.8.2.1 patch builds on the real FS-05 and Avatar Unit inspections:
+
+- Format 30 is decoded as a 10+10-bit octahedral normal when the component type is `normal`.
+- Format 29 is decoded as three unsigned-normalized 10-bit weights when the component type is `bone_weight`. The upper two packed bits remain available in the raw value; the fourth decoded influence is zero.
+- Every attribute retains the original stored values in `values`. Packed attributes also include `decoded_semantics` and `decoded_values`; this avoids destroying source bytes or changing the meaning of the existing raw field.
+- Format 29/30 uses with a different component semantic remain raw and produce a warning rather than being guessed.
+
+Real-game acceptance samples used:
+- FS-05 lower-body Unit: `8670598c1f4462dc / 210fb2f60f8308ea`
+- FS-05 torso/left-arm Unit: `8670598c1f4462dc / 324fb206612ce4f7`
+- Avatar Unit using CompositeUnit geometry: `18235e0c9ec0e636 / 4d1c334d294dfa97`
+
+The reader remains read-only. Transform matrices are still preserved as raw values; bind-pose and matrix-convention interpretation is a separate, uncompleted validation step.
 
 ## What 0.8.2 adds — HD2 Unit and GPU geometry inspection
 
@@ -37,7 +53,7 @@ Run the test suite after installation:
 py -3 -m unittest discover -s tests -v
 ```
 
-The new five parser tests are synthetic layout tests, not a substitute for the three real-package acceptance runs above.
+The five 0.8.2 parser tests and five 0.8.2.1 packed-format tests are synthetic regression tests. The three real-package runs above were also completed locally against the user's installed game data.
 
 ## What 0.8.1 adds — HD2 package catalog and resource discovery
 
