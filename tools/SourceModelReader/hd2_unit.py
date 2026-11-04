@@ -1206,6 +1206,16 @@ def resolve_unit_skinning(
                     active_weight_lanes(vertex_index) * len(index_attrs)
                     for vertex_index in vertex_indices
                 )
+                out_of_range_section_vertices = sum(
+                    1
+                    for index_attr in index_attrs
+                    for vertex_index in vertex_indices
+                    if (
+                        vertex_index < 0
+                        or vertex_index >= len(index_attr["values"])
+                        or vertex_index >= len(weight_values)
+                    )
+                )
                 warnings.append(
                     f"Mesh {mesh_geometry['mesh_id']:08x} section {section['index']} material index "
                     f"{material_index} has no BoneInfo[{bone_info_index}] remap"
@@ -1219,7 +1229,7 @@ def resolve_unit_skinning(
                     "bone_index_sets": [],
                     "resolved_active_influence_count": 0,
                     "unresolved_active_influence_count": unresolved_section_lanes,
-                    "out_of_range_vertex_count": 0,
+                    "out_of_range_vertex_count": out_of_range_section_vertices,
                 })
                 unresolved_count += unresolved_section_lanes
                 continue
