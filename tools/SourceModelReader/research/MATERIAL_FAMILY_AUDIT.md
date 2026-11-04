@@ -86,3 +86,49 @@ The Alpha Clip and Alpha Clip+ samples have different raw ParentMaterialIDs and 
 - `material_translucent_parent.json`
 - `translucent_texture_lookup.json`
 - `MATERIAL_FORMAT_NOTES.md`
+
+
+## 7. Family-specific counts from the 20-package smoke census
+
+A direct re-read of the committed `hd2_material_census_smoke.json` confirms these targeted family occurrences in its 949 parsed Material records:
+
+| ParentMaterialID | Occurrences | Distinct packages | Texture count | Shader-variable count |
+|---|---:|---:|---|---|
+| `84e5de1cc6b74ada` | 3 | 3 | 1 each | 8 each |
+| `d84d04634a1e2f60` | 1 | 1 | 3 | 12 |
+| `c6042e3403385d40` | 5 | 3 | 4 each | 13 or 14 |
+
+These are smoke-test observations only (20 packages scanned), not game-wide family totals.
+
+### Translucent family observations
+
+Two of the three `84e5de1cc6b74ada` occurrences share the same Material FileID `e2b99ac44dc829f2`, payload SHA-256, TOC size (384), texture-layout signature, and shader-layout signature across packages `0118c2cfda4f68a5` and `0149ef7d2ee3efca`. They are duplicate occurrences of the same payload, not independent material instances.
+
+The third occurrence in package `01edaa2a7e84b840` is Material FileID `8b3ff5502ac52c25`, with the same 384-byte TOC and texture-layout signature but a different payload hash and shader-layout signature. This is the only distinct Translucent payload in this smoke sample. The sample set is therefore not enough to establish whether the family uses other texture IDs or non-placeholder maps; the full material-instance scan is still needed.
+
+### Alpha Clip+ family observations
+
+Five Alpha Clip+ occurrences appear in three packages:
+- One occurrence in `00c928ec7e330f9e`.
+- One occurrence in `0149ef7d2ee3efca`.
+- Three occurrences in `01c1becaa12a1643`.
+
+All five have four texture nodes and the same texture-layout signature `8c3faab1d66e0456`. Four have 13 shader-variable descriptors; one has 14. The latter is Material FileID `55a794f03a405c4c` in package `0149ef7d2ee3efca`, with a 528-byte TOC and a distinct shader-layout signature. This is a useful candidate for a targeted full parse: determine which additional variable descriptor is present and whether it changes the known Alpha Clip+ material schema.
+
+### Alpha Clip family observations
+
+Only one Alpha Clip occurrence appears in this 20-package sample. It should be treated as a parser/SDK control sample, not as evidence about the prevalence or variation of Alpha Clip materials.
+
+## 8. Follow-up local extraction targets
+
+Use these package/Material FileID pairs to retrieve the actual Material payloads from the local game data and compare their full texture IDs and variable descriptors:
+
+| Family | Package | Material FileID | Reason |
+|---|---|---|---|
+| Translucent | `01edaa2a7e84b840` | `8b3ff5502ac52c25` | Distinct payload in smoke census |
+| Alpha Clip+ | `0149ef7d2ee3efca` | `55a794f03a405c4c` | 14-variable schema variant |
+| Alpha Clip+ | `01c1becaa12a1643` | `9436103fd778c403` | Compare with targeted 13-variable sample |
+| Alpha Clip+ | `01c1becaa12a1643` | `d39f16ff0acb02b9` | Same package, distinct material instance |
+
+Do not assume that the same texture-layout signature means identical texture FileIDs: the signature records the sequence of texture-node type IDs, not the referenced texture resource IDs.
+
