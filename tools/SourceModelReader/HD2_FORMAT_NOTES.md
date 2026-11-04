@@ -1,4 +1,4 @@
-# Helldivers 2 resource format notes — 0.8.3-alpha
+# Helldivers 2 resource format notes — 0.8.4-alpha
 
 These notes describe the structures implemented by the independent read-only inspector. They are based on the publicly available parser structure in the HD2 SDK projects below. They are **not** a claim that every game build or every resource variant has been validated against original game files.
 
@@ -88,6 +88,39 @@ The Bones reader consumes:
 
 It reports mismatches between the declared name count, hash count and parsed string count. The 0.8.2 structural reader preserved TransformInfo and BoneInfo tables; the 0.8.3 resolver now maps named transforms and material-scoped vertex palettes as described above.
 
+## Transform hierarchy and active skin-matrix diagnostics (0.8.4-alpha)
+
+The reader builds a candidate local 4x4 matrix from each TransformInfo record's 3x3 rotation, 3D position and scale. It then walks the parent graph and composes:
+
+`World[i] = Local[i] × World[parent[i]]`
+
+Root entries are those with a self-parent index or `0xffff`. Matrices are treated as row-major 4x4 values acting on row vectors. The computed world matrix is compared with the stored `matrix_4x4_raw`; the raw data is never overwritten. Invalid parents, cycles, incomplete local fields and singular matrices remain visible as unresolved diagnostics.
+
+For each skinned mesh, the reader gathers BoneInfo palette slots actually referenced by positive-weight vertex lanes. For every such slot it compares the stored matrix with:
+
+`MeshWorld × inverse(BoneWorld)`
+
+Here `MeshWorld` is the world matrix at the MeshInfo TransformIndex, and `BoneWorld` is the world matrix at the slot's TransformInfo index. This is an observed mesh-space matrix relationship, not a final statement about the engine's semantic name for the matrix. Slots never used by a positive-weight lane are counted as unreferenced and intentionally excluded from the active-slot pass/fail result.
+
+The diagnostics are emitted at:
+- `transform_info.hierarchy_matrix_validation`
+- `geometry[].skinning.matrix_validation`
+
+### Three real-game sample audit
+
+| Sample | TransformInfo hierarchy comparisons | Actively used BoneInfo slots |
+|---|---:|---:|
+| FS-05 lower-body Unit | 16 / 16 | 10 / 10 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 96 / 96 |
+| Avatar CompositeUnit Unit | 107 / 107 | 86 / 86 |
+| **Total** | **161 / 161** | **192 / 192** |
+
+Maximum absolute error was approximately (2.58×10^{-7}) for the TransformInfo hierarchy comparisons and (1.74×10^{-7}) for the active BoneInfo palette comparisons. Both are below the implementation's (10^{-4}) diagnostic tolerance.
+
+The Avatar BoneInfo record contains two further palette slots named `aim_weapon` and `backpack` that are not referenced by positive-weight lanes in this mesh. Their stored matrices do not satisfy the active-slot comparison and therefore are reported as unreferenced, not as failed active skin matrices. The extra FS-05 lower-body mesh with LOD -1 has no skin attributes and is not included in the skinned-mesh comparison.
+
+This validates the hierarchy composition and matrix relationship for these selected samples only. It does not yet prove correct animated deformation, all Unit variants, or complete Source-to-HD2 bind-space adaptation.
+
 ## DSAR and SLIM containers
 
 The observed DSAR structure has a chunk count at byte offset `0x08`, followed by 32-byte chunk descriptors beginning at `0x20`. A descriptor is read as `<QQIIBB6x`: uncompressed offset, compressed offset, uncompressed size, compressed size, compression type, chunk flags, and six reserved bytes.
@@ -137,7 +170,7 @@ The selected BoneInfo record follows the MeshInfo LOD index. LOD -1 selects the 
 
 TransformInfo entries are matched to Bones records by exact 32-bit name hash. The report preserves every TransformInfo entry, including helper entries without a Bones name. It adds a convenience parent index/name while retaining the original raw parent field. A self-parenting root is represented as having no resolved parent; its raw value remains unchanged.
 
-BoneInfo matrix i and RealIndices[i] share the same palette slot in the SDK data model. The report attaches each raw 4x4 matrix to that palette slot but does not interpret row/column order, coordinate basis, or inverse-bind semantics.
+BoneInfo matrix i and RealIndices[i] share the same palette slot in the SDK data model. The 0.8.3 report attaches each raw 4x4 matrix to that palette slot. The 0.8.4 diagnostics add a sample-validated matrix comparison, described below, without replacing the raw values or asserting a universal inverse-bind semantic.
 
 Each bone_index component index is an independent set. This is important for legacy/grouped layouts: the reader does not combine component sets or pretend that repeated sets are a single larger influence array. Each set resolves the active lanes against the section's material-specific Remap and emits vertex-local influences with the source lane, weight, local index, palette slot, TransformInfo index and Bones name.
 
