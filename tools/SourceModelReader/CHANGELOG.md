@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.2-alpha
+
+- Added `hd2-unit` to inspect one Unit's TransformInfo, BoneInfo, StreamInfo, MeshInfo and supported GPU geometry.
+- Added direct Unit GPU decoding and CompositeUnit-backed shared geometry/stream mapping.
+- Preserved local transforms, raw 4x4 matrices, parent indices, Transform name hashes, BoneInfo matrices, RealIndices and per-material Remap arrays in JSON.
+- Decoded supported float32, float16, uint8, uint32 and RGBA8 vertex components plus 16-bit/32-bit index buffers; packed normal/10-10-10-2 values remain raw.
+- Added bounds checks for table offsets, component strides, vertex/index buffer ranges, section ranges and palette index references.
+- Added five synthetic tests for TransformInfo, BoneInfo/remaps, StreamInfo/GPU geometry, MeshInfo and CompositeUnit mapping.
+- Synthetic parser tests: 5/5 passing. Real FS-05 and Avatar package decoding remains a local acceptance step; no original game package was decoded in the build environment.
+
 ## 0.8.1-alpha
 
 - Added `hd2-catalog` to scan the entire SLIM package index and identify archives containing Unit, Bones, CompositeUnit, Material, and Texture resources.
