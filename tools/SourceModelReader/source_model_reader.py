@@ -2522,6 +2522,25 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_catalog.add_argument("--json", dest="json_path",
                                help="Write the full package catalog to JSON")
 
+    p_hd2_find = sub.add_parser(
+        "hd2-find",
+        help="Locate resource FileIDs across SLIM packages using TOC entries only",
+    )
+    p_hd2_find.add_argument("input", help="HD2 game data directory containing bundles.nxa")
+    p_hd2_find.add_argument(
+        "--resource", action="append", required=True, metavar="FILE_ID",
+        help="Resource FileID to locate (hexadecimal; repeat for multiple IDs)",
+    )
+    p_hd2_find.add_argument(
+        "--type", choices=sorted(("Texture", "Material", "Unit", "Bones", "CompositeUnit",
+                                  "Animation", "StateMachine", "Physics")),
+        help="Optional resource type filter; use Texture for Material texture dependencies",
+    )
+    p_hd2_find.add_argument("--max-packages", type=int,
+                            help="Optional limit for a partial diagnostic scan")
+    p_hd2_find.add_argument("--json", dest="json_path",
+                            help="Write the full resource lookup report to JSON")
+
     p_hd2_unit = sub.add_parser(
         "hd2-unit",
         help="Decode one HD2 Unit's TransformInfo, BoneInfo, streams, meshes, and GPU geometry",
@@ -2547,6 +2566,29 @@ def main(argv: Optional[list[str]] = None) -> int:
 
             report = scan_slim_package_catalog(args.input, args.max_packages)
             print(format_catalog_text(report))
+            if args.json_path:
+                out = Path(args.json_path)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"JSON report: {out}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (HD2ResourceError, OSError, struct.error, ValueError, TypeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-find":
+        try:
+            from hd2_material import parse_resource_id
+            from hd2_resources import (
+                HD2ResourceError,
+                find_slim_resources,
+                format_slim_resource_lookup_text,
+            )
+
+            resource_ids = [parse_resource_id(value) for value in args.resource]
+            report = find_slim_resources(
+                args.input, resource_ids, args.type, args.max_packages
+            )
+            print(format_slim_resource_lookup_text(report))
             if args.json_path:
                 out = Path(args.json_path)
                 out.parent.mkdir(parents=True, exist_ok=True)
