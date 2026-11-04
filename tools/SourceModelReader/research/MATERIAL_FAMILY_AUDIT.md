@@ -132,3 +132,34 @@ Use these package/Material FileID pairs to retrieve the actual Material payloads
 
 Do not assume that the same texture-layout signature means identical texture FileIDs: the signature records the sequence of texture-node type IDs, not the referenced texture resource IDs.
 
+
+
+## 9. Additional AQ-only translucent template discovered
+
+A further inspection of AQ Edition's pinned `utils/constants.py` and `__init__.py` identified a second translucent-related family that must not be conflated with the `glass` parent `84e5de1cc6b74ada`.
+
+AQ maps decimal ParentMaterialID `1225429528025764418` to raw ID `0x110199a9c3401242`, alias `translucent_flowing`. Its pinned `TextureTypeLookup` defines five ordered inputs:
+
+1. `Noise02 Mask`
+2. An unlabeled slot
+3. `Noise01 Mask`
+4. `blank Pos`
+5. `blank Pos`
+
+AQ's template description calls it a semi-transparent flowing material, supports two independently configurable flowing masks and flow direction, and says it was sourced from an Illuminate Overseer shield. This is direct SDK author documentation for a distinct translucent-capable template, although it describes a flowing shield effect rather than a fabric shader.
+
+The 20-package Material census smoke sample contains zero occurrences of ParentMaterialID `0x110199a9c3401242`. That is not evidence that the material is absent from the game; the smoke scan covered only 20 of 3,522 scannable packages. It is a strong candidate for a targeted lookup in the full package inventory, especially because the SDK description explicitly identifies it as semi-transparent.
+
+The AQ constants file also maps `0x84e5de1cc6b74ada` to `glass` and comments out an older `translucent` alias for the same ID. The AQ UI labels its single texture slot `Glass stain`. This is consistent with the separate Community Edition naming `translucent`, but it is not the same thing as AQ's distinct `translucent_flowing` family.
+
+### Research priority update
+
+For transparent/fabric-capable material research, keep three separate candidates:
+
+| ParentMaterialID | AQ alias / Community alias | Evidence | Relevance |
+|---|---|---|---|
+| `0x84e5de1cc6b74ada` | AQ `glass`; Community `translucent` | One-node sample; `OpacityBase` variable; raw texture-node type dictionary label includes `Opacity` | Strongest candidate for a general opacity-controlled surface, but sample points to a 1×1 resource |
+| `0x110199a9c3401242` | AQ `translucent_flowing` | Five slots, two noise masks, SDK explicitly describes semi-transparent flowing effect | Valuable alternate family; may be specialized for animated effects, not yet shown suitable for cloth |
+| `0xd84d04634a1e2f60` / `0xc6042e3403385d40` | AQ `alphaclip` / `alphaclip+` | Explicit Alpha Mask / OpacityClipMap slots | Cutout family; not a substitute for graded translucency |
+
+The next full-game search should include `0x110199a9c3401242`, alongside the two existing families, and should collect actual material instances and their texture FileIDs before prioritizing any one template for conversion.
