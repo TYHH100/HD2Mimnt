@@ -63,8 +63,8 @@ def main() -> int:
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path.cwd(),
-        help="Target SourceModelReader project folder (default: current directory)",
+        required=True,
+        help="Target SourceModelReader project folder containing the existing 0.8.2-alpha installation",
     )
     parser.add_argument(
         "--module",
