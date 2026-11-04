@@ -1080,6 +1080,7 @@ def resolve_unit_skinning(
         })
     transform_info["resolved_skeleton"] = skeleton
     names_by_transform = {item["transform_index"]: item["name"] for item in skeleton}
+    active_influence_counts: dict[int, int] = {}
 
     # BoneInfo.Bones[i] and RealIndices[i] share the same palette slot.
     for record in records:
@@ -1259,6 +1260,9 @@ def resolve_unit_skinning(
                             else:
                                 set_resolved += 1
                                 used_palette_slots[palette_slot] = transform_index
+                                active_influence_counts[transform_index] = (
+                                    active_influence_counts.get(transform_index, 0) + 1
+                                )
                                 influences.append({
                                     "lane": lane,
                                     "local_bone_index": local_index,
@@ -1316,7 +1320,33 @@ def resolve_unit_skinning(
                 f"Mesh {mesh_geometry['mesh_id']:08x} has {unresolved_count} unresolved active bone influences"
             )
 
+    for item in skeleton:
+        lane_count = active_influence_counts.get(item["transform_index"], 0)
+        item["has_active_vertex_influence"] = lane_count > 0
+        item["active_vertex_influence_lane_count"] = lane_count
+    active_named = sum(
+        1 for item in skeleton
+        if item["transform_index"] in active_influence_counts and item["name"] is not None
+    )
+    active_unnamed = sum(
+        1 for item in skeleton
+        if item["transform_index"] in active_influence_counts and item["name"] is None
+    )
+    transform_info["weight_usage_summary"] = {
+        "transform_count": len(skeleton),
+        "named_transform_count": sum(item["name"] is not None for item in skeleton),
+        "unmatched_or_ambiguous_transform_count": sum(item["name"] is None for item in skeleton),
+        "actively_weighted_transform_count": len(active_influence_counts),
+        "actively_weighted_named_transform_count": active_named,
+        "actively_weighted_unnamed_transform_count": active_unnamed,
+        "resolved_active_influence_lane_count": sum(active_influence_counts.values()),
+        "unresolved_active_influence_lane_count": sum(
+            mesh.get("skinning", {}).get("unresolved_active_influence_count", 0)
+            for mesh in geometry
+        ),
+    }
     return warnings
+
 
 def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_id: str) -> dict:
     """Inspect one Unit and decode its direct or CompositeUnit-backed geometry."""
