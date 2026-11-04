@@ -4,7 +4,7 @@ This module is an independent, bounded parser for the public archive/TOC
 structures documented by the community SDKs.  It deliberately does not import
 Blender or reuse SDK implementation code.
 
-Supported in 0.8.3-alpha:
+Supported in 0.8.4-alpha:
 - Legacy 0xF0000011 packages with optional .gpu_resources/.stream sidecars.
 - DSAR chunk containers using raw LZ4 blocks.
 - SLIM/bundled package reconstruction through bundles.nxa package metadata.
@@ -14,7 +14,7 @@ Supported in 0.8.3-alpha:
 - Direct Unit and CompositeUnit-backed GPU vertex/index geometry inspection.
 - Bones hash resolution, material-scoped BoneInfo palette/remap resolution and per-vertex active skin influence reporting.
 
-Raw matrix convention, bind-pose interpretation and Source-to-HD2 retargeting remain unimplemented.
+TransformInfo hierarchy and active BoneInfo mesh-space matrix diagnostics are implemented in hd2_unit.py. Source-to-HD2 retargeting, material/texture payload decoding and final animated deformation validation remain unimplemented.
 """
 from __future__ import annotations
 
