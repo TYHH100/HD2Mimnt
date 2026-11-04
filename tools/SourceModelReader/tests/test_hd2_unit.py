@@ -11,6 +11,7 @@ from hd2_unit import (
     parse_mesh_info,
     parse_stream_info,
     parse_transform_info,
+    resolve_unit_skinning,
 )
 
 
@@ -245,6 +246,132 @@ class PackedVertexFormatTests(unittest.TestCase):
         self.assertNotIn("decoded_values", attr)
         self.assertEqual(len(warnings), 1)
         self.assertIn("only bone_weight semantics are decoded", warnings[0])
+
+
+class UnitSkinningResolverTests(unittest.TestCase):
+    @staticmethod
+    def fixture(index_values=None, lod_index=0):
+        transforms = [
+            {
+                "index": 0, "name_hash": 100, "parent_index_raw": 0,
+                "increment": 0, "matrix_4x4_raw": [1.0] * 16,
+            },
+            {
+                "index": 1, "name_hash": 200, "parent_index_raw": 0,
+                "increment": 1, "matrix_4x4_raw": [2.0] * 16,
+            },
+            {
+                "index": 2, "name_hash": 300, "parent_index_raw": 1,
+                "increment": 1, "matrix_4x4_raw": [3.0] * 16,
+            },
+        ]
+        record = {
+            "index": 0, "num_bones": 2,
+            "real_indices": [1, 0],
+            "matrices": [[10.0] * 16, [20.0] * 16],
+            "remaps": [[1, 0], [0, 1]],
+        }
+        if index_values is None:
+            index_values = [[0, 1, 0, 0], [1, 0, 0, 0]]
+        geometry = [{
+            "mesh_id": 0x1234, "mesh_info_index": 0, "lod_index": lod_index,
+            "attributes": [
+                {
+                    "component_type": 7, "component_index": 0, "format": 35,
+                    "format_name": "vec4_half",
+                    "values": [[0.75, 0.25, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]],
+                },
+                {
+                    "component_type": 6, "component_index": 0, "format": 28,
+                    "values": index_values,
+                },
+                {
+                    "component_type": 6, "component_index": 1, "format": 28,
+                    "values": [[1, 0, 0, 0], [0, 1, 0, 0]],
+                },
+            ],
+            "sections": [
+                {"index": 0, "material_index": 0, "material_slot_id": 11, "indices": [0]},
+                {"index": 1, "material_index": 1, "material_slot_id": 22, "indices": [0]},
+            ],
+        }]
+        return (
+            {"transforms": transforms},
+            {"records": [record]},
+            {"bones": [{"hash": 100, "name": "root"}, {"hash": 200, "name": "child"}]},
+            {"records": [{"index": 0}]},
+            geometry,
+        )
+
+    def test_resolves_material_remap_to_named_vertex_influences(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture()
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+
+        self.assertEqual(warnings, [])
+        self.assertEqual(
+            [item["name"] for item in transform_info["resolved_skeleton"]],
+            ["root", "child", None],
+        )
+        self.assertEqual(transform_info["resolved_skeleton"][1]["parent_name"], "root")
+        palette = bone_info["records"][0]["resolved_real_indices"]
+        self.assertEqual([item["name"] for item in palette], ["child", "root"])
+        self.assertEqual(palette[0]["bone_info_matrix_raw"], [10.0] * 16)
+        self.assertEqual(palette[1]["bone_info_matrix_raw"], [20.0] * 16)
+
+        skinning = geometry[0]["skinning"]
+        self.assertEqual(skinning["status"], "ok")
+        section0 = skinning["section_skinning"][0]
+        first_set = section0["bone_index_sets"][0]["vertex_influences"][0]["influences"]
+        self.assertEqual(
+            [(item["bone_name"], item["weight"]) for item in first_set],
+            [("root", 0.75), ("child", 0.25)],
+        )
+        second_set = section0["bone_index_sets"][1]["vertex_influences"][0]["influences"]
+        self.assertEqual(
+            [(item["bone_name"], item["weight"]) for item in second_set],
+            [("child", 0.75), ("root", 0.25)],
+        )
+
+        # The same local vertex indices resolve differently for material slot 1.
+        section1 = skinning["section_skinning"][1]
+        material1 = section1["bone_index_sets"][0]["vertex_influences"][0]["influences"]
+        self.assertEqual(
+            [(item["bone_name"], item["weight"]) for item in material1],
+            [("child", 0.75), ("root", 0.25)],
+        )
+
+    def test_unresolved_active_lane_marks_partial_without_rejecting_zero_weight_lanes(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture(
+            index_values=[[99, 1, 99, 99], [1, 0, 0, 0]]
+        )
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+        skinning = geometry[0]["skinning"]
+        self.assertEqual(skinning["status"], "partial")
+        self.assertGreater(skinning["unresolved_active_influence_count"], 0)
+        self.assertTrue(any("unresolved active bone influences" in item for item in warnings))
+        # Lane 0 is active and unresolved; lanes 2 and 3 have zero weights and
+        # therefore do not inflate the unresolved active influence count.
+        self.assertEqual(
+            skinning["section_skinning"][0]["bone_index_sets"][0]["unresolved_active_influence_count"],
+            1,
+        )
+
+    def test_lod_minus_one_uses_last_bone_info_record(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture(lod_index=-1)
+        bone_info["records"].append({
+            "index": 1, "num_bones": 1, "real_indices": [2],
+            "matrices": [[30.0] * 16], "remaps": [[0], [0]],
+        })
+        # Change the index attributes to use local index zero and make the
+        # selected final palette resolve to TransformInfo index 2 (unnamed).
+        for attr in geometry[0]["attributes"]:
+            if attr["component_type"] == 6:
+                attr["values"] = [[0, 0, 0, 0], [0, 0, 0, 0]]
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+        self.assertEqual(geometry[0]["skinning"]["bone_info_index"], 1)
+        self.assertEqual(geometry[0]["skinning"]["palette"][0]["transform_index"], 2)
+        self.assertEqual(geometry[0]["skinning"]["palette"][0]["name"], None)
+        self.assertEqual(warnings, [])
 
 
 if __name__ == "__main__":
