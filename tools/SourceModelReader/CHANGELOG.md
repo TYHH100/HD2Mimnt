@@ -6,6 +6,7 @@
 - Added same-package Texture dependency lookup and the hd2-material CLI command.
 - Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
 - Added synthetic tests for header boundaries, texture references, known/unknown shader variable classes, value offsets and malformed sizes.
+- Bounded scalar/vector previews to the declared `VariableDataSize` region; any bytes after that region are preserved separately as unresolved trailing payload. Three FS-05 Material samples consistently contained an 8-byte trailer, with all observed variable spans inside the declared region.
 
 ## Material research (parallel 0.8.x)
 
