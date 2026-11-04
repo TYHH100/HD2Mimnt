@@ -67,6 +67,34 @@ Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected 
 
 `VariableDataSize` is treated as the declared variable-value region. Bytes following that region are preserved separately as unresolved trailing data; three inspected FS-05 Material samples each had an 8-byte trailer. This is sample evidence, not a universal format guarantee.
 
+### Full-game Material census
+
+Use `hd2-material-census` to parse Material TOC payloads across the indexed SLIM packages. It scans package type/entry tables, then reads only the byte ranges belonging to Material resources. It does **not** reconstruct GPU or Stream sidecars and does not decode Texture payloads.
+
+Start with a small diagnostic scan:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-material-census "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --max-packages 20 --json ".\\research\\hd2_material_census_smoke.json"
+```
+
+Run the complete scan after the smoke test has been checked:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-material-census "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --json ".\\research\\hd2_material_census.json"
+```
+
+The JSON report records each Material FileID, package occurrence, TOC byte count, raw ParentMaterialID, payload SHA-256, texture-layout signature and shader-layout signature. Aggregate sections count ParentMaterialIDs, raw texture-node type IDs and raw shader-variable IDs. It also distinguishes repeated FileIDs from identical payload hashes, so a same-ID copy with different bytes is not silently merged.
+
+Use `--include-descriptors` only when a detailed per-material listing is needed; it adds every ordered texture-node pair and shader-variable descriptor/preview to each Material row and makes the report larger. `--max-packages` always produces a partial scan and the JSON summary marks it incomplete. Package errors and individual Material parse errors are isolated and recorded.
+
+Example with detailed descriptors for a deliberately small scan:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-material-census "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --max-packages 5 --include-descriptors --json ".\\research\\hd2_material_census_detailed.json"
+```
+
+The census preserves identifiers as raw values. A ParentMaterialID matching a Material FileID is reported as an identity match only; it is not taken as proof of inheritance semantics. Texture-node and shader-variable names require pinned, versioned dictionaries, and no render-mode or transparency classification is inferred.
+
 ### Locate out-of-package resource references
 
 Use `hd2-find` to locate Texture FileIDs across the full SLIM package set. It reads only package TOC entry tables in bounded chunks; it does not load Material, Texture, GPU or Stream payloads:
@@ -141,10 +169,12 @@ Download the following into a separate temporary folder, preserving the `tests` 
 - `hd2_unit.py`
 - `hd2_resources.py`
 - `hd2_material.py`
+- `hd2_material_census.py`
 - `hd2_texture.py`
 - `VERSION`
 - `tests/test_hd2_unit.py`
 - `tests/test_hd2_material.py`
+- `tests/test_hd2_material_census.py`
 - `tests/test_hd2_texture.py`
 - `tests/test_hd2_resources.py`
 - `tests/test_smd_animation.py`

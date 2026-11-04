@@ -2522,6 +2522,30 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_catalog.add_argument("--json", dest="json_path",
                                help="Write the full package catalog to JSON")
 
+    p_hd2_material_census = sub.add_parser(
+        "hd2-material-census",
+        help="Census Material resources across SLIM packages without reading GPU/Stream sidecars",
+    )
+    p_hd2_material_census.add_argument(
+        "input", help="HD2 game data directory containing bundles.nxa",
+    )
+    p_hd2_material_census.add_argument(
+        "--max-packages", type=int,
+        help="Optional package limit for a partial diagnostic scan",
+    )
+    p_hd2_material_census.add_argument(
+        "--include-descriptors", action="store_true",
+        help="Include ordered texture-node IDs and shader-variable descriptors for every Material",
+    )
+    p_hd2_material_census.add_argument(
+        "--top", type=int, default=12,
+        help="Number of frequent ParentMaterialIDs, texture types and shader variables to print (default: 12)",
+    )
+    p_hd2_material_census.add_argument(
+        "--json", dest="json_path",
+        help="Write the full Material census report to JSON",
+    )
+
     p_hd2_find = sub.add_parser(
         "hd2-find",
         help="Locate resource FileIDs across SLIM packages using TOC entries only",
@@ -2589,6 +2613,35 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"JSON report: {out}")
             return 1 if report["summary"]["status"] == "warning" else 0
         except (HD2ResourceError, OSError, struct.error, ValueError, TypeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-material-census":
+        try:
+            from hd2_material_census import (
+                format_material_census_text,
+                scan_slim_material_census,
+            )
+            from hd2_resources import HD2ResourceError
+
+            if args.top < 1:
+                raise ValueError("--top must be at least 1")
+            report = scan_slim_material_census(
+                args.input,
+                max_packages=args.max_packages,
+                include_descriptors=args.include_descriptors,
+            )
+            print(format_material_census_text(report, top=args.top))
+            if args.json_path:
+                out = Path(args.json_path)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(
+                    json.dumps(report, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                print(f"JSON report: {out}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (HD2ResourceError, OSError, struct.error, ValueError, TypeError,
+                KeyError, OverflowError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
     if args.command == "hd2-find":

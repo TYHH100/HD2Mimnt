@@ -144,7 +144,25 @@ A lace pattern may be representable as an Alpha Clip silhouette if fully binary,
 The community Wiki documents that, in legacy workflows, material slot order may also determine which vertex groups are assigned to bones; different body parts can have different slot orders. The reader already preserves each mesh section's MaterialIndex and resolves skinning Remaps using the matching section material index. Do not reorder material slots during conversion unless source/target section mapping is explicitly established.
 Reference: https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/material-slot-order.html
 
-## 7. Current gaps and next parser milestones
+## 7. Full-game Material census (reader implementation)
+
+The experimental `hd2-material-census` command now scans every indexed SLIM package for Material entries, using package TOC metadata and bounded Material TOC payload reads only. It does not reconstruct GPU or Stream sidecars.
+
+The census emits:
+- Per-package Material entry counts and per-occurrence Material FileIDs.
+- Raw ParentMaterialID frequency counts and whether each ID also occurs as a Material FileID elsewhere in the scan.
+- Raw texture-node type ID frequencies, including node occurrence count, Material occurrence count and unique nonzero Texture FileID count.
+- Raw shader-variable ID frequencies, descriptor class counts and element-count distributions.
+- Payload SHA-256 hashes, repeated FileID occurrence groups, byte-identical payload groups and per-material layout signatures.
+- Package and per-Material parse errors, plus bounded warning samples.
+
+The scanner coalesces nearby Material TOC payload ranges (maximum 4 MiB per batch and 64 KiB intervening gap) to reduce repeat decompression. If a coalesced read fails, it retries individual Material ranges so one damaged resource does not automatically discard its neighbors. The report keeps package-scan completion separate from successful Material parsing; partial scans and parse errors are explicitly marked.
+
+`--include-descriptors` adds ordered raw texture-node pairs and shader-variable descriptors/previews to every Material row. It is intended for targeted scans or when the larger JSON report is specifically needed.
+
+This census does not follow Unit references to determine which Materials are actually used by character meshes, does not globally resolve Texture FileIDs, and does not interpret ParentMaterialID aliases or render mode. It is a resource inventory and frequency analysis, not proof of a shader's execution behavior.
+
+## 8. Current gaps and next parser milestones
 
 Implemented in the current experimental 0.8.4 branch:
 - bounded Material TOC payload extraction with header, texture-node IDs, shader-variable descriptors and raw value-payload preservation;

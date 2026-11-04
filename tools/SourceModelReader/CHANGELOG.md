@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.4-alpha — Full-game Material census
+
+- Added `hd2-material-census` and a dedicated read-only scanner for Material resources across indexed SLIM packages.
+- Reads package TOC headers/type tables/entry tables and Material TOC payload ranges only; GPU and Stream sidecars are never reconstructed.
+- Coalesces nearby Material payload ranges (bounded by a 4 MiB batch and 64 KiB gap) to reduce repeated archive reads, with per-resource fallback when a batch read fails.
+- Reports per-occurrence FileIDs, package locations, payload SHA-256 hashes, raw ParentMaterialIDs, texture-node layout signatures and shader-variable layout signatures.
+- Aggregates ParentMaterialID, texture-node type and shader-variable ID frequencies; reports repeated FileIDs separately from byte-identical payload hashes.
+- Optional `--include-descriptors` adds ordered texture-node pairs and shader-variable descriptors/previews per Material.
+- Added synthetic tests for aggregate counts, duplicate FileIDs/payloads, ParentMaterialID identity matches, partial scans and per-resource parse-error isolation.
+- Render mode, parent aliases, texture semantics and global Texture resolution remain explicitly unresolved.
+
 ## 0.8.4-alpha — Material and Texture inspection increment
 
 - Added an independent bounded Texture reader for SLIM packages. It locates one resource entry and reads only that Texture's TOC/GPU/Stream ranges rather than reconstructing full sidecars.
