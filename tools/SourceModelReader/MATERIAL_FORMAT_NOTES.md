@@ -153,7 +153,7 @@ Next:
 - AQ Edition stingray/material.py, stingray/texture.py, utils/constants.py, hashlists/shadervariables.txt and hd2_system/material_packaging.py, pinned to commit 71b380046d33d552eef0892bd48661ff25591380:
   https://github.com/Estecsky/HD2SDK-AQ-Edition/tree/71b380046d33d552eef0892bd48661ff25591380
 - Community Edition stingray/material.py, stingray/texture.py, utils/constants.py and hashlists/texturetypes.txt:
-  https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition
+  https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition/tree/4df125a5e6a34d03532a06b545f700ec5353a98f
 - Helldivers 2 Modding Wiki:
   https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/overview.html
   https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/alphaclip.html
