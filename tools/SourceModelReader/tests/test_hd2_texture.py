@@ -87,6 +87,7 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(report["dds"]["dxgi_format"], 98)
         self.assertEqual(report["dds"]["dxgi_format_name"], "BC7_UNORM")
         self.assertEqual(report["dds"]["array_size"], 1)
+        self.assertEqual(report["dds"]["alpha_mode_name"], "unknown")
         self.assertEqual(report["payloads"]["selected_source"], "gpu")
         self.assertEqual(report["payloads"]["selected"]["size"], len(b"gpu-data"))
         self.assertEqual(report["warnings"], [])
@@ -162,6 +163,19 @@ class TextureParserTests(unittest.TestCase):
         self.assertIn(("fixture.gpu_resources", 0, len(gpu)), fake.ranges)
         self.assertIn(("fixture.stream", 0, len(stream)), fake.ranges)
         self.assertFalse(any(name.endswith(".gpu_resources") and size > len(gpu) for name, _offset, size in fake.ranges))
+
+    def test_cli_help_exposes_hd2_texture_command(self):
+        import subprocess
+        import sys
+
+        script = Path(__file__).resolve().parents[1] / "source_model_reader.py"
+        result = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True, text=True, check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("hd2-texture", result.stdout)
 
     def test_range_loader_rejects_wrong_stored_entry_index(self):
         texture_id = 0x123456789ABCDEF0
