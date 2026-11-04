@@ -312,6 +312,18 @@ class UnitSkinningResolverTests(unittest.TestCase):
         warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
 
         self.assertEqual(warnings, [])
+        usage = transform_info["weight_usage_summary"]
+        self.assertEqual(usage["transform_count"], 3)
+        self.assertEqual(usage["named_transform_count"], 2)
+        self.assertEqual(usage["unmatched_or_ambiguous_transform_count"], 1)
+        self.assertEqual(usage["actively_weighted_transform_count"], 2)
+        self.assertEqual(usage["actively_weighted_named_transform_count"], 2)
+        self.assertEqual(usage["actively_weighted_unnamed_transform_count"], 0)
+        self.assertEqual(usage["resolved_active_influence_lane_count"], 8)
+        self.assertEqual(usage["unresolved_active_influence_lane_count"], 0)
+        self.assertTrue(transform_info["resolved_skeleton"][0]["has_active_vertex_influence"])
+        self.assertTrue(transform_info["resolved_skeleton"][1]["has_active_vertex_influence"])
+        self.assertFalse(transform_info["resolved_skeleton"][2]["has_active_vertex_influence"])
         self.assertEqual(
             [item["name"] for item in transform_info["resolved_skeleton"]],
             ["root", "child", None],
@@ -375,6 +387,14 @@ class UnitSkinningResolverTests(unittest.TestCase):
         self.assertEqual(geometry[0]["skinning"]["bone_info_index"], 1)
         self.assertEqual(geometry[0]["skinning"]["palette"][0]["transform_index"], 2)
         self.assertEqual(geometry[0]["skinning"]["palette"][0]["name"], None)
+        usage = transform_info["weight_usage_summary"]
+        self.assertEqual(usage["actively_weighted_transform_count"], 1)
+        self.assertEqual(usage["actively_weighted_named_transform_count"], 0)
+        self.assertEqual(usage["actively_weighted_unnamed_transform_count"], 1)
+        self.assertEqual(usage["resolved_active_influence_lane_count"], 8)
+        self.assertFalse(transform_info["resolved_skeleton"][0]["has_active_vertex_influence"])
+        self.assertFalse(transform_info["resolved_skeleton"][1]["has_active_vertex_influence"])
+        self.assertTrue(transform_info["resolved_skeleton"][2]["has_active_vertex_influence"])
         self.assertEqual(warnings, [])
 
 
