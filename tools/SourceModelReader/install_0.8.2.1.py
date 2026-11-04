@@ -22,14 +22,16 @@ def backup(path: Path, suffix: str) -> None:
         shutil.copy2(path, target)
 
 
-def install(root: Path, module_source: Path) -> None:
+def install(root: Path, module_source: Path, tests_source: Path) -> None:
     root = root.resolve()
     module_source = module_source.resolve()
+    tests_source = tests_source.resolve()
     main_path = root / "source_model_reader.py"
     module_target = root / "hd2_unit.py"
+    tests_target = root / "tests" / "test_hd2_unit.py"
     version_path = root / "VERSION"
 
-    for path in (main_path, module_source):
+    for path in (main_path, module_source, tests_source):
         if not path.is_file():
             raise FileNotFoundError(f"Required patch/project file not found: {path}")
 
@@ -72,9 +74,15 @@ def main() -> int:
         default=Path(__file__).resolve().with_name("hd2_unit.py"),
         help="Updated hd2_unit.py supplied with this installer",
     )
+    parser.add_argument(
+        "--tests",
+        type=Path,
+        default=Path(__file__).resolve().with_name("tests") / "test_hd2_unit.py",
+        help="Updated tests/test_hd2_unit.py supplied with this installer",
+    )
     args = parser.parse_args()
     try:
-        install(args.root, args.module)
+        install(args.root, args.module, args.tests)
         return 0
     except (OSError, RuntimeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
