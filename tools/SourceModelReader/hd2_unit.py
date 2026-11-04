@@ -1,9 +1,10 @@
-"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.3-alpha.
+"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.4-alpha.
 
 The module parses Unit tables and direct or CompositeUnit GPU buffers into a
 neutral JSON-friendly representation. It resolves material-scoped vertex
-influences through BoneInfo palettes to named TransformInfo bones, while
-preserving raw attributes and matrix values without retargeting.
+influences through BoneInfo palettes, validates the TransformInfo hierarchy
+against stored matrices, and diagnoses actively used mesh-space skin matrices.
+Raw game data remains unchanged; no retargeting or resource writing is done.
 """
 from __future__ import annotations
 
