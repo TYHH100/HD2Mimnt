@@ -68,12 +68,16 @@ Real-game acceptance was completed locally using two FS-05 Units and one Avatar 
 
 ## 0.8.3 — HD2 skeleton palette resolver
 
-- Resolve TransformInfo names through Bones hashes and preserve the real hierarchy.
-- Resolve BoneInfo `RealIndices`, inverse bind matrices and per-material `Remaps`.
-- Validate each vertex's local bone indices against the active material-section palette.
-- Recover source-to-target bind-pose transforms without importing any GMod animation clip.
+**Implemented: 0.8.3-alpha — resolver unit tests added; three attached real-game JSON samples audit clean**
 
-Exit criteria: one original HD2 armor can be exported as a correctly skinned neutral GLB and passes independent palette/weight/bind-pose validation.
+- Resolve TransformInfo names and parent relationships through Bones hashes, while preserving unmatched helper transforms.
+- Resolve BoneInfo palette slots through RealIndices and attach the corresponding raw BoneInfo matrix.
+- Resolve each MeshInfo material section using its own BoneInfo Remap.
+- Emit per-vertex active influences with weight, local index, palette slot, TransformInfo index and bone name.
+- Preserve multiple bone_index component indices as independent sets; do not merge them.
+- Keep matrix convention, bind-pose semantics and inverse-bind interpretation unverified.
+
+Real-sample audit: two FS-05 Units and one Avatar Unit have zero unresolved active influence lanes. All active influence TransformInfo indices have matching Bones names. This does not yet prove correct deformation in Blender or establish matrix conventions.
 
 ## 0.8.4 — Target rig comparison and deformation validation
 
