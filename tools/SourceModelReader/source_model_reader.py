@@ -2532,9 +2532,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Resource FileID to locate (hexadecimal; repeat for multiple IDs)",
     )
     p_hd2_find.add_argument(
-        "--type", choices=sorted(("Texture", "Material", "Unit", "Bones", "CompositeUnit",
-                                  "Animation", "StateMachine", "Physics")),
-        help="Optional resource type filter; use Texture for Material texture dependencies",
+        "--type", required=True,
+        choices=sorted(("Texture", "Material", "Unit", "Bones", "CompositeUnit",
+                        "Animation", "StateMachine", "Physics")),
+        help="Required resource type filter; use Texture for Material texture dependencies",
     )
     p_hd2_find.add_argument("--max-packages", type=int,
                             help="Optional limit for a partial diagnostic scan")
