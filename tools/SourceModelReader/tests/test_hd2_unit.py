@@ -372,6 +372,63 @@ class UnitSkinningResolverTests(unittest.TestCase):
             1,
         )
 
+    def test_missing_material_remap_counts_each_active_lane_in_each_index_set(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture()
+        bone_info["records"][0]["remaps"] = [[1, 0]]
+
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+
+        skinning = geometry[0]["skinning"]
+        self.assertEqual(skinning["status"], "partial")
+        self.assertEqual(skinning["resolved_active_influence_count"], 4)
+        self.assertEqual(skinning["unresolved_active_influence_count"], 4)
+        self.assertEqual(
+            skinning["section_skinning"][1]["status"],
+            "missing_material_remap",
+        )
+        self.assertEqual(
+            skinning["section_skinning"][1]["unresolved_active_influence_count"],
+            4,
+        )
+        self.assertEqual(
+            transform_info["weight_usage_summary"]["unresolved_active_influence_lane_count"],
+            4,
+        )
+        self.assertTrue(any("has no BoneInfo" in item for item in warnings))
+
+    def test_out_of_range_vertex_attribute_rows_are_partial_even_with_lane_counts(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture()
+        for attribute in geometry[0]["attributes"]:
+            if attribute["component_type"] == 6 and attribute["component_index"] == 0:
+                attribute["values"] = []
+
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+
+        skinning = geometry[0]["skinning"]
+        self.assertEqual(skinning["status"], "partial")
+        self.assertEqual(skinning["unresolved_active_influence_count"], 4)
+        self.assertEqual(skinning["out_of_range_vertex_count"], 2)
+        self.assertEqual(
+            skinning["section_skinning"][0]["bone_index_sets"][0]["unresolved_active_influence_count"],
+            2,
+        )
+        self.assertTrue(any("outside decoded vertex attributes" in item for item in warnings))
+
+    def test_negative_section_vertex_indices_are_not_used_as_python_negative_indices(self):
+        transform_info, bone_info, bones, mesh_info, geometry = self.fixture()
+        geometry[0]["sections"][0]["indices"] = [-1]
+
+        warnings = resolve_unit_skinning(transform_info, bone_info, bones, mesh_info, geometry)
+
+        skinning = geometry[0]["skinning"]
+        self.assertEqual(skinning["status"], "partial")
+        self.assertEqual(skinning["section_skinning"][0]["out_of_range_vertex_count"], 2)
+        self.assertEqual(
+            skinning["section_skinning"][0]["bone_index_sets"][0]["vertex_influences"][0]["status"],
+            "vertex_out_of_range",
+        )
+        self.assertTrue(any("outside decoded vertex attributes" in item for item in warnings))
+
     def test_lod_minus_one_uses_last_bone_info_record(self):
         transform_info, bone_info, bones, mesh_info, geometry = self.fixture(lod_index=-1)
         bone_info["records"].append({
