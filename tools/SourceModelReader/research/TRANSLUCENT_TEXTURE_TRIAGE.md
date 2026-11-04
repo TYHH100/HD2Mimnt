@@ -179,3 +179,23 @@ The material family still has an `OpacityBase` parameter and its texture-node ty
 3. Inspect a few occurrences of `bf281073a422022c` in different packages and compare their GPU SHA-256 values to determine whether the 182 entries are identical payload copies.
 4. Record the four RGBA bytes from the local `.gpu.bin` using Python `Path.read_bytes().hex()`; do not infer the alpha byte from the DDS alpha-mode flag.
 5. Keep the root-parent sample (`material_translucent_parent.json`, ParentMaterialID zero, OpacityBase ~0.02) separate from child samples A/B (ParentMaterialID `84e5de1cc6b74ada`, OpacityBase 1.0 and 0.4 respectively).
+
+
+## 10. Cross-reference: the Alpha Clip+ opacity input is already named in the compatibility migration code
+
+A repository-wide code search found an existing compatibility transform in `src/HD2Mimnt.Infrastructure/Analysis/CompatibilityResourceTransforms.cs` (default-branch commit `6ab020a7880b3fdb472bab843c61eb2871b0b358`). This code declares:
+
+- Current Alpha Clip+ parent: `0xC6042E3403385D40`
+- Current opacity texture FileID: `0x12D4692531C1FD35`
+- Current Alpha Clip+ texture semantics: `NormalXyAoRoughMap`, `EmissiveFStop10IntensityMap`, `BaseColorMetalMap`, `OpacityClipMap`
+
+Its migration routine appends the `CurrentEmissiveOpacityTextureId` as the fourth texture reference when converting the legacy three-input emissive material to the current four-input layout. Its comment explicitly describes the new input as an opacity-clip input.
+
+This is a valuable cross-check for the raw sample:
+- The unresolved fourth Texture FileID in `material_alphaclip_plus.json` is exactly the same `0x12d4692531c1fd35` constant.
+- The raw fourth texture-node type is `0xcbde381b`, which the pinned dictionary resolves as `OpacityClipMap`.
+- The existing migration code therefore corroborates that this ID is intended to occupy the Alpha Clip+ opacity-clip slot.
+
+Provenance and limits matter: the compatibility transform itself carries a source-code comment saying it was adapted from Helldivers2ModManager (Apache-2.0). Treat it as a repository cross-reference and historical implementation evidence, not an independent reverse-engineering proof or a source to copy into SourceModelReader. The actual Texture resource still needs to be located and inspected in the current game data; the constant's name and use do not prove its payload dimensions, color values, or whether it is a neutral/default mask.
+
+This also narrows the next lookup: prioritize inspecting `0x12d4692531c1fd35` as an Alpha Clip opacity-mask candidate, then compare its payload and actual material instances with the known 1×1 shared Texture `0xbf281073a422022c`.
