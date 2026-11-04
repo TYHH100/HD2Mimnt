@@ -127,16 +127,19 @@ It also emits `transform_info.weight_usage_summary`, including total/named/unmat
 
 On the Avatar sample, 107 TransformInfo entries contain 90 named entries and 17 unnamed/hash-only entries. Its BoneInfo palette has 88 unique TransformInfo targets, but only 61 distinct named transforms are actually referenced by positive-weight lanes in this mesh; 27 palette slots are not referenced by active vertex weights. This is a mesh-specific usage classification, not a claim that all named transforms across the Unit are deformers.
 
-### Name cross-check against the public AQ Avatar reference
+### Rest-pose cross-check against the public AQ Avatar reference
 
 AQ Edition publishes a 63-entry `hd2_system/avatar_source.json` reference skeleton and describes it as a validated Avatar source used by its runtime profiles: [pinned source file](https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/71b380046d33d552eef0892bd48661ff25591380/hd2_system/avatar_source.json).
 
-Compared by exact name against the 61 distinct named transforms actually weighted by the inspected Avatar mesh:
-- 60 names match exactly.
-- `sling` is actively weighted by this Unit but is absent from the AQ 63-entry reference list.
-- AQ's `support_mg`, `attach_intelpad` and `attach_samplepouch` are not actively weighted by this mesh.
+All **63/63** AQ source-bone names are present among the target Unit's 90 uniquely named TransformInfo entries. The reference file stores each bone's model-space 3×4 Rest matrix. For comparison, the target Unit's stored row-vector 4×4 world matrix was transposed into the same 3×4 layout. The full Rest matrices then matched across all 63 names:
+- Mean per-bone maximum absolute component error: approximately (8.07×10^{-7}).
+- Median per-bone maximum absolute component error: approximately (4.77×10^{-7}).
+- Maximum component error: approximately (1.34×10^{-5}), on `l_shoulder_twist`.
+- Maximum translation-component error: approximately (5.40×10^{-7}).
 
-This is a name-only cross-check. The AQ file's provenance explicitly says its `parent=-1` entries store model-space Rest, not Blender's authoring hierarchy. Its list must not be used as a substitute for the Unit's TransformInfo parent graph or as proof that `sling` is invalid. Treat the 60 names as high-confidence mapping candidates, and keep `sling` as an explicit unmatched target candidate pending hierarchy/animation evidence. No AQ implementation code or rig data is imported by this reader.
+Of those 63 reference bones, 60 are actively weighted by the inspected Avatar mesh and 3 (`support_mg`, `attach_intelpad`, `attach_samplepouch`) are named helper/attachment entries not used by this mesh's positive-weight vertex lanes. The Unit has one additional actively weighted transform, `sling`, that is not present in the 63-entry AQ reference.
+
+The AQ file's provenance explicitly says its `parent=-1` entries store model-space Rest, not Blender's authoring hierarchy. This comparison validates name correspondence and model-space Rest matrices; it does not replace the Unit's TransformInfo parent graph, establish animated behavior, or prove that `sling` should be discarded. Keep `sling` as an explicit Unit-specific weighted node. No AQ implementation code or rig data is imported by this reader.
 
 Maximum absolute error was approximately (2.58×10^{-7}) for the TransformInfo hierarchy comparisons and (1.74×10^{-7}) for the active BoneInfo palette comparisons. Both are below the implementation's (10^{-4}) diagnostic tolerance.
 
