@@ -155,7 +155,7 @@ class TextureParserTests(unittest.TestCase):
                     temp, "fixture", texture_id
                 )
 
-        self.assertEqual(resource["entry_index"], 1)
+        self.assertEqual(resource["entry_index"], 0)
         self.assertEqual(resource["toc_row_index"], 0)
         self.assertEqual(actual_toc, texture_toc)
         self.assertEqual(actual_gpu, gpu)
