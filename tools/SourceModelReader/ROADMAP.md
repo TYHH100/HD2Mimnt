@@ -93,6 +93,8 @@ Real-sample audit: all 161 TransformInfo matrices across two FS-05 Units and one
 
 The resolver also marks which TransformInfo nodes are actually reached by positive-weight vertex lanes and reports named/unmatched/actively weighted counts through `transform_info.weight_usage_summary`. On the inspected Avatar mesh, 90 names map to TransformInfo but only 61 distinct named transforms are actively weighted; 27 BoneInfo palette entries are unreferenced by that mesh. The corresponding actively weighted TransformInfo counts are 2 for FS-05 lower-body, 23 for FS-05 torso/left-arm and 61 for the Avatar mesh. This gives the next bone-mapping step a data-backed starting set rather than assuming every named attachment/helper is a deformation bone.
 
+An independent name-only comparison with AQ Edition's public 63-entry Avatar reference (`hd2_system/avatar_source.json`, pinned at commit `71b380046d33d552eef0892bd48661ff25591380`) found 60 exact names among the 61 weighted Avatar transforms. `sling` is the one active Unit name absent from that list; `support_mg`, `attach_intelpad` and `attach_samplepouch` are present in the AQ reference but not actively weighted by this mesh. The AQ source states its entries are model-space Rest (`parent=-1`), not a Blender authoring hierarchy, so this is not a parent-graph validation.
+
 **Remaining 0.8.4 work**
 
 - Compare candidate source bones to the verified HD2 target skeleton by explicit mapping rules.
