@@ -439,6 +439,9 @@ class HD2CatalogTests(unittest.TestCase):
                     (wanted_texture, TYPE_IDS["Texture"]),
                     (second_texture, TYPE_IDS["Texture"]),
                 ]),
+                "override_archive": self.make_resource_toc([
+                    (wanted_texture, TYPE_IDS["Texture"]),
+                ]),
                 "static_archive": self.make_resource_toc([
                     (0xABCDEF0123456789, TYPE_IDS["Unit"]),
                 ]),
@@ -451,15 +454,15 @@ class HD2CatalogTests(unittest.TestCase):
 
         self.assertEqual(report["summary"]["status"], "ok")
         self.assertTrue(report["summary"]["scan_complete"])
-        self.assertEqual(report["summary"]["package_count_scanned"], 3)
-        self.assertEqual(report["summary"]["package_count_with_requested_type"], 2)
-        self.assertEqual(report["summary"]["resource_entry_rows_scanned"], 4)
+        self.assertEqual(report["summary"]["package_count_scanned"], 4)
+        self.assertEqual(report["summary"]["package_count_with_requested_type"], 3)
+        self.assertEqual(report["summary"]["resource_entry_rows_scanned"], 5)
         found = {item["file_id"]: item for item in report["resources"]}
         self.assertEqual(found[f"{wanted_texture:016x}"]["status"], "found")
-        self.assertEqual(len(found[f"{wanted_texture:016x}"]["matches"]), 1)
+        self.assertEqual(len(found[f"{wanted_texture:016x}"]["matches"]), 2)
         self.assertEqual(
-            found[f"{wanted_texture:016x}"]["matches"][0]["package"],
-            "base_archive",
+            [match["package"] for match in found[f"{wanted_texture:016x}"]["matches"]],
+            ["base_archive", "override_archive"],
         )
         self.assertEqual(found[f"{second_texture:016x}"]["status"], "found")
         self.assertEqual(
