@@ -219,23 +219,23 @@ class PackedVertexFormatTests(unittest.TestCase):
 
     def test_format_29_is_not_assumed_to_be_weights_for_other_components(self):
         packed = 1023 | (512 << 10) | (256 << 20) | (3 << 30)
-        gpu = struct.pack("<I3H", packed, 0, 1, 2)
+        gpu = struct.pack("<3I3H", packed, packed, packed, 0, 1, 2)
         stream = {
             "components": [{
                 "type": 2, "type_name": "tangent", "index": 0,
                 "format": 29, "format_name": "packed_10_10_10_2",
                 "byte_size": 4, "byte_offset": 0,
             }],
-            "num_vertices": 1, "vertex_stride": 4,
-            "vertex_buffer_offset": 0, "vertex_buffer_size": 4,
+            "num_vertices": 3, "vertex_stride": 4,
+            "vertex_buffer_offset": 0, "vertex_buffer_size": 12,
             "num_indices": 3, "index_buffer_type": 0,
-            "index_buffer_offset": 4, "index_buffer_size": 6,
+            "index_buffer_offset": 12, "index_buffer_size": 6,
         }
         mesh = {
             "mesh_id": 0x87654321, "index": 0, "transform_index": 0,
             "lod_index": 0, "stream_index": 0,
             "sections": [{
-                "index": 0, "vertex_offset": 0, "num_vertices": 1,
+                "index": 0, "vertex_offset": 0, "num_vertices": 3,
                 "index_offset": 0, "num_indices": 3,
             }],
         }
