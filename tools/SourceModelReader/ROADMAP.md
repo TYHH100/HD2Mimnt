@@ -106,7 +106,7 @@ Exit criteria: pelvis, spine, head, shoulder, elbow, wrist, hip, knee and ankle 
 
 ## Parallel 0.8.x track — Material/Texture preservation
 
-**Research and first parser implemented: `MATERIAL_FORMAT_NOTES.md` records the common Material resource layout; `hd2_material.py` now performs bounded raw Material extraction and same-package Texture dependency checks. Real-game material-instance validation remains pending.**
+**Research and first parser implemented: `MATERIAL_FORMAT_NOTES.md` records the common Material resource layout; `hd2_material.py` performs bounded raw Material extraction and same-package Texture checks; `hd2-find` locates out-of-package resource IDs across SLIM TOC entry tables without loading GPU/Stream payloads. Real-game material-instance validation remains pending.**
 
 Verified research direction:
 - A Unit references Material resources; each Material references Texture resources.
