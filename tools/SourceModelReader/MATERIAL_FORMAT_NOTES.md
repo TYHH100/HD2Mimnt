@@ -142,11 +142,11 @@ Not implemented yet:
 - in-game tests for cutout versus fractional transparency.
 
 Next:
-1. Implement read-only Material header/texture dependency parsing while preserving every unknown byte.
-2. Add variable descriptor and raw payload extraction; interpret only scalar/vector cases validated against real instances.
+1. Validate the new Material parser against real game resources and confirm the fixed-header/table/value-payload boundaries.
+2. Resolve shader-variable IDs and texture-node types through revision-scoped dictionaries while preserving raw values.
 3. Parse Texture DDS metadata and retain alpha-channel bytes without destructive conversion.
-4. Attach versioned parent aliases and texture-node semantic names as advisory metadata only.
-5. Test against real alpha-clip, translucent, glass and ordinary opaque material resources before implementing automatic material conversion.
+4. Interpret arrays/strides and attach versioned parent aliases only after real-instance validation.
+5. Test real Alpha Clip, Translucent/Glass and ordinary opaque Material resources before implementing automatic material conversion.
 
 ## References inspected
 
