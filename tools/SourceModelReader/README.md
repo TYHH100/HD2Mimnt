@@ -67,7 +67,7 @@ Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected 
 
 See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
 
-## Installing the 0.8.4 patch over an existing 0.8.3 folder
+## Installing or refreshing the 0.8.4 patch over an existing supported folder
 
 Download the following into a separate temporary folder, preserving the `tests` subfolder:
 
