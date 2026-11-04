@@ -128,8 +128,12 @@ Reference: https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/mate
 
 ## 7. Current gaps and next parser milestones
 
+Implemented in the current experimental 0.8.4 branch:
+- bounded Material TOC payload extraction with header, texture-node IDs, shader-variable descriptors and raw value-payload preservation;
+- same-package Texture dependency presence checks;
+- conservative first scalar/vector preview for recognized variable classes.
+
 Not implemented yet:
-- an independent bounded Material TOC decoder;
 - per-build shader-parent alias manifests;
 - complete shader-variable payload/stride validation;
 - a Texture resource/DDS array parser in Source Model Reader;
