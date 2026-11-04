@@ -2,6 +2,25 @@
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
 
+## Installing the 0.8.2.1 patch over an existing 0.8.2-alpha folder
+
+For a project folder that is still on 0.8.2-alpha, download these two files into a **separate temporary folder**:
+
+- `install_0.8.2.1.py`
+- `hd2_unit.py`
+
+Run the installer from that temporary folder and point it at the existing project folder:
+
+```powershell
+py -3 .\install_0.8.2.1.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+```
+
+The installer creates `.0.8.2.bak` backups for the target module, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then run:
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
 ## What 0.8.2.1 adds — packed normal and weight decoding
 
 The 0.8.2.1 patch builds on the real FS-05 and Avatar Unit inspections:
