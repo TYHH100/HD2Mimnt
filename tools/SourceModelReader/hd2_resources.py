@@ -956,7 +956,8 @@ def format_catalog_text(report: dict) -> str:
     return "\n".join(lines)
 
 
-def inspect_hd2_package(input_path: str | Path, package_name: Optional[str] = None) -> dict:
+def load_resource_package(input_path: str | Path, package_name: Optional[str] = None) -> ResourcePackage:
+    """Load one package from game data or a standalone legacy/DSAR package file."""
     path = Path(input_path)
     if path.is_dir():
         if package_name:
@@ -984,8 +985,11 @@ def inspect_hd2_package(input_path: str | Path, package_name: Optional[str] = No
             raise HD2ResourceError("--package is only valid when input is a game data directory")
         toc_data, gpu_data, stream_data, source_kind = _read_package_file(path)
         name = path.name
-    package = parse_toc_package(name, toc_data, gpu_data, stream_data, source_kind)
-    return build_resource_report(package)
+    return parse_toc_package(name, toc_data, gpu_data, stream_data, source_kind)
+
+
+def inspect_hd2_package(input_path: str | Path, package_name: Optional[str] = None) -> dict:
+    return build_resource_report(load_resource_package(input_path, package_name))
 
 
 def format_report_text(report: dict) -> str:
