@@ -267,3 +267,44 @@ Supported preview scope is intentionally narrow: DXGI 98/99 (BC7 UNORM/SRGB), DX
 The JSON preview section records the decoder/version, source dimensions, mip level, byte counts and per-pixel Alpha histogram. It separately counts Alpha=0, Alpha=1..254 and Alpha=255. These counts describe the decoded texture bytes only. They do not prove the game's Material shader enables fractional blending or even consumes that channel as opacity.
 
 Real-game pixel/Alpha inspection remains a manual validation step: inspect the generated PNG and JSON for the two FS-05 samples, then follow the actual Material texture-node link and parent/render family before classifying transparency.
+
+
+## 9. Shader-variable descriptor interpretation: preserve arrays and stride as unresolved
+
+The pinned AQ Edition and Community Edition implementations of `stingray/material.py` use the same descriptor layout:
+
+`klass, elements, ID, offset, elementStride`
+
+Both readers then:
+1. derive a component count from `klass` (Scalar=1, Vector2=2, Vector3=3, Vector4=4);
+2. seek to the variable-value payload plus `offset`;
+3. read exactly one scalar/vector of that component count;
+4. restore the previous stream position.
+
+In the inspected code paths, neither implementation uses `elements` or `elementStride` to decode additional values. The `Other` class (12) is also not decoded as a normal float vector. The readers preserve the remaining value bytes but do not establish the semantics of array elements, per-element stride, padding, or packed/non-float data.
+
+SourceModelReader's current `first_vector_preview` is deliberately bounded to the declared `VariableDataSize` and reports `elements` and `element_stride` without expanding them. This is the correct conservative boundary for the current research phase: the preview is a first-value diagnostic, not a complete decoder for every shader variable.
+
+### C# implementation requirements derived from this comparison
+
+- Keep the five descriptor fields as raw unsigned 32-bit values.
+- Preserve the complete declared variable payload and any bytes after it as separate raw spans.
+- Never infer an array length or stride from `elements` / `elementStride` until real samples demonstrate how they are encoded.
+- Keep `klass=12` opaque; do not reinterpret it as 13 floats just because the numeric class value is 12.
+- Expose a clearly named first-value preview separately from any future full-value decoder.
+- Add fixtures for overlapping offsets, gaps, nonzero strides, `elements > 1`, and `klass=12` before implementing generalized decoding.
+
+This comparison is useful because two public SDK forks independently make the same limited first-value read. It does **not** prove the ignored descriptor fields are meaningless; rather, it identifies an unimplemented part of the public readers and a concrete research gap for SourceModelReader.
+
+## 10. Material census sampling and full-scan discipline
+
+The committed smoke census is a deterministic prefix of the lexicographically sorted package index (`all_names[:max_packages]`), not a random or stratified sample. Its 20-package result is therefore suitable for parser smoke testing and concrete fixture discovery, but not for estimating game-wide material-family prevalence.
+
+For the next complete pass:
+1. Run `hd2-material-census` with no `--max-packages` and without `--include-descriptors`. This scans all indexed non-sidecar packages and parses Material TOC payloads while avoiding GPU/Stream sidecars.
+2. Require `summary.scan_complete=true`, `package_scan_complete=true`, and `material_parse_error_count=0` before treating family counts as complete.
+3. Use the aggregate `parent_material_ids`, `texture_type_frequencies`, and `material_structure_frequencies` to identify candidate families and descriptor shapes.
+4. Only then run targeted `hd2-material` extraction for selected Material FileIDs with `--json`, rather than enabling descriptors for every Material in all packages.
+5. For each candidate, resolve its referenced Texture FileIDs with `hd2-find --type Texture`; then inspect only the selected resources' GPU/Stream payloads.
+
+The full census output can be large. The `--include-descriptors` option adds ordered texture-node pairs and all shader-variable descriptors/previews to every Material row, so it should be reserved for a bounded diagnostic scan or a future filtered family export. Do not make a multi-million-line all-material descriptor report the default research artifact.
