@@ -163,3 +163,22 @@ For transparent/fabric-capable material research, keep three separate candidates
 | `0xd84d04634a1e2f60` / `0xc6042e3403385d40` | AQ `alphaclip` / `alphaclip+` | Explicit Alpha Mask / OpacityClipMap slots | Cutout family; not a substitute for graded translucency |
 
 The next full-game search should include `0x110199a9c3401242`, alongside the two existing families, and should collect actual material instances and their texture FileIDs before prioritizing any one template for conversion.
+
+
+## 10. Full-census execution plan and interpretation guardrails
+
+The committed smoke census scans the first 20 package names from a lexicographically sorted index (`all_names[:max_packages]`). It is a deterministic parser smoke test, not a representative sample. The current counts in this document must not be extrapolated to the full game.
+
+The SourceModelReader CLI already supports the next step:
+- `hd2-material-census` without `--max-packages` scans all indexed non-sidecar packages.
+- Omit `--include-descriptors` for the full pass. This keeps the report focused on per-material structure, ParentMaterialID, texture-node IDs and shader-variable summary statistics without embedding every descriptor for every material.
+- Accept the family totals as complete only when `summary.scan_complete=true`, `package_scan_complete=true`, and `material_parse_error_count=0`. If not, report exact scanned/scannable counts and errors; do not silently treat partial results as full-game totals.
+
+After the full census:
+1. Compare all occurrences of `0x84e5de1cc6b74ada`, `0x110199a9c3401242`, `0xd84d04634a1e2f60`, and `0xc6042e3403385d40`.
+2. Group by Material FileID and payload hash so duplicate package occurrences are not counted as independent instances.
+3. Extract full descriptor/texture-node details only for distinct payloads in the families of interest.
+4. Resolve every referenced Texture FileID independently; a missing Texture in the same package is only an external-package reference, not a globally missing resource.
+5. Prioritize non-1×1 textures and payloads with meaningful GPU/Stream data for alpha-channel inspection. Do not equate an Alpha Clip mask with fractional transparency, and do not assume a translucent alias alone proves fabric suitability.
+
+This staged workflow keeps the global census reasonably small while preserving a path to complete family-specific evidence. It also avoids making the all-material descriptor mode the default, which would inflate the report without improving the initial family counts.
