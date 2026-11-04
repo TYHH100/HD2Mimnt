@@ -161,3 +161,4 @@ gmpublisher/
 *.gma
 examples/
 tools/SourceModelReader/*.json
+*.bak
