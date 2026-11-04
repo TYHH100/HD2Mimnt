@@ -180,3 +180,47 @@ Next:
   https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/material-slot-order.html
 - Autodesk Stingray parent/child material documentation:
   https://help.autodesk.com/cloudhelp/ENU/Stingray-Help/stingray_help/lighting_rendering/shading_and_materials/parent_child_materials.html
+
+## 6. Texture resource layout observed in the pinned public SDK readers
+
+Both pinned `stingray/texture.py` implementations (`Boxofbiscuits97/HD2SDK-CommunityEdition` at `4df125a5e6a34d03532a06b545f700ec5353a98f` and `Estecsky/HD2SDK-AQ-Edition` at `71b380046d33d552eef0892bd48661ff25591380`) read the common Texture TOC sequence in this order:
+
+| Region | Offset | Size | Fields |
+|---|---:|---:|---|
+| Fixed prefix | 0 | 12 | three uint32 values: `UnkID`, `Unk1`, `Unk2` |
+| Mipmap table | 12 | 180 | 15 records × 12 bytes |
+| DDS header | 192 | 148 | DDS magic + 124-byte DDS header + 20-byte DX10 extension |
+| Common minimum | 0 | 340 | sum of the regions above |
+
+Each mipmap record is read as `<IIHH>`: `Start` (uint32), `BytesLeft` (uint32), `Height` (uint16), and `Width` (uint16). All 15 records should be preserved even when some entries are zero or not currently understood.
+
+The 148-byte DDS block is interpreted by the public SDKs as a DX10 DDS header. Relevant fields in the reader are:
+
+- DDS magic at byte 0 of the 148-byte block;
+- `dwSize`, flags, height, width, pitch/linear size, depth and mip count in the standard DDS header;
+- `FourCC` at block offset 84, expected to be `DX10` by these SDK readers;
+- DXGI format at offset 128;
+- resource dimension at 132;
+- misc flags at 136;
+- array size at 140;
+- misc flags 2 at 144.
+
+The current Source Model Reader reports the numeric DXGI value and a friendly name only for values in its small checked dictionary. Unknown values remain explicit numeric IDs. Extra TOC bytes after byte 340 are retained as unresolved trailing data; no semantics are assigned to them.
+
+### GPU versus Stream payload behavior
+
+In both inspected SDK versions, the read-side logic selects `Stream.Data` when the Stream payload is non-empty; otherwise it selects `Gpu.Data`. The AQ and Community implementations agree on this precedence. This is implementation evidence for the selected DDS byte path, not proof that the non-selected payload is redundant or disposable in every resource.
+
+Accordingly, the independent reader records the GPU and Stream sizes and SHA-256 hashes separately. `hd2-texture` writes the SDK-selected payload after the original 148-byte DDS header. With `--preserve-raw`, it also writes separate `.gpu.bin` and `.stream.bin` files for every non-empty sidecar, retaining both representations when both exist.
+
+A FileID can be present in more than one SLIM package. Each package occurrence must be treated as a distinct candidate until DDS metadata and payload hashes have been compared. A same-ID occurrence in another package is not automatically interchangeable with the selected copy.
+
+### Current interpretation limits
+
+- The parser does not infer transparency from DXGI format, alpha-capable format names, or the mere presence of alpha bits.
+- The parser does not yet decompress BC1/BC3/BC7 or other block-compressed payloads to inspect actual pixels/channels.
+- Texture arrays are reported by `ArraySize`; they are not flattened or split by the reader.
+- Mipmap `Start` and `BytesLeft` are preserved as metadata but their exact relationship to payload offsets and streamed/resident mip partitions still needs validation against several real resources.
+- A Texture used by an Alpha Clip, Translucent or Advanced Material must be interpreted together with its Material parent/family and shader variables. Texture-level evidence alone is insufficient to distinguish cutout, fractional opacity and emissive-mask usage.
+
+The first real-game verification candidates from the FS-05 Material dependency scan include one Stream-backed Texture (`0d371130ba00addb`, 5,592,432 Stream bytes plus 1,392 GPU bytes) and one GPU-only Texture (`17c4075f57e4211a`, 349,552 GPU bytes) in package `18235e0c9ec0e636`. These are useful parser test inputs, not established transparency examples.
