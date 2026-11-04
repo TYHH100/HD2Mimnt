@@ -48,10 +48,14 @@ def install(root: Path, module_source: Path, tests_source: Path) -> None:
 
     backup(main_path, ".0.8.2.bak")
     backup(module_target, ".0.8.2.bak")
+    backup(tests_target, ".0.8.2.bak")
     backup(version_path, ".0.8.2.bak")
 
     if module_source != module_target.resolve():
         shutil.copy2(module_source, module_target)
+    tests_target.parent.mkdir(parents=True, exist_ok=True)
+    if tests_source != tests_target.resolve():
+        shutil.copy2(tests_source, tests_target)
     main_path.write_text(source, encoding="utf-8", newline="\n")
     version_path.write_text(NEW_VERSION + "\n", encoding="utf-8", newline="\n")
 
