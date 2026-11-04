@@ -68,7 +68,7 @@ def make_texture_package(texture_id, texture_toc, gpu_bytes, stream_bytes):
     struct.pack_into(
         "<7Q6I", toc, entries_offset,
         texture_id, type_id, payload_offset, 0, 0, 0, 0,
-        len(texture_toc), len(stream_bytes), len(gpu_bytes), 0, 0, 1,
+        len(texture_toc), len(stream_bytes), len(gpu_bytes), 0, 0, 0,
     )
     toc[payload_offset:] = texture_toc
     return bytes(toc)
