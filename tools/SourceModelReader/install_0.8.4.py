@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Source Model Reader 0.8.4-alpha over an existing 0.8.3 folder."""
+"""Install or refresh Source Model Reader 0.8.4-alpha over a supported existing folder."""
 from __future__ import annotations
 
 import argparse
