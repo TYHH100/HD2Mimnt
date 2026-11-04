@@ -54,16 +54,17 @@ Exit criteria: run the catalog against the user's full HD2 `data` directory, sel
 
 ## 0.8.2 — HD2 Unit and GPU reader
 
-**Implementation baseline: 0.8.2-alpha — synthetic tests pass; real-game acceptance pending**
+**Accepted structural baseline: 0.8.2-alpha + 0.8.2.1-alpha — synthetic tests and three real-game samples validated**
 
 - Parse TransformInfo local data, raw matrices, parent indices and name hashes.
 - Parse BoneInfo matrices, RealIndices and per-material Remap arrays.
 - Parse StreamInfo component descriptors and MeshInfo section/LOD relationships.
-- Decode supported direct Unit GPU vertex/index layouts.
-- Map CompositeUnit mesh IDs to shared layouts, streams and GPU geometry.
-- Export a neutral JSON intermediate representation; do not retarget Source bones or resolve palette names yet.
+- Decode supported direct Unit GPU vertex/index layouts and CompositeUnit-backed shared geometry.
+- Decode Format 30 octahedral normals and Format 29 three-channel normalized bone weights when their component semantics identify those uses.
+- Preserve raw packed words alongside additive semantic decoded values.
+- Keep matrix convention, bind-pose semantics, and Source-to-HD2 retargeting out of this milestone.
 
-Synthetic tests currently cover the table layouts, direct geometry path and CompositeUnit mapping. The exit criteria are **not yet met**: run the original FS-05 armor Unit and Avatar CompositeUnit commands, then compare positions, triangle counts, normals, UVs and material boundaries with a trusted SDK/Blender import.
+Real-game acceptance was completed locally using two FS-05 Units and one Avatar Unit backed by a CompositeUnit. All selected geometry ranges and palette chains were checked against the sample data. Visual comparison against a separate trusted renderer remains a later validation task.
 
 ## 0.8.3 — HD2 skeleton palette resolver
 
