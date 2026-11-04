@@ -91,7 +91,7 @@ The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The 
 
 Real-sample audit: all 161 TransformInfo matrices across two FS-05 Units and one Avatar CompositeUnit Unit matched the reconstructed hierarchy within (2.58×10^{-7}). All 162 actively used BoneInfo palette slots matched the mesh-space comparison within (1.74×10^{-7}). 27 unreferenced Avatar palette slots were excluded; this is not proof of their semantic purpose.
 
-The resolver also marks which TransformInfo nodes are actually reached by positive-weight vertex lanes and reports named/unmatched/actively weighted counts through `transform_info.weight_usage_summary`. On the inspected Avatar mesh, 90 names map to TransformInfo but only 61 distinct named transforms are actively weighted; 27 BoneInfo palette entries are unreferenced by that mesh. This gives the next bone-mapping step a data-backed starting set rather than assuming every named attachment/helper is a deformation bone.
+The resolver also marks which TransformInfo nodes are actually reached by positive-weight vertex lanes and reports named/unmatched/actively weighted counts through `transform_info.weight_usage_summary`. On the inspected Avatar mesh, 90 names map to TransformInfo but only 61 distinct named transforms are actively weighted; 27 BoneInfo palette entries are unreferenced by that mesh. The corresponding actively weighted TransformInfo counts are 2 for FS-05 lower-body, 23 for FS-05 torso/left-arm and 61 for the Avatar mesh. This gives the next bone-mapping step a data-backed starting set rather than assuming every named attachment/helper is a deformation bone.
 
 **Remaining 0.8.4 work**
 
