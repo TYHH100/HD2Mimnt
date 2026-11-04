@@ -90,6 +90,7 @@ The common Texture TOC layout observed in the pinned AQ and Community SDK reader
 - 148-byte DDS DX10 header.
 
 That is 340 bytes before any trailing TOC data. The parser preserves unknown trailing bytes and all 15 raw mipmap records, and reports DDS dimensions, DXGI format, mip count, resource dimension and array size. Unknown DXGI values remain numeric rather than being guessed.
+For known BC and common uncompressed DXGI formats, the report calculates every mip's expected byte size, cumulative offset and remaining-byte count. It classifies GPU/Stream payloads as a complete chain or a matching contiguous mip tail when the sizes prove that relationship, and checks populated TOC mipmap records against the calculated chain. An entirely zeroed mipmap table is reported as `not_populated`, not silently treated as a failed decode.
 The selected Texture entry is checked against the observed SLIM TOC row convention: stored `entry_index` must equal the zero-based TOC row. The report keeps both values separately (`entry_index` and `toc_row_index`). The two tested game entries confirm this relationship (rows 3678 and 3687 store the same values). Do not generalize this result to unrelated patch-file formats without checking their own format rules.
 
 Example:
