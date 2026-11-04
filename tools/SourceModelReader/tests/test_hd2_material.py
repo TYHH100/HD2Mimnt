@@ -1,13 +1,16 @@
 import struct
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from hd2_material import (
     MATERIAL_HEADER_SIZE,
     MAX_MATERIAL_TEXTURES,
+    inspect_hd2_material,
     parse_material_resource,
     parse_resource_id,
 )
-from hd2_resources import HD2ResourceError
+from hd2_resources import HD2ResourceError, TYPE_IDS
 
 
 def make_material(
@@ -132,6 +135,49 @@ class MaterialResourceParserTests(unittest.TestCase):
         material.extend(struct.pack("<I", 0x12345678))
         with self.assertRaises(HD2ResourceError):
             parse_material_resource(bytes(material))
+
+    def test_inspector_resolves_texture_dependencies_in_same_package(self):
+        material_payload = make_material(
+            texture_types=[0x101, 0x202],
+            texture_ids=[0x1111111111111111, 0x2222222222222222],
+        )
+        material_entry = SimpleNamespace(
+            file_id=0xABCDEF0123456789,
+            type_id=TYPE_IDS["Material"],
+            toc_size=len(material_payload),
+            gpu_size=0,
+            stream_size=0,
+        )
+        texture_entry = SimpleNamespace(
+            file_id=0x1111111111111111,
+            type_id=TYPE_IDS["Texture"],
+            toc_size=128,
+            gpu_size=256,
+            stream_size=64,
+        )
+
+        class FakePackage:
+            name = "synthetic"
+            source_kind = "synthetic"
+            def entry_map(self):
+                return {
+                    (material_entry.file_id, material_entry.type_id): material_entry,
+                    (texture_entry.file_id, texture_entry.type_id): texture_entry,
+                }
+            def payload(self, entry):
+                if entry is material_entry:
+                    return material_payload, b"", b""
+                return b"", b"\x00" * 256, b"\x00" * 64
+
+        with patch("hd2_material.load_resource_package", return_value=FakePackage()):
+            report = inspect_hd2_material("unused", None, material_entry.file_id)
+
+        self.assertEqual(report["summary"]["status"], "warning")
+        self.assertEqual(report["summary"]["texture_dependencies_found_in_package"], 1)
+        self.assertEqual(report["summary"]["texture_dependencies_missing_from_package"], 1)
+        self.assertTrue(report["texture_nodes"][0]["resolved_in_package"])
+        self.assertFalse(report["texture_nodes"][1]["resolved_in_package"])
+        self.assertEqual(report["texture_nodes"][0]["texture_resource"]["gpu_bytes"], 256)
 
     def test_accepts_hex_and_decimal_resource_ids(self):
         self.assertEqual(parse_resource_id("0x10"), 16)
