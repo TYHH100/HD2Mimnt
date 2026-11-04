@@ -686,13 +686,16 @@ def resolve_unit_skinning(
     mesh_info: dict,
     geometry: list[dict],
 ) -> list[str]:
-    """Resolve vertex-local bone indices through material remaps to TransformInfo.
+    """Resolve material-scoped vertex influences to named TransformInfo bones.
 
-    The mapping order follows the public Community SDK reader:
-        local vertex index -> Remaps[material_index] -> RealIndices -> TransformInfo.
-    Mesh LOD N selects BoneInfo[N]. LOD -1 uses the final BoneInfo record only
-    when the mesh actually carries skin attributes, matching the SDK's
-    negative-index behavior. Raw attributes and source matrices are untouched.
+    Mapping order:
+        vertex-local index -> Remaps[material_index] -> RealIndices
+        -> TransformInfo index -> Bones name_hash.
+
+    Each bone_index component index is kept as an independent index set. This
+    matters for legacy/grouped HD2 layouts; sets are never merged or summed.
+    BoneInfo matrices remain raw and are attached to their matching palette
+    slot without interpreting their matrix convention.
     """
     warnings = []
     transforms = transform_info.get("transforms", [])
@@ -700,25 +703,36 @@ def resolve_unit_skinning(
     names_by_hash = {}
     if bones_resource:
         for item in bones_resource.get("bones", []):
-            value = names_by_hash.setdefault(item["hash"], [])
-            value.append(item["name"])
+            names_by_hash.setdefault(item["hash"], []).append(item["name"])
 
     skeleton = []
     for item in transforms:
         candidates = names_by_hash.get(item["name_hash"], [])
-        name = candidates[0] if len(candidates) == 1 else None
+        parent_raw = item["parent_index_raw"]
+        parent_index = (
+            None if parent_raw == 0xFFFF or parent_raw == item["index"]
+            else parent_raw
+        )
+        parent_name = None
+        if parent_index is not None and 0 <= parent_index < len(transforms):
+            parent_hash = transforms[parent_index]["name_hash"]
+            parent_candidates = names_by_hash.get(parent_hash, [])
+            if len(parent_candidates) == 1:
+                parent_name = parent_candidates[0]
         skeleton.append({
             "transform_index": item["index"],
             "name_hash": item["name_hash"],
-            "name": name,
+            "name": candidates[0] if len(candidates) == 1 else None,
             "name_ambiguous": len(candidates) > 1,
-            "parent_index_raw": item["parent_index_raw"],
+            "parent_index_raw": parent_raw,
+            "parent_transform_index": parent_index,
+            "parent_name": parent_name,
             "increment": item["increment"],
         })
     transform_info["resolved_skeleton"] = skeleton
+    names_by_transform = {item["transform_index"]: item["name"] for item in skeleton}
 
-    # Resolve each compact LOD palette once. Matrices remain in their raw form;
-    # this step only resolves the index/name relationship.
+    # BoneInfo.Bones[i] and RealIndices[i] share the same palette slot.
     for record in records:
         resolved_palette = []
         for palette_slot, transform_index in enumerate(record["real_indices"]):
@@ -728,6 +742,10 @@ def resolve_unit_skinning(
                     "transform_index": transform_index,
                     "name_hash": None,
                     "name": None,
+                    "bone_info_matrix_raw": (
+                        record["matrices"][palette_slot]
+                        if palette_slot < len(record["matrices"]) else None
+                    ),
                     "valid": False,
                 })
                 continue
@@ -739,6 +757,10 @@ def resolve_unit_skinning(
                 "name_hash": transform["name_hash"],
                 "name": candidates[0] if len(candidates) == 1 else None,
                 "name_ambiguous": len(candidates) > 1,
+                "bone_info_matrix_raw": (
+                    record["matrices"][palette_slot]
+                    if palette_slot < len(record["matrices"]) else None
+                ),
                 "valid": True,
             })
         record["resolved_real_indices"] = resolved_palette
@@ -834,16 +856,24 @@ def resolve_unit_skinning(
                     "vertex_indices": [],
                     "bone_index_sets": [],
                 })
+                unresolved_count += 1
                 continue
 
             vertex_indices = sorted(set(section.get("indices", [])))
             mapped_sets = []
             for index_attr in index_attrs:
                 mapped_rows = []
+                influence_rows = []
                 set_unresolved = 0
+                set_resolved = 0
                 for vertex_index in vertex_indices:
                     if vertex_index >= len(index_attr["values"]) or vertex_index >= len(weight_values):
                         mapped_rows.append([])
+                        influence_rows.append({
+                            "vertex_index": vertex_index,
+                            "influences": [],
+                            "status": "vertex_out_of_range",
+                        })
                         set_unresolved += 1
                         continue
                     local_values = index_attr["values"][vertex_index]
@@ -851,40 +881,62 @@ def resolve_unit_skinning(
                         local_values = [local_values]
                     vertex_weights = weight_values[vertex_index]
                     mapped_row = []
-                    for lane in range(len(vertex_weights)):
-                        if lane >= len(local_values):
-                            mapped_row.append(None)
-                            set_unresolved += 1
-                            continue
-                        local_index = local_values[lane]
-                        if local_index >= len(remap):
-                            mapped_row.append(None)
-                            set_unresolved += 1
-                            continue
-                        palette_slot = remap[local_index]
-                        if palette_slot >= len(record["real_indices"]):
-                            mapped_row.append(None)
-                            set_unresolved += 1
-                            continue
-                        transform_index = record["real_indices"][palette_slot]
-                        if transform_index >= len(transforms):
-                            mapped_row.append(None)
-                            set_unresolved += 1
-                            continue
+                    influences = []
+                    for lane, raw_weight in enumerate(vertex_weights):
+                        weight = float(raw_weight)
+                        local_index = local_values[lane] if lane < len(local_values) else None
+                        transform_index = None
+                        palette_slot = None
+                        if local_index is not None and local_index < len(remap):
+                            palette_slot = remap[local_index]
+                            if palette_slot < len(record["real_indices"]):
+                                candidate = record["real_indices"][palette_slot]
+                                if 0 <= candidate < len(transforms):
+                                    transform_index = candidate
                         mapped_row.append(transform_index)
-                        resolved_count += 1
+                        if weight > 0.0:
+                            if transform_index is None:
+                                set_unresolved += 1
+                                influences.append({
+                                    "lane": lane,
+                                    "local_bone_index": local_index,
+                                    "palette_slot": palette_slot,
+                                    "transform_index": None,
+                                    "bone_name": None,
+                                    "weight": weight,
+                                    "status": "unresolved",
+                                })
+                            else:
+                                set_resolved += 1
+                                influences.append({
+                                    "lane": lane,
+                                    "local_bone_index": local_index,
+                                    "palette_slot": palette_slot,
+                                    "transform_index": transform_index,
+                                    "bone_name": names_by_transform.get(transform_index),
+                                    "weight": weight,
+                                    "status": "ok",
+                                })
                     mapped_rows.append(mapped_row)
+                    influence_rows.append({
+                        "vertex_index": vertex_index,
+                        "influences": influences,
+                        "status": "ok" if all(x["status"] == "ok" for x in influences) else "partial",
+                    })
+                resolved_count += set_resolved
                 unresolved_count += set_unresolved
                 mapped_sets.append({
                     "component_index": index_attr["component_index"],
                     "transform_indices": mapped_rows,
-                    "unresolved_lane_count": set_unresolved,
+                    "vertex_influences": influence_rows,
+                    "resolved_active_influence_count": set_resolved,
+                    "unresolved_active_influence_count": set_unresolved,
                 })
             section_results.append({
                 "section_index": section["index"],
                 "material_index": material_index,
                 "material_slot_id": section.get("material_slot_id"),
-                "status": "ok" if all(x["unresolved_lane_count"] == 0 for x in mapped_sets) else "partial",
+                "status": "ok" if all(x["unresolved_active_influence_count"] == 0 for x in mapped_sets) else "partial",
                 "vertex_indices": vertex_indices,
                 "bone_index_sets": mapped_sets,
             })
@@ -901,16 +953,15 @@ def resolve_unit_skinning(
             "bone_index_set_count": len(index_attrs),
             "palette": record["resolved_real_indices"],
             "section_skinning": section_results,
-            "resolved_lane_count": resolved_count,
-            "unresolved_lane_count": unresolved_count,
+            "resolved_active_influence_count": resolved_count,
+            "unresolved_active_influence_count": unresolved_count,
         }
         if unresolved_count:
             warnings.append(
-                f"Mesh {mesh_geometry['mesh_id']:08x} has {unresolved_count} unresolved bone-index lanes"
+                f"Mesh {mesh_geometry['mesh_id']:08x} has {unresolved_count} unresolved active bone influences"
             )
 
     return warnings
-
 
 def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_id: str) -> dict:
     """Inspect one Unit and decode its direct or CompositeUnit-backed geometry."""
