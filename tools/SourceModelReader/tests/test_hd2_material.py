@@ -110,14 +110,39 @@ class MaterialResourceParserTests(unittest.TestCase):
         self.assertEqual(len(report["variable_value_payload_hex"]), 24)
         self.assertTrue(any("outside the available variable payload" in item for item in report["warnings"]))
 
-    def test_variable_data_size_mismatch_is_warning_and_payload_is_preserved(self):
-        material = make_material(value_payload=b"\x01\x02\x03\x04", declared_value_size=12)
+    def test_trailing_bytes_after_declared_variable_data_are_preserved_separately(self):
+        payload = struct.pack("<f", 0.5) + b"\x00" * 8
+        material = make_material(
+            variables=[(0, 0, 0x01020304, 0, 0)],
+            value_payload=payload,
+            declared_value_size=4,
+        )
         report = parse_material_resource(material)
 
+        self.assertEqual(report["layout"]["available_variable_data_size"], 12)
         self.assertFalse(report["layout"]["variable_data_size_matches_remaining_payload"])
-        self.assertEqual(report["layout"]["available_variable_data_size"], 4)
-        self.assertEqual(report["variable_value_payload_hex"], "01020304")
-        self.assertTrue(any("VariableDataSize does not equal" in item for item in report["warnings"]))
+        self.assertTrue(report["layout"]["variable_data_size_fits_available_payload"])
+        self.assertEqual(report["layout"]["declared_variable_payload_available_size"], 4)
+        self.assertEqual(report["layout"]["trailing_payload_size"], 8)
+        self.assertEqual(report["declared_variable_payload_hex"], struct.pack("<f", 0.5).hex())
+        self.assertEqual(report["trailing_payload_hex"], "00" * 8)
+        self.assertEqual(report["shader_variables"][0]["first_vector_preview"], [0.5])
+        self.assertEqual(report["warnings"], [])
+        self.assertTrue(any("trailing bytes" in item for item in report["notes"]))
+
+    def test_declared_variable_data_size_larger_than_available_is_warning(self):
+        material = make_material(
+            variables=[(0, 0, 0x01020304, 0, 0)],
+            value_payload=struct.pack("<f", 0.5),
+            declared_value_size=8,
+        )
+        report = parse_material_resource(material)
+
+        self.assertFalse(report["layout"]["variable_data_size_fits_available_payload"])
+        self.assertEqual(report["layout"]["declared_variable_payload_available_size"], 4)
+        self.assertEqual(report["layout"]["trailing_payload_size"], 0)
+        self.assertEqual(report["shader_variables"][0]["first_vector_preview"], [0.5])
+        self.assertTrue(any("exceeds the bytes remaining" in item for item in report["warnings"]))
 
     def test_rejects_truncated_fixed_header(self):
         with self.assertRaises(HD2ResourceError):
