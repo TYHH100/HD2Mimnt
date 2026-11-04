@@ -79,7 +79,7 @@ This family is common in the indexed resources, but remains a cutout/clip candid
 
 ### 2.4 Alpha Clip+: 20 distinct payloads, one 14-variable outlier
 
-The family has 194 occurrences across 143 packages and 20 unique Material FileIDs / payloads. All use four texture slots. Nineteen? No: the summary groups show 19 payloads with 13 variables and one payload with 14 variables.
+The family has 194 occurrences across 143 packages and 20 unique Material FileIDs / payloads. All use four texture slots. The summary groups show 19 payloads with 13 variables and one payload with 14 variables.
 
 The 14-variable outlier is:
 
