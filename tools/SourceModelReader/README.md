@@ -65,6 +65,8 @@ py -3 .\source_model_reader.py hd2-material "G:\AppData\SteamLibrary\steamapps\c
 
 Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected Unit or package inventory. Texture dependencies absent from the selected package are reported as not present in that package; they may reside in another archive. The JSON preserves raw variable payload bytes, with only a conservative first scalar/vector preview for known classes. Arrays, strides, parent aliases and actual alpha/blend behavior remain unresolved.
 
+`VariableDataSize` is treated as the declared variable-value region. Bytes following that region are preserved separately as unresolved trailing data; three inspected FS-05 Material samples each had an 8-byte trailer. This is sample evidence, not a universal format guarantee.
+
 See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
 
 ## Installing or refreshing the 0.8.4 patch over an existing supported folder
