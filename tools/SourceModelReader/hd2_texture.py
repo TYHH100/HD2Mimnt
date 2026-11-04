@@ -61,6 +61,169 @@ DXGI_FORMAT_NAMES = {
 }
 
 
+# Storage sizes for DXGI block-compressed and common uncompressed formats.
+DXGI_BLOCK_BYTES = {
+    70: 8, 71: 8, 72: 8,              # BC1
+    73: 16, 74: 16, 75: 16,           # BC2
+    76: 16, 77: 16, 78: 16,           # BC3
+    79: 8, 80: 8, 81: 8,              # BC4
+    82: 16, 83: 16, 84: 16,           # BC5
+    94: 16, 95: 16, 96: 16,           # BC6H
+    97: 16, 98: 16, 99: 16,           # BC7
+}
+DXGI_UNCOMPRESSED_BYTES_PER_PIXEL = {
+    27: 4, 28: 4, 29: 4, 30: 4, 31: 4, 32: 4,
+    48: 2, 49: 2, 50: 2, 51: 2, 52: 2,
+    60: 1, 61: 1, 62: 1, 63: 1, 64: 1, 65: 1,
+}
+
+
+def _build_mip_chain(width: int, height: int, mip_count: int, dxgi_format: int,
+                     array_size: int) -> Optional[dict]:
+    """Calculate storage sizes for known 2D formats without decoding texture blocks."""
+    if width <= 0 or height <= 0 or mip_count <= 0 or array_size <= 0:
+        return None
+    block_bytes = DXGI_BLOCK_BYTES.get(dxgi_format)
+    bytes_per_pixel = DXGI_UNCOMPRESSED_BYTES_PER_PIXEL.get(dxgi_format)
+    if block_bytes is None and bytes_per_pixel is None:
+        return None
+
+    levels = []
+    offset = 0
+    current_width, current_height = width, height
+    for level in range(mip_count):
+        if block_bytes is not None:
+            blocks_x = max(1, (current_width + 3) // 4)
+            blocks_y = max(1, (current_height + 3) // 4)
+            level_bytes = blocks_x * blocks_y * block_bytes
+        else:
+            level_bytes = current_width * current_height * bytes_per_pixel
+        levels.append({
+            "index": level,
+            "width": current_width,
+            "height": current_height,
+            "start": offset,
+            "level_bytes": level_bytes,
+            "bytes_left": 0,
+        })
+        offset += level_bytes
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
+
+    single_array_bytes = offset
+    for level in levels:
+        level["bytes_left"] = single_array_bytes - level["start"]
+    full_chain_bytes = single_array_bytes * array_size
+    return {
+        "format_family": (
+            DXGI_FORMAT_NAMES.get(dxgi_format, "").split("_")[0]
+            if block_bytes is not None else "uncompressed"
+        ),
+        "storage": "block_compressed" if block_bytes is not None else "uncompressed",
+        "block_bytes": block_bytes,
+        "bytes_per_pixel": bytes_per_pixel,
+        "array_size": array_size,
+        "single_array_bytes": single_array_bytes,
+        "expected_full_chain_bytes": full_chain_bytes,
+        "levels": levels,
+    }
+
+
+def _payload_layout(data_size: int, mip_chain: Optional[dict]) -> dict:
+    if data_size == 0:
+        return {"size": 0, "layout": "empty", "matches_full_chain": False,
+                "candidate_tail_start_index": None}
+    if mip_chain is None:
+        return {"size": data_size, "layout": "unclassified",
+                "matches_full_chain": None, "candidate_tail_start_index": None}
+
+    array_size = mip_chain["array_size"]
+    levels = mip_chain["levels"]
+    single_array_bytes = mip_chain["single_array_bytes"]
+    full_match = data_size == mip_chain["expected_full_chain_bytes"]
+    tail_candidates = []
+    if array_size == 1:
+        tail_candidates = [
+            level["index"] for level in levels
+            if sum(item["level_bytes"] for item in levels[level["index"]:]) == data_size
+        ]
+    if full_match:
+        layout = "full_mip_chain"
+    elif tail_candidates:
+        layout = f"mip_tail_from_level_{tail_candidates[0]}"
+    else:
+        layout = "size_mismatch"
+    return {
+        "size": data_size,
+        "layout": layout,
+        "matches_full_chain": full_match,
+        "candidate_tail_start_index": tail_candidates[0] if tail_candidates else None,
+        "candidate_tail_start_width": (
+            levels[tail_candidates[0]]["width"] if tail_candidates else None
+        ),
+        "candidate_tail_start_height": (
+            levels[tail_candidates[0]]["height"] if tail_candidates else None
+        ),
+        "single_array_full_chain_bytes": single_array_bytes,
+        "expected_full_chain_bytes": mip_chain["expected_full_chain_bytes"],
+    }
+
+
+def _validate_mipmap_table(mipmaps: list[dict], mip_chain: Optional[dict],
+                           mip_count: int, array_size: int) -> dict:
+    if mip_chain is None:
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "DXGI storage layout or dimensions are not supported"}
+    if array_size != 1:
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "mipmap table semantics for texture arrays are not validated"}
+    if mip_count > len(mipmaps):
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "DDS mip count exceeds the 15 TOC mipmap records"}
+
+    active = mipmaps[:mip_count]
+    populated = [item for item in active if item["has_nonzero_fields"]]
+    if not populated:
+        return {"status": "not_populated", "populated_records": 0,
+                "missing_records": list(range(mip_count)), "mismatches": [],
+                "reason": "all TOC mipmap records for the DDS levels are zero"}
+
+    missing = []
+    mismatches = []
+    expected_levels = mip_chain["levels"]
+    for index, item in enumerate(active):
+        expected = expected_levels[index]
+        if not item["has_nonzero_fields"]:
+            missing.append(index)
+            continue
+        field_mismatches = {}
+        for field in ("width", "height", "start", "bytes_left"):
+            if item[field] != expected[field]:
+                field_mismatches[field] = {
+                    "stored": item[field],
+                    "expected": expected[field],
+                }
+        if field_mismatches:
+            mismatches.append({"index": index, "fields": field_mismatches})
+
+    if mismatches:
+        status = "mismatch"
+    elif missing:
+        status = "partial"
+    else:
+        status = "match"
+    return {
+        "status": status,
+        "populated_records": len(populated),
+        "missing_records": missing,
+        "mismatches": mismatches,
+        "reason": None,
+    }
+
+
 def _check_range(data: bytes, offset: int, size: int, label: str) -> None:
     if offset < 0 or size < 0 or offset > len(data) or size > len(data) - offset:
         raise HD2ResourceError(
