@@ -4,10 +4,11 @@ A dependency-free Python tool for reading a bounded subset of Source 1 model res
 
 ## Installing the 0.8.2.1 patch over an existing 0.8.2-alpha folder
 
-For a project folder that is still on 0.8.2-alpha, download these two files into a **separate temporary folder**:
+For a project folder that is still on 0.8.2-alpha, download these files into a **separate temporary folder**, preserving the `tests` subfolder:
 
 - `install_0.8.2.1.py`
 - `hd2_unit.py`
+- `tests/test_hd2_unit.py`
 
 Run the installer from that temporary folder and point it at the existing project folder:
 
@@ -15,7 +16,7 @@ Run the installer from that temporary folder and point it at the existing projec
 py -3 .\install_0.8.2.1.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 ```
 
-The installer creates `.0.8.2.bak` backups for the target module, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then switch to the project folder and run the regression suite:
+The installer creates `.0.8.2.bak` backups for the target module, test file, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then switch to the project folder and run the regression suite:
 
 ```powershell
 Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
