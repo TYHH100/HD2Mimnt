@@ -1,0 +1,155 @@
+{
+  "schema": "SourceModelReader-HD2Material1",
+  "resource_size": 320,
+  "fixed_header_size": 136,
+  "header": {
+    "end_offset": 288,
+    "parent_material_id": "70cd11d0bb7dbd9e",
+    "parent_material_id_value": 8128172490670063006,
+    "num_textures": 0,
+    "num_variables": 6,
+    "declared_variable_data_size": 56,
+    "unknown_0_12_hex": "200100000100000018000000",
+    "unknown_16_24_hex": "0000000000000000",
+    "unknown_32_64_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "unknown_68_104_hex": "000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unknown_108_120_hex": "000000000000000000000000",
+    "unknown_124_136_hex": "000000000000000000000000"
+  },
+  "layout": {
+    "texture_types_offset": 136,
+    "texture_ids_offset": 136,
+    "variable_descriptors_offset": 136,
+    "variable_value_payload_offset": 256,
+    "available_variable_data_size": 64,
+    "declared_variable_payload_available_size": 56,
+    "variable_data_size_matches_remaining_payload": false,
+    "variable_data_size_fits_available_payload": true,
+    "trailing_payload_offset": 312,
+    "trailing_payload_size": 8
+  },
+  "texture_nodes": [],
+  "shader_variables": [
+    {
+      "index": 0,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2107954016,
+      "variable_id_hex": "0x7da4d360",
+      "value_offset": 28,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000060d3a47d1c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 1,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3928135861,
+      "variable_id_hex": "0xea2298b5",
+      "value_offset": 32,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000b59822ea2000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.5
+      ]
+    },
+    {
+      "index": 2,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1130979195,
+      "variable_id_hex": "0x43695f7b",
+      "value_offset": 8,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007b5f69430800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        3.0
+      ]
+    },
+    {
+      "index": 3,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 3411508111,
+      "variable_id_hex": "0xcb577b8f",
+      "value_offset": 36,
+      "element_stride": 0,
+      "raw_descriptor_hex": "02000000000000008f7b57cb2400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.1411764770746231,
+        0.1411764770746231,
+        0.1411764770746231
+      ]
+    },
+    {
+      "index": 4,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3222466529,
+      "variable_id_hex": "0xc012efe1",
+      "value_offset": 48,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e1ef12c03000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 5,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2688860980,
+      "variable_id_hex": "0xa044c334",
+      "value_offset": 52,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000034c344a03400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    }
+  ],
+  "variable_value_payload_hex": "00000000c3f5a83e000040400000003f0000003f0000003f00000000000000000000003f9190103e9190103e9190103e0000803f0000803f0000000000000000",
+  "declared_variable_payload_hex": "00000000c3f5a83e000040400000003f0000003f0000003f00000000000000000000003f9190103e9190103e9190103e0000803f0000803f",
+  "trailing_payload_hex": "0000000000000000",
+  "notes": [
+    "8 trailing bytes follow the declared variable-data region; they are preserved separately and their semantics remain unresolved"
+  ],
+  "render_mode": {
+    "status": "unresolved",
+    "reason": "Parent aliases and shader variable names are versioned metadata; raw IDs are preserved without inferring render behavior."
+  },
+  "warnings": [],
+  "package": {
+    "name": "8670598c1f4462dc",
+    "container": "slim"
+  },
+  "resource": {
+    "file_id": "8cd6b9c938feaf90",
+    "type_id": "eac0b497876adedf",
+    "toc_bytes": 320,
+    "gpu_bytes": 0,
+    "stream_bytes": 0
+  },
+  "summary": {
+    "status": "ok",
+    "texture_count": 0,
+    "texture_dependencies_found_in_package": 0,
+    "texture_dependencies_missing_from_package": 0,
+    "shader_variable_count": 6
+  }
+}
