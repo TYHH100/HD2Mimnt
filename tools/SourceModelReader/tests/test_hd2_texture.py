@@ -135,6 +135,25 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(report["payload_layouts"]["gpu"]["candidate_tail_start_height"], 32)
         self.assertEqual(report["mipmap_validation"]["status"], "match")
 
+    def test_warns_when_populated_mipmap_metadata_disagrees_with_calculated_chain(self):
+        toc = bytearray(make_texture_toc(width=512, height=512, mip_count=10))
+        struct.pack_into("<I", toc, 12, 16)  # First mip should begin at byte zero.
+        report = parse_texture_resource(bytes(toc), b"G" * 349552)
+
+        self.assertEqual(report["mipmap_validation"]["status"], "mismatch")
+        self.assertEqual(report["mipmap_validation"]["mismatches"][0]["index"], 0)
+        self.assertTrue(any("disagree with the calculated" in warning for warning in report["warnings"]))
+
+    def test_does_not_iterate_unbounded_dds_mip_count(self):
+        toc = bytearray(make_texture_toc())
+        dds = 12 + 15 * 12
+        struct.pack_into("<I", toc, dds + 28, 0xFFFFFFFF)
+        report = parse_texture_resource(bytes(toc), b"payload")
+
+        self.assertIsNone(report["mip_chain"])
+        self.assertEqual(report["mipmap_validation"]["status"], "not_checked")
+        self.assertTrue(any("more than" in warning or "declares" in warning for warning in report["warnings"]))
+
     def test_calculates_chain_when_toc_mipmap_table_is_unpopulated(self):
         toc = make_texture_toc(
             width=512, height=512, mip_count=10, populate_mips=False
