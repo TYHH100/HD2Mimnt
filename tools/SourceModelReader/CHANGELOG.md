@@ -8,6 +8,8 @@
 - Kept alpha/transparency classification unresolved; a DXGI format or stored alpha channel is not treated as proof of a translucent/cutout/emissive material.
 - Added synthetic parser/range-loader regression tests. Real-game Texture payload decoding and visual alpha validation remain pending.
 - Corrected native SLIM Texture `entry_index` validation to match the observed zero-based TOC row values (validated against the supplied FS-05 package entries); the separate 1-based patch-file analyzer rule is not applied to this native package reader.
+- Added DXGI-aware mip-chain byte-size calculations and populated TOC mipmap-table validation, including GPU/Stream classification as a complete chain or contiguous resident mip tail when sizes match.
+- Validated two supplied FS-05 BC7 Textures: the 512×512 GPU payload is a complete 349,552-byte chain, while the 2048×2048 sample has a 5,592,432-byte Stream chain plus a 1,392-byte GPU tail beginning at 32×32. The second sample's 12 TOC mipmap records match all calculated offsets and remaining-byte counts.
 - Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
 - Added same-package Texture dependency lookup and the hd2-material CLI command.
 - Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
