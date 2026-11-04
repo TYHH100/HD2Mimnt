@@ -1,4 +1,4 @@
-"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.2.1-alpha.
+"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.3-alpha.
 
 The module parses Unit tables and direct or CompositeUnit GPU buffers into a
 neutral JSON-friendly representation. It deliberately preserves raw bone
@@ -679,6 +679,239 @@ def _decode_mesh_geometry(mesh: dict, streams: dict, gpu_data: bytes) -> tuple[d
     }, warnings)
 
 
+def resolve_unit_skinning(
+    transform_info: dict,
+    bone_info: dict,
+    bones_resource: Optional[dict],
+    mesh_info: dict,
+    geometry: list[dict],
+) -> list[str]:
+    """Resolve vertex-local bone indices through material remaps to TransformInfo.
+
+    The mapping order follows the public Community SDK reader:
+        local vertex index -> Remaps[material_index] -> RealIndices -> TransformInfo.
+    Mesh LOD N selects BoneInfo[N]. LOD -1 uses the final BoneInfo record only
+    when the mesh actually carries skin attributes, matching the SDK's
+    negative-index behavior. Raw attributes and source matrices are untouched.
+    """
+    warnings = []
+    transforms = transform_info.get("transforms", [])
+    records = bone_info.get("records", [])
+    names_by_hash = {}
+    if bones_resource:
+        for item in bones_resource.get("bones", []):
+            value = names_by_hash.setdefault(item["hash"], [])
+            value.append(item["name"])
+
+    skeleton = []
+    for item in transforms:
+        candidates = names_by_hash.get(item["name_hash"], [])
+        name = candidates[0] if len(candidates) == 1 else None
+        skeleton.append({
+            "transform_index": item["index"],
+            "name_hash": item["name_hash"],
+            "name": name,
+            "name_ambiguous": len(candidates) > 1,
+            "parent_index_raw": item["parent_index_raw"],
+            "increment": item["increment"],
+        })
+    transform_info["resolved_skeleton"] = skeleton
+
+    # Resolve each compact LOD palette once. Matrices remain in their raw form;
+    # this step only resolves the index/name relationship.
+    for record in records:
+        resolved_palette = []
+        for palette_slot, transform_index in enumerate(record["real_indices"]):
+            if transform_index < 0 or transform_index >= len(transforms):
+                resolved_palette.append({
+                    "palette_slot": palette_slot,
+                    "transform_index": transform_index,
+                    "name_hash": None,
+                    "name": None,
+                    "valid": False,
+                })
+                continue
+            transform = transforms[transform_index]
+            candidates = names_by_hash.get(transform["name_hash"], [])
+            resolved_palette.append({
+                "palette_slot": palette_slot,
+                "transform_index": transform_index,
+                "name_hash": transform["name_hash"],
+                "name": candidates[0] if len(candidates) == 1 else None,
+                "name_ambiguous": len(candidates) > 1,
+                "valid": True,
+            })
+        record["resolved_real_indices"] = resolved_palette
+        record["resolved_remaps"] = [
+            [
+                resolved_palette[slot]["transform_index"]
+                if slot < len(resolved_palette) and resolved_palette[slot]["valid"]
+                else None
+                for slot in remap
+            ]
+            for remap in record["remaps"]
+        ]
+
+    mesh_by_index = {item["index"]: item for item in mesh_info.get("records", [])}
+    for mesh_geometry in geometry:
+        mesh = mesh_by_index.get(mesh_geometry["mesh_info_index"])
+        if mesh is None:
+            warnings.append(
+                f"Mesh geometry {mesh_geometry['mesh_id']:08x} has no matching MeshInfo record"
+            )
+            continue
+
+        attributes = mesh_geometry.get("attributes", [])
+        weight_attrs = [a for a in attributes if a["component_type"] == 7]
+        index_attrs = sorted(
+            (a for a in attributes if a["component_type"] == 6),
+            key=lambda a: a["component_index"],
+        )
+        if not weight_attrs or not index_attrs:
+            mesh_geometry["skinning"] = {
+                "status": "no_skin_attributes",
+                "lod_index": mesh_geometry["lod_index"],
+                "section_skinning": [],
+            }
+            continue
+        if len(weight_attrs) != 1:
+            warnings.append(
+                f"Mesh {mesh_geometry['mesh_id']:08x} has {len(weight_attrs)} bone-weight attributes; "
+                "only a single shared weight attribute is currently supported"
+            )
+            mesh_geometry["skinning"] = {
+                "status": "unsupported_weight_layout",
+                "lod_index": mesh_geometry["lod_index"],
+                "section_skinning": [],
+            }
+            continue
+
+        lod_index = mesh_geometry["lod_index"]
+        if lod_index >= 0:
+            bone_info_index = lod_index
+        elif lod_index == -1 and records:
+            bone_info_index = len(records) - 1
+        else:
+            bone_info_index = None
+        if bone_info_index is None or bone_info_index >= len(records):
+            warnings.append(
+                f"Mesh {mesh_geometry['mesh_id']:08x} LOD {lod_index} has no matching BoneInfo record"
+            )
+            mesh_geometry["skinning"] = {
+                "status": "missing_bone_info",
+                "lod_index": lod_index,
+                "section_skinning": [],
+            }
+            continue
+
+        record = records[bone_info_index]
+        weight_attr = weight_attrs[0]
+        weight_values = weight_attr.get("decoded_values")
+        if weight_values is None:
+            weight_values = weight_attr["values"]
+            if weight_attr["format"] == 29:
+                weight_values = [decode_packed_weights_1010102(v) for v in weight_values]
+        if weight_values and not isinstance(weight_values[0], list):
+            weight_values = [[value] for value in weight_values]
+
+        section_results = []
+        resolved_count = 0
+        unresolved_count = 0
+        for section in mesh_geometry.get("sections", []):
+            material_index = section["material_index"]
+            remaps = record["remaps"]
+            remap = remaps[material_index] if material_index < len(remaps) else None
+            if remap is None:
+                warnings.append(
+                    f"Mesh {mesh_geometry['mesh_id']:08x} section {section['index']} material index "
+                    f"{material_index} has no BoneInfo[{bone_info_index}] remap"
+                )
+                section_results.append({
+                    "section_index": section["index"],
+                    "material_index": material_index,
+                    "material_slot_id": section.get("material_slot_id"),
+                    "status": "missing_material_remap",
+                    "vertex_indices": [],
+                    "bone_index_sets": [],
+                })
+                continue
+
+            vertex_indices = sorted(set(section.get("indices", [])))
+            mapped_sets = []
+            for index_attr in index_attrs:
+                mapped_rows = []
+                set_unresolved = 0
+                for vertex_index in vertex_indices:
+                    if vertex_index >= len(index_attr["values"]) or vertex_index >= len(weight_values):
+                        mapped_rows.append([])
+                        set_unresolved += 1
+                        continue
+                    local_values = index_attr["values"][vertex_index]
+                    if not isinstance(local_values, list):
+                        local_values = [local_values]
+                    vertex_weights = weight_values[vertex_index]
+                    mapped_row = []
+                    for lane in range(len(vertex_weights)):
+                        if lane >= len(local_values):
+                            mapped_row.append(None)
+                            set_unresolved += 1
+                            continue
+                        local_index = local_values[lane]
+                        if local_index >= len(remap):
+                            mapped_row.append(None)
+                            set_unresolved += 1
+                            continue
+                        palette_slot = remap[local_index]
+                        if palette_slot >= len(record["real_indices"]):
+                            mapped_row.append(None)
+                            set_unresolved += 1
+                            continue
+                        transform_index = record["real_indices"][palette_slot]
+                        if transform_index >= len(transforms):
+                            mapped_row.append(None)
+                            set_unresolved += 1
+                            continue
+                        mapped_row.append(transform_index)
+                        resolved_count += 1
+                    mapped_rows.append(mapped_row)
+                unresolved_count += set_unresolved
+                mapped_sets.append({
+                    "component_index": index_attr["component_index"],
+                    "transform_indices": mapped_rows,
+                    "unresolved_lane_count": set_unresolved,
+                })
+            section_results.append({
+                "section_index": section["index"],
+                "material_index": material_index,
+                "material_slot_id": section.get("material_slot_id"),
+                "status": "ok" if all(x["unresolved_lane_count"] == 0 for x in mapped_sets) else "partial",
+                "vertex_indices": vertex_indices,
+                "bone_index_sets": mapped_sets,
+            })
+
+        mesh_geometry["skinning"] = {
+            "status": "ok" if unresolved_count == 0 else "partial",
+            "lod_index": lod_index,
+            "bone_info_index": bone_info_index,
+            "weight_attribute": {
+                "component_index": weight_attr["component_index"],
+                "format": weight_attr["format"],
+                "format_name": weight_attr["format_name"],
+            },
+            "bone_index_set_count": len(index_attrs),
+            "palette": record["resolved_real_indices"],
+            "section_skinning": section_results,
+            "resolved_lane_count": resolved_count,
+            "unresolved_lane_count": unresolved_count,
+        }
+        if unresolved_count:
+            warnings.append(
+                f"Mesh {mesh_geometry['mesh_id']:08x} has {unresolved_count} unresolved bone-index lanes"
+            )
+
+    return warnings
+
+
 def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_id: str) -> dict:
     """Inspect one Unit and decode its direct or CompositeUnit-backed geometry."""
     path = Path(input_path)
@@ -789,6 +1022,10 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
                     warnings.append(
                         f"BoneInfo[{bone_record['index']}] remap {remap_index} references RealIndices slot {palette_index}, outside {len(bone_record['real_indices'])} entries"
                     )
+    skinning_warnings = resolve_unit_skinning(
+        transform_info, bone_info, bones_summary, mesh_info, geometry
+    )
+    warnings.extend(skinning_warnings)
     if not header.bones_ref:
         warnings.append("Unit has no BonesRef")
     if header.transform_info_offset == 0:
@@ -832,7 +1069,7 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
         "geometry": geometry,
         "warnings": warnings,
         "limitations": [
-            "BoneInfo RealIndices and per-material Remaps are preserved but not yet resolved into per-vertex TransformInfo bone names; that mapping is the 0.8.3 milestone.",
+            "Vertex-local bone indices are resolved through the active LOD BoneInfo palette and section material Remap into TransformInfo indices; raw bind-pose matrices remain uninterpreted.",
             "Format 29 is decoded as three normalized bone weights only when the component type is bone_weight; other Format 29 semantics remain raw.",
             "Transform matrices are emitted as raw stored floats; matrix convention and bind-pose semantics are not changed or inferred.",
         ],
