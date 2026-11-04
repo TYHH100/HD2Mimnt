@@ -1,4 +1,4 @@
-# Helldivers 2 resource format notes — 0.8.2-alpha
+# Helldivers 2 resource format notes — 0.8.2.1-alpha
 
 These notes describe the structures implemented by the independent read-only inspector. They are based on the publicly available parser structure in the HD2 SDK projects below. They are **not** a claim that every game build or every resource variant has been validated against original game files.
 
@@ -96,12 +96,44 @@ The implemented compression types are `0` (uncompressed) and `3` (raw LZ4 block)
 
 For SLIM installs, the inspector reads `bundles.nxa` metadata to map package names and archive offsets to bundle indices and uncompressed bundle offsets, then retrieves the matching byte ranges from `bundles.XX.nxa` files. It also looks for companion package names ending in `.gpu_resources` and `.stream`.
 
+## Packed vertex formats and real-game validation (0.8.2.1-alpha)
+
+The decoder now has semantic handling for two packed formats in Unit version 10800438:
+
+### Format 30 — octahedral normal
+
+For a component whose semantic type is `normal`, the low ten bits and the next ten bits are decoded as two unsigned normalized coordinates and remapped to [-1, 1]. The third coordinate is reconstructed as `1 - abs(x) - abs(y)`; the lower hemisphere is folded, and the resulting vector is normalized.
+
+The upper twelve bits are not used by this normal representation. They remain intact in the original raw uint32 stored in the JSON attribute's `values` array. The decoded vector is stored additively in `decoded_values`, with `decoded_semantics = "octahedral_normal"`.
+
+### Format 29 — 10:10:10:2 packed value
+
+The real FS-05 torso/left-arm LOD 4 sample identifies Format 29 as component type `bone_weight`. For this semantic, the low three ten-bit values are decoded as unsigned normalized values by dividing each by 1023. The high two bits are retained in the raw packed value; the fourth decoded influence is zero under the decoder convention observed in the AQ SDK.
+
+The JSON adds `decoded_semantics = "unorm10_10_10_2_bone_weights"` and a four-value `decoded_values` array. This interpretation is gated on component type `bone_weight`; other Format 29 component types remain raw and produce a warning.
+
+### User-provided real sample checks
+
+| Sample | Format 30 normals | Format 29 bone weights |
+|---|---:|---:|
+| FS-05 lower-body Unit `210fb2f60f8308ea` | 3,498 vertices | None |
+| FS-05 torso/left-arm Unit `324fb206612ce4f7` | 7,525 vertices | 439 vertices |
+| Avatar CompositeUnit `4d1c334d294dfa97` | 27,355 vertices | None |
+| **Total** | **38,378 vertices** | **439 vertices** |
+
+Across all 38,378 decoded Format 30 normals, every component was finite and every resulting vector had length 1 within floating-point precision. In the 439 Format 29 weights, the high two bits were 3 for all vertices, the fourth decoded influence was zero, and the sum of the three decoded weights ranged from 0.998045 to 1.000000.
+
+The three sample exports also confirmed that the Format 30 upper twelve bits vary substantially; the decoder must not treat those bits as part of the normal's X/Y coordinates.
+
+These checks validate decoding and data consistency. They do not constitute a visual comparison against an independent renderer, nor do they establish bind-pose matrix conventions.
+
 ## Explicit limitations
 
-- The 0.8.2 parser has synthetic fixture coverage, but the real FS-05 armor and Avatar package outputs still require local acceptance against the user's installed game data.
+- Real-game structural acceptance has been completed locally for two FS-05 Units and one Avatar Unit backed by a CompositeUnit. The packed-format decoders added in 0.8.2.1 were checked against the same three JSON outputs.
 - It does not yet resolve package dependencies globally across all archives.
 - BoneInfo matrices, RealIndices and material Remap arrays are preserved, but are not yet resolved to TransformInfo names or retargeted to an Avatar/target skeleton.
-- Packed normal format 30 and packed 10-10-10-2 format 29 are retained as raw values; their semantic decode is not asserted.
+- Format 30 octahedral normals are decoded when the component type is `normal`; the original uint32 remains in `values` and the unit vector is added in `decoded_values`. The upper twelve bits are not used by this format.
+- Format 29 is decoded as three unsigned-normalized 10-bit bone weights only when the component type is `bone_weight`; the fourth decoded influence is zero under the reviewed AQ decoder convention. The original packed uint32 remains in `values`. Other component semantics remain raw and warn rather than being guessed.
 - Transform matrices are emitted as stored floats. Matrix convention, bind-pose semantics and inverse-bind interpretation are not inferred.
 - It does not write or modify HD2 resources, Archives or Patches.
 
