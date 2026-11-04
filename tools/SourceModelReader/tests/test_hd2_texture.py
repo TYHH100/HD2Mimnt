@@ -16,15 +16,32 @@ from hd2_texture import (
 )
 
 
-def make_texture_toc(*, width=256, height=128, mip_count=9, dxgi=98, array_size=1):
+def make_texture_toc(
+    *, width=256, height=128, mip_count=9, dxgi=98, array_size=1,
+    populate_mips=True,
+):
     data = bytearray(TEXTURE_TOC_SIZE)
     struct.pack_into("<3I", data, 0, 1, 2, 3)
-    for index in range(15):
-        struct.pack_into(
-            "<IIHH", data, 12 + index * 12,
-            index * 1024, 1024 - index * 16,
-            max(1, height >> index), max(1, width >> index),
-        )
+    level_sizes = []
+    current_width, current_height = width, height
+    for _ in range(mip_count):
+        blocks_x = max(1, (current_width + 3) // 4)
+        blocks_y = max(1, (current_height + 3) // 4)
+        level_sizes.append(blocks_x * blocks_y * 16)
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
+    total_size = sum(level_sizes)
+    current_width, current_height = width, height
+    offset = 0
+    for index in range(min(mip_count, 15)):
+        if populate_mips:
+            struct.pack_into(
+                "<IIHH", data, 12 + index * 12,
+                offset, total_size - offset, current_height, current_width,
+            )
+        offset += level_sizes[index]
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
     dds = 12 + 15 * 12
     data[dds:dds + 4] = b"DDS "
     struct.pack_into("<I", data, dds + 4, 124)
@@ -91,6 +108,44 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(report["payloads"]["selected_source"], "gpu")
         self.assertEqual(report["payloads"]["selected"]["size"], len(b"gpu-data"))
         self.assertEqual(report["warnings"], [])
+
+
+    def test_validates_bc7_full_mip_chain_for_gpu_only_texture(self):
+        toc = make_texture_toc(width=512, height=512, mip_count=10)
+        expected_bytes = 349552
+        report = parse_texture_resource(toc, b"G" * expected_bytes)
+
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], expected_bytes)
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "full_mip_chain")
+        self.assertEqual(report["payload_layouts"]["gpu"]["matches_full_chain"], True)
+        self.assertEqual(report["mipmap_validation"]["status"], "match")
+        self.assertEqual(report["mipmap_validation"]["populated_records"], 10)
+        self.assertEqual(report["mip_chain"]["levels"][6]["width"], 8)
+
+    def test_detects_stream_full_chain_and_gpu_resident_mip_tail(self):
+        toc = make_texture_toc(width=2048, height=2048, mip_count=12)
+        stream = b"S" * 5592432
+        gpu = b"G" * 1392
+        report = parse_texture_resource(toc, gpu, stream)
+
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], 5592432)
+        self.assertEqual(report["payload_layouts"]["stream"]["layout"], "full_mip_chain")
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "mip_tail_from_level_6")
+        self.assertEqual(report["payload_layouts"]["gpu"]["candidate_tail_start_width"], 32)
+        self.assertEqual(report["payload_layouts"]["gpu"]["candidate_tail_start_height"], 32)
+        self.assertEqual(report["mipmap_validation"]["status"], "match")
+
+    def test_calculates_chain_when_toc_mipmap_table_is_unpopulated(self):
+        toc = make_texture_toc(
+            width=512, height=512, mip_count=10, populate_mips=False
+        )
+        report = parse_texture_resource(toc, b"G" * 349552)
+
+        self.assertEqual(report["mipmap_validation"]["status"], "not_populated")
+        self.assertEqual(report["mipmap_validation"]["missing_records"], list(range(10)))
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], 349552)
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "full_mip_chain")
+        self.assertTrue(any("zero/unpopulated" in note for note in report["notes"]))
 
     def test_stream_is_selected_when_both_payloads_are_present_and_both_are_hashed(self):
         gpu = b"gpu-low-mips"
