@@ -16,19 +16,23 @@ The three supplied real-game samples were audited: no active influence lane fail
 
 ## Installing the 0.8.3 patch over an existing 0.8.2.x folder
 
-For a project folder that is still on 0.8.2-alpha, download these files into a **separate temporary folder**, preserving the `tests` subfolder:
+Download the following into a separate temporary folder, preserving the `tests` subfolder:
 
-- `install_0.8.2.1.py`
+- `install_0.8.3.py`
+- `source_model_reader.py`
 - `hd2_unit.py`
+- `VERSION`
 - `tests/test_hd2_unit.py`
 
-Run the installer from that temporary folder and point it at the existing project folder:
+Run the installer and explicitly target the existing project folder:
 
 ```powershell
-py -3 .\install_0.8.2.1.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+py -3 .\install_0.8.3.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 ```
 
-The installer creates `.0.8.2.bak` backups for the target module, test file, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then switch to the project folder and run the regression suite:
+The installer accepts an existing `0.8.2-alpha` or `0.8.2.1-alpha` installation. It creates `.pre-0.8.3.bak` backups (only when absent), replaces the reader module, CLI entry point, resolver tests and VERSION file, and does not touch Helldivers 2 game files.
+
+Then run the tests from the target project folder:
 
 ```powershell
 Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
