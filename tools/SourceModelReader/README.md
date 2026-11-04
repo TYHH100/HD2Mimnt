@@ -65,7 +65,7 @@ Run the installer and target the existing Source Model Reader folder:
 py -3 .\install_0.8.4.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 ```
 
-The installer accepts `0.8.3-alpha`, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
+The installer accepts `0.8.2-alpha`, `0.8.2.1-alpha` or `0.8.3-alpha`, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
 
 ```powershell
 Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
