@@ -129,6 +129,7 @@ class MaterialResourceParserTests(unittest.TestCase):
     def test_rejects_truncated_texture_id_table(self):
         material = bytearray(MATERIAL_HEADER_SIZE)
         struct.pack_into("<I", material, 64, 1)
+        material.extend(struct.pack("<I", 0x12345678))
         with self.assertRaises(HD2ResourceError):
             parse_material_resource(bytes(material))
 
