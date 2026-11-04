@@ -81,7 +81,8 @@ DXGI_UNCOMPRESSED_BYTES_PER_PIXEL = {
 def _build_mip_chain(width: int, height: int, mip_count: int, dxgi_format: int,
                      array_size: int) -> Optional[dict]:
     """Calculate storage sizes for known 2D formats without decoding texture blocks."""
-    if width <= 0 or height <= 0 or mip_count <= 0 or array_size <= 0:
+    if (width <= 0 or height <= 0 or mip_count <= 0 or array_size <= 0
+            or mip_count > 32):
         return None
     block_bytes = DXGI_BLOCK_BYTES.get(dxgi_format)
     bytes_per_pixel = DXGI_UNCOMPRESSED_BYTES_PER_PIXEL.get(dxgi_format)
@@ -454,7 +455,10 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
         }
 
     format_name = DXGI_FORMAT_NAMES.get(dxgi_format, f"UNKNOWN_DXGI_FORMAT_{dxgi_format}")
-    mip_chain = _build_mip_chain(width, height, mip_count, dxgi_format, array_size)
+    mip_chain = (
+        _build_mip_chain(width, height, mip_count, dxgi_format, array_size)
+        if resource_dimension == 3 else None
+    )
     mipmap_validation = _validate_mipmap_table(
         mipmaps, mip_chain, mip_count, array_size
     )
