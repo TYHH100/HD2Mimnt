@@ -5,6 +5,7 @@
 - Rebuild TransformInfo world matrices from local rotation, position, scale and parent indices using the observed row-vector local-times-parent-world convention; compare the result with the stored 4x4 matrices.
 - Compare actively used BoneInfo palette matrices with the observed MeshWorld multiplied by inverse(BoneWorld) relationship, using positive-weight vertex lanes only.
 - Keep raw TransformInfo and BoneInfo matrices unchanged; report per-transform and per-mesh matrix diagnostics without claiming completed animation deformation or universal inverse-bind semantics.
+- Compared the 61 actively weighted Avatar names against AQ Edition's pinned 63-entry Avatar reference: 60 exact names match; `sling` is Unit-active but absent from that reference, while three AQ reference attachment names are not weighted by this mesh. This is name evidence only, not a hierarchy claim.
 - Annotate resolved TransformInfo entries with active positive-weight vertex usage and lane counts; add `transform_info.weight_usage_summary` to separate named nodes from actual mesh deformers.
 - Refuse to compose a transform that combines non-uniform scale with non-identity rotation until their multiplication order is validated; the current real samples do not distinguish that case.
 - Added synthetic tests for row-vector hierarchy composition, parent-cycle detection, mesh-space matrix comparison, active palette filtering and mismatch reporting.
