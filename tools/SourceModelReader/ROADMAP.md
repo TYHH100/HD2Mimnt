@@ -104,6 +104,25 @@ A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar r
 
 Exit criteria: pelvis, spine, head, shoulder, elbow, wrist, hip, knee and ankle deformation checks pass against a real target Unit.
 
+## Parallel 0.8.x track — Material/Texture preservation
+
+**Research started: `MATERIAL_FORMAT_NOTES.md` records the common Material resource layout from AQ/Community parser implementations and the HD2 material-template transparency distinctions documented by the community Wiki.**
+
+Verified research direction:
+- A Unit references Material resources; each Material references Texture resources.
+- Material stores a raw ParentMaterialID, per-node 32-bit texture-type values, 64-bit texture IDs and shader-variable descriptors/value payload.
+- ParentMaterialID aliases differ between AQ Edition and Community Edition. Preserve raw IDs and keep all friendly-name mappings revision-scoped.
+- A texture's RGBA alpha channel does not automatically mean transparency. Alpha Clip is documented as binary mask/cutout; Translucent exposes an OpacityBase scalar and has an alpha-mask use case, but exact per-pixel source-channel behavior still needs instance-level validation; Advanced uses its color texture alpha as an emissive mask.
+- Preserve compressed texture bytes, DDS headers, mipmaps, array size and alpha bytes. Do not flatten arrays or discard source alpha.
+
+Next milestones:
+1. Add a bounded Material TOC decoder with raw-field preservation and exact dependency checks.
+2. Add raw shader-variable descriptor/payload extraction; interpret arrays/strides only after real-resource validation.
+3. Add DDS/Texture metadata and alpha-channel inspection.
+4. Validate real Alpha Clip, Translucent/Glass and opaque Material resources before deciding any source-to-HD2 material mapping.
+
+No auto classification or output conversion should be implemented from names alone. In particular, partially transparent stockings/fabric must not be silently routed through Alpha Clip.
+
 ## 0.9.0 — Experimental Source-to-HD2 conversion preparation
 
 - Add target-specific mesh coordinate, scale and bind-space adaptation as reversible operations.
