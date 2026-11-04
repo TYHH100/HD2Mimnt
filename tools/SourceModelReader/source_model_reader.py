@@ -2537,7 +2537,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     p_hd2_material.add_argument("input", help="HD2 game data directory or package/archive file")
     p_hd2_material.add_argument("--package", help="Package/archive ID when input is the game data directory")
-    p_hd2_material.add_argument("--material", required=True, help="Material resource FileID (hexadecimal, with or without 0x)")
+    p_hd2_material.add_argument("--material", required=True, help="Material resource FileID (hexadecimal, with or without 0x; use dec: for decimal)")
     p_hd2_material.add_argument("--json", dest="json_path", help="Write the complete Material resource report to JSON")
 
     args = parser.parse_args(argv)
