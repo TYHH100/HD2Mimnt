@@ -18,7 +18,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Optional
 
-VERSION = "0.8.3-alpha"
+VERSION = "0.8.4-alpha"
 VERTEX_SIZE = 48
 BONE_SIZE = 216
 MODEL_SIZE = 148
