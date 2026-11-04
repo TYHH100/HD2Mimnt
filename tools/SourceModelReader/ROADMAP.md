@@ -81,6 +81,16 @@ Real-sample audit: two FS-05 Units and one Avatar Unit have zero unresolved acti
 
 ## 0.8.4 — Target rig comparison and deformation validation
 
+**In progress: 0.8.4-alpha — TransformInfo hierarchy and active palette matrix diagnostics implemented**
+
+- Rebuild TransformInfo world matrices from local rotation/position/scale and the parent graph using the sample-validated row-vector `Local × ParentWorld` candidate; compare against the stored matrices.
+- Compare actively used BoneInfo matrices with the observed `MeshWorld × inverse(BoneWorld)` relationship. Unreferenced palette slots are excluded from active-slot validation but remain visible in the palette.
+- Add synthetic tests for matrix composition, parent-cycle handling, active palette filtering and mismatch reporting.
+
+Real-sample audit: all 161 TransformInfo matrices across two FS-05 Units and one Avatar CompositeUnit Unit matched the reconstructed hierarchy within (2.58×10^{-7}). All 192 actively used BoneInfo palette slots matched the mesh-space comparison within (1.74×10^{-7}). Two unused Avatar palette slots were excluded; this is not proof of their semantic purpose.
+
+**Remaining 0.8.4 work**
+
 - Compare candidate source bones to the verified HD2 target skeleton by explicit mapping rules.
 - Report unmapped, ambiguous, extra and target-only bones.
 - Measure bind-pose alignment and simulate test rotations on representative target joints.
