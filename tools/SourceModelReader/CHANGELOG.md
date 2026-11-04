@@ -7,6 +7,7 @@
 - Preserved both GPU and Stream payloads; DDS selection follows the inspected public SDK's Stream-first rule, while `--preserve-raw` writes separate binary copies.
 - Kept alpha/transparency classification unresolved; a DXGI format or stored alpha channel is not treated as proof of a translucent/cutout/emissive material.
 - Added synthetic parser/range-loader regression tests. Real-game Texture payload decoding and visual alpha validation remain pending.
+- Corrected native SLIM Texture `entry_index` validation to match the observed zero-based TOC row values (validated against the supplied FS-05 package entries); the separate 1-based patch-file analyzer rule is not applied to this native package reader.
 - Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
 - Added same-package Texture dependency lookup and the hd2-material CLI command.
 - Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
