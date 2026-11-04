@@ -1,0 +1,1438 @@
+{
+  "schema": "SourceModelReader-TargetMaterialFamilySummary1",
+  "source": "hd2_material_census_full.json",
+  "source_blob_sha": "86e58d8825718276c74607e5d5303850362741ad",
+  "summary": {
+    "status": "ok",
+    "scan_complete": true,
+    "package_scan_complete": true,
+    "material_parse_complete": true,
+    "package_count_in_index": 9725,
+    "package_count_scannable": 3522,
+    "package_count_scanned": 3522,
+    "package_count_with_materials": 2773,
+    "package_count_errors": 0,
+    "package_warning_count": 0,
+    "resource_entry_rows_scanned": 322790,
+    "material_entry_count": 50580,
+    "material_parse_success_count": 50580,
+    "material_parse_error_count": 0,
+    "unique_material_file_id_count": 10121,
+    "duplicate_material_file_id_count": 3691,
+    "duplicate_material_occurrence_count": 40459,
+    "unique_material_payload_hash_count": 8112,
+    "duplicate_payload_hash_count": 3376,
+    "parent_material_id_unique_count": 381,
+    "parent_material_id_matching_file_id_count": 380,
+    "texture_node_count": 202236,
+    "zero_texture_id_reference_count": 309,
+    "texture_type_unique_count": 394,
+    "shader_variable_descriptor_count": 1329049,
+    "shader_variable_unique_count": 2651,
+    "material_parse_warning_count": 0
+  },
+  "families": [
+    {
+      "parent_material_id": "84e5de1cc6b74ada",
+      "occurrence_count": 188,
+      "unique_file_id_count": 13,
+      "unique_payload_count": 13,
+      "package_count": 167,
+      "texture_counts": [
+        1
+      ],
+      "shader_variable_counts": [
+        8,
+        9
+      ],
+      "shader_layouts": {
+        "964fbf90ef24f1e6": {
+          "unique_payloads": 2,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "e2b99ac44dc829f2",
+              "package": "0118c2cfda4f68a5",
+              "payload_sha256": "69ab731e8020ea8a132c1f6a3681818ea796fd7728bcf85d8c193b52400414e5"
+            },
+            {
+              "material_file_id": "83f08d5592664073",
+              "package": "09985dc611a3a8b6",
+              "payload_sha256": "82ddc7a8e6656b0fa37aa0114e5ff98816569d1628be272683e19e476647f082"
+            }
+          ]
+        },
+        "e4f21cb3d34522af": {
+          "unique_payloads": 3,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "8b3ff5502ac52c25",
+              "package": "01edaa2a7e84b840",
+              "payload_sha256": "4a2ef268ea448a5ebaee2b690f370ee80460513427a9a8fb610b1f8ce9ca52e9"
+            },
+            {
+              "material_file_id": "0f3201437c248dfc",
+              "package": "1e33cc1600ff38f3",
+              "payload_sha256": "b56e7b843cc61c4a40b4d2f4f2b776a2048712f4dee0fccbcde0a1a7c4fafd0e"
+            },
+            {
+              "material_file_id": "b5c17c3e6bd81b1f",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "c2cffe934d996881fe9858a35782827f0560b66108fb34b1deabafe947741b4a"
+            }
+          ]
+        },
+        "cba4fdf6af0db7a6": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "2f80391371cce33e",
+              "package": "029a193f2a08167c",
+              "payload_sha256": "4cefff5f857df0f988bc439b50411e4d4cbf42ba5a59f5ad6a75222cd2775f10"
+            }
+          ]
+        },
+        "e77029d68393ee7a": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            9
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "9423bb5f9a715c2e",
+              "package": "09985dc611a3a8b6",
+              "payload_sha256": "9d130079e2e3d516e38c45d192f6bb30bb4231961f809f00d66757c1e5e378f0"
+            }
+          ]
+        },
+        "08ba67842b3aa6dd": {
+          "unique_payloads": 3,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "93d9723a39dab3d1",
+              "package": "0a9651116d7d42b5",
+              "payload_sha256": "549e83d62d7e1ea4eb33ec16dbe4b78c60c057b660d15b5be23f39fea2e1eb4a"
+            },
+            {
+              "material_file_id": "6caeffbc028219fb",
+              "package": "5dcc1c4250a662aa",
+              "payload_sha256": "094be4ba4cb834b64590b1f51ae4d8812495f62832b0f30cf022d78602240dea"
+            },
+            {
+              "material_file_id": "932838e35b6ca353",
+              "package": "9514b4daa7f4c881",
+              "payload_sha256": "92d383e53d36cc200dad16607c2f2b7772fe293324b060aeab531897cfb61c2e"
+            }
+          ]
+        },
+        "5b9820a3806cf88a": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "68a3fcd7d278cafb",
+              "package": "715dcc69bf13acb0",
+              "payload_sha256": "03ab03b58c229df493d5584675101a0005101269c6a82e4cdc0623c562bb6fa8"
+            }
+          ]
+        },
+        "a66e7059fcce1bdd": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "5942631a102e7a6f",
+              "package": "7ed1f941859987b4",
+              "payload_sha256": "7410dda75a13a6ef099a5055ffa8ca983925564222ac7143fb94d160f5ddae92"
+            }
+          ]
+        },
+        "b204671c3e6c7011": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            8
+          ],
+          "texture_counts": [
+            1
+          ],
+          "samples": [
+            {
+              "material_file_id": "62650e2896e2b3e3",
+              "package": "9bfa7eb1324c29a5",
+              "payload_sha256": "a1f9dfeee2da4bdfcf4351e1068c29c960d9a87661cbafe71a62b19be0e18292"
+            }
+          ]
+        }
+      },
+      "payloads": [
+        {
+          "payload_sha256": "69ab731e8020ea8a132c1f6a3681818ea796fd7728bcf85d8c193b52400414e5",
+          "file_id": "e2b99ac44dc829f2",
+          "packages": [
+            "0118c2cfda4f68a5",
+            "0149ef7d2ee3efca",
+            "08e7b8b93e0dc696",
+            "0dc8fcabdb02111d",
+            "1230a746045f365f",
+            "15f53d03eba8ed2f",
+            "2511c5cc36c7f2a9",
+            "2ff32b9e6b5cb7ff",
+            "349fd0b485a07d54",
+            "42e414becbb04f21",
+            "4b8bb2e09e0a25e4",
+            "5cd5eb9334b33d3e",
+            "6530ed7ec71647d1",
+            "688ee018d4691ebf",
+            "6e0670f7ffc32073",
+            "701be391cd1c5486",
+            "7121beddc67c1311",
+            "85813f71c30d7ed7",
+            "8ba48b0f8e8e4681",
+            "917c2b694f6a206a",
+            "9e430d763af434c1",
+            "a1699442211cab67",
+            "a439e7f744d23326",
+            "a43e3debce4175a1",
+            "b17f35b4c464700a",
+            "b1a3ac4c5a4b60b3",
+            "b2580b3085c35e37",
+            "b3694945bb1617ed",
+            "bb976dfbdc501012",
+            "d043937e8d1ea720",
+            "da5aeda5f9638f67",
+            "de42668ead147315",
+            "e22ca63fcb2c9dc0",
+            "e442d21ade76709e",
+            "e5d79fe966dde6d2",
+            "e7f4ddf4b6784088",
+            "eac5c296150932a4",
+            "f4bf27b6edfdd763"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "964fbf90ef24f1e6"
+        },
+        {
+          "payload_sha256": "4a2ef268ea448a5ebaee2b690f370ee80460513427a9a8fb610b1f8ce9ca52e9",
+          "file_id": "8b3ff5502ac52c25",
+          "packages": [
+            "01edaa2a7e84b840",
+            "161694e194f95f99",
+            "4b34b7e4d302fb84",
+            "6286516637d5c967",
+            "7f76463558ffe625",
+            "ab58b061f0aec8e7",
+            "d33932ddabc669b3",
+            "f2b6fce59b619737",
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "e4f21cb3d34522af"
+        },
+        {
+          "payload_sha256": "4cefff5f857df0f988bc439b50411e4d4cbf42ba5a59f5ad6a75222cd2775f10",
+          "file_id": "2f80391371cce33e",
+          "packages": [
+            "029a193f2a08167c",
+            "031216af8ef63607",
+            "063f7a0139d67745",
+            "064e2fb84ddc7ab7",
+            "0885e44cee0815b2",
+            "08e7b8b93e0dc696",
+            "09d2644a0c95e209",
+            "09e67da2ff0242fe",
+            "0af9bf86a79ecff8",
+            "0e4aa5012142d1f6",
+            "0f814c170854a027",
+            "1230a746045f365f",
+            "190e1924b96d3e88",
+            "1c81e4d0fcc419e8",
+            "2388f736e6f8cc67",
+            "2511c5cc36c7f2a9",
+            "26ab2acd60808b4b",
+            "2b31334149754aea",
+            "2b3d269958e2603d",
+            "2bcb4bbe5f811e75",
+            "2df1706aec523e9a",
+            "2e5c33b48cf50366",
+            "2e9b6f40ecb8f459",
+            "2fe8321ef8f442ed",
+            "2ff32b9e6b5cb7ff",
+            "3084227928ed5658",
+            "33bd0080a75bb355",
+            "34b3908527dd33d7",
+            "3512a4886041f7b8",
+            "36f864f8c720ddb2",
+            "38d710ac518b4162",
+            "42e414becbb04f21",
+            "4391d399b6a2f02b",
+            "4436a04638261bc4",
+            "447edfc5ae183288",
+            "47aead993cde8839",
+            "48624871979b2e04",
+            "48a9d07f6856562c",
+            "4968c99a2bf592a1",
+            "49d992fb58342041",
+            "4a7ea58e8d4be432",
+            "4bb624468b97d23e",
+            "4c1f8b477d03cda1",
+            "4def1ac52ad3ba6f",
+            "5258203690a19209",
+            "55467da6083b1ab1",
+            "560c9de4c61805f2",
+            "5905ea15f1fb9e11",
+            "5f8a1420c40203a2",
+            "66b569456f059b95",
+            "6e6d6e877a96fa6e",
+            "6f3506e5574afed9",
+            "701be391cd1c5486",
+            "745f00f6aad7c5b8",
+            "76234f725d719802",
+            "7b48f4da3824d098",
+            "7b9472f3124eb37a",
+            "7c990f23cf9b9888",
+            "7dc2628bc4316689",
+            "83115589d54b20e9",
+            "85813f71c30d7ed7",
+            "89b10a1aed06914d",
+            "8ba48b0f8e8e4681",
+            "8cb6fc1ec423e92d",
+            "917c2b694f6a206a",
+            "93ed394b0075e48f",
+            "96955a51b07dde4a",
+            "97a9f4dcb55bd047",
+            "983f9d74ed046a51",
+            "99268e1920be1ccc",
+            "9c9ae57b85392fee",
+            "a326b63610d6438e",
+            "a439e7f744d23326",
+            "a43e3debce4175a1",
+            "a4698fa6889a6ea7",
+            "a68c0263a22a26dd",
+            "aba15be033a8af15",
+            "ac1e980925c23125",
+            "ad752614bc6ee8be",
+            "ad7bb8098838104f",
+            "adfc1ba45c16c4fa",
+            "b3905dbac70e6e52",
+            "b589264477bd12ee",
+            "b7091a7c5cedb669",
+            "b7567fdf1f4b7fd5",
+            "b9ffaa250b99896c",
+            "bb405d2b334101b7",
+            "bc4eaba166d07185",
+            "becbc4a3743e6c64",
+            "c2884c4496b3d1d8",
+            "c5881174c4473006",
+            "cb274c063399c27e",
+            "cccdd060f71dcc09",
+            "cf885c2447233a71",
+            "d49642cc88547d1d",
+            "d52380a11a7fd6d9",
+            "d9fd3dfedabe03be",
+            "da5aeda5f9638f67",
+            "dcd4ab0d90651552",
+            "de42668ead147315",
+            "e442d21ade76709e",
+            "e70992821db21e45",
+            "e862129bcfe02c5a",
+            "e9125c4cd4b004f9",
+            "ec5bf2ab4e3c8e44",
+            "ed6a6390ba691cbd",
+            "ef98d556e52b1046",
+            "f4bf27b6edfdd763",
+            "fa1f3b0a31ad8103",
+            "fdf06912d4548efb",
+            "ff46f14599372b2d"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "cba4fdf6af0db7a6"
+        },
+        {
+          "payload_sha256": "82ddc7a8e6656b0fa37aa0114e5ff98816569d1628be272683e19e476647f082",
+          "file_id": "83f08d5592664073",
+          "packages": [
+            "09985dc611a3a8b6",
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "964fbf90ef24f1e6"
+        },
+        {
+          "payload_sha256": "9d130079e2e3d516e38c45d192f6bb30bb4231961f809f00d66757c1e5e378f0",
+          "file_id": "9423bb5f9a715c2e",
+          "packages": [
+            "09985dc611a3a8b6",
+            "3b2c86dd5b316eb2",
+            "79219a4244b09ed8",
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 9,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "e77029d68393ee7a"
+        },
+        {
+          "payload_sha256": "549e83d62d7e1ea4eb33ec16dbe4b78c60c057b660d15b5be23f39fea2e1eb4a",
+          "file_id": "93d9723a39dab3d1",
+          "packages": [
+            "0a9651116d7d42b5",
+            "7c5edf52fd8827de",
+            "9514b4daa7f4c881"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "08ba67842b3aa6dd"
+        },
+        {
+          "payload_sha256": "b56e7b843cc61c4a40b4d2f4f2b776a2048712f4dee0fccbcde0a1a7c4fafd0e",
+          "file_id": "0f3201437c248dfc",
+          "packages": [
+            "1e33cc1600ff38f3",
+            "23bb68bd2e366fdf",
+            "2c26bc4c6592fa14",
+            "4e381abce2d425e8",
+            "58d05900e30daeb5",
+            "9b0d37f93ba0ab03",
+            "9bc33b7058a2bd5a",
+            "b18d1859b2cc7be1",
+            "bfe4d006cc25a01e",
+            "d2cebf1fedb86a19",
+            "de456f55554abb56",
+            "f70996775c6430a9",
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "e4f21cb3d34522af"
+        },
+        {
+          "payload_sha256": "094be4ba4cb834b64590b1f51ae4d8812495f62832b0f30cf022d78602240dea",
+          "file_id": "6caeffbc028219fb",
+          "packages": [
+            "5dcc1c4250a662aa",
+            "dc340e17314bc86a"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "08ba67842b3aa6dd"
+        },
+        {
+          "payload_sha256": "03ab03b58c229df493d5584675101a0005101269c6a82e4cdc0623c562bb6fa8",
+          "file_id": "68a3fcd7d278cafb",
+          "packages": [
+            "715dcc69bf13acb0"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "5b9820a3806cf88a"
+        },
+        {
+          "payload_sha256": "7410dda75a13a6ef099a5055ffa8ca983925564222ac7143fb94d160f5ddae92",
+          "file_id": "5942631a102e7a6f",
+          "packages": [
+            "7ed1f941859987b4"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "a66e7059fcce1bdd"
+        },
+        {
+          "payload_sha256": "92d383e53d36cc200dad16607c2f2b7772fe293324b060aeab531897cfb61c2e",
+          "file_id": "932838e35b6ca353",
+          "packages": [
+            "9514b4daa7f4c881"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "08ba67842b3aa6dd"
+        },
+        {
+          "payload_sha256": "a1f9dfeee2da4bdfcf4351e1068c29c960d9a87661cbafe71a62b19be0e18292",
+          "file_id": "62650e2896e2b3e3",
+          "packages": [
+            "9bfa7eb1324c29a5",
+            "9c3d59d7095b4c6a"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "b204671c3e6c7011"
+        },
+        {
+          "payload_sha256": "c2cffe934d996881fe9858a35782827f0560b66108fb34b1deabafe947741b4a",
+          "file_id": "b5c17c3e6bd81b1f",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 1,
+          "shader_variable_count": 8,
+          "texture_layout_signature": "8626f431f90f8183",
+          "shader_layout_signature": "e4f21cb3d34522af"
+        }
+      ]
+    },
+    {
+      "parent_material_id": "110199a9c3401242",
+      "occurrence_count": 3,
+      "unique_file_id_count": 2,
+      "unique_payload_count": 2,
+      "package_count": 3,
+      "texture_counts": [
+        5
+      ],
+      "shader_variable_counts": [
+        87
+      ],
+      "shader_layouts": {
+        "b9e6c4508f18842f": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            87
+          ],
+          "texture_counts": [
+            5
+          ],
+          "samples": [
+            {
+              "material_file_id": "7b25f93956fd9aff",
+              "package": "046d4441a6dae0a9",
+              "payload_sha256": "db31992e14521ff34ced276f9c87a619f62188eac05dff6c0d092f89d08ca284"
+            }
+          ]
+        },
+        "ec9dfc893e598222": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            87
+          ],
+          "texture_counts": [
+            5
+          ],
+          "samples": [
+            {
+              "material_file_id": "344020be12d962b5",
+              "package": "687d548654b91be6",
+              "payload_sha256": "ce6cf1b8cea0298f1ca05d2100c16fe216e3ebd1f581fbca1b10b2f245371d6d"
+            }
+          ]
+        }
+      },
+      "payloads": [
+        {
+          "payload_sha256": "db31992e14521ff34ced276f9c87a619f62188eac05dff6c0d092f89d08ca284",
+          "file_id": "7b25f93956fd9aff",
+          "packages": [
+            "046d4441a6dae0a9"
+          ],
+          "texture_count": 5,
+          "shader_variable_count": 87,
+          "texture_layout_signature": "852c6fd143419bbd",
+          "shader_layout_signature": "b9e6c4508f18842f"
+        },
+        {
+          "payload_sha256": "ce6cf1b8cea0298f1ca05d2100c16fe216e3ebd1f581fbca1b10b2f245371d6d",
+          "file_id": "344020be12d962b5",
+          "packages": [
+            "687d548654b91be6",
+            "b97df541a966620a"
+          ],
+          "texture_count": 5,
+          "shader_variable_count": 87,
+          "texture_layout_signature": "852c6fd143419bbd",
+          "shader_layout_signature": "ec9dfc893e598222"
+        }
+      ]
+    },
+    {
+      "parent_material_id": "d84d04634a1e2f60",
+      "occurrence_count": 129,
+      "unique_file_id_count": 6,
+      "unique_payload_count": 5,
+      "package_count": 123,
+      "texture_counts": [
+        3
+      ],
+      "shader_variable_counts": [
+        12
+      ],
+      "shader_layouts": {
+        "f065aecd266df452": {
+          "unique_payloads": 4,
+          "variable_counts": [
+            12
+          ],
+          "texture_counts": [
+            3
+          ],
+          "samples": [
+            {
+              "material_file_id": "1be843b66177517b",
+              "package": "01c1becaa12a1643",
+              "payload_sha256": "066b4126399e0b363c185c542c0c83bd7f35422140a6fdc14e4d1f4cfaa4fe7f"
+            },
+            {
+              "material_file_id": "53d53f0378415c45",
+              "package": "06a08803173e70bb",
+              "payload_sha256": "383553b5b121687f2e9f0f236e7b25b0c80e04ca25ec3dfe617313a8769e2f4e"
+            },
+            {
+              "material_file_id": "31aa68aa6e132c53",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "5fc03f4476fffa60aa3368406a06766e890391ad9c4e94c28494dd9455c36d39"
+            },
+            {
+              "material_file_id": "b5974918f9f12d77",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "683f90c32e133a2057f32aff699a4b596e137eb78b001a598d75af9df24b6f54"
+            }
+          ]
+        },
+        "3f76db957e1cfed0": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            12
+          ],
+          "texture_counts": [
+            3
+          ],
+          "samples": [
+            {
+              "material_file_id": "88cb828110f775d9",
+              "package": "09985dc611a3a8b6",
+              "payload_sha256": "80e53773c38879a8b54bbcd8c98b9f7fe2356c6e380b9828423beab16395ec45"
+            }
+          ]
+        }
+      },
+      "payloads": [
+        {
+          "payload_sha256": "066b4126399e0b363c185c542c0c83bd7f35422140a6fdc14e4d1f4cfaa4fe7f",
+          "file_id": "1be843b66177517b",
+          "packages": [
+            "01c1becaa12a1643",
+            "05215ba2782a1a22",
+            "0692f83587540ae5",
+            "0e4aa5012142d1f6",
+            "10914cddab9bb348",
+            "1230a746045f365f",
+            "130d146d72859b2d",
+            "21bff0baa681d886",
+            "2511c5cc36c7f2a9",
+            "32477233bb20fed4",
+            "34b3908527dd33d7",
+            "3c1d730995fce887",
+            "3c5133cadd1b86d5",
+            "4539f16979c3f579",
+            "45e8cd1cdc80ba6a",
+            "48624871979b2e04",
+            "4aa61d6a6e660fdb",
+            "4b8067cc23c51cff",
+            "4bb624468b97d23e",
+            "4e177e0c1d3b598d",
+            "4e9e08b384fc7abf",
+            "4fc218544a7e545f",
+            "500281a4605372f7",
+            "50625976873c3ebf",
+            "50fa45b011b04cc8",
+            "5205607b0b4d9618",
+            "5299709b4d1d5567",
+            "560ad305d0503cd7",
+            "58f0e4b488e92183",
+            "5905ea15f1fb9e11",
+            "5a1cd7ad35e7f478",
+            "605544d9807599b6",
+            "631d232e29ea0ca5",
+            "6530ed7ec71647d1",
+            "69b118d1578d19c6",
+            "767529832d12ef45",
+            "78cbdd1043c0a0d3",
+            "79be564c92f3141e",
+            "7e5f3d03609f2585",
+            "8a2eefa98f4441de",
+            "8b288279e6de20e1",
+            "91795121ecbde480",
+            "933f85199609846c",
+            "96ce6a754d318e12",
+            "9a51e73f8fb18106",
+            "9c9ae57b85392fee",
+            "9d966785adf28c2b",
+            "a5a82ed1e7d640a2",
+            "aa6a9d8e2d50d099",
+            "ad12745415c2774e",
+            "b000071734784fb3",
+            "b06e9cdc64cd41c2",
+            "b3694945bb1617ed",
+            "b3905dbac70e6e52",
+            "b40ab529f6867396",
+            "b55c2d15291ec633",
+            "ba7a6fcfc4f84467",
+            "c0b4e192c2caa5c7",
+            "c5881174c4473006",
+            "cf4673614a315a08",
+            "d0224ae761a44973",
+            "d105bc493a5ea7b0",
+            "d122f84ee92343b3",
+            "d2f2dd4a65a22617",
+            "d6a3bb8eaa5bb232",
+            "d6fa3cf9f5564abb",
+            "d85f80a0a0845f21",
+            "d8c9304e8c794b6c",
+            "da5b1502a6ffa4ab",
+            "de42668ead147315",
+            "dfa0a6ecfa018e51",
+            "e11be3012a33ce53",
+            "e22ca63fcb2c9dc0",
+            "e83d30672b3132b3",
+            "e862129bcfe02c5a",
+            "f2b6fce59b619737",
+            "f34cd99463f5b406",
+            "f5e8dbb1615b12d7",
+            "fa4e125186900b69",
+            "faedbfbebb16d1d3"
+          ],
+          "texture_count": 3,
+          "shader_variable_count": 12,
+          "texture_layout_signature": "5a8251c67cc1062e",
+          "shader_layout_signature": "f065aecd266df452"
+        },
+        {
+          "payload_sha256": "383553b5b121687f2e9f0f236e7b25b0c80e04ca25ec3dfe617313a8769e2f4e",
+          "file_id": "53d53f0378415c45",
+          "packages": [
+            "06a08803173e70bb",
+            "06c6b541295251ad",
+            "08e7b8b93e0dc696",
+            "09985dc611a3a8b6",
+            "144ed792dfd1defa",
+            "1a1afcb642800827",
+            "1e00df4eee6f9bfa",
+            "24dd336bd0d3bb34",
+            "2d2cce59992895b5",
+            "2fca33da232a3da4",
+            "3d86eaf94030fbcd",
+            "4302fd9974058f2d",
+            "517103543880b451",
+            "5920e4ae1ca4ee23",
+            "5fb0ef71055184a0",
+            "6523b9ec911aa8c3",
+            "66236082b8e0353b",
+            "6651a455c65af05e",
+            "688ee018d4691ebf",
+            "6ddf2b35f35d3dc0",
+            "6fa8fb795e82246d",
+            "6fefdc4185490622",
+            "7858476999abfcad",
+            "903d7a82d692f8ce",
+            "908cba28c62cab90",
+            "922fd5741a3208d8",
+            "9c72aa6f61f921b2",
+            "a3696ba49a647a85",
+            "aa6a9d8e2d50d099",
+            "b2580b3085c35e37",
+            "b7a513d968134685",
+            "b8bc4d1697939999",
+            "bf931584c8af5b34",
+            "c91a77b638f1cfc1",
+            "d9b2136a6e48c679",
+            "db0138009928a180",
+            "dc114f195fe140b5",
+            "de42668ead147315",
+            "e106156b398badf2",
+            "e442d21ade76709e",
+            "e548631b673635fa",
+            "ef27b47663fe4816",
+            "fa0bd7b03b29b6a1"
+          ],
+          "texture_count": 3,
+          "shader_variable_count": 12,
+          "texture_layout_signature": "5a8251c67cc1062e",
+          "shader_layout_signature": "f065aecd266df452"
+        },
+        {
+          "payload_sha256": "80e53773c38879a8b54bbcd8c98b9f7fe2356c6e380b9828423beab16395ec45",
+          "file_id": "88cb828110f775d9",
+          "packages": [
+            "09985dc611a3a8b6",
+            "3b2c86dd5b316eb2"
+          ],
+          "texture_count": 3,
+          "shader_variable_count": 12,
+          "texture_layout_signature": "5a8251c67cc1062e",
+          "shader_layout_signature": "3f76db957e1cfed0"
+        },
+        {
+          "payload_sha256": "5fc03f4476fffa60aa3368406a06766e890391ad9c4e94c28494dd9455c36d39",
+          "file_id": "31aa68aa6e132c53",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 3,
+          "shader_variable_count": 12,
+          "texture_layout_signature": "5a8251c67cc1062e",
+          "shader_layout_signature": "f065aecd266df452"
+        },
+        {
+          "payload_sha256": "683f90c32e133a2057f32aff699a4b596e137eb78b001a598d75af9df24b6f54",
+          "file_id": "b5974918f9f12d77",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 3,
+          "shader_variable_count": 12,
+          "texture_layout_signature": "5a8251c67cc1062e",
+          "shader_layout_signature": "f065aecd266df452"
+        }
+      ]
+    },
+    {
+      "parent_material_id": "c6042e3403385d40",
+      "occurrence_count": 194,
+      "unique_file_id_count": 20,
+      "unique_payload_count": 20,
+      "package_count": 143,
+      "texture_counts": [
+        4
+      ],
+      "shader_variable_counts": [
+        13,
+        14
+      ],
+      "shader_layouts": {
+        "32837f4025fdde91": {
+          "unique_payloads": 7,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "775f1d4cd6377875",
+              "package": "00c928ec7e330f9e",
+              "payload_sha256": "dfd50d966d70a45c600812aad144eab769dc606802472d0d9e1dda7ea2b668bc"
+            },
+            {
+              "material_file_id": "9436103fd778c403",
+              "package": "01c1becaa12a1643",
+              "payload_sha256": "bb7e7d96ad5a054c2c5d1c8180628d4f8d93f63719e60841641fdba08ed017c8"
+            },
+            {
+              "material_file_id": "d39f16ff0acb02b9",
+              "package": "01c1becaa12a1643",
+              "payload_sha256": "886de9157f943b6067c87d45fec2d4545c36675a7e7b4240ddb0a5d78349d59e"
+            },
+            {
+              "material_file_id": "488165054ec0b8af",
+              "package": "200339578d7736fb",
+              "payload_sha256": "c14727c06beaff28f62db6e34036e6f199bfa19eb03365cc3aeed6e20bdf2b5f"
+            },
+            {
+              "material_file_id": "7b7d710d57bfbf74",
+              "package": "6fa8fb795e82246d",
+              "payload_sha256": "95f78f74d2b28e1a51c935485bc36508ca6254a3c562e276c85860609c4d5082"
+            },
+            {
+              "material_file_id": "8f6a9afc7109461d",
+              "package": "9e430d763af434c1",
+              "payload_sha256": "b25a790ebc7128072d039c3d99562deed46ac474c4ee3780c15f8dfdfcb4f088"
+            },
+            {
+              "material_file_id": "a928dca7f2269b48",
+              "package": "bc35eebd1ddb6858",
+              "payload_sha256": "6c95f6d4f407f34e18805c33fe3bbe2c38437a0c2c9c15ab6ed507361dead4ed"
+            }
+          ]
+        },
+        "a9f52caf31b650fe": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            14
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "55a794f03a405c4c",
+              "package": "0149ef7d2ee3efca",
+              "payload_sha256": "eecf8cff8935d3e1682bbb0166f541420d11f7165700dfa350635fba0e3b7b18"
+            }
+          ]
+        },
+        "0bb989473ec04769": {
+          "unique_payloads": 4,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "f45a5dfbadca4801",
+              "package": "01c1becaa12a1643",
+              "payload_sha256": "7feeea18fc4f07fca7506b4465bc1428ff95a35d123a143082e29d61f41096f0"
+            },
+            {
+              "material_file_id": "353a2688a429b5b5",
+              "package": "0692f83587540ae5",
+              "payload_sha256": "7d856ae76f714350aa5a898e5bb078134fbb036c2a7a5a997f14eba7b9a24fdb"
+            },
+            {
+              "material_file_id": "792f2a0c87075474",
+              "package": "3dabc7ccea008f63",
+              "payload_sha256": "acb6ef2f21d9e49f1c38f5fa94f3dc8b57ac78a0793bf16c076c796d921ae99a"
+            },
+            {
+              "material_file_id": "f921129dd02d4486",
+              "package": "9bfa7eb1324c29a5",
+              "payload_sha256": "cf0b30491d782c02d6cfc47b89f4bde4063b5315baa0c30f56d87a8826ceaa8c"
+            }
+          ]
+        },
+        "b8491157a720006a": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "df8d836668965164",
+              "package": "44386a54311e4b2d",
+              "payload_sha256": "a9e3f535e004a934c24bbfea81208a384ccd3349659eecd64cde3a7d95752b87"
+            }
+          ]
+        },
+        "2a9e3d8721ac1d6b": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "5c0e798d93cd4569",
+              "package": "715dcc69bf13acb0",
+              "payload_sha256": "a2c13f48740b40698693d1bf6120ab9e232baeb177f5f4f7a2a64d614f92fb61"
+            }
+          ]
+        },
+        "b1e7c349d989fe0c": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "5c59e031a4a4e5a9",
+              "package": "9e430d763af434c1",
+              "payload_sha256": "b2436f075b89cb9bf9c44ec10a313d989e69bc4a68974759f9628906c9ff3489"
+            }
+          ]
+        },
+        "d9b22281549c4791": {
+          "unique_payloads": 1,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "90fe2dfc04665507",
+              "package": "9e430d763af434c1",
+              "payload_sha256": "7a5e6b7588f530e1051e8342864e0110eb8014fbfdc789a062bd33e6a6fb31f8"
+            }
+          ]
+        },
+        "9424871e1c1a0684": {
+          "unique_payloads": 4,
+          "variable_counts": [
+            13
+          ],
+          "texture_counts": [
+            4
+          ],
+          "samples": [
+            {
+              "material_file_id": "05da2bd256acc3d1",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "9c9aef92d59b79e091cfbf0ddf0e6d6bb8f76de3d48996905491c0db18ab7f9b"
+            },
+            {
+              "material_file_id": "86baca04b21bd664",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "7ee9a3081ee997f5d1d7eded5d1d143ad585841ef6a45185635eac21b4b191e2"
+            },
+            {
+              "material_file_id": "936ec1b791ca08cb",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "88aa57284de713d7ec92d1ef57c2336cd14d535794cbd683342bd916ca9a7e49"
+            },
+            {
+              "material_file_id": "a68ed38cdcf71a32",
+              "package": "fc5b6bff0db90aab",
+              "payload_sha256": "732748a1706af64fdd0b8f647d8d28b313fdc0d47721c8913de9c838adce9faf"
+            }
+          ]
+        }
+      },
+      "payloads": [
+        {
+          "payload_sha256": "dfd50d966d70a45c600812aad144eab769dc606802472d0d9e1dda7ea2b668bc",
+          "file_id": "775f1d4cd6377875",
+          "packages": [
+            "00c928ec7e330f9e",
+            "7ca11e54b19cb723"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "eecf8cff8935d3e1682bbb0166f541420d11f7165700dfa350635fba0e3b7b18",
+          "file_id": "55a794f03a405c4c",
+          "packages": [
+            "0149ef7d2ee3efca",
+            "0dc8fcabdb02111d",
+            "15f53d03eba8ed2f",
+            "7e4997d13a9e72f5",
+            "8d05fccea5bbbc54",
+            "a5a7e8288c7a478c",
+            "f6fb3cb126c467fd"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 14,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "a9f52caf31b650fe"
+        },
+        {
+          "payload_sha256": "bb7e7d96ad5a054c2c5d1c8180628d4f8d93f63719e60841641fdba08ed017c8",
+          "file_id": "9436103fd778c403",
+          "packages": [
+            "01c1becaa12a1643",
+            "11d275e62dfec5fd",
+            "2912dc2e499f4261",
+            "2e9b6f40ecb8f459",
+            "34b3908527dd33d7",
+            "3bf3ee630c39bf80",
+            "3c5133cadd1b86d5",
+            "45e8cd1cdc80ba6a",
+            "48624871979b2e04",
+            "4f375f1719b6bb49",
+            "5d83cb84def35d01",
+            "767529832d12ef45",
+            "8a2eefa98f4441de",
+            "9c9ae57b85392fee",
+            "a2dafa3b1e10dab2",
+            "a5a82ed1e7d640a2",
+            "aa6a9d8e2d50d099",
+            "ac1e980925c23125",
+            "aceb3d31b76a8e1e",
+            "b06e9cdc64cd41c2",
+            "d6fa3cf9f5564abb",
+            "d8c9304e8c794b6c",
+            "e11be3012a33ce53",
+            "e22ca63fcb2c9dc0",
+            "e6838e8a7b19bd04"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "886de9157f943b6067c87d45fec2d4545c36675a7e7b4240ddb0a5d78349d59e",
+          "file_id": "d39f16ff0acb02b9",
+          "packages": [
+            "01c1becaa12a1643",
+            "05215ba2782a1a22",
+            "0692f83587540ae5",
+            "0e4aa5012142d1f6",
+            "1230a746045f365f",
+            "2511c5cc36c7f2a9",
+            "32477233bb20fed4",
+            "34b3908527dd33d7",
+            "3c1d730995fce887",
+            "3c5133cadd1b86d5",
+            "45e8cd1cdc80ba6a",
+            "48624871979b2e04",
+            "4aa61d6a6e660fdb",
+            "4b8067cc23c51cff",
+            "4bb624468b97d23e",
+            "4e9e08b384fc7abf",
+            "4fc218544a7e545f",
+            "50625976873c3ebf",
+            "5205607b0b4d9618",
+            "5905ea15f1fb9e11",
+            "5a1cd7ad35e7f478",
+            "6530ed7ec71647d1",
+            "69b118d1578d19c6",
+            "767529832d12ef45",
+            "8a2eefa98f4441de",
+            "8b288279e6de20e1",
+            "91795121ecbde480",
+            "9c9ae57b85392fee",
+            "9d966785adf28c2b",
+            "a5a82ed1e7d640a2",
+            "aa6a9d8e2d50d099",
+            "ad12745415c2774e",
+            "b000071734784fb3",
+            "b06e9cdc64cd41c2",
+            "b3694945bb1617ed",
+            "b3905dbac70e6e52",
+            "b40ab529f6867396",
+            "b55c2d15291ec633",
+            "c0b4e192c2caa5c7",
+            "c5881174c4473006",
+            "d0224ae761a44973",
+            "d2f2dd4a65a22617",
+            "d6fa3cf9f5564abb",
+            "d85f80a0a0845f21",
+            "d8c9304e8c794b6c",
+            "da5b1502a6ffa4ab",
+            "de42668ead147315",
+            "dfa0a6ecfa018e51",
+            "e11be3012a33ce53",
+            "e22ca63fcb2c9dc0",
+            "e83d30672b3132b3",
+            "e862129bcfe02c5a",
+            "f2b6fce59b619737",
+            "f5e8dbb1615b12d7",
+            "fa4e125186900b69",
+            "faedbfbebb16d1d3"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "7feeea18fc4f07fca7506b4465bc1428ff95a35d123a143082e29d61f41096f0",
+          "file_id": "f45a5dfbadca4801",
+          "packages": [
+            "01c1becaa12a1643",
+            "035a2393ecf6ce21",
+            "048102d5f463b37d",
+            "051f3e7c025e7f4f",
+            "0692f83587540ae5",
+            "0970d8c99102e394",
+            "0ddccd1f26ac9a41",
+            "100bdc63447e0375",
+            "1369ff0be1f93820",
+            "2b974e3ab09e635f",
+            "2e9b6f40ecb8f459",
+            "30d73b5b8a5cd73c",
+            "3110ef1a6426dea3",
+            "3c5133cadd1b86d5",
+            "3de996b722fc5bea",
+            "40f692147f40f7c0",
+            "4557b9fad5a3cf1d",
+            "464eecdc17448918",
+            "475cd11e2199ed6b",
+            "48c6e60809d3d8a0",
+            "5688a562ee195817",
+            "5736a3b4ef666bea",
+            "585aff849a045efb",
+            "599fb2e6d5436fd8",
+            "5d83cb84def35d01",
+            "605544d9807599b6",
+            "6056fa6a17b4a31e",
+            "66497001cf7d06d9",
+            "6fefdc4185490622",
+            "7e4997d13a9e72f5",
+            "8384d5caebf2d19f",
+            "85915731040f081e",
+            "862232da81e7b066",
+            "8838327a6a719238",
+            "8a2eefa98f4441de",
+            "8b0d5ee7fa912873",
+            "90cd2e9301d9e8e0",
+            "9d966785adf28c2b",
+            "9fa0c9d8674d20ae",
+            "a4e75fab1b34b045",
+            "a6e3295281bf3a2e",
+            "ad26a9ad9e43b636",
+            "ade716a56fb95c15",
+            "afbf02ee3ae9c232",
+            "b000071734784fb3",
+            "b1ebe86813cae12a",
+            "b3694945bb1617ed",
+            "bc9c78be6fcdb111",
+            "bcefd29b347bb93a",
+            "bdfe621526c3f7ad",
+            "c3bf6bba4b953d38",
+            "d2f2dd4a65a22617",
+            "de42668ead147315",
+            "df9310cc94cbb5d3",
+            "e19e9c117cbfd121",
+            "e67fc77d1a66dbf4",
+            "f02863b2351b3a48",
+            "f2b6fce59b619737",
+            "f2fecee347df592b",
+            "f40d75e9980a2a7f",
+            "f8341e62df4a951b",
+            "f9fcbd86e7d56fad"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "0bb989473ec04769"
+        },
+        {
+          "payload_sha256": "7d856ae76f714350aa5a898e5bb078134fbb036c2a7a5a997f14eba7b9a24fdb",
+          "file_id": "353a2688a429b5b5",
+          "packages": [
+            "0692f83587540ae5",
+            "100bdc63447e0375",
+            "1230a746045f365f",
+            "2511c5cc36c7f2a9",
+            "40f692147f40f7c0",
+            "4fc218544a7e545f",
+            "6530ed7ec71647d1",
+            "8b288279e6de20e1",
+            "9d966785adf28c2b",
+            "9e430d763af434c1",
+            "b3694945bb1617ed",
+            "d2f2dd4a65a22617",
+            "da5b1502a6ffa4ab",
+            "de42668ead147315",
+            "e22ca63fcb2c9dc0"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "0bb989473ec04769"
+        },
+        {
+          "payload_sha256": "c14727c06beaff28f62db6e34036e6f199bfa19eb03365cc3aeed6e20bdf2b5f",
+          "file_id": "488165054ec0b8af",
+          "packages": [
+            "200339578d7736fb"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "acb6ef2f21d9e49f1c38f5fa94f3dc8b57ac78a0793bf16c076c796d921ae99a",
+          "file_id": "792f2a0c87075474",
+          "packages": [
+            "3dabc7ccea008f63",
+            "787dcf61de8a5e6b",
+            "e22ca63fcb2c9dc0",
+            "f7a964bf0feabb8a"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "0bb989473ec04769"
+        },
+        {
+          "payload_sha256": "a9e3f535e004a934c24bbfea81208a384ccd3349659eecd64cde3a7d95752b87",
+          "file_id": "df8d836668965164",
+          "packages": [
+            "44386a54311e4b2d",
+            "4539f16979c3f579",
+            "4e49163b1e62acbf",
+            "58f0e4b488e92183",
+            "5c5f83dd7855131b",
+            "8c6f78c92e25de02",
+            "9aeb8cd72e0fc2ee",
+            "b3694945bb1617ed",
+            "c38aeb09bc59b2c4"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "b8491157a720006a"
+        },
+        {
+          "payload_sha256": "95f78f74d2b28e1a51c935485bc36508ca6254a3c562e276c85860609c4d5082",
+          "file_id": "7b7d710d57bfbf74",
+          "packages": [
+            "6fa8fb795e82246d"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "a2c13f48740b40698693d1bf6120ab9e232baeb177f5f4f7a2a64d614f92fb61",
+          "file_id": "5c0e798d93cd4569",
+          "packages": [
+            "715dcc69bf13acb0"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "2a9e3d8721ac1d6b"
+        },
+        {
+          "payload_sha256": "cf0b30491d782c02d6cfc47b89f4bde4063b5315baa0c30f56d87a8826ceaa8c",
+          "file_id": "f921129dd02d4486",
+          "packages": [
+            "9bfa7eb1324c29a5",
+            "9c3d59d7095b4c6a",
+            "e22ca63fcb2c9dc0"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "0bb989473ec04769"
+        },
+        {
+          "payload_sha256": "b2436f075b89cb9bf9c44ec10a313d989e69bc4a68974759f9628906c9ff3489",
+          "file_id": "5c59e031a4a4e5a9",
+          "packages": [
+            "9e430d763af434c1"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "b1e7c349d989fe0c"
+        },
+        {
+          "payload_sha256": "b25a790ebc7128072d039c3d99562deed46ac474c4ee3780c15f8dfdfcb4f088",
+          "file_id": "8f6a9afc7109461d",
+          "packages": [
+            "9e430d763af434c1"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "7a5e6b7588f530e1051e8342864e0110eb8014fbfdc789a062bd33e6a6fb31f8",
+          "file_id": "90fe2dfc04665507",
+          "packages": [
+            "9e430d763af434c1"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "d9b22281549c4791"
+        },
+        {
+          "payload_sha256": "6c95f6d4f407f34e18805c33fe3bbe2c38437a0c2c9c15ab6ed507361dead4ed",
+          "file_id": "a928dca7f2269b48",
+          "packages": [
+            "bc35eebd1ddb6858"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "32837f4025fdde91"
+        },
+        {
+          "payload_sha256": "9c9aef92d59b79e091cfbf0ddf0e6d6bb8f76de3d48996905491c0db18ab7f9b",
+          "file_id": "05da2bd256acc3d1",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "9424871e1c1a0684"
+        },
+        {
+          "payload_sha256": "7ee9a3081ee997f5d1d7eded5d1d143ad585841ef6a45185635eac21b4b191e2",
+          "file_id": "86baca04b21bd664",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "9424871e1c1a0684"
+        },
+        {
+          "payload_sha256": "88aa57284de713d7ec92d1ef57c2336cd14d535794cbd683342bd916ca9a7e49",
+          "file_id": "936ec1b791ca08cb",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "9424871e1c1a0684"
+        },
+        {
+          "payload_sha256": "732748a1706af64fdd0b8f647d8d28b313fdc0d47721c8913de9c838adce9faf",
+          "file_id": "a68ed38cdcf71a32",
+          "packages": [
+            "fc5b6bff0db90aab"
+          ],
+          "texture_count": 4,
+          "shader_variable_count": 13,
+          "texture_layout_signature": "8c3faab1d66e0456",
+          "shader_layout_signature": "9424871e1c1a0684"
+        }
+      ]
+    }
+  ]
+}
