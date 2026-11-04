@@ -1306,11 +1306,19 @@ def resolve_unit_skinning(
                     "unresolved_active_influence_count": set_unresolved,
                     "out_of_range_vertex_count": out_of_range_vertex_count,
                 })
+            section_out_of_range_count = sum(
+                item["out_of_range_vertex_count"] for item in mapped_sets
+            )
             section_results.append({
                 "section_index": section["index"],
                 "material_index": material_index,
                 "material_slot_id": section.get("material_slot_id"),
-                "status": "ok" if all(x["unresolved_active_influence_count"] == 0 for x in mapped_sets) else "partial",
+                "status": (
+                    "ok"
+                    if all(x["unresolved_active_influence_count"] == 0 for x in mapped_sets)
+                    and section_out_of_range_count == 0
+                    else "partial"
+                ),
                 "vertex_indices": vertex_indices,
                 "bone_index_sets": mapped_sets,
                 "resolved_active_influence_count": sum(
@@ -1319,13 +1327,22 @@ def resolve_unit_skinning(
                 "unresolved_active_influence_count": sum(
                     item["unresolved_active_influence_count"] for item in mapped_sets
                 ),
+                "out_of_range_vertex_count": section_out_of_range_count,
             })
 
+        out_of_range_vertex_count = sum(
+            section.get("out_of_range_vertex_count", 0) for section in section_results
+        )
         matrix_validation = _validate_mesh_bone_info_matrices(
             mesh, record, used_palette_slots, world_matrices
         )
         mesh_geometry["skinning"] = {
-            "status": "ok" if unresolved_count == 0 else "partial",
+            "status": (
+                "ok"
+                if unresolved_count == 0
+                and all(section["status"] == "ok" for section in section_results)
+                else "partial"
+            ),
             "matrix_validation": matrix_validation,
             "lod_index": lod_index,
             "bone_info_index": bone_info_index,
@@ -1339,7 +1356,13 @@ def resolve_unit_skinning(
             "section_skinning": section_results,
             "resolved_active_influence_count": resolved_count,
             "unresolved_active_influence_count": unresolved_count,
+            "out_of_range_vertex_count": out_of_range_vertex_count,
         }
+        if out_of_range_vertex_count:
+            warnings.append(
+                f"Mesh {mesh_geometry['mesh_id']:08x} has {out_of_range_vertex_count} "
+                "section vertex indices outside decoded vertex attributes"
+            )
         if unresolved_count:
             warnings.append(
                 f"Mesh {mesh_geometry['mesh_id']:08x} has {unresolved_count} unresolved active bone influences"
