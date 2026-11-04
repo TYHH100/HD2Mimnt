@@ -43,7 +43,7 @@ Exit criteria: synthetic TOC/DSAR/SLIM fixtures pass. A user-provided game-data 
 
 ## 0.8.1 — HD2 package catalog
 
-**Current: 0.8.1-alpha**
+**Completed implementation baseline: 0.8.1-alpha**
 
 - Scan all SLIM package names using `bundles.nxa`.
 - Read only package TOC headers and type tables to identify model-bearing archives without reconstructing GPU/stream sidecars.
@@ -54,12 +54,16 @@ Exit criteria: run the catalog against the user's full HD2 `data` directory, sel
 
 ## 0.8.2 — HD2 Unit and GPU reader
 
-- Parse TransformInfo, MeshInfo, StreamInfo and BoneInfo records.
-- Decode supported vertex component layouts, index buffers, material sections and LOD relationships.
-- Correctly handle external CompositeUnit geometry and stream resources.
-- Export a neutral intermediate mesh representation; do not retarget Source bones yet.
+**Implementation baseline: 0.8.2-alpha — synthetic tests pass; real-game acceptance pending**
 
-Exit criteria: one original HD2 armor Unit is reconstructed and its positions, triangle counts, normals, UVs and material boundaries match the SDK/Blender import.
+- Parse TransformInfo local data, raw matrices, parent indices and name hashes.
+- Parse BoneInfo matrices, RealIndices and per-material Remap arrays.
+- Parse StreamInfo component descriptors and MeshInfo section/LOD relationships.
+- Decode supported direct Unit GPU vertex/index layouts.
+- Map CompositeUnit mesh IDs to shared layouts, streams and GPU geometry.
+- Export a neutral JSON intermediate representation; do not retarget Source bones or resolve palette names yet.
+
+Synthetic tests currently cover the table layouts, direct geometry path and CompositeUnit mapping. The exit criteria are **not yet met**: run the original FS-05 armor Unit and Avatar CompositeUnit commands, then compare positions, triangle counts, normals, UVs and material boundaries with a trusted SDK/Blender import.
 
 ## 0.8.3 — HD2 skeleton palette resolver
 
