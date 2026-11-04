@@ -159,7 +159,7 @@ This audit validates hash, palette, remap and active-lane range consistency. It 
 
 - Real-game structural acceptance has been completed locally for two FS-05 Units and one Avatar Unit backed by a CompositeUnit. The packed-format decoders added in 0.8.2.1 were checked against the same three JSON outputs.
 - It does not yet resolve package dependencies globally across all archives.
-- BoneInfo matrices, RealIndices and material Remap arrays are preserved, but are not yet resolved to TransformInfo names or retargeted to an Avatar/target skeleton.
+- BoneInfo matrices, RealIndices and material Remap arrays are resolved into named per-vertex influences. They are not yet retargeted to an Avatar/target skeleton, and the matrices remain uninterpreted raw values.
 - Format 30 octahedral normals are decoded when the component type is `normal`; the original uint32 remains in `values` and the unit vector is added in `decoded_values`. The upper twelve bits are not used by this format.
 - Format 29 is decoded as three unsigned-normalized 10-bit bone weights only when the component type is `bone_weight`; the fourth decoded influence is zero under the reviewed AQ decoder convention. The original packed uint32 remains in `values`. Other component semantics remain raw and warn rather than being guessed.
 - Transform matrices are emitted as stored floats. Matrix convention, bind-pose semantics and inverse-bind interpretation are not inferred.
@@ -189,7 +189,7 @@ StreamInfo records provide component descriptors, current component format IDs, 
 
 MeshInfo records preserve the mesh identifier, TransformIndex, LOD index, stream index, material slot IDs and section vertex/index ranges. The decoder checks that component ranges fit VertexStride and that vertex/index ranges fit the declared GPU buffers.
 
-For Unit version 10800438, the current component decoder recognizes float32, float16, uint8, uint32 and RGBA8 vector/scalar formats. Packed normal and 10-10-10-2 values are retained in their raw 32-bit form. Index buffers support 16-bit and 32-bit entries.
+For Unit version 10800438, the current component decoder recognizes float32, float16, uint8, uint32 and RGBA8 vector/scalar formats. Format 30 octahedral normals and Format 29 bone weights are decoded only when their component semantics match; the original packed words remain in the raw `values` arrays. Index buffers support 16-bit and 32-bit entries.
 
 ### CompositeUnit
 
