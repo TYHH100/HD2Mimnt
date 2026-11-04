@@ -116,9 +116,9 @@ Verified research direction:
 - Preserve compressed texture bytes, DDS headers, mipmaps, array size and alpha bytes. Do not flatten arrays or discard source alpha.
 
 Next milestones:
-1. Add a bounded Material TOC decoder with raw-field preservation and exact dependency checks.
-2. Add raw shader-variable descriptor/payload extraction; interpret arrays/strides only after real-resource validation.
-3. Add DDS/Texture metadata and alpha-channel inspection.
+1. Validate the new bounded Material decoder against real game Material entries, especially the variable-value boundary and table offsets.
+2. Validate shader-variable payload lengths and array/stride semantics; add versioned ID dictionaries without replacing raw IDs.
+3. Add Texture/DDS metadata and alpha-channel inspection while preserving compressed data and mipmaps.
 4. Validate real Alpha Clip, Translucent/Glass and opaque Material resources before deciding any source-to-HD2 material mapping.
 
 No auto classification or output conversion should be implemented from names alone. In particular, partially transparent stockings/fabric must not be silently routed through Alpha Clip.
