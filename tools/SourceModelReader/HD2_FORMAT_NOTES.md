@@ -1,4 +1,4 @@
-# Helldivers 2 resource format notes — 0.8.1-alpha
+# Helldivers 2 resource format notes — 0.8.2-alpha
 
 These notes describe the structures implemented by the independent read-only inspector. They are based on the publicly available parser structure in the HD2 SDK projects below. They are **not** a claim that every game build or every resource variant has been validated against original game files.
 
@@ -98,12 +98,41 @@ For SLIM installs, the inspector reads `bundles.nxa` metadata to map package nam
 
 ## Explicit limitations
 
-- The inspector has not yet been run against an original HD2 game-data directory in this environment.
+- The 0.8.2 parser has synthetic fixture coverage, but the real FS-05 armor and Avatar package outputs still require local acceptance against the user's installed game data.
 - It does not yet resolve package dependencies globally across all archives.
-- It does not decode CompositeUnit geometry, TransformInfo matrices, MeshInfo sections, StreamInfo component layouts, GPU vertex/index buffers, BoneInfo inverse-bind matrices or material-specific bone remaps.
+- BoneInfo matrices, RealIndices and material Remap arrays are preserved, but are not yet resolved to TransformInfo names or retargeted to an Avatar/target skeleton.
+- Packed normal format 30 and packed 10-10-10-2 format 29 are retained as raw values; their semantic decode is not asserted.
+- Transform matrices are emitted as stored floats. Matrix convention, bind-pose semantics and inverse-bind interpretation are not inferred.
 - It does not write or modify HD2 resources, Archives or Patches.
 
 
 ## Package catalog (0.8.1-alpha)
 
 For SLIM installs, `hd2-catalog` enumerates package names from `bundles.nxa` and reads only each package's 72-byte TOC header and type-table range. It does not reconstruct `.gpu_resources` or `.stream` packages during this first-pass census. Candidate archives are those whose type table declares Unit, Bones, or CompositeUnit resources. This is an archive-discovery aid, not a full dependency resolver: Unit payload references and cross-archive ownership still require inspecting candidate packages individually.
+
+
+## Unit and GPU geometry subset (0.8.2-alpha)
+
+The `hd2-unit` command reads one Unit resource by FileID and produces a neutral JSON report. It does not modify the original package or write a model Patch.
+
+### TransformInfo
+
+The parser preserves the 12-byte reserved area after the transform count, then reads parallel arrays for each transform: a 64-byte local transform, a 64-byte matrix, a 4-byte pair of 16-bit increment/parent values, and a 32-bit name hash. Matrix values are reported in stored order. Parent indices and hashes are not remapped or reinterpreted.
+
+### BoneInfo
+
+The Unit BoneInfo table is a count plus a relative-offset array. Each record begins with four 32-bit fields: bone count, matrix offset, RealIndices offset and FakeIndices offset. The reader preserves the per-record 4x4 matrices, RealIndices and per-material Remap arrays. Remap arrays are stored as indices into RealIndices; this alpha validates their ranges but does not resolve them through TransformInfo/Bones names.
+
+### StreamInfo and MeshInfo
+
+StreamInfo records provide component descriptors, current component format IDs, vertex/index buffer IDs, counts, strides and buffer offsets/sizes. Component byte offsets are calculated only while all preceding component sizes are known. If an unknown component format occurs, subsequent component offsets are left unresolved rather than guessed.
+
+MeshInfo records preserve the mesh identifier, TransformIndex, LOD index, stream index, material slot IDs and section vertex/index ranges. The decoder checks that component ranges fit VertexStride and that vertex/index ranges fit the declared GPU buffers.
+
+For Unit version 10800438, the current component decoder recognizes float32, float16, uint8, uint32 and RGBA8 vector/scalar formats. Packed normal and 10-10-10-2 values are retained in their raw 32-bit form. Index buffers support 16-bit and 32-bit entries.
+
+### CompositeUnit
+
+When a Unit references a CompositeUnit, the reader finds the Unit row by its Unit hash, uses its mesh-ID map to resolve each MeshInfo record to a shared mesh layout, and reads the shared StreamInfo/GPU payload from the CompositeUnit resource. This path is used by the Avatar sample; the FS-05 sample uses direct Unit GPU payloads.
+
+The decoder's JSON is intended as an inspectable intermediate representation. It is not yet an export-ready skinned model: BoneInfo palette/name resolution, influence interpretation, bind-pose convention validation and Source-to-HD2 retargeting remain later milestones.
