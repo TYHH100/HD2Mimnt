@@ -115,7 +115,7 @@ The diagnostics are emitted at:
 | Avatar CompositeUnit Unit | 107 / 107 | 86 / 86 |
 | **Total** | **161 / 161** | **192 / 192** |
 
-The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples belongs to `attach_cam_1`, whose rotation matrix is identity. Therefore, the samples do not discriminate the multiplication order for a transform that combines non-uniform scale with non-identity rotation; the report explicitly flags this as unverified.
+The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples belongs to `attach_cam_1`, whose rotation matrix is identity. Therefore, the samples do not discriminate the multiplication order for a transform that combines non-uniform scale with non-identity rotation; the report explicitly flags this as unverified. If a future Unit contains that combination, the validator leaves the affected transform unresolved rather than selecting an unverified order.
 
 Maximum absolute error was approximately (2.58×10^{-7}) for the TransformInfo hierarchy comparisons and (1.74×10^{-7}) for the active BoneInfo palette comparisons. Both are below the implementation's (10^{-4}) diagnostic tolerance.
 
