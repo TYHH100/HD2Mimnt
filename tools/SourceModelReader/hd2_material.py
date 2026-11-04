@@ -5,7 +5,6 @@ Community SDK parsers. It preserves raw payloads and does not infer render mode.
 """
 from __future__ import annotations
 
-import json
 import math
 import struct
 from pathlib import Path
@@ -294,7 +293,7 @@ def format_hd2_material_text(report: dict) -> str:
 
 
 def parse_resource_id(value: str) -> int:
-    """Accept hexadecimal (with or without 0x) or decimal resource IDs."""
+    """Accept hexadecimal by default; use dec: to specify a decimal resource ID."""
     text = value.strip().lower()
     if not text:
         raise ValueError("Resource ID cannot be empty")
