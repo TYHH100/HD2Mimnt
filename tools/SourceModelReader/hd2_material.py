@@ -300,6 +300,8 @@ def parse_resource_id(value: str) -> int:
         raise ValueError("Resource ID cannot be empty")
     if text.startswith("0x"):
         return int(text, 16)
-    if any(character in "abcdef" for character in text):
+    if text.startswith("dec:"):
+        return int(text[4:], 10)
+    if any(character in "abcdef" for character in text) or len(text) == 16:
         return int(text, 16)
     return int(text, 10)
