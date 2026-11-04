@@ -1,5 +1,9 @@
 # Changelog
 
+## Material research (parallel 0.8.x)
+
+- Added a research-only MATERIAL_FORMAT_NOTES.md documenting the common Material layout, versioned ParentMaterialID aliases, texture dependencies, DDS preservation, and Alpha Clip/Translucent/Advanced transparency distinctions.
+
 ## 0.8.4-alpha
 
 - Rebuild TransformInfo world matrices from local rotation, position, scale and parent indices using the observed row-vector local-times-parent-world convention; compare the result with the stored 4x4 matrices.
