@@ -27,6 +27,10 @@ The diagnostic is stored in `geometry[].skinning.matrix_validation`. Unreference
 
 The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples is on `attach_cam_1`, whose rotation is identity, so the multiplication order for a transform combining non-uniform scale with a non-identity rotation remains unverified. When such a transform is encountered, the validator marks it unresolved instead of guessing. The diagnostic exposes this uncertainty explicitly.
 
+The report also separates named transforms from actual vertex deformers. Every `resolved_skeleton[]` entry now includes `has_active_vertex_influence` and `active_vertex_influence_lane_count`; `transform_info.weight_usage_summary` aggregates named/unmatched transforms and the number of distinct transforms reached by positive-weight lanes. Lane counts are still per component set and section; they are not unique vertex counts.
+
+On the Avatar sample, 107 TransformInfo entries resolve to 90 named entries and 17 unnamed/helper entries. The palette has 88 unique TransformInfo targets, but only 61 named transforms are actually reached by positive-weight vertex lanes in this mesh; 27 palette slots are unused by those lanes. This is why the 90 Bones names must not all be treated as body deformation bones.
+
 All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The Avatar palette has 27 unreferenced slots. Of those, `aim_weapon` and `backpack` are the two whose raw matrices do not satisfy the comparison; neither is referenced by a positive-weight vertex lane in this sample.
 
 These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
