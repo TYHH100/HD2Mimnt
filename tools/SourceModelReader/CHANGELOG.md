@@ -7,7 +7,7 @@
 - Keep raw TransformInfo and BoneInfo matrices unchanged; report per-transform and per-mesh matrix diagnostics without claiming completed animation deformation or universal inverse-bind semantics.
 - Refuse to compose a transform that combines non-uniform scale with non-identity rotation until their multiplication order is validated; the current real samples do not distinguish that case.
 - Added synthetic tests for row-vector hierarchy composition, parent-cycle detection, mesh-space matrix comparison, active palette filtering and mismatch reporting.
-- Audited three real-game JSON samples: all 161 TransformInfo hierarchy matrices matched; all 192 actively used BoneInfo palette slots matched within 1e-4. Two additional Avatar palette slots (aim_weapon and backpack) were unreferenced by active influences and excluded from the active-slot comparison.
+- Audited three real-game JSON samples: all 161 TransformInfo hierarchy matrices matched; all 162 actively used BoneInfo palette slots matched within 1e-4. 32 palette slots across the three samples were unreferenced by active influences and excluded from the active-slot comparison; 27 of those were in the Avatar sample.
 
 ## 0.8.3-alpha
 
