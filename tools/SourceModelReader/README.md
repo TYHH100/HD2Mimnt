@@ -67,6 +67,16 @@ Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected 
 
 `VariableDataSize` is treated as the declared variable-value region. Bytes following that region are preserved separately as unresolved trailing data; three inspected FS-05 Material samples each had an 8-byte trailer. This is sample evidence, not a universal format guarantee.
 
+### Locate out-of-package resource references
+
+Use `hd2-find` to locate Texture FileIDs across the full SLIM package set. It reads only package TOC entry tables in bounded chunks; it does not load Material, Texture, GPU or Stream payloads:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-find "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --type Texture --resource f8b2508e99fb9f28 --resource 0d371130ba00addb --resource 7db10f0a89343dc7 --resource cf0cc31b981786c9 --resource 51260792de823d20 --resource e21128ca48e27a13 --resource 17c4075f57e4211a --resource f37a4e756300ab32 --resource c6faeeb7ba467e0b --resource 8e346e2c8187abaf --resource bfefc8b1b381a00f --resource f001498ea40718fb --resource 4656ac419388a0d4 --resource 68acd4177fa5f4db --resource 8e42f23230ab525e --resource 7fc8b2e634181f66 --resource 82ba9a2d6997cc4b --resource bf281073a422022c --resource 9e0595f7f9d158d1 --resource 486c27ee43065178 --json "fs05_texture_locations.json"
+```
+
+A hit reports every package containing the requested FileID and its resource type/sidecar sizes. A miss means "not found in successfully scanned packages"; an incomplete scan or package error prevents a global-absence conclusion. `--max-packages` is available for partial diagnostics, but should be omitted for a full lookup.
+
 See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
 
 ## Installing or refreshing the 0.8.4 patch over an existing supported folder
@@ -81,6 +91,7 @@ Download the following into a separate temporary folder, preserving the `tests` 
 - `VERSION`
 - `tests/test_hd2_unit.py`
 - `tests/test_hd2_material.py`
+- `tests/test_hd2_resources.py`
 - `tests/test_smd_animation.py`
 - `tests/test_smd_reader.py`
 
