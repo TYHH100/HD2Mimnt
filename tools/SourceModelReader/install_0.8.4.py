@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-SUPPORTED_OLD_VERSIONS = {"0.8.2-alpha", "0.8.2.1-alpha", "0.8.3-alpha"}
+SUPPORTED_OLD_VERSIONS = {"0.8.2-alpha", "0.8.2.1-alpha", "0.8.3-alpha", "0.8.4-alpha"}
 NEW_VERSION = "0.8.4-alpha"
 
 
@@ -24,8 +24,10 @@ def install(root: Path, patch_dir: Path) -> None:
         patch_dir / "source_model_reader.py": root / "source_model_reader.py",
         patch_dir / "hd2_unit.py": root / "hd2_unit.py",
         patch_dir / "hd2_resources.py": root / "hd2_resources.py",
+        patch_dir / "hd2_material.py": root / "hd2_material.py",
         patch_dir / "VERSION": root / "VERSION",
         patch_dir / "tests" / "test_hd2_unit.py": root / "tests" / "test_hd2_unit.py",
+        patch_dir / "tests" / "test_hd2_material.py": root / "tests" / "test_hd2_material.py",
         patch_dir / "tests" / "test_smd_animation.py": root / "tests" / "test_smd_animation.py",
         patch_dir / "tests" / "test_smd_reader.py": root / "tests" / "test_smd_reader.py",
     }
@@ -62,7 +64,7 @@ def main() -> int:
         "--root",
         type=Path,
         required=True,
-        help="Existing SourceModelReader 0.8.2.x or 0.8.3 project folder",
+        help="Existing SourceModelReader 0.8.2.x, 0.8.3 or 0.8.4-alpha project folder",
     )
     args = parser.parse_args()
     try:
