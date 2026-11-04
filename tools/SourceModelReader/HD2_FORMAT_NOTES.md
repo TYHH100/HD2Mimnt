@@ -192,10 +192,10 @@ This audit validates hash, palette, remap and active-lane range consistency. It 
 
 - Real-game structural acceptance has been completed locally for two FS-05 Units and one Avatar Unit backed by a CompositeUnit. The packed-format decoders added in 0.8.2.1 were checked against the same three JSON outputs.
 - It does not yet resolve package dependencies globally across all archives.
-- BoneInfo matrices, RealIndices and material Remap arrays are resolved into named per-vertex influences. They are not yet retargeted to an Avatar/target skeleton, and the matrices remain uninterpreted raw values.
+- BoneInfo matrices, RealIndices and material Remap arrays are resolved into named per-vertex influences. The 0.8.4 diagnostic compares actively used matrices with the observed mesh-space matrix relationship, but does not retarget them to an Avatar/target skeleton or alter the raw values.
 - Format 30 octahedral normals are decoded when the component type is `normal`; the original uint32 remains in `values` and the unit vector is added in `decoded_values`. The upper twelve bits are not used by this format.
 - Format 29 is decoded as three unsigned-normalized 10-bit bone weights only when the component type is `bone_weight`; the fourth decoded influence is zero under the reviewed AQ decoder convention. The original packed uint32 remains in `values`. Other component semantics remain raw and warn rather than being guessed.
-- Transform matrices are emitted as stored floats. Matrix convention, bind-pose semantics and inverse-bind interpretation are not inferred.
+- Transform matrices are emitted as stored floats. The 0.8.4 sample-based diagnostic supports a row-vector/local-times-parent-world layout and a mesh-space BoneInfo matrix relationship for the inspected samples; universal Unit coverage, bind-pose semantics and inverse-bind meaning remain unproven.
 - It does not write or modify HD2 resources, Archives or Patches.
 
 
