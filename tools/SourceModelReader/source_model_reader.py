@@ -2560,6 +2560,19 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_material.add_argument("--material", required=True, help="Material resource FileID (hexadecimal, with or without 0x; use dec: for decimal)")
     p_hd2_material.add_argument("--json", dest="json_path", help="Write the complete Material resource report to JSON")
 
+    p_hd2_texture = sub.add_parser(
+        "hd2-texture",
+        help="Inspect one HD2 Texture resource and export its SDK-style DDS payload",
+    )
+    p_hd2_texture.add_argument("input", help="HD2 SLIM game data directory containing bundles.nxa")
+    p_hd2_texture.add_argument("--package", required=True, help="Package/archive ID containing the Texture")
+    p_hd2_texture.add_argument("--texture", required=True, help="Texture resource FileID (hexadecimal)")
+    p_hd2_texture.add_argument("--output", required=True, help="Output DDS file path")
+    p_hd2_texture.add_argument("--preserve-raw", action="store_true",
+                                help="Also write separate .gpu.bin and .stream.bin payload copies")
+    p_hd2_texture.add_argument("--json", dest="json_path",
+                                help="Write the complete Texture metadata report to JSON")
+
     args = parser.parse_args(argv)
     if args.command == "hd2-catalog":
         try:
@@ -2617,6 +2630,45 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"JSON report: {out}")
             return 1 if report["summary"]["status"] == "warning" else 0
         except (OSError, struct.error, ValueError, TypeError, KeyError, OverflowError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-texture":
+        try:
+            from hd2_material import parse_resource_id
+            from hd2_resources import HD2ResourceError
+            from hd2_texture import format_hd2_texture_text, inspect_hd2_texture
+
+            texture_id = parse_resource_id(args.texture)
+            report, dds_bytes, gpu_bytes, stream_bytes = inspect_hd2_texture(
+                args.input, args.package, texture_id
+            )
+            output = Path(args.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(dds_bytes)
+            outputs = {"dds": str(output)}
+            if args.preserve_raw:
+                if gpu_bytes:
+                    gpu_output = output.with_name(output.stem + ".gpu.bin")
+                    gpu_output.write_bytes(gpu_bytes)
+                    outputs["gpu_raw"] = str(gpu_output)
+                if stream_bytes:
+                    stream_output = output.with_name(output.stem + ".stream.bin")
+                    stream_output.write_bytes(stream_bytes)
+                    outputs["stream_raw"] = str(stream_output)
+            report["outputs"] = outputs
+            print(format_hd2_texture_text(report))
+            print(f"DDS exported: {output} ({len(dds_bytes):,} bytes)")
+            for label, filename in outputs.items():
+                if label != "dds":
+                    print(f"{label}: {filename}")
+            if args.json_path:
+                json_path = Path(args.json_path)
+                json_path.parent.mkdir(parents=True, exist_ok=True)
+                json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"JSON report: {json_path}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (HD2ResourceError, OSError, struct.error, ValueError, TypeError,
+                KeyError, OverflowError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
     if args.command == "hd2-unit":
