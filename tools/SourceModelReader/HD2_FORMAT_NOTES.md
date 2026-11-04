@@ -1,4 +1,4 @@
-# Helldivers 2 resource format notes — 0.8.2.1-alpha
+# Helldivers 2 resource format notes — 0.8.3-alpha
 
 These notes describe the structures implemented by the independent read-only inspector. They are based on the publicly available parser structure in the HD2 SDK projects below. They are **not** a claim that every game build or every resource variant has been validated against original game files.
 
@@ -126,6 +126,34 @@ Across all 38,378 decoded Format 30 normals, every component was finite and ever
 The three sample exports also confirmed that the Format 30 upper twelve bits vary substantially; the decoder must not treat those bits as part of the normal's X/Y coordinates.
 
 These checks validate decoding and data consistency. They do not constitute a visual comparison against an independent renderer, nor do they establish bind-pose matrix conventions.
+
+## Named skeleton and skinning resolution (0.8.3-alpha)
+
+The reader resolves the following chain independently for each MeshInfo material section:
+
+`vertex-local bone index -> BoneInfo.Remaps[material_index] -> BoneInfo.RealIndices -> TransformInfo -> Bones.name_hash`
+
+The selected BoneInfo record follows the MeshInfo LOD index. LOD -1 selects the final BoneInfo record, matching the SDK's negative-index lookup behavior when skin attributes are present.
+
+TransformInfo entries are matched to Bones records by exact 32-bit name hash. The report preserves every TransformInfo entry, including helper entries without a Bones name. It adds a convenience parent index/name while retaining the original raw parent field. A self-parenting root is represented as having no resolved parent; its raw value remains unchanged.
+
+BoneInfo matrix i and RealIndices[i] share the same palette slot in the SDK data model. The report attaches each raw 4x4 matrix to that palette slot but does not interpret row/column order, coordinate basis, or inverse-bind semantics.
+
+Each bone_index component index is an independent set. This is important for legacy/grouped layouts: the reader does not combine component sets or pretend that repeated sets are a single larger influence array. Each set resolves the active lanes against the section's material-specific Remap and emits vertex-local influences with the source lane, weight, local index, palette slot, TransformInfo index and Bones name.
+
+Zero-weight lanes remain represented in the raw vertex attributes and aligned transform-index arrays, but do not count as unresolved active influences. Missing mappings on positive-weight lanes produce a partial skinning status and a diagnostic.
+
+### Real sample audit
+
+| Sample | TransformInfo names matched | Active influence lanes | Unresolved active lanes |
+|---|---:|---:|---:|
+| FS-05 lower-body Unit | 15 / 16 | 3,059 | 0 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 43,038 | 0 |
+| Avatar CompositeUnit Unit | 90 / 107 | 42,158 | 0 |
+
+The active lane counts include separate bone_index component sets independently; they must not be summed as though each set were an additional simultaneous influence stream. The 17 unmatched Avatar TransformInfo entries are not used by any active influence in this sample.
+
+This audit validates hash, palette, remap and active-lane range consistency. It does not validate mesh deformation, matrix convention, inverse-bind semantics or Source-to-HD2 retargeting.
 
 ## Explicit limitations
 
