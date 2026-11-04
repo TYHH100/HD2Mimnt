@@ -93,6 +93,13 @@ def parse_material_resource(data: bytes) -> dict:
     _range(data, variables_offset, variables_size, "Material shader-variable descriptors")
     value_payload_offset = variables_offset + variables_size
     value_payload = data[value_payload_offset:]
+    # VariableDataSize bounds the variable-value region. Preserve bytes after
+    # that declared region separately; real samples currently show an 8-byte
+    # tail, but its field semantics have not been established.
+    declared_payload_available_size = min(variable_data_size, len(value_payload))
+    declared_variable_payload = value_payload[:declared_payload_available_size]
+    trailing_payload = value_payload[declared_payload_available_size:]
+    variable_data_size_fits_available_payload = variable_data_size <= len(value_payload)
 
     texture_nodes = []
     for index in range(num_textures):
@@ -120,12 +127,12 @@ def parse_material_resource(data: bytes) -> dict:
         preview_status = "unsupported_class"
         if component_count is not None:
             preview_size = component_count * 4
-            if value_offset > len(value_payload) or preview_size > len(value_payload) - value_offset:
+            if value_offset > len(declared_variable_payload) or preview_size > len(declared_variable_payload) - value_offset:
                 preview_status = "value_range_out_of_bounds"
             else:
                 values = list(struct.unpack_from(
                     "<" + "f" * component_count,
-                    value_payload,
+                    declared_variable_payload,
                     value_offset,
                 ))
                 if all(math.isfinite(value) for value in values):
@@ -148,17 +155,23 @@ def parse_material_resource(data: bytes) -> dict:
             "first_vector_preview": preview,
         })
 
-    if variable_data_size != len(value_payload):
+    notes = []
+    if not variable_data_size_fits_available_payload:
         warnings.append(
-            "VariableDataSize does not equal the remaining bytes after the descriptor table "
+            "VariableDataSize exceeds the bytes remaining after the descriptor table "
             f"(declared={variable_data_size}, available={len(value_payload)}); "
-            "the raw remaining payload is preserved and the field boundary is not assumed"
+            "the available bytes are preserved and shader-variable previews are bounded to them"
+        )
+    if trailing_payload:
+        notes.append(
+            f"{len(trailing_payload)} trailing bytes follow the declared variable-data region; "
+            "they are preserved separately and their semantics remain unresolved"
         )
     for variable in variables:
         if variable["preview_status"] == "value_range_out_of_bounds":
             warnings.append(
                 f"Shader variable {variable['variable_id_hex']} preview offset is outside "
-                "the available variable payload"
+                "the declared variable-data region"
             )
 
     return {
@@ -185,11 +198,18 @@ def parse_material_resource(data: bytes) -> dict:
             "variable_descriptors_offset": variables_offset,
             "variable_value_payload_offset": value_payload_offset,
             "available_variable_data_size": len(value_payload),
+            "declared_variable_payload_available_size": len(declared_variable_payload),
             "variable_data_size_matches_remaining_payload": variable_data_size == len(value_payload),
+            "variable_data_size_fits_available_payload": variable_data_size_fits_available_payload,
+            "trailing_payload_offset": value_payload_offset + len(declared_variable_payload),
+            "trailing_payload_size": len(trailing_payload),
         },
         "texture_nodes": texture_nodes,
         "shader_variables": variables,
         "variable_value_payload_hex": value_payload.hex(),
+        "declared_variable_payload_hex": declared_variable_payload.hex(),
+        "trailing_payload_hex": trailing_payload.hex(),
+        "notes": notes,
         "render_mode": {
             "status": "unresolved",
             "reason": "Parent aliases and shader variable names are versioned metadata; raw IDs are preserved without inferring render behavior.",
@@ -283,6 +303,8 @@ def format_hd2_material_text(report: dict) -> str:
             f"offset={variable['value_offset']} stride={variable['element_stride']} "
             f"preview={variable['preview_status']}{preview_text}"
         )
+    for note in report.get("notes", []):
+        lines.append(f"NOTE: {note}")
     for warning in report["warnings"]:
         lines.append(f"WARNING: {warning}")
     lines.append(
