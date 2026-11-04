@@ -2531,6 +2531,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_unit.add_argument("--unit", required=True, help="Unit resource FileID (hexadecimal)")
     p_hd2_unit.add_argument("--json", dest="json_path", help="Write the complete Unit/geometry report to JSON")
 
+    p_hd2_material = sub.add_parser(
+        "hd2-material",
+        help="Inspect one HD2 Material resource, texture dependencies and raw shader-variable descriptors",
+    )
+    p_hd2_material.add_argument("input", help="HD2 game data directory or package/archive file")
+    p_hd2_material.add_argument("--package", help="Package/archive ID when input is the game data directory")
+    p_hd2_material.add_argument("--material", required=True, help="Material resource FileID (hexadecimal, with or without 0x)")
+    p_hd2_material.add_argument("--json", dest="json_path", help="Write the complete Material resource report to JSON")
+
     args = parser.parse_args(argv)
     if args.command == "hd2-catalog":
         try:
@@ -2545,6 +2554,26 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"JSON report: {out}")
             return 1 if report["summary"]["status"] == "warning" else 0
         except (HD2ResourceError, OSError, struct.error, ValueError, TypeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-material":
+        try:
+            from hd2_material import (
+                format_hd2_material_text,
+                inspect_hd2_material,
+                parse_resource_id,
+            )
+
+            material_id = parse_resource_id(args.material)
+            report = inspect_hd2_material(args.input, args.package, material_id)
+            print(format_hd2_material_text(report))
+            if args.json_path:
+                out = Path(args.json_path)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"JSON report: {out}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (OSError, struct.error, ValueError, TypeError, KeyError, OverflowError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
     if args.command == "hd2-unit":
