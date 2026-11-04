@@ -33,6 +33,17 @@ On the Avatar sample, 107 TransformInfo entries resolve to 90 named entries and 
 
 All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The Avatar palette has 27 unreferenced slots. Of those, `aim_weapon` and `backpack` are the two whose raw matrices do not satisfy the comparison; neither is referenced by a positive-weight vertex lane in this sample.
 
+### Name cross-check against the public AQ Avatar reference
+
+AQ Edition publishes a 63-entry `hd2_system/avatar_source.json` reference skeleton and describes it as a validated Avatar source used by its runtime profiles: [pinned source file](https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/71b380046d33d552eef0892bd48661ff25591380/hd2_system/avatar_source.json).
+
+Compared by exact name against the 61 distinct named transforms actually weighted by the inspected Avatar mesh:
+- 60 names match exactly.
+- `sling` is actively weighted by this Unit but is absent from the AQ 63-entry reference list.
+- AQ's `support_mg`, `attach_intelpad` and `attach_samplepouch` are not actively weighted by this mesh.
+
+This is a name-only cross-check. The AQ file's provenance explicitly says its `parent=-1` entries store model-space Rest, not Blender's authoring hierarchy. Its list must not be used as a substitute for the Unit's TransformInfo parent graph or as proof that `sling` is invalid. Treat the 60 names as high-confidence mapping candidates, and keep `sling` as an explicit unmatched target candidate pending hierarchy/animation evidence. No AQ implementation code or rig data is imported by this reader.
+
 These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
 
 ## Installing the 0.8.4 patch over an existing 0.8.3 folder
