@@ -1,6 +1,59 @@
-# Source Model Reader (alpha 0.8.3)
+# Source Model Reader (alpha 0.8.4)
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
+
+## 0.8.4 — Transform hierarchy and mesh-space matrix diagnostics
+
+The HD2 Unit report now reconstructs the TransformInfo hierarchy from each transform's local rotation, position, scale and parent index. The candidate row-vector composition is:
+
+`LocalTransform × ParentWorld`
+
+The rebuilt world matrices are compared against the original `matrix_4x4_raw` values. The report records the comparison convention, tolerance, per-transform result and aggregate counts under `transform_info.hierarchy_matrix_validation`.
+
+For meshes with skin attributes, the reader also compares only actively used BoneInfo palette slots (positive-weight lanes) against the observed relation:
+
+`BoneInfoMatrix[palette_slot] ≈ MeshWorld × inverse(BoneWorld)`
+
+The diagnostic is stored in `geometry[].skinning.matrix_validation`. Unreferenced palette slots are counted but not used to fail the comparison. This avoids treating unused attachment/helper slots as if they deform vertices. Raw TransformInfo and BoneInfo matrices remain unchanged.
+
+**Three real-game sample audit**
+
+| Sample | TransformInfo matrices | Active BoneInfo slots |
+|---|---:|---:|
+| FS-05 lower-body Unit | 16 / 16 | 10 / 10 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 96 / 96 |
+| Avatar CompositeUnit Unit | 107 / 107 | 86 / 86 (2 additional slots unreferenced) |
+| **Total** | **161 / 161** | **192 / 192** |
+
+All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The two unreferenced Avatar slots are named `aim_weapon` and `backpack`; neither is referenced by a positive-weight vertex lane in this sample.
+
+These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
+
+## Installing the 0.8.4 patch over an existing 0.8.3 folder
+
+Download the following into a separate temporary folder, preserving the `tests` subfolder:
+
+- `install_0.8.4.py`
+- `source_model_reader.py`
+- `hd2_unit.py`
+- `hd2_resources.py`
+- `VERSION`
+- `tests/test_hd2_unit.py`
+- `tests/test_smd_animation.py`
+- `tests/test_smd_reader.py`
+
+Run the installer and target the existing Source Model Reader folder:
+
+```powershell
+py -3 .\install_0.8.4.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+```
+
+The installer accepts `0.8.3-alpha`, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
+
+```powershell
+Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+py -3 -m unittest discover -s tests -v
+```
 
 ## 0.8.3 — named HD2 skinning resolution
 
