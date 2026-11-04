@@ -23,6 +23,7 @@ def install(root: Path, patch_dir: Path) -> None:
     files = {
         patch_dir / "source_model_reader.py": root / "source_model_reader.py",
         patch_dir / "hd2_unit.py": root / "hd2_unit.py",
+        patch_dir / "hd2_resources.py": root / "hd2_resources.py",
         patch_dir / "tests" / "test_hd2_unit.py": root / "tests" / "test_hd2_unit.py",
         patch_dir / "VERSION": root / "VERSION",
     }
