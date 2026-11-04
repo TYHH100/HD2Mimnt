@@ -467,6 +467,16 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
             "All populated TOC mipmap records match the calculated dimensions, byte offsets "
             "and remaining-byte counts for this DXGI format."
         )
+    elif mipmap_validation["status"] == "mismatch":
+        warnings.append(
+            "One or more TOC mipmap records disagree with the calculated DXGI mip-chain layout; "
+            "see mipmap_validation.mismatches for field-level details."
+        )
+    elif mipmap_validation["status"] == "partial":
+        notes.append(
+            "Some DDS mip levels have zero/unpopulated TOC records; populated records were "
+            "checked against the calculated mip-chain layout."
+        )
     elif mipmap_validation["status"] == "not_populated":
         notes.append(
             "The DDS header describes a calculable mip chain, but the Texture TOC mipmap "
