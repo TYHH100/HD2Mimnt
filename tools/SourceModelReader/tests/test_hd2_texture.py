@@ -132,12 +132,14 @@ class TextureParserTests(unittest.TestCase):
             "hd2_texture._read_slim_texture_payload",
             return_value=(resource, toc, gpu, stream),
         ):
-            report, dds = inspect_hd2_texture("unused", "fixture", 0x1234)
+            report, dds, actual_gpu, actual_stream = inspect_hd2_texture("unused", "fixture", 0x1234)
 
         expected = toc[12 + 15 * 12:TEXTURE_TOC_SIZE] + stream
         self.assertEqual(dds, expected)
         self.assertEqual(report["summary"]["selected_payload_source"], "stream")
         self.assertEqual(report["dds_export_bytes"], DDS_HEADER_SIZE + len(stream))
+        self.assertEqual(actual_gpu, gpu)
+        self.assertEqual(actual_stream, stream)
 
     def test_range_loader_reads_one_texture_entry_and_only_its_payload_ranges(self):
         texture_id = 0x123456789ABCDEF0
