@@ -467,6 +467,16 @@ class HD2CatalogTests(unittest.TestCase):
             "not_found_in_scanned_packages",
         )
 
+    def test_global_resource_lookup_requires_a_type_filter(self):
+        from hd2_resources import find_slim_resources
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_slim_fixture(root, {
+                "texture_archive": self.make_resource_toc([(0x1111, TYPE_IDS["Texture"])]),
+            })
+            with self.assertRaisesRegex(HD2ResourceError, "resource type filter is required"):
+                find_slim_resources(root, [0x1111], resource_type=None)
+
     def test_global_resource_lookup_marks_limited_scan_incomplete(self):
         from hd2_resources import find_slim_resources
         with tempfile.TemporaryDirectory() as temp:
