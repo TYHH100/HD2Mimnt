@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.2.1-alpha
+
+- Added Format 30 octahedral normal decoding for normal components.
+- Added Format 29 three-channel UNORM bone-weight decoding when the component semantic is `bone_weight`; the top two bits remain preserved in the raw word and the fourth decoded influence is zero.
+- Kept the original packed integers in each attribute's `values` array and added `decoded_semantics` / `decoded_values` for semantic output.
+- Kept unknown uses of Format 29/30 raw and emits a warning instead of guessing their semantic meaning.
+- Added five regression tests for octahedral axes, upper-bit handling, compressed weights, raw-value preservation, and semantic gating.
+- Verified against the three user-provided real HD2 samples: FS-05 lower-body Unit, FS-05 torso/left-arm Unit, and Avatar CompositeUnit. The three samples' Format 30 normal attributes and known Format 29 bone-weight attribute decode without format warnings.
+
 ## 0.8.2-alpha
 
 - Added `hd2-unit` to inspect one Unit's TransformInfo, BoneInfo, StreamInfo, MeshInfo and supported GPU geometry.
