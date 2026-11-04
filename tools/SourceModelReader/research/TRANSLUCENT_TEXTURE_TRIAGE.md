@@ -199,3 +199,15 @@ This is a valuable cross-check for the raw sample:
 Provenance and limits matter: the compatibility transform itself carries a source-code comment saying it was adapted from Helldivers2ModManager (Apache-2.0). Treat it as a repository cross-reference and historical implementation evidence, not an independent reverse-engineering proof or a source to copy into SourceModelReader. The actual Texture resource still needs to be located and inspected in the current game data; the constant's name and use do not prove its payload dimensions, color values, or whether it is a neutral/default mask.
 
 This also narrows the next lookup: prioritize inspecting `0x12d4692531c1fd35` as an Alpha Clip opacity-mask candidate, then compare its payload and actual material instances with the known 1×1 shared Texture `0xbf281073a422022c`.
+
+
+## 11. Correction to the texture-type dictionary provenance
+
+A fresh direct fetch of AQ Edition's pinned `hashlists/texturetypes.txt` returned 404, and the same raw ID was not verified in its `hashlists/shadervariables.txt`. The earlier wording that the `0xdab4d0ee` texture-type label was independently present in AQ's shader-variable dictionary was incorrect: those are different dictionaries and must not be conflated.
+
+The verified evidence for `0xdab4d0ee → NormalXyRoughnessOpacity` is the Community Edition `hashlists/texturetypes.txt` entry. AQ Edition independently supplies the `glass` template's UI slot label `Glass stain` in its `__init__.py`, but that is a template UI mapping, not an independent hash-name resolution for the raw node type.
+
+This correction narrows the discrepancy precisely:
+- Community Edition hash dictionary: raw node type ID → `NormalXyRoughnessOpacity`.
+- AQ Edition template UI: ParentMaterialID alias `glass` → one UI slot labelled `Glass stain`.
+- The mapping between those two representations remains unresolved.
