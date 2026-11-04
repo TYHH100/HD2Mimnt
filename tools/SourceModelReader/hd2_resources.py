@@ -9,6 +9,7 @@ Supported in 0.8.4-alpha:
 - DSAR chunk containers using raw LZ4 blocks.
 - SLIM/bundled package reconstruction through bundles.nxa package metadata.
 - Fast read-only catalog of every SLIM package using only TOC headers/type tables.
+- Global resource FileID lookup across SLIM TOC entry tables without loading GPU/Stream payloads.
 - TOC inventory, Unit dependency references, material IDs and Bones summaries.
 - Per-Unit TransformInfo, BoneInfo, StreamInfo and MeshInfo decoding in hd2_unit.py.
 - Direct Unit and CompositeUnit-backed GPU vertex/index geometry inspection.
