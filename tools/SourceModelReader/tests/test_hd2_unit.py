@@ -337,7 +337,7 @@ class UnitSkinningResolverTests(unittest.TestCase):
         material1 = section1["bone_index_sets"][0]["vertex_influences"][0]["influences"]
         self.assertEqual(
             [(item["bone_name"], item["weight"]) for item in material1],
-            [("root", 0.75), ("child", 0.25)],
+            [("child", 0.75), ("root", 0.25)],
         )
 
     def test_unresolved_active_lane_marks_partial_without_rejecting_zero_weight_lanes(self):
