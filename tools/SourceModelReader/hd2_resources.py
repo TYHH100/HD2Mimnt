@@ -848,6 +848,187 @@ def _catalog_one_slim_package(index: SlimBundleIndex, name: str) -> dict:
     }
 
 
+def find_slim_resources(
+    data_dir: str | Path,
+    resource_ids: list[int],
+    resource_type: Optional[str] = None,
+    max_packages: Optional[int] = None,
+) -> dict:
+    """Locate resource FileIDs across SLIM packages using TOC entry tables only.
+
+    No resource TOC/GPU/stream payload is loaded. The scan reads each eligible
+    package's TOC header/type table, then its 80-byte resource-entry rows in
+    bounded chunks. A miss is scoped to the packages successfully scanned.
+    """
+    requested = sorted(set(resource_ids))
+    if not requested:
+        raise HD2ResourceError("At least one resource ID is required")
+    if len(requested) > 4096:
+        raise HD2ResourceError("Resource ID query exceeds the 4096-ID safety limit")
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value > 0xFFFFFFFFFFFFFFFF
+           for value in requested):
+        raise HD2ResourceError("Resource IDs must be positive unsigned 64-bit integers")
+    if resource_type is not None and resource_type not in TYPE_IDS:
+        raise HD2ResourceError(f"Unknown resource type filter: {resource_type!r}")
+    if max_packages is not None and max_packages < 1:
+        raise HD2ResourceError("max_packages must be at least 1")
+
+    root = Path(data_dir)
+    index = SlimBundleIndex(root)
+    all_names = [
+        name for name in sorted(index.packages)
+        if not name.endswith(SIDECAR_SUFFIXES)
+    ]
+    names = all_names if max_packages is None else all_names[:max_packages]
+    requested_set = set(requested)
+    matches: dict[int, list[dict]] = {file_id: [] for file_id in requested}
+    errors = []
+    resource_entries_scanned = 0
+    packages_with_type = 0
+    entry_chunk_rows = 2048
+    type_filter_id = TYPE_IDS[resource_type] if resource_type is not None else None
+
+    for name in names:
+        try:
+            package = index.packages[name]
+            if package.size < 72:
+                raise HD2ResourceError(f"{name}: package is shorter than the TOC header")
+            header = index.reconstruct_range(name, 0, 72)
+            magic, num_types, num_files, _unknown = struct.unpack_from("<4I", header, 0)
+            if magic != TOC_MAGIC:
+                raise HD2ResourceError(
+                    f"{name}: TOC magic is {magic:#010x}, expected {TOC_MAGIC:#010x}"
+                )
+            if num_types > MAX_TOC_TYPES or num_files > MAX_TOC_ENTRIES:
+                raise HD2ResourceError(f"{name}: TOC counts exceed safety limits")
+            type_table_size = num_types * 32
+            entries_offset = 72 + type_table_size
+            entries_size = num_files * 80
+            if entries_offset > package.size or entries_size > package.size - entries_offset:
+                raise HD2ResourceError(f"{name}: TOC entry table exceeds declared package size")
+
+            raw_types = (
+                index.reconstruct_range(name, 72, type_table_size)
+                if type_table_size else b""
+            )
+            seen_types = set()
+            type_counts = {}
+            for type_index in range(num_types):
+                _unknown, type_id, count, _unknown2, _unknown3 = struct.unpack_from(
+                    "<QQQII", raw_types, type_index * 32
+                )
+                if type_id in seen_types:
+                    raise HD2ResourceError(f"{name}: duplicate resource type {type_id:016x}")
+                seen_types.add(type_id)
+                type_counts[type_id] = count
+
+            if type_filter_id is not None and type_counts.get(type_filter_id, 0) == 0:
+                continue
+            packages_with_type += 1
+
+            for first_row in range(0, num_files, entry_chunk_rows):
+                row_count = min(entry_chunk_rows, num_files - first_row)
+                chunk_offset = entries_offset + first_row * 80
+                chunk = index.reconstruct_range(name, chunk_offset, row_count * 80)
+                resource_entries_scanned += row_count
+                for row_index in range(row_count):
+                    row = row_index * 80
+                    file_id, type_id = struct.unpack_from("<QQ", chunk, row)
+                    if file_id not in requested_set:
+                        continue
+                    if type_filter_id is not None and type_id != type_filter_id:
+                        continue
+                    toc_size, stream_size, gpu_size = struct.unpack_from("<III", chunk, row + 56)
+                    entry_index = struct.unpack_from("<I", chunk, row + 76)[0]
+                    matches[file_id].append({
+                        "package": name,
+                        "type_id": f"{type_id:016x}",
+                        "type": TYPE_NAMES.get(type_id, "Unknown"),
+                        "toc_bytes": toc_size,
+                        "stream_bytes": stream_size,
+                        "gpu_bytes": gpu_size,
+                        "entry_index": entry_index,
+                    })
+        except (HD2ResourceError, OSError, struct.error) as error:
+            errors.append({"package": name, "error": str(error)})
+
+    truncated = len(names) < len(all_names)
+    resources = []
+    for file_id in requested:
+        found = sorted(matches[file_id], key=lambda item: (item["package"], item["type_id"]))
+        resources.append({
+            "file_id": f"{file_id:016x}",
+            "status": "found" if found else "not_found_in_scanned_packages",
+            "matches": found,
+        })
+
+    matched_count = sum(1 for item in resources if item["matches"])
+    status = "warning" if errors or truncated else "ok"
+    return {
+        "schema": "SourceModelReader-HD2ResourceLookup1",
+        "data_directory": str(root.resolve()),
+        "container": "slim",
+        "search": {
+            "resource_type": resource_type,
+            "resource_type_id": f"{type_filter_id:016x}" if type_filter_id is not None else None,
+            "requested_resource_count": len(requested),
+            "max_packages": max_packages,
+        },
+        "summary": {
+            "status": status,
+            "package_count_in_index": len(index.packages),
+            "package_count_scannable": len(all_names),
+            "package_count_scanned": len(names),
+            "package_count_with_requested_type": packages_with_type,
+            "resource_entry_rows_scanned": resource_entries_scanned,
+            "resource_ids_found": matched_count,
+            "resource_ids_not_found_in_scanned_packages": len(requested) - matched_count,
+            "package_count_errors": len(errors),
+            "scan_complete": not truncated and not errors,
+        },
+        "resources": resources,
+        "errors": errors,
+        "limitations": [
+            "The lookup reads SLIM TOC entry tables only; it does not load Material, Texture, GPU or Stream payloads.",
+            "A resource not found in the successfully scanned packages is not proof of global absence when the scan is incomplete or package errors occurred.",
+            "Texture decoding, DDS extraction and material shader interpretation are separate operations.",
+        ],
+    }
+
+
+def format_slim_resource_lookup_text(report: dict) -> str:
+    search = report["search"]
+    summary = report["summary"]
+    filter_text = search["resource_type"] or "all resource types"
+    lines = [
+        "Source Model Reader - HD2 global resource lookup",
+        f"Container: {report['container']} | Type filter: {filter_text}",
+        f"Packages: {summary['package_count_scanned']}/{summary['package_count_scannable']} scanned "
+        f"({summary['package_count_with_requested_type']} with requested type)",
+        f"Entry rows scanned: {summary['resource_entry_rows_scanned']:,} | "
+        f"Resource IDs found: {summary['resource_ids_found']}/{search['requested_resource_count']}",
+        f"Status: {summary['status'].upper()} | Complete: {summary['scan_complete']}",
+    ]
+    for resource in report["resources"]:
+        lines.append(f"Resource {resource['file_id']}: {resource['status']}")
+        for match in resource["matches"]:
+            lines.append(
+                f"  {match['package']} | {match['type']} ({match['type_id']}) | "
+                f"TOC={match['toc_bytes']} GPU={match['gpu_bytes']} Stream={match['stream_bytes']} "
+                f"| entry={match['entry_index']}"
+            )
+    if report["errors"]:
+        lines.append(f"Package errors: {len(report['errors'])}")
+        for error in report["errors"][:20]:
+            lines.append(f"  {error['package']}: {error['error']}")
+        if len(report["errors"]) > 20:
+            lines.append(f"  ... {len(report['errors']) - 20} additional package errors in JSON")
+    if not summary["scan_complete"]:
+        lines.append("NOTE: a not-found result is limited to successfully scanned packages; it is not a global-missing verdict.")
+    lines.append("Note: this command reads TOC directory entries only and does not load resource payloads.")
+    return "\n".join(lines)
+
+
 def scan_slim_package_catalog(data_dir: str | Path, max_packages: Optional[int] = None) -> dict:
     """Census SLIM package TOC headers/type tables, without loading GPU streams."""
     root = Path(data_dir)
@@ -1040,5 +1221,6 @@ __all__ = [
     "DSARFile", "HD2ResourceError", "ResourcePackage", "SlimBundleIndex",
     "TYPE_IDS", "build_resource_report", "format_report_text", "format_catalog_text",
     "inspect_hd2_package", "scan_slim_package_catalog",
+    "find_slim_resources", "format_slim_resource_lookup_text",
     "parse_bones_resource", "parse_toc_package", "parse_unit_header",
 ]
