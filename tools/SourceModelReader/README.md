@@ -103,6 +103,33 @@ DDS payload selection follows the inspected public SDK read behavior: use Stream
 
 A FileID can appear in multiple archives. Use the exact package IDs returned by `hd2-find` and inspect each candidate separately; differing sizes or hashes mean those package copies must remain distinct during analysis. This command does not infer that an alpha channel is transparency, cutout or emissive data. Actual alpha interpretation still requires texture decoding and Material/render-family evidence.
 
+
+### Optional BC7 pixel preview and alpha statistics
+
+BC7 preview uses the optional third-party `texture2ddecoder` package; it is not a required Source Model Reader dependency and no decoder source or binary is vendored into this repository.
+
+`texture2ddecoder` 1.0.6 is published under the MIT License and provides `decode_bc7`, which returns BGRA pixel bytes. PyPI provides a CPython 3.11+ Windows x86-64 ABI3 wheel, compatible with CPython 3.12. The BCn decoder source is attributed by that project to Perfare's AssetStudio BCn implementation.
+
+Install only when a pixel preview is needed:
+
+```powershell
+py -3 -m pip install texture2ddecoder==1.0.6
+py -3 -c "import texture2ddecoder; print(texture2ddecoder.__version__, callable(texture2ddecoder.decode_bc7))"
+```
+
+Add `--preview-png` to an existing `hd2-texture` command. The base-mip preview is written beside the requested DDS using the same filename stem and a `.png` extension. The JSON report adds the decoder version, decoded dimensions and input/output byte counts, plus the 256-bin Alpha histogram and counts for fully transparent, partial-alpha and fully opaque pixels.
+
+Example:
+
+```powershell
+py -3 .\source_model_reader.py hd2-texture "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 18235e0c9ec0e636 --texture 0d371130ba00addb --output ".\texture_0d371130ba00addb.dds" --preserve-raw --preview-png --json ".\texture_0d371130ba00addb.json"
+```
+
+The first implementation is deliberately limited to BC7_UNORM/BC7_UNORM_SRGB, Texture2D, ArraySize 1, and a selected payload classified as a complete mip chain. It decodes Mip 0 only; it refuses to decode a resident mip tail as if it were the full-resolution image. The preview is a pixel-data inspection aid, not a final in-game material render. An alpha histogram describes values stored in the texture; it does not prove that a Material uses those values for fractional blending rather than cutout, emissive masking or another shader path.
+
+Third-party source and license: [texture2ddecoder](https://github.com/K0lb3/texture2ddecoder) (MIT; optional external package), whose README attributes its BCn codec to [Perfare/AssetStudio](https://github.com/Perfare/AssetStudio/tree/master/Texture2DDecoder). The Source Model Reader does not copy or embed either implementation.
+
+
 See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
 
 ## Installing or refreshing the 0.8.4 patch over an existing supported folder
