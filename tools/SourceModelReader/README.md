@@ -15,9 +15,10 @@ Run the installer from that temporary folder and point it at the existing projec
 py -3 .\install_0.8.2.1.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 ```
 
-The installer creates `.0.8.2.bak` backups for the target module, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then run:
+The installer creates `.0.8.2.bak` backups for the target module, main script and VERSION file (only when a backup does not already exist). It does not touch game files. Then switch to the project folder and run the regression suite:
 
 ```powershell
+Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 py -3 -m unittest discover -s tests -v
 ```
 
