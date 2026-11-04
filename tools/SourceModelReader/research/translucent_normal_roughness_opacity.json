@@ -1,0 +1,250 @@
+{
+  "schema": "SourceModelReader-HD2Texture1",
+  "texture_toc_size": 340,
+  "trailing_toc_size": 0,
+  "trailing_toc_hex": "",
+  "mipmap_table_hex": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "header": {
+    "unknown_id": 0,
+    "unknown_1": 0,
+    "unknown_2": 4294967295
+  },
+  "mipmaps": [
+    {
+      "index": 0,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 1,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 2,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 3,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 4,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 5,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 6,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 7,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 8,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 9,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 10,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 11,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 12,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 13,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 14,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    }
+  ],
+  "mip_chain": {
+    "format_family": "uncompressed",
+    "storage": "uncompressed",
+    "block_bytes": null,
+    "bytes_per_pixel": 4,
+    "array_size": 1,
+    "single_array_bytes": 4,
+    "expected_full_chain_bytes": 4,
+    "levels": [
+      {
+        "index": 0,
+        "width": 1,
+        "height": 1,
+        "start": 0,
+        "level_bytes": 4,
+        "bytes_left": 4
+      }
+    ]
+  },
+  "mipmap_validation": {
+    "status": "not_populated",
+    "populated_records": 0,
+    "missing_records": [
+      0
+    ],
+    "mismatches": [],
+    "reason": "all TOC mipmap records for the DDS levels are zero"
+  },
+  "payload_layouts": {
+    "gpu": {
+      "size": 4,
+      "layout": "full_mip_chain",
+      "matches_full_chain": true,
+      "candidate_tail_start_index": 0,
+      "candidate_tail_start_width": 1,
+      "candidate_tail_start_height": 1,
+      "single_array_full_chain_bytes": 4,
+      "expected_full_chain_bytes": 4
+    },
+    "stream": {
+      "size": 0,
+      "layout": "empty",
+      "matches_full_chain": false,
+      "candidate_tail_start_index": null
+    }
+  },
+  "dds": {
+    "header_size_bytes": 148,
+    "magic": "DDS ",
+    "dw_size": 124,
+    "flags": 4103,
+    "width": 1,
+    "height": 1,
+    "pitch_or_linear_size": 4,
+    "depth": 0,
+    "mip_count": 1,
+    "pixel_format_size": 32,
+    "four_cc": "DX10",
+    "dxgi_format": 28,
+    "dxgi_format_name": "R8G8B8A8_UNORM",
+    "resource_dimension": 3,
+    "misc_flag": 0,
+    "array_size": 1,
+    "misc_flags_2": 0,
+    "alpha_mode_bits": 0,
+    "alpha_mode_name": "unknown",
+    "raw_header_hex": "444453207c0000000710000001000000010000000400000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000400000044583130000000000000000000000000000000000000000000100000000000000000000000000000000000001c00000003000000000000000100000000000000"
+  },
+  "payloads": {
+    "gpu": {
+      "size": 4,
+      "sha256": "bb4e0cc3512cd5ab57d7608d50c7a948932c43d9d8b48c1b442aad4b499fd296"
+    },
+    "stream": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "selected_source": "gpu",
+    "selected": {
+      "size": 4,
+      "sha256": "bb4e0cc3512cd5ab57d7608d50c7a948932c43d9d8b48c1b442aad4b499fd296"
+    }
+  },
+  "dds_export_bytes": 152,
+  "notes": [
+    "The DDS header describes a calculable mip chain, but the Texture TOC mipmap records are zero/unpopulated; calculated levels are reported separately.",
+    "The GPU payload matches the calculated complete mip chain."
+  ],
+  "warnings": [],
+  "package": {
+    "name": "00cf0ef7df912a6e",
+    "container": "slim"
+  },
+  "resource": {
+    "file_id": "bf281073a422022c",
+    "type_id": "cd4238c6a0c69e32",
+    "entry_index": 29,
+    "toc_row_index": 29,
+    "toc_offset": 16608,
+    "stream_offset": 10136496,
+    "gpu_offset": 4055424,
+    "toc_bytes": 340,
+    "stream_bytes": 0,
+    "gpu_bytes": 4
+  },
+  "summary": {
+    "status": "ok",
+    "gpu_bytes": 4,
+    "stream_bytes": 0,
+    "selected_payload_source": "gpu",
+    "selected_payload_bytes": 4
+  },
+  "outputs": {
+    "dds": "research\\translucent_normal_roughness_opacity.dds",
+    "gpu_raw": "research\\translucent_normal_roughness_opacity.gpu.bin"
+  }
+}
