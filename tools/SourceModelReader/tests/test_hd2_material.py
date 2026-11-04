@@ -108,7 +108,7 @@ class MaterialResourceParserTests(unittest.TestCase):
         )
         self.assertIsNone(report["shader_variables"][0]["first_vector_preview"])
         self.assertEqual(len(report["variable_value_payload_hex"]), 24)
-        self.assertTrue(any("outside the available variable payload" in item for item in report["warnings"]))
+        self.assertTrue(any("outside the declared variable-data region" in item for item in report["warnings"]))
 
     def test_trailing_bytes_after_declared_variable_data_are_preserved_separately(self):
         payload = struct.pack("<f", 0.5) + b"\x00" * 8
