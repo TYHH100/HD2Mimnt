@@ -19,7 +19,7 @@ The following IDs from `material_translucent_a.json` and `material_translucent_b
 
 | Variable ID | SDK label | Sample A | Sample B |
 |---|---|---:|---:|
-| `0xab58e70d` | `OpacityBase` | 0.02 | 0.4 |
+| `0xab58e70d` | `OpacityBase` | 1.0 | 0.4 |
 | `0x43695f7b` | `ResolutionSetting` | 3 | 3 |
 | `0x4dec56f9` | `RoughnessBase` | ~0.28 | ~0.1 |
 | `0x393cf79e` | `SpecularBase` | ~0.63 | 0.5 |
@@ -28,7 +28,7 @@ The following IDs from `material_translucent_a.json` and `material_translucent_b
 | `0x5ac3e52f` | `AlphaColorWeight` | 0 | 0 |
 | `0x5a341fb6` | `TextureTile` | 0 | 0 |
 
-The strongest current evidence is the pairing of an `OpacityBase` scalar with a texture slot explicitly labelled `NormalXyRoughnessOpacity`. The two samples also demonstrate that opacity and surface parameters are instance-level values: the parent ID, texture node type, texture ID and variable layout are the same while `OpacityBase`, roughness, specular and base colour differ.
+The strongest current evidence is the pairing of an `OpacityBase` scalar with a texture slot explicitly labelled `NormalXyRoughnessOpacity`. The two child-material samples also demonstrate that opacity and surface parameters are instance-level values: the parent ID, texture node type, texture ID and variable layout are the same while `OpacityBase`, roughness, specular and base colour differ. A separate file, `material_translucent_parent.json`, has ParentMaterialID zero and `OpacityBase` approximately 0.02; it must not be conflated with sample A (whose value is 1.0).
 
 This is still not a complete shader contract. In particular, the name `OpacityBase` does not establish whether final opacity is multiplied by a texture channel, used as a constant, clamped, or combined with another value. That needs the matching material template/shader evidence or a controlled in-game test.
 
@@ -141,3 +141,41 @@ Alpha Clip+ resolves to:
 This also matches AQ Edition's Alpha Clip+ UI slot order: Normal/AO/Roughness, Emission, Base Color/Metallic, Alpha Mask. The unresolved fourth Texture FileID in the Alpha Clip+ sample therefore belongs to the node whose type is `OpacityClipMap`, not an unknown extra channel.
 
 This is a useful positive control: the Alpha Clip family’s type-ID dictionary and UI slot order agree, while the Glass/Translucent single-node sample has the discrepancy documented in section 7. That makes the discrepancy specific and actionable rather than evidence that the entire texture-type dictionary is unreliable.
+
+
+## 9. Parsed result for the globally shared Texture FileID
+
+The user supplied the output of the exact `hd2-texture` command above. The parser confirms:
+
+| Field | Parsed value |
+|---|---|
+| Texture FileID | `bf281073a422022c` |
+| Package inspected | `00cf0ef7df912a6e` |
+| TOC / GPU / Stream | 340 / 4 / 0 bytes |
+| DDS dimensions | 1 × 1 |
+| DXGI format | `R8G8B8A8_UNORM` (28) |
+| Mip count / array size | 1 / 1 |
+| Calculated mip payload | 4 bytes |
+| TOC mipmap records | All zero / not populated |
+| GPU SHA-256 | `bb4e0cc3512cd5ab57d7608d50c7a948932c43d9d8b48c1b442aad4b499fd296` |
+| DDS alpha mode | Unknown (not a declared straight/premultiplied/opaque mode) |
+
+The resource is therefore a validly described 1×1 RGBA8 texture with a four-byte GPU payload. It is not a BC texture and it is not a useful full-resolution material map. Its presence as the same FileID in 182 scanned packages strongly suggests a widely reused default/sentinel/placeholder texture candidate. That is a working classification, not a proven engine semantic.
+
+Important limitations:
+- The lookup report proves the same FileID and identical resource sizes across 182 package occurrences, but it did not hash each occurrence's payload. Do not claim all 182 GPU payloads are byte-identical yet.
+- The checked-in raw `.gpu.bin` has a Git blob SHA, and the JSON records the GPU SHA-256 above. The connector's text-only binary retrieval path cannot safely expose the four raw byte values; obtain the actual bytes locally if channel values are needed.
+- DDS `alpha_mode_name: unknown` does not mean alpha is absent. The actual 8-bit alpha value is in the fourth RGBA byte, which has not yet been recorded here.
+- This texture must not be used as evidence that the Translucent material's intended opacity map has been found. Both sample A and B point to this shared 1×1 resource, which is likely an unbound/default slot in those specific instances.
+
+### Consequence for the fabric hypothesis
+
+The material family still has an `OpacityBase` parameter and its texture-node type dictionary label still includes `Opacity`. However, these two samples do not demonstrate a real spatial opacity texture: their referenced resource is only 1×1. The evidence for graded transparency must come from another material instance using the same family but referencing a non-placeholder texture, or from the actual shader/template contract.
+
+### Next targeted data collection
+
+1. Search the material census for every material with ParentMaterialID `84e5de1cc6b74ada` and retain all texture FileIDs, not just the two hand-picked samples.
+2. Group those materials by texture FileID and dimensions/payload size. Prioritize non-1×1 textures with a populated GPU or Stream payload.
+3. Inspect a few occurrences of `bf281073a422022c` in different packages and compare their GPU SHA-256 values to determine whether the 182 entries are identical payload copies.
+4. Record the four RGBA bytes from the local `.gpu.bin` using Python `Path.read_bytes().hex()`; do not infer the alpha byte from the DDS alpha-mode flag.
+5. Keep the root-parent sample (`material_translucent_parent.json`, ParentMaterialID zero, OpacityBase ~0.02) separate from child samples A/B (ParentMaterialID `84e5de1cc6b74ada`, OpacityBase 1.0 and 0.4 respectively).
