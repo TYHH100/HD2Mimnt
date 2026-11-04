@@ -18,12 +18,12 @@ The diagnostic is stored in `geometry[].skinning.matrix_validation`. Unreference
 
 **Three real-game sample audit**
 
-| Sample | TransformInfo matrices | Active BoneInfo slots |
+| Sample | TransformInfo matrices | Active BoneInfo slots | Distinct weighted transforms |
 |---|---:|---:|
-| FS-05 lower-body Unit | 16 / 16 | 8 / 8 |
-| FS-05 torso/left-arm Unit | 38 / 38 | 93 / 93 |
-| Avatar CompositeUnit Unit | 107 / 107 | 61 / 61 (27 additional slots unreferenced) |
-| **Total** | **161 / 161** | **162 / 162** |
+| FS-05 lower-body Unit | 16 / 16 | 8 / 8 | 2 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 93 / 93 | 23 |
+| Avatar CompositeUnit Unit | 107 / 107 | 61 / 61 (27 additional slots unreferenced) | 61 |
+| **Total** | **161 / 161** | **162 / 162** | **per-Unit counts above** |
 
 The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples is on `attach_cam_1`, whose rotation is identity, so the multiplication order for a transform combining non-uniform scale with a non-identity rotation remains unverified. When such a transform is encountered, the validator marks it unresolved instead of guessing. The diagnostic exposes this uncertainty explicitly.
 
