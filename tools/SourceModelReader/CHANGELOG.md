@@ -1,7 +1,12 @@
 # Changelog
 
-## 0.8.4-alpha — Material inspection increment
+## 0.8.4-alpha — Material and Texture inspection increment
 
+- Added an independent bounded Texture reader for SLIM packages. It locates one resource entry and reads only that Texture's TOC/GPU/Stream ranges rather than reconstructing full sidecars.
+- Added `hd2-texture` to parse the 15 mipmap records and 148-byte DDS DX10 header, report dimensions/DXGI format/mip count/array size, hash the GPU and Stream payloads independently, and export an SDK-style DDS.
+- Preserved both GPU and Stream payloads; DDS selection follows the inspected public SDK's Stream-first rule, while `--preserve-raw` writes separate binary copies.
+- Kept alpha/transparency classification unresolved; a DXGI format or stored alpha channel is not treated as proof of a translucent/cutout/emissive material.
+- Added synthetic parser/range-loader regression tests. Real-game Texture payload decoding and visual alpha validation remain pending.
 - Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
 - Added same-package Texture dependency lookup and the hd2-material CLI command.
 - Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
