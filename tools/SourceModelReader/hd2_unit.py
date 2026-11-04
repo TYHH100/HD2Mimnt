@@ -875,6 +875,8 @@ def _build_transform_world_matrices(
         "status": overall,
         "matrix_layout_candidate": "row_major_4x4_row_vector",
         "hierarchy_composition_candidate": "local_times_parent_world",
+        "local_linear_composition_candidate": "rotation_3x3_times_diagonal_scale",
+        "scale_rotation_order_disambiguated_by_samples": False,
         "tolerance": tolerance,
         "transform_count": count,
         "matched_transform_count": matched,
