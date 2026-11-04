@@ -241,7 +241,7 @@ class PackedVertexFormatTests(unittest.TestCase):
         }
         decoded, warnings = _decode_mesh_geometry(mesh, {"records": [stream]}, gpu)
         attr = decoded["attributes"][0]
-        self.assertEqual(attr["values"], [packed])
+        self.assertEqual(attr["values"], [packed] * 3)
         self.assertNotIn("decoded_values", attr)
         self.assertEqual(len(warnings), 1)
         self.assertIn("only bone_weight semantics are decoded", warnings[0])
