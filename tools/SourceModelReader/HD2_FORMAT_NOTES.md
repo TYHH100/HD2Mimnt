@@ -86,7 +86,7 @@ The Bones reader consumes:
 - `NumLODLevels` `uint32` LOD levels
 - Null-terminated UTF-8 bone names
 
-It reports mismatches between the declared name count, hash count and parsed string count. This milestone does not yet resolve the full Unit TransformInfo hierarchy or BoneInfo index palettes.
+It reports mismatches between the declared name count, hash count and parsed string count. The 0.8.2 structural reader preserved TransformInfo and BoneInfo tables; the 0.8.3 resolver now maps named transforms and material-scoped vertex palettes as described above.
 
 ## DSAR and SLIM containers
 
