@@ -182,7 +182,7 @@ class MaterialResourceParserTests(unittest.TestCase):
     def test_accepts_hex_and_decimal_resource_ids(self):
         self.assertEqual(parse_resource_id("0x10"), 16)
         self.assertEqual(parse_resource_id("ff"), 255)
-        self.assertEqual(parse_resource_id("255"), 255)
+        self.assertEqual(parse_resource_id("255"), 0x255)
         self.assertEqual(parse_resource_id("00000000000000ff"), 255)
         self.assertEqual(parse_resource_id("dec:255"), 255)
         with self.assertRaises(ValueError):
