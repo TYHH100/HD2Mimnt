@@ -454,6 +454,41 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
         }
 
     format_name = DXGI_FORMAT_NAMES.get(dxgi_format, f"UNKNOWN_DXGI_FORMAT_{dxgi_format}")
+    mip_chain = _build_mip_chain(width, height, mip_count, dxgi_format, array_size)
+    mipmap_validation = _validate_mipmap_table(
+        mipmaps, mip_chain, mip_count, array_size
+    )
+    payload_layouts = {
+        "gpu": _payload_layout(len(gpu_data), mip_chain),
+        "stream": _payload_layout(len(stream_data), mip_chain),
+    }
+    if mipmap_validation["status"] == "match":
+        notes.append(
+            "All populated TOC mipmap records match the calculated dimensions, byte offsets "
+            "and remaining-byte counts for this DXGI format."
+        )
+    elif mipmap_validation["status"] == "not_populated":
+        notes.append(
+            "The DDS header describes a calculable mip chain, but the Texture TOC mipmap "
+            "records are zero/unpopulated; calculated levels are reported separately."
+        )
+    for payload_name, payload_layout in payload_layouts.items():
+        if payload_layout.get("layout") == "mip_tail_from_level_0":
+            notes.append(
+                f"The {payload_name.upper()} payload matches the calculated complete mip chain."
+            )
+        elif str(payload_layout.get("layout", "")).startswith("mip_tail_from_level_"):
+            notes.append(
+                f"The {payload_name.upper()} payload matches a contiguous mip tail beginning "
+                f"at level {payload_layout['candidate_tail_start_index']} "
+                f"({payload_layout['candidate_tail_start_width']}x"
+                f"{payload_layout['candidate_tail_start_height']})."
+            )
+        elif payload_layout.get("layout") == "size_mismatch":
+            notes.append(
+                f"The {payload_name.upper()} payload size does not match the calculated full "
+                "mip chain or any contiguous single-array mip tail; its packing is unresolved."
+            )
     return {
         "schema": "SourceModelReader-HD2Texture1",
         "texture_toc_size": len(toc_data),
@@ -469,6 +504,9 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
             "unknown_2": unknown_2,
         },
         "mipmaps": mipmaps,
+        "mip_chain": mip_chain,
+        "mipmap_validation": mipmap_validation,
+        "payload_layouts": payload_layouts,
         "dds": {
             "header_size_bytes": DDS_HEADER_SIZE,
             "magic": dds_magic.decode("ascii", "replace"),
@@ -560,7 +598,21 @@ def format_hd2_texture_text(report: dict) -> str:
         f"Selected SHA-256: {payloads['selected']['sha256']}",
         f"Status: {summary['status'].upper()}",
         "Mipmap table:",
+        f"TOC mipmap validation: {report['mipmap_validation']['status'].upper()} "
+        f"({report['mipmap_validation'].get('populated_records', 0)} populated records)",
     ]
+    for payload_name, layout in report["payload_layouts"].items():
+        if layout.get("layout") != "empty":
+            lines.append(
+                f"{payload_name.upper()} layout: {layout['layout']} "
+                f"({layout['size']:,} bytes)"
+            )
+    if report.get("mip_chain"):
+        chain = report["mip_chain"]
+        lines.append(
+            f"Calculated BC/uncompressed mip chain: {chain['expected_full_chain_bytes']:,} bytes "
+            f"({len(chain['levels'])} levels)"
+        )
     for mip in report["mipmaps"]:
         if mip["has_nonzero_fields"]:
             lines.append(
