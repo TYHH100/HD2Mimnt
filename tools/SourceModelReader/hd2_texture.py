@@ -225,6 +225,173 @@ def _validate_mipmap_table(mipmaps: list[dict], mip_chain: Optional[dict],
     }
 
 
+MAX_DECODE_PIXELS = 16_777_216
+
+
+def _png_chunk(chunk_type: bytes, payload: bytes) -> bytes:
+    import binascii
+    return (
+        struct.pack(">I", len(payload))
+        + chunk_type
+        + payload
+        + struct.pack(">I", binascii.crc32(chunk_type + payload) & 0xFFFFFFFF)
+    )
+
+
+def _encode_bgra_png(width: int, height: int, bgra: bytes) -> bytes:
+    """Encode BGRA8 pixels to a dependency-free RGBA8 PNG."""
+    import zlib
+
+    expected = width * height * 4
+    if len(bgra) != expected:
+        raise HD2ResourceError(
+            f"BC7 decoder returned {len(bgra)} bytes; expected {expected}"
+        )
+    scanlines = bytearray()
+    row_bytes = width * 4
+    for y in range(height):
+        scanlines.append(0)  # PNG filter: None
+        row_start = y * row_bytes
+        row_end = row_start + row_bytes
+        row = bgra[row_start:row_end]
+        for offset in range(0, len(row), 4):
+            blue, green, red, alpha = row[offset:offset + 4]
+            scanlines.extend((red, green, blue, alpha))
+
+    ihdr = struct.pack(">2I5B", width, height, 8, 6, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", zlib.compress(bytes(scanlines), level=6))
+        + _png_chunk(b"IEND", b"")
+    )
+
+
+def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, bytes]:
+    """Decode only the base mip of a 2D, single-array BC7 texture to a PNG preview.
+
+    The optional texture2ddecoder package supplies the BC7 block decoder.
+    SourceModelReader keeps this dependency optional and does not vendor its code.
+    """
+    dds = report["dds"]
+    width = dds["width"]
+    height = dds["height"]
+    dxgi_format = dds["dxgi_format"]
+    array_size = dds["array_size"]
+    resource_dimension = dds["resource_dimension"]
+    chain = report.get("mip_chain")
+    selected_source = report["payloads"]["selected_source"]
+    layout = report["payload_layouts"].get(selected_source, {})
+
+    if dxgi_format not in (98, 99):
+        raise HD2ResourceError(
+            f"BC7 preview supports DXGI_FORMAT_BC7_UNORM/SRGB (98/99); got {dxgi_format}"
+        )
+    if resource_dimension != 3:
+        raise HD2ResourceError(
+            f"BC7 preview currently supports Texture2D only; DX10 dimension={resource_dimension}"
+        )
+    if array_size != 1:
+        raise HD2ResourceError(
+            f"BC7 preview currently supports ArraySize=1; got {array_size}"
+        )
+    if chain is None or not chain.get("levels"):
+        raise HD2ResourceError(
+            "Cannot calculate the BC7 base-mip byte range for this texture"
+        )
+    if layout.get("layout") != "full_mip_chain":
+        raise HD2ResourceError(
+            "The SDK-selected payload is not a complete mip chain; "
+            f"its classified layout is {layout.get('layout', 'unknown')!r}. "
+            "A resident mip tail cannot be decoded as the full-resolution base image."
+        )
+    if width <= 0 or height <= 0 or width * height > MAX_DECODE_PIXELS:
+        raise HD2ResourceError(
+            f"BC7 preview dimensions exceed the safety limit: {width}x{height}"
+        )
+
+    base_level_bytes = chain["levels"][0]["level_bytes"]
+    if len(selected_payload) < base_level_bytes:
+        raise HD2ResourceError(
+            f"Selected payload is too short for base mip: "
+            f"{len(selected_payload)} < {base_level_bytes}"
+        )
+    try:
+        import texture2ddecoder
+    except (ImportError, OSError) as exc:
+        raise HD2ResourceError(
+            "Optional BC7 decoder is not installed. Install it with: "
+            "py -3 -m pip install texture2ddecoder==1.0.6"
+        ) from exc
+
+    decode = getattr(texture2ddecoder, "decode_bc7", None)
+    if not callable(decode):
+        raise HD2ResourceError(
+            "Installed texture2ddecoder does not expose decode_bc7"
+        )
+
+    try:
+        bgra = decode(selected_payload[:base_level_bytes], width, height)
+    except Exception as exc:
+        raise HD2ResourceError(f"BC7 decoder failed: {exc}") from exc
+    if not isinstance(bgra, (bytes, bytearray, memoryview)):
+        raise HD2ResourceError(
+            f"BC7 decoder returned unsupported output type: {type(bgra).__name__}"
+        )
+    bgra = bytes(bgra)
+    expected_pixels = width * height
+    if len(bgra) != expected_pixels * 4:
+        raise HD2ResourceError(
+            f"BC7 decoder returned {len(bgra)} bytes for {expected_pixels} pixels; "
+            f"expected {expected_pixels * 4}"
+        )
+
+    alpha_histogram = [0] * 256
+    for offset in range(3, len(bgra), 4):
+        alpha_histogram[bgra[offset]] += 1
+    fully_transparent = alpha_histogram[0]
+    fully_opaque = alpha_histogram[255]
+    partial_alpha = expected_pixels - fully_transparent - fully_opaque
+    used_alpha_values = [value for value, count in enumerate(alpha_histogram) if count]
+    if not used_alpha_values:
+        alpha_min = alpha_max = None
+    else:
+        alpha_min = used_alpha_values[0]
+        alpha_max = used_alpha_values[-1]
+
+    png = _encode_bgra_png(width, height, bgra)
+    alpha_report = {
+        "pixel_count": expected_pixels,
+        "minimum": alpha_min,
+        "maximum": alpha_max,
+        "unique_values": len(used_alpha_values),
+        "fully_transparent_pixels": fully_transparent,
+        "partial_alpha_pixels": partial_alpha,
+        "fully_opaque_pixels": fully_opaque,
+        "non_opaque_pixels": expected_pixels - fully_opaque,
+        "alpha_histogram": alpha_histogram,
+        "interpretation": (
+            "Decoded BC7 pixel alpha values are reported. This describes texture data only; "
+            "it does not establish whether the game's Material shader uses alpha for blending, "
+            "cutout, emissive masking, or another purpose."
+        ),
+    }
+    return {
+        "status": "ok",
+        "decoder": "texture2ddecoder",
+        "decoder_version": getattr(texture2ddecoder, "__version__", "unknown"),
+        "codec": "BC7",
+        "dxgi_format": dxgi_format,
+        "width": width,
+        "height": height,
+        "decoded_mip_level": 0,
+        "decoded_input_bytes": base_level_bytes,
+        "decoded_output_bytes": len(bgra),
+        "output_channel_order": "RGBA8 PNG (decoder BGRA reordered)",
+        "alpha": alpha_report,
+    }, png
+
+
 def _check_range(data: bytes, offset: int, size: int, label: str) -> None:
     if offset < 0 or size < 0 or offset > len(data) or size > len(data) - offset:
         raise HD2ResourceError(
@@ -648,6 +815,7 @@ def format_hd2_texture_text(report: dict) -> str:
 __all__ = [
     "DDS_HEADER_SIZE",
     "TEXTURE_TOC_SIZE",
+    "decode_bc7_preview",
     "format_hd2_texture_text",
     "inspect_hd2_texture",
     "parse_texture_resource",
