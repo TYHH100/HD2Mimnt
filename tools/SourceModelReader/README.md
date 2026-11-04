@@ -81,25 +81,26 @@ A hit reports every package containing the requested FileID and its resource typ
 
 ### Read-only Texture inspection and DDS export
 
-The 0.8.4 branch now includes \`hd2_texture.py\` and \`hd2-texture\`. The reader uses the global SLIM package index to locate one Texture entry inside a selected package, then reads only that resource's TOC/GPU/Stream ranges. It does not reconstruct the full \`.gpu_resources\` or \`.stream\` sidecar.
+The 0.8.4 branch now includes `hd2_texture.py` and `hd2-texture`. The reader uses the global SLIM package index to locate one Texture entry inside a selected package, then reads only that resource's TOC/GPU/Stream ranges. It does not reconstruct the full `.gpu_resources` or `.stream` sidecar.
 
 The common Texture TOC layout observed in the pinned AQ and Community SDK readers is:
 
-- 12-byte fixed prefix (\`UnkID\`, \`Unk1\`, \`Unk2\`);
-- 15 mipmap records, each 12 bytes (\`Start\`, \`BytesLeft\`, \`Height\`, \`Width\`);
+- 12-byte fixed prefix (`UnkID`, `Unk1`, `Unk2`);
+- 15 mipmap records, each 12 bytes (`Start`, `BytesLeft`, `Height`, `Width`);
 - 148-byte DDS DX10 header.
 
 That is 340 bytes before any trailing TOC data. The parser preserves unknown trailing bytes and all 15 raw mipmap records, and reports DDS dimensions, DXGI format, mip count, resource dimension and array size. Unknown DXGI values remain numeric rather than being guessed.
+The selected Texture entry is checked against the project-wide TOC invariant: stored `entry_index` is 1-based and must equal the zero-based TOC row plus one. The report keeps both values separately (`entry_index` and `toc_row_index`).
 
 Example:
 
-\`\`\`powershell
+```powershell
 py -3 .\\source_model_reader.py hd2-texture "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --package 18235e0c9ec0e636 --texture 0d371130ba00addb --output "texture_0d371130ba00addb.dds" --preserve-raw --json "texture_0d371130ba00addb.json"
-\`\`\`
+```
 
-DDS payload selection follows the inspected public SDK read behavior: use Stream when its payload is non-empty, otherwise use GPU. \`--preserve-raw\` also writes separate \`.gpu.bin\` and \`.stream.bin\` copies when those payloads exist, so a resource with both sidecars is not reduced to one representation. The JSON report includes each payload's byte count and SHA-256 hash for package-copy comparison.
+DDS payload selection follows the inspected public SDK read behavior: use Stream when its payload is non-empty, otherwise use GPU. `--preserve-raw` also writes separate `.gpu.bin` and `.stream.bin` copies when those payloads exist, so a resource with both sidecars is not reduced to one representation. The JSON report includes each payload's byte count and SHA-256 hash for package-copy comparison.
 
-A FileID can appear in multiple archives. Use the exact package IDs returned by \`hd2-find\` and inspect each candidate separately; differing sizes or hashes mean those package copies must remain distinct during analysis. This command does not infer that an alpha channel is transparency, cutout or emissive data. Actual alpha interpretation still requires texture decoding and Material/render-family evidence.
+A FileID can appear in multiple archives. Use the exact package IDs returned by `hd2-find` and inspect each candidate separately; differing sizes or hashes mean those package copies must remain distinct during analysis. This command does not infer that an alpha channel is transparency, cutout or emissive data. Actual alpha interpretation still requires texture decoding and Material/render-family evidence.
 
 See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
 
