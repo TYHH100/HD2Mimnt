@@ -127,6 +127,17 @@ It also emits `transform_info.weight_usage_summary`, including total/named/unmat
 
 On the Avatar sample, 107 TransformInfo entries contain 90 named entries and 17 unnamed/hash-only entries. Its BoneInfo palette has 88 unique TransformInfo targets, but only 61 distinct named transforms are actually referenced by positive-weight lanes in this mesh; 27 palette slots are not referenced by active vertex weights. This is a mesh-specific usage classification, not a claim that all named transforms across the Unit are deformers.
 
+### Name cross-check against the public AQ Avatar reference
+
+AQ Edition publishes a 63-entry `hd2_system/avatar_source.json` reference skeleton and describes it as a validated Avatar source used by its runtime profiles: [pinned source file](https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/71b380046d33d552eef0892bd48661ff25591380/hd2_system/avatar_source.json).
+
+Compared by exact name against the 61 distinct named transforms actually weighted by the inspected Avatar mesh:
+- 60 names match exactly.
+- `sling` is actively weighted by this Unit but is absent from the AQ 63-entry reference list.
+- AQ's `support_mg`, `attach_intelpad` and `attach_samplepouch` are not actively weighted by this mesh.
+
+This is a name-only cross-check. The AQ file's provenance explicitly says its `parent=-1` entries store model-space Rest, not Blender's authoring hierarchy. Its list must not be used as a substitute for the Unit's TransformInfo parent graph or as proof that `sling` is invalid. Treat the 60 names as high-confidence mapping candidates, and keep `sling` as an explicit unmatched target candidate pending hierarchy/animation evidence. No AQ implementation code or rig data is imported by this reader.
+
 Maximum absolute error was approximately (2.58×10^{-7}) for the TransformInfo hierarchy comparisons and (1.74×10^{-7}) for the active BoneInfo palette comparisons. Both are below the implementation's (10^{-4}) diagnostic tolerance.
 
 The Avatar BoneInfo record contains 27 palette slots not referenced by positive-weight lanes in this mesh. Two of those unreferenced slots, `aim_weapon` and `backpack`, have stored matrices that do not satisfy the comparison; because no active vertex lane uses them, they are reported as unreferenced rather than failed active skin matrices. The extra FS-05 lower-body mesh with LOD -1 has no skin attributes and is not included in the skinned-mesh comparison.
