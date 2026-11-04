@@ -852,7 +852,7 @@ def _catalog_one_slim_package(index: SlimBundleIndex, name: str) -> dict:
 def find_slim_resources(
     data_dir: str | Path,
     resource_ids: list[int],
-    resource_type: Optional[str] = None,
+    resource_type: Optional[str],
     max_packages: Optional[int] = None,
 ) -> dict:
     """Locate resource FileIDs across SLIM packages using TOC entry tables only.
