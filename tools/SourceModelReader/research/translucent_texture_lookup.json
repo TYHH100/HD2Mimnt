@@ -1,0 +1,1675 @@
+{
+  "schema": "SourceModelReader-HD2ResourceLookup1",
+  "data_directory": "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data",
+  "container": "slim",
+  "search": {
+    "resource_type": "Texture",
+    "resource_type_id": "cd4238c6a0c69e32",
+    "requested_resource_count": 1,
+    "max_packages": null
+  },
+  "summary": {
+    "status": "ok",
+    "package_count_in_index": 9725,
+    "package_count_scannable": 3522,
+    "package_count_scanned": 3522,
+    "package_count_with_requested_type": 3160,
+    "resource_entry_rows_scanned": 317992,
+    "resource_ids_found": 1,
+    "resource_ids_not_found_in_scanned_packages": 0,
+    "package_count_errors": 0,
+    "scan_complete": true
+  },
+  "resources": [
+    {
+      "file_id": "bf281073a422022c",
+      "status": "found",
+      "matches": [
+        {
+          "package": "00cf0ef7df912a6e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "07a2056e7a5f313f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 21
+        },
+        {
+          "package": "08241ba732c97a9d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "082f22454170efd6",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "08e906980c632592",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 36
+        },
+        {
+          "package": "0a15a5b5d8695e47",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "0bb13de574d4acce",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 40
+        },
+        {
+          "package": "0c206dbe38b89339",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "0ce5ae89049afa50",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "0fecb336be1d287b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "101a99f1755e6b28",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 14
+        },
+        {
+          "package": "1120577ed1e095f8",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "11e277ec64a271ca",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 31
+        },
+        {
+          "package": "1308bf1fbd277eb2",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "14060e113e41f4ab",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "1434ec7cf0edf1bc",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "14fe2734dcb8d1ed",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "1683ee92e6aec3eb",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "1866f762c49358ea",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "18e40c54da8c54bf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 7
+        },
+        {
+          "package": "18e9f450ff227f68",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 17
+        },
+        {
+          "package": "19b5a68e61d7a9d7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "19d6f65fa6f101c6",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "1a204afc2362648b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "1bb362e77179996f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "1beb230363aaf427",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "1d6dc4216e7ce52d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 21
+        },
+        {
+          "package": "1d9e8acfc3ee3ace",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "1dafd22cfccc02b8",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "1de000bcfe445daf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "1e2ba3712fa1b030",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "2114ebf84a977c4c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "2351919ff531f494",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 30
+        },
+        {
+          "package": "24abba68248f7adf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 39
+        },
+        {
+          "package": "25fa0f1d426ad6bd",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "267fcb7e9e312e33",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 30
+        },
+        {
+          "package": "27d61c15acfeaa0e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 33
+        },
+        {
+          "package": "29488a393340f3c0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 16
+        },
+        {
+          "package": "2b6d645c35bce4ea",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 30
+        },
+        {
+          "package": "2cf5d7a154dea63e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "2d25ef67b7d87ea3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 27
+        },
+        {
+          "package": "31d06451a09679f1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 43
+        },
+        {
+          "package": "33cecc4e485ea3c4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 37
+        },
+        {
+          "package": "38249bb74220ab66",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 7
+        },
+        {
+          "package": "3953b30dc9ae1114",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 41
+        },
+        {
+          "package": "39a3b3d457c19798",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 11
+        },
+        {
+          "package": "39fe1f0308f4514a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 15
+        },
+        {
+          "package": "3ab4af712c5ec0df",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 46
+        },
+        {
+          "package": "3d8cf2088ed56091",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "40faf112f20318ea",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "41203170aae394c0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "4306519139dbe829",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 15
+        },
+        {
+          "package": "4574fd34bddba5c4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "460f2faee22f5850",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "46174a7234ee5368",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 8
+        },
+        {
+          "package": "476488a5861d15e0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "495cd5b6043a104d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "4ceb3d4e31097c68",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 39
+        },
+        {
+          "package": "4dad43d7cc148a49",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 32
+        },
+        {
+          "package": "50038ca035821a74",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "519cc1ec2eb56e1d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 34
+        },
+        {
+          "package": "51d38d61924be3f7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "53027d7c592e0c82",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 37
+        },
+        {
+          "package": "541fbc971b1aef62",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "553e0562a348dacc",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "558b259b94d2d1c2",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "562a45e9bc984eb9",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "5717aeb23774a749",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "57cebd7e5f985d45",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 15
+        },
+        {
+          "package": "58e4bd4b2278d15c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 33
+        },
+        {
+          "package": "5ad0c7bf483d382a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "5b38ab7e20b4a1f1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "5d9727288047144a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 17
+        },
+        {
+          "package": "5def9553433fceda",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 44
+        },
+        {
+          "package": "5e0dba19a567fb99",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "5e86a6b2862f92cf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "5e9a360985f0a6e0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "5fb542484cb2c2a5",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "5fec3757445c4e16",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "62c6fbc5cd90448d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "63a534dd4757fe92",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 16
+        },
+        {
+          "package": "681a512c5a5c0de7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 37
+        },
+        {
+          "package": "68ac37dae3b424c1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 41
+        },
+        {
+          "package": "6ac709cabc02ed1b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 17
+        },
+        {
+          "package": "6b530ee69883d7cd",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 16
+        },
+        {
+          "package": "6cd3d55c05d4eac1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "6d07f1a7176ae5d0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "6e4c490cf89b5a3c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 34
+        },
+        {
+          "package": "70b4860e8169622e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 43
+        },
+        {
+          "package": "71a76ab67510a346",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 11
+        },
+        {
+          "package": "726edbdd8808874b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "74bc9cf98d65b1bf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "784acdd4158a9a42",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "788df19150915809",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "78afc3a2cadca709",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "78c4f1839dea282d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "79219a4244b09ed8",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 14
+        },
+        {
+          "package": "7b19ad7f21d347b4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 16
+        },
+        {
+          "package": "7dc940635e3dd573",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "7f4696055d63dce0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 133
+        },
+        {
+          "package": "8079db396fbfd31c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 39
+        },
+        {
+          "package": "813da450b8029cb2",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "81bf25bbdd4624c1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "824aa91040dadba8",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 21
+        },
+        {
+          "package": "85d392768bf6a259",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 12
+        },
+        {
+          "package": "8670598c1f4462dc",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 44
+        },
+        {
+          "package": "86a9bdfc23c01517",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 35
+        },
+        {
+          "package": "8710c8ba1e22b42c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "871290e9d5703851",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 28
+        },
+        {
+          "package": "874b8bf04612066e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "88ccc33c4cca4d20",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "89395c2f8ce3d8a0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 33
+        },
+        {
+          "package": "8ade54353acbe39d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 27
+        },
+        {
+          "package": "8da0c46a3fdd36df",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "8efd53d47d48ff4d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 11
+        },
+        {
+          "package": "9102938b4b2aef9d",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "91033cfaaad4ad18",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 33
+        },
+        {
+          "package": "97b5edb328db59b5",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 33
+        },
+        {
+          "package": "9838bda0e848208f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "a4213f3eafd09839",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "a734a09a58d93b2a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "a7997b72652b43e4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 30
+        },
+        {
+          "package": "a88115eeba44ec4e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "aac562a77d283684",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 31
+        },
+        {
+          "package": "aade1a73a16b5fb5",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 34
+        },
+        {
+          "package": "aaebfbedc571fd7a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "af384c8ffe8ea6f1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 21
+        },
+        {
+          "package": "b0db7f4f0a11debd",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 36
+        },
+        {
+          "package": "b186eae3f2b61509",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "b18d1859b2cc7be1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "b2d7f35cb2ab24ce",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 19
+        },
+        {
+          "package": "b3d783ec63e86102",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 1
+        },
+        {
+          "package": "b4603645991ffd36",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 34
+        },
+        {
+          "package": "b60eaad684926425",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 27
+        },
+        {
+          "package": "b6616bd463a43aa3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 15
+        },
+        {
+          "package": "b6f3029666a39fe8",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 40
+        },
+        {
+          "package": "b78dff18c2a33897",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "bb8d9bee0012e672",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "bbbb8499544b83ef",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 27
+        },
+        {
+          "package": "be01f1529f774970",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 158
+        },
+        {
+          "package": "bf2208ff6eac2f43",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "c04df62c527e2761",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "c65949c22d7b2c1c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 27
+        },
+        {
+          "package": "c67938d0bbe8dcce",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "c72998936b1d88a2",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 40
+        },
+        {
+          "package": "cbfe5ddf73d50785",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "cc7704692b6ab29a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "ccac0a57aca3ae92",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 44
+        },
+        {
+          "package": "d0de7721e4a47990",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "d1421b2988398f0a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 34
+        },
+        {
+          "package": "d184206b2e0a0168",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 37
+        },
+        {
+          "package": "d2fde496226be96f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 22
+        },
+        {
+          "package": "d451ab9c17f64b19",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 43
+        },
+        {
+          "package": "d5f85cb5efb44cd2",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 43
+        },
+        {
+          "package": "d7c2e611770fa32f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 50
+        },
+        {
+          "package": "d7e0e8a6c8ab0e2c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 39
+        },
+        {
+          "package": "d895f447d332c331",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "d8cd425483086455",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 29
+        },
+        {
+          "package": "d923906f8b815987",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "d937c4ae5e9f3221",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        },
+        {
+          "package": "d951bb3a7cf9e4e6",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 16
+        },
+        {
+          "package": "da1948db72db5343",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 25
+        },
+        {
+          "package": "dd3c12b413651958",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 42
+        },
+        {
+          "package": "dd7fcc53ad148876",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 28
+        },
+        {
+          "package": "dfa7c28c3b490a8c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 20
+        },
+        {
+          "package": "e102d5fe68e16e5f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 38
+        },
+        {
+          "package": "e4e41c5f9c3848f0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 36
+        },
+        {
+          "package": "e54eaa26d836a2bf",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 43
+        },
+        {
+          "package": "e72aef006e329793",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 48
+        },
+        {
+          "package": "e7449208a97fa22e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 18
+        },
+        {
+          "package": "ec0e8f0acb09d2c3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 278
+        },
+        {
+          "package": "efbed5b2d5a59f9b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 28
+        },
+        {
+          "package": "f1175472a3f1469a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 36
+        },
+        {
+          "package": "f1973d347198bd6f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "f32d3723bfe55d2f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 26
+        },
+        {
+          "package": "f33b56ddf8dfc99e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 3
+        },
+        {
+          "package": "f50c7fd427839c47",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 23
+        },
+        {
+          "package": "f7c62dfd0921bfc6",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 8
+        },
+        {
+          "package": "f8ee353ef7864ef3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 9
+        },
+        {
+          "package": "f9ced2d898787705",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 15
+        },
+        {
+          "package": "fda9b1496320364e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 39
+        },
+        {
+          "package": "ffcad1f7ff9888d7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 0,
+          "gpu_bytes": 4,
+          "entry_index": 24
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "The lookup reads SLIM TOC entry tables only; it does not load Material, Texture, GPU or Stream payloads.",
+    "A resource not found in the successfully scanned packages is not proof of global absence when the scan is incomplete or package errors occurred.",
+    "Texture decoding, DDS extraction and material shader interpretation are separate operations."
+  ]
+}
