@@ -28,6 +28,7 @@ def install(root: Path, patch_dir: Path) -> None:
         patch_dir / "VERSION": root / "VERSION",
         patch_dir / "tests" / "test_hd2_unit.py": root / "tests" / "test_hd2_unit.py",
         patch_dir / "tests" / "test_hd2_material.py": root / "tests" / "test_hd2_material.py",
+        patch_dir / "tests" / "test_hd2_resources.py": root / "tests" / "test_hd2_resources.py",
         patch_dir / "tests" / "test_smd_animation.py": root / "tests" / "test_smd_animation.py",
         patch_dir / "tests" / "test_smd_reader.py": root / "tests" / "test_smd_reader.py",
     }
