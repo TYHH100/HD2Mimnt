@@ -49,6 +49,20 @@ The public parsers label klass 0/1/2/3 as Scalar/Vector2/Vector3/Vector4 and 12 
 
 Three user-provided FS-05 Material resources were inspected: `8cd6b9c938feaf90` (6 variables), `93aa849d6d00109d` (30 variables), and `a781f50f508ed81b` (87 variables). In all three, the bytes remaining after the descriptor table were exactly 8 bytes larger than `VariableDataSize` (56/64, 232/240, and 436/444 respectively). Every recognized scalar/vector preview range ended within the declared size. The current reader therefore treats `VariableDataSize` as the declared variable-value region, limits previews to that region, and preserves any subsequent bytes as a separate unresolved trailing payload. This is an observed pattern across three samples, not proof that all Material variants use an 8-byte trailer or that its semantics are known.
 
+### User-provided FS-05 Material instance audit
+
+The following dictionary matches were checked against AQ Edition's pinned shader-variable list and Community Edition's pinned texture-type list. Names are metadata labels only; they do not prove shader execution behavior.
+
+| Material ID | ParentMaterialID | Texture types named | Shader variable IDs named | Texture IDs found in selected package |
+|---|---|---:|---:|---:|
+| `8cd6b9c938feaf90` | `70cd11d0bb7dbd9e` (unknown in both parent maps) | 0 / 0 | 5 / 6 | 0 / 0 |
+| `93aa849d6d00109d` | `9e0a4db5c90ed6d3` (unknown in both parent maps) | 11 / 12 | 25 / 30 | 4 / 12 |
+| `a781f50f508ed81b` | `5a4597ed9ab5f84f` (unknown in both parent maps) | 12 / 12 | 87 / 87 | 4 / 12 |
+
+`93aa849d6d00109d` exposes variable labels associated with Blood, Bug Gunk, Weathering, Frost and related surface effects. `a781f50f508ed81b` exposes Color Variation, Blood Overlay, Mud, Tear, Scenario Overlay, World Overlay, Wetness and Scorch Marks labels. This makes both useful samples for studying dynamic surface effects, but neither is yet evidence of a translucent fabric shader.
+
+A Texture ID reported as not found in the selected `8670598c1f4462dc` package is only an out-of-package reference; it must not be described as globally missing. Some Texture IDs are reused by multiple nodes in the same Material (for example, one resource ID appears under both BloodSplatterTiler and BugSplatterTiler in the `93aa...` instance). Preserve the node-to-type relationship and the resource ID separately; do not deduplicate texture nodes solely by ID.
+
 AQ calls the per-texture uint32 values TexUnks; Community Edition treats the same values as texture-type IDs and resolves them through hashlists/texturetypes.txt. Preserve the raw integer and optionally attach a versioned lookup name.
 
 ## 3. Parent material IDs are not globally stable names
