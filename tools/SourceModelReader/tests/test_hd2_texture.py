@@ -11,20 +11,38 @@ from hd2_texture import (
     DDS_HEADER_SIZE,
     TEXTURE_TOC_SIZE,
     _read_slim_texture_payload,
+    decode_bc7_preview,
     inspect_hd2_texture,
     parse_texture_resource,
 )
 
 
-def make_texture_toc(*, width=256, height=128, mip_count=9, dxgi=98, array_size=1):
+def make_texture_toc(
+    *, width=256, height=128, mip_count=9, dxgi=98, array_size=1,
+    populate_mips=True,
+):
     data = bytearray(TEXTURE_TOC_SIZE)
     struct.pack_into("<3I", data, 0, 1, 2, 3)
-    for index in range(15):
-        struct.pack_into(
-            "<IIHH", data, 12 + index * 12,
-            index * 1024, 1024 - index * 16,
-            max(1, height >> index), max(1, width >> index),
-        )
+    level_sizes = []
+    current_width, current_height = width, height
+    for _ in range(mip_count):
+        blocks_x = max(1, (current_width + 3) // 4)
+        blocks_y = max(1, (current_height + 3) // 4)
+        level_sizes.append(blocks_x * blocks_y * 16)
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
+    total_size = sum(level_sizes)
+    current_width, current_height = width, height
+    offset = 0
+    for index in range(min(mip_count, 15)):
+        if populate_mips:
+            struct.pack_into(
+                "<IIHH", data, 12 + index * 12,
+                offset, total_size - offset, current_height, current_width,
+            )
+        offset += level_sizes[index]
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
     dds = 12 + 15 * 12
     data[dds:dds + 4] = b"DDS "
     struct.pack_into("<I", data, dds + 4, 124)
@@ -91,6 +109,142 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(report["payloads"]["selected_source"], "gpu")
         self.assertEqual(report["payloads"]["selected"]["size"], len(b"gpu-data"))
         self.assertEqual(report["warnings"], [])
+
+
+    def test_validates_bc7_full_mip_chain_for_gpu_only_texture(self):
+        toc = make_texture_toc(width=512, height=512, mip_count=10)
+        expected_bytes = 349552
+        report = parse_texture_resource(toc, b"G" * expected_bytes)
+
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], expected_bytes)
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "full_mip_chain")
+        self.assertEqual(report["payload_layouts"]["gpu"]["matches_full_chain"], True)
+        self.assertEqual(report["mipmap_validation"]["status"], "match")
+        self.assertEqual(report["mipmap_validation"]["populated_records"], 10)
+        self.assertEqual(report["mip_chain"]["levels"][6]["width"], 8)
+
+    def test_detects_stream_full_chain_and_gpu_resident_mip_tail(self):
+        toc = make_texture_toc(width=2048, height=2048, mip_count=12)
+        stream = b"S" * 5592432
+        gpu = b"G" * 1392
+        report = parse_texture_resource(toc, gpu, stream)
+
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], 5592432)
+        self.assertEqual(report["payload_layouts"]["stream"]["layout"], "full_mip_chain")
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "mip_tail_from_level_6")
+        self.assertEqual(report["payload_layouts"]["gpu"]["candidate_tail_start_width"], 32)
+        self.assertEqual(report["payload_layouts"]["gpu"]["candidate_tail_start_height"], 32)
+        self.assertEqual(report["mipmap_validation"]["status"], "match")
+
+    def test_warns_when_populated_mipmap_metadata_disagrees_with_calculated_chain(self):
+        toc = bytearray(make_texture_toc(width=512, height=512, mip_count=10))
+        struct.pack_into("<I", toc, 12, 16)  # First mip should begin at byte zero.
+        report = parse_texture_resource(bytes(toc), b"G" * 349552)
+
+        self.assertEqual(report["mipmap_validation"]["status"], "mismatch")
+        self.assertEqual(report["mipmap_validation"]["mismatches"][0]["index"], 0)
+        self.assertTrue(any("disagree with the calculated" in warning for warning in report["warnings"]))
+
+    def test_does_not_iterate_unbounded_dds_mip_count(self):
+        toc = bytearray(make_texture_toc())
+        dds = 12 + 15 * 12
+        struct.pack_into("<I", toc, dds + 28, 0xFFFFFFFF)
+        report = parse_texture_resource(bytes(toc), b"payload")
+
+        self.assertIsNone(report["mip_chain"])
+        self.assertEqual(report["mipmap_validation"]["status"], "not_checked")
+        self.assertTrue(any("more than" in warning or "declares" in warning for warning in report["warnings"]))
+
+    def test_calculates_chain_when_toc_mipmap_table_is_unpopulated(self):
+        toc = make_texture_toc(
+            width=512, height=512, mip_count=10, populate_mips=False
+        )
+        report = parse_texture_resource(toc, b"G" * 349552)
+
+        self.assertEqual(report["mipmap_validation"]["status"], "not_populated")
+        self.assertEqual(report["mipmap_validation"]["missing_records"], list(range(10)))
+        self.assertEqual(report["mip_chain"]["expected_full_chain_bytes"], 349552)
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "full_mip_chain")
+        self.assertTrue(any("zero/unpopulated" in note for note in report["notes"]))
+
+
+    def test_bc7_preview_writes_rgba_png_and_reports_alpha_histogram(self):
+        import sys
+        import types
+        import zlib
+
+        toc = make_texture_toc(width=4, height=4, mip_count=3)
+        payload = b"B" * 48
+        report = parse_texture_resource(toc, payload)
+        bgra = bytearray()
+        alpha_pattern = (0, 64, 128, 255)
+        for index in range(16):
+            bgra.extend((3, 2, 1, alpha_pattern[index % 4]))
+
+        fake_decoder = types.ModuleType("texture2ddecoder")
+        fake_decoder.__version__ = "test"
+        calls = []
+        def decode_bc7(data, width, height):
+            calls.append((data, width, height))
+            return bytes(bgra)
+        fake_decoder.decode_bc7 = decode_bc7
+
+        with patch.dict(sys.modules, {"texture2ddecoder": fake_decoder}):
+            preview, png = decode_bc7_preview(report, payload)
+
+        self.assertEqual(calls, [(payload[:16], 4, 4)])
+        self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
+        self.assertEqual(preview["width"], 4)
+        self.assertEqual(preview["height"], 4)
+        self.assertEqual(preview["decoded_input_bytes"], 16)
+        alpha = preview["alpha"]
+        self.assertEqual(alpha["pixel_count"], 16)
+        self.assertEqual(alpha["minimum"], 0)
+        self.assertEqual(alpha["maximum"], 255)
+        self.assertEqual(alpha["unique_values"], 4)
+        self.assertEqual(alpha["fully_transparent_pixels"], 4)
+        self.assertEqual(alpha["partial_alpha_pixels"], 8)
+        self.assertEqual(alpha["fully_opaque_pixels"], 4)
+        self.assertEqual(alpha["alpha_histogram"][0], 4)
+        self.assertEqual(alpha["alpha_histogram"][64], 4)
+        self.assertEqual(alpha["alpha_histogram"][128], 4)
+        self.assertEqual(alpha["alpha_histogram"][255], 4)
+
+        offset = 8
+        idat = bytearray()
+        while offset < len(png):
+            chunk_size = struct.unpack_from(">I", png, offset)[0]
+            chunk_type = png[offset + 4:offset + 8]
+            chunk_data = png[offset + 8:offset + 8 + chunk_size]
+            if chunk_type == b"IDAT":
+                idat.extend(chunk_data)
+            offset += 12 + chunk_size
+            if chunk_type == b"IEND":
+                break
+        raw_scanlines = zlib.decompress(bytes(idat))
+        self.assertEqual(raw_scanlines[0], 0)  # PNG filter None
+        self.assertEqual(raw_scanlines[1:5], bytes((1, 2, 3, 0)))  # BGRA -> RGBA
+
+    def test_bc7_preview_reports_missing_optional_dependency(self):
+        import sys
+
+        toc = make_texture_toc(width=4, height=4, mip_count=3)
+        payload = b"B" * 48
+        report = parse_texture_resource(toc, payload)
+        with patch.dict(sys.modules, {"texture2ddecoder": None}):
+            with self.assertRaisesRegex(HD2ResourceError, "pip install texture2ddecoder"):
+                decode_bc7_preview(report, payload)
+
+    def test_bc7_preview_refuses_to_treat_gpu_mip_tail_as_full_resolution(self):
+        toc = make_texture_toc(width=2048, height=2048, mip_count=12)
+        gpu_tail = b"G" * 1392
+        report = parse_texture_resource(toc, gpu_tail)
+
+        self.assertEqual(report["payloads"]["selected_source"], "gpu")
+        self.assertEqual(report["payload_layouts"]["gpu"]["layout"], "mip_tail_from_level_6")
+        with self.assertRaisesRegex(HD2ResourceError, "resident mip tail cannot be decoded"):
+            decode_bc7_preview(report, gpu_tail)
+
 
     def test_stream_is_selected_when_both_payloads_are_present_and_both_are_hashed(self):
         gpu = b"gpu-low-mips"
@@ -170,12 +324,13 @@ class TextureParserTests(unittest.TestCase):
 
         script = Path(__file__).resolve().parents[1] / "source_model_reader.py"
         result = subprocess.run(
-            [sys.executable, str(script), "--help"],
+            [sys.executable, str(script), "hd2-texture", "--help"],
             capture_output=True, text=True, check=False,
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("hd2-texture", result.stdout)
+        self.assertIn("--preview-png", result.stdout)
+        self.assertIn("--output", result.stdout)
 
     def test_range_loader_rejects_wrong_stored_entry_index(self):
         texture_id = 0x123456789ABCDEF0

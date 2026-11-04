@@ -61,6 +61,337 @@ DXGI_FORMAT_NAMES = {
 }
 
 
+# Storage sizes for DXGI block-compressed and common uncompressed formats.
+DXGI_BLOCK_BYTES = {
+    70: 8, 71: 8, 72: 8,              # BC1
+    73: 16, 74: 16, 75: 16,           # BC2
+    76: 16, 77: 16, 78: 16,           # BC3
+    79: 8, 80: 8, 81: 8,              # BC4
+    82: 16, 83: 16, 84: 16,           # BC5
+    94: 16, 95: 16, 96: 16,           # BC6H
+    97: 16, 98: 16, 99: 16,           # BC7
+}
+DXGI_UNCOMPRESSED_BYTES_PER_PIXEL = {
+    27: 4, 28: 4, 29: 4, 30: 4, 31: 4, 32: 4,
+    48: 2, 49: 2, 50: 2, 51: 2, 52: 2,
+    60: 1, 61: 1, 62: 1, 63: 1, 64: 1, 65: 1,
+}
+
+
+def _build_mip_chain(width: int, height: int, mip_count: int, dxgi_format: int,
+                     array_size: int) -> Optional[dict]:
+    """Calculate storage sizes for known 2D formats without decoding texture blocks."""
+    if (width <= 0 or height <= 0 or mip_count <= 0 or array_size <= 0
+            or mip_count > 32):
+        return None
+    block_bytes = DXGI_BLOCK_BYTES.get(dxgi_format)
+    bytes_per_pixel = DXGI_UNCOMPRESSED_BYTES_PER_PIXEL.get(dxgi_format)
+    if block_bytes is None and bytes_per_pixel is None:
+        return None
+
+    levels = []
+    offset = 0
+    current_width, current_height = width, height
+    for level in range(mip_count):
+        if block_bytes is not None:
+            blocks_x = max(1, (current_width + 3) // 4)
+            blocks_y = max(1, (current_height + 3) // 4)
+            level_bytes = blocks_x * blocks_y * block_bytes
+        else:
+            level_bytes = current_width * current_height * bytes_per_pixel
+        levels.append({
+            "index": level,
+            "width": current_width,
+            "height": current_height,
+            "start": offset,
+            "level_bytes": level_bytes,
+            "bytes_left": 0,
+        })
+        offset += level_bytes
+        current_width = max(1, current_width // 2)
+        current_height = max(1, current_height // 2)
+
+    single_array_bytes = offset
+    for level in levels:
+        level["bytes_left"] = single_array_bytes - level["start"]
+    full_chain_bytes = single_array_bytes * array_size
+    return {
+        "format_family": (
+            DXGI_FORMAT_NAMES.get(dxgi_format, "").split("_")[0]
+            if block_bytes is not None else "uncompressed"
+        ),
+        "storage": "block_compressed" if block_bytes is not None else "uncompressed",
+        "block_bytes": block_bytes,
+        "bytes_per_pixel": bytes_per_pixel,
+        "array_size": array_size,
+        "single_array_bytes": single_array_bytes,
+        "expected_full_chain_bytes": full_chain_bytes,
+        "levels": levels,
+    }
+
+
+def _payload_layout(data_size: int, mip_chain: Optional[dict]) -> dict:
+    if data_size == 0:
+        return {"size": 0, "layout": "empty", "matches_full_chain": False,
+                "candidate_tail_start_index": None}
+    if mip_chain is None:
+        return {"size": data_size, "layout": "unclassified",
+                "matches_full_chain": None, "candidate_tail_start_index": None}
+
+    array_size = mip_chain["array_size"]
+    levels = mip_chain["levels"]
+    single_array_bytes = mip_chain["single_array_bytes"]
+    full_match = data_size == mip_chain["expected_full_chain_bytes"]
+    tail_candidates = []
+    if array_size == 1:
+        tail_candidates = [
+            level["index"] for level in levels
+            if sum(item["level_bytes"] for item in levels[level["index"]:]) == data_size
+        ]
+    if full_match:
+        layout = "full_mip_chain"
+    elif tail_candidates:
+        layout = f"mip_tail_from_level_{tail_candidates[0]}"
+    else:
+        layout = "size_mismatch"
+    return {
+        "size": data_size,
+        "layout": layout,
+        "matches_full_chain": full_match,
+        "candidate_tail_start_index": tail_candidates[0] if tail_candidates else None,
+        "candidate_tail_start_width": (
+            levels[tail_candidates[0]]["width"] if tail_candidates else None
+        ),
+        "candidate_tail_start_height": (
+            levels[tail_candidates[0]]["height"] if tail_candidates else None
+        ),
+        "single_array_full_chain_bytes": single_array_bytes,
+        "expected_full_chain_bytes": mip_chain["expected_full_chain_bytes"],
+    }
+
+
+def _validate_mipmap_table(mipmaps: list[dict], mip_chain: Optional[dict],
+                           mip_count: int, array_size: int) -> dict:
+    if mip_chain is None:
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "DXGI storage layout or dimensions are not supported"}
+    if array_size != 1:
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "mipmap table semantics for texture arrays are not validated"}
+    if mip_count > len(mipmaps):
+        return {"status": "not_checked", "populated_records": 0,
+                "missing_records": [], "mismatches": [],
+                "reason": "DDS mip count exceeds the 15 TOC mipmap records"}
+
+    active = mipmaps[:mip_count]
+    populated = [item for item in active if item["has_nonzero_fields"]]
+    if not populated:
+        return {"status": "not_populated", "populated_records": 0,
+                "missing_records": list(range(mip_count)), "mismatches": [],
+                "reason": "all TOC mipmap records for the DDS levels are zero"}
+
+    missing = []
+    mismatches = []
+    expected_levels = mip_chain["levels"]
+    for index, item in enumerate(active):
+        expected = expected_levels[index]
+        if not item["has_nonzero_fields"]:
+            missing.append(index)
+            continue
+        field_mismatches = {}
+        for field in ("width", "height", "start", "bytes_left"):
+            if item[field] != expected[field]:
+                field_mismatches[field] = {
+                    "stored": item[field],
+                    "expected": expected[field],
+                }
+        if field_mismatches:
+            mismatches.append({"index": index, "fields": field_mismatches})
+
+    if mismatches:
+        status = "mismatch"
+    elif missing:
+        status = "partial"
+    else:
+        status = "match"
+    return {
+        "status": status,
+        "populated_records": len(populated),
+        "missing_records": missing,
+        "mismatches": mismatches,
+        "reason": None,
+    }
+
+
+MAX_DECODE_PIXELS = 16_777_216
+
+
+def _png_chunk(chunk_type: bytes, payload: bytes) -> bytes:
+    import binascii
+    return (
+        struct.pack(">I", len(payload))
+        + chunk_type
+        + payload
+        + struct.pack(">I", binascii.crc32(chunk_type + payload) & 0xFFFFFFFF)
+    )
+
+
+def _encode_bgra_png(width: int, height: int, bgra: bytes) -> bytes:
+    """Encode BGRA8 pixels to a dependency-free RGBA8 PNG."""
+    import zlib
+
+    expected = width * height * 4
+    if len(bgra) != expected:
+        raise HD2ResourceError(
+            f"BC7 decoder returned {len(bgra)} bytes; expected {expected}"
+        )
+    scanlines = bytearray()
+    row_bytes = width * 4
+    for y in range(height):
+        scanlines.append(0)  # PNG filter: None
+        row_start = y * row_bytes
+        row_end = row_start + row_bytes
+        row = bgra[row_start:row_end]
+        for offset in range(0, len(row), 4):
+            blue, green, red, alpha = row[offset:offset + 4]
+            scanlines.extend((red, green, blue, alpha))
+
+    ihdr = struct.pack(">2I5B", width, height, 8, 6, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", zlib.compress(bytes(scanlines), level=6))
+        + _png_chunk(b"IEND", b"")
+    )
+
+
+def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, bytes]:
+    """Decode only the base mip of a 2D, single-array BC7 texture to a PNG preview.
+
+    The optional texture2ddecoder package supplies the BC7 block decoder.
+    SourceModelReader keeps this dependency optional and does not vendor its code.
+    """
+    dds = report["dds"]
+    width = dds["width"]
+    height = dds["height"]
+    dxgi_format = dds["dxgi_format"]
+    array_size = dds["array_size"]
+    resource_dimension = dds["resource_dimension"]
+    chain = report.get("mip_chain")
+    selected_source = report["payloads"]["selected_source"]
+    layout = report["payload_layouts"].get(selected_source, {})
+
+    if dxgi_format not in (98, 99):
+        raise HD2ResourceError(
+            f"BC7 preview supports DXGI_FORMAT_BC7_UNORM/SRGB (98/99); got {dxgi_format}"
+        )
+    if resource_dimension != 3:
+        raise HD2ResourceError(
+            f"BC7 preview currently supports Texture2D only; DX10 dimension={resource_dimension}"
+        )
+    if array_size != 1:
+        raise HD2ResourceError(
+            f"BC7 preview currently supports ArraySize=1; got {array_size}"
+        )
+    if chain is None or not chain.get("levels"):
+        raise HD2ResourceError(
+            "Cannot calculate the BC7 base-mip byte range for this texture"
+        )
+    if layout.get("layout") != "full_mip_chain":
+        raise HD2ResourceError(
+            "The SDK-selected payload is not a complete mip chain; "
+            f"its classified layout is {layout.get('layout', 'unknown')!r}. "
+            "A resident mip tail cannot be decoded as the full-resolution base image."
+        )
+    if width <= 0 or height <= 0 or width * height > MAX_DECODE_PIXELS:
+        raise HD2ResourceError(
+            f"BC7 preview dimensions exceed the safety limit: {width}x{height}"
+        )
+
+    base_level_bytes = chain["levels"][0]["level_bytes"]
+    if len(selected_payload) < base_level_bytes:
+        raise HD2ResourceError(
+            f"Selected payload is too short for base mip: "
+            f"{len(selected_payload)} < {base_level_bytes}"
+        )
+    try:
+        import texture2ddecoder
+    except (ImportError, OSError) as exc:
+        raise HD2ResourceError(
+            "Optional BC7 decoder is not installed. Install it with: "
+            "py -3 -m pip install texture2ddecoder==1.0.6"
+        ) from exc
+
+    decode = getattr(texture2ddecoder, "decode_bc7", None)
+    if not callable(decode):
+        raise HD2ResourceError(
+            "Installed texture2ddecoder does not expose decode_bc7"
+        )
+
+    try:
+        bgra = decode(selected_payload[:base_level_bytes], width, height)
+    except Exception as exc:
+        raise HD2ResourceError(f"BC7 decoder failed: {exc}") from exc
+    if not isinstance(bgra, (bytes, bytearray, memoryview)):
+        raise HD2ResourceError(
+            f"BC7 decoder returned unsupported output type: {type(bgra).__name__}"
+        )
+    bgra = bytes(bgra)
+    expected_pixels = width * height
+    if len(bgra) != expected_pixels * 4:
+        raise HD2ResourceError(
+            f"BC7 decoder returned {len(bgra)} bytes for {expected_pixels} pixels; "
+            f"expected {expected_pixels * 4}"
+        )
+
+    alpha_histogram = [0] * 256
+    for offset in range(3, len(bgra), 4):
+        alpha_histogram[bgra[offset]] += 1
+    fully_transparent = alpha_histogram[0]
+    fully_opaque = alpha_histogram[255]
+    partial_alpha = expected_pixels - fully_transparent - fully_opaque
+    used_alpha_values = [value for value, count in enumerate(alpha_histogram) if count]
+    if not used_alpha_values:
+        alpha_min = alpha_max = None
+    else:
+        alpha_min = used_alpha_values[0]
+        alpha_max = used_alpha_values[-1]
+
+    png = _encode_bgra_png(width, height, bgra)
+    alpha_report = {
+        "pixel_count": expected_pixels,
+        "minimum": alpha_min,
+        "maximum": alpha_max,
+        "unique_values": len(used_alpha_values),
+        "fully_transparent_pixels": fully_transparent,
+        "partial_alpha_pixels": partial_alpha,
+        "fully_opaque_pixels": fully_opaque,
+        "non_opaque_pixels": expected_pixels - fully_opaque,
+        "alpha_histogram": alpha_histogram,
+        "interpretation": (
+            "Decoded BC7 pixel alpha values are reported. This describes texture data only; "
+            "it does not establish whether the game's Material shader uses alpha for blending, "
+            "cutout, emissive masking, or another purpose."
+        ),
+    }
+    return {
+        "status": "ok",
+        "decoder": "texture2ddecoder",
+        "decoder_version": getattr(texture2ddecoder, "__version__", "unknown"),
+        "codec": "BC7",
+        "dxgi_format": dxgi_format,
+        "width": width,
+        "height": height,
+        "decoded_mip_level": 0,
+        "decoded_input_bytes": base_level_bytes,
+        "decoded_output_bytes": len(bgra),
+        "output_channel_order": "RGBA8 PNG (decoder BGRA reordered)",
+        "alpha": alpha_report,
+    }, png
+
+
 def _check_range(data: bytes, offset: int, size: int, label: str) -> None:
     if offset < 0 or size < 0 or offset > len(data) or size > len(data) - offset:
         raise HD2ResourceError(
@@ -291,6 +622,54 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
         }
 
     format_name = DXGI_FORMAT_NAMES.get(dxgi_format, f"UNKNOWN_DXGI_FORMAT_{dxgi_format}")
+    mip_chain = (
+        _build_mip_chain(width, height, mip_count, dxgi_format, array_size)
+        if resource_dimension == 3 else None
+    )
+    mipmap_validation = _validate_mipmap_table(
+        mipmaps, mip_chain, mip_count, array_size
+    )
+    payload_layouts = {
+        "gpu": _payload_layout(len(gpu_data), mip_chain),
+        "stream": _payload_layout(len(stream_data), mip_chain),
+    }
+    if mipmap_validation["status"] == "match":
+        notes.append(
+            "All populated TOC mipmap records match the calculated dimensions, byte offsets "
+            "and remaining-byte counts for this DXGI format."
+        )
+    elif mipmap_validation["status"] == "mismatch":
+        warnings.append(
+            "One or more TOC mipmap records disagree with the calculated DXGI mip-chain layout; "
+            "see mipmap_validation.mismatches for field-level details."
+        )
+    elif mipmap_validation["status"] == "partial":
+        notes.append(
+            "Some DDS mip levels have zero/unpopulated TOC records; populated records were "
+            "checked against the calculated mip-chain layout."
+        )
+    elif mipmap_validation["status"] == "not_populated":
+        notes.append(
+            "The DDS header describes a calculable mip chain, but the Texture TOC mipmap "
+            "records are zero/unpopulated; calculated levels are reported separately."
+        )
+    for payload_name, payload_layout in payload_layouts.items():
+        if payload_layout.get("layout") == "full_mip_chain":
+            notes.append(
+                f"The {payload_name.upper()} payload matches the calculated complete mip chain."
+            )
+        elif str(payload_layout.get("layout", "")).startswith("mip_tail_from_level_"):
+            notes.append(
+                f"The {payload_name.upper()} payload matches a contiguous mip tail beginning "
+                f"at level {payload_layout['candidate_tail_start_index']} "
+                f"({payload_layout['candidate_tail_start_width']}x"
+                f"{payload_layout['candidate_tail_start_height']})."
+            )
+        elif payload_layout.get("layout") == "size_mismatch":
+            notes.append(
+                f"The {payload_name.upper()} payload size does not match the calculated full "
+                "mip chain or any contiguous single-array mip tail; its packing is unresolved."
+            )
     return {
         "schema": "SourceModelReader-HD2Texture1",
         "texture_toc_size": len(toc_data),
@@ -306,6 +685,9 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
             "unknown_2": unknown_2,
         },
         "mipmaps": mipmaps,
+        "mip_chain": mip_chain,
+        "mipmap_validation": mipmap_validation,
+        "payload_layouts": payload_layouts,
         "dds": {
             "header_size_bytes": DDS_HEADER_SIZE,
             "magic": dds_magic.decode("ascii", "replace"),
@@ -397,7 +779,21 @@ def format_hd2_texture_text(report: dict) -> str:
         f"Selected SHA-256: {payloads['selected']['sha256']}",
         f"Status: {summary['status'].upper()}",
         "Mipmap table:",
+        f"TOC mipmap validation: {report['mipmap_validation']['status'].upper()} "
+        f"({report['mipmap_validation'].get('populated_records', 0)} populated records)",
     ]
+    for payload_name, layout in report["payload_layouts"].items():
+        if layout.get("layout") != "empty":
+            lines.append(
+                f"{payload_name.upper()} layout: {layout['layout']} "
+                f"({layout['size']:,} bytes)"
+            )
+    if report.get("mip_chain"):
+        chain = report["mip_chain"]
+        lines.append(
+            f"Calculated BC/uncompressed mip chain: {chain['expected_full_chain_bytes']:,} bytes "
+            f"({len(chain['levels'])} levels)"
+        )
     for mip in report["mipmaps"]:
         if mip["has_nonzero_fields"]:
             lines.append(
@@ -419,6 +815,7 @@ def format_hd2_texture_text(report: dict) -> str:
 __all__ = [
     "DDS_HEADER_SIZE",
     "TEXTURE_TOC_SIZE",
+    "decode_bc7_preview",
     "format_hd2_texture_text",
     "inspect_hd2_texture",
     "parse_texture_resource",

@@ -106,7 +106,7 @@ Exit criteria: pelvis, spine, head, shoulder, elbow, wrist, hip, knee and ankle 
 
 ## Parallel 0.8.x track — Material/Texture preservation
 
-**Implemented research parsers: `MATERIAL_FORMAT_NOTES.md` records the common Material and Texture layouts; `hd2_material.py` performs bounded raw Material extraction and same-package Texture checks; `hd2-find` locates resource IDs across SLIM TOC entry tables; `hd2_texture.py` and `hd2-texture` read one Texture's TOC/GPU/Stream ranges, parse the 15 mipmap records and DDS DX10 header, hash each payload, and export an SDK-style DDS. Real-game texture decoding and material-instance validation remain pending.**
+**Implemented research parsers: `MATERIAL_FORMAT_NOTES.md` records the common Material and Texture layouts; `hd2_material.py` performs bounded raw Material extraction and same-package Texture checks; `hd2-find` locates resource IDs across SLIM TOC entry tables; `hd2_texture.py` and `hd2-texture` read one Texture's TOC/GPU/Stream ranges, parse DDS DX10 metadata, calculate known-format mip-chain sizes, validate populated mipmap records, detect full-chain versus resident mip-tail payloads, hash each payload, and export an SDK-style DDS. Two real FS-05 BC7 textures confirm both GPU-only full-chain and Stream-full-chain plus GPU-mip-tail layouts. Optional BC7 Mip-0 PNG preview and Alpha histograms are implemented; visual inspection of real-game decoded pixels and material-instance validation remain pending.**
 
 Verified research direction:
 - A Unit references Material resources; each Material references Texture resources.
@@ -118,7 +118,7 @@ Verified research direction:
 Next milestones:
 1. Validate the new bounded Material decoder against real game Material entries, especially the variable-value boundary and table offsets.
 2. Validate shader-variable payload lengths and array/stride semantics; add versioned ID dictionaries without replacing raw IDs.
-3. Decode representative real Texture payloads (including BC-compressed formats and texture arrays) to inspect channel content, while preserving original compressed bytes and mipmaps.
+3. Expand pixel decoding beyond BC7 base mips to other BC formats and texture arrays where justified; keep the current optional BC7 preview as the first inspection path. Inspect real FS-05 PNG/Alpha output and verify it against the linked Material family.
 4. Validate real Alpha Clip, Translucent/Glass and opaque Material resources against their linked Texture data before deciding any source-to-HD2 material mapping.
 
 No auto classification or output conversion should be implemented from names alone. In particular, partially transparent stockings/fabric must not be silently routed through Alpha Clip.

@@ -218,9 +218,34 @@ A FileID can be present in more than one SLIM package. Each package occurrence m
 ### Current interpretation limits
 
 - The parser does not infer transparency from DXGI format, alpha-capable format names, or the mere presence of alpha bits.
-- The parser does not yet decompress BC1/BC3/BC7 or other block-compressed payloads to inspect actual pixels/channels.
+- The optional pixel-preview path currently decodes only BC7_UNORM/BC7_UNORM_SRGB base mips through the external `texture2ddecoder` package. Other BC formats are not pixel-decoded yet.
 - Texture arrays are reported by `ArraySize`; they are not flattened or split by the reader.
 - Mipmap `Start` and `BytesLeft` are preserved as metadata but their exact relationship to payload offsets and streamed/resident mip partitions still needs validation against several real resources.
 - A Texture used by an Alpha Clip, Translucent or Advanced Material must be interpreted together with its Material parent/family and shader variables. Texture-level evidence alone is insufficient to distinguish cutout, fractional opacity and emissive-mask usage.
 
 The first real-game verification candidates from the FS-05 Material dependency scan include one Stream-backed Texture (`0d371130ba00addb`, 5,592,432 Stream bytes plus 1,392 GPU bytes) and one GPU-only Texture (`17c4075f57e4211a`, 349,552 GPU bytes) in package `18235e0c9ec0e636`. These are useful parser test inputs, not established transparency examples.
+
+### Real-game BC7 mip-chain validation (FS-05 dependencies)
+
+The first two Texture exports from package `18235e0c9ec0e636` provide a useful controlled comparison. Both DDS headers report DXGI format 98 (`BC7_UNORM`), DX10 resource dimension 3 (2D), and ArraySize 1.
+
+| Texture FileID | Dimensions | Mips | GPU bytes | Stream bytes | Observed layout |
+|---|---:|---:|---:|---:|---|
+| `17c4075f57e4211a` | 512×512 | 10 | 349,552 | 0 | GPU contains the complete BC7 mip chain; the 15-entry TOC mipmap table is unpopulated in the text report |
+| `0d371130ba00addb` | 2048×2048 | 12 | 1,392 | 5,592,432 | Stream contains the complete BC7 mip chain; GPU size exactly matches the contiguous mip tail from level 6 (32×32) through 1×1 |
+
+For BC7, each mip level occupies `ceil(width/4) × ceil(height/4) × 16` bytes. Applying that block-size rule to the 2048×2048 sample produces a full-chain size of 5,592,432 bytes. Its calculated tail from level 6 is 1,392 bytes, exactly equal to the GPU resource size. The observed TOC records also match the calculated mip widths/heights, cumulative starts and `BytesLeft` values across all 12 levels.
+
+For the 512×512 sample, the calculated 10-level chain is 349,552 bytes, exactly equal to the GPU resource size. The command printed no populated TOC mipmap records for this sample. This shows that dimensions/format/mip count from the DDS header can still establish the expected storage size even when the per-level TOC table is zeroed; it does not prove the TOC table is always optional for all Texture variants.
+
+`hd2_texture.py` now calculates known BC and uncompressed mip-chain sizes, classifies GPU/Stream payload lengths as a full chain or a contiguous single-array mip tail when sizes match, and validates populated TOC records against expected width, height, start and bytes-left values. A table that is entirely unpopulated is reported as `not_populated`, separately from a metadata mismatch. This is byte-layout validation only; it does not decode BC7 pixels or determine channel/alpha meaning.
+
+### Optional BC7 base-mip pixel preview
+
+The reader can now optionally decode the selected full-resolution BC7 base mip through the external `texture2ddecoder` 1.0.6 package. Its `decode_bc7` function returns BGRA8 bytes; the reader reorders those bytes into a standards-compliant RGBA PNG using only Python's standard library. The dependency is not vendored and is not required for TOC/DDS inspection.
+
+Supported preview scope is intentionally narrow: DXGI 98/99 (BC7 UNORM/SRGB), DX10 Texture2D, ArraySize 1, supported dimensions, and a selected payload classified as a complete mip chain. Only Mip 0 is decoded. A GPU resident mip tail is never treated as a complete base-level payload. Missing decoder dependency, incomplete payloads, unsupported formats or array/dimension variants produce explicit errors.
+
+The JSON preview section records the decoder/version, source dimensions, mip level, byte counts and per-pixel Alpha histogram. It separately counts Alpha=0, Alpha=1..254 and Alpha=255. These counts describe the decoded texture bytes only. They do not prove the game's Material shader enables fractional blending or even consumes that channel as opacity.
+
+Real-game pixel/Alpha inspection remains a manual validation step: inspect the generated PNG and JSON for the two FS-05 samples, then follow the actual Material texture-node link and parent/render family before classifying transparency.

@@ -2570,6 +2570,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_texture.add_argument("--output", required=True, help="Output DDS file path")
     p_hd2_texture.add_argument("--preserve-raw", action="store_true",
                                 help="Also write separate .gpu.bin and .stream.bin payload copies")
+    p_hd2_texture.add_argument("--preview-png", action="store_true",
+                                help="Decode the base BC7 mip to PNG and report pixel-alpha statistics (optional dependency)")
     p_hd2_texture.add_argument("--json", dest="json_path",
                                 help="Write the complete Texture metadata report to JSON")
 
@@ -2636,16 +2638,33 @@ def main(argv: Optional[list[str]] = None) -> int:
         try:
             from hd2_material import parse_resource_id
             from hd2_resources import HD2ResourceError
-            from hd2_texture import format_hd2_texture_text, inspect_hd2_texture
+            from hd2_texture import (
+                decode_bc7_preview,
+                format_hd2_texture_text,
+                inspect_hd2_texture,
+            )
 
             texture_id = parse_resource_id(args.texture)
             report, dds_bytes, gpu_bytes, stream_bytes = inspect_hd2_texture(
                 args.input, args.package, texture_id
             )
+            preview_result = None
+            preview_png = None
+            if args.preview_png:
+                selected_payload = stream_bytes if stream_bytes else gpu_bytes
+                preview_result, preview_png = decode_bc7_preview(
+                    report, selected_payload
+                )
+
             output = Path(args.output)
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_bytes(dds_bytes)
             outputs = {"dds": str(output)}
+            if preview_png is not None:
+                preview_output = output.with_suffix(".png")
+                preview_output.write_bytes(preview_png)
+                outputs["preview_png"] = str(preview_output)
+                report["preview"] = preview_result
             if args.preserve_raw:
                 if gpu_bytes:
                     gpu_output = output.with_name(output.stem + ".gpu.bin")
@@ -2657,6 +2676,19 @@ def main(argv: Optional[list[str]] = None) -> int:
                     outputs["stream_raw"] = str(stream_output)
             report["outputs"] = outputs
             print(format_hd2_texture_text(report))
+            if preview_result is not None:
+                alpha = preview_result["alpha"]
+                print(
+                    f"BC7 base-mip preview: {outputs['preview_png']} "
+                    f"({preview_result['width']}x{preview_result['height']})"
+                )
+                print(
+                    f"Alpha: min={alpha['minimum']} max={alpha['maximum']} "
+                    f"unique={alpha['unique_values']} "
+                    f"transparent={alpha['fully_transparent_pixels']:,} "
+                    f"partial={alpha['partial_alpha_pixels']:,} "
+                    f"opaque={alpha['fully_opaque_pixels']:,}"
+                )
             print(f"DDS exported: {output} ({len(dds_bytes):,} bytes)")
             for label, filename in outputs.items():
                 if label != "dds":
