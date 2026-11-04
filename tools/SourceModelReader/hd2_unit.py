@@ -678,6 +678,11 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
         streams = parse_stream_info(unit_toc, header.stream_info_offset, stream_end)
     if header.stream_info_offset == 1 and not header.composite_ref:
         raise HD2ResourceError("Unit StreamInfoOffset is the external-stream sentinel but CompositeRef is zero")
+    material_by_section = {item["section_id"]: f"{item['material_id']:016x}" for item in materials}
+    for mesh in mesh_info["records"]:
+        for section in mesh["sections"]:
+            slot_id = section.get("material_slot_id")
+            section["material_resource_id"] = material_by_section.get(slot_id)
     geometry = []
     geometry_warnings = []
     for mesh in mesh_info["records"]:
@@ -694,7 +699,6 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
     warnings.extend(bone_info.get("warnings", []))
     warnings.extend(streams.get("warnings", []))
     warnings.extend(geometry_warnings)
-    material_by_section = {item["section_id"]: f"{item['material_id']:016x}" for item in materials}
     for mesh in mesh_info["records"]:
         if transform_info["count"] and mesh["transform_index"] >= transform_info["count"]:
             warnings.append(
@@ -706,8 +710,7 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
             )
         for section in mesh["sections"]:
             slot_id = section.get("material_slot_id")
-            section["material_resource_id"] = material_by_section.get(slot_id)
-            if slot_id is not None and slot_id not in material_by_section:
+            if slot_id is not None and section.get("material_resource_id") is None:
                 warnings.append(
                     f"Mesh {mesh['mesh_id']:08x} section {section['index']} material slot {slot_id} is not in the Unit material table"
                 )
