@@ -1219,6 +1219,7 @@ def resolve_unit_skinning(
                     "bone_index_sets": [],
                     "resolved_active_influence_count": 0,
                     "unresolved_active_influence_count": unresolved_section_lanes,
+                    "out_of_range_vertex_count": 0,
                 })
                 unresolved_count += unresolved_section_lanes
                 continue
