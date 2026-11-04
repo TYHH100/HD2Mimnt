@@ -238,6 +238,14 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
     misc_flag = struct.unpack_from("<I", dds_header, 136)[0]
     array_size = struct.unpack_from("<I", dds_header, 140)[0]
     misc_flags_2 = struct.unpack_from("<I", dds_header, 144)[0]
+    alpha_mode = misc_flags_2 & 0x7
+    alpha_mode_names = {
+        0: "unknown",
+        1: "straight",
+        2: "premultiplied",
+        3: "opaque",
+        4: "custom",
+    }
 
     warnings = []
     notes = []
@@ -317,6 +325,8 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
             "misc_flag": misc_flag,
             "array_size": array_size,
             "misc_flags_2": misc_flags_2,
+            "alpha_mode_bits": alpha_mode,
+            "alpha_mode_name": alpha_mode_names.get(alpha_mode, f"reserved_{alpha_mode}"),
             "raw_header_hex": dds_header.hex(),
         },
         "payloads": {
@@ -380,7 +390,7 @@ def format_hd2_texture_text(report: dict) -> str:
         f"DDS: {dds['width']}x{dds['height']} | {dds['dxgi_format_name']} "
         f"(DXGI={dds['dxgi_format']}) | Mips={dds['mip_count']} | ArraySize={dds['array_size']}",
         f"DDS header: magic={dds['magic']!r} | FourCC={dds['four_cc']!r} | "
-        f"DX10 dimension={dds['resource_dimension']}",
+        f"DX10 dimension={dds['resource_dimension']} | AlphaMode={dds['alpha_mode_name']}",
         f"Payload selected by SDK-compatible rule: {payloads['selected_source']} "
         f"({payloads['selected']['size']} bytes)",
         f"GPU SHA-256: {payloads['gpu']['sha256']}",
