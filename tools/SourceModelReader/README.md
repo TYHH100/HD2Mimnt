@@ -1,8 +1,20 @@
-# Source Model Reader (alpha 0.8.2.1)
+# Source Model Reader (alpha 0.8.3)
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
 
-## Installing the 0.8.2.1 patch over an existing 0.8.2-alpha folder
+## 0.8.3 — named HD2 skinning resolution
+
+The HD2 Unit report now resolves the skinning chain:
+
+`vertex-local bone index -> Remaps[material_index] -> RealIndices -> TransformInfo -> Bones name_hash`
+
+Each MeshInfo material section is resolved independently, using the BoneInfo record selected by the mesh LOD. Each `bone_index` component index is retained as its own set; sets are not merged. The JSON adds per-vertex active influence rows containing the source lane, local index, palette slot, TransformInfo index, resolved bone name and weight.
+
+TransformInfo hierarchy entries now include the resolved parent index/name where available. Each BoneInfo palette entry also carries the matching raw BoneInfo matrix for later bind-pose investigation. Matrix layout and inverse-bind meaning are intentionally not interpreted yet.
+
+The three supplied real-game samples were audited: no active influence lane failed the local-index -> material remap -> RealIndices -> TransformInfo chain, and every actively used TransformInfo index resolved to a Bones name. This is structural validation, not a visual skin-deformation or bind-pose validation.
+
+## Installing the 0.8.3 patch over an existing 0.8.2.x folder
 
 For a project folder that is still on 0.8.2-alpha, download these files into a **separate temporary folder**, preserving the `tests` subfolder:
 
