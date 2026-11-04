@@ -1,6 +1,43 @@
-# Source Model Reader (alpha 0.8.1)
+# Source Model Reader (alpha 0.8.2)
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
+
+## What 0.8.2 adds — HD2 Unit and GPU geometry inspection
+
+The new read-only `hd2-unit` command decodes one Unit after an archive has been identified with `hd2-catalog` and `hd2-inspect`.
+
+- Reads TransformInfo local values, raw 4x4 matrices, parent indices and name hashes.
+- Reads BoneInfo matrices, RealIndices and per-material Remap arrays without guessing their final skeleton mapping.
+- Reads StreamInfo component descriptors, vertex strides, buffer offsets/sizes and supported formats.
+- Reads MeshInfo records, LOD/transform/stream selection, material sections and index ranges.
+- Decodes direct Unit GPU buffers and CompositeUnit-backed shared geometry into a neutral JSON representation.
+- Does not write or patch game resources. Bone palette/name resolution and Source-to-HD2 retargeting are not implemented yet.
+
+Start with the FS-05 player armor archive and one Unit:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "8670598c1f4462dc" --unit "210fb2f60f8308ea" --json "fs05_unit_210fb2f60f8308ea.json"
+```
+
+Then test a Unit with five BoneInfo records:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "8670598c1f4462dc" --unit "324fb206612ce4f7" --json "fs05_unit_324fb206612ce4f7.json"
+```
+
+Finally, test the Avatar Unit whose geometry is stored in a CompositeUnit:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "18235e0c9ec0e636" --unit "4d1c334d294dfa97" --json "hd2_avatar_unit.json"
+```
+
+Run the test suite after installation:
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
+The new five parser tests are synthetic layout tests, not a substitute for the three real-package acceptance runs above.
 
 ## What 0.8.1 adds — HD2 package catalog and resource discovery
 
@@ -10,7 +47,7 @@ A dependency-free Python tool for reading a bounded subset of Source 1 model res
 - Adds bounded `SlimBundleIndex.reconstruct_range` for partial reads across DSAR bundle chunks.
 - Expands resource type names using the public SDK type-ID table, retaining unknown IDs rather than discarding them.
 - Keeps Unit header, material ID and Bones metadata inspection for individual candidate packages.
-- Does **not** modify game data, write a Patch, decode GPU vertex streams, resolve global Unit dependencies, or reconstruct meshes yet.
+- Does **not** modify game data or write a Patch. Per-Unit geometry decoding is provided by the 0.8.2 `hd2-unit` command; global dependency resolution and palette/name resolution remain future work.
 
 First, scan the installed game's complete SLIM package catalog. This is the recommended starting point; the base archive alone is not a representative armor sample:
 
@@ -268,7 +305,7 @@ See [`GLB_TEST_REPORT.md`](GLB_TEST_REPORT.md), [`DIAGNOSTICS_TEST_REPORT.md`](D
 - Source animation sequence/controller semantics, flexes, jiggle-bone simulation, hitboxes, physics, attachments, and procedural bones are not reconstructed. The separate SMD animation exporter supports ordinary multi-frame animation SMDs only.
 - VMT/VTF texture decoding, shader translation, and material texture embedding are not implemented.
 - GMA v1-v3 uncompressed GMAD archives are supported. Compressed Workshop `.bin` wrappers are not supported; unpack those with GMAD/7-Zip first.
-- The HD2 inspector is read-only and currently inventories archive resources, Unit headers and Bones metadata. GPU vertex decoding, BoneInfo remaps, target skeleton adaptation, material conversion, Unit writing and Patch packaging remain future work.
+- The HD2 tools are read-only. `hd2-unit` decodes supported vertex/index layouts and preserves BoneInfo remaps, but does not resolve palettes to TransformInfo names, adapt the target skeleton, convert materials, write Units or package Patches.
 
 ## Safety / file handling
 
