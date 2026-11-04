@@ -324,13 +324,13 @@ class TextureParserTests(unittest.TestCase):
 
         script = Path(__file__).resolve().parents[1] / "source_model_reader.py"
         result = subprocess.run(
-            [sys.executable, str(script), "--help"],
+            [sys.executable, str(script), "hd2-texture", "--help"],
             capture_output=True, text=True, check=False,
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("hd2-texture", result.stdout)
         self.assertIn("--preview-png", result.stdout)
+        self.assertIn("--output", result.stdout)
 
     def test_range_loader_rejects_wrong_stored_entry_index(self):
         texture_id = 0x123456789ABCDEF0
