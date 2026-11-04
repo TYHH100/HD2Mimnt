@@ -498,6 +498,20 @@ class MatrixValidationTests(unittest.TestCase):
         self.assertEqual(result["unreferenced_palette_slot_count"], 1)
         self.assertLess(result["max_abs_error"], 1.0e-9)
 
+        bad_record = {
+            "real_indices": [1, 0],
+            "matrices": [[99.0] * 16, [88.0] * 16],
+        }
+        mismatch = _validate_mesh_bone_info_matrices(
+            {"transform_index": 0},
+            bad_record,
+            {0: 1},
+            world,
+        )
+        self.assertEqual(mismatch["status"], "mismatch")
+        self.assertEqual(mismatch["mismatched_active_palette_slot_count"], 1)
+        self.assertEqual(mismatch["unreferenced_palette_slot_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
