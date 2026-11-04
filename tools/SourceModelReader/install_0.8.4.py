@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-SUPPORTED_OLD_VERSIONS = {"0.8.3-alpha"}
+SUPPORTED_OLD_VERSIONS = {"0.8.2-alpha", "0.8.2.1-alpha", "0.8.3-alpha"}
 NEW_VERSION = "0.8.4-alpha"
 
 
@@ -62,7 +62,7 @@ def main() -> int:
         "--root",
         type=Path,
         required=True,
-        help="Existing SourceModelReader 0.8.3 project folder",
+        help="Existing SourceModelReader 0.8.2.x or 0.8.3 project folder",
     )
     args = parser.parse_args()
     try:
