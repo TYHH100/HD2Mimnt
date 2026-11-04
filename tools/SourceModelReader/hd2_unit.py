@@ -1190,11 +1190,22 @@ def resolve_unit_skinning(
         resolved_count = 0
         unresolved_count = 0
         used_palette_slots: dict[int, int] = {}
+
+        def active_weight_lanes(vertex_index: int) -> int:
+            if vertex_index < 0 or vertex_index >= len(weight_values):
+                return 0
+            return sum(1 for raw_weight in weight_values[vertex_index] if float(raw_weight) > 0.0)
+
         for section in mesh_geometry.get("sections", []):
             material_index = section["material_index"]
+            vertex_indices = sorted(set(section.get("indices", [])))
             remaps = record["remaps"]
-            remap = remaps[material_index] if material_index < len(remaps) else None
+            remap = remaps[material_index] if 0 <= material_index < len(remaps) else None
             if remap is None:
+                unresolved_section_lanes = sum(
+                    active_weight_lanes(vertex_index) * len(index_attrs)
+                    for vertex_index in vertex_indices
+                )
                 warnings.append(
                     f"Mesh {mesh_geometry['mesh_id']:08x} section {section['index']} material index "
                     f"{material_index} has no BoneInfo[{bone_info_index}] remap"
@@ -1204,28 +1215,35 @@ def resolve_unit_skinning(
                     "material_index": material_index,
                     "material_slot_id": section.get("material_slot_id"),
                     "status": "missing_material_remap",
-                    "vertex_indices": [],
+                    "vertex_indices": vertex_indices,
                     "bone_index_sets": [],
+                    "resolved_active_influence_count": 0,
+                    "unresolved_active_influence_count": unresolved_section_lanes,
                 })
-                unresolved_count += 1
+                unresolved_count += unresolved_section_lanes
                 continue
 
-            vertex_indices = sorted(set(section.get("indices", [])))
             mapped_sets = []
             for index_attr in index_attrs:
                 mapped_rows = []
                 influence_rows = []
                 set_unresolved = 0
                 set_resolved = 0
+                out_of_range_vertex_count = 0
                 for vertex_index in vertex_indices:
-                    if vertex_index >= len(index_attr["values"]) or vertex_index >= len(weight_values):
+                    if (
+                        vertex_index < 0
+                        or vertex_index >= len(index_attr["values"])
+                        or vertex_index >= len(weight_values)
+                    ):
                         mapped_rows.append([])
                         influence_rows.append({
                             "vertex_index": vertex_index,
                             "influences": [],
                             "status": "vertex_out_of_range",
                         })
-                        set_unresolved += 1
+                        set_unresolved += active_weight_lanes(vertex_index)
+                        out_of_range_vertex_count += 1
                         continue
                     local_values = index_attr["values"][vertex_index]
                     if not isinstance(local_values, list):
@@ -1286,6 +1304,7 @@ def resolve_unit_skinning(
                     "vertex_influences": influence_rows,
                     "resolved_active_influence_count": set_resolved,
                     "unresolved_active_influence_count": set_unresolved,
+                    "out_of_range_vertex_count": out_of_range_vertex_count,
                 })
             section_results.append({
                 "section_index": section["index"],
@@ -1294,6 +1313,12 @@ def resolve_unit_skinning(
                 "status": "ok" if all(x["unresolved_active_influence_count"] == 0 for x in mapped_sets) else "partial",
                 "vertex_indices": vertex_indices,
                 "bone_index_sets": mapped_sets,
+                "resolved_active_influence_count": sum(
+                    item["resolved_active_influence_count"] for item in mapped_sets
+                ),
+                "unresolved_active_influence_count": sum(
+                    item["unresolved_active_influence_count"] for item in mapped_sets
+                ),
             })
 
         matrix_validation = _validate_mesh_bone_info_matrices(
