@@ -726,6 +726,30 @@ def _matrix4_inverse(values: list[float]) -> Optional[list[float]]:
     return inverse if all(math.isfinite(value) for value in inverse) else None
 
 
+def _has_unverified_nonuniform_scale_rotation(transform: dict) -> bool:
+    """True when nonuniform scale and rotation make multiplication order observable."""
+    rotation = transform.get("rotation_3x3")
+    scale = transform.get("scale")
+    if not isinstance(rotation, list) or len(rotation) != 9:
+        return False
+    if not isinstance(scale, list) or len(scale) != 3:
+        return False
+    try:
+        rotation_values = [float(value) for value in rotation]
+        scale_values = [float(value) for value in scale]
+    except (TypeError, ValueError):
+        return False
+    if not all(math.isfinite(value) for value in rotation_values + scale_values):
+        return False
+    nonuniform_scale = max(scale_values) - min(scale_values) > 1.0e-6
+    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    nonidentity_rotation = any(
+        abs(value - expected) > 1.0e-6
+        for value, expected in zip(rotation_values, identity)
+    )
+    return nonuniform_scale and nonidentity_rotation
+
+
 def _local_transform_matrix(transform: dict) -> Optional[list[float]]:
     """Build the observed row-vector local matrix from Unit local fields."""
     rotation = transform.get("rotation_3x3")
@@ -803,6 +827,11 @@ def _build_transform_world_matrices(
             continue
 
         for index in reversed(path):
+            if _has_unverified_nonuniform_scale_rotation(transforms[index]):
+                hierarchy_status[index] = "nonuniform_scale_rotation_order_unverified"
+                world_matrices[index] = None
+                states[index] = 2
+                continue
             local = _local_transform_matrix(transforms[index])
             if local is None:
                 hierarchy_status[index] = "invalid_local_transform"
@@ -876,7 +905,7 @@ def _build_transform_world_matrices(
         "matrix_layout_candidate": "row_major_4x4_row_vector",
         "hierarchy_composition_candidate": "local_times_parent_world",
         "local_linear_composition_candidate": "rotation_3x3_times_diagonal_scale",
-        "scale_rotation_order_disambiguated_by_samples": False,
+        "scale_rotation_order_validation": "not_independently_validated",
         "tolerance": tolerance,
         "transform_count": count,
         "matched_transform_count": matched,
