@@ -2,6 +2,8 @@
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
 
+Material research notes: [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md). These document the observed Material/Texture resource layout and transparency distinctions; no automatic material conversion is implemented yet.
+
 ## 0.8.4 — Transform hierarchy and mesh-space matrix diagnostics
 
 The HD2 Unit report now reconstructs the TransformInfo hierarchy from each transform's local rotation, position, scale and parent index. The candidate row-vector composition is:
