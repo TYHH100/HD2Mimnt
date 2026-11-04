@@ -4,6 +4,8 @@ import unittest
 from hd2_unit import (
     HD2ResourceError,
     _decode_mesh_geometry,
+    decode_octahedral_normal,
+    decode_packed_weights_1010102,
     parse_bone_info,
     parse_composite_unit,
     parse_mesh_info,
@@ -127,6 +129,122 @@ class HD2UnitTableTests(unittest.TestCase):
     def test_rejects_out_of_range_transform_info(self):
         with self.assertRaises(HD2ResourceError):
             parse_transform_info(b"\0" * 24, 16)
+
+
+class PackedVertexFormatTests(unittest.TestCase):
+    @staticmethod
+    def pack_xy10(x, y, upper=0):
+        return (x & 0x3FF) | ((y & 0x3FF) << 10) | (upper << 20)
+
+    def test_format_30_decodes_octahedral_cardinal_directions(self):
+        vectors = {
+            "positive_z": decode_octahedral_normal(self.pack_xy10(512, 512)),
+            "positive_x": decode_octahedral_normal(self.pack_xy10(1023, 512)),
+            "positive_y": decode_octahedral_normal(self.pack_xy10(512, 1023)),
+            "negative_z": decode_octahedral_normal(self.pack_xy10(1023, 1023)),
+        }
+        self.assertGreater(vectors["positive_z"][2], 0.999)
+        self.assertGreater(vectors["positive_x"][0], 0.999)
+        self.assertGreater(vectors["positive_y"][1], 0.999)
+        self.assertLess(vectors["negative_z"][2], -0.999)
+        for vector in vectors.values():
+            self.assertAlmostEqual(sum(value * value for value in vector), 1.0, places=6)
+
+    def test_format_30_ignores_upper_twelve_bits_and_validates_uint32(self):
+        packed = self.pack_xy10(700, 300)
+        self.assertEqual(
+            decode_octahedral_normal(packed),
+            decode_octahedral_normal(packed | 0xFFF00000),
+        )
+        with self.assertRaises(ValueError):
+            decode_octahedral_normal(-1)
+        with self.assertRaises(ValueError):
+            decode_octahedral_normal(0x1_0000_0000)
+
+    def test_format_29_decodes_three_normalized_weights_and_zero_fourth(self):
+        packed = 1023 | (512 << 10) | (256 << 20) | (3 << 30)
+        weights = decode_packed_weights_1010102(packed)
+        self.assertEqual(weights[0], 1.0)
+        self.assertAlmostEqual(weights[1], 512 / 1023)
+        self.assertAlmostEqual(weights[2], 256 / 1023)
+        self.assertEqual(weights[3], 0.0)
+        self.assertAlmostEqual(sum(weights), 1791 / 1023)
+
+    def test_geometry_decode_preserves_raw_words_and_adds_semantic_values(self):
+        packed_normal = self.pack_xy10(512, 512, upper=0xABC)
+        packed_weights = 1023 | (512 << 10) | (256 << 20) | (3 << 30)
+        gpu = bytearray()
+        for _ in range(3):
+            gpu.extend(struct.pack("<II", packed_normal, packed_weights))
+        gpu.extend(struct.pack("<3H", 0, 1, 2))
+
+        stream = {
+            "components": [
+                {
+                    "type": 1, "type_name": "normal", "index": 0,
+                    "format": 30, "format_name": "packed_octahedral_normal",
+                    "byte_size": 4, "byte_offset": 0,
+                },
+                {
+                    "type": 7, "type_name": "bone_weight", "index": 0,
+                    "format": 29, "format_name": "packed_10_10_10_2",
+                    "byte_size": 4, "byte_offset": 4,
+                },
+            ],
+            "num_vertices": 3, "vertex_stride": 8,
+            "vertex_buffer_offset": 0, "vertex_buffer_size": 24,
+            "num_indices": 3, "index_buffer_type": 0,
+            "index_buffer_offset": 24, "index_buffer_size": 6,
+        }
+        mesh = {
+            "mesh_id": 0x12345678, "index": 0, "transform_index": 0,
+            "lod_index": 0, "stream_index": 0,
+            "sections": [{
+                "index": 0, "vertex_offset": 0, "num_vertices": 3,
+                "index_offset": 0, "num_indices": 3,
+            }],
+        }
+
+        decoded, warnings = _decode_mesh_geometry(mesh, {"records": [stream]}, bytes(gpu))
+        normal_attr, weight_attr = decoded["attributes"]
+
+        self.assertEqual(normal_attr["values"], [packed_normal] * 3)
+        self.assertEqual(normal_attr["decoded_semantics"], "octahedral_normal")
+        self.assertEqual(len(normal_attr["decoded_values"]), 3)
+        self.assertGreater(normal_attr["decoded_values"][0][2], 0.999)
+        self.assertEqual(weight_attr["values"], [packed_weights] * 3)
+        self.assertEqual(weight_attr["decoded_semantics"], "unorm10_10_10_2_bone_weights")
+        self.assertEqual(weight_attr["decoded_values"][0][3], 0.0)
+        self.assertEqual(warnings, [])
+
+    def test_format_29_is_not_assumed_to_be_weights_for_other_components(self):
+        packed = 1023 | (512 << 10) | (256 << 20) | (3 << 30)
+        gpu = struct.pack("<I3H", packed, 0, 1, 2)
+        stream = {
+            "components": [{
+                "type": 2, "type_name": "tangent", "index": 0,
+                "format": 29, "format_name": "packed_10_10_10_2",
+                "byte_size": 4, "byte_offset": 0,
+            }],
+            "num_vertices": 1, "vertex_stride": 4,
+            "vertex_buffer_offset": 0, "vertex_buffer_size": 4,
+            "num_indices": 3, "index_buffer_type": 0,
+            "index_buffer_offset": 4, "index_buffer_size": 6,
+        }
+        mesh = {
+            "mesh_id": 0x87654321, "index": 0, "transform_index": 0,
+            "lod_index": 0, "stream_index": 0,
+            "sections": [{
+                "index": 0, "vertex_offset": 0, "num_vertices": 1,
+                "index_offset": 0, "num_indices": 3,
+            }],
+        }
+        decoded, warnings = _decode_mesh_geometry(mesh, {"records": [stream]}, gpu)
+        attr = decoded["attributes"][0]
+        self.assertEqual(attr["values"], [packed])
+        self.assertNotIn("decoded_values", attr)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("only bone_weight semantics are decoded", warnings[0])
 
 
 if __name__ == "__main__":
