@@ -4,6 +4,10 @@ import unittest
 from hd2_unit import (
     HD2ResourceError,
     _decode_mesh_geometry,
+    _build_transform_world_matrices,
+    _matrix4_inverse,
+    _matrix4_multiply,
+    _validate_mesh_bone_info_matrices,
     decode_octahedral_normal,
     decode_packed_weights_1010102,
     parse_bone_info,
@@ -372,6 +376,127 @@ class UnitSkinningResolverTests(unittest.TestCase):
         self.assertEqual(geometry[0]["skinning"]["palette"][0]["transform_index"], 2)
         self.assertEqual(geometry[0]["skinning"]["palette"][0]["name"], None)
         self.assertEqual(warnings, [])
+
+
+
+class MatrixValidationTests(unittest.TestCase):
+    @staticmethod
+    def transform(rotation, position, parent, matrix):
+        return {
+            "rotation_3x3": rotation,
+            "position": position,
+            "scale": [1.0, 1.0, 1.0],
+            "parent_index_raw": parent,
+            "matrix_4x4_raw": matrix,
+        }
+
+    def test_rebuilds_row_vector_world_matrix_from_local_times_parent(self):
+        rotation_z_90 = [
+            0.0, 1.0, 0.0,
+            -1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        identity_rotation = [
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        root_world = [
+            0.0, 1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            10.0, 0.0, 0.0, 1.0,
+        ]
+        child_world = [
+            0.0, 1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            10.0, 1.0, 0.0, 1.0,
+        ]
+        transform_info = {
+            "transforms": [
+                self.transform(rotation_z_90, [10.0, 0.0, 0.0], 0xFFFF, root_world),
+                self.transform(identity_rotation, [1.0, 0.0, 0.0], 0, child_world),
+            ]
+        }
+
+        world, report = _build_transform_world_matrices(transform_info)
+
+        self.assertEqual(report["status"], "matches")
+        self.assertEqual(report["matched_transform_count"], 2)
+        self.assertEqual(report["mismatched_transform_count"], 0)
+        self.assertEqual(report["entries"][1]["status"], "matches")
+        self.assertEqual(world[1], child_world)
+
+    def test_detects_parent_cycles_without_recursing(self):
+        identity_rotation = [
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        identity = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        transform_info = {
+            "transforms": [
+                self.transform(identity_rotation, [0.0, 0.0, 0.0], 1, identity),
+                self.transform(identity_rotation, [0.0, 0.0, 0.0], 0, identity),
+            ]
+        }
+
+        world, report = _build_transform_world_matrices(transform_info)
+
+        self.assertEqual(world, [None, None])
+        self.assertEqual(report["status"], "partial")
+        self.assertEqual(report["unresolved_transform_count"], 2)
+        self.assertTrue(all(item["status"] == "parent_cycle" for item in report["entries"]))
+
+    def test_checks_only_actively_used_palette_slots_against_mesh_space_inverse(self):
+        rotation_z_90 = [
+            0.0, 1.0, 0.0,
+            -1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        identity_rotation = [
+            1.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        root = self.transform(rotation_z_90, [10.0, 0.0, 0.0], 0xFFFF, [
+            0.0, 1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            10.0, 0.0, 0.0, 1.0,
+        ])
+        child = self.transform(identity_rotation, [1.0, 0.0, 0.0], 0, [
+            0.0, 1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            10.0, 1.0, 0.0, 1.0,
+        ])
+        world, hierarchy = _build_transform_world_matrices({"transforms": [root, child]})
+        self.assertEqual(hierarchy["status"], "matches")
+
+        expected = _matrix4_multiply(world[0], _matrix4_inverse(world[1]))
+        record = {
+            "real_indices": [1, 0],
+            "matrices": [expected, [99.0] * 16],
+        }
+        result = _validate_mesh_bone_info_matrices(
+            {"transform_index": 0},
+            record,
+            {0: 1},
+            world,
+        )
+
+        self.assertEqual(result["status"], "matches")
+        self.assertEqual(result["active_palette_slot_count"], 1)
+        self.assertEqual(result["matched_active_palette_slot_count"], 1)
+        self.assertEqual(result["unreferenced_palette_slot_count"], 1)
+        self.assertLess(result["max_abs_error"], 1.0e-9)
 
 
 if __name__ == "__main__":
