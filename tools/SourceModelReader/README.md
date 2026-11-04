@@ -20,14 +20,14 @@ The diagnostic is stored in `geometry[].skinning.matrix_validation`. Unreference
 
 | Sample | TransformInfo matrices | Active BoneInfo slots |
 |---|---:|---:|
-| FS-05 lower-body Unit | 16 / 16 | 10 / 10 |
-| FS-05 torso/left-arm Unit | 38 / 38 | 96 / 96 |
-| Avatar CompositeUnit Unit | 107 / 107 | 86 / 86 (2 additional slots unreferenced) |
-| **Total** | **161 / 161** | **192 / 192** |
+| FS-05 lower-body Unit | 16 / 16 | 8 / 8 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 93 / 93 |
+| Avatar CompositeUnit Unit | 107 / 107 | 61 / 61 (27 additional slots unreferenced) |
+| **Total** | **161 / 161** | **162 / 162** |
 
 The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples is on `attach_cam_1`, whose rotation is identity, so the multiplication order for a transform combining non-uniform scale with a non-identity rotation remains unverified. When such a transform is encountered, the validator marks it unresolved instead of guessing. The diagnostic exposes this uncertainty explicitly.
 
-All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The two unreferenced Avatar slots are named `aim_weapon` and `backpack`; neither is referenced by a positive-weight vertex lane in this sample.
+All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The Avatar palette has 27 unreferenced slots. Of those, `aim_weapon` and `backpack` are the two whose raw matrices do not satisfy the comparison; neither is referenced by a positive-weight vertex lane in this sample.
 
 These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
 
