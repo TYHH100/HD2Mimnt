@@ -101,3 +101,20 @@ The 13 Alpha Clip+ variable IDs in `material_alphaclip_plus.json` also resolve a
 This is an important caution: an SDK variable dictionary is global, and a variable name does not by itself establish that the corresponding feature is active or meaningful in every material family. The Alpha Clip+ sample includes IDs whose friendly names refer to weathering, dirt and deformation. Preserve the raw values and the family/template context; do not implement a generic material serializer that assumes every known global variable is semantically active in every parent.
 
 The Alpha Clip+ sample's `OpacityThreshold` is 0.5 in the extracted preview. This is consistent with a threshold parameter name, but the actual clipping equation and texture channel still require the Alpha Clip+ template/shader contract. It is not evidence for fractional transparency.
+
+
+## 7. SDK template UI labels reveal a mapping discrepancy
+
+A further check of AQ Edition's pinned Blender add-on `__init__.py` (same commit `71b380046d33d552eef0892bd48661ff25591380`) adds an important caveat.
+
+Its `Global_Materials` table calls ParentMaterialID `84e5de1cc6b74ada` the `glass` template. Its `TextureTypeLookup["glass"]` presents a single UI slot labelled `Glass stain`. However, the actual one-node Translucent sample's raw node type ID `0xdab4d0ee` resolves through the Community/AQ texture-type hash dictionary as `NormalXyRoughnessOpacity`.
+
+These labels are not obviously equivalent. Possible explanations include a fork-specific or legacy UI slot mapping, a distinction between a generic node-type hash and the template's displayed slot label, or an outdated alias/slot table. The available evidence does not decide between them.
+
+Consequences:
+- Do not build a hardcoded mapping from ParentMaterialID directly to a universal ordered list of semantic texture slots.
+- Preserve both the raw per-node type ID and the SDK-specific UI slot label, including the SDK revision.
+- Treat `Glass stain` versus `NormalXyRoughnessOpacity` as an explicit unresolved dictionary/template discrepancy.
+- Before authoring a material converter, compare the actual sample's resource structure against the AQ add-on's import/export code and Community Edition's corresponding material handling.
+
+This discrepancy is especially important for fabric conversion: if the one texture is genuinely a packed normal/roughness/opacity input, it may be directly relevant to sheer fabric; if the AQ UI slot mapping represents a different role, we must not infer the packed-channel layout from one dictionary label alone.
