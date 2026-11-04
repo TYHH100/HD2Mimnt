@@ -691,10 +691,16 @@ def _matrix4_multiply(left: list[float], right: list[float]) -> list[float]:
 
 def _matrix4_inverse(values: list[float]) -> Optional[list[float]]:
     """Return a generic 4x4 inverse using pivoted Gauss-Jordan elimination."""
-    if len(values) != 16 or not all(math.isfinite(float(value)) for value in values):
+    if len(values) != 16:
+        return None
+    try:
+        numeric_values = [float(value) for value in values]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(value) for value in numeric_values):
         return None
     rows = [
-        [float(values[row * 4 + column]) for column in range(4)]
+        [numeric_values[row * 4 + column] for column in range(4)]
         + [1.0 if row == column else 0.0 for column in range(4)]
         for row in range(4)
     ]
@@ -856,7 +862,9 @@ def _build_transform_world_matrices(
             "max_abs_error": error,
         })
 
-    if mismatched:
+    if count == 0:
+        overall = "empty"
+    elif mismatched:
         overall = "partial" if unresolved else "mismatch"
     elif unresolved:
         overall = "partial"
