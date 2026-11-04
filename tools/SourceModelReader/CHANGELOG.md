@@ -5,6 +5,7 @@
 - Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
 - Added same-package Texture dependency lookup and the hd2-material CLI command.
 - Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
+- Added `hd2-find`, a chunked TOC-only FileID locator across SLIM archives, so out-of-package Texture references can be located without loading GPU/Stream payloads.
 - Added synthetic tests for header boundaries, texture references, known/unknown shader variable classes, value offsets and malformed sizes.
 - Bounded scalar/vector previews to the declared `VariableDataSize` region; any bytes after that region are preserved separately as unresolved trailing payload. Three FS-05 Material samples consistently contained an 8-byte trailer, with all observed variable spans inside the declared region.
 
