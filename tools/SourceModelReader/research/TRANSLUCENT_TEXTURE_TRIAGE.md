@@ -118,3 +118,26 @@ Consequences:
 - Before authoring a material converter, compare the actual sample's resource structure against the AQ add-on's import/export code and Community Edition's corresponding material handling.
 
 This discrepancy is especially important for fabric conversion: if the one texture is genuinely a packed normal/roughness/opacity input, it may be directly relevant to sheer fabric; if the AQ UI slot mapping represents a different role, we must not infer the packed-channel layout from one dictionary label alone.
+
+
+## 8. Alpha Clip texture-node IDs provide a useful control case
+
+The same pinned Community Edition texture-type dictionary resolves the Alpha Clip sample's three node IDs as follows:
+
+| Raw texture-node type ID | Dictionary label | Observed sample role |
+|---|---|---|
+| `0x1d57dcf3` | `NormalXyAoRoughMap` | Normal / AO / roughness |
+| `0xcbde381b` | `OpacityClipMap` | Alpha cutout mask |
+| `0x848ba63b` | `BaseColorMetalMap` | Base color / metallic |
+
+These align with AQ Edition's pinned `TextureTypeLookup["alphaclip"]` UI slot order: Normal/AO/Roughness, Alpha Mask, Base Color/Metallic.
+
+Alpha Clip+ resolves to:
+- `0x1d57dcf3` — `NormalXyAoRoughMap`
+- `0xca6f2cf1` — `EmissiveFStop10IntensityMap`
+- `0x848ba63b` — `BaseColorMetalMap`
+- `0xcbde381b` — `OpacityClipMap`
+
+This also matches AQ Edition's Alpha Clip+ UI slot order: Normal/AO/Roughness, Emission, Base Color/Metallic, Alpha Mask. The unresolved fourth Texture FileID in the Alpha Clip+ sample therefore belongs to the node whose type is `OpacityClipMap`, not an unknown extra channel.
+
+This is a useful positive control: the Alpha Clip family’s type-ID dictionary and UI slot order agree, while the Glass/Translucent single-node sample has the discrepancy documented in section 7. That makes the discrepancy specific and actionable rather than evidence that the entire texture-type dictionary is unreliable.
