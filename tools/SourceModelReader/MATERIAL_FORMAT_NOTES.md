@@ -45,6 +45,10 @@ The common five-uint32 shader-variable descriptor is:
 
 The public parsers label klass 0/1/2/3 as Scalar/Vector2/Vector3/Vector4 and 12 as Other. They resolve ID through a shader-variable name hash list and seek to payload_start + offset to read scalar/vector float values. However, the displayed parser loop reads only one class-sized vector; the complete meaning of elements, elementStride, VariableDataSize, alignment and overlapping/gapped offsets has not been proven for all material families. A new reader must preserve raw descriptors and raw payload spans before interpreting arrays or strides.
 
+### Real-sample VariableDataSize boundary evidence
+
+Three user-provided FS-05 Material resources were inspected: `8cd6b9c938feaf90` (6 variables), `93aa849d6d00109d` (30 variables), and `a781f50f508ed81b` (87 variables). In all three, the bytes remaining after the descriptor table were exactly 8 bytes larger than `VariableDataSize` (56/64, 232/240, and 436/444 respectively). Every recognized scalar/vector preview range ended within the declared size. The current reader therefore treats `VariableDataSize` as the declared variable-value region, limits previews to that region, and preserves any subsequent bytes as a separate unresolved trailing payload. This is an observed pattern across three samples, not proof that all Material variants use an 8-byte trailer or that its semantics are known.
+
 AQ calls the per-texture uint32 values TexUnks; Community Edition treats the same values as texture-type IDs and resolves them through hashlists/texturetypes.txt. Preserve the raw integer and optionally attach a versioned lookup name.
 
 ## 3. Parent material IDs are not globally stable names
