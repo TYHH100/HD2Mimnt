@@ -239,6 +239,10 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
 
     warnings = []
     notes = []
+    if dds_header_size != 124:
+        warnings.append(f"DDS header size is {dds_header_size}, expected 124")
+    if pixel_format_size != 32:
+        warnings.append(f"DDS pixel-format structure size is {pixel_format_size}, expected 32")
     if dds_magic != b"DDS ":
         warnings.append(f"DDS magic is {dds_magic!r}, expected b'DDS '")
     if four_cc != b"DX10":
@@ -281,6 +285,12 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
     return {
         "schema": "SourceModelReader-HD2Texture1",
         "texture_toc_size": len(toc_data),
+        "trailing_toc_size": len(toc_data) - TEXTURE_TOC_SIZE,
+        "trailing_toc_hex": toc_data[TEXTURE_TOC_SIZE:].hex(),
+        "mipmap_table_hex": toc_data[
+            TEXTURE_FIXED_FIELDS_SIZE:
+            TEXTURE_FIXED_FIELDS_SIZE + TEXTURE_MIPMAP_COUNT * TEXTURE_MIPMAP_ENTRY_SIZE
+        ].hex(),
         "header": {
             "unknown_id": unknown_id,
             "unknown_1": unknown_1,
@@ -319,8 +329,10 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
     }
 
 
-def inspect_hd2_texture(data_dir: str | Path, package_name: str, texture_id: int) -> tuple[dict, bytes]:
-    """Inspect one Texture in one SLIM package and return report plus SDK-style DDS bytes."""
+def inspect_hd2_texture(
+    data_dir: str | Path, package_name: str, texture_id: int
+) -> tuple[dict, bytes, bytes, bytes]:
+    """Inspect one Texture in one SLIM package and return report, DDS, GPU and Stream bytes."""
     resource, toc_data, gpu_data, stream_data = _read_slim_texture_payload(
         data_dir, package_name, texture_id
     )
@@ -349,7 +361,7 @@ def inspect_hd2_texture(data_dir: str | Path, package_name: str, texture_id: int
             "selected_payload_bytes": len(selected),
         },
     }
-    return report, dds_bytes
+    return report, dds_bytes, gpu_data, stream_data
 
 
 def format_hd2_texture_text(report: dict) -> str:
