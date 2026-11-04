@@ -136,7 +136,8 @@ class MaterialResourceParserTests(unittest.TestCase):
         self.assertEqual(parse_resource_id("0x10"), 16)
         self.assertEqual(parse_resource_id("ff"), 255)
         self.assertEqual(parse_resource_id("255"), 255)
-        self.assertEqual(parse_resource_id(""), 0) if False else None
+        self.assertEqual(parse_resource_id("00000000000000ff"), 255)
+        self.assertEqual(parse_resource_id("dec:255"), 255)
         with self.assertRaises(ValueError):
             parse_resource_id("")
 
