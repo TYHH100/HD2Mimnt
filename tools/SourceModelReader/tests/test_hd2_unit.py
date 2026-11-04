@@ -454,6 +454,33 @@ class MatrixValidationTests(unittest.TestCase):
         self.assertEqual(report["unresolved_transform_count"], 2)
         self.assertTrue(all(item["status"] == "parent_cycle" for item in report["entries"]))
 
+    def test_marks_nonuniform_scale_with_rotation_as_unverified(self):
+        rotation_z_90 = [
+            0.0, 1.0, 0.0,
+            -1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0,
+        ]
+        transform = self.transform(
+            rotation_z_90,
+            [0.0, 0.0, 0.0],
+            0xFFFF,
+            [
+                0.0, 1.0, 0.0, 0.0,
+                -1.0, 0.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0,
+            ],
+        )
+        transform["scale"] = [2.0, 1.0, 1.0]
+        world, report = _build_transform_world_matrices({"transforms": [transform]})
+
+        self.assertEqual(world, [None])
+        self.assertEqual(report["status"], "partial")
+        self.assertEqual(
+            report["entries"][0]["status"],
+            "nonuniform_scale_rotation_order_unverified",
+        )
+
     def test_checks_only_actively_used_palette_slots_against_mesh_space_inverse(self):
         rotation_z_90 = [
             0.0, 1.0, 0.0,
