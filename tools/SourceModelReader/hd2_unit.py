@@ -680,6 +680,311 @@ def _decode_mesh_geometry(mesh: dict, streams: dict, gpu_data: bytes) -> tuple[d
     }, warnings)
 
 
+def _matrix4_multiply(left: list[float], right: list[float]) -> list[float]:
+    """Multiply row-major 4x4 matrices for row-vector transforms."""
+    return [
+        sum(left[row * 4 + k] * right[k * 4 + column] for k in range(4))
+        for row in range(4)
+        for column in range(4)
+    ]
+
+
+def _matrix4_inverse(values: list[float]) -> Optional[list[float]]:
+    """Return a generic 4x4 inverse using pivoted Gauss-Jordan elimination."""
+    if len(values) != 16 or not all(math.isfinite(float(value)) for value in values):
+        return None
+    rows = [
+        [float(values[row * 4 + column]) for column in range(4)]
+        + [1.0 if row == column else 0.0 for column in range(4)]
+        for row in range(4)
+    ]
+    for column in range(4):
+        pivot = max(range(column, 4), key=lambda row: abs(rows[row][column]))
+        if abs(rows[pivot][column]) <= 1.0e-12:
+            return None
+        if pivot != column:
+            rows[column], rows[pivot] = rows[pivot], rows[column]
+        divisor = rows[column][column]
+        rows[column] = [value / divisor for value in rows[column]]
+        for row in range(4):
+            if row == column:
+                continue
+            factor = rows[row][column]
+            if factor:
+                rows[row] = [
+                    value - factor * pivot_value
+                    for value, pivot_value in zip(rows[row], rows[column])
+                ]
+    inverse = [rows[row][4 + column] for row in range(4) for column in range(4)]
+    return inverse if all(math.isfinite(value) for value in inverse) else None
+
+
+def _local_transform_matrix(transform: dict) -> Optional[list[float]]:
+    """Build the observed row-vector local matrix from Unit local fields."""
+    rotation = transform.get("rotation_3x3")
+    position = transform.get("position")
+    scale = transform.get("scale")
+    if not isinstance(rotation, list) or len(rotation) != 9:
+        return None
+    if not isinstance(position, list) or len(position) != 3:
+        return None
+    if not isinstance(scale, list) or len(scale) != 3:
+        return None
+    try:
+        rotation = [float(value) for value in rotation]
+        position = [float(value) for value in position]
+        scale = [float(value) for value in scale]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(value) for value in rotation + position + scale):
+        return None
+
+    matrix = [0.0] * 16
+    for row in range(3):
+        for column in range(3):
+            matrix[row * 4 + column] = rotation[row * 3 + column] * scale[column]
+    matrix[12:15] = position
+    matrix[15] = 1.0
+    return matrix
+
+
+def _build_transform_world_matrices(
+    transform_info: dict,
+    tolerance: float = 1.0e-4,
+) -> tuple[list[Optional[list[float]]], dict]:
+    """Rebuild hierarchy matrices and compare them with stored TransformInfo matrices.
+
+    The row-vector / local-times-parent-world convention is an observed
+    candidate validated against the current real-game samples, not a claim
+    that every Unit variant uses an identical convention.
+    """
+    transforms = transform_info.get("transforms", [])
+    count = len(transforms)
+    world_matrices: list[Optional[list[float]]] = [None] * count
+    states = [0] * count
+    hierarchy_status = [None] * count
+
+    for start in range(count):
+        if states[start] == 2:
+            continue
+        path = []
+        current = start
+        failure = None
+        while True:
+            if states[current] == 2:
+                break
+            if states[current] == 1:
+                failure = "parent_cycle"
+                break
+            states[current] = 1
+            path.append(current)
+            raw_parent = transforms[current].get("parent_index_raw")
+            if isinstance(raw_parent, bool) or not isinstance(raw_parent, int):
+                failure = "invalid_parent_value"
+                break
+            if raw_parent == 0xFFFF or raw_parent == current:
+                break
+            if raw_parent < 0 or raw_parent >= count:
+                failure = "parent_out_of_range"
+                break
+            current = raw_parent
+
+        if failure:
+            for index in path:
+                hierarchy_status[index] = failure
+                states[index] = 2
+            continue
+
+        for index in reversed(path):
+            local = _local_transform_matrix(transforms[index])
+            if local is None:
+                hierarchy_status[index] = "invalid_local_transform"
+                world_matrices[index] = None
+                states[index] = 2
+                continue
+            raw_parent = transforms[index]["parent_index_raw"]
+            if raw_parent == 0xFFFF or raw_parent == index:
+                world_matrices[index] = local
+                hierarchy_status[index] = "computed"
+            elif world_matrices[raw_parent] is None:
+                world_matrices[index] = None
+                hierarchy_status[index] = "parent_unresolved"
+            else:
+                world_matrices[index] = _matrix4_multiply(local, world_matrices[raw_parent])
+                hierarchy_status[index] = "computed"
+            states[index] = 2
+
+    entries = []
+    matched = 0
+    mismatched = 0
+    unresolved = 0
+    errors = []
+    for index, transform in enumerate(transforms):
+        computed = world_matrices[index]
+        if computed is None:
+            entry_status = hierarchy_status[index] or "unresolved"
+            error = None
+            unresolved += 1
+        else:
+            stored = transform.get("matrix_4x4_raw")
+            if not isinstance(stored, list) or len(stored) != 16:
+                entry_status = "missing_stored_matrix"
+                error = None
+                unresolved += 1
+            else:
+                try:
+                    stored_values = [float(value) for value in stored]
+                    if not all(math.isfinite(value) for value in stored_values):
+                        raise ValueError("non-finite matrix")
+                    error = max(abs(left - right) for left, right in zip(computed, stored_values))
+                    errors.append(error)
+                    if error <= tolerance:
+                        entry_status = "matches"
+                        matched += 1
+                    else:
+                        entry_status = "mismatch"
+                        mismatched += 1
+                except (TypeError, ValueError):
+                    entry_status = "invalid_stored_matrix"
+                    error = None
+                    unresolved += 1
+        entries.append({
+            "transform_index": index,
+            "parent_index_raw": transform.get("parent_index_raw"),
+            "hierarchy_status": hierarchy_status[index] or "computed",
+            "status": entry_status,
+            "max_abs_error": error,
+        })
+
+    if mismatched:
+        overall = "partial" if unresolved else "mismatch"
+    elif unresolved:
+        overall = "partial"
+    else:
+        overall = "matches"
+    report = {
+        "status": overall,
+        "matrix_layout_candidate": "row_major_4x4_row_vector",
+        "hierarchy_composition_candidate": "local_times_parent_world",
+        "tolerance": tolerance,
+        "transform_count": count,
+        "matched_transform_count": matched,
+        "mismatched_transform_count": mismatched,
+        "unresolved_transform_count": unresolved,
+        "max_abs_error": max(errors) if errors else None,
+        "entries": entries,
+    }
+    return world_matrices, report
+
+
+def _validate_mesh_bone_info_matrices(
+    mesh: dict,
+    record: dict,
+    used_palette_slots: dict[int, int],
+    world_matrices: list[Optional[list[float]]],
+    tolerance: float = 1.0e-4,
+) -> dict:
+    """Compare active BoneInfo slots with MeshWorld * inverse(BoneWorld)."""
+    palette_count = len(record.get("real_indices", []))
+    unreferenced_count = max(0, palette_count - len(used_palette_slots))
+    mesh_transform_index = mesh.get("transform_index")
+    if not used_palette_slots:
+        status = "no_active_palette_slots"
+        checks = []
+    elif (
+        not isinstance(mesh_transform_index, int)
+        or mesh_transform_index < 0
+        or mesh_transform_index >= len(world_matrices)
+        or world_matrices[mesh_transform_index] is None
+    ):
+        status = "unavailable"
+        checks = [{
+            "palette_slot": slot,
+            "transform_index": transform_index,
+            "status": "mesh_transform_unavailable",
+            "max_abs_error": None,
+        } for slot, transform_index in sorted(used_palette_slots.items())]
+    else:
+        mesh_world = world_matrices[mesh_transform_index]
+        matrices = record.get("matrices", [])
+        checks = []
+        for slot, transform_index in sorted(used_palette_slots.items()):
+            if (
+                slot < 0 or slot >= len(matrices)
+                or transform_index < 0 or transform_index >= len(world_matrices)
+                or world_matrices[transform_index] is None
+            ):
+                checks.append({
+                    "palette_slot": slot,
+                    "transform_index": transform_index,
+                    "status": "transform_or_palette_matrix_unavailable",
+                    "max_abs_error": None,
+                })
+                continue
+            inverse_bone_world = _matrix4_inverse(world_matrices[transform_index])
+            stored = matrices[slot]
+            if inverse_bone_world is None or not isinstance(stored, list) or len(stored) != 16:
+                checks.append({
+                    "palette_slot": slot,
+                    "transform_index": transform_index,
+                    "status": "matrix_unavailable",
+                    "max_abs_error": None,
+                })
+                continue
+            expected = _matrix4_multiply(mesh_world, inverse_bone_world)
+            try:
+                stored_values = [float(value) for value in stored]
+                if not all(math.isfinite(value) for value in stored_values):
+                    raise ValueError("non-finite matrix")
+                error = max(abs(left - right) for left, right in zip(expected, stored_values))
+            except (TypeError, ValueError):
+                checks.append({
+                    "palette_slot": slot,
+                    "transform_index": transform_index,
+                    "status": "invalid_matrix",
+                    "max_abs_error": None,
+                })
+                continue
+            checks.append({
+                "palette_slot": slot,
+                "transform_index": transform_index,
+                "status": "matches" if error <= tolerance else "mismatch",
+                "max_abs_error": error,
+            })
+
+        match_count = sum(item["status"] == "matches" for item in checks)
+        mismatch_count = sum(item["status"] == "mismatch" for item in checks)
+        unavailable_count = len(checks) - match_count - mismatch_count
+        if mismatch_count:
+            status = "partial" if unavailable_count else "mismatch"
+        elif unavailable_count:
+            status = "partial"
+        else:
+            status = "matches"
+
+    match_count = sum(item["status"] == "matches" for item in checks)
+    mismatch_count = sum(item["status"] == "mismatch" for item in checks)
+    unavailable_count = len(checks) - match_count - mismatch_count
+    errors = [
+        item["max_abs_error"] for item in checks
+        if item["max_abs_error"] is not None
+    ]
+    return {
+        "status": status,
+        "comparison_formula_candidate": "mesh_world_times_inverse_bone_world",
+        "vector_convention_candidate": "row_vector",
+        "mesh_transform_index": mesh_transform_index,
+        "tolerance": tolerance,
+        "active_palette_slot_count": len(used_palette_slots),
+        "matched_active_palette_slot_count": match_count,
+        "mismatched_active_palette_slot_count": mismatch_count,
+        "unavailable_active_palette_slot_count": unavailable_count,
+        "unreferenced_palette_slot_count": unreferenced_count,
+        "max_abs_error": max(errors) if errors else None,
+        "palette_slots": checks,
+    }
+
+
 def resolve_unit_skinning(
     transform_info: dict,
     bone_info: dict,
@@ -695,11 +1000,14 @@ def resolve_unit_skinning(
 
     Each bone_index component index is kept as an independent index set. This
     matters for legacy/grouped HD2 layouts; sets are never merged or summed.
-    BoneInfo matrices remain raw and are attached to their matching palette
-    slot without interpreting their matrix convention.
+    BoneInfo matrices remain raw. A separate diagnostic reconstructs the
+    TransformInfo hierarchy and compares actively used palette matrices with
+    the observed MeshWorld * inverse(BoneWorld) relationship.
     """
     warnings = []
     transforms = transform_info.get("transforms", [])
+    world_matrices, hierarchy_matrix_validation = _build_transform_world_matrices(transform_info)
+    transform_info["hierarchy_matrix_validation"] = hierarchy_matrix_validation
     records = bone_info.get("records", [])
     names_by_hash = {}
     if bones_resource:
@@ -840,6 +1148,7 @@ def resolve_unit_skinning(
         section_results = []
         resolved_count = 0
         unresolved_count = 0
+        used_palette_slots: dict[int, int] = {}
         for section in mesh_geometry.get("sections", []):
             material_index = section["material_index"]
             remaps = record["remaps"]
@@ -888,9 +1197,9 @@ def resolve_unit_skinning(
                         local_index = local_values[lane] if lane < len(local_values) else None
                         transform_index = None
                         palette_slot = None
-                        if local_index is not None and local_index < len(remap):
+                        if local_index is not None and 0 <= local_index < len(remap):
                             palette_slot = remap[local_index]
-                            if palette_slot < len(record["real_indices"]):
+                            if 0 <= palette_slot < len(record["real_indices"]):
                                 candidate = record["real_indices"][palette_slot]
                                 if 0 <= candidate < len(transforms):
                                     transform_index = candidate
@@ -909,6 +1218,7 @@ def resolve_unit_skinning(
                                 })
                             else:
                                 set_resolved += 1
+                                used_palette_slots[palette_slot] = transform_index
                                 influences.append({
                                     "lane": lane,
                                     "local_bone_index": local_index,
@@ -942,8 +1252,12 @@ def resolve_unit_skinning(
                 "bone_index_sets": mapped_sets,
             })
 
+        matrix_validation = _validate_mesh_bone_info_matrices(
+            mesh, record, used_palette_slots, world_matrices
+        )
         mesh_geometry["skinning"] = {
             "status": "ok" if unresolved_count == 0 else "partial",
+            "matrix_validation": matrix_validation,
             "lod_index": lod_index,
             "bone_info_index": bone_info_index,
             "weight_attribute": {
