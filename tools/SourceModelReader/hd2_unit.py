@@ -1,8 +1,9 @@
 """Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.3-alpha.
 
 The module parses Unit tables and direct or CompositeUnit GPU buffers into a
-neutral JSON-friendly representation. It deliberately preserves raw bone
-indices/remaps and does not retarget or resolve them to a target skeleton.
+neutral JSON-friendly representation. It resolves material-scoped vertex
+influences through BoneInfo palettes to named TransformInfo bones, while
+preserving raw attributes and matrix values without retargeting.
 """
 from __future__ import annotations
 
@@ -1131,7 +1132,7 @@ def format_hd2_unit_text(report: dict) -> str:
     unit = report["unit"]
     summary = report["summary"]
     lines = [
-        "Source Model Reader 0.8.2.1-alpha - HD2 Unit inspection",
+        "Source Model Reader 0.8.3-alpha - HD2 Unit inspection",
         f"Package: {report['package']['name']} | Unit: {unit['file_id']} | Container: {report['package']['container']}",
         f"Geometry source: {unit['geometry_source']} | Geometry GPU: {unit['payload_bytes']['geometry_gpu']:,} bytes",
         f"Status: {summary['status'].upper()} | Transforms: {summary['transform_count']} | BoneInfo: {summary['bone_info_count']} | Streams: {summary['stream_count']} | Meshes: {summary['mesh_count']}",
