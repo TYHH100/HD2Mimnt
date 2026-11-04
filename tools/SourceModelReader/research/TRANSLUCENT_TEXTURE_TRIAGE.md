@@ -76,3 +76,28 @@ The evidence now supports a more specific research hypothesis:
 - This does **not** yet prove that it can reproduce all desired fabric effects. The exact opacity channel, blend behavior, depth sorting, two-sided rendering, and texture authoring constraints still need verification.
 
 The practical conversion target should preserve the original source alpha information and map it only after the HD2 material's actual opacity input is established. Do not flatten partial alpha into an Alpha Clip mask as an automatic fallback.
+
+
+## 6. Alpha Clip+ variable dictionary cross-check
+
+The 13 Alpha Clip+ variable IDs in `material_alphaclip_plus.json` also resolve against the same pinned AQ shader-variable dictionary:
+
+| Variable ID | SDK label |
+|---|---|
+| `0x529a4aaf` | `OpacityThreshold` |
+| `0xa3351311` | `DirtGlobalAmount` |
+| `0x43695f7b` | `ResolutionSetting` |
+| `0x64aab07b` | `DirtAoCoverage` |
+| `0x6fd0b9e7` | `DirtGradientMin` |
+| `0x60e7d2a1` | `WeatheringVariant` |
+| `0x4a7cd0ef` | `WeatheringCoverage` |
+| `0xbd16a396` | `WeatheringDynamicTiling` |
+| `0x32c02400` | `TemporaryEmissiveRemapRange` |
+| `0xc012efe1` | `PreventTerrainDeformation` |
+| `0xa83f44cd` | `DirtDetailMasking` |
+| `0x6ddbae8f` | `DirtGradientMax` |
+| `0x9ed04da2` | `WeatheringMasking` |
+
+This is an important caution: an SDK variable dictionary is global, and a variable name does not by itself establish that the corresponding feature is active or meaningful in every material family. The Alpha Clip+ sample includes IDs whose friendly names refer to weathering, dirt and deformation. Preserve the raw values and the family/template context; do not implement a generic material serializer that assumes every known global variable is semantically active in every parent.
+
+The Alpha Clip+ sample's `OpacityThreshold` is 0.5 in the extracted preview. This is consistent with a threshold parameter name, but the actual clipping equation and texture channel still require the Alpha Clip+ template/shader contract. It is not evidence for fractional transparency.
