@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.4-alpha — Material inspection increment
+
+- Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
+- Added same-package Texture dependency lookup and the hd2-material CLI command.
+- Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
+- Added synthetic tests for header boundaries, texture references, known/unknown shader variable classes, value offsets and malformed sizes.
+
 ## Material research (parallel 0.8.x)
 
 - Added a research-only MATERIAL_FORMAT_NOTES.md documenting the common Material layout, versioned ParentMaterialID aliases, texture dependencies, DDS preservation, and Alpha Clip/Translucent/Advanced transparency distinctions.
