@@ -869,7 +869,11 @@ def find_slim_resources(
     if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value > 0xFFFFFFFFFFFFFFFF
            for value in requested):
         raise HD2ResourceError("Resource IDs must be positive unsigned 64-bit integers")
-    if resource_type is not None and resource_type not in TYPE_IDS:
+    if resource_type is None:
+        raise HD2ResourceError(
+            "A resource type filter is required to keep the global TOC scan bounded"
+        )
+    if resource_type not in TYPE_IDS:
         raise HD2ResourceError(f"Unknown resource type filter: {resource_type!r}")
     if max_packages is not None and max_packages < 1:
         raise HD2ResourceError("max_packages must be at least 1")
@@ -1000,7 +1004,7 @@ def find_slim_resources(
 def format_slim_resource_lookup_text(report: dict) -> str:
     search = report["search"]
     summary = report["summary"]
-    filter_text = search["resource_type"] or "all resource types"
+    filter_text = search["resource_type"]
     lines = [
         "Source Model Reader - HD2 global resource lookup",
         f"Container: {report['container']} | Type filter: {filter_text}",
