@@ -51,6 +51,22 @@ The AQ file's provenance explicitly says its `parent=-1` entries store model-spa
 
 These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
 
+### Read-only Material inspection (experimental)
+
+The 0.8.4 branch includes a bounded read-only Material resource parser. It extracts the 64-bit ParentMaterialID, raw texture-node type IDs, linked Texture resource IDs, shader-variable descriptor fields and the raw variable-value payload. It checks whether each referenced Texture resource exists in the selected package.
+
+It deliberately does not guess a material's rendering mode. ParentMaterialID aliases differ between SDK forks, and texture alpha may mean cutout, opacity, emissive mask or other shader data depending on the parent material.
+
+Example:
+
+```powershell
+py -3 .\source_model_reader.py hd2-material "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 9ba626afa44a3aa3 --material 0123456789abcdef --json "material_report.json"
+```
+
+Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected Unit or package inventory. Texture dependencies absent from the selected package are reported as not present in that package; they may reside in another archive. The JSON preserves raw variable payload bytes, with only a conservative first scalar/vector preview for known classes. Arrays, strides, parent aliases and actual alpha/blend behavior remain unresolved.
+
+See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
+
 ## Installing the 0.8.4 patch over an existing 0.8.3 folder
 
 Download the following into a separate temporary folder, preserving the `tests` subfolder:
@@ -59,8 +75,10 @@ Download the following into a separate temporary folder, preserving the `tests` 
 - `source_model_reader.py`
 - `hd2_unit.py`
 - `hd2_resources.py`
+- `hd2_material.py`
 - `VERSION`
 - `tests/test_hd2_unit.py`
+- `tests/test_hd2_material.py`
 - `tests/test_smd_animation.py`
 - `tests/test_smd_reader.py`
 
@@ -70,7 +88,7 @@ Run the installer and target the existing Source Model Reader folder:
 py -3 .\install_0.8.4.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
 ```
 
-The installer accepts `0.8.2-alpha`, `0.8.2.1-alpha` or `0.8.3-alpha`, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
+The installer accepts `0.8.2-alpha`, `0.8.2.1-alpha`, `0.8.3-alpha` or an earlier `0.8.4-alpha` patch build, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
 
 ```powershell
 Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
