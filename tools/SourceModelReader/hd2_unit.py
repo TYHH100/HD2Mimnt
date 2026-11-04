@@ -1,4 +1,4 @@
-"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.2-alpha.
+"""Experimental read-only HD2 Unit/geometry decoder for Source Model Reader 0.8.2.1-alpha.
 
 The module parses Unit tables and direct or CompositeUnit GPU buffers into a
 neutral JSON-friendly representation. It deliberately preserves raw bone
@@ -53,8 +53,8 @@ COMPONENT_FORMATS = {
     26: ("vec2_uint8", 2, "2B", 2),
     27: ("vec3_uint8", 3, "3B", 3),
     28: ("vec4_uint8", 4, "4B", 4),
-    29: ("vec4_1010102_packed", 4, "I", 1),
-    30: ("packed_normal_unresolved", 4, "I", 1),
+    29: ("packed_10_10_10_2", 4, "I", 1),
+    30: ("packed_octahedral_normal", 4, "I", 1),
     32: ("float16", 2, "e", 1),
     33: ("vec2_half", 4, "2e", 2),
     34: ("vec3_half", 6, "3e", 3),
@@ -80,6 +80,54 @@ def _u32(data: bytes, offset: int, label: str) -> int:
 def _u64(data: bytes, offset: int, label: str) -> int:
     _check_range(data, offset, 8, label)
     return struct.unpack_from("<Q", data, offset)[0]
+
+
+def decode_octahedral_normal(packed: int) -> list[float]:
+    """Decode the Unit format-30 10+10-bit octahedral normal.
+
+    The low ten bits encode X and the next ten bits encode Y. The upper
+    twelve bits are not part of this normal representation and are ignored.
+    """
+    if isinstance(packed, bool) or not isinstance(packed, int):
+        raise TypeError("Packed octahedral normal must be an integer")
+    if packed < 0 or packed > 0xFFFFFFFF:
+        raise ValueError("Packed octahedral normal must fit in uint32")
+
+    qx = packed & 0x3FF
+    qy = (packed >> 10) & 0x3FF
+    x = qx * (2.0 / 1023.0) - 1.0
+    y = qy * (2.0 / 1023.0) - 1.0
+    z = 1.0 - abs(x) - abs(y)
+
+    if z < 0.0:
+        old_x, old_y = x, y
+        x = (1.0 - abs(old_y)) * (1.0 if old_x >= 0.0 else -1.0)
+        y = (1.0 - abs(old_x)) * (1.0 if old_y >= 0.0 else -1.0)
+
+    length = math.sqrt(x * x + y * y + z * z)
+    if length <= 1.0e-20:
+        # Defensive fallback; valid quantized octahedral values should not
+        # produce a zero vector, but never emit NaN if a malformed value does.
+        return [0.0, 0.0, 1.0]
+    return [x / length, y / length, z / length]
+
+
+def decode_packed_weights_1010102(packed: int) -> list[float]:
+    """Decode Format 29 when its component semantic is bone_weight.
+
+    X/Y/Z are unsigned normalized ten-bit weights. AQ's Unit reader treats
+    the top two bits as non-weight metadata and exposes the fourth influence
+    as zero; callers retain the original packed uint32 separately.
+    """
+    if isinstance(packed, bool) or not isinstance(packed, int):
+        raise TypeError("Packed 10:10:10:2 value must be an integer")
+    if packed < 0 or packed > 0xFFFFFFFF:
+        raise ValueError("Packed 10:10:10:2 value must fit in uint32")
+
+    x = packed & 0x3FF
+    y = (packed >> 10) & 0x3FF
+    z = (packed >> 20) & 0x3FF
+    return [x / 1023.0, y / 1023.0, z / 1023.0, 0.0]
 
 
 def _positive_next(offset: int, candidates: list[int], total: int) -> int:
@@ -558,18 +606,33 @@ def _decode_mesh_geometry(mesh: dict, streams: dict, gpu_data: bytes) -> tuple[d
         for vertex_index in range(vertex_count):
             pos = vertex_base + vertex_index * stream["vertex_stride"] + component["byte_offset"]
             values.append(_decode_component_value(gpu_data, pos, fmt))
-        attributes.append({
+        attribute = {
             "component_type": component["type"],
             "component_name": component["type_name"],
             "component_index": component["index"],
             "format": fmt,
             "format_name": component["format_name"],
+            # Keep exact storage values in the existing field for compatibility.
+            # Semantic interpretations are additive and never replace raw words.
             "values": values,
-        })
-        if fmt == 30:
-            warnings.append(f"Mesh {mesh['mesh_id']:08x} packed normal format 30 is preserved as uint32; vector decode is not implemented")
-        if fmt == 29:
-            warnings.append(f"Mesh {mesh['mesh_id']:08x} packed 10-10-10-2 format 29 is preserved as uint32")
+        }
+        if fmt == 30 and component["type"] == 1:
+            attribute["decoded_semantics"] = "octahedral_normal"
+            attribute["decoded_values"] = [decode_octahedral_normal(value) for value in values]
+        elif fmt == 29 and component["type"] == 7:
+            attribute["decoded_semantics"] = "unorm10_10_10_2_bone_weights"
+            attribute["decoded_values"] = [decode_packed_weights_1010102(value) for value in values]
+        elif fmt == 30:
+            warnings.append(
+                f"Mesh {mesh['mesh_id']:08x} format 30 is used by component type "
+                f"{component['type_name']}; retained as raw uint32 because only normal semantics are decoded"
+            )
+        elif fmt == 29:
+            warnings.append(
+                f"Mesh {mesh['mesh_id']:08x} format 29 is used by component type "
+                f"{component['type_name']}; retained as raw uint32 because only bone_weight semantics are decoded"
+            )
+        attributes.append(attribute)
     index_type = stream["index_buffer_type"]
     if index_type == 0:
         index_fmt, index_size = "H", 2
@@ -769,8 +832,8 @@ def inspect_hd2_unit(input_path: str | Path, package_name: Optional[str], unit_i
         "geometry": geometry,
         "warnings": warnings,
         "limitations": [
-            "BoneInfo RealIndices and per-material Remaps are preserved but not resolved to TransformInfo names; that mapping is the 0.8.3 milestone.",
-            "Packed normal format 30 is preserved as uint32 and is not converted to a normal vector.",
+            "BoneInfo RealIndices and per-material Remaps are preserved but not yet resolved into per-vertex TransformInfo bone names; that mapping is the 0.8.3 milestone.",
+            "Format 29 is decoded as three normalized bone weights only when the component type is bone_weight; other Format 29 semantics remain raw.",
             "Transform matrices are emitted as raw stored floats; matrix convention and bind-pose semantics are not changed or inferred.",
         ],
     }
@@ -780,7 +843,7 @@ def format_hd2_unit_text(report: dict) -> str:
     unit = report["unit"]
     summary = report["summary"]
     lines = [
-        "Source Model Reader 0.8.2-alpha - HD2 Unit inspection",
+        "Source Model Reader 0.8.2.1-alpha - HD2 Unit inspection",
         f"Package: {report['package']['name']} | Unit: {unit['file_id']} | Container: {report['package']['container']}",
         f"Geometry source: {unit['geometry_source']} | Geometry GPU: {unit['payload_bytes']['geometry_gpu']:,} bytes",
         f"Status: {summary['status'].upper()} | Transforms: {summary['transform_count']} | BoneInfo: {summary['bone_info_count']} | Streams: {summary['stream_count']} | Meshes: {summary['mesh_count']}",
