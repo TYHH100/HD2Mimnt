@@ -117,6 +117,16 @@ The diagnostics are emitted at:
 
 The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples belongs to `attach_cam_1`, whose rotation matrix is identity. Therefore, the samples do not discriminate the multiplication order for a transform that combines non-uniform scale with non-identity rotation; the report explicitly flags this as unverified. If a future Unit contains that combination, the validator leaves the affected transform unresolved rather than selecting an unverified order.
 
+### Vertex-weighted transform classification
+
+The resolver now annotates every `resolved_skeleton[]` entry with:
+- `has_active_vertex_influence`: whether at least one positive-weight lane resolves to this TransformInfo index.
+- `active_vertex_influence_lane_count`: number of resolved positive-weight lane occurrences across the decoded sections and independent `bone_index` component sets.
+
+It also emits `transform_info.weight_usage_summary`, including total/named/unmatched TransformInfo counts, distinct actively weighted transform counts split by whether the name resolved, and resolved/unresolved active-lane totals. These lane totals are **not** unique vertex counts; repeated `bone_index` sets are kept separately.
+
+On the Avatar sample, 107 TransformInfo entries contain 90 named entries and 17 unnamed/hash-only entries. Its BoneInfo palette has 88 unique TransformInfo targets, but only 61 distinct named transforms are actually referenced by positive-weight lanes in this mesh; 27 palette slots are not referenced by active vertex weights. This is a mesh-specific usage classification, not a claim that all named transforms across the Unit are deformers.
+
 Maximum absolute error was approximately (2.58×10^{-7}) for the TransformInfo hierarchy comparisons and (1.74×10^{-7}) for the active BoneInfo palette comparisons. Both are below the implementation's (10^{-4}) diagnostic tolerance.
 
 The Avatar BoneInfo record contains 27 palette slots not referenced by positive-weight lanes in this mesh. Two of those unreferenced slots, `aim_weapon` and `backpack`, have stored matrices that do not satisfy the comparison; because no active vertex lane uses them, they are reported as unreferenced rather than failed active skin matrices. The extra FS-05 lower-body mesh with LOD -1 has no skin attributes and is not included in the skinned-mesh comparison.
