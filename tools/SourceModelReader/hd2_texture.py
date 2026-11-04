@@ -473,7 +473,7 @@ def parse_texture_resource(toc_data: bytes, gpu_data: bytes = b"", stream_data: 
             "records are zero/unpopulated; calculated levels are reported separately."
         )
     for payload_name, payload_layout in payload_layouts.items():
-        if payload_layout.get("layout") == "mip_tail_from_level_0":
+        if payload_layout.get("layout") == "full_mip_chain":
             notes.append(
                 f"The {payload_name.upper()} payload matches the calculated complete mip chain."
             )
