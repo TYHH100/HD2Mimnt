@@ -18,7 +18,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Optional
 
-VERSION = "0.8.1-alpha"
+VERSION = "0.8.2-alpha"
 VERTEX_SIZE = 48
 BONE_SIZE = 216
 MODEL_SIZE = 148
@@ -2522,6 +2522,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_catalog.add_argument("--json", dest="json_path",
                                help="Write the full package catalog to JSON")
 
+    p_hd2_unit = sub.add_parser(
+        "hd2-unit",
+        help="Decode one HD2 Unit's TransformInfo, BoneInfo, streams, meshes, and GPU geometry",
+    )
+    p_hd2_unit.add_argument("input", help="HD2 game data directory or package/archive file")
+    p_hd2_unit.add_argument("--package", help="Package/archive ID when input is the HD2 game data directory")
+    p_hd2_unit.add_argument("--unit", required=True, help="Unit resource FileID (hexadecimal)")
+    p_hd2_unit.add_argument("--json", dest="json_path", help="Write the complete Unit/geometry report to JSON")
+
     args = parser.parse_args(argv)
     if args.command == "hd2-catalog":
         try:
@@ -2536,6 +2545,21 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"JSON report: {out}")
             return 1 if report["summary"]["status"] == "warning" else 0
         except (HD2ResourceError, OSError, struct.error, ValueError, TypeError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-unit":
+        try:
+            from hd2_unit import HD2ResourceError, format_hd2_unit_text, inspect_hd2_unit
+
+            report = inspect_hd2_unit(args.input, args.package, args.unit)
+            print(format_hd2_unit_text(report))
+            if args.json_path:
+                out = Path(args.json_path)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"JSON report: {out}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (HD2ResourceError, OSError, struct.error, ValueError, TypeError, KeyError, OverflowError) as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 2
     if args.command == "hd2-inspect":
