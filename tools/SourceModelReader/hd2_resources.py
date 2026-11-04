@@ -4,14 +4,16 @@ This module is an independent, bounded parser for the public archive/TOC
 structures documented by the community SDKs.  It deliberately does not import
 Blender or reuse SDK implementation code.
 
-Supported in 0.8.1-alpha:
+Supported in 0.8.2-alpha:
 - Legacy 0xF0000011 packages with optional .gpu_resources/.stream sidecars.
 - DSAR chunk containers using raw LZ4 blocks.
 - SLIM/bundled package reconstruction through bundles.nxa package metadata.
 - Fast read-only catalog of every SLIM package using only TOC headers/type tables.
 - TOC inventory, Unit dependency references, material IDs and Bones summaries.
+- Per-Unit TransformInfo, BoneInfo, StreamInfo and MeshInfo decoding in hd2_unit.py.
+- Direct Unit and CompositeUnit-backed GPU vertex/index geometry inspection.
 
-It does not yet decode GPU vertex layouts or reconstruct Unit meshes.
+BoneInfo RealIndices/remaps are preserved but are not yet resolved into TransformInfo names or retargeted.
 """
 from __future__ import annotations
 
@@ -989,7 +991,7 @@ def format_report_text(report: dict) -> str:
     package = report["package"]
     summary = report["summary"]
     lines = [
-        f"Source Model Reader 0.8.1-alpha - HD2 resource inspection",
+        f"Source Model Reader 0.8.2-alpha - HD2 resource inspection",
         f"Package: {package['name']} | Container: {package['container']}",
         f"TOC: {package['toc_bytes']:,} bytes | GPU: {package['gpu_bytes']:,} bytes | Stream: {package['stream_bytes']:,} bytes",
         f"Status: {summary['status'].upper()} | Resources: {summary['resource_count']} | Types: {summary['type_count']} | Units: {summary['unit_count']} | Bones resources: {summary['bones_resource_count']}",
@@ -1025,7 +1027,7 @@ def format_report_text(report: dict) -> str:
         )
     for warning in report["warnings"]:
         lines.append(f"WARNING: {warning}")
-    lines.append("Note: GPU vertex streams and per-material BoneInfo remaps are not decoded in 0.8.1-alpha.")
+    lines.append("Note: use hd2-unit to inspect per-Unit transforms, BoneInfo, stream layouts and GPU geometry. Palette/name resolution and retargeting remain later milestones.")
     return "\n".join(lines)
 
 
