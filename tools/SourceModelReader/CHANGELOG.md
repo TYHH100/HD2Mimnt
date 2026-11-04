@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.3-alpha
+
+- Resolve TransformInfo name hashes against the Unit's Bones resource, retaining unmatched helper transforms and explicit parent indices.
+- Resolve each BoneInfo palette slot through RealIndices to TransformInfo, with the corresponding raw BoneInfo matrix kept alongside that palette slot.
+- Resolve each material section independently through its matching BoneInfo Remap table.
+- Emit per-vertex active influences with local bone index, palette slot, TransformInfo index, resolved bone name and weight.
+- Preserve each bone_index component index as a separate set; never merge legacy/grouped index sets into one influence stream.
+- Ignore zero-weight lanes when counting unresolved active influences, while retaining their raw indices and aligned transform-index placeholders.
+- Added three synthetic resolver tests for named hierarchy/palette mapping, material-specific remaps, unresolved active lanes, and LOD -1 behavior.
+- Audited the three attached real-game JSON samples: all active influences resolve through their material remaps to valid TransformInfo entries and all active influence names are present in the Bones resource. BoneInfo matrices remain uninterpreted raw 4x4 arrays.
+
 ## 0.8.2.1-alpha
 
 - Added Format 30 octahedral normal decoding for normal components.
