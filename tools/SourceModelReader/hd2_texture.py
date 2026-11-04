@@ -133,10 +133,11 @@ def _read_slim_texture_payload(
     toc_offset, stream_offset, gpu_offset = values[2], values[3], values[4]
     toc_size, stream_size, gpu_size = values[7], values[8], values[9]
     declared_entry_index = values[12]
-    if declared_entry_index != entry_index:
+    expected_entry_index = entry_index + 1
+    if declared_entry_index != expected_entry_index:
         raise HD2ResourceError(
-            f"{package_name}: Texture entry index mismatch "
-            f"(row={entry_index}, stored={declared_entry_index})"
+            f"{package_name}: Texture entry_index is not the expected 1-based TOC sequence "
+            f"(row={entry_index}, expected={expected_entry_index}, stored={declared_entry_index})"
         )
     if toc_size < TEXTURE_TOC_SIZE or toc_size > MAX_TEXTURE_TOC_BYTES:
         raise HD2ResourceError(
@@ -172,7 +173,8 @@ def _read_slim_texture_payload(
     resource = {
         "file_id": f"{file_id:016x}",
         "type_id": f"{type_id:016x}",
-        "entry_index": entry_index,
+        "entry_index": declared_entry_index,
+        "toc_row_index": entry_index,
         "toc_offset": toc_offset,
         "stream_offset": stream_offset,
         "gpu_offset": gpu_offset,
