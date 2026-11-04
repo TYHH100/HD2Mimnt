@@ -87,7 +87,7 @@ Real-sample audit: two FS-05 Units and one Avatar Unit have zero unresolved acti
 - Compare actively used BoneInfo matrices with the observed `MeshWorld × inverse(BoneWorld)` relationship. Unreferenced palette slots are excluded from active-slot validation but remain visible in the palette.
 - Add synthetic tests for matrix composition, parent-cycle handling, active palette filtering and mismatch reporting.
 
-The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in the three samples is on `attach_cam_1`, whose rotation is identity, so non-uniform scale combined with a non-identity rotation remains unverified.
+The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in the three samples is on `attach_cam_1`, whose rotation is identity, so non-uniform scale combined with a non-identity rotation remains unverified; the validator refuses to guess if that combination appears.
 
 Real-sample audit: all 161 TransformInfo matrices across two FS-05 Units and one Avatar CompositeUnit Unit matched the reconstructed hierarchy within (2.58×10^{-7}). All 192 actively used BoneInfo palette slots matched the mesh-space comparison within (1.74×10^{-7}). Two unused Avatar palette slots were excluded; this is not proof of their semantic purpose.
 
