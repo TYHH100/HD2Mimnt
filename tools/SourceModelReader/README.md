@@ -21,6 +21,7 @@ Download the following into a separate temporary folder, preserving the `tests` 
 - `install_0.8.3.py`
 - `source_model_reader.py`
 - `hd2_unit.py`
+- `hd2_resources.py`
 - `VERSION`
 - `tests/test_hd2_unit.py`
 
