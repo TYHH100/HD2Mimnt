@@ -73,17 +73,30 @@ public class ClaudeProvider : IAIProvider
             request.Headers.Add("x-api-key", _config.ApiKey);
             request.Headers.Add("anthropic-version", "2023-06-01");
 
-            var payload = new
+            var payload = new Dictionary<string, object?>
             {
-                model = _config.Model ?? "claude-3-sonnet-20240229",
-                messages = new[]
-                {
-                    new { role = "user", content = prompt }
-                },
-                max_tokens = _config.MaxTokens,
-                temperature = _config.Temperature,
-                system = "You are a helpful assistant for Helldivers 2 mod management."
+                ["model"] = _config.Model ?? "claude-3-sonnet-20240229",
+                ["messages"] = new[] { new { role = "user", content = prompt } },
+                ["max_tokens"] = _config.MaxTokens,
+                ["system"] = "You are a helpful assistant for Helldivers 2 mod management."
             };
+
+            if (_config.EnableThinking && _config.MaxTokens > 1024)
+            {
+                var requestedBudget = (_config.ThinkingEffort ?? string.Empty).Trim().ToLowerInvariant() switch
+                {
+                    "low" => 1024,
+                    "high" or "max" => 4096,
+                    _ => 2048
+                };
+                var budget = Math.Min(requestedBudget, _config.MaxTokens - 1);
+                payload["thinking"] = new { type = "enabled", budget_tokens = budget };
+            }
+            else
+            {
+                // 开启扩展思考时 Claude 要求温度为 1，直接省略以使用默认值。
+                payload["temperature"] = _config.Temperature;
+            }
 
             request.Content = new StringContent(
                 JsonSerializer.Serialize(payload),
@@ -91,7 +104,7 @@ public class ClaudeProvider : IAIProvider
                 "application/json"
             );
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -99,20 +112,53 @@ public class ClaudeProvider : IAIProvider
                 return new AIResponse
                 {
                     Success = false,
-                    Error = $"Claude API error: {response.StatusCode} - {errorContent}"
+                    Error = AIHttpError.Format("Claude", response.StatusCode, errorContent)
                 };
             }
 
             var responseJson = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-            var content = responseJson.GetProperty("content")[0].GetProperty("text").GetString() ?? string.Empty;
-            var tokensUsed = responseJson.GetProperty("usage").GetProperty("input_tokens").GetInt32() +
-                           responseJson.GetProperty("usage").GetProperty("output_tokens").GetInt32();
+            // 扩展思考会在 content 中先返回 thinking 块，只取第一个 text 块。
+            var content = string.Empty;
+            if (responseJson.TryGetProperty("content", out var contentBlocks)
+                && contentBlocks.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var block in contentBlocks.EnumerateArray())
+                {
+                    if (block.ValueKind == JsonValueKind.Object
+                        && block.TryGetProperty("type", out var blockType)
+                        && blockType.GetString() == "text"
+                        && block.TryGetProperty("text", out var text))
+                    {
+                        content = text.GetString() ?? string.Empty;
+                        break;
+                    }
+                }
+            }
+
+            var inputTotal = 0;
+            var cachedInput = 0;
+            var outputTokens = 0;
+            if (responseJson.TryGetProperty("usage", out var usage) && usage.ValueKind == JsonValueKind.Object)
+            {
+                cachedInput = ReadInt32(usage, "cache_read_input_tokens");
+                // 缓存写入与未命中输入都会计费，统一算入输入总量。
+                inputTotal = ReadInt32(usage, "input_tokens")
+                             + cachedInput
+                             + ReadInt32(usage, "cache_creation_input_tokens");
+                outputTokens = ReadInt32(usage, "output_tokens");
+            }
+
+            _logger.LogDebug(
+                "Claude token usage: input {Input}, cached {Cached}, output {Output}",
+                inputTotal, cachedInput, outputTokens);
 
             return new AIResponse
             {
                 Success = true,
                 Content = content,
-                TokensUsed = tokensUsed
+                TokensUsed = inputTotal + outputTokens,
+                InputTokens = inputTotal,
+                CachedInputTokens = cachedInput
             };
         }
         catch (OperationCanceledException)
@@ -129,6 +175,13 @@ public class ClaudeProvider : IAIProvider
             };
         }
     }
+
+    private static int ReadInt32(JsonElement element, string propertyName)
+        => element.TryGetProperty(propertyName, out var property)
+           && property.ValueKind == JsonValueKind.Number
+           && property.TryGetInt32(out var value)
+            ? value
+            : 0;
 
     private static string BuildPrompt(AIAnalysisContext context)
     {

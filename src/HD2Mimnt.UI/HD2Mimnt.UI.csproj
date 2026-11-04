@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
     <ProjectReference Include="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj" />
@@ -48,11 +49,16 @@
              Targets="Publish"
              BuildInParallel="false"
              Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Worker\;Version=$(Version)" />
+    <!-- CLI 也按框架依赖单文件发布到发布根目录，与主程序同目录，launch 才能按同目录规则找到 UI。 -->
+    <MSBuild Projects="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj"
+             Targets="Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Cli\;Version=$(Version)" />
     <ItemGroup>
       <!-- 项目引用已把子项目的 apphost/dll/deps/runtimeconfig 放进待发布项；单文件子进程只需要 exe，
            先移除这些原始项，避免旧 apphost 覆盖单文件 exe。 -->
       <_ChildHostPublishFile Include="@(ResolvedFileToPublish)"
-                             Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.PluginHost')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Worker'))" />
+                             Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.PluginHost')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Worker')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Cli'))" />
       <ResolvedFileToPublish Remove="@(_ChildHostPublishFile)" />
       <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.exe"
                              RelativePath="HD2Mimnt.PluginHost.exe"
@@ -62,6 +68,10 @@
                              RelativePath="HD2Mimnt.Worker.exe"
                              CopyToPublishDirectory="PreserveNewest"
                              ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.exe"
+                             RelativePath="HD2Mimnt.Cli.exe"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
       <!-- 符号随发布目录提供给 CI 的 symbols 包，子进程崩溃转储仍可解析。 -->
       <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.pdb"
                              RelativePath="HD2Mimnt.PluginHost.pdb"
@@ -69,6 +79,10 @@
                              ExcludeFromSingleFile="true" />
       <ResolvedFileToPublish Include="$(_ChildHostsDir)Worker\HD2Mimnt.Worker.pdb"
                              RelativePath="HD2Mimnt.Worker.pdb"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.pdb"
+                             RelativePath="HD2Mimnt.Cli.pdb"
                              CopyToPublishDirectory="PreserveNewest"
                              ExcludeFromSingleFile="true" />
     </ItemGroup>

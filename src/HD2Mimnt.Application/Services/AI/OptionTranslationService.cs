@@ -103,7 +103,7 @@ public sealed class OptionTranslationService
         var distinct = Normalize(texts);
         if (distinct.Length == 0)
             return new OptionTranslationResult(
-                new Dictionary<string, string>(StringComparer.Ordinal), 0, 0, 0);
+                new Dictionary<string, string>(StringComparer.Ordinal), 0, 0, 0, 0, 0);
 
         await _cacheGate.WaitAsync(cancellationToken);
         try
@@ -129,12 +129,14 @@ public sealed class OptionTranslationService
             }
 
             if (pending.Count == 0)
-                return new OptionTranslationResult(result, localHits, 0, 0);
+                return new OptionTranslationResult(result, localHits, 0, 0, 0, 0);
 
             var language = TargetLanguageName;
             var batches = BuildBatches(pending);
             var apiCount = 0;
             var tokensUsed = 0;
+            var inputTokens = 0;
+            var cachedInputTokens = 0;
 
             for (var offset = 0; offset < batches.Count; offset += MaxConcurrentBatches)
             {
@@ -151,6 +153,8 @@ public sealed class OptionTranslationService
                         throw new InvalidOperationException(batchResult.Error ?? "AI 翻译失败");
 
                     tokensUsed += batchResult.TokensUsed;
+                    inputTokens += batchResult.InputTokens;
+                    cachedInputTokens += batchResult.CachedInputTokens;
                     foreach (var (source, key) in wave[i])
                     {
                         if (!batchResult.Translations.TryGetValue(source, out var translation))
@@ -167,7 +171,16 @@ public sealed class OptionTranslationService
                 }
             }
 
-            return new OptionTranslationResult(result, localHits, apiCount, tokensUsed);
+            if (inputTokens > 0)
+            {
+                _logger?.LogInformation(
+                    "AI 翻译完成：本地缓存 {LocalHits} 条，API {ApiTexts} 条，输入 {InputTokens} tokens（缓存命中 {CachedTokens}，{CacheRate:P1}）",
+                    localHits, apiCount, inputTokens, cachedInputTokens,
+                    (double)cachedInputTokens / inputTokens);
+            }
+
+            return new OptionTranslationResult(
+                result, localHits, apiCount, tokensUsed, inputTokens, cachedInputTokens);
         }
         finally
         {
@@ -266,7 +279,9 @@ public sealed record OptionTranslationResult(
     IReadOnlyDictionary<string, string> Translations,
     int LocalCacheHits,
     int ApiTextCount,
-    int TokensUsed);
+    int TokensUsed,
+    int InputTokens,
+    int CachedInputTokens);
 
 public sealed record OptionTranslationProgress(
     string Source,

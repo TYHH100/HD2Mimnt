@@ -27,6 +27,9 @@ public class Mod
     public DateTime CreatedAt { get; set; }
     public long Size { get; set; }
     public string Hash { get; set; } = string.Empty;
+    /// <summary>判重指纹：排除生成身份后的作者内容指纹，导入时随 Hash 一次算出。
+    /// 空表示尚未计算（旧库条目），判重时惰性回填，避免每次导入重扫整个模组库。</summary>
+    public string ContentFingerprint { get; set; } = string.Empty;
     public string ThumbnailPath { get; set; } = string.Empty;
     public ModSource Source { get; set; }
     public ModStatus Status { get; set; }

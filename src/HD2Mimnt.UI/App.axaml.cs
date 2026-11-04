@@ -142,6 +142,9 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
+            // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
+            Program.CliPipeHost = new CliCommandPipeHost(host.Services);
+
             // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
             Program.MainWindowViewModel = mainViewModel;

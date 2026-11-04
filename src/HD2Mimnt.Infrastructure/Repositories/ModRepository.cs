@@ -188,11 +188,11 @@ public class ModRepository : IModRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags,
-                            WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ThumbnailPath, Source, Status,
+                            WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ContentFingerprint, ThumbnailPath, Source, Status,
                             ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion,
                             PlatformId, PlatformModId, PlatformVersion, LastUpdateCheck, PlatformLinkJson)
             VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags,
-                    @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ThumbnailPath, @Source, @Status,
+                    @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ContentFingerprint, @ThumbnailPath, @Source, @Status,
                     @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion,
                     @PlatformId, @PlatformModId, @PlatformVersion, @LastUpdateCheck, @PlatformLinkJson)";
 
@@ -209,7 +209,7 @@ public class ModRepository : IModRepository
             UPDATE Mods
             SET Name = @Name, Version = @Version, Author = @Author, Description = @Description,
                 Path = @Path, Category = @Category, Tags = @Tags, WorkflowType = @WorkflowType,
-                ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ThumbnailPath = @ThumbnailPath,
+                ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ContentFingerprint = @ContentFingerprint, ThumbnailPath = @ThumbnailPath,
                 Source = @Source, Status = @Status, ManifestJson = @ManifestJson,
                 ContainsScripts = @ContainsScripts, NexusModId = @NexusModId, ResourceTypeIds = @ResourceTypeIds,
                 BslRole = @BslRole, BslDetectionVersion = @BslDetectionVersion,
@@ -218,6 +218,16 @@ public class ModRepository : IModRepository
             WHERE Id = @Id";
 
         AddModParameters(command, mod);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task SetContentFingerprintAsync(Guid id, string fingerprint, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Mods SET ContentFingerprint = @ContentFingerprint WHERE Id = @Id";
+        command.Parameters.AddWithValue("@ContentFingerprint", fingerprint);
+        command.Parameters.AddWithValue("@Id", id.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -278,6 +288,7 @@ public class ModRepository : IModRepository
             ModifiedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ModifiedAt"))),
             Size = reader.GetInt64(reader.GetOrdinal("Size")),
             Hash = reader.IsDBNull(reader.GetOrdinal("Hash")) ? string.Empty : reader.GetString(reader.GetOrdinal("Hash")),
+            ContentFingerprint = ReadNullableString(reader, "ContentFingerprint") ?? string.Empty,
             ThumbnailPath = reader.IsDBNull(reader.GetOrdinal("ThumbnailPath")) ? string.Empty : reader.GetString(reader.GetOrdinal("ThumbnailPath")),
             Source = (ModSource)reader.GetInt32(reader.GetOrdinal("Source")),
             Status = (ModStatus)reader.GetInt32(reader.GetOrdinal("Status")),
@@ -322,6 +333,8 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@ModifiedAt", mod.ModifiedAt.ToString("O"));
         command.Parameters.AddWithValue("@Size", mod.Size);
         command.Parameters.AddWithValue("@Hash", mod.Hash);
+        command.Parameters.AddWithValue("@ContentFingerprint",
+            string.IsNullOrWhiteSpace(mod.ContentFingerprint) ? DBNull.Value : mod.ContentFingerprint);
         command.Parameters.AddWithValue("@ThumbnailPath", mod.ThumbnailPath);
         command.Parameters.AddWithValue("@Source", (int)mod.Source);
         command.Parameters.AddWithValue("@Status", (int)mod.Status);

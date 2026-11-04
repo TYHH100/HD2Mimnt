@@ -24,7 +24,6 @@ public class ModImportService
     private readonly ManifestParser _manifestParser = new();
     private readonly SettingsService? _settingsService;
     private readonly SemaphoreSlim _importGate = new(1, 1);
-    private readonly Dictionary<(string Path, string Hash), string> _duplicateFingerprints = new();
 
     public ModImportService(
         IModRepository modRepository,
@@ -80,7 +79,7 @@ public class ModImportService
         }
         finally
         {
-            if (entered) { _duplicateFingerprints.Clear(); _importGate.Release(); }
+            if (entered) _importGate.Release();
             if (!saved && sourceLink != null)
                 await new ModMetadataStore(_modsStoragePath, _logger).WriteAsync(mod.Id, null, CancellationToken.None);
             if (!saved && Directory.Exists(mod.Path)) Directory.Delete(mod.Path, true);
@@ -90,62 +89,82 @@ public class ModImportService
     private async Task RejectDuplicateAsync(Mod prepared, CancellationToken token,
         IProgress<ModImportProgress>? progress = null)
     {
+        // 作者元数据只依赖导入副本本身，解析一次即可。
+        var metadata = await ReadAuthorMetadataAsync(prepared.Path, token);
+        var store = new ModVersionStore(_modsStoragePath);
         foreach (var existing in await _modRepository.GetAllAsync(token))
         {
             token.ThrowIfCancellationRequested();
-            if (Directory.Exists(existing.Path) && await IsSameContentAsync(prepared, existing, token, progress))
-                throw new InvalidOperationException($"模组库中已存在相同内容：{existing.Name}。如需独立副本，请在设置中开启“允许重复导入”。");
-            foreach (var version in await new ModVersionStore(_modsStoragePath).ReadAsync(existing.Id, token))
+            var hasContent = Directory.Exists(existing.Path);
+            // 旧库条目没有持久化指纹：首次遇到时补算并落库，之后判重只比较字符串，不再重扫模组内容。
+            if (hasContent && string.IsNullOrWhiteSpace(existing.ContentFingerprint))
             {
-                if (Directory.Exists(version.Content.Path) && await IsSameContentAsync(prepared, version.Content, token, progress))
-                    throw new InvalidOperationException($"此内容已保存在 {existing.Name} 的本地版本中，请在模组详情中切换版本。");
+                existing.ContentFingerprint = await ComputeFingerprintAsync(existing.Path, token, progress);
+                await _modRepository.SetContentFingerprintAsync(existing.Id, existing.ContentFingerprint, CancellationToken.None);
+            }
+            var versions = await store.ReadAsync(existing.Id, token);
+            var versionsChanged = false;
+            foreach (var version in versions)
+            {
+                if (string.IsNullOrWhiteSpace(version.Content.ContentFingerprint) && Directory.Exists(version.Content.Path))
+                {
+                    version.Content.ContentFingerprint = await ComputeFingerprintAsync(version.Content.Path, token, progress);
+                    versionsChanged = true;
+                }
+            }
+            if (versionsChanged)
+            {
+                // 回填指纹是派生缓存：版本索引在此期间被用户改动过就放弃本次写入，下次判重再补。
+                var current = await store.ReadAsync(existing.Id, CancellationToken.None);
+                if (current.Select(v => v.Id).SequenceEqual(versions.Select(v => v.Id)))
+                    await store.WriteAsync(existing.Id, versions, CancellationToken.None);
+            }
+
+            if (hasContent && await IsSameContentAsync(prepared, metadata, existing, token))
+                throw new InvalidOperationException($"模组库中已存在相同内容：{existing.Name}。如需独立副本，请在设置中开启“允许重复导入”。");
+            foreach (var version in versions)
+            {
+                if (!Directory.Exists(version.Content.Path) || !await IsSameContentAsync(prepared, metadata, version.Content, token)) continue;
+                throw new InvalidOperationException($"此内容已保存在 {existing.Name} 的本地版本中，请在模组详情中切换版本。");
             }
         }
     }
 
-    private async Task<bool> IsSameContentAsync(Mod prepared, Mod existing, CancellationToken token,
-        IProgress<ModImportProgress>? progress = null)
+    /// <summary>补算旧库条目的判重指纹；只读一次内容。</summary>
+    private static Task<string> ComputeFingerprintAsync(string path, CancellationToken token,
+        IProgress<ModImportProgress>? progress)
+        => ModDirectoryHash.CalculateAsync(path, token, progress: progress,
+            includeFile: ModHashService.AuthorContentFilter(path), stepName: "判重比对",
+            startPercentage: 89, spanPercentage: 0);
+
+    /// <summary>作者元数据指纹：排除导入生成的档案，并剔除运行时身份（清单 GUID）。</summary>
+    private static async Task<string> ReadAuthorMetadataAsync(string root, CancellationToken token)
+    {
+        var path = Path.Combine(root, "manifest.json");
+        if (!File.Exists(path)) return "";
+        // 导入时自动生成的档案属于生成身份（名称来自来源），不参与作者元数据比较。
+        if (ManifestPackage.IsGeneratedManifest(root)) return "";
+        var manifest = await ManifestPackage.ReadAsync(path, token);
+        foreach (var key in manifest.Select(p => p.Key).Where(k => k.Equals("Guid", StringComparison.OrdinalIgnoreCase)).ToArray()) manifest.Remove(key);
+        static System.Text.Json.Nodes.JsonNode? Sort(System.Text.Json.Nodes.JsonNode? node) => node switch
+        {
+            System.Text.Json.Nodes.JsonObject obj => new System.Text.Json.Nodes.JsonObject(obj.OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p => KeyValuePair.Create(p.Key, Sort(p.Value)))),
+            System.Text.Json.Nodes.JsonArray array => new System.Text.Json.Nodes.JsonArray(array.Select(Sort).ToArray()),
+            _ => node?.DeepClone()
+        };
+        return Sort(manifest)!.ToJsonString();
+    }
+
+    private async Task<bool> IsSameContentAsync(Mod prepared, string metadata, Mod existing, CancellationToken token)
     {
         if (!string.IsNullOrWhiteSpace(existing.Hash) && existing.Hash == prepared.Hash) return true;
         // 旧包规范化会生成清单 GUID；HD2IR 映射还包含随机 ID/时间。
-        // 比较作者元数据和完整文件指纹，排除这些运行时身份，普通 Hash 保持原有语义。
-        static async Task<string> MetadataAsync(string root, CancellationToken ct)
-        {
-            var path = Path.Combine(root, "manifest.json");
-            if (!File.Exists(path)) return "";
-            // 导入时自动生成的档案属于生成身份（名称来自来源），不参与作者元数据比较。
-            if (ManifestPackage.IsGeneratedManifest(root)) return "";
-            var manifest = await ManifestPackage.ReadAsync(path, ct);
-            foreach (var key in manifest.Select(p => p.Key).Where(k => k.Equals("Guid", StringComparison.OrdinalIgnoreCase)).ToArray()) manifest.Remove(key);
-            static System.Text.Json.Nodes.JsonNode? Sort(System.Text.Json.Nodes.JsonNode? node) => node switch
-            {
-                System.Text.Json.Nodes.JsonObject obj => new System.Text.Json.Nodes.JsonObject(obj.OrderBy(p => p.Key, StringComparer.Ordinal)
-                    .Select(p => KeyValuePair.Create(p.Key, Sort(p.Value)))),
-                System.Text.Json.Nodes.JsonArray array => new System.Text.Json.Nodes.JsonArray(array.Select(Sort).ToArray()),
-                _ => node?.DeepClone()
-            };
-            return Sort(manifest)!.ToJsonString();
-        }
-        var metadata = await MetadataAsync(prepared.Path, token);
-        if (metadata != await MetadataAsync(existing.Path, token)) return false;
+        // 指纹已排除这些生成身份，持久化后判重不需要再读一遍模组内容。
+        if (string.IsNullOrWhiteSpace(existing.ContentFingerprint) || existing.ContentFingerprint != prepared.ContentFingerprint) return false;
+        if (metadata != await ReadAuthorMetadataAsync(existing.Path, token)) return false;
         if (metadata.Length == 0 && prepared.WorkflowType != Hd2IrIntegrationService.Workflow && !string.IsNullOrWhiteSpace(existing.Hash)) return false;
-        async Task<string> Fingerprint(Mod mod)
-        {
-            if (_duplicateFingerprints.TryGetValue((mod.Path, mod.Hash), out var cached)) return cached;
-            var hash = await ModDirectoryHash.CalculateAsync(mod.Path, token, progress: progress, includeFile: path =>
-            {
-                var relative = Path.GetRelativePath(mod.Path, path);
-                // 生成身份（组件映射、组件选项树、导入自动生成的档案）不参与重复判定；
-                // 作者清单的差异由上方元数据比较处理。
-                return !relative.Equals(Hd2IrIntegrationService.MetadataFile, StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals(Hd2IrIntegrationService.OptionsFile, StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals(ManifestPackage.MetadataFileName, StringComparison.OrdinalIgnoreCase);
-            }, stepName: "判重比对", startPercentage: 89, spanPercentage: 0);
-            _duplicateFingerprints[(mod.Path, mod.Hash)] = hash;
-            return hash;
-        }
-        return await Fingerprint(prepared) == await Fingerprint(existing);
+        return true;
     }
 
     /// <summary>准备独立副本，不落库；调用方取得成功结果后负责保留或清理。</summary>
@@ -323,7 +342,10 @@ public class ModImportService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             { _logger?.LogWarning(ex, "BSL 依赖识别失败: {ModPath}", mod.Path); }
-            mod.Hash = await ModHashService.CalculateAsync(targetPath, cancellationToken, progress);
+            // 目录哈希与判重指纹一次读取同时算出，判重不再单独重扫库内副本。
+            var (hash, fingerprint) = await ModHashService.CalculateWithFingerprintAsync(targetPath, cancellationToken, progress);
+            mod.Hash = hash;
+            mod.ContentFingerprint = fingerprint;
 
             // 将准备好的副本交给调用方；更新不创建临时 Mod 行。
             cancellationToken.ThrowIfCancellationRequested();

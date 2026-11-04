@@ -26,6 +26,11 @@ public enum AIProviderType
     LocalLLM = 3,
 
     /// <summary>
+    /// DeepSeek (OpenAI-compatible Chat Completions)
+    /// </summary>
+    DeepSeek = 4,
+
+    /// <summary>
     /// Custom API endpoint
     /// </summary>
     Custom = 99

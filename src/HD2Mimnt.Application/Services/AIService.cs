@@ -18,6 +18,7 @@ public class AIService : IAIService
     private readonly ILogger<OpenAIProvider> _openAILogger;
     private readonly ILogger<ClaudeProvider> _claudeLogger;
     private readonly ILogger<LocalLLMProvider> _localLLMLogger;
+    private readonly ILogger<DeepSeekProvider> _deepSeekLogger;
 
     public AIService(
         IAIProviderConfigRepository configRepository,
@@ -25,7 +26,8 @@ public class AIService : IAIService
         ILogger<AIService> logger,
         ILogger<OpenAIProvider> openAILogger,
         ILogger<ClaudeProvider> claudeLogger,
-        ILogger<LocalLLMProvider> localLLMLogger)
+        ILogger<LocalLLMProvider> localLLMLogger,
+        ILogger<DeepSeekProvider> deepSeekLogger)
     {
         _configRepository = configRepository;
         _modRepository = modRepository;
@@ -33,6 +35,7 @@ public class AIService : IAIService
         _openAILogger = openAILogger;
         _claudeLogger = claudeLogger;
         _localLLMLogger = localLLMLogger;
+        _deepSeekLogger = deepSeekLogger;
     }
 
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
@@ -56,6 +59,42 @@ public class AIService : IAIService
 
         var provider = CreateProvider(config);
         return await provider.TestConnectionAsync(cancellationToken);
+    }
+
+    public async Task<AIResponse> TestConnectionDetailedAsync(CancellationToken cancellationToken = default)
+    {
+        var config = await _configRepository.GetActiveProviderAsync(cancellationToken);
+        if (config == null)
+        {
+            return new AIResponse { Success = false, Error = "未配置 AI 服务，请先在设置中填写并保存。" };
+        }
+
+        var provider = CreateProvider(config);
+        if (provider is IAIProviderProbe probe)
+        {
+            return await probe.TestConnectionDetailedAsync(cancellationToken);
+        }
+
+        var ok = await provider.TestConnectionAsync(cancellationToken);
+        return ok
+            ? new AIResponse { Success = true, Content = "OK" }
+            : new AIResponse { Success = false, Error = "连接测试失败，请检查 API 端点、密钥和模型。" };
+    }
+
+    public Task<AIProviderModelsResult> ListModelsAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
+    {
+        var provider = CreateProvider(config);
+        return provider is IAIProviderProbe probe
+            ? probe.ListModelsAsync(cancellationToken)
+            : Task.FromResult(new AIProviderModelsResult { Success = false, Error = "当前服务不支持自动获取模型列表。" });
+    }
+
+    public Task<AIBalanceResult> GetBalanceAsync(AIProviderConfig config, CancellationToken cancellationToken = default)
+    {
+        var provider = CreateProvider(config);
+        return provider is IAIProviderBalance balance
+            ? balance.GetBalanceAsync(cancellationToken)
+            : Task.FromResult(new AIBalanceResult { Success = false, Error = "当前服务不支持查询余额。" });
     }
 
     public async Task<AIResponse> TranslateAsync(string text, string targetLanguage, CancellationToken cancellationToken = default)
@@ -129,7 +168,9 @@ public class AIService : IAIService
         {
             Success = true,
             Translations = translations,
-            TokensUsed = response.TokensUsed
+            TokensUsed = response.TokensUsed,
+            InputTokens = response.InputTokens,
+            CachedInputTokens = response.CachedInputTokens
         };
     }
 
@@ -343,6 +384,7 @@ public class AIService : IAIService
         {
             AIProviderType.OpenAI => new OpenAIProvider(config, _openAILogger),
             AIProviderType.Claude => new ClaudeProvider(config, _claudeLogger),
+            AIProviderType.DeepSeek => new DeepSeekProvider(config, _deepSeekLogger),
             AIProviderType.LocalLLM => new LocalLLMProvider(config, _localLLMLogger),
             // 自定义端点通常兼容 OpenAI Chat Completions；Ollama 专用格式只留给 LocalLLM。
             AIProviderType.Custom => new OpenAIProvider(config, _openAILogger),

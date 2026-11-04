@@ -36,13 +36,15 @@ public partial class ModService
             var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已不存在");
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
-            var hash = await Task.Run(() => ModHashService.CalculateAsync(mod.Path, cancellationToken), cancellationToken);
+            var (hash, fingerprint) = await Task.Run(
+                () => ModHashService.CalculateWithFingerprintAsync(mod.Path, cancellationToken), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // 计算期间可能更新了其它模组信息，重新读取避免旧快照覆盖变更。
             mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已不存在");
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
             mod.Hash = hash;
+            mod.ContentFingerprint = fingerprint;
             await _modRepository.UpdateAsync(mod, cancellationToken);
             // 仅回填派生缓存，未改变模组内容；调用方直接更新详情，不能触发全库重载。
             return hash;
@@ -175,6 +177,7 @@ public partial class ModService
                 original.LogicalMod = prepared.LogicalMod;
                 original.Size = prepared.Size;
                 original.Hash = prepared.Hash;
+                original.ContentFingerprint = prepared.ContentFingerprint;
                 original.Category = prepared.Category;
                 original.ResourceTypeIds = prepared.ResourceTypeIds;
                 original.ContainsScripts = prepared.ContainsScripts;

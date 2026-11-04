@@ -16,6 +16,7 @@ public partial class ModService
             var result = await mutation(mod.Path);
             if (!result.Changed) return result;
             mod.Hash = string.Empty;
+            mod.ContentFingerprint = string.Empty;
             mod.BslRole = null;
             mod.BslDetectionVersion = 0;
             mod.ResourceTypeIds = null;

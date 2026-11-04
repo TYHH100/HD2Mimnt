@@ -110,9 +110,9 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             INSERT INTO AIProviderConfigs
-            (Id, Name, Type, ApiEndpoint, ApiKey, Model, IsEnabled, MaxTokens, Temperature, CreatedAt, ModifiedAt)
+            (Id, Name, Type, ApiEndpoint, ApiKey, Model, IsEnabled, MaxTokens, Temperature, EnableThinking, ThinkingEffort, CreatedAt, ModifiedAt)
             VALUES
-            (@Id, @Name, @Type, @ApiEndpoint, @ApiKey, @Model, @IsEnabled, @MaxTokens, @Temperature, @CreatedAt, @ModifiedAt)";
+            (@Id, @Name, @Type, @ApiEndpoint, @ApiKey, @Model, @IsEnabled, @MaxTokens, @Temperature, @EnableThinking, @ThinkingEffort, @CreatedAt, @ModifiedAt)";
 
         AddParameters(command, config);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -138,6 +138,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
                 IsEnabled = @IsEnabled,
                 MaxTokens = @MaxTokens,
                 Temperature = @Temperature,
+                EnableThinking = @EnableThinking,
+                ThinkingEffort = @ThinkingEffort,
                 ModifiedAt = @ModifiedAt
             WHERE Id = @Id";
 
@@ -216,6 +218,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
             IsEnabled = reader.GetInt32(reader.GetOrdinal("IsEnabled")) == 1,
             MaxTokens = reader.GetInt32(reader.GetOrdinal("MaxTokens")),
             Temperature = reader.GetDouble(reader.GetOrdinal("Temperature")),
+            EnableThinking = reader.GetInt32(reader.GetOrdinal("EnableThinking")) == 1,
+            ThinkingEffort = reader.GetString(reader.GetOrdinal("ThinkingEffort")),
             CreatedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("CreatedAt"))),
             ModifiedAt = reader.IsDBNull(reader.GetOrdinal("ModifiedAt")) ? null : DateTime.Parse(reader.GetString(reader.GetOrdinal("ModifiedAt")))
         };
@@ -233,6 +237,8 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
         command.Parameters.AddWithValue("@IsEnabled", config.IsEnabled ? 1 : 0);
         command.Parameters.AddWithValue("@MaxTokens", config.MaxTokens);
         command.Parameters.AddWithValue("@Temperature", config.Temperature);
+        command.Parameters.AddWithValue("@EnableThinking", config.EnableThinking ? 1 : 0);
+        command.Parameters.AddWithValue("@ThinkingEffort", string.IsNullOrWhiteSpace(config.ThinkingEffort) ? "medium" : config.ThinkingEffort);
         command.Parameters.AddWithValue("@CreatedAt", config.CreatedAt.ToString("O"));
         command.Parameters.AddWithValue("@ModifiedAt", config.ModifiedAt?.ToString("O") ?? (object)DBNull.Value);
     }

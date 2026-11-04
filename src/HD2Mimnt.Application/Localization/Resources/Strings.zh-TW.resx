@@ -4370,12 +4370,12 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="UI.AiTranslationRunning" xml:space="preserve"><value>正在翻譯選項...</value></data>
   <data name="UI.AiTranslationProgress" xml:space="preserve"><value>已翻譯 {0}/{1}</value></data>
   <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>已從本機快取載入 {0} 條譯文，未呼叫 API。</value></data>
-  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>翻譯完成：本機快取 {0} 條，API {1} 條。</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>翻譯完成：本機快取 {0} 條，API {1} 條，輸入快取命中 {2}%。</value></data>
   <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>翻譯已取消。</value></data>
   <data name="UI.AiTranslationFailed" xml:space="preserve"><value>翻譯失敗：{0}</value></data>
-  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI 翻譯設定</value></data>
-  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI 翻譯</value></data>
-  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>設定相容 OpenAI Chat Completions 的介面，用於翻譯模組選項名稱與描述。譯文快取在本機，API Key 使用 Windows DPAPI 加密儲存。</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI 服務設定</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI 服務</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>設定 AI 服務（內建 OpenAI、Claude、DeepSeek、本機模型或自訂相容介面）。支援翻譯模組選項、自動取得模型清單、查詢 DeepSeek 餘額，並可開啟模型的思考模式。API Key 使用 Windows DPAPI 加密儲存。</value></data>
   <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>服務類型</value></data>
   <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API 端點</value></data>
   <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>模型</value></data>
@@ -4385,10 +4385,29 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>目標語言</value></data>
   <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>儲存並測試</value></data>
   <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>設定修改後請點擊頁面底部的「儲存」。</value></data>
-  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI 翻譯設定已儲存。</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI 服務設定已儲存。</value></data>
   <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>API 端點必須是有效的 HTTP 或 HTTPS 位址。</value></data>
   <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>請填寫模型名稱。</value></data>
   <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>該服務類型需要填寫 API Key。</value></data>
   <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>連線測試成功。</value></data>
   <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>連線測試失敗。</value></data>
+  <data name="Settings.AiTranslation.FetchModels" xml:space="preserve"><value>取得模型</value></data>
+  <data name="Settings.AiTranslation.AvailableModels" xml:space="preserve"><value>可用模型</value></data>
+  <data name="Settings.AiTranslation.ModelsFetched" xml:space="preserve"><value>已取得 {0} 個模型。</value></data>
+  <data name="Settings.AiTranslation.ModelsEmpty" xml:space="preserve"><value>服務未傳回可用模型。</value></data>
+  <data name="Settings.AiTranslation.FetchModelsFailed" xml:space="preserve"><value>取得模型失敗：{0}</value></data>
+  <data name="Settings.AiTranslation.Thinking" xml:space="preserve"><value>思考模式</value></data>
+  <data name="Settings.AiTranslation.ThinkingHelp" xml:space="preserve"><value>為支援思考或推理的模型開啟深度思考；開啟後回應較慢，部分模型會忽略溫度設定。</value></data>
+  <data name="Settings.AiTranslation.Balance" xml:space="preserve"><value>帳戶餘額</value></data>
+  <data name="Settings.AiTranslation.Refresh" xml:space="preserve"><value>重新整理</value></data>
+  <data name="Settings.AiTranslation.BalanceLine" xml:space="preserve"><value>{0} {1}（贈金：{2}，充值：{3}）</value></data>
+  <data name="Settings.AiTranslation.BalanceEmpty" xml:space="preserve"><value>未傳回餘額資訊</value></data>
+  <data name="Settings.AiTranslation.BalanceInsufficient" xml:space="preserve"><value>餘額不足</value></data>
+  <data name="Settings.AiTranslation.BalanceFailed" xml:space="preserve"><value>查詢餘額失敗：{0}</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort" xml:space="preserve"><value>思考強度</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffortHelp" xml:space="preserve"><value>控制模型推理的強度。不同服務支援的檔位不同；強度越高通常越慢、輸出 token 越多。</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Low" xml:space="preserve"><value>低</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>中</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>高</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>最高</value></data>
 </root>

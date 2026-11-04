@@ -25,7 +25,7 @@ public partial class ModService
             var previous = await store.ReadAsync(id, token);
             var selected = previous.SingleOrDefault(v => v.Id == versionId) ?? throw new KeyNotFoundException("本地版本已不存在。");
             if (!Directory.Exists(selected.Content.Path)) throw new DirectoryNotFoundException("本地版本文件已缺失。");
-            var hash = await ModHashService.CalculateAsync(selected.Content.Path, token);
+            var (hash, fingerprint) = await ModHashService.CalculateWithFingerprintAsync(selected.Content.Path, token);
             if (!string.IsNullOrWhiteSpace(selected.Content.Hash) && hash != selected.Content.Hash)
                 throw new InvalidDataException("本地版本文件已变更，无法切换。");
             var next = previous.Where(v => v.Id != versionId).Append(new LocalModVersion(Guid.NewGuid(), DateTime.UtcNow,
@@ -39,6 +39,7 @@ public partial class ModService
             mod.LogicalMod = content.LogicalMod;
             mod.WorkflowType = content.WorkflowType;
             mod.Hash = hash;
+            mod.ContentFingerprint = string.IsNullOrWhiteSpace(content.ContentFingerprint) ? fingerprint : content.ContentFingerprint;
             mod.Size = content.Size;
             mod.Category = content.Category;
             mod.ResourceTypeIds = content.ResourceTypeIds;

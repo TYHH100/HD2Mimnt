@@ -461,9 +461,22 @@ public sealed class ModImportServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportModAsync_DuplicateCheckFingerprint_ShouldReportComparisonStep()
+    public async Task ImportModAsync_ShouldPersistAuthorContentFingerprint()
     {
-        // 相同作者清单、不同内容：判重无法走哈希快路径，会对两个目录再算一轮指纹。
+        var zip = await CreateZipAsync(root => File.WriteAllText(Path.Combine(root, "body.patch"), "content"));
+        var id = await CreateService().ImportModAsync(zip);
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+
+        // 一次遍历同时得到的判重指纹必须与单独按作者内容计算的结果一致。
+        Assert.Equal(await ModDirectoryHash.CalculateAsync(mod.Path, includeFile: ModHashService.AuthorContentFilter(mod.Path)),
+            mod.ContentFingerprint);
+        Assert.Matches("^[0-9a-f]{64}$", mod.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateCheck_ShouldUsePersistedFingerprint()
+    {
+        // 相同作者清单、不同内容：判重只比较持久化指纹，不再重扫已有模组内容。
         const string manifest = """{"Name":"DupProbe","Version":"1.0"}""";
         var first = Path.Combine(_tempDirectory, "dup-first");
         Directory.CreateDirectory(first);
@@ -472,15 +485,39 @@ public sealed class ModImportServiceTests : IDisposable
         var second = Path.Combine(_tempDirectory, "dup-second");
         Directory.CreateDirectory(second);
         File.WriteAllText(Path.Combine(second, "manifest.json"), manifest);
-        File.WriteAllText(Path.Combine(second, "body.patch"), "second");
+        File.WriteAllText(Path.Combine(second, "body.patch"), "other");
 
-        await CreateService().ImportModAsync(first);
+        var firstId = await CreateService().ImportModAsync(first);
         var reports = new List<ModImportProgress>();
-        await CreateService().ImportModAsync(second, progress: new InlineProgress(reports.Add));
+        var secondId = await CreateService().ImportModAsync(second, progress: new InlineProgress(reports.Add));
 
-        Assert.Contains(reports, p => p.Step == "判重比对");
-        Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
-        Assert.Equal(2, (await _modRepository.GetAllAsync()).Count());
+        Assert.DoesNotContain(reports, p => p.Step == "判重比对");
+        Assert.NotEqual(firstId, secondId);
+        Assert.NotEqual((await _modRepository.GetByIdAsync(firstId))!.ContentFingerprint,
+            (await _modRepository.GetByIdAsync(secondId))!.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateCheck_ShouldBackfillLegacyFingerprint()
+    {
+        // 旧库条目没有持久化指纹：判重时补算并落库，重复内容仍被拒绝。
+        var folder = Path.Combine(_tempDirectory, "legacy-dup");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "body.patch"), "content");
+        var id = await CreateService().ImportModAsync(folder);
+        var legacy = (await _modRepository.GetByIdAsync(id))!;
+        legacy.ContentFingerprint = string.Empty;
+        await _modRepository.UpdateAsync(legacy);
+
+        var copy = Path.Combine(_tempDirectory, "legacy-dup-copy");
+        Directory.CreateDirectory(copy);
+        File.WriteAllText(Path.Combine(copy, "body.patch"), "content");
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().ImportModAsync(copy));
+
+        Assert.Contains("模组库中已存在相同内容", error.Message);
+        var reloaded = (await _modRepository.GetByIdAsync(id))!;
+        Assert.Equal(await ModDirectoryHash.CalculateAsync(reloaded.Path, includeFile: ModHashService.AuthorContentFilter(reloaded.Path)),
+            reloaded.ContentFingerprint);
     }
 
     [Fact]

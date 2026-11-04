@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.8.4-alpha — Material and Texture inspection increment
+
+- Added an independent bounded Texture reader for SLIM packages. It locates one resource entry and reads only that Texture's TOC/GPU/Stream ranges rather than reconstructing full sidecars.
+- Added `hd2-texture` to parse the 15 mipmap records and 148-byte DDS DX10 header, report dimensions/DXGI format/mip count/array size, hash the GPU and Stream payloads independently, and export an SDK-style DDS.
+- Preserved both GPU and Stream payloads; DDS selection follows the inspected public SDK's Stream-first rule, while `--preserve-raw` writes separate binary copies.
+- Kept alpha/transparency classification unresolved; a DXGI format or stored alpha channel is not treated as proof of a translucent/cutout/emissive material.
+- Added synthetic parser/range-loader regression tests. Real-game Texture payload decoding and visual alpha validation remain pending.
+- Corrected native SLIM Texture `entry_index` validation to match the observed zero-based TOC row values (validated against the supplied FS-05 package entries); the separate 1-based patch-file analyzer rule is not applied to this native package reader.
+- Added an independent bounded Material resource parser that preserves unknown header bytes, texture-type IDs, 64-bit texture resource IDs, raw shader-variable descriptors and the remaining variable payload.
+- Added same-package Texture dependency lookup and the hd2-material CLI command.
+- Kept ParentMaterialID aliases and render-mode classification unresolved; no assumption is made that alpha bytes mean transparency.
+- Added `hd2-find`, a chunked TOC-only FileID locator across SLIM archives, so out-of-package Texture references can be located without loading GPU/Stream payloads.
+- Added synthetic tests for header boundaries, texture references, known/unknown shader variable classes, value offsets and malformed sizes.
+- Bounded scalar/vector previews to the declared `VariableDataSize` region; any bytes after that region are preserved separately as unresolved trailing payload. Three FS-05 Material samples consistently contained an 8-byte trailer, with all observed variable spans inside the declared region.
+
+## Material research (parallel 0.8.x)
+
+- Added a research-only MATERIAL_FORMAT_NOTES.md documenting the common Material layout, versioned ParentMaterialID aliases, texture dependencies, DDS preservation, and Alpha Clip/Translucent/Advanced transparency distinctions.
+
+## 0.8.4-alpha
+
+- Rebuild TransformInfo world matrices from local rotation, position, scale and parent indices using the observed row-vector local-times-parent-world convention; compare the result with the stored 4x4 matrices.
+- Compare actively used BoneInfo palette matrices with the observed MeshWorld multiplied by inverse(BoneWorld) relationship, using positive-weight vertex lanes only.
+- Keep raw TransformInfo and BoneInfo matrices unchanged; report per-transform and per-mesh matrix diagnostics without claiming completed animation deformation or universal inverse-bind semantics.
+- Compared AQ Edition's pinned 63-entry Avatar reference against the target Unit: all 63 names exist in the Unit's named TransformInfo entries, and transposed 4×4 world Rest matrices match the reference 3×4 model-space Rest matrices (maximum component error about 1.34e-5; maximum translation error 5.40e-7). Sixty reference bones are actively weighted; three are unweighted helpers. The Unit additionally weights `sling`, which is absent from the AQ reference. This is Rest-pose evidence, not animated hierarchy validation.
+- Annotate resolved TransformInfo entries with active positive-weight vertex usage and lane counts; add `transform_info.weight_usage_summary` to separate named nodes from actual mesh deformers.
+- Refuse to compose a transform that combines non-uniform scale with non-identity rotation until their multiplication order is validated; the current real samples do not distinguish that case.
+- Added synthetic tests for row-vector hierarchy composition, parent-cycle detection, mesh-space matrix comparison, active palette filtering and mismatch reporting.
+- Corrected unresolved active-lane accounting for missing material Remaps and out-of-range vertex rows; reject negative section indices instead of interpreting them as Python reverse indices. Added regression tests for each case.
+- Audited three real-game JSON samples: all 161 TransformInfo hierarchy matrices matched; all 162 actively used BoneInfo palette slots matched within 1e-4. 32 palette slots across the three samples were unreferenced by active influences and excluded from the active-slot comparison; 27 of those were in the Avatar sample.
+
+## 0.8.3-alpha
+
+- Resolve TransformInfo name hashes against the Unit's Bones resource, retaining unmatched helper transforms and explicit parent indices.
+- Resolve each BoneInfo palette slot through RealIndices to TransformInfo, with the corresponding raw BoneInfo matrix kept alongside that palette slot.
+- Resolve each material section independently through its matching BoneInfo Remap table.
+- Emit per-vertex active influences with local bone index, palette slot, TransformInfo index, resolved bone name and weight.
+- Preserve each bone_index component index as a separate set; never merge legacy/grouped index sets into one influence stream.
+- Ignore zero-weight lanes when counting unresolved active influences, while retaining their raw indices and aligned transform-index placeholders.
+- Added three synthetic resolver tests for named hierarchy/palette mapping, material-specific remaps, unresolved active lanes, and LOD -1 behavior.
+- Audited the three attached real-game JSON samples: all active influences resolve through their material remaps to valid TransformInfo entries and all active influence names are present in the Bones resource. BoneInfo matrices remain uninterpreted raw 4x4 arrays.
+
+## 0.8.2.1-alpha
+
+- Added Format 30 octahedral normal decoding for normal components.
+- Added Format 29 three-channel UNORM bone-weight decoding when the component semantic is `bone_weight`; the top two bits remain preserved in the raw word and the fourth decoded influence is zero.
+- Kept the original packed integers in each attribute's `values` array and added `decoded_semantics` / `decoded_values` for semantic output.
+- Kept unknown uses of Format 29/30 raw and emits a warning instead of guessing their semantic meaning.
+- Added five regression tests for octahedral axes, upper-bit handling, compressed weights, raw-value preservation, and semantic gating.
+- Verified against the three user-provided real HD2 samples: FS-05 lower-body Unit, FS-05 torso/left-arm Unit, and Avatar CompositeUnit. The three samples' Format 30 normal attributes and known Format 29 bone-weight attribute decode without format warnings.
+
+## 0.8.2-alpha
+
+- Added `hd2-unit` to inspect one Unit's TransformInfo, BoneInfo, StreamInfo, MeshInfo and supported GPU geometry.
+- Added direct Unit GPU decoding and CompositeUnit-backed shared geometry/stream mapping.
+- Preserved local transforms, raw 4x4 matrices, parent indices, Transform name hashes, BoneInfo matrices, RealIndices and per-material Remap arrays in JSON.
+- Decoded supported float32, float16, uint8, uint32 and RGBA8 vertex components plus 16-bit/32-bit index buffers; packed normal/10-10-10-2 values remain raw.
+- Added bounds checks for table offsets, component strides, vertex/index buffer ranges, section ranges and palette index references.
+- Added five synthetic tests for TransformInfo, BoneInfo/remaps, StreamInfo/GPU geometry, MeshInfo and CompositeUnit mapping.
+- Synthetic parser tests: 5/5 passing. Real FS-05 and Avatar package decoding remains a local acceptance step; no original game package was decoded in the build environment.
+
 ## 0.8.1-alpha
 
 - Added `hd2-catalog` to scan the entire SLIM package index and identify archives containing Unit, Bones, CompositeUnit, Material, and Texture resources.

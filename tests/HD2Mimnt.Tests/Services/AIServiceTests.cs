@@ -17,6 +17,7 @@ public class AIServiceTests
     private readonly Mock<ILogger<OpenAIProvider>> _mockOpenAILogger;
     private readonly Mock<ILogger<ClaudeProvider>> _mockClaudeLogger;
     private readonly Mock<ILogger<LocalLLMProvider>> _mockLocalLLMLogger;
+    private readonly Mock<ILogger<DeepSeekProvider>> _mockDeepSeekLogger;
     private readonly AIService _service;
 
     public AIServiceTests()
@@ -27,6 +28,7 @@ public class AIServiceTests
         _mockOpenAILogger = new Mock<ILogger<OpenAIProvider>>();
         _mockClaudeLogger = new Mock<ILogger<ClaudeProvider>>();
         _mockLocalLLMLogger = new Mock<ILogger<LocalLLMProvider>>();
+        _mockDeepSeekLogger = new Mock<ILogger<DeepSeekProvider>>();
 
         _service = new AIService(
             _mockConfigRepository.Object,
@@ -34,7 +36,8 @@ public class AIServiceTests
             _mockLogger.Object,
             _mockOpenAILogger.Object,
             _mockClaudeLogger.Object,
-            _mockLocalLLMLogger.Object
+            _mockLocalLLMLogger.Object,
+            _mockDeepSeekLogger.Object
         );
     }
 

@@ -1,6 +1,230 @@
-# Source Model Reader (alpha 0.8.1)
+# Source Model Reader (alpha 0.8.4)
 
 A dependency-free Python tool for reading a bounded subset of Source 1 model resources, reconstructing unified skinned scenes, and independently inspecting Helldivers 2 resource packages. The HD2 path is read-only and experimental.
+
+Material research notes: [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md). These document the observed Material/Texture resource layout and transparency distinctions; no automatic material conversion is implemented yet.
+
+## 0.8.4 — Transform hierarchy and mesh-space matrix diagnostics
+
+The HD2 Unit report now reconstructs the TransformInfo hierarchy from each transform's local rotation, position, scale and parent index. The candidate row-vector composition is:
+
+`LocalTransform × ParentWorld`
+
+The rebuilt world matrices are compared against the original `matrix_4x4_raw` values. The report records the comparison convention, tolerance, per-transform result and aggregate counts under `transform_info.hierarchy_matrix_validation`.
+
+For meshes with skin attributes, the reader also compares only actively used BoneInfo palette slots (positive-weight lanes) against the observed relation:
+
+`BoneInfoMatrix[palette_slot] ≈ MeshWorld × inverse(BoneWorld)`
+
+The diagnostic is stored in `geometry[].skinning.matrix_validation`. Unreferenced palette slots are counted but not used to fail the comparison. This avoids treating unused attachment/helper slots as if they deform vertices. Raw TransformInfo and BoneInfo matrices remain unchanged.
+
+**Three real-game sample audit**
+
+| Sample | TransformInfo matrices | Active BoneInfo slots | Distinct weighted transforms |
+|---|---:|---:|
+| FS-05 lower-body Unit | 16 / 16 | 8 / 8 | 2 |
+| FS-05 torso/left-arm Unit | 38 / 38 | 93 / 93 | 23 |
+| Avatar CompositeUnit Unit | 107 / 107 | 61 / 61 (27 additional slots unreferenced) | 61 |
+| **Total** | **161 / 161** | **162 / 162** | **per-Unit counts above** |
+
+The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in these samples is on `attach_cam_1`, whose rotation is identity, so the multiplication order for a transform combining non-uniform scale with a non-identity rotation remains unverified. When such a transform is encountered, the validator marks it unresolved instead of guessing. The diagnostic exposes this uncertainty explicitly.
+
+The report also separates named transforms from actual vertex deformers. Every `resolved_skeleton[]` entry now includes `has_active_vertex_influence` and `active_vertex_influence_lane_count`; `transform_info.weight_usage_summary` aggregates named/unmatched transforms and the number of distinct transforms reached by positive-weight lanes. Lane counts are still per component set and section; they are not unique vertex counts.
+
+On the Avatar sample, 107 TransformInfo entries resolve to 90 named entries and 17 unnamed/helper entries. The palette has 88 unique TransformInfo targets, but only 61 named transforms are actually reached by positive-weight vertex lanes in this mesh; 27 palette slots are unused by those lanes. This is why the 90 Bones names must not all be treated as body deformation bones.
+
+All TransformInfo comparisons were within a maximum absolute error of (2.58×10^{-7}); all active BoneInfo palette comparisons were within (1.74×10^{-7}), against a diagnostic tolerance of (10^{-4}). The Avatar palette has 27 unreferenced slots. Of those, `aim_weapon` and `backpack` are the two whose raw matrices do not satisfy the comparison; neither is referenced by a positive-weight vertex lane in this sample.
+
+### Rest-pose cross-check against the public AQ Avatar reference
+
+AQ Edition publishes a 63-entry `hd2_system/avatar_source.json` reference skeleton and describes it as a validated Avatar source used by its runtime profiles: [pinned source file](https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/71b380046d33d552eef0892bd48661ff25591380/hd2_system/avatar_source.json).
+
+All **63/63** AQ source-bone names are present among the target Unit's 90 uniquely named TransformInfo entries. The reference file stores each bone's model-space 3×4 Rest matrix. For comparison, the target Unit's stored row-vector 4×4 world matrix was transposed into the same 3×4 layout. The full Rest matrices then matched across all 63 names:
+- Mean per-bone maximum absolute component error: approximately (8.07×10^{-7}).
+- Median per-bone maximum absolute component error: approximately (4.77×10^{-7}).
+- Maximum component error: approximately (1.34×10^{-5}), on `l_shoulder_twist`.
+- Maximum translation-component error: approximately (5.40×10^{-7}).
+
+Of those 63 reference bones, 60 are actively weighted by the inspected Avatar mesh and 3 (`support_mg`, `attach_intelpad`, `attach_samplepouch`) are named helper/attachment entries not used by this mesh's positive-weight vertex lanes. The Unit has one additional actively weighted transform, `sling`, that is not present in the 63-entry AQ reference.
+
+The AQ file's provenance explicitly says its `parent=-1` entries store model-space Rest, not Blender's authoring hierarchy. This comparison validates name correspondence and model-space Rest matrices; it does not replace the Unit's TransformInfo parent graph, establish animated behavior, or prove that `sling` should be discarded. Keep `sling` as an explicit Unit-specific weighted node. No AQ implementation code or rig data is imported by this reader.
+
+These results support the matrix layout/composition candidate for the inspected samples. They do **not** establish a universal convention for every Unit variant, prove the semantic role of every BoneInfo matrix, or replace animation/deformation validation.
+
+### Read-only Material inspection (experimental)
+
+The 0.8.4 branch includes a bounded read-only Material resource parser. It extracts the 64-bit ParentMaterialID, raw texture-node type IDs, linked Texture resource IDs, shader-variable descriptor fields and the raw variable-value payload. It checks whether each referenced Texture resource exists in the selected package.
+
+It deliberately does not guess a material's rendering mode. ParentMaterialID aliases differ between SDK forks, and texture alpha may mean cutout, opacity, emissive mask or other shader data depending on the parent material.
+
+Example:
+
+```powershell
+py -3 .\source_model_reader.py hd2-material "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 9ba626afa44a3aa3 --material 0123456789abcdef --json "material_report.json"
+```
+
+Replace the sample Material ID with a 16-digit hexadecimal ID from an inspected Unit or package inventory. Texture dependencies absent from the selected package are reported as not present in that package; they may reside in another archive. The JSON preserves raw variable payload bytes, with only a conservative first scalar/vector preview for known classes. Arrays, strides, parent aliases and actual alpha/blend behavior remain unresolved.
+
+`VariableDataSize` is treated as the declared variable-value region. Bytes following that region are preserved separately as unresolved trailing data; three inspected FS-05 Material samples each had an 8-byte trailer. This is sample evidence, not a universal format guarantee.
+
+### Locate out-of-package resource references
+
+Use `hd2-find` to locate Texture FileIDs across the full SLIM package set. It reads only package TOC entry tables in bounded chunks; it does not load Material, Texture, GPU or Stream payloads:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-find "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --type Texture --resource f8b2508e99fb9f28 --resource 0d371130ba00addb --resource 7db10f0a89343dc7 --resource cf0cc31b981786c9 --resource 51260792de823d20 --resource e21128ca48e27a13 --resource 17c4075f57e4211a --resource f37a4e756300ab32 --resource c6faeeb7ba467e0b --resource 8e346e2c8187abaf --resource bfefc8b1b381a00f --resource f001498ea40718fb --resource 4656ac419388a0d4 --resource 68acd4177fa5f4db --resource 8e42f23230ab525e --resource 7fc8b2e634181f66 --resource 82ba9a2d6997cc4b --resource bf281073a422022c --resource 9e0595f7f9d158d1 --resource 486c27ee43065178 --json "fs05_texture_locations.json"
+```
+
+A hit reports every package containing the requested FileID and its resource type/sidecar sizes. A miss means "not found in successfully scanned packages"; an incomplete scan or package error prevents a global-absence conclusion. `--max-packages` is available for partial diagnostics, but should be omitted for a full lookup.
+
+
+
+### Read-only Texture inspection and DDS export
+
+The 0.8.4 branch now includes `hd2_texture.py` and `hd2-texture`. The reader uses the global SLIM package index to locate one Texture entry inside a selected package, then reads only that resource's TOC/GPU/Stream ranges. It does not reconstruct the full `.gpu_resources` or `.stream` sidecar.
+
+The common Texture TOC layout observed in the pinned AQ and Community SDK readers is:
+
+- 12-byte fixed prefix (`UnkID`, `Unk1`, `Unk2`);
+- 15 mipmap records, each 12 bytes (`Start`, `BytesLeft`, `Height`, `Width`);
+- 148-byte DDS DX10 header.
+
+That is 340 bytes before any trailing TOC data. The parser preserves unknown trailing bytes and all 15 raw mipmap records, and reports DDS dimensions, DXGI format, mip count, resource dimension and array size. Unknown DXGI values remain numeric rather than being guessed.
+The selected Texture entry is checked against the observed SLIM TOC row convention: stored `entry_index` must equal the zero-based TOC row. The report keeps both values separately (`entry_index` and `toc_row_index`). The two tested game entries confirm this relationship (rows 3678 and 3687 store the same values). Do not generalize this result to unrelated patch-file formats without checking their own format rules.
+
+Example:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-texture "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --package 18235e0c9ec0e636 --texture 0d371130ba00addb --output "texture_0d371130ba00addb.dds" --preserve-raw --json "texture_0d371130ba00addb.json"
+```
+
+DDS payload selection follows the inspected public SDK read behavior: use Stream when its payload is non-empty, otherwise use GPU. `--preserve-raw` also writes separate `.gpu.bin` and `.stream.bin` copies when those payloads exist, so a resource with both sidecars is not reduced to one representation. The JSON report includes each payload's byte count and SHA-256 hash for package-copy comparison.
+
+A FileID can appear in multiple archives. Use the exact package IDs returned by `hd2-find` and inspect each candidate separately; differing sizes or hashes mean those package copies must remain distinct during analysis. This command does not infer that an alpha channel is transparency, cutout or emissive data. Actual alpha interpretation still requires texture decoding and Material/render-family evidence.
+
+See [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md) for the current binary layout and transparency research.
+
+## Installing or refreshing the 0.8.4 patch over an existing supported folder
+
+Download the following into a separate temporary folder, preserving the `tests` subfolder:
+
+- `install_0.8.4.py`
+- `source_model_reader.py`
+- `hd2_unit.py`
+- `hd2_resources.py`
+- `hd2_material.py`
+- `hd2_texture.py`
+- `VERSION`
+- `tests/test_hd2_unit.py`
+- `tests/test_hd2_material.py`
+- `tests/test_hd2_texture.py`
+- `tests/test_hd2_resources.py`
+- `tests/test_smd_animation.py`
+- `tests/test_smd_reader.py`
+
+Run the installer and target the existing Source Model Reader folder:
+
+```powershell
+py -3 .\install_0.8.4.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+```
+
+The installer accepts `0.8.2-alpha`, `0.8.2.1-alpha`, `0.8.3-alpha` or an earlier `0.8.4-alpha` patch build, creates `.pre-0.8.4.bak` backups only when absent, and does not modify Helldivers 2 game files. After installation, run the test suite:
+
+```powershell
+Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+py -3 -m unittest discover -s tests -v
+```
+
+## 0.8.3 — named HD2 skinning resolution
+
+The HD2 Unit report now resolves the skinning chain:
+
+`vertex-local bone index -> Remaps[material_index] -> RealIndices -> TransformInfo -> Bones name_hash`
+
+Each MeshInfo material section is resolved independently, using the BoneInfo record selected by the mesh LOD. Each `bone_index` component index is retained as its own set; sets are not merged. The JSON adds per-vertex active influence rows containing the source lane, local index, palette slot, TransformInfo index, resolved bone name and weight.
+
+TransformInfo hierarchy entries now include the resolved parent index/name where available. Each BoneInfo palette entry also carries the matching raw BoneInfo matrix for later bind-pose investigation. Matrix layout and inverse-bind meaning are intentionally not interpreted yet.
+
+The three supplied real-game samples were audited: no active influence lane failed the local-index -> material remap -> RealIndices -> TransformInfo chain, and every actively used TransformInfo index resolved to a Bones name. This is structural validation, not a visual skin-deformation or bind-pose validation.
+
+## Installing the 0.8.3 patch over an existing 0.8.2.x folder
+
+Download the following into a separate temporary folder, preserving the `tests` subfolder:
+
+- `install_0.8.3.py`
+- `source_model_reader.py`
+- `hd2_unit.py`
+- `hd2_resources.py`
+- `VERSION`
+- `tests/test_hd2_unit.py`
+
+Run the installer and explicitly target the existing project folder:
+
+```powershell
+py -3 .\install_0.8.3.py --root "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+```
+
+The installer accepts an existing `0.8.2-alpha` or `0.8.2.1-alpha` installation. It creates `.pre-0.8.3.bak` backups (only when absent), replaces the reader module, CLI entry point, resolver tests and VERSION file, and does not touch Helldivers 2 game files.
+
+Then run the tests from the target project folder:
+
+```powershell
+Set-Location "G:\Temp\Githud\HD2Mimnt\tools\SourceModelReader"
+py -3 -m unittest discover -s tests -v
+```
+
+## What 0.8.2.1 adds — packed normal and weight decoding
+
+The 0.8.2.1 patch builds on the real FS-05 and Avatar Unit inspections:
+
+- Format 30 is decoded as a 10+10-bit octahedral normal when the component type is `normal`.
+- Format 29 is decoded as three unsigned-normalized 10-bit weights when the component type is `bone_weight`. The upper two packed bits remain available in the raw value; the fourth decoded influence is zero.
+- Every attribute retains the original stored values in `values`. Packed attributes also include `decoded_semantics` and `decoded_values`; this avoids destroying source bytes or changing the meaning of the existing raw field.
+- Format 29/30 uses with a different component semantic remain raw and produce a warning rather than being guessed.
+
+Real-game acceptance samples used:
+- FS-05 lower-body Unit: `8670598c1f4462dc / 210fb2f60f8308ea`
+- FS-05 torso/left-arm Unit: `8670598c1f4462dc / 324fb206612ce4f7`
+- Avatar Unit using CompositeUnit geometry: `18235e0c9ec0e636 / 4d1c334d294dfa97`
+
+The reader remains read-only. Transform matrices are still preserved as raw values; bind-pose and matrix-convention interpretation is a separate, uncompleted validation step.
+
+## What 0.8.2 adds — HD2 Unit and GPU geometry inspection
+
+The new read-only `hd2-unit` command decodes one Unit after an archive has been identified with `hd2-catalog` and `hd2-inspect`.
+
+- Reads TransformInfo local values, raw 4x4 matrices, parent indices and name hashes.
+- Reads BoneInfo matrices, RealIndices and per-material Remap arrays without guessing their final skeleton mapping.
+- Reads StreamInfo component descriptors, vertex strides, buffer offsets/sizes and supported formats.
+- Reads MeshInfo records, LOD/transform/stream selection, material sections and index ranges.
+- Decodes direct Unit GPU buffers and CompositeUnit-backed shared geometry into a neutral JSON representation.
+- Does not write or patch game resources. Bone palette/name resolution and Source-to-HD2 retargeting are not implemented yet.
+
+Start with the FS-05 player armor archive and one Unit:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "8670598c1f4462dc" --unit "210fb2f60f8308ea" --json "fs05_unit_210fb2f60f8308ea.json"
+```
+
+Then test a Unit with five BoneInfo records:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "8670598c1f4462dc" --unit "324fb206612ce4f7" --json "fs05_unit_324fb206612ce4f7.json"
+```
+
+Finally, test the Avatar Unit whose geometry is stored in a CompositeUnit:
+
+```powershell
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "18235e0c9ec0e636" --unit "4d1c334d294dfa97" --json "hd2_avatar_unit.json"
+```
+
+Run the test suite after installation:
+
+```powershell
+py -3 -m unittest discover -s tests -v
+```
+
+The five 0.8.2 parser tests and five 0.8.2.1 packed-format tests are synthetic regression tests. The three real-package runs above were also completed locally against the user's installed game data.
 
 ## What 0.8.1 adds — HD2 package catalog and resource discovery
 
@@ -10,7 +234,7 @@ A dependency-free Python tool for reading a bounded subset of Source 1 model res
 - Adds bounded `SlimBundleIndex.reconstruct_range` for partial reads across DSAR bundle chunks.
 - Expands resource type names using the public SDK type-ID table, retaining unknown IDs rather than discarding them.
 - Keeps Unit header, material ID and Bones metadata inspection for individual candidate packages.
-- Does **not** modify game data, write a Patch, decode GPU vertex streams, resolve global Unit dependencies, or reconstruct meshes yet.
+- Does **not** modify game data or write a Patch. Per-Unit geometry decoding is provided by the 0.8.2 `hd2-unit` command; global dependency resolution and palette/name resolution remain future work.
 
 First, scan the installed game's complete SLIM package catalog. This is the recommended starting point; the base archive alone is not a representative armor sample:
 
@@ -268,7 +492,7 @@ See [`GLB_TEST_REPORT.md`](GLB_TEST_REPORT.md), [`DIAGNOSTICS_TEST_REPORT.md`](D
 - Source animation sequence/controller semantics, flexes, jiggle-bone simulation, hitboxes, physics, attachments, and procedural bones are not reconstructed. The separate SMD animation exporter supports ordinary multi-frame animation SMDs only.
 - VMT/VTF texture decoding, shader translation, and material texture embedding are not implemented.
 - GMA v1-v3 uncompressed GMAD archives are supported. Compressed Workshop `.bin` wrappers are not supported; unpack those with GMAD/7-Zip first.
-- The HD2 inspector is read-only and currently inventories archive resources, Unit headers and Bones metadata. GPU vertex decoding, BoneInfo remaps, target skeleton adaptation, material conversion, Unit writing and Patch packaging remain future work.
+- The HD2 tools are read-only. `hd2-unit` decodes supported vertex/index layouts and preserves BoneInfo remaps, but does not resolve palettes to TransformInfo names, adapt the target skeleton, convert materials, write Units or package Patches.
 
 ## Safety / file handling
 

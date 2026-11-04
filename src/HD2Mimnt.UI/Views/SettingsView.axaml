@@ -233,10 +233,36 @@
             <fa:FASettingsExpanderItem.Footer><TextBox Width="380" Text="{Binding AiTranslation.Endpoint, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Model}">
-            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" Text="{Binding AiTranslation.Model, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Width="300" Text="{Binding AiTranslation.Model, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button Content="{loc:Loc Settings.AiTranslation.FetchModels}" Command="{Binding AiTranslation.FetchModelsCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.AvailableModels}" IsVisible="{Binding AiTranslation.HasAvailableModels}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox Width="380" ItemsSource="{Binding AiTranslation.AvailableModels}" SelectedItem="{Binding AiTranslation.Model}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.ApiKey}" Description="{Binding AiTranslation.ApiKeyHint}">
             <fa:FASettingsExpanderItem.Footer><TextBox Width="380" PasswordChar="●" Text="{Binding AiTranslation.ApiKey, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Thinking}" Description="{loc:Loc Settings.AiTranslation.ThinkingHelp}" IsVisible="{Binding AiTranslation.ShowThinking}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AiTranslation.EnableThinking}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.ThinkingEffort}" Description="{loc:Loc Settings.AiTranslation.ThinkingEffortHelp}" IsVisible="{Binding AiTranslation.ShowThinkingEffort}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox Width="200" ItemsSource="{Binding AiTranslation.ThinkingEfforts}" SelectedValue="{Binding AiTranslation.ThinkingEffort, Mode=TwoWay}" SelectedValueBinding="{Binding Value}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AiThinkingEffortChoice"><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Balance}" IsVisible="{Binding AiTranslation.ShowBalance}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding AiTranslation.BalanceText}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="340"/>
+                <Button Content="{loc:Loc Settings.AiTranslation.Refresh}" Command="{Binding AiTranslation.RefreshBalanceCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.TargetLanguage}">
             <fa:FASettingsExpanderItem.Footer>

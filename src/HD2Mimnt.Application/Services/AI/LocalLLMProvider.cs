@@ -84,7 +84,7 @@ public class LocalLLMProvider : IAIProvider
                 "application/json"
             );
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -92,7 +92,7 @@ public class LocalLLMProvider : IAIProvider
                 return new AIResponse
                 {
                     Success = false,
-                    Error = $"Local LLM API error: {response.StatusCode} - {errorContent}"
+                    Error = AIHttpError.Format("本地模型", response.StatusCode, errorContent)
                 };
             }
 

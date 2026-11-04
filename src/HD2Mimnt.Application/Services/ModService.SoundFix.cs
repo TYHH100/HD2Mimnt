@@ -15,6 +15,7 @@ public partial class ModService
             using var transaction = await prepare(mod);
             if (!transaction.HasChanges) return new(id, false);
             var oldHash = mod.Hash;
+            var oldFingerprint = mod.ContentFingerprint;
             var oldSize = mod.Size;
             var oldModified = mod.ModifiedAt;
             var oldTypes = mod.ResourceTypeIds;
@@ -22,6 +23,7 @@ public partial class ModService
             {
                 await transaction.ApplyAsync(token);
                 mod.Hash = "";
+                mod.ContentFingerprint = "";
                 mod.ResourceTypeIds = null;
                 mod.Size = Math.Max(0, mod.Size + transaction.SizeDelta);
                 mod.ModifiedAt = DateTime.UtcNow;
@@ -30,7 +32,8 @@ public partial class ModService
             }
             catch (Exception error)
             {
-                mod.Hash = oldHash; mod.Size = oldSize; mod.ModifiedAt = oldModified; mod.ResourceTypeIds = oldTypes;
+                mod.Hash = oldHash; mod.ContentFingerprint = oldFingerprint;
+                mod.Size = oldSize; mod.ModifiedAt = oldModified; mod.ResourceTypeIds = oldTypes;
                 try { await transaction.RollbackAsync(); }
                 catch (Exception rollback) { throw new AggregateException(error, rollback); }
                 throw;

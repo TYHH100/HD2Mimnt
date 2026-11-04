@@ -86,6 +86,7 @@ public class HD2MimntDbContext : IDisposable
                 ModifiedAt TEXT NOT NULL,
                 Size INTEGER,
                 Hash TEXT,
+                ContentFingerprint TEXT,
                 ThumbnailPath TEXT,
                 Source INTEGER NOT NULL DEFAULT 0,
                 Status INTEGER NOT NULL DEFAULT 0,
@@ -318,6 +319,8 @@ public class HD2MimntDbContext : IDisposable
                 IsEnabled INTEGER NOT NULL DEFAULT 0,
                 MaxTokens INTEGER NOT NULL DEFAULT 4000,
                 Temperature REAL NOT NULL DEFAULT 0.7,
+                EnableThinking INTEGER NOT NULL DEFAULT 0,
+                ThinkingEffort TEXT NOT NULL DEFAULT 'medium',
                 CreatedAt TEXT NOT NULL,
                 ModifiedAt TEXT
             );
@@ -559,8 +562,10 @@ public class HD2MimntDbContext : IDisposable
             }
         }
 
+        // 轻量列迁移：老库补列后才能读写新字段（判重指纹、平台信息等）。
         foreach (var (table, column, type) in new[]
         {
+            ("Mods", "ContentFingerprint", "TEXT"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
@@ -575,7 +580,9 @@ public class HD2MimntDbContext : IDisposable
             ("DeploymentRecords", "AppliedAt", "TEXT"),
             ("DeploymentFiles", "GamePath", "TEXT"),
             ("DeploymentFiles", "SourceKey", "TEXT"),
-            ("DeploymentFiles", "SourceRelativePath", "TEXT")
+            ("DeploymentFiles", "SourceRelativePath", "TEXT"),
+            ("AIProviderConfigs", "EnableThinking", "INTEGER NOT NULL DEFAULT 0"),
+            ("AIProviderConfigs", "ThinkingEffort", "TEXT NOT NULL DEFAULT 'medium'")
         })
         {
             using var check = connection.CreateCommand();

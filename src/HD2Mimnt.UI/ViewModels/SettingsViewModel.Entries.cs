@@ -28,7 +28,7 @@ public partial class SettingsViewModel
         new EntryVisibilityOption("settings.downloads", "下载"),
         new EntryVisibilityOption("settings.account", "账号"),
         new EntryVisibilityOption("settings.storage", "存储位置"),
-        new EntryVisibilityOption("settings.ai", "AI 翻译"),
+        new EntryVisibilityOption("settings.ai", "AI 服务"),
         new EntryVisibilityOption("settings.appearance", "外观"),
         new EntryVisibilityOption("settings.cache", "缓存"),
         new EntryVisibilityOption("settings.logs", "日志")

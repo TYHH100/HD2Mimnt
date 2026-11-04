@@ -321,6 +321,8 @@ public class AIProviderConfigRepositoryTests : IDisposable
             IsEnabled = true,
             MaxTokens = 8000,
             Temperature = 0.5,
+            EnableThinking = true,
+            ThinkingEffort = "high",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -337,6 +339,38 @@ public class AIProviderConfigRepositoryTests : IDisposable
         Assert.Equal("custom-model-v1", retrieved.Model);
         Assert.Equal(8000, retrieved.MaxTokens);
         Assert.Equal(0.5, retrieved.Temperature);
+        Assert.True(retrieved.EnableThinking);
+        Assert.Equal("high", retrieved.ThinkingEffort);
+    }
+
+    [Fact]
+    public async Task AddAsync_DeepSeekProvider_RoundTripsTypeAndThinking()
+    {
+        // Arrange
+        var config = new AIProviderConfig
+        {
+            Id = "deepseek",
+            Name = "DeepSeek",
+            Type = AIProviderType.DeepSeek,
+            ApiEndpoint = "https://api.deepseek.com/chat/completions",
+            ApiKey = "sk-deepseek-test",
+            Model = "deepseek-flash",
+            IsEnabled = true,
+            EnableThinking = true,
+            ThinkingEffort = "max",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        // Act
+        await _repository.AddAsync(config);
+
+        // Assert
+        var retrieved = await _repository.GetByIdAsync("deepseek");
+        Assert.NotNull(retrieved);
+        Assert.Equal(AIProviderType.DeepSeek, retrieved.Type);
+        Assert.Equal("deepseek-flash", retrieved.Model);
+        Assert.True(retrieved.EnableThinking);
+        Assert.Equal("max", retrieved.ThinkingEffort);
     }
 
     [Fact]

@@ -481,10 +481,13 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                 texts, progress: progress, cancellationToken: cancellation.Token);
             if (_disposed) return;
             ApplyTranslations(result.Translations);
+            var cachePercent = result.InputTokens > 0
+                ? (int)Math.Round(result.CachedInputTokens * 100.0 / result.InputTokens)
+                : 0;
             TranslationStatus = result.ApiTextCount == 0
                 ? UiLocalization.Current.Format("UI.AiTranslationFromCache", result.LocalCacheHits)
                 : UiLocalization.Current.Format(
-                    "UI.AiTranslationCompleted", result.LocalCacheHits, result.ApiTextCount);
+                    "UI.AiTranslationCompleted", result.LocalCacheHits, result.ApiTextCount, cachePercent);
         }
         catch (OperationCanceledException)
         {

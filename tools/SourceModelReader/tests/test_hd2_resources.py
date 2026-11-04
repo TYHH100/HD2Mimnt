@@ -309,6 +309,29 @@ class HD2CatalogTests(unittest.TestCase):
         return bytes(data)
 
     @staticmethod
+    def make_resource_toc(resources):
+        from collections import Counter
+        type_counts = Counter(type_id for _file_id, type_id in resources)
+        type_rows = sorted(type_counts.items())
+        num_types = len(type_rows)
+        num_files = len(resources)
+        entries_offset = 72 + num_types * 32
+        data = bytearray(entries_offset + num_files * 80)
+        struct.pack_into("<4I", data, 0, 0xF0000011, num_types, num_files, 0)
+        for index, (type_id, count) in enumerate(type_rows):
+            struct.pack_into("<QQQII", data, 72 + index * 32, 0, type_id, count, 16, 64)
+        for index, (file_id, type_id) in enumerate(resources):
+            row = entries_offset + index * 80
+            struct.pack_into(
+                "<7Q6I",
+                data,
+                row,
+                file_id, type_id, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, index,
+            )
+        return bytes(data)
+
+    @staticmethod
     def make_slim_fixture(root, package_payloads, bundle_splits=None):
         names = list(package_payloads)
         table_start = 0x18
@@ -400,6 +423,100 @@ class HD2CatalogTests(unittest.TestCase):
             })
             report = scan_slim_package_catalog(root, max_packages=1)
             self.assertEqual(report["summary"]["package_count_scanned"], 1)
+
+    def test_global_resource_lookup_finds_ids_by_type_across_archives(self):
+        from hd2_resources import find_slim_resources
+        wanted_texture = 0x1122334455667788
+        second_texture = 0x8877665544332211
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_slim_fixture(root, {
+                "armor_archive": self.make_resource_toc([
+                    (wanted_texture, TYPE_IDS["Material"]),
+                    (0x9999000011112222, TYPE_IDS["Texture"]),
+                ]),
+                "base_archive": self.make_resource_toc([
+                    (wanted_texture, TYPE_IDS["Texture"]),
+                    (second_texture, TYPE_IDS["Texture"]),
+                ]),
+                "override_archive": self.make_resource_toc([
+                    (wanted_texture, TYPE_IDS["Texture"]),
+                ]),
+                "static_archive": self.make_resource_toc([
+                    (0xABCDEF0123456789, TYPE_IDS["Unit"]),
+                ]),
+                "base_archive.gpu_resources": b"GPU sidecar sentinel",
+            })
+            report = find_slim_resources(
+                root, [wanted_texture, second_texture, 0x1234567890ABCDEF],
+                resource_type="Texture",
+            )
+
+        self.assertEqual(report["summary"]["status"], "ok")
+        self.assertTrue(report["summary"]["scan_complete"])
+        self.assertEqual(report["summary"]["package_count_scanned"], 4)
+        self.assertEqual(report["summary"]["package_count_with_requested_type"], 3)
+        self.assertEqual(report["summary"]["resource_entry_rows_scanned"], 5)
+        found = {item["file_id"]: item for item in report["resources"]}
+        self.assertEqual(found[f"{wanted_texture:016x}"]["status"], "found")
+        self.assertEqual(len(found[f"{wanted_texture:016x}"]["matches"]), 2)
+        self.assertEqual(
+            [match["package"] for match in found[f"{wanted_texture:016x}"]["matches"]],
+            ["base_archive", "override_archive"],
+        )
+        self.assertEqual(found[f"{second_texture:016x}"]["status"], "found")
+        self.assertEqual(
+            found["1234567890abcdef"]["status"],
+            "not_found_in_scanned_packages",
+        )
+
+    def test_global_resource_lookup_requires_a_type_filter(self):
+        from hd2_resources import find_slim_resources
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_slim_fixture(root, {
+                "texture_archive": self.make_resource_toc([(0x1111, TYPE_IDS["Texture"])]),
+            })
+            with self.assertRaisesRegex(HD2ResourceError, "resource type filter is required"):
+                find_slim_resources(root, [0x1111], resource_type=None)
+
+    def test_global_resource_lookup_marks_limited_scan_incomplete(self):
+        from hd2_resources import find_slim_resources
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_slim_fixture(root, {
+                "a_archive": self.make_resource_toc([(0x1111, TYPE_IDS["Texture"])]),
+                "b_archive": self.make_resource_toc([(0x2222, TYPE_IDS["Texture"])]),
+            })
+            report = find_slim_resources(root, [0x2222], resource_type="Texture", max_packages=1)
+
+        self.assertEqual(report["summary"]["status"], "warning")
+        self.assertFalse(report["summary"]["scan_complete"])
+        self.assertEqual(report["summary"]["package_count_scanned"], 1)
+        self.assertEqual(report["resources"][0]["status"], "not_found_in_scanned_packages")
+
+    def test_global_resource_lookup_cli_writes_json(self):
+        import json
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            resource_id = 0xAABBCCDDEEFF0011
+            self.make_slim_fixture(root, {
+                "texture_archive": self.make_resource_toc([(resource_id, TYPE_IDS["Texture"])]),
+            })
+            out = root / "lookup.json"
+            result = subprocess.run(
+                [sys.executable, str(Path(__file__).resolve().parents[1] / "source_model_reader.py"),
+                 "hd2-find", str(root), "--resource", f"{resource_id:016x}",
+                 "--type", "Texture", "--json", str(out)],
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("HD2 global resource lookup", result.stdout)
+            report = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(report["summary"]["resource_ids_found"], 1)
+            self.assertEqual(report["resources"][0]["matches"][0]["package"], "texture_archive")
 
     def test_catalog_cli_writes_json(self):
         import json

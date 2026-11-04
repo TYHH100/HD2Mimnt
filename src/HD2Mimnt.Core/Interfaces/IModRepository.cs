@@ -17,6 +17,8 @@ public interface IModRepository
     Task<IEnumerable<Mod>> GetByStatusAsync(ModStatus status, CancellationToken cancellationToken = default);
     Task AddAsync(Mod mod, CancellationToken cancellationToken = default);
     Task UpdateAsync(Mod mod, CancellationToken cancellationToken = default);
+    /// <summary>只回填判重指纹派生缓存，不覆盖同一行的其它字段。</summary>
+    Task SetContentFingerprintAsync(Guid id, string fingerprint, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<long> GetTotalSizeAsync(CancellationToken cancellationToken = default);

@@ -9,6 +9,7 @@ class Program
 {
     public static IHost? AppHost { get; private set; }
     public static BrowserProtocolHost? ProtocolHost { get; private set; }
+    public static Services.CliCommandPipeHost? CliPipeHost { get; internal set; }
     public static string? ProtocolRegistrationError { get; private set; }
 
     [STAThread]
@@ -45,6 +46,8 @@ class Program
             host.Dispose();
             AppHost = null;
         }
+        CliPipeHost?.Dispose();
+        CliPipeHost = null;
         ProtocolHost = null;
     }
 

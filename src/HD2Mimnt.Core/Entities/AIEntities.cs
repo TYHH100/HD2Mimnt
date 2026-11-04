@@ -53,6 +53,16 @@ public class AIProviderConfig
     public double Temperature { get; set; } = 0.7;
 
     /// <summary>
+    /// Whether to request the provider's thinking/reasoning mode
+    /// </summary>
+    public bool EnableThinking { get; set; }
+
+    /// <summary>
+    /// Thinking effort: low / medium / high / max (provider support varies).
+    /// </summary>
+    public string ThinkingEffort { get; set; } = "medium";
+
+    /// <summary>
     /// Created timestamp
     /// </summary>
     public DateTime CreatedAt { get; set; }
@@ -102,6 +112,69 @@ public sealed class AIBatchTranslationResult
     public string? Error { get; init; }
 
     public int TokensUsed { get; init; }
+
+    /// <summary>Total prompt/input tokens billed for this request.</summary>
+    public int InputTokens { get; init; }
+
+    /// <summary>Input tokens served from the provider's prompt cache.</summary>
+    public int CachedInputTokens { get; init; }
+}
+
+/// <summary>
+/// Model entry returned by a provider's model listing API
+/// </summary>
+public sealed class AIModelInfo
+{
+    public string Id { get; init; } = string.Empty;
+
+    public string? DisplayName { get; init; }
+
+    public int? ContextWindow { get; init; }
+
+    public int? MaxOutputTokens { get; init; }
+
+    /// <summary>Reasoning effort levels reported by the provider; empty when unknown.</summary>
+    public IReadOnlyList<string> ThinkingLevels { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>
+/// Result of fetching a provider's model list
+/// </summary>
+public sealed class AIProviderModelsResult
+{
+    public bool Success { get; init; }
+
+    public IReadOnlyList<AIModelInfo> Models { get; init; } = Array.Empty<AIModelInfo>();
+
+    public string? Error { get; init; }
+}
+
+/// <summary>
+/// One currency balance entry
+/// </summary>
+public sealed class AIBalanceEntry
+{
+    public string Currency { get; init; } = string.Empty;
+
+    public string TotalBalance { get; init; } = string.Empty;
+
+    public string GrantedBalance { get; init; } = string.Empty;
+
+    public string ToppedUpBalance { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Result of querying the account balance
+/// </summary>
+public sealed class AIBalanceResult
+{
+    public bool Success { get; init; }
+
+    public bool IsAvailable { get; init; }
+
+    public IReadOnlyList<AIBalanceEntry> BalanceInfos { get; init; } = Array.Empty<AIBalanceEntry>();
+
+    public string? Error { get; init; }
 }
 
 /// <summary>
@@ -128,6 +201,12 @@ public class AIResponse
     /// Number of tokens used
     /// </summary>
     public int TokensUsed { get; set; }
+
+    /// <summary>Total prompt/input tokens billed for this request.</summary>
+    public int InputTokens { get; set; }
+
+    /// <summary>Input tokens served from the provider's prompt cache.</summary>
+    public int CachedInputTokens { get; set; }
 
     /// <summary>
     /// Response timestamp

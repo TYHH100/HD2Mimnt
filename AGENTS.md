@@ -27,6 +27,7 @@
 | 多语言、系统语言检测、翻译资源和实时切换 | [`localization.md`](docs/agent-guides/localization.md) |
 | 构建、测试、任务、备份、日志和性能 | [`testing-and-lifecycle.md`](docs/agent-guides/testing-and-lifecycle.md) |
 | 导入、压缩包、TOC、Type ID、哈希 | [`import-and-resource-types.md`](docs/agent-guides/import-and-resource-types.md) |
+| CLI 命令行工具、外部 AI 操作与危险操作清单 | [`docs/cli/README.md`](docs/cli/README.md)、[`docs/cli/AGENT-SAFETY.md`](docs/cli/AGENT-SAFETY.md) |
 
 ## 快速工作基线
 

@@ -116,7 +116,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsDownloadCategoryVisible => IsSectionVisible("下载");
     public bool IsStorageCategoryVisible => IsSectionVisible("存储位置");
     public bool IsAccountCategoryVisible => IsSectionVisible("账号");
-    public bool IsAiCategoryVisible => IsSectionVisible("AI 翻译");
+    public bool IsAiCategoryVisible => IsSectionVisible("AI 服务");
     public AiTranslationSettingsViewModel? AiTranslation { get; }
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
@@ -319,7 +319,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
             if (category == "账号") return;
-            if (category == "AI 翻译")
+            if (category == "AI 服务")
             {
                 if (AiTranslation == null)
                 {
@@ -521,7 +521,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var category = SelectedCategory;
         if (category == "账号") return;
-        if (category == "AI 翻译")
+        if (category == "AI 服务")
         {
             if (AiTranslation != null)
             {

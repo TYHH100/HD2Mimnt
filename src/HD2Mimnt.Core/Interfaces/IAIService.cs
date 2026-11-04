@@ -59,4 +59,19 @@ public interface IAIService
     /// Test connection to active AI provider
     /// </summary>
     Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Test connection and return the provider's error detail when it fails
+    /// </summary>
+    Task<AIResponse> TestConnectionDetailedAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetch models from a provider configuration (may be an unsaved draft)
+    /// </summary>
+    Task<AIProviderModelsResult> ListModelsAsync(AIProviderConfig config, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Query the account balance for a provider configuration (may be an unsaved draft)
+    /// </summary>
+    Task<AIBalanceResult> GetBalanceAsync(AIProviderConfig config, CancellationToken cancellationToken = default);
 }

@@ -43,7 +43,7 @@ Exit criteria: synthetic TOC/DSAR/SLIM fixtures pass. A user-provided game-data 
 
 ## 0.8.1 — HD2 package catalog
 
-**Current: 0.8.1-alpha**
+**Completed implementation baseline: 0.8.1-alpha**
 
 - Scan all SLIM package names using `bundles.nxa`.
 - Read only package TOC headers and type tables to identify model-bearing archives without reconstructing GPU/stream sidecars.
@@ -54,23 +54,48 @@ Exit criteria: run the catalog against the user's full HD2 `data` directory, sel
 
 ## 0.8.2 — HD2 Unit and GPU reader
 
-- Parse TransformInfo, MeshInfo, StreamInfo and BoneInfo records.
-- Decode supported vertex component layouts, index buffers, material sections and LOD relationships.
-- Correctly handle external CompositeUnit geometry and stream resources.
-- Export a neutral intermediate mesh representation; do not retarget Source bones yet.
+**Accepted structural baseline: 0.8.2-alpha + 0.8.2.1-alpha — synthetic tests and three real-game samples validated**
 
-Exit criteria: one original HD2 armor Unit is reconstructed and its positions, triangle counts, normals, UVs and material boundaries match the SDK/Blender import.
+- Parse TransformInfo local data, raw matrices, parent indices and name hashes.
+- Parse BoneInfo matrices, RealIndices and per-material Remap arrays.
+- Parse StreamInfo component descriptors and MeshInfo section/LOD relationships.
+- Decode supported direct Unit GPU vertex/index layouts and CompositeUnit-backed shared geometry.
+- Decode Format 30 octahedral normals and Format 29 three-channel normalized bone weights when their component semantics identify those uses.
+- Preserve raw packed words alongside additive semantic decoded values.
+- Keep matrix convention, bind-pose semantics, and Source-to-HD2 retargeting out of this milestone.
+
+Real-game acceptance was completed locally using two FS-05 Units and one Avatar Unit backed by a CompositeUnit. All selected geometry ranges and palette chains were checked against the sample data. Visual comparison against a separate trusted renderer remains a later validation task.
 
 ## 0.8.3 — HD2 skeleton palette resolver
 
-- Resolve TransformInfo names through Bones hashes and preserve the real hierarchy.
-- Resolve BoneInfo `RealIndices`, inverse bind matrices and per-material `Remaps`.
-- Validate each vertex's local bone indices against the active material-section palette.
-- Recover source-to-target bind-pose transforms without importing any GMod animation clip.
+**Implemented: 0.8.3-alpha — resolver unit tests added; three attached real-game JSON samples audit clean**
 
-Exit criteria: one original HD2 armor can be exported as a correctly skinned neutral GLB and passes independent palette/weight/bind-pose validation.
+- Resolve TransformInfo names and parent relationships through Bones hashes, while preserving unmatched helper transforms.
+- Resolve BoneInfo palette slots through RealIndices and attach the corresponding raw BoneInfo matrix.
+- Resolve each MeshInfo material section using its own BoneInfo Remap.
+- Emit per-vertex active influences with weight, local index, palette slot, TransformInfo index and bone name.
+- Preserve multiple bone_index component indices as independent sets; do not merge them.
+- Keep matrix convention, bind-pose semantics and inverse-bind interpretation unverified.
+
+Real-sample audit: two FS-05 Units and one Avatar Unit have zero unresolved active influence lanes. All active influence TransformInfo indices have matching Bones names. This does not yet prove correct deformation in Blender or establish matrix conventions.
 
 ## 0.8.4 — Target rig comparison and deformation validation
+
+**In progress: 0.8.4-alpha — TransformInfo hierarchy and active palette matrix diagnostics implemented**
+
+- Rebuild TransformInfo world matrices from local rotation/position/scale and the parent graph using the sample-validated row-vector `Local × ParentWorld` candidate; compare against the stored matrices.
+- Compare actively used BoneInfo matrices with the observed `MeshWorld × inverse(BoneWorld)` relationship. Unreferenced palette slots are excluded from active-slot validation but remain visible in the palette.
+- Add synthetic tests for matrix composition, parent-cycle handling, active palette filtering and mismatch reporting.
+
+The current local linear-matrix builder uses `rotation_3x3 × diag(scale)`. The only non-unit scale in the three samples is on `attach_cam_1`, whose rotation is identity, so non-uniform scale combined with a non-identity rotation remains unverified; the validator refuses to guess if that combination appears.
+
+Real-sample audit: all 161 TransformInfo matrices across two FS-05 Units and one Avatar CompositeUnit Unit matched the reconstructed hierarchy within (2.58×10^{-7}). All 162 actively used BoneInfo palette slots matched the mesh-space comparison within (1.74×10^{-7}). 27 unreferenced Avatar palette slots were excluded; this is not proof of their semantic purpose.
+
+The resolver also marks which TransformInfo nodes are actually reached by positive-weight vertex lanes and reports named/unmatched/actively weighted counts through `transform_info.weight_usage_summary`. On the inspected Avatar mesh, 90 names map to TransformInfo but only 61 distinct named transforms are actively weighted; 27 BoneInfo palette entries are unreferenced by that mesh. The corresponding actively weighted TransformInfo counts are 2 for FS-05 lower-body, 23 for FS-05 torso/left-arm and 61 for the Avatar mesh. This gives the next bone-mapping step a data-backed starting set rather than assuming every named attachment/helper is a deformation bone.
+
+A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar reference (`hd2_system/avatar_source.json`, commit `71b380046d33d552eef0892bd48661ff25591380`) found all 63 names in the Unit's named TransformInfo entries. After transposing the Unit's row-vector 4×4 world matrices to the reference's model-space 3×4 layout, the 63 Rest matrices match with mean per-bone maximum absolute error `8.07e-7`, maximum `1.34e-5`, and maximum translation error `5.40e-7`. Sixty of those reference bones are actively weighted by the Avatar mesh; the remaining three are unweighted helpers. The Unit has one extra active weighted node, `sling`, absent from the AQ reference. Because AQ explicitly stores model-space Rest rather than Blender authoring hierarchy, this validates names and rest transforms, not parent-graph or animated behavior.
+
+**Remaining 0.8.4 work**
 
 - Compare candidate source bones to the verified HD2 target skeleton by explicit mapping rules.
 - Report unmapped, ambiguous, extra and target-only bones.
@@ -78,6 +103,25 @@ Exit criteria: one original HD2 armor can be exported as a correctly skinned neu
 - Validate geometry and deformation against native HD2 reference behavior.
 
 Exit criteria: pelvis, spine, head, shoulder, elbow, wrist, hip, knee and ankle deformation checks pass against a real target Unit.
+
+## Parallel 0.8.x track — Material/Texture preservation
+
+**Implemented research parsers: `MATERIAL_FORMAT_NOTES.md` records the common Material and Texture layouts; `hd2_material.py` performs bounded raw Material extraction and same-package Texture checks; `hd2-find` locates resource IDs across SLIM TOC entry tables; `hd2_texture.py` and `hd2-texture` read one Texture's TOC/GPU/Stream ranges, parse the 15 mipmap records and DDS DX10 header, hash each payload, and export an SDK-style DDS. Real-game texture decoding and material-instance validation remain pending.**
+
+Verified research direction:
+- A Unit references Material resources; each Material references Texture resources.
+- Material stores a raw ParentMaterialID, per-node 32-bit texture-type values, 64-bit texture IDs and shader-variable descriptors/value payload.
+- ParentMaterialID aliases differ between AQ Edition and Community Edition. Preserve raw IDs and keep all friendly-name mappings revision-scoped.
+- A texture's RGBA alpha channel does not automatically mean transparency. Alpha Clip is documented as binary mask/cutout; Translucent exposes an OpacityBase scalar and has an alpha-mask use case, but exact per-pixel source-channel behavior still needs instance-level validation; Advanced uses its color texture alpha as an emissive mask.
+- Preserve compressed texture bytes, DDS headers, mipmaps, array size and alpha bytes. Do not flatten arrays or discard source alpha.
+
+Next milestones:
+1. Validate the new bounded Material decoder against real game Material entries, especially the variable-value boundary and table offsets.
+2. Validate shader-variable payload lengths and array/stride semantics; add versioned ID dictionaries without replacing raw IDs.
+3. Decode representative real Texture payloads (including BC-compressed formats and texture arrays) to inspect channel content, while preserving original compressed bytes and mipmaps.
+4. Validate real Alpha Clip, Translucent/Glass and opaque Material resources against their linked Texture data before deciding any source-to-HD2 material mapping.
+
+No auto classification or output conversion should be implemented from names alone. In particular, partially transparent stockings/fabric must not be silently routed through Alpha Clip.
 
 ## 0.9.0 — Experimental Source-to-HD2 conversion preparation
 
