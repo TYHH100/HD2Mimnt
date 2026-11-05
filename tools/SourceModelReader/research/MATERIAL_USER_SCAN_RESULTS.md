@@ -36,9 +36,9 @@ Counts below distinguish raw references in package occurrences from Unit IDs and
 | `9423bb5f9a715c2e` | 6 | 3 | 4 | 36 |
 | `b5c17c3e6bd81b1f` | 3 | 3 | 1 | 10 |
 | `e2b99ac44dc829f2` | 252 | 11 | 195 | 252 |
-| **Total** | **942** | **44** | **351 material/package pairs** | **6,349** |
+| **Total** | **942** | **44** | **353 material/package pairs** | **6,349** |
 
-The 44 distinct Unit IDs do not overlap between the 11 referenced Material FileIDs in this report. The 351 package figure is the sum of per-material distinct package counts; a package may contain more than one queried Material.
+The 44 distinct Unit IDs do not overlap between the 11 referenced Material FileIDs in this report. The 353 package figure is the sum of per-material distinct package counts; a package may contain more than one queried Material.
 
 ### Notable patterns
 
