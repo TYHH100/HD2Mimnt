@@ -124,6 +124,21 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(report["summary"]["status"], "ok")
         self.assertIn("Interpretation limits", render_markdown(report))
 
+    def test_flags_pair_with_no_shared_unique_names(self):
+        units = [
+            make_unit("lower", [{"index": 0, "name": "l_thigh"}]),
+            make_unit("torso", [{"index": 0, "name": "chest"}]),
+            make_unit("avatar", [{"index": 0, "name": "hips"}]),
+        ]
+        report = build_report(units, 1.0e-4)
+        lower_torso = report["pairwise_comparisons"]["lower__vs__torso"]
+        self.assertEqual(
+            lower_torso["summary"]["comparison_status"],
+            "no_shared_unique_names",
+        )
+        self.assertEqual(report["summary"]["pairwise_no_overlap"], 3)
+        self.assertEqual(report["summary"]["status"], "warning")
+
     def test_loads_only_transform_metadata_from_hd2_unit_json(self):
         fixture = {
             "unit": {"file_id": "unit-1", "geometry_source": "CompositeUnit"},
