@@ -7,6 +7,7 @@
 - The version guard now accepts MDL v49 **only** when every field the reader uses resolves under the proven v48 offsets (`validate_mdl_header_layout`), and such reads are marked with `mdl.layout_validated = false` plus a warning stating that v49 is not compiler-verified. Other versions still fail closed, and the rejection lists which field broke the layout.
 - Evidence for accepting v49: 45 printable `ValveBiped.*` bone definitions with one root and no invalid parents, sibling checksums equal to the MDL checksum, and LOD 0 geometry with zero out-of-range bone references and zero unweighted vertices.
 - Added `tests/test_mdl_header_layout.py` (9 tests) covering the gate, truncated headers, each rejected field, and a regression built from the shipped v49 field values.
+- Verified the new read end-to-end: `diagnose`, `bone-matrix`, `export-glb` and `validate-glb` all succeed on that model, with a bind-pose max matrix error of 2.11e-05 against 2.38e-05 and 1.06e-05 on two v48 models, zero bad weight sums, zero non-finite transforms and zero unweighted vertices.
 
 ## 0.8.4-alpha — Full-game Material census
 

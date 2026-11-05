@@ -271,8 +271,7 @@ py -3 research/compare_source_hd2_rest_joints.py gmpublisher.gma --model "models
   VTX v7 且校验和与 MDL 一致；LOD 0 收集到 25535 个三角、14083 顶点、42 条加权骨骼、
   **0 个越界骨骼引用、0 个未加权顶点**，最大骨骼索引 44 < 45 —— 权重表与骨骼表自洽，
   因此骨骼记录布局同样匹配。
-- 据此把闸门改成：**v48 为已证实布局**；**v49 只有在 `validate_mdl_header_layout()` 全通过时才接受**，
-  并在 `warnings` 与 `mdl.layout_validated=False` 里显式标注"按 v48 布局读取、做过结构校验、
+- 据此把闸门改成：**v48 为已证实布局**；**v49 只有在 `validate_mdl_header_layout()` 全通过时才接受**，  并在 `warnings` 与 `mdl.layout_validated=False` 里显式标注"按 v48 布局读取、做过结构校验、
   未经编译器证实"。回归后该模型 `inspect` 正常，普查也从 7 通过/1 拒绝变成 **8 通过/0 拒绝**，
   骨架组数由 4 增到 **5**。闸门与校验各有测试（`tests/test_mdl_header_layout.py`，9 条，
   含"用真实 v49 字段值构造的头部必须通过"这条防漂移用例）。
@@ -283,8 +282,20 @@ py -3 research/compare_source_hd2_rest_joints.py gmpublisher.gma --model "models
   之间的差异是可数的（12 个名字、12 条骨骼权重差），不是模糊的"看起来一样"。
 - **Observed｜独立模型覆盖度**：解析成功的独立模型从 1 个增加到 8 个，
   BodyGroup 数 20、选项 42、贴图 17、皮肤族 2 在三个角色模型上完全一致，只有骨骼与权重规模不同。
+- **Observed｜v49 与 v48 的读取保真度同级**：把新放开的 v49 模型与两个 v48 角色模型跑同一条
+  `diagnose`/`export-glb`/`validate-glb` 链，v49 的绑定姿态最大矩阵误差 `2.107e-05`，
+  与 v48 的 `2.375e-05`、`1.062e-05` 同一量级；三个模型的权重和区间都是
+  `0.99999985..1.00000015`，非有限变换 0、非单位四元数 0、未加权顶点 0；
+  v49 导出 GLB 后独立校验为 `Skin joints: 45`、`Unique weighted vertices checked: 14083`、
+  `Bad weight sums: 0`。也就是说"能读"不只是不崩，而是与已证实版本同级的结构一致性。
+  该模型的状态显示为 WARNING，唯一来源就是上面那条 v49 布局警告（不是数据异常）。
 
 复现：
+
+```powershell
+py -3 source_model_reader.py diagnose gmpublisher.gma --model models/shoubi/aes_yz_sb.mdl
+py -3 source_model_reader.py export-glb gmpublisher.gma --model models/shoubi/aes_yz_sb.mdl --output $env:TEMP\v49.glb
+py -3 source_model_reader.py validate-glb $env:TEMP\v49.glb   # 用完删除临时文件
 
 ```powershell
 py -3 research/survey_source_model_lod_coverage.py gmpublisher.gma --output-markdown research/skeleton_comparison/source_lod_coverage_gmpublisher.md --output-json research/skeleton_comparison/source_lod_coverage_gmpublisher.json
