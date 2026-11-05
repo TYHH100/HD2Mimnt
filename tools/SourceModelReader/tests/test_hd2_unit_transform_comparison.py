@@ -26,6 +26,8 @@ def make_unit(label, transforms):
             "active": row.get("active", True),
             "active_lane_count": row.get("active_lane_count", 1),
             "mesh_binding_count": row.get("mesh_binding_count", 0),
+            "mesh_hierarchy_binding_count": row.get("mesh_hierarchy_binding_count", 0),
+            "mesh_hierarchy_subtree_active_count": row.get("mesh_hierarchy_subtree_active_count", 0),
             "mesh_binding_info_available": row.get("mesh_binding_info_available", True),
             "position": row.get("position", [0.0, 0.0, 0.0]),
             "rotation_3x3": row.get("rotation_3x3", [
@@ -237,6 +239,57 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(pair["summary"]["mesh_transform_stored_matrix_mismatch_count"], 1)
         self.assertEqual(report["summary"]["pairwise_skeleton_matrix_mismatches"], 0)
         self.assertGreater(report["summary"]["pairwise_mesh_transform_matrix_mismatches"], 0)
+        self.assertEqual(report["summary"]["status"], "review")
+
+
+    def test_mesh_hierarchy_matrix_difference_is_review_not_skeleton_warning(self):
+        identity = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        translated = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.5, 0.9, 1.0,
+        ]
+        units = [
+            make_unit("lower", [
+                {"index": 0, "name": "hips", "active": True},
+                {"index": 1, "name": "game_mesh", "active": False,
+                 "mesh_hierarchy_binding_count": 4,
+                 "mesh_hierarchy_subtree_active_count": 0,
+                 "matrix_4x4_raw": identity},
+            ]),
+            make_unit("torso", [
+                {"index": 3, "name": "hips", "active": True},
+                {"index": 4, "name": "game_mesh", "active": False,
+                 "mesh_hierarchy_binding_count": 5,
+                 "mesh_hierarchy_subtree_active_count": 0,
+                 "matrix_4x4_raw": translated},
+            ]),
+            make_unit("avatar", [
+                {"index": 8, "name": "hips", "active": True},
+                {"index": 9, "name": "game_mesh", "active": False,
+                 "mesh_hierarchy_binding_count": 1,
+                 "mesh_hierarchy_subtree_active_count": 0,
+                 "matrix_4x4_raw": identity},
+            ]),
+        ]
+        report = build_report(units, 1.0e-4)
+        pair = report["pairwise_comparisons"]["lower__vs__torso"]
+        mesh_row = next(row for row in pair["transforms"] if row["name"] == "game_mesh")
+
+        self.assertEqual(mesh_row["left_transform_role"], "mesh_hierarchy_transform")
+        self.assertEqual(mesh_row["right_transform_role"], "mesh_hierarchy_transform")
+        self.assertEqual(mesh_row["comparison_scope"], "mesh_hierarchy_transform")
+        self.assertEqual(mesh_row["stored_matrix_status"], "mismatch")
+        self.assertEqual(pair["summary"]["skeleton_stored_matrix_mismatch_count"], 0)
+        self.assertEqual(pair["summary"]["mesh_hierarchy_stored_matrix_mismatch_count"], 1)
+        self.assertEqual(report["summary"]["pairwise_skeleton_matrix_mismatches"], 0)
+        self.assertEqual(report["summary"]["pairwise_mesh_hierarchy_matrix_mismatches"], 1)
         self.assertEqual(report["summary"]["status"], "review")
 
 
