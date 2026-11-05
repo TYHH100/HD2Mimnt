@@ -25,7 +25,8 @@ class BoneAliasCandidateTests(unittest.TestCase):
                     "target_name": "spine1",
                     "target_transform_index": 21,
                     "target_parent_name": "boss",
-                    "target_has_active_vertex_influence": True,
+                    "has_active_vertex_influence": True,
+                    "active_vertex_influence_lane_count": 3,
                 },
                 {
                     "target_name": "hips",
@@ -42,6 +43,10 @@ class BoneAliasCandidateTests(unittest.TestCase):
         self.assertEqual(rows["ValveBiped.Bip01_Pelvis"]["parent_status"],
                          "not_checked_source_parent_has_no_candidate_alias")
         self.assertTrue(all(row["approval"] == "advisory_only"
+                            for row in result["candidates"]))
+        self.assertTrue(all(row["target_active_vertex_influence"] is True
+                            for row in result["candidates"]))
+        self.assertTrue(all(row["target_active_vertex_influence_lane_count"] == 3
                             for row in result["candidates"]))
 
     def test_missing_source_and_target_names_are_reported_not_guessed(self):
