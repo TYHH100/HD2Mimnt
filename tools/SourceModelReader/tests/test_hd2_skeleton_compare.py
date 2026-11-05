@@ -112,7 +112,9 @@ class SourceHD2SkeletonComparisonTests(unittest.TestCase):
             source_kind="compiled_mdl_v48",
         )
         self.assertEqual(result["summary"]["source_active_weighted_node_count"], 2)
+        self.assertEqual(result["summary"]["source_active_weighted_exact_match_count"], 1)
         self.assertEqual(result["summary"]["source_active_weighted_unmapped_count"], 1)
+        self.assertEqual(result["summary"]["source_active_weighted_ambiguous_count"], 0)
         matched = {row["source_name"]: row for row in result["matched"]}
         self.assertFalse(matched["root"]["source_has_active_vertex_influence"])
         self.assertTrue(matched["spine"]["source_has_active_vertex_influence"])
