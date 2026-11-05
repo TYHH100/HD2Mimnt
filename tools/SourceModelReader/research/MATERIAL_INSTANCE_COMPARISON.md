@@ -228,3 +228,81 @@ This indicates a close parameter match to the SDK preset while retaining a diffe
 ### What the bundled presets do and do not prove
 
 The AQ preset binaries provide valuable reference fixtures for validating Material parsing and understanding which IDs/values are exposed by a known authoring template. They are not proof that every game material is byte-identical to the SDK preset, that all default values are engine defaults, or that a given texture channel is consumed for opacity. Keep preset revision, raw payload identity, parent ID and texture IDs separate in future comparisons.
+
+
+## 8. Uploaded Texture extraction results — 2026-11-05
+
+The five requested Texture reports and their DDS/raw payload files are present in research/textures/. All five reports have status "ok", zero parser warnings, and a complete TOC mipmap-table match.
+
+| Material role / report | Texture FileID | Dimensions | DXGI | Mips | Stream bytes | GPU bytes | Mipmap validation |
+|---|---|---:|---|---:|---:|---:|---|
+| Glass / NormalXyRoughnessOpacity candidate | 4406087459ab9513 | 512×512 | BC7_UNORM | 10 | 349,552 | 1,392 | match |
+| Alpha Clip+ Normal/AO/Roughness | 4fd83b4cc6018cd4 | 512×512 | BC7_UNORM | 10 | 349,552 | 1,392 | match |
+| Alpha Clip+ Emissive | 151752e4f6318eca | 512×512 | BC1_UNORM | 10 | 174,776 | 2,744 | match |
+| Alpha Clip+ Base Color/Metal | a5e4843f7ac0a56d | 512×512 | BC7_UNORM | 10 | 349,552 | 1,392 | match |
+| Alpha Clip+ OpacityClipMap | 0e392f47257b0d3e | 512×512 | BC1_UNORM | 10 | 174,776 | 2,744 | match |
+
+For all five textures, Stream stores the full mip chain and GPU stores only a contiguous mip tail:
+- BC7 resources: GPU mip tail begins at mip level 4 (32×32).
+- BC1 resources: GPU mip tail begins at mip level 3 (64×64).
+The extracted DDS selects Stream when non-empty, in agreement with the public SDK read path documented in MATERIAL_FORMAT_NOTES.md.
+
+All ten populated mip records in each report match the calculated per-level dimensions, offsets and remaining-byte counts. The DDS alpha-mode metadata is unknown. No pixel decode or channel statistics were requested in this extraction batch, so no alpha-content claim can yet be made.
+
+The Stream payload hashes differ across all five reports. Equal dimensions, format and payload sizes do not mean the texture contents are interchangeable.
+
+## 9. Global lookup of Translucent Flowing texture dependencies
+
+The newly uploaded translucent_flowing_texture_lookup.json reports a complete scan:
+- 3,522 / 3,522 scannable packages scanned.
+- 317,992 Texture resource-entry rows scanned.
+- 4 requested Texture FileIDs found; 0 missing.
+- 0 package errors.
+
+| Texture FileID | Occurrences | Distinct packages | TOC / GPU / Stream bytes |
+|---|---:|---:|---|
+| 371ef38cf24b6cc2 | 24 | 24 | 340 / 349,552 / 1,398,128 |
+| 628b6b9b554e06e2 | 21 | 21 | 340 / 349,552 / 1,398,128 |
+| 7f37735b6a73092a | 2 | 2 | 340 / 2,744 / 174,776 |
+| fa0bb48a25ed50fe | 3 | 3 | 340 / 1,392 / 1,398,128 |
+
+Two packages contain all four unique texture dependencies:
+- 70b4860e8169622e
+- be01f1529f774970
+
+Use package 70b4860e8169622e for the next extraction batch. The shared FileID fa0bb48a25ed50fe is used by two distinct Translucent Flowing texture nodes in each Material; retain both node-to-role assignments even though they resolve to the same resource.
+
+The 1,398,128-byte full Stream payload size of the first, second and fourth resources is consistent with a 1024×1024 BC7 full mip chain, while the third resource's 174,776-byte Stream payload is consistent with a 512×512 BC1 full mip chain. These are size-derived format/dimension expectations only; inspect each Texture DDS header before assigning those properties as confirmed.
+
+## 10. Pixel-content validation and next command batch
+
+The existing optional preview decoder currently supports BC7_UNORM / BC7_UNORM_SRGB, Texture2D, ArraySize=1, and requires the optional package texture2ddecoder==1.0.6. It decodes only the base mip and reports minimum, maximum, unique, transparent, partial-alpha and opaque pixel counts. It does not currently decode BC1.
+
+The Glass Texture is BC7_UNORM with a complete Stream mip chain, so it meets the decoder's structural preconditions. Pixel-level opacity evidence is still pending. Run:
+
+```powershell
+py -3 -m pip install texture2ddecoder==1.0.6
+py -3 .\source_model_reader.py hd2-texture "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 09985dc611a3a8b6 --texture 4406087459ab9513 --output ".\research\textures\glass_4406087459ab9513.dds" --preserve-raw --preview-png --json ".\research\textures\glass_4406087459ab9513.json"
+```
+
+The preview command re-exports the same files and updates the JSON with pixel-alpha statistics and a PNG path. A nonzero partial-alpha pixel count would prove that the decoded texture stores fractional alpha values; it would still not prove that the Glass shader samples alpha as opacity.
+
+Then export the Translucent Flowing dependencies from the one package that contains all four:
+
+```powershell
+$gameData = "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data"
+$package = "70b4860e8169622e"
+$textures = @(
+    @{ Name="flow_noise02"; Id="fa0bb48a25ed50fe" },
+    @{ Name="flow_noise01"; Id="fa0bb48a25ed50fe" },
+    @{ Name="flow_unknown_slot"; Id="7f37735b6a73092a" },
+    @{ Name="flow_normal02"; Id="628b6b9b554e06e2" },
+    @{ Name="flow_normal01"; Id="371ef38cf24b6cc2" }
+)
+foreach ($item in $textures) {
+    py -3 .\source_model_reader.py hd2-texture $gameData --package $package --texture $item.Id --output ".\research\textures\$($item.Name).dds" --preserve-raw --json ".\research\textures\$($item.Name).json"
+    if ($LASTEXITCODE -ge 2) { throw "Texture extraction failed: $($item.Name)" }
+}
+```
+
+The first and second node roles intentionally share one Texture FileID. Extracting the same resource under two role labels is optional; one raw export is sufficient, but the node mapping must remain duplicated in any material graph representation.
