@@ -168,8 +168,16 @@ def compare_source_skeleton_to_hd2(
             "source_active_weighted_node_count": (
                 len(source_active_node_ids) if source_active_node_ids is not None else None
             ),
+            "source_active_weighted_exact_match_count": (
+                sum(1 for row in matched if row["source_has_active_vertex_influence"])
+                if source_active_node_ids is not None else None
+            ),
             "source_active_weighted_unmapped_count": (
                 sum(1 for row in source_unmapped if row["source_has_active_vertex_influence"])
+                if source_active_node_ids is not None else None
+            ),
+            "source_active_weighted_ambiguous_count": (
+                sum(1 for row in ambiguous if row.get("source_has_active_vertex_influence"))
                 if source_active_node_ids is not None else None
             ),
             "target_transform_count": len(skeleton),
