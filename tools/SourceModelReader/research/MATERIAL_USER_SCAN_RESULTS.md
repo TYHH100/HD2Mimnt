@@ -106,3 +106,34 @@ The output must be inspected for Transform count, BoneInfo count, Stream/mesh co
 5. No blend mode, depth-write state, culling mode, or final shader behavior is inferred by this report.
 
 The immediate goal is to determine whether any of the mapped Units are skinned character/armor geometry, and whether the Glass sections correspond to actual clothing surfaces or only environmental/prop geometry.
+
+
+## Accelerated next step — one-command Unit batch
+
+To avoid five separate inspection commands and manual JSON triage, a batch runner was added:
+
+`research/run_glass_unit_batch.py`
+
+From `tools/SourceModelReader`, run:
+
+```powershell
+py -3 .\\research\\run_glass_unit_batch.py
+```
+
+Or supply a different game data path:
+
+```powershell
+py -3 .\\research\\run_glass_unit_batch.py --game-data "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
+```
+
+The runner:
+1. Executes the focused Texture and Material User regression-test modules and saves their logs.
+2. Inspects all five candidate Units in sequence.
+3. Continues to the next candidate if an individual Unit fails.
+4. Writes compact per-Unit JSON files containing geometry layouts, material/section mappings, stream component descriptors, skeleton names, BoneInfo palettes/remaps, active skinning counts, matrix-validation summaries, and warnings.
+5. Deletes each temporary full per-vertex JSON report after producing its compact result.
+6. Produces `unit_inspections/glass_unit_batch_summary.json` and `glass_unit_batch_summary.md`.
+
+A non-zero final exit code means at least one focused test or Unit inspection failed. Successful candidate reports are retained. The script reads game data only; it does not modify packages or game files.
+
+This is a research batch helper, not a new parser or a claim that the five candidates are character assets. Their actual roles must be classified from the resulting geometry, skeleton, and material-section evidence.
