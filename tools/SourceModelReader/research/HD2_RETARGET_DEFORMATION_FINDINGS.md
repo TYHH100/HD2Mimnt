@@ -79,16 +79,65 @@
   地标比较是无意义的。报告里 `absolute_adapted_hand_vs_other_model_landmark = 0.721343` 只作为
   量级参考，不进判定门。Phase 5 的迁移必须走骨间差值/palette，不能当世界坐标变换用。
 
-## 6. 下一步（按顺序）
+## 6. 真实矩阵上的铰链检验（Phase 4 第二轮）
 
-1. 用真实目标 Unit 的静止 palette 跑同一台机器的接口：把合成 `bone_world` 换成解析出来的
-   TransformInfo 世界矩阵，检查 `rest_reproduces_stored_position` 是否在真数据上成立
-   （顶点位置空间探针 §2.5 已经在 211,956 / 389,215 条通道上做过等价检查，这一步是复用而非重做）。
-2. 先解决 `vec4_uint32` 第三骨骼索引属性的语义（Unknown），否则部分蒙皮的 1,045 条未解析通道
-   会让真实姿态检查不完整。
-3. 拿到真实动画姿态（或自制旋转）后，才谈"对真实目标 Unit 的形变检查"这一退出条件。
+工具：[`research/verify_hd2_bone_hinge_on_real_matrices.py`](verify_hd2_bone_hinge_on_real_matrices.py)
+测试：[`../tests/test_hd2_real_bone_hinge.py`](../tests/test_hd2_real_bone_hinge.py)（14 条）
+生成件：[`skeleton_comparison/hd2_real_bone_hinge.md`](skeleton_comparison/hd2_real_bone_hinge.md)（三个入库样本）
+与 [`skeleton_comparison/hd2_real_bone_hinge_8units.md`](skeleton_comparison/hd2_real_bone_hinge_8units.md)（八个 Unit 泛化）
 
-## 7. 外部参考
+这台机器不再合成枢轴：它读 `research/skinning_audits/` 与本地 Unit dump，把真实的 BoneInfo
+palette 矩阵和真实的 TransformInfo 世界矩阵拿出来，绕**真实关节**加一个 30° 铰链，然后检查
+
+```
+palette × posed_bone  ==  mesh_world × hinge(joint, rotation)
+```
+
+默认覆盖每个顶点、每个被正权重用到的骨骼（`--sample-limit` / `--max-bones` 可缩小）。实测：
+
+| 运行 | Unit | 网格 | 骨骼（按 Unit+Mesh+槽计） | 行数 | 失败行 | 铰链最大误差 | 刚性最大误差 | 混合线性最大误差 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 三个入库样本 | 3 | 10 | 162 | 810 | 0 | `3.42123e-07` | `2.30036e-07` | `3.26341e-07` |
+| 八 Unit 泛化 | 8 | 30 | 240 | 1200 | 0 | `3.42123e-07` | `2.30036e-07` | `3.26341e-07` |
+
+真实关节样例：`l_thigh` 在 `(-0.086986, -0.018955, 0.941668)`，`l_shoulder` 在
+`(-0.210121, -0.068876, 1.47449)`。avatar 网格铰链了 61 个骨骼，与解析器早先按正权重得到的
+61 个活动命名变换一致。
+
+对照组（**朴素构造** `bone_world × rotation`，即绕模型原点旋转）：八 Unit 的 1200 行里
+1195 行被明确区分、5 行因关节恰好在原点而判为 `identical`（不计为证据），0 行落在
+"应区分却没区分"。真实姿态下两种构造的顶点级差别不是抽象的：`l_arm_culling` 的 `dropped_placement_max_error`
+最大到 `1.782138` 米，肩部护甲四个 LOD 为 `1.464925` 米。
+
+### 6.1 三条必须说清楚的局限（本轮最重要的部分）
+
+1. **铰链恒等式与静止不变量是同一条矩阵等式**。`palette × posed = mesh_world × hinge` 展开后
+   就是 `palette × bone_world = mesh_world`，所以本轮不是"新增了一条独立证据"，而是把同一契约
+   在旋转和真实关节下重新走了一遍，并首次在**姿态空间**里量出两种构造的差别。
+2. **共轭铰链的"关节不动"是代数恒等**：共轭以 `B` 自己的平移行为锚点，`origin × posed` 必然等于
+   该关节，所以这条只作为构造审计（`joint_fixity_holds_by_construction`），已从判定门里移出。
+   真正有判别力的是铰链误差、刚性距离误差、混合线性以及朴素对照。
+3. **`lanes_unresolved` 为 0 不代表部分蒙皮问题消失**。选定配对只用第一个骨骼索引属性，
+   第二条与第三条（`vec4_uint32`）属性的通道被单独计为"未检视"：八 Unit 里 13 个网格共
+   `158,120` 个通道槽位从未进入检查（单网格最大 `24,920` 属 torso 样本，两件
+   `g_torso_undergarment_*` 各 `22,016`）。675 行来自配对不唯一（`pairing_ambiguous`）的网格。
+   测试把这条钉住了：若把 palette 的两个因子写反，配对门会直接**拒绝该网格**
+   （`no_passing_weight_pairing`），而不是报出一个假的通过。
+
+另外记录一条几何事实：丢掉 `mesh_world` 造成的差距是 `|placed − raw|`，而刚体旋转保持距离，
+所以铰链不会改变它——这正是"静止检查已经裁决了放置空间"的原因，报告里保留该度量只是为了
+在姿态语境下给出米数量级。
+
+## 7. 下一步（按顺序）
+
+1. ~~用真实 Unit 的静止 palette 跑同一台机器的接口~~ 已完成，见 §6。
+2. 定下 `vec4_uint32` 第三骨骼索引属性的语义（仍是 Unknown），并把配对不唯一的 675 行
+   收敛成唯一选择；否则 Phase 5 的权重迁移只能覆盖被检视的通道。
+3. 拿到真实动画姿态（或自制旋转）后，才谈"对真实目标 Unit 的形变检查"这一退出条件；
+   本轮的旋转是合成的，游戏是否用同一种局部旋转构造尚未观测。
+4. 非均匀缩放与旋转的组合仍无任何真实样本，保持"拒绝建模"。
+
+## 8. 外部参考
 
 - glTF 2.0 规范 §3.7.3.3 "Skinned Mesh Attributes"（原文："The skinning matrix is the product of
   the joint matrix and inverse bind matrix."），与本机 palette 候选 `mesh_world × inverse(bone_world) ×

@@ -223,6 +223,7 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
         "package_id": package.get("name"),
         "geometry_source": unit.get("geometry_source"),
         "transform_matrices": transform_matrices,
+        "transform_names": names,
         "meshes": meshes,
     }
 

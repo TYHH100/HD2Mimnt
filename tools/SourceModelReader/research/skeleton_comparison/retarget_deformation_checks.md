@@ -86,7 +86,7 @@ Every case is built from synthetic vertices plus the measured rest joints. No HD
 | Check | Result |
 |---|:---|
 | rest_reproduces_placed_position | pass |
-| joint_stays_fixed | pass |
+| joint_fixity_holds_by_construction | pass |
 | matches_rigid_rotation_of_the_placed_vertex | pass |
 | vertex_to_joint_distance_preserved | pass |
 | rotate_about_model_origin_rejected | pass |

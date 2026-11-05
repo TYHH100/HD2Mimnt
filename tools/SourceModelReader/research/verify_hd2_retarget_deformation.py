@@ -543,8 +543,11 @@ def case_hinge_on_a_rotated_bone() -> dict[str, Any]:
 
     return _row("hinge_on_a_rotated_bone", {
         "rest_reproduces_placed_position": distance(rest, placed) <= RIGID_TOLERANCE,
-        "joint_stays_fixed": distance(transform_point([0.0, 0.0, 0.0], bone_posed), joint)
-                             <= RIGID_TOLERANCE,
+        # The conjugation is anchored to B's own translation row, so this holds by
+        # algebra. It is kept as a construction audit; the discriminating checks are the
+        # rigid-rotation match below and the rejected naive post-multiply.
+        "joint_fixity_holds_by_construction": distance(
+            transform_point([0.0, 0.0, 0.0], bone_posed), joint) <= RIGID_TOLERANCE,
         "matches_rigid_rotation_of_the_placed_vertex": distance(posed, expected) <= RIGID_TOLERANCE,
         "vertex_to_joint_distance_preserved": abs(distance(posed, joint) - distance(placed, joint))
                                              <= RIGID_TOLERANCE,
