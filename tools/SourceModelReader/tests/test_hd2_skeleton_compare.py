@@ -108,13 +108,14 @@ class SourceHD2SkeletonComparisonTests(unittest.TestCase):
     def test_reports_source_active_weighted_nodes_separately(self):
         source = parse_smd_bytes(make_smd(), "AES_T.smd")
         result = compare_source_skeleton_to_hd2(
-            source, target_report(), source_active_node_ids={0, 2},
+            source, target_report(), source_active_node_ids={1, 2},
             source_kind="compiled_mdl_v48",
         )
         self.assertEqual(result["summary"]["source_active_weighted_node_count"], 2)
         self.assertEqual(result["summary"]["source_active_weighted_unmapped_count"], 1)
         matched = {row["source_name"]: row for row in result["matched"]}
         self.assertFalse(matched["root"]["source_has_active_vertex_influence"])
+        self.assertTrue(matched["spine"]["source_has_active_vertex_influence"])
         self.assertEqual(result["summary"]["source_skeleton_type"], "compiled_mdl_v48")
 
     def test_does_not_claim_rest_pose_numeric_comparison(self):
