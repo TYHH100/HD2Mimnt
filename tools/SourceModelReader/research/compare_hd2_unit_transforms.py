@@ -94,6 +94,57 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
                     mesh_binding_counts.get(mesh_transform_index, 0) + 1
                 )
 
+    # Mark mesh-only ancestors separately from direct MeshInfo bindings. A
+    # node qualifies only when it is an ancestor of a MeshInfo-bound transform
+    # and its entire subtree contains no active vertex-skinning transform.
+    # Shared ancestors containing a weighted skeleton branch stay in skeleton
+    # scope rather than being mislabeled as mesh hierarchy.
+    transform_by_index = {
+        row.get("index"): row
+        for row in transforms
+        if isinstance(row, dict)
+        and isinstance(row.get("index"), int)
+        and not isinstance(row.get("index"), bool)
+    }
+    mesh_hierarchy_binding_counts: dict[int, int] = {}
+    for mesh_index, binding_count in mesh_binding_counts.items():
+        mesh_transform = transform_by_index.get(mesh_index)
+        if mesh_transform is None:
+            continue
+        parent = mesh_transform.get("parent_index_raw")
+        visited: set[int] = {mesh_index}
+        while (
+            isinstance(parent, int)
+            and not isinstance(parent, bool)
+            and parent != ROOT_PARENT
+            and parent not in visited
+            and parent in transform_by_index
+        ):
+            visited.add(parent)
+            mesh_hierarchy_binding_counts[parent] = (
+                mesh_hierarchy_binding_counts.get(parent, 0) + binding_count
+            )
+            parent = transform_by_index[parent].get("parent_index_raw")
+
+    active_subtree_counts: dict[int, int] = {}
+    for active_index, active_row in skeleton_by_index.items():
+        if not active_row.get("has_active_vertex_influence"):
+            continue
+        current = active_index
+        visited: set[int] = set()
+        while current in transform_by_index and current not in visited:
+            visited.add(current)
+            active_subtree_counts[current] = active_subtree_counts.get(current, 0) + 1
+            parent = transform_by_index[current].get("parent_index_raw")
+            if (
+                isinstance(parent, bool)
+                or not isinstance(parent, int)
+                or parent == ROOT_PARENT
+                or parent == current
+            ):
+                break
+            current = parent
+
     records = []
     for transform in transforms:
         if not isinstance(transform, dict):
@@ -116,6 +167,8 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
             "active": bool(resolved.get("has_active_vertex_influence")),
             "active_lane_count": int(resolved.get("active_vertex_influence_lane_count") or 0),
             "mesh_binding_count": mesh_binding_counts.get(index, 0),
+            "mesh_hierarchy_binding_count": mesh_hierarchy_binding_counts.get(index, 0),
+            "mesh_hierarchy_subtree_active_count": active_subtree_counts.get(index, 0),
             "mesh_binding_info_available": mesh_binding_info_available,
             "position": _finite_vector(transform.get("position"), 3),
             "rotation_3x3": _finite_vector(transform.get("rotation_3x3"), 9),
@@ -161,22 +214,30 @@ def _status(error: float | None, tolerance: float) -> str:
 
 
 def _transform_role(record: dict[str, Any]) -> str:
-    """Classify a resolved TransformInfo using explicit MeshInfo references.
+    """Classify TransformInfo using direct bindings and conservative ancestry.
 
-    Inactive does not mean non-skeletal: unweighted named transforms remain in
-    the skeleton comparison unless MeshInfo explicitly binds them as a mesh
-    transform.
+    Direct MeshInfo references take precedence. An unweighted ancestor is
+    classified as mesh hierarchy only when it leads to a MeshInfo-bound node
+    and its subtree contains no active skinning transforms. Ancestors shared
+    with weighted skeleton branches remain in skeleton scope.
     """
     if not record.get("mesh_binding_info_available"):
         return "unknown"
     if int(record.get("mesh_binding_count") or 0) > 0:
         return "mesh_and_weighted" if record.get("active") else "mesh_transform"
+    if (
+        int(record.get("mesh_hierarchy_binding_count") or 0) > 0
+        and int(record.get("mesh_hierarchy_subtree_active_count") or 0) == 0
+    ):
+        return "mesh_hierarchy_transform"
     return "weighted_skeleton" if record.get("active") else "unweighted_skeleton"
 
 
 def _comparison_scope(*roles: str) -> str:
     if any(role in ("mesh_transform", "mesh_and_weighted") for role in roles):
         return "mesh_transform"
+    if any(role == "mesh_hierarchy_transform" for role in roles):
+        return "mesh_hierarchy_transform"
     if any(role == "unknown" for role in roles):
         return "unknown"
     return "skeleton_transform"
@@ -322,6 +383,9 @@ def compare_pair(
         "active_flag_difference_count": sum(row["active_status"] == "differs" for row in rows),
         "skeleton_transform_count": count_scope("skeleton_transform", "comparison_scope"),
         "mesh_transform_count": count_scope("mesh_transform", "comparison_scope"),
+        "mesh_hierarchy_transform_count": count_scope(
+            "mesh_hierarchy_transform", "comparison_scope"
+        ),
         "unknown_scope_count": count_scope("unknown", "comparison_scope"),
         "transform_role_mismatch_count": sum(
             row["transform_role_status"] == "differs" for row in rows
@@ -331,6 +395,9 @@ def compare_pair(
         ),
         "mesh_transform_parent_mismatch_count": count_scope(
             "mesh_transform", "parent_status", "mismatch"
+        ),
+        "mesh_hierarchy_parent_mismatch_count": count_scope(
+            "mesh_hierarchy_transform", "parent_status", "mismatch"
         ),
         "skeleton_stored_matrix_match_count": count_scope(
             "skeleton_transform", "stored_matrix_status", "matches"
@@ -350,6 +417,15 @@ def compare_pair(
         "mesh_transform_stored_matrix_unavailable_count": count_scope(
             "mesh_transform", "stored_matrix_status", "unavailable"
         ),
+        "mesh_hierarchy_stored_matrix_match_count": count_scope(
+            "mesh_hierarchy_transform", "stored_matrix_status", "matches"
+        ),
+        "mesh_hierarchy_stored_matrix_mismatch_count": count_scope(
+            "mesh_hierarchy_transform", "stored_matrix_status", "mismatch"
+        ),
+        "mesh_hierarchy_stored_matrix_unavailable_count": count_scope(
+            "mesh_hierarchy_transform", "stored_matrix_status", "unavailable"
+        ),
         "skeleton_local_transform_mismatch_count": local_scope_mismatch_count(
             "skeleton_transform"
         ),
@@ -361,6 +437,12 @@ def compare_pair(
         ),
         "mesh_transform_local_transform_unavailable_count": local_scope_unavailable_count(
             "mesh_transform"
+        ),
+        "mesh_hierarchy_local_transform_mismatch_count": local_scope_mismatch_count(
+            "mesh_hierarchy_transform"
+        ),
+        "mesh_hierarchy_local_transform_unavailable_count": local_scope_unavailable_count(
+            "mesh_hierarchy_transform"
         ),
         "unknown_scope_stored_matrix_mismatch_count": count_scope(
             "unknown", "stored_matrix_status", "mismatch"
@@ -444,6 +526,11 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
                 and len(matrix_errors) == 2
                 and all(value is not None and value <= tolerance for value in matrix_errors)
             ) if comparison_scope == "mesh_transform" else None,
+            "mesh_hierarchy_matrix_all_match": (
+                comparison_scope == "mesh_hierarchy_transform"
+                and len(matrix_errors) == 2
+                and all(value is not None and value <= tolerance for value in matrix_errors)
+            ) if comparison_scope == "mesh_hierarchy_transform" else None,
         })
 
     pair_matrix_mismatches = sum(
@@ -455,17 +542,29 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
     pair_mesh_matrix_mismatches = sum(
         pair["summary"]["mesh_transform_stored_matrix_mismatch_count"] for pair in pairs.values()
     )
+    pair_mesh_hierarchy_matrix_mismatches = sum(
+        pair["summary"]["mesh_hierarchy_stored_matrix_mismatch_count"]
+        for pair in pairs.values()
+    )
     pair_skeleton_parent_mismatches = sum(
         pair["summary"]["skeleton_parent_mismatch_count"] for pair in pairs.values()
     )
     pair_mesh_parent_mismatches = sum(
         pair["summary"]["mesh_transform_parent_mismatch_count"] for pair in pairs.values()
     )
+    pair_mesh_hierarchy_parent_mismatches = sum(
+        pair["summary"]["mesh_hierarchy_parent_mismatch_count"]
+        for pair in pairs.values()
+    )
     pair_skeleton_local_mismatches = sum(
         pair["summary"]["skeleton_local_transform_mismatch_count"] for pair in pairs.values()
     )
     pair_mesh_local_mismatches = sum(
         pair["summary"]["mesh_transform_local_transform_mismatch_count"] for pair in pairs.values()
+    )
+    pair_mesh_hierarchy_local_mismatches = sum(
+        pair["summary"]["mesh_hierarchy_local_transform_mismatch_count"]
+        for pair in pairs.values()
     )
     pair_role_mismatches = sum(
         pair["summary"]["transform_role_mismatch_count"] for pair in pairs.values()
@@ -475,6 +574,14 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
     )
     pair_mesh_unavailable = sum(
         pair["summary"]["mesh_transform_stored_matrix_unavailable_count"] for pair in pairs.values()
+    )
+    pair_mesh_hierarchy_unavailable = sum(
+        pair["summary"]["mesh_hierarchy_stored_matrix_unavailable_count"]
+        for pair in pairs.values()
+    )
+    pair_mesh_hierarchy_local_unavailable = sum(
+        pair["summary"]["mesh_hierarchy_local_transform_unavailable_count"]
+        for pair in pairs.values()
     )
     pair_unknown_scope = sum(
         pair["summary"]["unknown_scope_count"] for pair in pairs.values()
@@ -528,6 +635,11 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         or pair_mesh_local_mismatches
         or pair_mesh_unavailable
         or pair_mesh_local_unavailable
+        or pair_mesh_hierarchy_matrix_mismatches
+        or pair_mesh_hierarchy_parent_mismatches
+        or pair_mesh_hierarchy_local_mismatches
+        or pair_mesh_hierarchy_unavailable
+        or pair_mesh_hierarchy_local_unavailable
     )
     diagnostic_status = (
         "warning" if has_skeleton_warning
@@ -536,7 +648,7 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
     )
 
     return {
-        "schema": "SourceModelReader-HD2UnitTransformComparison2",
+        "schema": "SourceModelReader-HD2UnitTransformComparison3",
         "tolerance": tolerance,
         "units": [
             {key: value for key, value in unit.items() if key != "records"}
@@ -557,23 +669,29 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "pairwise_local_transform_unavailable": pair_local_transform_unavailable,
             "pairwise_skeleton_matrix_mismatches": pair_skeleton_matrix_mismatches,
             "pairwise_mesh_transform_matrix_mismatches": pair_mesh_matrix_mismatches,
+            "pairwise_mesh_hierarchy_matrix_mismatches": pair_mesh_hierarchy_matrix_mismatches,
             "pairwise_skeleton_parent_mismatches": pair_skeleton_parent_mismatches,
             "pairwise_mesh_transform_parent_mismatches": pair_mesh_parent_mismatches,
+            "pairwise_mesh_hierarchy_parent_mismatches": pair_mesh_hierarchy_parent_mismatches,
             "pairwise_skeleton_local_transform_mismatches": pair_skeleton_local_mismatches,
             "pairwise_mesh_transform_local_transform_mismatches": pair_mesh_local_mismatches,
+            "pairwise_mesh_hierarchy_local_transform_mismatches": pair_mesh_hierarchy_local_mismatches,
             "pairwise_transform_role_mismatches": pair_role_mismatches,
             "pairwise_skeleton_matrix_unavailable": pair_skeleton_unavailable,
             "pairwise_mesh_transform_matrix_unavailable": pair_mesh_unavailable,
+            "pairwise_mesh_hierarchy_matrix_unavailable": pair_mesh_hierarchy_unavailable,
             "pairwise_skeleton_local_transform_unavailable": pair_skeleton_local_unavailable,
             "pairwise_mesh_transform_local_transform_unavailable": pair_mesh_local_unavailable,
+            "pairwise_mesh_hierarchy_local_transform_unavailable": pair_mesh_hierarchy_local_unavailable,
             "pairwise_unknown_scope_transforms": pair_unknown_scope,
             "three_way_shared_unique_named_transform_count": len(common_all),
             "status": diagnostic_status,
         },
         "interpretation_limits": [
             "Only unique, resolved TransformInfo names are compared. Duplicate or unresolved names are excluded from name-based matching.",
-            "A TransformInfo referenced by MeshInfo.records[].transform_index is classified as a mesh transform. This is an explicit structural association, not a claim that the transform is disposable or unrelated to all bone behavior.",
-            "Named transforms not directly referenced by MeshInfo remain in the skeleton comparison, including unweighted transforms. Lack of direct vertex influence alone never removes a transform from skeleton analysis.",
+            "A TransformInfo referenced directly by MeshInfo.records[].transform_index is classified as a mesh transform. This is an explicit structural association, not a claim that the transform is disposable or unrelated to all bone behavior.",
+            "An unweighted ancestor of a MeshInfo-bound transform is classified as mesh_hierarchy_transform only when its full descendant subtree contains no active vertex-skinning transforms. Ancestors shared with an active skeleton branch remain in skeleton scope; this is a conservative structural heuristic.",
+            "Named transforms not directly referenced by MeshInfo and not proven to be mesh-only ancestors remain in the skeleton comparison, including unweighted transforms. Lack of direct vertex influence alone never removes a transform from skeleton analysis.",
             "When a transform is both MeshInfo-bound and actively weighted, it is reported as mesh_and_weighted and placed in the mesh-transform comparison scope so its dual role remains visible.",
             "Position, rotation_3x3 and scale are compared as stored local fields; no axis, handedness, unit-scale or quaternion conversion is applied.",
             "matrix_4x4_raw is compared as the stored TransformInfo 4x4 value. The existing parser independently checks its relationship to reconstructed hierarchy matrices for each Unit, but this cross-Unit comparison does not establish universal world-space or inverse-bind semantics.",
@@ -625,16 +743,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Classification summary",
         "",
-        "| Pair | Skeleton transforms | Skeleton matrix mismatches | Mesh transforms | Mesh matrix mismatches | Role differences |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Pair | Skeleton transforms | Skeleton matrix mismatches | Direct Mesh transforms | Direct Mesh matrix mismatches | Mesh-only ancestors | Ancestor matrix mismatches | Role differences |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ])
     for pair in report["pairwise_comparisons"].values():
         s = pair["summary"]
-        lines.append("| {} vs {} | {} | {} | {} | {} | {} |".format(
+        lines.append("| {} vs {} | {} | {} | {} | {} | {} | {} | {} |".format(
             s["left"], s["right"], s["skeleton_transform_count"],
             s["skeleton_stored_matrix_mismatch_count"],
             s["mesh_transform_count"],
             s["mesh_transform_stored_matrix_mismatch_count"],
+            s["mesh_hierarchy_transform_count"],
+            s["mesh_hierarchy_stored_matrix_mismatch_count"],
             s["transform_role_mismatch_count"],
         ))
 
@@ -753,6 +873,9 @@ def main() -> int:
     ))
     print("Pairwise mesh-transform matrix mismatches: {}".format(
         report["summary"]["pairwise_mesh_transform_matrix_mismatches"]
+    ))
+    print("Pairwise mesh-hierarchy matrix mismatches: {}".format(
+        report["summary"]["pairwise_mesh_hierarchy_matrix_mismatches"]
     ))
     print("Pairwise skeleton parent mismatches: {}".format(
         report["summary"]["pairwise_skeleton_parent_mismatches"]
