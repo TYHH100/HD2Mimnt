@@ -112,6 +112,14 @@ The three structural mismatches are:
 
 These differences should not be "fixed" by changing the aliases blindly. The transform graph and vertex palette must be examined first.
 
+## Corrected target influence status and next diagnostic
+
+The latest regenerated comparison report confirms that all 22 humanoid alias candidates resolve to target transforms with active vertex influence. The earlier all-inactive display was a report-field propagation bug in the advisory alias layer, not evidence that the selected Avatar Unit lacked skinning weights. That earlier inference is withdrawn.
+
+The next evidence needed is the compact per-Unit skinning chain:
+`vertex-local bone index -> material Remap[local index] -> BoneInfo RealIndices[palette slot] -> TransformInfo index`.
+The Unit decoder already resolves this chain per section and per index set. A new helper, `research/summarize_hd2_skinning.py`, converts the full `hd2-unit --json` output into a compact Markdown audit containing BoneInfo records, RealIndices, material remaps, section lane totals, active TransformInfo usage, and the resolved per-vertex influence tuples.
+
 ## Important limitations
 
 1. Source active-bone usage is currently a union over the stored VVD vertex pool, not split by BodyGroup or LOD.
