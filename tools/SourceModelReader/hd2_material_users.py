@@ -149,10 +149,6 @@ def _material_mesh_matches(
     composite_mesh_info: Optional[dict] = None,
 ) -> list[dict]:
     """Join Unit Material section IDs to direct or CompositeUnit mesh sections."""
-    by_section: dict[int, int] = {}
-    for item in materials:
-        by_section[item["section_id"]] = item["material_id"]
-
     results = []
     for item in materials:
         material_id = item["material_id"]
@@ -170,8 +166,10 @@ def _material_mesh_matches(
 
             for section in layout.get("sections", []):
                 slot_id = section.get("material_slot_id")
-                resolved_material_id = by_section.get(slot_id)
-                if resolved_material_id != material_id:
+                # Match this exact Unit Material table row. Matching only
+                # the Material FileID would merge sibling slots that happen
+                # to reuse the same Material resource and duplicate sections.
+                if slot_id != item["section_id"]:
                     continue
                 section_matches.append({
                     "mesh_index": mesh.get("index"),
