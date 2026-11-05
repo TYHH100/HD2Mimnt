@@ -249,5 +249,24 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(row["comparison_scope"], "skeleton_transform")
 
 
+    def test_weight_usage_difference_does_not_change_skeleton_transform_scope(self):
+        left = make_unit("left", [
+            {"index": 0, "name": "spine", "active": True},
+        ])
+        right = make_unit("right", [
+            {"index": 3, "name": "spine", "active": False},
+        ])
+        pair = compare_pair(left, right, 1.0e-4)
+        row = pair["transforms"][0]
+
+        self.assertEqual(row["left_transform_role"], "weighted_skeleton")
+        self.assertEqual(row["right_transform_role"], "unweighted_skeleton")
+        self.assertEqual(row["comparison_scope"], "skeleton_transform")
+        self.assertEqual(row["transform_role_status"], "matches")
+        self.assertEqual(row["active_status"], "differs")
+        self.assertEqual(pair["summary"]["transform_role_mismatch_count"], 0)
+        self.assertEqual(pair["summary"]["active_flag_difference_count"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
