@@ -509,3 +509,22 @@ This establishes that `0x001ff6d4` is not a game-instance anomaly: it is part of
 The five Texture FileIDs in the AQ preset are all different from the game instances' five node references. Therefore, the canonical node layout is shared while concrete per-instance resources are independently assigned. The two game samples share the exact same resource-ID sequence with each other, but the AQ bundled preset is a separate resource set.
 
 This strengthens the material-schema evidence without resolving the unknown node's sampling semantics. Do not assign it a guessed name such as "flow mask", "flow direction" or "distortion" until there is direct shader or controlled in-game evidence.
+
+
+### Local unit-test result — confirmed by user
+
+On 2026-11-05, the user ran the focused Windows test command from `tools/SourceModelReader`:
+
+```powershell
+py -3 -m unittest discover -s tests -p "test_hd2_texture.py" -v
+```
+
+Result:
+- 19 tests run.
+- 0 failures, 0 errors.
+- Runtime: 0.126 seconds.
+- The BC1 binary-alpha preview test passed.
+- The BC5 R/G channel and synthetic-alpha guard test passed.
+- All 17 pre-existing texture parser, mip-layout, safety and BC7 compatibility tests passed.
+
+This closes the two earlier test failures caused by escaped PNG-signature literals. The multi-codec preview implementation is now unit-tested successfully on the user's Windows Python environment for this focused module. This result does not yet claim that the entire SourceModelReader test suite has passed.
