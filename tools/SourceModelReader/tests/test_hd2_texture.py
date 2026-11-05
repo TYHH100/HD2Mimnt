@@ -12,6 +12,7 @@ from hd2_texture import (
     TEXTURE_TOC_SIZE,
     _read_slim_texture_payload,
     decode_bc7_preview,
+    decode_texture_preview,
     inspect_hd2_texture,
     parse_texture_resource,
 )
@@ -28,7 +29,8 @@ def make_texture_toc(
     for _ in range(mip_count):
         blocks_x = max(1, (current_width + 3) // 4)
         blocks_y = max(1, (current_height + 3) // 4)
-        level_sizes.append(blocks_x * blocks_y * 16)
+        block_bytes = 8 if dxgi in (70, 71, 72, 79, 80, 81) else 16
+        level_sizes.append(blocks_x * blocks_y * block_bytes)
         current_width = max(1, current_width // 2)
         current_height = max(1, current_height // 2)
     total_size = sum(level_sizes)
@@ -224,6 +226,78 @@ class TextureParserTests(unittest.TestCase):
         raw_scanlines = zlib.decompress(bytes(idat))
         self.assertEqual(raw_scanlines[0], 0)  # PNG filter None
         self.assertEqual(raw_scanlines[1:5], bytes((1, 2, 3, 0)))  # BGRA -> RGBA
+
+    def test_bc1_preview_reports_binary_alpha_and_rgba_output(self):
+        import sys
+        import types
+
+        toc = make_texture_toc(width=4, height=4, mip_count=3, dxgi=71)
+        payload = b"C" * 24
+        report = parse_texture_resource(toc, payload)
+        bgra = bytearray()
+        for index in range(16):
+            bgra.extend((30, 20, 10, 0 if index % 2 == 0 else 255))
+
+        fake_decoder = types.ModuleType("texture2ddecoder")
+        fake_decoder.__version__ = "test"
+        calls = []
+
+        def decode_bc1(data, width, height):
+            calls.append((data, width, height))
+            return bytes(bgra)
+
+        fake_decoder.decode_bc1 = decode_bc1
+        with patch.dict(sys.modules, {"texture2ddecoder": fake_decoder}):
+            preview, png = decode_texture_preview(report, payload)
+
+        self.assertEqual(calls, [(payload[:8], 4, 4)])
+        self.assertEqual(preview["codec"], "BC1")
+        self.assertEqual(preview["alpha"]["source_alpha_available"], True)
+        self.assertEqual(preview["alpha"]["fully_transparent_pixels"], 8)
+        self.assertEqual(preview["alpha"]["partial_alpha_pixels"], 0)
+        self.assertEqual(preview["alpha"]["fully_opaque_pixels"], 8)
+        self.assertEqual(preview["channels"]["red"]["minimum"], 10)
+        self.assertEqual(preview["channels"]["green"]["minimum"], 20)
+        self.assertEqual(preview["channels"]["blue"]["minimum"], 30)
+        self.assertTrue(png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+
+    def test_bc5_preview_marks_alpha_as_decoder_fill_and_reports_rg(self):
+        import sys
+        import types
+
+        toc = make_texture_toc(width=4, height=4, mip_count=3, dxgi=83)
+        payload = b"N" * 48
+        report = parse_texture_resource(toc, payload)
+        bgra = bytearray()
+        for index in range(16):
+            # texture2ddecoder's BGRA output stores the two BC5 components in
+            # R and G, sets B to 0, and fills A with 255.
+            bgra.extend((0, 20 + index, 100 + index, 255))
+
+        fake_decoder = types.ModuleType("texture2ddecoder")
+        fake_decoder.__version__ = "test"
+        calls = []
+
+        def decode_bc5(data, width, height):
+            calls.append((data, width, height))
+            return bytes(bgra)
+
+        fake_decoder.decode_bc5 = decode_bc5
+        with patch.dict(sys.modules, {"texture2ddecoder": fake_decoder}):
+            preview, png = decode_texture_preview(report, payload)
+
+        self.assertEqual(calls, [(payload[:16], 4, 4)])
+        self.assertEqual(preview["codec"], "BC5_UNORM")
+        self.assertFalse(preview["alpha"]["source_alpha_available"])
+        self.assertEqual(preview["alpha"]["minimum"], 255)
+        self.assertEqual(preview["alpha"]["unique_values"], 1)
+        self.assertEqual(preview["channels"]["red"]["minimum"], 100)
+        self.assertEqual(preview["channels"]["red"]["maximum"], 115)
+        self.assertEqual(preview["channels"]["green"]["minimum"], 20)
+        self.assertEqual(preview["channels"]["green"]["maximum"], 35)
+        self.assertEqual(preview["channels"]["blue"]["unique_values"], 1)
+        self.assertIn("Not a source alpha channel", preview["alpha"]["interpretation"])
+        self.assertTrue(png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
 
     def test_bc7_preview_reports_missing_optional_dependency(self):
         import sys
