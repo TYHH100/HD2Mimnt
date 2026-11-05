@@ -169,3 +169,62 @@ For the fabric-conversion objective, the basic Glass/Translucent family remains 
 4. Only after texture headers and channels are checked, select character Unit/material-section references and design controlled in-game material tests.
 
 No render mode should be inferred from the Material's friendly alias or the presence of alpha bytes alone.
+
+
+## 7. AQ Edition bundled preset binaries: independent binary cross-check
+
+The AQ Edition preset files at commit 71b380046d33d552eef0892bd48661ff25591380 were retrieved as Base64 file contents and decoded once into their raw Material payloads. They use the same 136-byte header, ordered texture tables, 20-byte variable descriptors and offset-based scalar/vector value payload that SourceModelReader parses. This is a comparison of public sample data, not a reuse of the SDK's implementation.
+
+Pinned preset blob SHAs:
+- materials/glass.material — c5880b8541924a6ee0d20a404f10bf4310e8e669
+- materials/translucent_flowing.material — 14bb4bf38d8a4a2dbc8f5fccc4b0bd67c01fa19f
+
+### Glass preset and the non-placeholder game instance
+
+AQ's bundled glass.material parses as:
+- 528 bytes; ParentMaterialID 0x84e5de1cc6b74ada
+- one texture node, raw type 0xdab4d0ee
+- Texture FileID 4406087459ab9513
+- 14 variable descriptors; declared value data 96 bytes; 4 trailing bytes
+
+The game Material 9423bb5f9a715c2e has the exact same ParentMaterialID, raw texture-node type and Texture FileID. Seven overlapping variable IDs also have exactly matching values in the preset and game instance:
+
+| Variable ID | AQ dictionary name | Value in both |
+|---|---|---:|
+| 0xab58e70d | OpacityBase | 0.28 |
+| 0x43695f7b | ResolutionSetting | 3 |
+| 0x4dec56f9 | RoughnessBase | 0.05 |
+| 0x393cf79e | SpecularBase | 0.99 |
+| 0xcb577b8f | BaseColor | (0.3152, 0.3152, 0.3587) |
+| 0x5a341fb6 | TextureTile | 2 |
+| 0x2e0bee05 | unresolved in both checked dictionaries | 1 |
+
+The game instance additionally contains AlphaColor=(0,0,0) and AlphaColorWeight=0, which are not present in the bundled AQ preset's descriptor list. Conversely, the preset carries seven additional Dirt/Weathering descriptors not present in this nine-descriptor game instance. The shared seven values and exact shared texture dependency are a strong binary-level cross-check that Texture FileID 4406087459ab9513 is the resource reference in AQ's Glass preset—not merely an unrelated large texture found in a package.
+
+This materially raises the priority of extracting 4406087459ab9513. It still does not prove its image channels or the engine's final blend equation; the AQ UI label Glass stain and the Community dictionary label NormalXyRoughnessOpacity remain a documented semantic discrepancy.
+
+### Translucent Flowing preset versus game instances
+
+AQ's bundled translucent_flowing.material parses as:
+- 2,864 bytes; ParentMaterialID 0x110199a9c3401242
+- five texture nodes; 87 variable descriptors
+- 916 declared variable-data bytes; 12 trailing bytes
+
+Its 87-variable ID set exactly matches both inspected game instances. The preset's five Texture FileIDs differ from the five references shared by the two game instances, so the preset and game instances are different texture sets under the same parent/template schema.
+
+Against game instance 344020be12d962b5 (the closer match), only nine of the 87 first scalar/vector previews differ from the AQ preset:
+- Noise02Speed (0xb961d0c7)
+- EllipseExp (0xa6facdc9)
+- Noise01Tile (0x95da4b25)
+- Noise01Speed (0x3f591185)
+- EllipseMask (0x73b5fc89)
+- NoiseFresnelMin (0xe0a06d64)
+- OpacityMult (0x718ea144)
+- LuminocityExp (0x2ca054d5)
+- Color (0x06776dda)
+
+This indicates a close parameter match to the SDK preset while retaining a different per-instance texture set. The other game instance 7b25f93956fd9aff differs from the preset in 61 preview values. These values are still raw first scalar/vector previews; the comparison does not claim to reproduce the shader equations.
+
+### What the bundled presets do and do not prove
+
+The AQ preset binaries provide valuable reference fixtures for validating Material parsing and understanding which IDs/values are exposed by a known authoring template. They are not proof that every game material is byte-identical to the SDK preset, that all default values are engine defaults, or that a given texture channel is consumed for opacity. Keep preset revision, raw payload identity, parent ID and texture IDs separate in future comparisons.
