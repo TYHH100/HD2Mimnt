@@ -146,6 +146,11 @@ def collect(path: Path, label: str) -> dict[str, Any]:
             ),
             "stored_matrix_identity_error": error,
             "hierarchy_validation_status": (hierarchy.get(transform_index) or {}).get("status", "unavailable"),
+            "section_material_slot_ids": sorted({
+                section.get("material_slot_id")
+                for section in (geometry_row or {}).get("sections") or []
+                if isinstance(section, dict) and section.get("material_slot_id") is not None
+            }),
         }
         observed_class, reasons = classify(evidence)
         evidence["observed_class"] = observed_class
@@ -163,16 +168,79 @@ def collect(path: Path, label: str) -> dict[str, Any]:
     }
 
 
-def build_report(units: list[dict[str, Any]]) -> dict[str, Any]:
-    tally: dict[str, int] = {}
+def slot_census(units: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
+    """Census which section material references each binding uses, batch-wide.
+
+    The separating property is whether a reference also appears on the LOD 0
+    binding: a garment owns its own reference at its base LOD, while the shadow
+    and culling families keep one reference that never touches LOD 0. Reuse
+    across Units is not the property, because male and female twins of one
+    garment share a garment reference too. Names stay verification-only.
+    """
+    census: dict[int, dict[str, Any]] = {}
     for unit in units:
         for row in unit["bindings"]:
+            for slot in row["section_material_slot_ids"]:
+                entry = census.setdefault(slot, {
+                    "material_slot_id": slot, "units": set(), "bindings": 0,
+                    "lod_indices": set(), "skinning_states": set(), "observed_classes": set(),
+                    "reference_names": set(),
+                })
+                entry["units"].add(unit["label"])
+                entry["bindings"] += 1
+                if row["lod_index"] is not None:
+                    entry["lod_indices"].add(row["lod_index"])
+                entry["skinning_states"].add(row["skinning_status"])
+                entry["observed_classes"].add(row["observed_class"])
+                if row["transform_name_reference_only"]:
+                    entry["reference_names"].add(row["transform_name_reference_only"])
+    for entry in census.values():
+        entry["unit_count"] = len(entry["units"])
+        entry["appears_at_base_lod"] = 0 in entry["lod_indices"]
+        entry["appears_at_negative_lod"] = any(value < 0 for value in entry["lod_indices"])
+        entry["reference_profile"] = (
+            "base_lod_reference" if entry["appears_at_base_lod"] else
+            "no_base_lod_negative_lod" if entry["appears_at_negative_lod"] else "no_base_lod_upper_lod"
+        )
+        for key in ("units", "lod_indices", "skinning_states", "observed_classes", "reference_names"):
+            entry[key] = sorted(entry[key], key=str)
+    return dict(sorted(census.items(), key=lambda item: (item[1]["appears_at_base_lod"], -item[1]["bindings"])))
+
+
+def reference_profile(row: dict[str, Any], census: dict[int, dict[str, Any]]) -> str:
+    slots = row["section_material_slot_ids"]
+    if not slots:
+        return "no_section_references"
+    profiles = {census[slot]["reference_profile"] for slot in slots if slot in census}
+    if not profiles:
+        return "unrecorded_references"
+    if profiles == {"base_lod_reference"}:
+        return "base_lod_bound"
+    if "base_lod_reference" in profiles:
+        return "mixed_references"
+    return f"family_{next(iter(profiles))}"
+
+
+def build_report(units: list[dict[str, Any]]) -> dict[str, Any]:
+    census = slot_census(units)
+    tally: dict[str, int] = {}
+    profiles: dict[str, int] = {}
+    cross_tab: dict[str, dict[str, int]] = {}
+    for unit in units:
+        for row in unit["bindings"]:
+            row["material_reference_profile"] = reference_profile(row, census)
             tally[row["observed_class"]] = tally.get(row["observed_class"], 0) + 1
+            profiles[row["material_reference_profile"]] = profiles.get(row["material_reference_profile"], 0) + 1
+            cell = cross_tab.setdefault(row["material_reference_profile"], {})
+            cell[row["observed_class"]] = cell.get(row["observed_class"], 0) + 1
     return {
         "schema": "SourceModelReader-HD2MeshBindingClassification1",
         "units": len(units),
         "bindings": sum(unit["binding_count"] for unit in units),
         "class_tally": dict(sorted(tally.items())),
+        "reference_profile_tally": dict(sorted(profiles.items())),
+        "profile_by_class": {key: dict(sorted(value.items())) for key, value in sorted(cross_tab.items())},
+        "slot_census": list(census.values()),
         "class_definitions": [
             {"class": "skinned_render_lod", "requires": "decoded geometry, skin attributes, resolved lanes above zero, identity mesh matrix, matching hierarchy"},
             {"class": "skinned_non_identity_placement", "requires": "resolved lanes above zero and a non-identity mesh matrix; placement is applied through that matrix"},
@@ -190,6 +258,10 @@ def build_report(units: list[dict[str, Any]]) -> dict[str, Any]:
             "Classes describe stored structure, not runtime use; only native or SDK-side observation can confirm a runtime role.",
             "The hierarchy and matrix states come from the parser's candidate conventions, which are internal-consistency results.",
             "A binding is reported undecoded_geometry when the Unit JSON has no geometry row; that is a decode scope fact, not a property of the mesh.",
+            "The separating property is whether the reference also appears on a LOD 0 binding, not whether it is reused across Units: male and female twins of one garment share a garment reference, while shadow and culling references never touch LOD 0.",
+            "Batch-scoped: a single-Unit run can only see that Unit's own LOD values, so profiles need the widest sample available to be meaningful.",
+            "A profile marks a family only from reference roles; that shows structure, not runtime purpose, and only native or SDK-side observation can name the role.",
+            "mixed_references marks a binding that uses both kinds of reference; it is left unsplit rather than assigned to whichever reference is listed first.",
         ],
     }
 
@@ -218,6 +290,36 @@ def render_markdown(report: dict[str, Any]) -> str:
     for definition in report["class_definitions"]:
         lines.append("| {} | {} |".format(definition["class"], definition["requires"]))
     lines.extend([
+        "## Section material reference census",
+        "",
+        "Batch-scoped: a reference is a shared family only when at least two Units in this",
+        "run use it. Names are listed for verification only and never decide a profile.",
+        "",
+        "| Reference | Units | Bindings | Profile | LOD indices | Skinning states | Classes | Names (verification only) |",
+        "|---:|---:|---:|---|---|---|---|---|",
+    ])
+    for entry in report["slot_census"]:
+        lines.append("| {} | {} | {} | {} | {} | {} | {} | {} |".format(
+            entry["material_slot_id"], entry["unit_count"], entry["bindings"],
+            entry["reference_profile"],
+            ", ".join(str(value) for value in entry["lod_indices"]) or "-",
+            ", ".join(entry["skinning_states"]),
+            ", ".join(entry["observed_classes"]),
+            ", ".join(entry["reference_names"][:3]) or "(unresolved)",
+        ))
+    lines.extend([
+        "",
+        "## Reference profile by structure class",
+        "",
+        "| Profile | Bindings | Classes |",
+        "|---|---:|---|",
+    ])
+    for name, count in report["reference_profile_tally"].items():
+        lines.append("| {} | {} | {} |".format(
+            name, count,
+            ", ".join(f"{key}={value}" for key, value in report["profile_by_class"][name].items()),
+        ))
+    lines.extend([
         "",
         "## Per-binding evidence",
         "",
@@ -226,15 +328,17 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend([
             f"### {unit['label']} (Unit {unit['unit_id']})",
             "",
-            "| MeshInfo | Mesh | LOD | Skinning | Vertices | Lanes | Matrix | Hierarchy | Class | Name (reference only) |",
-            "|---:|---:|---:|---|---:|---:|---|---|---|---|",
+            "| MeshInfo | Mesh | LOD | Skinning | Vertices | Lanes | Matrix | Hierarchy | Class | References | Profile | Name (reference only) |",
+            "|---:|---:|---:|---|---:|---:|---|---|---|---|---|---|",
         ])
         for row in unit["bindings"]:
-            lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+            lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
                 row["mesh_info_index"], row["mesh_id"], row["lod_index"],
                 row["skinning_status"], row["vertex_count"],
                 row["resolved_active_influence_count"], row["stored_matrix_identity_status"],
                 row["hierarchy_validation_status"], row["observed_class"],
+                ", ".join(str(value) for value in row["section_material_slot_ids"]) or "-",
+                row["material_reference_profile"],
                 row["transform_name_reference_only"] or "(unresolved)",
             ))
         lines.append("")

@@ -47,10 +47,11 @@ def matrix_missing_translation_row():
 
 
 def base_binding(index=0, mesh_id=700, lod_index=0, transform_index=1, vertex_count=100,
-                 skinning=None):
+                 skinning=None, slot_ids=(7000,)):
     return {
         "mesh_info_index": index, "mesh_id": mesh_id, "transform_index": transform_index,
         "lod_index": lod_index, "vertex_count": vertex_count, "triangle_count": vertex_count,
+        "sections": [{"index": n, "material_slot_id": slot} for n, slot in enumerate(slot_ids)],
         "skinning": skinning or {"status": "ok", "resolved_active_influence_count": vertex_count * 2,
                                  "unresolved_active_influence_count": 0},
     }
@@ -199,6 +200,109 @@ class HD2MeshBindingClassificationTests(unittest.TestCase):
         markdown = render_markdown(report)
         for name in report["class_tally"]:
             self.assertIn(name, markdown)
+
+    def multi(self, bindings, label, hierarchy_status="matches"):
+        transforms = [base_transform(index=0)]
+        for index, binding in enumerate(bindings, start=1):
+            transforms.append(base_transform(index=binding["transform_index"]))
+        records = [
+            {"index": binding["mesh_info_index"], "mesh_id": binding["mesh_id"],
+             "transform_index": binding["transform_index"], "lod_index": binding["lod_index"]}
+            for binding in bindings
+        ]
+        skeleton = [{"transform_index": 0, "name": "root"}] + [
+            {"transform_index": binding["transform_index"], "name": f"g_fixture_{binding['lod_index']}"}
+            for binding in bindings
+        ]
+        validation = {"entries": [
+            {"transform_index": binding["transform_index"], "status": hierarchy_status,
+             "max_abs_error": 0.0} for binding in bindings
+        ]}
+        data = {
+            "unit": {"file_id": f"unit-{label}", "geometry_source": "Unit GPU payload"},
+            "package": {"name": f"package-{label}"},
+            "transform_info": {
+                "transforms": transforms, "resolved_skeleton": skeleton,
+                "hierarchy_matrix_validation": validation,
+            },
+            "mesh_info": {"records": records},
+            "geometry": bindings,
+        }
+        return collect_fixture(data, label)
+
+    def test_reference_used_only_above_base_level_is_split_from_garment_lods(self):
+        garment = [
+            base_binding(index=0, mesh_id=700, lod_index=0, transform_index=1, slot_ids=(7000,)),
+            base_binding(index=1, mesh_id=701, lod_index=1, transform_index=1, slot_ids=(7000,)),
+            base_binding(index=2, mesh_id=702, lod_index=3, transform_index=1, slot_ids=(8000,)),
+        ]
+        report = build_report([self.multi(garment, "a")])
+        rows = report["units_detail"][0]["bindings"]
+        self.assertEqual([row["material_reference_profile"] for row in rows],
+                         ["base_lod_bound", "base_lod_bound", "family_no_base_lod_upper_lod"])
+        census = {entry["material_slot_id"]: entry for entry in report["slot_census"]}
+        self.assertTrue(census[7000]["appears_at_base_lod"])
+        self.assertFalse(census[8000]["appears_at_base_lod"])
+        self.assertEqual(census[8000]["lod_indices"], [3])
+
+    def test_reuse_across_units_alone_is_not_a_family(self):
+        # Twins of one garment share the garment reference at their base LOD, so
+        # reuse has to be the wrong answer or the split collapses back onto names.
+        bindings = [
+            base_binding(lod_index=0, slot_ids=(7000,)),
+            base_binding(index=1, mesh_id=702, lod_index=3, slot_ids=(7000,)),
+        ]
+        report = build_report([self.multi(bindings, "female"), self.multi(bindings, "male")])
+        entry = report["slot_census"][0]
+        self.assertEqual(entry["material_slot_id"], 7000)
+        self.assertEqual(entry["unit_count"], 2)
+        self.assertEqual(entry["reference_profile"], "base_lod_reference")
+        for unit in report["units_detail"]:
+            self.assertEqual([row["material_reference_profile"] for row in unit["bindings"]],
+                             ["base_lod_bound", "base_lod_bound"])
+
+    def test_reference_used_at_negative_level_is_split_from_garment_lods(self):
+        garment = base_binding(lod_index=0, slot_ids=(7000,))
+        volume = base_binding(index=1, mesh_id=702, lod_index=-1, slot_ids=(9000,),
+                              skinning={"status": "no_skin_attributes"})
+        report = build_report([self.multi([garment, volume], "a")])
+        rows = report["units_detail"][0]["bindings"]
+        self.assertEqual([row["material_reference_profile"] for row in rows],
+                         ["base_lod_bound", "family_no_base_lod_negative_lod"])
+        self.assertEqual([row["observed_class"] for row in rows],
+                         ["skinned_render_lod", "auxiliary_unskinned"])
+
+    def test_binding_mixing_both_kinds_of_reference_is_left_unsplit(self):
+        garment = base_binding(lod_index=0, slot_ids=(7000,))
+        mixed = base_binding(index=1, mesh_id=702, lod_index=2, slot_ids=(7000, 8000))
+        report = build_report([self.multi([garment, mixed], "a")])
+        rows = report["units_detail"][0]["bindings"]
+        self.assertEqual([row["material_reference_profile"] for row in rows],
+                         ["base_lod_bound", "mixed_references"])
+
+    def test_binding_without_sections_has_no_references(self):
+        garment = base_binding(lod_index=0, slot_ids=(7000,))
+        bare = base_binding(index=1, mesh_id=702, lod_index=1)
+        bare.pop("sections")
+        report = build_report([self.multi([garment, bare], "a")])
+        rows = report["units_detail"][0]["bindings"]
+        self.assertEqual(rows[1]["section_material_slot_ids"], [])
+        self.assertEqual(rows[1]["material_reference_profile"], "no_section_references")
+
+    def test_report_reports_reference_profiles_and_census_together(self):
+        garment = [
+            base_binding(lod_index=0, slot_ids=(7000,)),
+            base_binding(index=1, mesh_id=702, lod_index=3, slot_ids=(8000,)),
+        ]
+        report = build_report([self.multi(garment, "a")])
+        self.assertEqual(report["reference_profile_tally"],
+                         {"base_lod_bound": 1, "family_no_base_lod_upper_lod": 1})
+        self.assertEqual(report["profile_by_class"]["family_no_base_lod_upper_lod"],
+                         {"skinned_render_lod": 1})
+        markdown = render_markdown(report)
+        self.assertIn("## Section material reference census", markdown)
+        self.assertIn("## Reference profile by structure class", markdown)
+        self.assertIn("family_no_base_lod_upper_lod", markdown)
 
 
 if __name__ == "__main__":

@@ -45,24 +45,43 @@
   其中两类形态明显不同：439 顶点 / 760 面的身体轮廓型（`hips_culling`、`r_leg_culling`、
   `l_arm_culling` 缓冲共用）与 24 顶点的简单盒型（`torso_culling`、`helmet_culling`）。
   本轮只按结构区分，**不**据此宣称遮挡/剔除用途。
-- 名字为 `*_shadow` 与 `*_LOD1/2` 的绑定落到同一等级（结构一致），说明现有字段**无法**
-  区分阴影几何与常规 LOD；这需要新的判别量（见第 4 节）。
+- 名字为 `*_shadow` 与 `*_LOD1/2` 的绑定在结构等级上仍相同（结构一致），单靠结构量不足；
+  分离性质在第二维度里找到，见第 4 节。
 
-## 4. 仍未定案（Unknown）与下一个最小实验
+## 4. 第二维度：材质引用族（这轮找到了可分离字段）
 
-1. **阴影几何 vs 常规 LOD**：需要引入判别量。候选：同 Unit 内同顶点数/三角形数比例、
-   网格是否复用同一顶点缓冲（`attribute_buffer_hashes` 已由位置探针产出）、
-   或该网格是否被 material 段的 `num_vertices` 覆盖。下一个实验：把缓冲共用检测
-   从「跨 Unit」扩展为「同 Unit 跨绑定」，看阴影网格是否与某个常规 LOD 共享缓冲。
-2. **`lod_index == -1` 的运行时语义**：10 条全部与「无蒙皮 + 非单位矩阵 + 盒型或轮廓型」
-   同时出现，但剔除/遮挡/物理代理无法用存储结构区分；需要原生侧（SDK 导出或游戏内）观察。
-3. **第三个 bone_index 组件集语义**：见位置空间结论文档第 2.11 节，已否证三条读法，仍待定案；
+结构等级本身不足以区分阴影几何与常规 LOD，于是量了第二维度：每个绑定 section 的
+`material_slot_id`。在 8 个 Unit / 40 条绑定 / 10 个不同引用上：
+
+| 引用 | 单位数 | 绑定 | 是否出现在 LOD 0 | 引用族等级 | 出现的 LOD | 蒙皮状态 |
+|---:|---:|---:|---|---|---|---|
+| `155175220` | 7 | 11 | 否 | `no_base_lod_negative_lod` | -1, 4 | 无蒙皮属性 + 有蒙皮 |
+| `1772995352` | 7 | 7 | 否 | `no_base_lod_upper_lod` | 3（仅此） | ok + partial |
+| `1913034217` / `3910610061` | 3 | 9 | 是 | `base_lod_reference` | 0, 1, 2 | ok + partial |
+| `793921433` / `2013274869` | 2 | 6 | 是 | `base_lod_reference` | 0, 1, 2 | ok |
+| `1256504776` / `1242939700` / `3140659872` / `2780682112` | 1 | 各 3/3/3/1 | 是 | `base_lod_reference` | 0, 1, 2（或仅 0） | ok |
+
+按引用族重分绑定：**22 条** `base_lod_bound`（19 常规渲染 LOD + 3 非单位放置）、
+**7 条** `family_no_base_lod_upper_lod`（全部恰在 LOD 3）、
+**11 条** `family_no_base_lod_negative_lod`（10 条无蒙皮属性 + 有蒙皮非单位放置的 `l_arm_culling`），
+`mixed_references` / `no_section_references` 本轮为 0（由合成样本可达）。
+
+- **关键反证（已推翻本轮最初的设想）**：「跨 Unit 被多个装备复用」不是分离性质——男女孪生装备共用同一衣物引用（样本中 3 个 Unit 共用 `1913034217`），因此若按复用分族，衣物与阴影会被并成一族。真正的分离性质是**该引用是否也出现在 LOD 0**：每件装备都在自己的 LOD 0 上拥有其引用，而阴影与剔除引用从不触碰 LOD 0。该反证由合成样本 `test_reuse_across_units_alone_is_not_a_family` 固定为回归。
+- **Observed**：阴影族与剔除族各自只有一个引用 id，且各自在 7 个 Unit 上稳定复用；剔除族是唯一同时横跨「有蒙皮 / 无蒙皮」与「LOD −1 / LOD 4」的引用。
+- 只到「引用角色」为止：**阴影/剔除的运行时用途仍是 Unknown**，命名族等级（`family_*`）不是角色声明；名字列仅作对照，不进入任何分支。
+
+## 5. 仍未定案（Unknown）与下一个最小实验
+
+1. **LOD 3 阴影族与 LOD −1 剔除族的运行时语义**：现在有了稳定的存储判别量（引用是否触碰
+   LOD 0），但仍需原生侧（SDK 导出或游戏内观察）确认遮挡/剔除/阴影用途。
+2. **第三个 bone_index 组件集语义**：见位置空间结论文档第 2.11 节，已否证三条读法，仍待定案；
    它直接阻塞权重传递。
-4. **覆盖范围**：本轮只覆盖包 `8670598c1f4462dc` 已解码的 8 个 Unit（该包共 22 个 Unit）
-   加 Avatar CompositeUnit。要 firm 等级表，需要继续解码剩余 Unit（每 5 个约 1 分钟、
-   只留本地 JSON），但这是覆盖度问题，不是新语义问题。
+3. **覆盖范围**：本轮覆盖包 `8670598c1f4462dc` 已解码的 8 个 Unit（该包共 22 个 Unit）加
+   Avatar CompositeUnit。要继续 firm 等级表需继续解码剩余 Unit（每 5 个约 1 分钟，JSON 只留
+   本地），这是覆盖度问题，不是新语义问题。
+4. **跨包抽样**：不同包的材质槽 id 可能不同，族等级是当前批次内的角色，已在解读限制中声明。
 
-## 5. 复现
+## 6. 复现
 
 ```
 py -3 research/classify_hd2_mesh_bindings.py --unit fs05_lower_body=research/skinning_audits/fs05_lower_body.json --unit fs05_torso_left_arm=research/skinning_audits/fs05_torso_left_arm.json --unit avatar_composite=research/skinning_audits/avatar_composite.json --unit fs05_shoulder_armor=research/skeleton_comparison/unit_90b57e547e7ff7bb.json --unit fs05_undergarment_torso_f=research/skeleton_comparison/unit_be65eae060a0267c.json --unit fs05_undergarment_torso_m=research/skeleton_comparison/unit_f2715c19b24ecd8b.json --unit fs05_undergarment_leg_r=research/skeleton_comparison/unit_7e5111d05840be1a.json --unit fs05_undergarment_leg_l=research/skeleton_comparison/unit_901fc9c35857dad2.json --output-markdown research/skeleton_comparison/hd2_mesh_binding_classification.md
