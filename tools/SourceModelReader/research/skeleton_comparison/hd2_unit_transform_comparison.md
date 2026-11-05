@@ -1,7 +1,7 @@
 # HD2 Cross-Unit Transform Comparison
 
 - Tolerance: 0.0001
-- Overall diagnostic status: **warning**
+- Overall diagnostic status: **review**
 
 ## Input Units
 
@@ -21,11 +21,11 @@
 
 ## Classification summary
 
-| Pair | Skeleton transforms | Skeleton matrix mismatches | Mesh transforms | Mesh matrix mismatches | Role differences |
-|---|---:|---:|---:|---:|---:|
-| fs05_lower_body vs fs05_torso_left_arm | 6 | 1 | 0 | 0 | 0 |
-| fs05_lower_body vs avatar_composite | 7 | 0 | 0 | 0 | 0 |
-| fs05_torso_left_arm vs avatar_composite | 28 | 0 | 0 | 0 | 0 |
+| Pair | Skeleton transforms | Skeleton matrix mismatches | Direct Mesh transforms | Direct Mesh matrix mismatches | Mesh-only ancestors | Ancestor matrix mismatches | Role differences |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| fs05_lower_body vs fs05_torso_left_arm | 5 | 0 | 0 | 0 | 1 | 1 | 0 |
+| fs05_lower_body vs avatar_composite | 7 | 0 | 0 | 0 | 0 | 0 | 0 |
+| fs05_torso_left_arm vs avatar_composite | 28 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ## Pairwise transform details
 
@@ -40,7 +40,7 @@
 | FbxAxisSystem_ConvertNode | skeleton_transform | unweighted_skeleton/unweighted_skeleton | StingrayEntityRoot | StingrayEntityRoot | matches | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | no/no |
 | StingrayEntityRoot | skeleton_transform | unweighted_skeleton/unweighted_skeleton | None | None | matches | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | no/no |
 | boss | skeleton_transform | unweighted_skeleton/unweighted_skeleton | root | root | matches | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | no/no |
-| game_mesh | skeleton_transform | unweighted_skeleton/unweighted_skeleton | (unresolved) | mech_pilot_light | unavailable | 0.9279849529266357 | 0.0 | 0.0 | 0.9279849529266357 | 0.9279849529266357 | no/no |
+| game_mesh | mesh_hierarchy_transform | mesh_hierarchy_transform/mesh_hierarchy_transform | (unresolved) | mech_pilot_light | unavailable | 0.9279849529266357 | 0.0 | 0.0 | 0.9279849529266357 | 0.9279849529266357 | no/no |
 | root | skeleton_transform | unweighted_skeleton/unweighted_skeleton | skeleton | skeleton | matches | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | no/no |
 | skeleton | skeleton_transform | unweighted_skeleton/unweighted_skeleton | (unresolved) | mech_pilot_light | unavailable | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | no/no |
 
@@ -111,8 +111,9 @@
 ## Interpretation limits
 
 - Only unique, resolved TransformInfo names are compared. Duplicate or unresolved names are excluded from name-based matching.
-- A TransformInfo referenced by MeshInfo.records[].transform_index is classified as a mesh transform. This is an explicit structural association, not a claim that the transform is disposable or unrelated to all bone behavior.
-- Named transforms not directly referenced by MeshInfo remain in the skeleton comparison, including unweighted transforms. Lack of direct vertex influence alone never removes a transform from skeleton analysis.
+- A TransformInfo referenced directly by MeshInfo.records[].transform_index is classified as a mesh transform. This is an explicit structural association, not a claim that the transform is disposable or unrelated to all bone behavior.
+- An unweighted ancestor of a MeshInfo-bound transform is classified as mesh_hierarchy_transform only when its full descendant subtree contains no active vertex-skinning transforms. Ancestors shared with an active skeleton branch remain in skeleton scope; this is a conservative structural heuristic.
+- Named transforms not directly referenced by MeshInfo and not proven to be mesh-only ancestors remain in the skeleton comparison, including unweighted transforms. Lack of direct vertex influence alone never removes a transform from skeleton analysis.
 - When a transform is both MeshInfo-bound and actively weighted, it is reported as mesh_and_weighted and placed in the mesh-transform comparison scope so its dual role remains visible.
 - Position, rotation_3x3 and scale are compared as stored local fields; no axis, handedness, unit-scale or quaternion conversion is applied.
 - matrix_4x4_raw is compared as the stored TransformInfo 4x4 value. The existing parser independently checks its relationship to reconstructed hierarchy matrices for each Unit, but this cross-Unit comparison does not establish universal world-space or inverse-bind semantics.
