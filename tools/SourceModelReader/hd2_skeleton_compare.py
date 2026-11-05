@@ -172,7 +172,6 @@ def compare_source_skeleton_to_hd2(
                 sum(1 for row in source_unmapped if row["source_has_active_vertex_influence"])
                 if source_active_node_ids is not None else None
             ),
-            "source_node_count": len(source.nodes),
             "target_transform_count": len(skeleton),
             "target_named_transform_count": int(weight_summary.get("named_transform_count") or len(target_by_key)),
             "target_active_weighted_transform_count": int(weight_summary.get("actively_weighted_transform_count") or 0),
