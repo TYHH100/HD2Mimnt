@@ -8,9 +8,12 @@ for candidate in (ROOT, ROOT / "research"):
         sys.path.insert(0, str(candidate))
 
 from compare_source_hd2_rest_joints import (  # noqa: E402
+    _invert3,
     build_rows,
+    chirality_comparison,
     disposition,
     hypothesis_residuals,
+    least_squares_map,
     paired_lengths,
 )
 
@@ -79,6 +82,86 @@ class SourceHD2RestJointTests(unittest.TestCase):
         self.assertEqual(ghost["approval"], "advisory_only")
         self.assertEqual(rows[0]["disposition"], "candidate with close rest joint")
         self.assertEqual(rows[1]["target_name"], "l_thigh")
+
+
+class OrientationFitTests(unittest.TestCase):
+    SOURCE = {
+        "j0": [0.0, 0.0, 0.0],
+        "j1": [2.0, 1.0, 3.0],
+        "j2": [-1.5, 2.5, 1.0],
+        "j3": [1.0, -2.0, 2.0],
+        "j4": [0.5, 1.5, -2.5],
+        "j5": [-2.0, -1.0, 1.5],
+        "j6": [1.5, 0.5, 4.0],
+        "j7": [-0.5, 3.0, -1.0],
+    }
+    ROWS = [candidate(name, name.replace("j", "h_")) for name in SOURCE]
+
+    def target(self, signs, scale=0.5, offset=(1.0, 2.0, 3.0)):
+        return {
+            name.replace("j", "h_"): [signs[axis] * scale * value[axis] + offset[axis]
+                                      for axis in range(3)]
+            for name, value in self.SOURCE.items()
+        }
+
+    def test_rotation_fit_keeps_orientation_positive(self):
+        fit = least_squares_map(self.SOURCE, self.target((-1.0, -1.0, 1.0)), self.ROWS)
+        self.assertIsNotNone(fit)
+        self.assertEqual(fit["joint_pairs"], 8)
+        self.assertGreater(fit["determinant"], 0.0)
+        self.assertEqual(fit["orientation"], "preserved (rotation plus scale)")
+        self.assertLess(fit["fit_rms_meters"], 1.0e-9)
+        self.assertGreater(fit["normalized_determinant"], 0.9)
+
+    def test_single_axis_flip_is_detected_as_a_mirror(self):
+        fit = least_squares_map(self.SOURCE, self.target((-1.0, 1.0, 1.0)), self.ROWS)
+        self.assertLess(fit["determinant"], 0.0)
+        self.assertEqual(fit["orientation"], "reversed (mirror)")
+
+    def test_fit_needs_enough_pairs(self):
+        short = self.ROWS[:5]
+        positions = {name: self.SOURCE[name] for name in ("j0", "j1", "j2", "j3", "j4")}
+        self.assertIsNone(least_squares_map(positions, self.target((-1.0, -1.0, 1.0)), short))
+
+    def test_singular_spread_has_no_inverse(self):
+        flat = [[1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0]]
+        self.assertIsNone(_invert3(flat))
+        ok = [[2.0, 0.0, 0.0], [0.0, 3.0, 0.0], [0.0, 0.0, 4.0]]
+        inverse = _invert3(ok)
+        self.assertAlmostEqual(inverse[0][0], 0.5)
+        self.assertAlmostEqual(inverse[2][2], 0.25)
+
+    TRIPLE = (("j1", "j2", "j3", "j0"), ("j5", "j4", "j6", "j0"))
+
+    SOURCE_TRIPLE = (("j1", "j2", "j3", "j0"), ("j5", "j4", "j6", "j0"))
+    TARGET_TRIPLE = (("h_1", "h_2", "h_3", "h_0"), ("h_5", "h_4", "h_6", "h_0"))
+
+    def test_chirality_survey_sees_even_parity_under_two_negations(self):
+        result = chirality_comparison(self.SOURCE, self.target((-1.0, -1.0, 1.0)),
+                                      self.SOURCE_TRIPLE, self.TARGET_TRIPLE)
+        self.assertEqual(result["usable_pair_count"], 2)
+        self.assertEqual(result["same_sign_pairs"], 2)
+        self.assertTrue(result["chirality_agrees"])
+        self.assertEqual(result["required_negation_parity"], "even (rotation)")
+
+    def test_chirality_survey_sees_odd_parity_under_one_negation(self):
+        result = chirality_comparison(self.SOURCE, self.target((-1.0, 1.0, 1.0)),
+                                      self.SOURCE_TRIPLE, self.TARGET_TRIPLE)
+        self.assertEqual(result["usable_pair_count"], 2)
+        self.assertEqual(result["opposite_sign_pairs"], 2)
+        self.assertTrue(result["chirality_disagrees"])
+        self.assertEqual(result["required_negation_parity"], "odd (mirror)")
+
+    def test_thin_frames_are_gated_instead_of_voting(self):
+        # Near-collinear joints carry no sign information and must be dropped
+        # rather than counted, or the parity answer depends on the gate value.
+        flat = {"j0": [0.0, 0.0, 0.0], "j1": [1.0, 0.0, 0.0],
+                "j2": [2.0, 0.0, 0.0], "j3": [3.0, 0.0, 0.0]}
+        triple = (("j1", "j2", "j3", "j0"),)
+        result = chirality_comparison(flat, flat, triple, triple)
+        self.assertEqual(result["usable_pair_count"], 0)
+        self.assertEqual(result["required_negation_parity"], "undetermined")
+        self.assertTrue(all(row["degenerate"] for row in result["source_frames"]))
 
 
 if __name__ == "__main__":

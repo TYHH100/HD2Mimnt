@@ -36,6 +36,35 @@
 | Bip01_R_UpperArm -> Bip01_R_Forearm | 10.1349 | 0.3028 | 0.029881 |
 | Bip01_R_Forearm -> Bip01_R_Hand | 9.4142 | 0.2874 | 0.030524 |
 
+## Least-squares orientation test (threshold-free)
+
+Center both joint clouds, fit A from the cross-covariance and read sign(det(A)).
+Positive means the best fit preserves orientation, negative means a mirror.
+
+- Joint pairs: 22
+- Determinant: +1.997544e-05; normalized by column norms: +0.921355
+- Orientation: **preserved (rotation plus scale)**
+- Fit RMS: 0.0905 m; worst joint 0.1798 m
+- Column norms: 0.033963, 0.022242, 0.028701
+- Fitted matrix (row-major): -0.033963, -0.000029, -0.000000, -0.000000, -0.020575, -0.000277, 0.000009, 0.008448, 0.028699
+
+## Frame chirality: per-triple sign survey
+
+Sign of det(left, right, up) about the root joint, per rig. Same sign in both rigs
+means an even number of axis negations, which is a rotation; opposite means a mirror.
+
+| Rig | Triple | Signed volume | Volume / |L||R||U| | Usable |
+|---|---|---:|---:|---|
+| Source | ValveBiped.Bip01_L_UpperArm / ValveBiped.Bip01_R_UpperArm / ValveBiped.Bip01_Head1 about ValveBiped.Bip01_Pelvis | +162.379243 | 0.0255 | yes |
+| Source | ValveBiped.Bip01_L_Forearm / ValveBiped.Bip01_R_Forearm / ValveBiped.Bip01_Head1 about ValveBiped.Bip01_Pelvis | +852.980579 | 0.1314 | yes |
+| Source | ValveBiped.Bip01_L_Thigh / ValveBiped.Bip01_R_Thigh / ValveBiped.Bip01_Head1 about ValveBiped.Bip01_Pelvis | +91.116734 | 0.3164 | yes |
+| HD2 | l_shoulder / r_shoulder / head about hips | +0.013535 | 0.0634 | yes |
+| HD2 | l_elbow / r_elbow / head about hips | +0.020783 | 0.0837 | yes |
+| HD2 | l_thigh / r_thigh / head about hips | -0.000291 | 0.0473 | yes |
+
+- Usable pairs: 3; same-sign 2; opposite-sign 1
+- Required negation parity: **undetermined**
+
 ## Candidate mapping review table
 
 | Source | Target | Source parent | Target parent | Parent status | Active (src/tgt) | Disposition | Approval |
@@ -67,6 +96,8 @@
 
 - Scale is estimated from paired bone lengths among the candidate joints themselves, so it inherits their mapping errors; it is an estimate, not a calibration.
 - Each axis hypothesis is fitted by aligning one root pair, which absorbs translation but not rotation or mirror choices.
+- Joint residuals cannot separate a 180 degree rotation from a single-axis mirror on a near-symmetric body, so the frame chirality comparison decides the parity of axis negations instead.
+- Chirality compares only the sign of det(left, right, up); the volume itself scales with units and body size, and near-coplanar triples are gated out rather than counted.
 - Residuals compare rest joint positions only. No animation, deformation or in-game behavior is measured here.
 - Every row keeps the advisory approval from the alias layer; this script approves no mapping and applies none.
 - Rows whose source or target joint is missing stay without rest evidence rather than being dropped from the table.

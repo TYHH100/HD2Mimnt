@@ -204,7 +204,52 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append("| {} | {:.4f} | {:.4f} | {:.6f} |".format(
             row["segment"].replace("ValveBiped.", ""), row["source_length"],
             row["target_length"], row["hd2_meters_per_source_unit"]))
+    fit = report["least_squares_fit"]
+    if fit:
+        lines.extend([
+            "",
+            "## Least-squares orientation test (threshold-free)",
+            "",
+            "Center both joint clouds, fit A from the cross-covariance and read sign(det(A)).",
+            "Positive means the best fit preserves orientation, negative means a mirror.",
+            "",
+            "- Joint pairs: {}".format(fit["joint_pairs"]),
+            "- Determinant: {:+.6e}; normalized by column norms: {}".format(
+                fit["determinant"],
+                "unavailable" if fit["normalized_determinant"] is None
+                else "{:+.6f}".format(fit["normalized_determinant"])),
+            "- Orientation: **{}**".format(fit["orientation"]),
+            "- Fit RMS: {:.4f} m; worst joint {:.4f} m".format(
+                fit["fit_rms_meters"], fit["fit_max_meters"]),
+            "- Column norms: {}".format(
+                ", ".join("{:.6f}".format(value) for value in fit["column_norms"])),
+            "- Fitted matrix (row-major): {}".format(
+                ", ".join("{:.6f}".format(value) for row in fit["matrix"] for value in row)),
+        ])
     lines.extend([
+        "",
+        "## Frame chirality: per-triple sign survey",
+        "",
+        "Sign of det(left, right, up) about the root joint, per rig. Same sign in both rigs",
+        "means an even number of axis negations, which is a rotation; opposite means a mirror.",
+        "",
+        "| Rig | Triple | Signed volume | Volume / |L||R||U| | Usable |",
+        "|---|---|---:|---:|---|",
+    ])
+    for rig, key in (("Source", "source_frames"), ("HD2", "target_frames")):
+        for frame in report["chirality"][key]:
+            lines.append("| {} | {} / {} / {} about {} | {:+.6f} | {:.4f} | {} |".format(
+                rig, frame["left"], frame["right"], frame["up"], frame["origin"],
+                frame["signed_volume"], frame["volume_scale_ratio"],
+                "no" if frame["degenerate"] else "yes",
+            ))
+    chirality = report["chirality"]
+    lines.extend([
+        "",
+        "- Usable pairs: {}; same-sign {}; opposite-sign {}".format(
+            chirality["usable_pair_count"], chirality["same_sign_pairs"],
+            chirality["opposite_sign_pairs"]),
+        "- Required negation parity: **{}**".format(chirality["required_negation_parity"]),
         "",
         "## Candidate mapping review table",
         "",
@@ -222,6 +267,171 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.extend(["", "## Interpretation limits", ""])
     lines.extend("- " + item for item in report["interpretation_limits"])
     return "\n".join(lines) + "\n"
+
+
+CHIRALITY_TRIPLES = (
+    ("ValveBiped.Bip01_L_UpperArm", "ValveBiped.Bip01_R_UpperArm", "ValveBiped.Bip01_Head1",
+     "ValveBiped.Bip01_Pelvis"),
+    ("ValveBiped.Bip01_L_Forearm", "ValveBiped.Bip01_R_Forearm", "ValveBiped.Bip01_Head1",
+     "ValveBiped.Bip01_Pelvis"),
+    ("ValveBiped.Bip01_L_Thigh", "ValveBiped.Bip01_R_Thigh", "ValveBiped.Bip01_Head1",
+     "ValveBiped.Bip01_Pelvis"),
+)
+HD2_CHIRALITY_TRIPLES = (
+    ("l_shoulder", "r_shoulder", "head", "hips"),
+    ("l_elbow", "r_elbow", "head", "hips"),
+    ("l_thigh", "r_thigh", "head", "hips"),
+)
+DEGENERACY_RATIO = 0.02
+
+
+def _determinant(left: list[float], right: list[float], up: list[float]) -> float:
+    return (left[0] * (right[1] * up[2] - right[2] * up[1])
+            - left[1] * (right[0] * up[2] - right[2] * up[0])
+            + left[2] * (right[0] * up[1] - right[1] * up[0]))
+
+
+def _relative_triple(names: tuple[str, str, str, str],
+                     positions: dict[str, list[float]]) -> dict[str, Any] | None:
+    """Signed volume of (left, right, up) about the origin joint, with a degeneracy gate."""
+    left, right, up, origin = (positions.get(name) for name in names)
+    if not all((left, right, up, origin)):
+        return None
+    vectors = [
+        [left[k] - origin[k] for k in range(3)],
+        [right[k] - origin[k] for k in range(3)],
+        [up[k] - origin[k] for k in range(3)],
+    ]
+    product = 1.0
+    for vector in vectors:
+        product *= math.sqrt(sum(component * component for component in vector))
+    volume = _determinant(*vectors)
+    if product <= 1.0e-12:
+        return None
+    return {
+        "left": names[0], "right": names[1], "up": names[2], "origin": names[3],
+        "signed_volume": volume,
+        "volume_scale_ratio": abs(volume) / product,
+        "degenerate": abs(volume) / product < DEGENERACY_RATIO,
+    }
+
+
+def chirality_comparison(source_positions: dict[str, list[float]],
+                         target_positions: dict[str, list[float]],
+                         source_triples: tuple[tuple[str, str, str, str], ...] = CHIRALITY_TRIPLES,
+                         target_triples: tuple[tuple[str, str, str, str], ...] = HD2_CHIRALITY_TRIPLES
+                         ) -> dict[str, Any]:
+    """Decide whether an axis flip count must be even or odd from both rigs' frames.
+
+    The sign of det(left, right, up) says the chirality of each rig's own stored
+    frame. Same sign in both rigs means the mapping needs an even number of axis
+    negations, which is a rotation; opposite signs mean a mirror. Volume is
+    scale-dependent, so only the sign is compared, and near-coplanar joint triples
+    are gated out because their sign carries no information.
+    """
+    source_rows: list[dict[str, Any] | None] = [
+        _relative_triple(names, source_positions) for names in source_triples
+    ]
+    target_rows: list[dict[str, Any] | None] = [
+        _relative_triple(names, target_positions) for names in target_triples
+    ]
+    # Pair by position, then drop pairs whose triples are missing or near-coplanar:
+    # zipping filtered lists could line a shoulder triple against a thigh triple.
+    usable = [
+        (source_row, target_row)
+        for source_row, target_row in zip(source_rows, target_rows)
+        if source_row and target_row
+        and not source_row["degenerate"] and not target_row["degenerate"]
+    ]
+    signs = [(source_row["signed_volume"] > 0) == (target_row["signed_volume"] > 0)
+             for source_row, target_row in usable]
+    return {
+        "source_frames": [row for row in source_rows if row],
+        "target_frames": [row for row in target_rows if row],
+        "usable_pair_count": len(usable),
+        "same_sign_pairs": sum(signs),
+        "opposite_sign_pairs": len(signs) - sum(signs),
+        "chirality_agrees": bool(signs) and all(signs),
+        "chirality_disagrees": bool(signs) and not any(signs),
+        "required_negation_parity": (
+            "even (rotation)" if signs and all(signs)
+            else "odd (mirror)" if signs and not any(signs) else "undetermined"
+        ),
+    }
+
+
+def _invert3(matrix: list[list[float]]) -> list[list[float]] | None:
+    determinant = (matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+                   - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+                   + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]))
+    if abs(determinant) <= 1.0e-18:
+        return None
+    def cofactor(row: int, column: int) -> float:
+        minor = [[matrix[r][c] for c in range(3) if c != column] for r in range(3) if r != row]
+        sign = -1.0 if (row + column) % 2 else 1.0
+        return sign * (minor[0][0] * minor[1][1] - minor[0][1] * minor[1][0])
+    return [[cofactor(j, i) / determinant for j in range(3)] for i in range(3)]
+
+
+def least_squares_map(source_positions: dict[str, list[float]],
+                      target_positions: dict[str, list[float]],
+                      candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Fit the best linear map from Source joints to HD2 joints and read its sign.
+
+    Centering both clouds and solving A from the cross-covariance needs no chosen
+    axis hypothesis and no degeneracy threshold: sign(det(A)) says whether the
+    best-fitting transform preserves orientation (rotation plus scale) or reverses
+    it (mirror). A near-zero determinant would mean the fit cannot tell, and that
+    value is reported instead of being hidden behind a threshold.
+    """
+    pairs = [
+        (source_positions.get(row["source_name"]), target_positions.get(row["target_name"]))
+        for row in candidates
+    ]
+    pairs = [pair for pair in pairs if pair[0] and pair[1]]
+    if len(pairs) < 6:
+        return None
+    source_mean = [sum(pair[0][k] for pair in pairs) / len(pairs) for k in range(3)]
+    target_mean = [sum(pair[1][k] for pair in pairs) / len(pairs) for k in range(3)]
+    covariance = [[0.0] * 3 for _ in range(3)]
+    spread = [[0.0] * 3 for _ in range(3)]
+    for source, target in pairs:
+        left = [source[k] - source_mean[k] for k in range(3)]
+        right = [target[k] - target_mean[k] for k in range(3)]
+        for row in range(3):
+            for column in range(3):
+                covariance[row][column] += right[row] * left[column]
+                spread[row][column] += left[row] * left[column]
+    inverse = _invert3(spread)
+    if inverse is None:
+        return None
+    matrix = [[sum(covariance[row][k] * inverse[k][column] for k in range(3))
+               for column in range(3)] for row in range(3)]
+    determinant = (matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+                   - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+                   + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]))
+    column_norms = [math.sqrt(sum(matrix[row][column] ** 2 for row in range(3)))
+                    for column in range(3)]
+    product = 1.0
+    for norm in column_norms:
+        product *= norm
+    residuals = []
+    for source, target in pairs:
+        left = [source[k] - source_mean[k] for k in range(3)]
+        fitted = [sum(matrix[row][k] * left[k] for k in range(3)) for row in range(3)]
+        right = [target[k] - target_mean[k] for k in range(3)]
+        residuals.append(math.sqrt(sum((fitted[row] - right[row]) ** 2 for row in range(3))))
+    return {
+        "joint_pairs": len(pairs),
+        "matrix": matrix,
+        "column_norms": column_norms,
+        "determinant": determinant,
+        "normalized_determinant": determinant / product if product > 1.0e-18 else None,
+        "orientation": "preserved (rotation plus scale)" if determinant > 0
+        else "reversed (mirror)" if determinant < 0 else "undetermined",
+        "fit_rms_meters": math.sqrt(sum(value * value for value in residuals) / len(residuals)),
+        "fit_max_meters": max(residuals),
+    }
 
 
 def main() -> int:
@@ -281,6 +491,8 @@ def main() -> int:
     ratios = sorted(row["hd2_meters_per_source_unit"] for row in segments)
     scale = statistics.median(ratios)
     residuals = hypothesis_residuals(source_positions, target_by_name, candidates, scale)
+    chirality = chirality_comparison(source_positions, target_by_name)
+    fitted = least_squares_map(source_positions, target_by_name, candidates)
     rows = build_rows(source_positions, target_by_name, candidates, scale, residuals)
 
     report = {
@@ -294,10 +506,14 @@ def main() -> int:
         "scale_min": ratios[0],
         "scale_max": ratios[-1],
         "hypotheses": residuals,
+        "chirality": chirality,
+        "least_squares_fit": fitted,
         "rows": rows,
         "interpretation_limits": [
             "Scale is estimated from paired bone lengths among the candidate joints themselves, so it inherits their mapping errors; it is an estimate, not a calibration.",
             "Each axis hypothesis is fitted by aligning one root pair, which absorbs translation but not rotation or mirror choices.",
+            "Joint residuals cannot separate a 180 degree rotation from a single-axis mirror on a near-symmetric body, so the frame chirality comparison decides the parity of axis negations instead.",
+            "Chirality compares only the sign of det(left, right, up); the volume itself scales with units and body size, and near-coplanar triples are gated out rather than counted.",
             "Residuals compare rest joint positions only. No animation, deformation or in-game behavior is measured here.",
             "Every row keeps the advisory approval from the alias layer; this script approves no mapping and applies none.",
             "Rows whose source or target joint is missing stay without rest evidence rather than being dropped from the table.",
