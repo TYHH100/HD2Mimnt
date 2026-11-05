@@ -2,7 +2,7 @@
 
 Date: 2026-11-05
 
-Status: diagnostic tool added; synthetic Windows test run and fresh real-Unit report generation are pending.
+Status: diagnostic tool and synthetic regression tests added; local test execution and fresh real-Unit report generation are pending.
 
 ## Purpose
 
@@ -48,7 +48,7 @@ The default tolerance is `1e-4`. Outputs:
 - `research/skeleton_comparison/hd2_unit_transform_comparison.md`
 - `research/skeleton_comparison/hd2_unit_transform_comparison.json`
 
-The Markdown report is the shareable summary. The JSON output contains the complete pairwise rows and the names common to all three Units.
+The Markdown report is the shareable summary. The JSON output contains the complete pairwise rows and the names common to all three Units. A pair with no shared unique names is explicitly marked `no_shared_unique_names` and contributes to an overall `warning`; this prevents an empty comparison from appearing to pass.
 
 ## Interpretation
 
