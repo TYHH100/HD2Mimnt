@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare one Source SMD skeleton with a selected HD2 Unit skeleton."""
+"""Compare a compiled Source MDL/VVD skeleton with a selected HD2 Unit skeleton."""
 from __future__ import annotations
 
 import argparse
@@ -43,14 +43,15 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Exact name matches",
         "",
-        "| Source node | Source parent | HD2 Transform | HD2 name | HD2 parent | Active target influence | Parent relation |",
-        "|---|---|---:|---|---|---|---|",
+        "| Source node | Source parent | Active Source influence | HD2 Transform | HD2 name | HD2 parent | Active target influence | Parent relation |",
+        "|---|---|---|---:|---|---|---|---|",
     ])
     for row in report["matched"]:
-        lines.append("| {} ({}) | {} | {} | {} | {} | {} ({} lanes) | {} |".format(
+        lines.append("| {} ({}) | {} | {} | {} | {} | {} | {} ({} lanes) | {} |".format(
             row["source_name"],
             row["source_node_id"],
             row["source_parent_name"] or "root / none",
+            "yes" if row.get("source_has_active_vertex_influence") else "no",
             row["target_transform_index"],
             row["target_name"],
             row["target_parent_name"] or "root / none",
@@ -70,9 +71,13 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["", "## " + title, "", "| Name | ID / Transform | Details |", "|---|---:|---|"])
         for row in rows:
             details = row.get("reason") or row.get("target_parent_name") or ""
-            lines.append("| {} | {} | {} |".format(row.get(name_key), row.get(id_key), details))
+            lines.append("| {} | {} | {} | {} |".format(
+                row.get(name_key), row.get(id_key),
+                "yes" if row.get("source_has_active_vertex_influence") else "no",
+                details,
+            ))
         if not rows:
-            lines.append("| — | — | none |")
+            lines.append("| — | — | — | none |")
 
     lines.extend([
         "",
@@ -136,7 +141,7 @@ def main() -> int:
         "--source-container",
         required=True,
         type=Path,
-        help="Source GMA, ZIP, SMD directory, or one SMD file",
+        help="Source GMA, ZIP, model directory, or one MDL file",
     )
     parser.add_argument(
         "--model",
