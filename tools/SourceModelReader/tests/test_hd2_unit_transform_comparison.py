@@ -24,6 +24,8 @@ def make_unit(label, transforms):
             "parent_index_raw": row.get("parent_index_raw", 0xFFFF),
             "active": row.get("active", True),
             "active_lane_count": row.get("active_lane_count", 1),
+            "mesh_binding_count": row.get("mesh_binding_count", 0),
+            "mesh_binding_info_available": row.get("mesh_binding_info_available", True),
             "position": row.get("position", [0.0, 0.0, 0.0]),
             "rotation_3x3": row.get("rotation_3x3", [
                 1.0, 0.0, 0.0,
@@ -44,6 +46,8 @@ def make_unit(label, transforms):
         "unit_id": label + "-unit",
         "package_id": label + "-package",
         "geometry_source": "Unit",
+        "mesh_binding_info_available": True,
+        "mesh_binding_record_count": sum(row["mesh_binding_count"] for row in records),
         "summary": {},
         "records": records,
     }
@@ -144,6 +148,9 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
             "unit": {"file_id": "unit-1", "geometry_source": "CompositeUnit"},
             "package": {"name": "package-1"},
             "summary": {"status": "ok"},
+            "mesh_info": {
+                "records": [{"index": 0, "transform_index": 0}],
+            },
             "transform_info": {
                 "transforms": [{
                     "index": 0,
@@ -181,7 +188,65 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(unit["records"][0]["parent_name"], None)
         self.assertTrue(unit["records"][0]["active"])
         self.assertEqual(unit["records"][0]["active_lane_count"], 7)
+        self.assertEqual(unit["records"][0]["mesh_binding_count"], 1)
+        self.assertEqual(unit["records"][0]["mesh_binding_info_available"], True)
         self.assertEqual(unit["records"][0]["position"], [1.0, 2.0, 3.0])
+
+
+    def test_mesh_transform_matrix_difference_is_not_counted_as_skeleton_mismatch(self):
+        identity = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        translated = [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.25, 0.5, 1.0,
+        ]
+        units = [
+            make_unit("lower", [
+                {"index": 0, "name": "hips", "active": True},
+                {"index": 1, "name": "game_mesh", "active": False,
+                 "mesh_binding_count": 1, "matrix_4x4_raw": identity},
+            ]),
+            make_unit("torso", [
+                {"index": 3, "name": "hips", "active": True},
+                {"index": 4, "name": "game_mesh", "active": False,
+                 "mesh_binding_count": 1, "matrix_4x4_raw": translated},
+            ]),
+            make_unit("avatar", [
+                {"index": 8, "name": "hips", "active": True},
+                {"index": 9, "name": "game_mesh", "active": False,
+                 "mesh_binding_count": 1, "matrix_4x4_raw": identity},
+            ]),
+        ]
+        report = build_report(units, 1.0e-4)
+        pair = report["pairwise_comparisons"]["lower__vs__torso"]
+        mesh_row = next(row for row in pair["transforms"] if row["name"] == "game_mesh")
+
+        self.assertEqual(mesh_row["left_transform_role"], "mesh_transform")
+        self.assertEqual(mesh_row["right_transform_role"], "mesh_transform")
+        self.assertEqual(mesh_row["comparison_scope"], "mesh_transform")
+        self.assertEqual(mesh_row["stored_matrix_status"], "mismatch")
+        self.assertEqual(pair["summary"]["stored_matrix_mismatch_count"], 1)
+        self.assertEqual(pair["summary"]["skeleton_stored_matrix_mismatch_count"], 0)
+        self.assertEqual(pair["summary"]["mesh_transform_stored_matrix_mismatch_count"], 1)
+        self.assertEqual(report["summary"]["pairwise_skeleton_matrix_mismatches"], 0)
+        self.assertGreater(report["summary"]["pairwise_mesh_transform_matrix_mismatches"], 0)
+        self.assertEqual(report["summary"]["status"], "review")
+
+
+    def test_unweighted_non_mesh_transform_remains_in_skeleton_scope(self):
+        unit = make_unit("unit", [
+            {"index": 0, "name": "helper_joint", "active": False},
+        ])
+        pair = compare_pair(unit, unit, 1.0e-4)
+        row = pair["transforms"][0]
+        self.assertEqual(row["left_transform_role"], "unweighted_skeleton")
+        self.assertEqual(row["comparison_scope"], "skeleton_transform")
 
 
 if __name__ == "__main__":
