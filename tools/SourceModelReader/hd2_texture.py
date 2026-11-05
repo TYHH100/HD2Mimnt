@@ -267,11 +267,12 @@ def _encode_bgra_png(width: int, height: int, bgra: bytes) -> bytes:
     )
 
 
-def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, bytes]:
-    """Decode only the base mip of a 2D, single-array BC7 texture to a PNG preview.
+def decode_texture_preview(report: dict, selected_payload: bytes) -> tuple[dict, bytes]:
+    """Decode the base mip of a supported 2D block-compressed texture to PNG.
 
-    The optional texture2ddecoder package supplies the BC7 block decoder.
-    SourceModelReader keeps this dependency optional and does not vendor its code.
+    Supported formats use the optional texture2ddecoder package:
+    BC1_UNORM/SRGB, BC5_UNORM and BC7_UNORM/SRGB. Only a full mip-chain
+    payload is accepted; a resident GPU mip tail is never treated as mip 0.
     """
     dds = report["dds"]
     width = dds["width"]
@@ -283,21 +284,32 @@ def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, byt
     selected_source = report["payloads"]["selected_source"]
     layout = report["payload_layouts"].get(selected_source, {})
 
-    if dxgi_format not in (98, 99):
+    decoder_specs = {
+        71: ("BC1", "decode_bc1"),
+        72: ("BC1", "decode_bc1"),
+        83: ("BC5_UNORM", "decode_bc5"),
+        98: ("BC7", "decode_bc7"),
+        99: ("BC7", "decode_bc7"),
+    }
+    decoder_spec = decoder_specs.get(dxgi_format)
+    if decoder_spec is None:
+        supported = "BC1_UNORM/SRGB (71/72), BC5_UNORM (83), or BC7_UNORM/SRGB (98/99)"
         raise HD2ResourceError(
-            f"BC7 preview supports DXGI_FORMAT_BC7_UNORM/SRGB (98/99); got {dxgi_format}"
+            f"Texture preview supports {supported}; got DXGI format {dxgi_format}"
         )
+    codec, decoder_name = decoder_spec
+
     if resource_dimension != 3:
         raise HD2ResourceError(
-            f"BC7 preview currently supports Texture2D only; DX10 dimension={resource_dimension}"
+            f"{codec} preview currently supports Texture2D only; DX10 dimension={resource_dimension}"
         )
     if array_size != 1:
         raise HD2ResourceError(
-            f"BC7 preview currently supports ArraySize=1; got {array_size}"
+            f"{codec} preview currently supports ArraySize=1; got {array_size}"
         )
     if chain is None or not chain.get("levels"):
         raise HD2ResourceError(
-            "Cannot calculate the BC7 base-mip byte range for this texture"
+            f"Cannot calculate the {codec} base-mip byte range for this texture"
         )
     if layout.get("layout") != "full_mip_chain":
         raise HD2ResourceError(
@@ -307,7 +319,7 @@ def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, byt
         )
     if width <= 0 or height <= 0 or width * height > MAX_DECODE_PIXELS:
         raise HD2ResourceError(
-            f"BC7 preview dimensions exceed the safety limit: {width}x{height}"
+            f"{codec} preview dimensions exceed the safety limit: {width}x{height}"
         )
 
     base_level_bytes = chain["levels"][0]["level_bytes"]
@@ -320,67 +332,105 @@ def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, byt
         import texture2ddecoder
     except (ImportError, OSError) as exc:
         raise HD2ResourceError(
-            "Optional BC7 decoder is not installed. Install it with: "
+            "Optional texture decoder is not installed. Install it with: "
             "py -3 -m pip install texture2ddecoder==1.0.6"
         ) from exc
 
-    decode = getattr(texture2ddecoder, "decode_bc7", None)
+    decode = getattr(texture2ddecoder, decoder_name, None)
     if not callable(decode):
         raise HD2ResourceError(
-            "Installed texture2ddecoder does not expose decode_bc7"
+            f"Installed texture2ddecoder does not expose {decoder_name}"
         )
 
     try:
         bgra = decode(selected_payload[:base_level_bytes], width, height)
     except Exception as exc:
-        raise HD2ResourceError(f"BC7 decoder failed: {exc}") from exc
+        raise HD2ResourceError(f"{codec} decoder failed: {exc}") from exc
     if not isinstance(bgra, (bytes, bytearray, memoryview)):
         raise HD2ResourceError(
-            f"BC7 decoder returned unsupported output type: {type(bgra).__name__}"
+            f"{codec} decoder returned unsupported output type: {type(bgra).__name__}"
         )
     bgra = bytes(bgra)
     expected_pixels = width * height
     if len(bgra) != expected_pixels * 4:
         raise HD2ResourceError(
-            f"BC7 decoder returned {len(bgra)} bytes for {expected_pixels} pixels; "
+            f"{codec} decoder returned {len(bgra)} bytes for {expected_pixels} pixels; "
             f"expected {expected_pixels * 4}"
         )
 
-    alpha_histogram = [0] * 256
-    for offset in range(3, len(bgra), 4):
-        alpha_histogram[bgra[offset]] += 1
+    # texture2ddecoder returns BGRA byte order. Count the decoded output
+    # channels independently; for BC5 the decoder maps the two stored
+    # components to R/G and fills B=0, A=255 for its common BGRA output.
+    channel_offsets = {"red": 2, "green": 1, "blue": 0, "alpha": 3}
+    channel_histograms = {name: [0] * 256 for name in channel_offsets}
+    for pixel_offset in range(0, len(bgra), 4):
+        for name, channel_offset in channel_offsets.items():
+            channel_histograms[name][bgra[pixel_offset + channel_offset]] += 1
+
+    channel_stats = {}
+    for name, histogram in channel_histograms.items():
+        used_values = [value for value, count in enumerate(histogram) if count]
+        channel_stats[name] = {
+            "minimum": used_values[0] if used_values else None,
+            "maximum": used_values[-1] if used_values else None,
+            "unique_values": len(used_values),
+            "histogram": histogram,
+        }
+
+    alpha_histogram = channel_histograms["alpha"]
     fully_transparent = alpha_histogram[0]
     fully_opaque = alpha_histogram[255]
     partial_alpha = expected_pixels - fully_transparent - fully_opaque
-    used_alpha_values = [value for value, count in enumerate(alpha_histogram) if count]
-    if not used_alpha_values:
-        alpha_min = alpha_max = None
+    source_alpha_available = codec != "BC5_UNORM"
+    if codec == "BC5_UNORM":
+        alpha_interpretation = (
+            "Not a source alpha channel: texture2ddecoder fills output alpha with 255 "
+            "for BC5. Use the decoded red/green channels as the two stored BC5 components."
+        )
+        channel_interpretation = (
+            "For BC5_UNORM, the two stored BC5 components are emitted as PNG R and G; "
+            "PNG B=0 and A=255 are decoder fill values. No normal-Z reconstruction is performed."
+        )
+    elif codec == "BC1":
+        alpha_interpretation = (
+            "BC1 output alpha represents its one-bit transparent palette entry when the "
+            "three-color block mode selects it; otherwise pixels are opaque. This is not fractional alpha."
+        )
+        channel_interpretation = (
+            "Decoder BGRA output is reordered to PNG RGBA. BC1 may emit binary transparency "
+            "for its three-color palette mode; color-space conversion is not applied."
+        )
     else:
-        alpha_min = used_alpha_values[0]
-        alpha_max = used_alpha_values[-1]
+        alpha_interpretation = (
+            "Decoded BC7 pixel alpha values are reported. This describes texture data only; "
+            "it does not establish whether the game's Material shader uses alpha for blending, "
+            "cutout, emissive masking, or another purpose."
+        )
+        channel_interpretation = (
+            "Decoder BGRA output is reordered to PNG RGBA. Values are reported as decoded; "
+            "no sRGB-to-linear conversion or material-channel interpretation is applied."
+        )
 
-    png = _encode_bgra_png(width, height, bgra)
     alpha_report = {
         "pixel_count": expected_pixels,
-        "minimum": alpha_min,
-        "maximum": alpha_max,
-        "unique_values": len(used_alpha_values),
+        "minimum": channel_stats["alpha"]["minimum"],
+        "maximum": channel_stats["alpha"]["maximum"],
+        "unique_values": channel_stats["alpha"]["unique_values"],
         "fully_transparent_pixels": fully_transparent,
         "partial_alpha_pixels": partial_alpha,
         "fully_opaque_pixels": fully_opaque,
         "non_opaque_pixels": expected_pixels - fully_opaque,
         "alpha_histogram": alpha_histogram,
-        "interpretation": (
-            "Decoded BC7 pixel alpha values are reported. This describes texture data only; "
-            "it does not establish whether the game's Material shader uses alpha for blending, "
-            "cutout, emissive masking, or another purpose."
-        ),
+        "source_alpha_available": source_alpha_available,
+        "interpretation": alpha_interpretation,
     }
+
+    png = _encode_bgra_png(width, height, bgra)
     return {
         "status": "ok",
         "decoder": "texture2ddecoder",
         "decoder_version": getattr(texture2ddecoder, "__version__", "unknown"),
-        "codec": "BC7",
+        "codec": codec,
         "dxgi_format": dxgi_format,
         "width": width,
         "height": height,
@@ -388,8 +438,15 @@ def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, byt
         "decoded_input_bytes": base_level_bytes,
         "decoded_output_bytes": len(bgra),
         "output_channel_order": "RGBA8 PNG (decoder BGRA reordered)",
+        "channel_interpretation": channel_interpretation,
+        "channels": channel_stats,
         "alpha": alpha_report,
     }, png
+
+
+def decode_bc7_preview(report: dict, selected_payload: bytes) -> tuple[dict, bytes]:
+    """Backward-compatible wrapper; now dispatches all supported preview codecs."""
+    return decode_texture_preview(report, selected_payload)
 
 
 def _check_range(data: bytes, offset: int, size: int, label: str) -> None:
