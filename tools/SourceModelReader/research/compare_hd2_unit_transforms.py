@@ -304,11 +304,12 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         for pair in pairs.values()
     )
     pair_local_transform_unavailable = sum(
-        pair["summary"]["position_mismatch_count"] * 0
-        + sum(row["position_status"] == "unavailable"
-              or row["rotation_status"] == "unavailable"
-              or row["scale_status"] == "unavailable"
-              for row in pair["transforms"])
+        sum(
+            row["position_status"] == "unavailable"
+            or row["rotation_status"] == "unavailable"
+            or row["scale_status"] == "unavailable"
+            for row in pair["transforms"]
+        )
         for pair in pairs.values()
     )
     return {
@@ -369,13 +370,14 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Pairwise summary",
         "",
-        "| Pair | Shared named bones | Parent matches / mismatches | Local position matches / mismatches | Local rotation matches / mismatches | Stored matrix matches / mismatches / unavailable |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Pair | Comparison | Shared named bones | Parent matches / mismatches | Local position matches / mismatches | Local rotation matches / mismatches | Stored matrix matches / mismatches / unavailable |",
+        "|---|---|---:|---:|---:|---:|---:|",
     ])
     for pair in report["pairwise_comparisons"].values():
         s = pair["summary"]
-        lines.append("| {} vs {} | {} | {} / {} | {} / {} | {} / {} | {} / {} / {} |".format(
-            s["left"], s["right"], s["shared_unique_named_transform_count"],
+        lines.append("| {} vs {} | {} | {} | {} / {} | {} / {} | {} / {} | {} / {} / {} |".format(
+            s["left"], s["right"], s["comparison_status"],
+            s["shared_unique_named_transform_count"],
             s["parent_match_count"], s["parent_mismatch_count"],
             s["position_match_count"], s["position_mismatch_count"],
             s["rotation_match_count"], s["rotation_mismatch_count"],
