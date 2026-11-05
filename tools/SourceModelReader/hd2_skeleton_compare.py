@@ -13,7 +13,12 @@ def _key(name: str) -> str:
     return name.strip().casefold()
 
 
-def compare_source_skeleton_to_hd2(source: SMDDocument, target_report: dict[str, Any]) -> dict[str, Any]:
+def compare_source_skeleton_to_hd2(
+    source: SMDDocument,
+    target_report: dict[str, Any],
+    source_active_node_ids: set[int] | None = None,
+    source_kind: str | None = None,
+) -> dict[str, Any]:
     source_by_key: dict[str, list[Any]] = defaultdict(list)
     for node in source.nodes:
         source_by_key[_key(node.name)].append(node)
@@ -70,6 +75,10 @@ def compare_source_skeleton_to_hd2(source: SMDDocument, target_report: dict[str,
         base = {
             "source_node_id": node.node_id,
             "source_name": node.name,
+            "source_has_active_vertex_influence": (
+                node.node_id in source_active_node_ids
+                if source_active_node_ids is not None else None
+            ),
             "source_parent_id": node.parent_id,
             "source_parent_name": sp,
         }
@@ -154,7 +163,15 @@ def compare_source_skeleton_to_hd2(source: SMDDocument, target_report: dict[str,
         },
         "summary": {
             "status": "warning" if warnings else "ok",
-            "source_smd_type": source.smd_type,
+            "source_skeleton_type": source_kind or source.smd_type,
+            "source_node_count": len(source.nodes),
+            "source_active_weighted_node_count": (
+                len(source_active_node_ids) if source_active_node_ids is not None else None
+            ),
+            "source_active_weighted_unmapped_count": (
+                sum(1 for row in source_unmapped if row["source_has_active_vertex_influence"])
+                if source_active_node_ids is not None else None
+            ),
             "source_node_count": len(source.nodes),
             "target_transform_count": len(skeleton),
             "target_named_transform_count": int(weight_summary.get("named_transform_count") or len(target_by_key)),
@@ -171,8 +188,11 @@ def compare_source_skeleton_to_hd2(source: SMDDocument, target_report: dict[str,
         },
         "matching_policy": {
             "name_matching": "exact Unicode casefold after trimming edge whitespace",
-            "source_nodes_are_declared_smd_nodes": True,
-            "source_active_vertex_influence_filter": "not available from SMDDocument; includes declared helper/unweighted nodes",
+            "source_nodes_are_declared_skeleton_nodes": True,
+            "source_active_vertex_influence_filter": (
+                "provided VVD positive-weight node IDs" if source_active_node_ids is not None
+                else "not supplied; declared helper/unweighted nodes remain in the source list"
+            ),
             "punctuation_or_alias_guessing": False,
             "parent_comparison": "compare resolved parent names only",
             "rest_pose_numeric_comparison": "not performed",
