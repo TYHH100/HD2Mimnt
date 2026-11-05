@@ -539,6 +539,73 @@ def winding_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any
     return results
 
 
+def skeleton_landmark_tests(unit: dict[str, Any]) -> list[dict[str, Any]]:
+    """Measure how far a mesh's stored positions sit from the bones it skins to.
+
+    This is the non-degenerate version of the placement test. When a mesh's own
+    TransformInfo matrix is the identity, raw and placed positions coincide and
+    nothing can be decided; here the distance to the palette bones says directly
+    which of the two spaces the stored vertices already occupy.
+    """
+    transforms = unit["transform_matrices"]
+    results: list[dict[str, Any]] = []
+    for mesh in unit["meshes"]:
+        points = mesh.get("_points")
+        matrix = mesh["stored_matrix_4x4"]
+        if not points or matrix is None:
+            continue
+        landmarks: list[list[float]] = []
+        bone_names: list[str] = []
+        for slot in mesh.get("palette") or []:
+            if not isinstance(slot, dict):
+                continue
+            world = transforms.get(slot.get("transform_index"))
+            if not world:
+                continue
+            landmarks.append(world[12:15])
+            if slot.get("name"):
+                bone_names.append(str(slot["name"]))
+        if not landmarks:
+            continue
+        count = len(landmarks)
+        low = [min(item[k] for item in landmarks) for k in range(3)]
+        high = [max(item[k] for item in landmarks) for k in range(3)]
+        centre = [sum(item[k] for item in landmarks) / count for k in range(3)]
+        raw_centre = mesh["raw_extent"]["centroid"]
+        placed_centre = [
+            sum(transform_point(point, matrix)[k] for point in points) / len(points)
+            for k in range(3)
+        ]
+        raw_distance = math.sqrt(sum((raw_centre[k] - centre[k]) ** 2 for k in range(3)))
+        placed_distance = math.sqrt(sum((placed_centre[k] - centre[k]) ** 2 for k in range(3)))
+        results.append({
+            "mesh_info_index": mesh["mesh_info_index"],
+            "mesh_id": mesh["mesh_id"],
+            "lod_index": mesh["lod_index"],
+            "transform_index": mesh["transform_index"],
+            "transform_name": mesh["transform_name"],
+            "skinning_status": mesh["skinning_status"],
+            "stored_matrix_identity_status": mesh["stored_matrix_identity_status"],
+            "landmark_bone_count": count,
+            "landmark_bones": bone_names[:8],
+            "landmark_centroid": centre,
+            "landmark_hull_min": low,
+            "landmark_hull_max": high,
+            "raw_centroid": raw_centre,
+            "placed_centroid": placed_centre,
+            "raw_distance_to_landmarks": raw_distance,
+            "placed_distance_to_landmarks": placed_distance,
+            "test_is_degenerate": mesh["stored_matrix_identity_status"] != "non_identity",
+            # An identity matrix makes both spaces the same point, so calling that
+            # a win for "raw" would be a label artifact rather than evidence.
+            "closer_space": (
+                "identical" if abs(raw_distance - placed_distance) <= 1.0e-9
+                else "placed" if placed_distance < raw_distance else "raw"
+            ),
+        })
+    return results
+
+
 def correspondence_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any]]:
     """Compare every mesh against the Unit's largest ordinary render mesh.
 
@@ -727,10 +794,12 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
             unit, sample_limit, REST_INVARIANT_TOLERANCE
         )
         unit["winding"] = winding_tests(unit, sample_limit)
+        unit["landmarks"] = skeleton_landmark_tests(unit)
     shared = shared_asset_checks(units, POSITION_BUFFER_TOLERANCE)
     rest_rows = [row for unit in units for row in unit["rest_invariant"]]
     pairing_rows = [row for unit in units for row in unit["weight_pairings"]]
     winding_rows = [row for unit in units for row in unit["winding"]]
+    landmark_rows = [row for unit in units for row in unit["landmarks"]]
     summary = {
         "units": len(units),
         "meshes_with_positions": sum(
@@ -760,6 +829,11 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "winding_inverted_sections": sum(
             1 for row in winding_rows if row["winding_conclusion"] == "inverted"
         ),
+        "landmark_tests": len(landmark_rows),
+        "landmark_decisive_tests": sum(1 for row in landmark_rows if not row["test_is_degenerate"]),
+        "landmark_identical_tests": sum(1 for row in landmark_rows if row["closer_space"] == "identical"),
+        "landmark_placed_closer": sum(1 for row in landmark_rows if row["closer_space"] == "placed"),
+        "landmark_raw_closer": sum(1 for row in landmark_rows if row["closer_space"] == "raw"),
     }
     for unit in units:
         for mesh in unit["meshes"]:
@@ -959,6 +1033,31 @@ def render_markdown(report: dict[str, Any]) -> str:
                 ))
             lines.append("")
 
+        if unit["landmarks"]:
+            lines.extend([
+                "### Distance from stored positions to the bones they skin to",
+                "",
+                "For each mesh, compare the centroid distance to its palette bones before and",
+                "after applying the mesh's own TransformInfo matrix. The test only decides when",
+                "that matrix is not the identity, which is marked per row.",
+                "",
+                "| MeshInfo | LOD | Transform | Matrix | Degenerate | Bones | Landmark centroid | Raw centroid | Placed centroid | Raw distance | Placed distance | Closer |",
+                "|---:|---:|---|---|---|---:|---|---|---|---:|---:|---|",
+            ])
+            for row in unit["landmarks"]:
+                lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.4f} | {:.4f} | {} |".format(
+                    row["mesh_info_index"], row["lod_index"],
+                    row["transform_name"] or "(unresolved)",
+                    row["stored_matrix_identity_status"], row["test_is_degenerate"],
+                    row["landmark_bone_count"],
+                    ", ".join(f"{value:.4f}" for value in row["landmark_centroid"]),
+                    ", ".join(f"{value:.4f}" for value in row["raw_centroid"]),
+                    ", ".join(f"{value:.4f}" for value in row["placed_centroid"]),
+                    row["raw_distance_to_landmarks"], row["placed_distance_to_landmarks"],
+                    row["closer_space"],
+                ))
+            lines.append("")
+
     lines.extend([
         "## Cross-Unit shared vertex buffers",
         "",
@@ -997,6 +1096,8 @@ def main() -> int:
     parser.add_argument("--lower-body", type=Path, default=DEFAULT_INPUTS["fs05_lower_body"])
     parser.add_argument("--torso-left-arm", type=Path, default=DEFAULT_INPUTS["fs05_torso_left_arm"])
     parser.add_argument("--avatar", type=Path, default=DEFAULT_INPUTS["avatar_composite"])
+    parser.add_argument("--unit", action="append", default=[], metavar="LABEL=PATH",
+                        help="Probe these Unit JSON files instead of the three default samples; repeat")
     parser.add_argument(
         "--sample-limit", type=int, default=0,
         help="Cap vertices per source mesh in the nearest-distance test; 0 uses all vertices.",
@@ -1008,11 +1109,19 @@ def main() -> int:
     if args.sample_limit < 0:
         parser.error("--sample-limit must be zero or positive")
 
-    inputs = [
-        ("fs05_lower_body", args.lower_body),
-        ("fs05_torso_left_arm", args.torso_left_arm),
-        ("avatar_composite", args.avatar),
-    ]
+    if args.unit:
+        inputs: list[tuple[str, Path]] = []
+        for item in args.unit:
+            label, separator, path_text = item.partition("=")
+            if not separator or not label or not path_text:
+                parser.error("--unit expects LABEL=PATH")
+            inputs.append((label, Path(path_text)))
+    else:
+        inputs = [
+            ("fs05_lower_body", args.lower_body),
+            ("fs05_torso_left_arm", args.torso_left_arm),
+            ("avatar_composite", args.avatar),
+        ]
     for _label, path in inputs:
         if not path.is_file():
             parser.error(f"Input JSON does not exist: {path}")

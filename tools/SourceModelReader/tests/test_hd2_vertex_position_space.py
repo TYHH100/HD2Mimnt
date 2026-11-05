@@ -12,6 +12,7 @@ from research.probe_hd2_vertex_position_space import (
     load_unit,
     render_markdown,
     rest_invariant_tests,
+    skeleton_landmark_tests,
     transform_point,
     weight_lane_tests,
     winding_tests,
@@ -421,6 +422,69 @@ class HD2RestInvariantTests(unittest.TestCase):
         self.assertEqual(flipped[0]["winding_conclusion"], "inverted")
         self.assertEqual(flipped[0]["oppose_stored_normals"], 1)
         self.assertAlmostEqual(flipped[0]["mean_dot"], -1.0)
+
+
+    def landmark_fixture(self, mesh_offset_z):
+        return {
+            "unit": {"file_id": "unit-landmark", "geometry_source": "Unit GPU payload"},
+            "package": {"name": "package-landmark"},
+            "transform_info": {
+                "transforms": [
+                    {"index": 0, "name_hash": 1, "parent_index_raw": 65535,
+                     "matrix_4x4_raw": translated_matrix(0.5)},
+                    {"index": 1, "name_hash": 2, "parent_index_raw": 0,
+                     "matrix_4x4_raw": translated_matrix(mesh_offset_z)},
+                    {"index": 2, "name_hash": 3, "parent_index_raw": 0,
+                     "matrix_4x4_raw": translated_matrix(0.6)},
+                ],
+                "resolved_skeleton": [
+                    {"transform_index": 0, "name": "root"},
+                    {"transform_index": 1, "name": "g_shoulder"},
+                    {"transform_index": 2, "name": "l_shoulder_twist"},
+                ],
+                "hierarchy_matrix_validation": {"entries": []},
+            },
+            "mesh_info": {"records": [
+                {"index": 0, "mesh_id": 400, "transform_index": 1, "lod_index": 0},
+            ]},
+            "geometry": [{
+                "mesh_info_index": 0,
+                "mesh_id": 400,
+                "transform_index": 1,
+                "lod_index": 0,
+                "attributes": [
+                    attribute("position", 0, "vec3_float32",
+                              [[0.0, 0.0, -0.05], [0.0, 0.0, 0.05]]),
+                ],
+                "skinning": {
+                    "status": "ok",
+                    "palette": [{
+                        "palette_slot": 0, "transform_index": 2, "name": "l_shoulder_twist",
+                        "bone_info_matrix_raw": identity_matrix(), "valid": True,
+                    }],
+                },
+            }],
+        }
+
+    def test_landmark_distance_decides_only_with_a_non_identity_matrix(self):
+        placed = self.load(self.landmark_fixture(0.75), "placed")
+        rows = skeleton_landmark_tests(placed)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertFalse(row["test_is_degenerate"])
+        self.assertEqual(row["closer_space"], "placed")
+        # Stored vertices sit near the origin; the bone is at z 0.6, and placing the
+        # mesh at z 0.75 brings the centroid from 0.6 away to 0.15 away.
+        self.assertAlmostEqual(row["raw_distance_to_landmarks"], 0.6, places=9)
+        self.assertAlmostEqual(row["placed_distance_to_landmarks"], 0.15, places=9)
+        self.assertEqual(row["landmark_bones"], ["l_shoulder_twist"])
+
+        # A zero offset makes the stored matrix the identity, so both spaces are one
+        # space and the test can say nothing.
+        identity = self.load(self.landmark_fixture(0.0), "identity_case")
+        rows = skeleton_landmark_tests(identity)
+        self.assertTrue(rows[0]["test_is_degenerate"])
+        self.assertEqual(rows[0]["closer_space"], "identical")
 
 
 if __name__ == "__main__":

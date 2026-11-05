@@ -57,7 +57,7 @@ Phase 1 的 P0 问题是：存储的顶点位置处于哪个坐标空间，以�
 原始空间里代理盒子贴在原点（z 半extent 只有 0.5094），包不住位于 z≈0.56–1.56 的渲染几何；按行向量约定施加该网格自己的 TransformInfo 矩阵后，两个 Unit 都恰好把渲染并集完整包住，且仍留有 0.40–0.58 的余量（代理体积大于装备本体，符合"包裹整个身体的遮挡/裁剪体积"形态）。
 
 - **Observed**：两个 FS-05 Unit 都呈现同一模式，且控制组通过。
-- **Candidate**：存储位置处于"该网格自己的 TransformInfo 节点定义的空间"。矩阵为单位时该空间与渲染空间重合（所以渲染 LOD 测不出差别）；矩阵非单位时必须用它放置几何。
+- **Validated（原判为 Candidate，现由 §2.8 的非退化样本确认）**：存储位置处于"该网格自己的 TransformInfo 节点定义的空间"。矩阵为单位时该空间与渲染空间重合（所以渲染 LOD 测不出差别）；矩阵非单位时必须用它放置几何。
 - **Candidate（与既有 162 个 BoneInfo palette 匹配一致）**：palette 公式 `mesh_world × inverse(bone_world)` 已经把 `mesh_world` 包含在内。因此 `mesh_world` 只能生效一次——蒙皮路径经由 palette 隐式生效，无蒙皮路径直接生效。若在蒙皮之后再显式乘一次 `mesh_world`，静止姿态会得到 `p × mesh_world²`，破坏静止不变性。
 - 仍为 **Unknown**：运行时着色器的实际乘法顺序；无蒙皮辅助几何走哪条管线；遮挡查询是否真的使用该体积；非均匀缩放 + 非单位旋转的组合。
 
@@ -144,6 +144,34 @@ py -3 -m unittest discover -s tests -p "test_source_bone_rest.py" -v
 ```
 
 `--sample-limit` 可限制最近距离检验的采样顶点数，默认使用全部顶点；`--output-json` / `--output-markdown` 可改写输出路径。工具只读，不修改任何顶点。
+
+### 2.8 非退化样本验证：存储位置处于网格自身的局部空间（Validated）
+
+前面所有结论都卡在"渲染 LOD 的矩阵都是单位矩阵"上。用 `research/survey_hd2_unit_mesh_matrices.py` 只读 TOC 侧表格扫了 FS-05 包 `8670598c1f4462dc` 的 22 个 Unit（22 个全部符合"≥2 个 LOD + ≥1 处非单位直接绑定"），解码其中 `90b57e547e7ff7bb`（左肩甲）后得到真正可判别的样本：它的 **4 个渲染 LOD（LOD0–3）绑定矩阵全部非单位**（共享平移 `(-0.28328, -0.04818, 1.43647)`），并且都蒙皮到 `l_shoulder_twist`。
+
+以骨骼静止位置为独立标尺（探针新增的 "Distance from stored positions to the bones they skin to" 段）：
+
+| 网格 | LOD | 矩阵 | 原始质心到骨骼 | 施加 `p × mesh_world` 后 | 更近的一侧 |
+|---|---:|---|---:|---:|---|
+| `g_shoulder_l_female_shadow` | 3 | non_identity | 1.3983 | **0.0683** | placed |
+| `g_shoulder_l_female_LOD2` | 2 | non_identity | 1.3928 | **0.0733** | placed |
+| `g_shoulder_l_female_LOD1` | 1 | non_identity | 1.4004 | **0.0657** | placed |
+| `g_shoulder_l_female` | 0 | non_identity | 1.2321 | **0.3146** | placed |
+| `l_arm_culling`（躯干样本） | 4 | non_identity | 1.3523 | **0.3309** | placed |
+
+四个样本合起来：**14 次检验、5 次非退化、5 次全部 placed 更近、0 次 raw 更近**，其余 9 次因矩阵为单位而自动同侧（标记为 `identical`，不算证据）。
+
+- **Validated**（对存储数据而言）：顶点存储于该网格自身 TransformInfo 节点定义的**局部空间**；节点为单位矩阵时该空间恰好与 Unit 渲染空间重合，这正是三个原始样本无法判别的原因。肩甲原始顶点围绕原点（半extent ≈ 0.16/0.16/0.16），施加矩阵后落在 `l_shoulder_twist` 静止位置 0.07 m 内，即真正长在左肩上。
+- **转换器含义（Candidate）**：写出 HD2 网格时顶点必须放在网格节点局部空间，且 `mesh_world` 只能通过 palette（蒙皮）或矩阵本身（无蒙皮辅助几何）生效一次；把"顶点已是 Unit 空间"当成通用假设会让这类非单位网格错位 1.4 m 量级。
+- 仍为 **Unknown**：运行时着色器的实际乘法顺序与 LOD -1 路径；验证仍来自游戏文件内部的两条独立线索（骨骼静止位置 vs 网格位置），不是原生渲染观测。
+
+复现（新 Unit 的 JSON 约 6.8 MB，按 `.gitignore` 只留本地）：
+
+```
+py -3 research/survey_hd2_unit_mesh_matrices.py "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --output-markdown research\skeleton_comparison\survey_8670598c.md
+py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --unit 90b57e547e7ff7bb --json research\skeleton_comparison\unit_90b57e547e7ff7bb.json
+py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=research/skinning_audits/fs05_lower_body.json --unit fs05_torso_left_arm=research/skinning_audits/fs05_torso_left_arm.json --unit avatar_composite=research/skinning_audits/avatar_composite.json --unit fs05_shoulder_armor=research/skeleton_comparison/unit_90b57e547e7ff7bb.json
+```
 
 ## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
 
