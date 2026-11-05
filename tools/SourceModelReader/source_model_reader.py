@@ -2735,13 +2735,22 @@ def main(argv: Optional[list[str]] = None) -> int:
                     f"{preview_result['codec']} base-mip preview: {outputs['preview_png']} "
                     f"({preview_result['width']}x{preview_result['height']})"
                 )
-                print(
-                    f"Alpha: min={alpha['minimum']} max={alpha['maximum']} "
-                    f"unique={alpha['unique_values']} "
-                    f"transparent={alpha['fully_transparent_pixels']:,} "
-                    f"partial={alpha['partial_alpha_pixels']:,} "
-                    f"opaque={alpha['fully_opaque_pixels']:,}"
-                )
+                if alpha["source_alpha_available"]:
+                    print(
+                        f"Alpha: min={alpha['minimum']} max={alpha['maximum']} "
+                        f"unique={alpha['unique_values']} "
+                        f"transparent={alpha['fully_transparent_pixels']:,} "
+                        f"partial={alpha['partial_alpha_pixels']:,} "
+                        f"opaque={alpha['fully_opaque_pixels']:,}"
+                    )
+                else:
+                    print("Alpha: not present in BC5 source data; decoder output A is a fill value (255)")
+                    for channel in ("red", "green"):
+                        stats = preview_result["channels"][channel]
+                        print(
+                            f"{channel.upper()}: min={stats['minimum']} max={stats['maximum']} "
+                            f"unique={stats['unique_values']}"
+                        )
             print(f"DDS exported: {output} ({len(dds_bytes):,} bytes)")
             for label, filename in outputs.items():
                 if label != "dds":
