@@ -303,6 +303,12 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         pair["summary"]["shared_unique_named_transform_count"] == 0
         for pair in pairs.values()
     )
+    pair_local_transform_mismatches = sum(
+        pair["summary"]["position_mismatch_count"]
+        + pair["summary"]["rotation_mismatch_count"]
+        + pair["summary"]["scale_mismatch_count"]
+        for pair in pairs.values()
+    )
     pair_local_transform_unavailable = sum(
         sum(
             row["position_status"] == "unavailable"
@@ -330,12 +336,13 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "pairwise_parent_mismatches": pair_parent_mismatches,
             "pairwise_stored_matrix_unavailable": pair_unavailable_matrices,
             "pairwise_no_overlap": pair_no_overlap,
+            "pairwise_local_transform_mismatches": pair_local_transform_mismatches,
             "pairwise_local_transform_unavailable": pair_local_transform_unavailable,
             "three_way_shared_unique_named_transform_count": len(common_all),
             "status": "warning" if (
                 pair_matrix_mismatches or pair_parent_mismatches
                 or pair_unavailable_matrices or pair_no_overlap
-                or pair_local_transform_unavailable
+                or pair_local_transform_mismatches or pair_local_transform_unavailable
             ) else "ok",
         },
         "interpretation_limits": [
@@ -370,17 +377,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Pairwise summary",
         "",
-        "| Pair | Comparison | Shared named bones | Parent matches / mismatches | Local position matches / mismatches | Local rotation matches / mismatches | Stored matrix matches / mismatches / unavailable |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Pair | Comparison | Shared names | Parent match / mismatch | Position match / mismatch | Rotation match / mismatch | Scale match / mismatch | Stored matrix match / mismatch / unavailable |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
     ])
     for pair in report["pairwise_comparisons"].values():
         s = pair["summary"]
-        lines.append("| {} vs {} | {} | {} | {} / {} | {} / {} | {} / {} | {} / {} / {} |".format(
+        lines.append("| {} vs {} | {} | {} | {} / {} | {} / {} | {} / {} | {} / {} | {} / {} / {} |".format(
             s["left"], s["right"], s["comparison_status"],
             s["shared_unique_named_transform_count"],
             s["parent_match_count"], s["parent_mismatch_count"],
             s["position_match_count"], s["position_mismatch_count"],
             s["rotation_match_count"], s["rotation_mismatch_count"],
+            s["scale_match_count"], s["scale_mismatch_count"],
             s["stored_matrix_match_count"], s["stored_matrix_mismatch_count"],
             s["stored_matrix_unavailable_count"],
         ))
