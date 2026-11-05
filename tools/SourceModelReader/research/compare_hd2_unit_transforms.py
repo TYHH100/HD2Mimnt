@@ -73,6 +73,27 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
         if isinstance(row, dict) and isinstance(row.get("transform_index"), int)
     }
 
+    # MeshInfo.transform_index is an explicit structural reference from a mesh
+    # record to its TransformInfo node. Keep it separate from vertex influence:
+    # a mesh transform may have no direct skin weights, and a transform may be
+    # both mesh-bound and actively weighted.
+    mesh_info = report.get("mesh_info") or {}
+    mesh_rows = mesh_info.get("records")
+    mesh_binding_info_available = isinstance(mesh_rows, list)
+    mesh_binding_counts: dict[int, int] = {}
+    if mesh_binding_info_available:
+        for mesh in mesh_rows:
+            if not isinstance(mesh, dict):
+                continue
+            mesh_transform_index = mesh.get("transform_index")
+            if (
+                isinstance(mesh_transform_index, int)
+                and not isinstance(mesh_transform_index, bool)
+            ):
+                mesh_binding_counts[mesh_transform_index] = (
+                    mesh_binding_counts.get(mesh_transform_index, 0) + 1
+                )
+
     records = []
     for transform in transforms:
         if not isinstance(transform, dict):
@@ -94,6 +115,8 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
             "parent_index_raw": transform.get("parent_index_raw"),
             "active": bool(resolved.get("has_active_vertex_influence")),
             "active_lane_count": int(resolved.get("active_vertex_influence_lane_count") or 0),
+            "mesh_binding_count": mesh_binding_counts.get(index, 0),
+            "mesh_binding_info_available": mesh_binding_info_available,
             "position": _finite_vector(transform.get("position"), 3),
             "rotation_3x3": _finite_vector(transform.get("rotation_3x3"), 9),
             "scale": _finite_vector(transform.get("scale"), 3),
@@ -109,6 +132,8 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
         "unit_id": unit.get("file_id"),
         "package_id": package.get("name"),
         "geometry_source": unit.get("geometry_source"),
+        "mesh_binding_info_available": mesh_binding_info_available,
+        "mesh_binding_record_count": len(mesh_rows) if mesh_binding_info_available else None,
         "summary": report.get("summary") or {},
         "records": records,
     }
@@ -133,6 +158,28 @@ def _status(error: float | None, tolerance: float) -> str:
     if error is None:
         return "unavailable"
     return "matches" if error <= tolerance else "mismatch"
+
+
+def _transform_role(record: dict[str, Any]) -> str:
+    """Classify a resolved TransformInfo using explicit MeshInfo references.
+
+    Inactive does not mean non-skeletal: unweighted named transforms remain in
+    the skeleton comparison unless MeshInfo explicitly binds them as a mesh
+    transform.
+    """
+    if not record.get("mesh_binding_info_available"):
+        return "unknown"
+    if int(record.get("mesh_binding_count") or 0) > 0:
+        return "mesh_and_weighted" if record.get("active") else "mesh_transform"
+    return "weighted_skeleton" if record.get("active") else "unweighted_skeleton"
+
+
+def _comparison_scope(*roles: str) -> str:
+    if any(role in ("mesh_transform", "mesh_and_weighted") for role in roles):
+        return "mesh_transform"
+    if any(role == "unknown" for role in roles):
+        return "unknown"
+    return "skeleton_transform"
 
 
 def compare_pair(
@@ -168,8 +215,22 @@ def compare_pair(
             if matrix_a is not None and matrix_b is not None else None
         )
 
+        left_role = _transform_role(a)
+        right_role = _transform_role(b)
+        comparison_scope = _comparison_scope(left_role, right_role)
+        if "unknown" in (left_role, right_role):
+            role_status = "unavailable"
+        else:
+            role_status = "matches" if left_role == right_role else "differs"
+
         rows.append({
             "name": name,
+            "left_transform_role": left_role,
+            "right_transform_role": right_role,
+            "transform_role_status": role_status,
+            "comparison_scope": comparison_scope,
+            "left_mesh_binding_count": a["mesh_binding_count"],
+            "right_mesh_binding_count": b["mesh_binding_count"],
             "left_transform_index": a["index"],
             "right_transform_index": b["index"],
             "left_parent": a["parent_name"] if a["parent_resolved"] else "(unresolved)",
@@ -195,6 +256,33 @@ def compare_pair(
 
     def count_status(key: str, expected: str = "matches") -> int:
         return sum(row[key] == expected for row in rows)
+
+    def count_scope(scope: str, key: str, expected: str | None = None) -> int:
+        return sum(
+            row["comparison_scope"] == scope
+            and (expected is None or row[key] == expected)
+            for row in rows
+        )
+
+    def local_scope_mismatch_count(scope: str) -> int:
+        return sum(
+            row["comparison_scope"] == scope
+            and any(
+                row[key] == "mismatch"
+                for key in ("position_status", "rotation_status", "scale_status")
+            )
+            for row in rows
+        )
+
+    def local_scope_unavailable_count(scope: str) -> int:
+        return sum(
+            row["comparison_scope"] == scope
+            and any(
+                row[key] == "unavailable"
+                for key in ("position_status", "rotation_status", "scale_status")
+            )
+            for row in rows
+        )
 
     matrix_errors = [
         row["stored_matrix_max_abs_error"]
@@ -227,6 +315,51 @@ def compare_pair(
         "stored_matrix_mismatch_count": count_status("stored_matrix_status", "mismatch"),
         "stored_matrix_unavailable_count": count_status("stored_matrix_status", "unavailable"),
         "active_flag_difference_count": sum(row["active_status"] == "differs" for row in rows),
+        "skeleton_transform_count": count_scope("skeleton_transform", "comparison_scope"),
+        "mesh_transform_count": count_scope("mesh_transform", "comparison_scope"),
+        "unknown_scope_count": count_scope("unknown", "comparison_scope"),
+        "transform_role_mismatch_count": sum(
+            row["transform_role_status"] == "differs" for row in rows
+        ),
+        "skeleton_parent_mismatch_count": count_scope(
+            "skeleton_transform", "parent_status", "mismatch"
+        ),
+        "mesh_transform_parent_mismatch_count": count_scope(
+            "mesh_transform", "parent_status", "mismatch"
+        ),
+        "skeleton_stored_matrix_match_count": count_scope(
+            "skeleton_transform", "stored_matrix_status", "matches"
+        ),
+        "skeleton_stored_matrix_mismatch_count": count_scope(
+            "skeleton_transform", "stored_matrix_status", "mismatch"
+        ),
+        "skeleton_stored_matrix_unavailable_count": count_scope(
+            "skeleton_transform", "stored_matrix_status", "unavailable"
+        ),
+        "mesh_transform_stored_matrix_match_count": count_scope(
+            "mesh_transform", "stored_matrix_status", "matches"
+        ),
+        "mesh_transform_stored_matrix_mismatch_count": count_scope(
+            "mesh_transform", "stored_matrix_status", "mismatch"
+        ),
+        "mesh_transform_stored_matrix_unavailable_count": count_scope(
+            "mesh_transform", "stored_matrix_status", "unavailable"
+        ),
+        "skeleton_local_transform_mismatch_count": local_scope_mismatch_count(
+            "skeleton_transform"
+        ),
+        "mesh_transform_local_transform_mismatch_count": local_scope_mismatch_count(
+            "mesh_transform"
+        ),
+        "skeleton_local_transform_unavailable_count": local_scope_unavailable_count(
+            "skeleton_transform"
+        ),
+        "mesh_transform_local_transform_unavailable_count": local_scope_unavailable_count(
+            "mesh_transform"
+        ),
+        "unknown_scope_stored_matrix_mismatch_count": count_scope(
+            "unknown", "stored_matrix_status", "mismatch"
+        ),
         "max_position_abs_error": max(position_errors) if position_errors else None,
         "max_stored_matrix_abs_error": max(matrix_errors) if matrix_errors else None,
         "comparison_status": "compared" if common else "no_shared_unique_names",
@@ -271,8 +404,13 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             _max_abs_error(position_vectors[0], position_vectors[index])
             for index in (1, 2)
         ]
+        roles = [_transform_role(row) for row in rows]
+        comparison_scope = _comparison_scope(*roles)
         tri_rows.append({
             "name": name,
+            "transform_roles": roles,
+            "comparison_scope": comparison_scope,
+            "transform_role_consistent": len(set(roles)) == 1,
             "transform_indices": [row["index"] for row in rows],
             "parent_names": parents,
             "parent_consistent": len(set(parents)) == 1 and "(unresolved)" not in parents,
@@ -288,10 +426,50 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
                 len(matrix_errors) == 2
                 and all(value is not None and value <= tolerance for value in matrix_errors)
             ),
+            "skeleton_matrix_all_match": (
+                comparison_scope == "skeleton_transform"
+                and len(matrix_errors) == 2
+                and all(value is not None and value <= tolerance for value in matrix_errors)
+            ) if comparison_scope == "skeleton_transform" else None,
+            "mesh_transform_matrix_all_match": (
+                comparison_scope == "mesh_transform"
+                and len(matrix_errors) == 2
+                and all(value is not None and value <= tolerance for value in matrix_errors)
+            ) if comparison_scope == "mesh_transform" else None,
         })
 
     pair_matrix_mismatches = sum(
         pair["summary"]["stored_matrix_mismatch_count"] for pair in pairs.values()
+    )
+    pair_skeleton_matrix_mismatches = sum(
+        pair["summary"]["skeleton_stored_matrix_mismatch_count"] for pair in pairs.values()
+    )
+    pair_mesh_matrix_mismatches = sum(
+        pair["summary"]["mesh_transform_stored_matrix_mismatch_count"] for pair in pairs.values()
+    )
+    pair_skeleton_parent_mismatches = sum(
+        pair["summary"]["skeleton_parent_mismatch_count"] for pair in pairs.values()
+    )
+    pair_mesh_parent_mismatches = sum(
+        pair["summary"]["mesh_transform_parent_mismatch_count"] for pair in pairs.values()
+    )
+    pair_skeleton_local_mismatches = sum(
+        pair["summary"]["skeleton_local_transform_mismatch_count"] for pair in pairs.values()
+    )
+    pair_mesh_local_mismatches = sum(
+        pair["summary"]["mesh_transform_local_transform_mismatch_count"] for pair in pairs.values()
+    )
+    pair_role_mismatches = sum(
+        pair["summary"]["transform_role_mismatch_count"] for pair in pairs.values()
+    )
+    pair_skeleton_unavailable = sum(
+        pair["summary"]["skeleton_stored_matrix_unavailable_count"] for pair in pairs.values()
+    )
+    pair_mesh_unavailable = sum(
+        pair["summary"]["mesh_transform_stored_matrix_unavailable_count"] for pair in pairs.values()
+    )
+    pair_unknown_scope = sum(
+        pair["summary"]["unknown_scope_count"] for pair in pairs.values()
     )
     pair_parent_mismatches = sum(
         pair["summary"]["parent_mismatch_count"] for pair in pairs.values()
@@ -318,8 +496,29 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         )
         for pair in pairs.values()
     )
+    has_skeleton_warning = bool(
+        pair_skeleton_matrix_mismatches
+        or pair_skeleton_parent_mismatches
+        or pair_skeleton_local_mismatches
+        or pair_skeleton_unavailable
+        or pair_role_mismatches
+        or pair_unknown_scope
+        or pair_no_overlap
+    )
+    has_mesh_review = bool(
+        pair_mesh_matrix_mismatches
+        or pair_mesh_parent_mismatches
+        or pair_mesh_local_mismatches
+        or pair_mesh_unavailable
+    )
+    diagnostic_status = (
+        "warning" if has_skeleton_warning
+        else "review" if has_mesh_review
+        else "ok"
+    )
+
     return {
-        "schema": "SourceModelReader-HD2UnitTransformComparison1",
+        "schema": "SourceModelReader-HD2UnitTransformComparison2",
         "tolerance": tolerance,
         "units": [
             {key: value for key, value in unit.items() if key != "records"}
@@ -338,19 +537,28 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "pairwise_no_overlap": pair_no_overlap,
             "pairwise_local_transform_mismatches": pair_local_transform_mismatches,
             "pairwise_local_transform_unavailable": pair_local_transform_unavailable,
+            "pairwise_skeleton_matrix_mismatches": pair_skeleton_matrix_mismatches,
+            "pairwise_mesh_transform_matrix_mismatches": pair_mesh_matrix_mismatches,
+            "pairwise_skeleton_parent_mismatches": pair_skeleton_parent_mismatches,
+            "pairwise_mesh_transform_parent_mismatches": pair_mesh_parent_mismatches,
+            "pairwise_skeleton_local_transform_mismatches": pair_skeleton_local_mismatches,
+            "pairwise_mesh_transform_local_transform_mismatches": pair_mesh_local_mismatches,
+            "pairwise_transform_role_mismatches": pair_role_mismatches,
+            "pairwise_skeleton_matrix_unavailable": pair_skeleton_unavailable,
+            "pairwise_mesh_transform_matrix_unavailable": pair_mesh_unavailable,
+            "pairwise_unknown_scope_transforms": pair_unknown_scope,
             "three_way_shared_unique_named_transform_count": len(common_all),
-            "status": "warning" if (
-                pair_matrix_mismatches or pair_parent_mismatches
-                or pair_unavailable_matrices or pair_no_overlap
-                or pair_local_transform_mismatches or pair_local_transform_unavailable
-            ) else "ok",
+            "status": diagnostic_status,
         },
         "interpretation_limits": [
             "Only unique, resolved TransformInfo names are compared. Duplicate or unresolved names are excluded from name-based matching.",
+            "A TransformInfo referenced by MeshInfo.records[].transform_index is classified as a mesh transform. This is an explicit structural association, not a claim that the transform is disposable or unrelated to all bone behavior.",
+            "Named transforms not directly referenced by MeshInfo remain in the skeleton comparison, including unweighted transforms. Lack of direct vertex influence alone never removes a transform from skeleton analysis.",
+            "When a transform is both MeshInfo-bound and actively weighted, it is reported as mesh_and_weighted and placed in the mesh-transform comparison scope so its dual role remains visible.",
             "Position, rotation_3x3 and scale are compared as stored local fields; no axis, handedness, unit-scale or quaternion conversion is applied.",
             "matrix_4x4_raw is compared as the stored TransformInfo 4x4 value. The existing parser independently checks its relationship to reconstructed hierarchy matrices for each Unit, but this cross-Unit comparison does not establish universal world-space or inverse-bind semantics.",
             "A numerical match is evidence of similarity between these selected Unit samples only; it does not prove animated deformation, runtime behavior, or Source-to-HD2 retarget correctness.",
-            "Active vertex influence flags are mesh-specific. A bone can exist in the shared skeleton but be unused by one selected mesh.",
+            "A mesh-transform-only difference yields diagnostic status 'review' rather than a skeleton warning; mesh-space differences remain visible and require interpretation before vertex conversion.",
         ],
     }
 
@@ -395,6 +603,23 @@ def render_markdown(report: dict[str, Any]) -> str:
 
     lines.extend([
         "",
+        "## Classification summary",
+        "",
+        "| Pair | Skeleton transforms | Skeleton matrix mismatches | Mesh transforms | Mesh matrix mismatches | Role differences |",
+        "|---|---:|---:|---:|---:|---:|",
+    ])
+    for pair in report["pairwise_comparisons"].values():
+        s = pair["summary"]
+        lines.append("| {} vs {} | {} | {} | {} | {} | {} |".format(
+            s["left"], s["right"], s["skeleton_transform_count"],
+            s["skeleton_stored_matrix_mismatch_count"],
+            s["mesh_transform_count"],
+            s["mesh_transform_stored_matrix_mismatch_count"],
+            s["transform_role_mismatch_count"],
+        ))
+
+    lines.extend([
+        "",
         "## Pairwise transform details",
         "",
     ])
@@ -407,12 +632,14 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"- Maximum local-position component error: {s['max_position_abs_error']}",
             f"- Maximum stored-matrix component error: {s['max_stored_matrix_abs_error']}",
             "",
-            "| Bone | Parent A | Parent B | Parent | Position Δ | Rotation Δ | Scale Δ | Stored matrix Δ | Matrix translation Δ | Active A/B |",
-            "|---|---|---|---|---:|---:|---:|---:|---:|---|",
+            "| Transform | Scope | Role A/B | Parent A | Parent B | Parent | Position Δ | Rotation Δ | Scale Δ | Stored matrix Δ | Matrix translation Δ | Active A/B |",
+            "|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|",
         ])
         for row in pair["transforms"]:
-            lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} |".format(
-                row["name"], row["left_parent"], row["right_parent"], row["parent_status"],
+            lines.append("| {} | {} | {}/{} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} |".format(
+                row["name"], row["comparison_scope"],
+                row["left_transform_role"], row["right_transform_role"],
+                row["left_parent"], row["right_parent"], row["parent_status"],
                 row["position_max_abs_error"], row["rotation_max_abs_error"],
                 row["scale_max_abs_error"], row["stored_matrix_max_abs_error"],
                 row["stored_matrix_translation_max_abs_error"],
@@ -420,7 +647,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "yes" if row["right_active"] else "no",
             ))
         if not pair["transforms"]:
-            lines.append("| — | — | — | — | — | — | — | — | — | — |")
+            lines.append("| — | — | — | — | — | — | — | — | — | — | — | — |")
         if pair["ambiguous_names"]["left"] or pair["ambiguous_names"]["right"]:
             lines.extend([
                 "",
@@ -439,19 +666,21 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Unique resolved names shared by all three: {common['count']}",
         "",
-        "| Bone | Transform indices (lower / torso / Avatar) | Parent names consistent | Position Δ vs lower-body | Stored matrix Δ vs lower-body | All stored matrices match |",
-        "|---|---|---|---:|---:|---|",
+        "| Transform | Scope | Roles (lower / torso / Avatar) | Transform indices (lower / torso / Avatar) | Parent names consistent | Position Δ vs lower-body | Stored matrix Δ vs lower-body | All stored matrices match |",
+        "|---|---|---|---|---|---:|---:|---|",
     ])
     for row in common["transforms"]:
-        lines.append("| {} | {} | {} | {} | {} | {} |".format(
-            row["name"], " / ".join(str(value) for value in row["transform_indices"]),
+        lines.append("| {} | {} | {} | {} | {} | {} | {} | {} |".format(
+            row["name"], row["comparison_scope"],
+            " / ".join(row["transform_roles"]),
+            " / ".join(str(value) for value in row["transform_indices"]),
             "yes" if row["parent_consistent"] else "no",
             row["max_position_error_vs_first"],
             row["max_stored_matrix_error_vs_first"],
             "yes" if row["stored_matrix_all_match"] else "no",
         ))
     if not common["transforms"]:
-        lines.append("| — | — | — | — | — | — |")
+        lines.append("| — | — | — | — | — | — | — | — |")
 
     lines.extend(["", "## Interpretation limits", ""])
     lines.extend("- " + item for item in report["interpretation_limits"])
@@ -496,8 +725,18 @@ def main() -> int:
 
     print("Samples: {}".format(len(units)))
     print("All-three shared unique names: {}".format(report["common_to_all_three"]["count"]))
-    print("Pairwise matrix mismatches: {}".format(report["summary"]["pairwise_stored_matrix_mismatches"]))
-    print("Pairwise parent mismatches: {}".format(report["summary"]["pairwise_parent_mismatches"]))
+    print("Pairwise matrix mismatches (all scopes): {}".format(
+        report["summary"]["pairwise_stored_matrix_mismatches"]
+    ))
+    print("Pairwise skeleton matrix mismatches: {}".format(
+        report["summary"]["pairwise_skeleton_matrix_mismatches"]
+    ))
+    print("Pairwise mesh-transform matrix mismatches: {}".format(
+        report["summary"]["pairwise_mesh_transform_matrix_mismatches"]
+    ))
+    print("Pairwise skeleton parent mismatches: {}".format(
+        report["summary"]["pairwise_skeleton_parent_mismatches"]
+    ))
     print("Diagnostic status: {}".format(report["summary"]["status"]))
     print("Markdown: {}".format(args.output_markdown))
     print("JSON: {}".format(args.output_json))
