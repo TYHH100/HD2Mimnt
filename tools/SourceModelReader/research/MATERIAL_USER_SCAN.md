@@ -128,3 +128,15 @@ For each referenced Unit:
 4. Only after finding a real model assignment, investigate render-state/shader behavior and controlled in-game tests.
 
 Do not start writing a fabric conversion preset from a Glass Material hit alone. A real Unit/Mesh Section assignment and shader-use evidence are still required.
+
+
+## Implementation snapshot
+
+The first scanner implementation is committed on the working branch:
+- `hd2_material_users.py`: global Unit/Material/Mesh Section scan.
+- `source_model_reader.py`: `hd2-material-users` CLI command with repeatable `--material`.
+- `tests/test_hd2_material_users.py`: direct Unit mapping, multiple material-section rows, CompositeUnit section mapping, unresolved CompositeUnit safety, a synthetic end-to-end SLIM Unit scan, and CLI help coverage.
+
+The synthetic end-to-end fixture creates one package with one Unit entry and verifies that its Unit Materials table resolves to the expected Mesh Section without requiring GPU/Stream data. The scanner's CompositeUnit path is covered at the section-mapping level with an isolated fixture.
+
+These new tests have **not yet been run in the user's Windows environment**. Pull the latest branch and run the focused test module before executing the full-game scan.
