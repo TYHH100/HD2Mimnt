@@ -160,4 +160,3 @@ __pycache__/
 gmpublisher/
 *.gma
 examples/
-tools/SourceModelReader/*.json

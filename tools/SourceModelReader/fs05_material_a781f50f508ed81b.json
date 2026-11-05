@@ -1,0 +1,1511 @@
+{
+  "schema": "SourceModelReader-HD2Material1",
+  "resource_size": 2464,
+  "fixed_header_size": 136,
+  "header": {
+    "end_offset": 2432,
+    "parent_material_id": "5a4597ed9ab5f84f",
+    "parent_material_id_value": 6504772283565209679,
+    "num_textures": 12,
+    "num_variables": 87,
+    "declared_variable_data_size": 436,
+    "unknown_0_12_hex": "200100000100000018000000",
+    "unknown_16_24_hex": "0000000000000000",
+    "unknown_32_64_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "unknown_68_104_hex": "000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unknown_108_120_hex": "000000000000000000000000",
+    "unknown_124_136_hex": "000000000000000000000000"
+  },
+  "layout": {
+    "texture_types_offset": 136,
+    "texture_ids_offset": 184,
+    "variable_descriptors_offset": 280,
+    "variable_value_payload_offset": 2020,
+    "available_variable_data_size": 444,
+    "variable_data_size_matches_remaining_payload": false
+  },
+  "texture_nodes": [
+    {
+      "index": 0,
+      "texture_type_id": 542029337,
+      "texture_type_id_hex": "0x204eb619",
+      "texture_id": "f37a4e756300ab32",
+      "texture_id_value": 17544421564454316850,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 1,
+      "texture_type_id": 1446503891,
+      "texture_type_id_hex": "0x5637e5d3",
+      "texture_id": "f001498ea40718fb",
+      "texture_id_value": 17294184921065527547,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 2,
+      "texture_type_id": 2824264461,
+      "texture_type_id_hex": "0xa856db0d",
+      "texture_id": "4656ac419388a0d4",
+      "texture_id_value": 5068427828300128468,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 3,
+      "texture_type_id": 2892312131,
+      "texture_type_id_hex": "0xac652e43",
+      "texture_id": "68acd4177fa5f4db",
+      "texture_id_value": 7542636673329657051,
+      "resolved_in_package": true,
+      "texture_resource": {
+        "file_id": "68acd4177fa5f4db",
+        "toc_bytes": 340,
+        "gpu_bytes": 2744,
+        "stream_bytes": 699064
+      }
+    },
+    {
+      "index": 4,
+      "texture_type_id": 3404557526,
+      "texture_type_id_hex": "0xcaed6cd6",
+      "texture_id": "8e42f23230ab525e",
+      "texture_id_value": 10251021999227490910,
+      "resolved_in_package": true,
+      "texture_resource": {
+        "file_id": "8e42f23230ab525e",
+        "toc_bytes": 340,
+        "gpu_bytes": 1392,
+        "stream_bytes": 1398128
+      }
+    },
+    {
+      "index": 5,
+      "texture_type_id": 417001354,
+      "texture_type_id_hex": "0x18daef8a",
+      "texture_id": "4656ac419388a0d4",
+      "texture_id_value": 5068427828300128468,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 6,
+      "texture_type_id": 4209832809,
+      "texture_type_id_hex": "0xfaecf369",
+      "texture_id": "7fc8b2e634181f66",
+      "texture_id_value": 9207806139945197414,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 7,
+      "texture_type_id": 1551320193,
+      "texture_type_id_hex": "0x5c774481",
+      "texture_id": "82ba9a2d6997cc4b",
+      "texture_id_value": 9420011090434575435,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 8,
+      "texture_type_id": 4154452068,
+      "texture_type_id_hex": "0xf79fe864",
+      "texture_id": "f37a4e756300ab32",
+      "texture_id_value": 17544421564454316850,
+      "resolved_in_package": false,
+      "texture_resource": null
+    },
+    {
+      "index": 9,
+      "texture_type_id": 2937963041,
+      "texture_type_id_hex": "0xaf1dc221",
+      "texture_id": "bf281073a422022c",
+      "texture_id_value": 13774277549173637676,
+      "resolved_in_package": true,
+      "texture_resource": {
+        "file_id": "bf281073a422022c",
+        "toc_bytes": 340,
+        "gpu_bytes": 4,
+        "stream_bytes": 0
+      }
+    },
+    {
+      "index": 10,
+      "texture_type_id": 1970237350,
+      "texture_type_id_hex": "0x756f6fa6",
+      "texture_id": "9e0595f7f9d158d1",
+      "texture_id_value": 11386672125156874449,
+      "resolved_in_package": true,
+      "texture_resource": {
+        "file_id": "9e0595f7f9d158d1",
+        "toc_bytes": 340,
+        "gpu_bytes": 1392,
+        "stream_bytes": 1398128
+      }
+    },
+    {
+      "index": 11,
+      "texture_type_id": 1228498661,
+      "texture_type_id_hex": "0x493966e5",
+      "texture_id": "486c27ee43065178",
+      "texture_id_value": 5218589972495749496,
+      "resolved_in_package": false,
+      "texture_resource": null
+    }
+  ],
+  "shader_variables": [
+    {
+      "index": 0,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3447120961,
+      "variable_id_hex": "0xcd76e441",
+      "value_offset": 0,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000041e476cd0000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 1,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1584258331,
+      "variable_id_hex": "0x5e6ddd1b",
+      "value_offset": 4,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000001bdd6d5e0400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 2,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2205162471,
+      "variable_id_hex": "0x83701be7",
+      "value_offset": 8,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e71b70830800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 3,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3369344809,
+      "variable_id_hex": "0xc8d41f29",
+      "value_offset": 12,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000291fd4c80c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 4,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3701347636,
+      "variable_id_hex": "0xdc9e1534",
+      "value_offset": 16,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000034159edc1000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 5,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1600012746,
+      "variable_id_hex": "0x5f5e41ca",
+      "value_offset": 20,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000ca415e5f1400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 6,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4140921390,
+      "variable_id_hex": "0xf6d1722e",
+      "value_offset": 24,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000002e72d1f61800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 7,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 840607694,
+      "variable_id_hex": "0x321aa7ce",
+      "value_offset": 28,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000cea71a321c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 8,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3026149739,
+      "variable_id_hex": "0xb45f616b",
+      "value_offset": 32,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000006b615fb42000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 9,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1921859489,
+      "variable_id_hex": "0x728d3fa1",
+      "value_offset": 36,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000a13f8d722400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.20000000298023224
+      ]
+    },
+    {
+      "index": 10,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3177711901,
+      "variable_id_hex": "0xbd68091d",
+      "value_offset": 40,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000001d0968bd2800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 11,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 708042120,
+      "variable_id_hex": "0x2a33dd88",
+      "value_offset": 44,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000088dd332a2c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "index": 12,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2524021261,
+      "variable_id_hex": "0x9671820d",
+      "value_offset": 48,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000000d8271963000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        10.0
+      ]
+    },
+    {
+      "index": 13,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1888625499,
+      "variable_id_hex": "0x7092235b",
+      "value_offset": 52,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000005b2392703400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 14,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2569461438,
+      "variable_id_hex": "0x9926debe",
+      "value_offset": 56,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000bede26993800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 15,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4081859553,
+      "variable_id_hex": "0xf34c3be1",
+      "value_offset": 60,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e13b4cf33c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 16,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2837690897,
+      "variable_id_hex": "0xa923ba11",
+      "value_offset": 64,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000011ba23a94000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 17,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3973151576,
+      "variable_id_hex": "0xecd17b58",
+      "value_offset": 68,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000587bd1ec4400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 18,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3566239785,
+      "variable_id_hex": "0xd4908029",
+      "value_offset": 72,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000298090d44800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 19,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2140655879,
+      "variable_id_hex": "0x7f97d107",
+      "value_offset": 76,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000007d1977f4c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 20,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3448952420,
+      "variable_id_hex": "0xcd92d664",
+      "value_offset": 80,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000064d692cd5000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 21,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 648313977,
+      "variable_id_hex": "0x26a47c79",
+      "value_offset": 84,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000797ca4265400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.20000000298023224
+      ]
+    },
+    {
+      "index": 22,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1415518533,
+      "variable_id_hex": "0x545f1945",
+      "value_offset": 88,
+      "element_stride": 0,
+      "raw_descriptor_hex": "020000000000000045195f545800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0,
+        0.19220000505447388,
+        0.0
+      ]
+    },
+    {
+      "index": 23,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4070139931,
+      "variable_id_hex": "0xf299681b",
+      "value_offset": 100,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000001b6899f26400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 24,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2732972680,
+      "variable_id_hex": "0xa2e5da88",
+      "value_offset": 104,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000088dae5a26800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 25,
+      "klass": 1,
+      "klass_name": "Vector2",
+      "elements": 0,
+      "variable_id": 3443299848,
+      "variable_id_hex": "0xcd3c9608",
+      "value_offset": 108,
+      "element_stride": 0,
+      "raw_descriptor_hex": "010000000000000008963ccd6c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.699999988079071,
+        0.699999988079071
+      ]
+    },
+    {
+      "index": 26,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2547170453,
+      "variable_id_hex": "0x97d2bc95",
+      "value_offset": 116,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000095bcd2977400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 27,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1518003260,
+      "variable_id_hex": "0x5a7ae43c",
+      "value_offset": 120,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000003ce47a5a7800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 28,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 593264585,
+      "variable_id_hex": "0x235c7fc9",
+      "value_offset": 124,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000c97f5c237c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 29,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1516478816,
+      "variable_id_hex": "0x5a63a160",
+      "value_offset": 128,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000060a1635a8000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 30,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1530907747,
+      "variable_id_hex": "0x5b3fcc63",
+      "value_offset": 132,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000063cc3f5b8400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 31,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4194710925,
+      "variable_id_hex": "0xfa06358d",
+      "value_offset": 136,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000008d3506fa8800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        10.0
+      ]
+    },
+    {
+      "index": 32,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3453036151,
+      "variable_id_hex": "0xcdd12677",
+      "value_offset": 140,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007726d1cd8c00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 33,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4029132336,
+      "variable_id_hex": "0xf027ae30",
+      "value_offset": 144,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000030ae27f09000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 34,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3560631542,
+      "variable_id_hex": "0xd43aecf6",
+      "value_offset": 148,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000f6ec3ad49400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 35,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1497750822,
+      "variable_id_hex": "0x5945dd26",
+      "value_offset": 152,
+      "element_stride": 0,
+      "raw_descriptor_hex": "020000000000000026dd45599800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0,
+        0.7803999781608582,
+        0.5764999985694885
+      ]
+    },
+    {
+      "index": 36,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 316034174,
+      "variable_id_hex": "0x12d64c7e",
+      "value_offset": 164,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007e4cd612a400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 37,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 36391829,
+      "variable_id_hex": "0x022b4b95",
+      "value_offset": 168,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000954b2b02a800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.20000000298023224
+      ]
+    },
+    {
+      "index": 38,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1165260201,
+      "variable_id_hex": "0x457475a9",
+      "value_offset": 172,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000a9757445ac00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "index": 39,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2912692262,
+      "variable_id_hex": "0xad9c2826",
+      "value_offset": 176,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000026289cadb000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 40,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1133993263,
+      "variable_id_hex": "0x43975d2f",
+      "value_offset": 180,
+      "element_stride": 0,
+      "raw_descriptor_hex": "02000000000000002f5d9743b400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.07450000196695328,
+        0.0038999998942017555,
+        0.0
+      ]
+    },
+    {
+      "index": 41,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3947428325,
+      "variable_id_hex": "0xeb48f9e5",
+      "value_offset": 192,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e5f948ebc000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 42,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2580101202,
+      "variable_id_hex": "0x99c93852",
+      "value_offset": 196,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000005238c999c400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 43,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3376474105,
+      "variable_id_hex": "0xc940e7f9",
+      "value_offset": 200,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000f9e740c9c800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 44,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2862468988,
+      "variable_id_hex": "0xaa9dcf7c",
+      "value_offset": 204,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007ccf9daacc00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "index": 45,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1759061703,
+      "variable_id_hex": "0x68d926c7",
+      "value_offset": 208,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000c726d968d000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 46,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3302555613,
+      "variable_id_hex": "0xc4d8ffdd",
+      "value_offset": 212,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000ddffd8c4d400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        4.0
+      ]
+    },
+    {
+      "index": 47,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4156195680,
+      "variable_id_hex": "0xf7ba8360",
+      "value_offset": 216,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000006083baf7d800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.054999999701976776
+      ]
+    },
+    {
+      "index": 48,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4004976365,
+      "variable_id_hex": "0xeeb716ed",
+      "value_offset": 220,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000ed16b7eedc00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.20000000298023224
+      ]
+    },
+    {
+      "index": 49,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3445691929,
+      "variable_id_hex": "0xcd611619",
+      "value_offset": 224,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000191661cde000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 50,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1794969715,
+      "variable_id_hex": "0x6afd1073",
+      "value_offset": 228,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007310fd6ae400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 51,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2089072617,
+      "variable_id_hex": "0x7c84b7e9",
+      "value_offset": 232,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e9b7847ce800000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 52,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1402566633,
+      "variable_id_hex": "0x539977e9",
+      "value_offset": 236,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e9779953ec00000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 53,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1741109054,
+      "variable_id_hex": "0x67c7373e",
+      "value_offset": 240,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000003e37c767f000000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 54,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 3188060792,
+      "variable_id_hex": "0xbe05f278",
+      "value_offset": 244,
+      "element_stride": 0,
+      "raw_descriptor_hex": "020000000000000078f205bef400000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.1647000014781952,
+        0.10589999705553055,
+        0.0
+      ]
+    },
+    {
+      "index": 55,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3353299356,
+      "variable_id_hex": "0xc7df499c",
+      "value_offset": 256,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000009c49dfc70001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 56,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2222662994,
+      "variable_id_hex": "0x847b2552",
+      "value_offset": 260,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000052257b840401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 57,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1130979195,
+      "variable_id_hex": "0x43695f7b",
+      "value_offset": 264,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007b5f69430801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        3.0
+      ]
+    },
+    {
+      "index": 58,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3771692625,
+      "variable_id_hex": "0xe0cf7651",
+      "value_offset": 268,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000005176cfe00c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 59,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1792801663,
+      "variable_id_hex": "0x6adbfb7f",
+      "value_offset": 272,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007ffbdb6a1001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        4.0
+      ]
+    },
+    {
+      "index": 60,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1150816722,
+      "variable_id_hex": "0x449811d2",
+      "value_offset": 276,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0200000000000000d21198441401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "index": 61,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1017927651,
+      "variable_id_hex": "0x3cac57e3",
+      "value_offset": 288,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000e357ac3c2001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.20000000298023224
+      ]
+    },
+    {
+      "index": 62,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 368825882,
+      "variable_id_hex": "0x15fbd61a",
+      "value_offset": 292,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000001ad6fb152401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 63,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1437370074,
+      "variable_id_hex": "0x55ac86da",
+      "value_offset": 296,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000da86ac552801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 64,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 705358399,
+      "variable_id_hex": "0x2a0aea3f",
+      "value_offset": 300,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000003fea0a2a2c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 65,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 568839012,
+      "variable_id_hex": "0x21e7cb64",
+      "value_offset": 304,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000064cbe7213001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 66,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 553295808,
+      "variable_id_hex": "0x20fa9fc0",
+      "value_offset": 308,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0200000000000000c09ffa203401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.2353000044822693,
+        0.2353000044822693,
+        0.2353000044822693
+      ]
+    },
+    {
+      "index": 67,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3196487529,
+      "variable_id_hex": "0xbe868769",
+      "value_offset": 320,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000698786be4001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "index": 68,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1797836221,
+      "variable_id_hex": "0x6b28cdbd",
+      "value_offset": 324,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000bdcd286b4401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.30000001192092896
+      ]
+    },
+    {
+      "index": 69,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1118629630,
+      "variable_id_hex": "0x42aceefe",
+      "value_offset": 328,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000feeeac424801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 70,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1556039957,
+      "variable_id_hex": "0x5cbf4915",
+      "value_offset": 332,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000001549bf5c4c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 71,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1233295173,
+      "variable_id_hex": "0x49829745",
+      "value_offset": 336,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000459782495001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        5.5
+      ]
+    },
+    {
+      "index": 72,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3755101733,
+      "variable_id_hex": "0xdfd24e25",
+      "value_offset": 340,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000254ed2df5401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0689999982714653
+      ]
+    },
+    {
+      "index": 73,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 365558205,
+      "variable_id_hex": "0x15c9f9bd",
+      "value_offset": 344,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000bdf9c9155801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 74,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 2726905278,
+      "variable_id_hex": "0xa28945be",
+      "value_offset": 348,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0200000000000000be4589a25c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "index": 75,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2376566620,
+      "variable_id_hex": "0x8da7875c",
+      "value_offset": 360,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000005c87a78d6801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 76,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2912255927,
+      "variable_id_hex": "0xad957fb7",
+      "value_offset": 364,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000b77f95ad6c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.3569999933242798
+      ]
+    },
+    {
+      "index": 77,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1661609064,
+      "variable_id_hex": "0x630a2468",
+      "value_offset": 368,
+      "element_stride": 0,
+      "raw_descriptor_hex": "020000000000000068240a637001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.08150000125169754,
+        0.08150000125169754,
+        0.08150000125169754
+      ]
+    },
+    {
+      "index": 78,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2345167730,
+      "variable_id_hex": "0x8bc86b72",
+      "value_offset": 380,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000726bc88b7c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 79,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 3259829114,
+      "variable_id_hex": "0xc24d0b7a",
+      "value_offset": 384,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000007a0b4dc28001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 80,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 1416179771,
+      "variable_id_hex": "0x5469303b",
+      "value_offset": 388,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000003b3069548401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 81,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2832001267,
+      "variable_id_hex": "0xa8cce8f3",
+      "value_offset": 392,
+      "element_stride": 0,
+      "raw_descriptor_hex": "0000000000000000f3e8cca88801000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 82,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 2348770574,
+      "variable_id_hex": "0x8bff650e",
+      "value_offset": 396,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000000e65ff8b8c01000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 83,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 15122949,
+      "variable_id_hex": "0x00e6c205",
+      "value_offset": 400,
+      "element_stride": 0,
+      "raw_descriptor_hex": "000000000000000005c2e6009001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        1.0
+      ]
+    },
+    {
+      "index": 84,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 3296716959,
+      "variable_id_hex": "0xc47fe89f",
+      "value_offset": 404,
+      "element_stride": 0,
+      "raw_descriptor_hex": "02000000000000009fe87fc49401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.32156863808631897,
+        0.32156863808631897,
+        0.32156863808631897
+      ]
+    },
+    {
+      "index": 85,
+      "klass": 0,
+      "klass_name": "Scalar",
+      "elements": 0,
+      "variable_id": 4054985117,
+      "variable_id_hex": "0xf1b2299d",
+      "value_offset": 432,
+      "element_stride": 0,
+      "raw_descriptor_hex": "00000000000000009d29b2f1b001000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.0
+      ]
+    },
+    {
+      "index": 86,
+      "klass": 2,
+      "klass_name": "Vector3",
+      "elements": 0,
+      "variable_id": 1561416030,
+      "variable_id_hex": "0x5d11515e",
+      "value_offset": 420,
+      "element_stride": 0,
+      "raw_descriptor_hex": "02000000000000005e51115da401000000000000",
+      "preview_status": "first_vector_preview",
+      "first_vector_preview": [
+        0.16859999299049377,
+        0.1137000024318695,
+        0.058800000697374344
+      ]
+    }
+  ],
+  "variable_value_payload_hex": "0000000000000000000000000000803f0000803f000000000000803f0000803f00000000cdcc4c3e000000009a99993e00002041000000000000000000000000000000000000803f000000000000000000000000cdcc4c3e0000803f14d0443e0000000000000000000000003333333f3333333f0000803f00000000000000000000803f000000000000204100000000000000000000803f0000803f4bc8473f8195133f00000000cdcc4c3e9a99993e000000007593983d24977f3b00000000000000000000803f0000803f9a99993e0000000000008040ae47613dcdcc4c3e000000000000803f00000000000000000000803f1ea7283e19e2d83d000000000000000000000000000040400000000000008040000000000000000000000000cdcc4c3e000000000000000000000000000000007cf2703e7cf2703e7cf2703e9a99993e9a99993e00000000000000000000b040df4f8d3d0000803f00000000000000000000000000000000b4c8b63e79e9a63d79e9a63d79e9a63d0000803f0000000000000000000000000000803f0000803fa5a4a43ea5a4a43ea5a4a43e000000007aa52c3e8cdbe83d45d8703d000000000000000000000000",
+  "render_mode": {
+    "status": "unresolved",
+    "reason": "Parent aliases and shader variable names are versioned metadata; raw IDs are preserved without inferring render behavior."
+  },
+  "warnings": [
+    "VariableDataSize does not equal the remaining bytes after the descriptor table (declared=436, available=444); the raw remaining payload is preserved and the field boundary is not assumed"
+  ],
+  "package": {
+    "name": "8670598c1f4462dc",
+    "container": "slim"
+  },
+  "resource": {
+    "file_id": "a781f50f508ed81b",
+    "type_id": "eac0b497876adedf",
+    "toc_bytes": 2464,
+    "gpu_bytes": 0,
+    "stream_bytes": 0
+  },
+  "summary": {
+    "status": "warning",
+    "texture_count": 12,
+    "texture_dependencies_found_in_package": 4,
+    "texture_dependencies_missing_from_package": 8,
+    "shader_variable_count": 87
+  }
+}

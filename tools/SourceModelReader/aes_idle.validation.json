@@ -1,0 +1,31 @@
+{
+  "tool_version": "0.7.0-alpha",
+  "file": "aes_idle.glb",
+  "file_bytes": 5186968,
+  "container": {
+    "magic": "glTF",
+    "version": 2,
+    "chunks": [
+      "JSON",
+      "BIN\u0000"
+    ]
+  },
+  "summary": {
+    "status": "ok",
+    "mesh_nodes": 1,
+    "primitives": 14,
+    "shared_vertex_count": 64301,
+    "triangles": 106663,
+    "skin_joints": 255,
+    "unique_weighted_vertices_checked": 64301,
+    "bad_weight_sums": 0,
+    "animations": 1,
+    "animation_channels": 106,
+    "animated_nodes": 53
+  },
+  "counts": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "findings": []
+}
