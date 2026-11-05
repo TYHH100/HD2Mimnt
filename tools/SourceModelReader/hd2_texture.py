@@ -245,7 +245,7 @@ def _encode_bgra_png(width: int, height: int, bgra: bytes) -> bytes:
     expected = width * height * 4
     if len(bgra) != expected:
         raise HD2ResourceError(
-            f"BC7 decoder returned {len(bgra)} bytes; expected {expected}"
+            f"Texture decoder returned {len(bgra)} bytes; expected {expected}"
         )
     scanlines = bytearray()
     row_bytes = width * 4
