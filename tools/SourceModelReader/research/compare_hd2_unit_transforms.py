@@ -234,12 +234,14 @@ def _transform_role(record: dict[str, Any]) -> str:
 
 
 def _comparison_scope(*roles: str) -> str:
+    # A missing classification on either side must not be hidden by a known
+    # mesh/skeleton role from the other Unit.
+    if any(role == "unknown" for role in roles):
+        return "unknown"
     if any(role in ("mesh_transform", "mesh_and_weighted") for role in roles):
         return "mesh_transform"
     if any(role == "mesh_hierarchy_transform" for role in roles):
         return "mesh_hierarchy_transform"
-    if any(role == "unknown" for role in roles):
-        return "unknown"
     return "skeleton_transform"
 
 
