@@ -250,6 +250,36 @@ py -3 research/compare_source_hd2_rest_joints.py gmpublisher.gma --model "models
   测试 `test_candidate_table_can_validate_a_hash_that_reproduces_the_pairs` 固定了这条验证路径可执行。
 - 未解析的 16 个哈希不做名字猜测、不参与映射表；只影响骨架命名完整度，不影响已解析通道或静止关节证据。
 
+## 八个模型的 LOD 覆盖与 MDL 版本边界（Observed，Phase 3 / 1.0.0 前置）
+
+工具：`research/survey_source_model_lod_coverage.py`；输出：
+`research/skeleton_comparison/source_lod_coverage_gmpublisher.md`；测试：
+`tests/test_survey_source_model_lod_coverage.py`（8 条，纯合成档案，不依赖 279 MB 的 GMA）。
+
+把同一个 GMA 里的**全部 8 个 MDL** 逐个普查后，之前"本样本只有一个 LOD"的说法要升级：
+
+- **Observed｜全体单 LOD**：7 个可读模型的 `vvd_lod_count` 与 `vtx_lod_count` 都是 **1**，
+  `num_fixups` 都是 **0**。所以"逐 LOD 的骨骼用量"在这个资产包里**任何模型都测不出来**，
+  不是某个模型的特殊性；要回答这条必须换一份带多级 LOD 的源模型。
+- **Observed｜版本边界被真实数据撞到**：第 8 个模型 `models/shoubi/aes_yz_sb.mdl` 是
+  **MDL v49**，解析器按既有规则显式拒绝（`This alpha supports MDL v48 only; found v49`），
+  并且包内没有它的 dx80 兄弟文件。也就是说 1.0.0 的"测多个独立模型"目标在同一只包里就碰到
+  了格式版本缺口；这是**能力缺口**（读不了），不是数据缺陷（文件坏了）。
+- **Observed｜骨架按组复用**：7 个模型只有 **4 种**骨骼名字集合。`lc_84`（255 骨）与
+  `lc_84f`（255 骨）的名字集合完全相同，二者 LOD 0 都是 **136** 个加权骨骼；
+  `lc_84e` 是 243 骨、加权骨骼 **124**；四个道具模型各 1 骨，按 y/z 两条轴分成两组。
+  含义：retarget 候选表可以按骨架组建立并复用，不需要逐模型重复推导；同时"男性/女性/变体"
+  之间的差异是可数的（12 个名字、12 条骨骼权重差），不是模糊的"看起来一样"。
+- **Observed｜独立模型覆盖度**：解析成功的独立模型从 1 个增加到 7 个（加 1 个明确拒绝），
+  BodyGroup 数 20、选项 42、贴图 17、皮肤族 2 在三个角色模型上完全一致，只有骨骼与权重规模不同。
+
+复现：
+
+```powershell
+py -3 research/survey_source_model_lod_coverage.py gmpublisher.gma --output-markdown research/skeleton_comparison/source_lod_coverage_gmpublisher.md --output-json research/skeleton_comparison/source_lod_coverage_gmpublisher.json
+py -3 -m unittest discover -s tests -p "test_survey_source_model_lod_coverage.py" -v
+```
+
 复现：
 
 ```powershell
