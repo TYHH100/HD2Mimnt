@@ -565,29 +565,31 @@ The bounded Source layout implementation is based on Valve's Source SDK 2013 pub
 
 ## Source-to-HD2 skeleton comparison (experimental)
 
-The research helper `research/compare_source_hd2_skeleton.py` compares one Source SMD skeleton with a decoded HD2 Unit skeleton. It reads Source SMD files from a single SMD, directory, ZIP, or uncompressed GMA, and reads the target Unit from the installed game's data directory.
+The research helper `research/compare_source_hd2_skeleton.py` compares the compiled Source MDL bone table and positive-weight VVD bone usage with a decoded HD2 Unit skeleton. It reads the Source model from a GMA, ZIP, model directory, or MDL file, then reads the target Unit from the installed game's data directory.
 
-Example using the sample GMA and the known HD2 Avatar target Unit:
+Example using the GMod sample and the known HD2 Avatar target Unit:
 
 ```powershell
 py -3 .\\research\\compare_source_hd2_skeleton.py `
     --source-container "D:\\Models\\gmpublisher.gma" `
-    --source-entry "AES_T.smd" `
+    --model "models/lc_84/aes_yz_pm.mdl" `
     --game-data "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
 ```
 
-The default target is the previously inspected Avatar Unit (`18235e0c9ec0e636 / 4d1c334d294dfa97`). Override it with `--target-package` and `--target-unit` to compare another Unit. The source entry may be a full archive path or a basename if it is unique.
+The default VTX sibling is `.dx90.vtx`; override it with `--vtx-extension ".dx80.vtx"` when needed. The default target is the previously inspected Avatar Unit (`18235e0c9ec0e636 / 4d1c334d294dfa97`). Use `--target-package` and `--target-unit` to compare another HD2 Unit.
 
 The report includes:
 - Exact case-insensitive bone-name matches (edge whitespace is trimmed; punctuation and aliases are not guessed).
-- Source bones without an exact target name.
-- Named HD2 transforms not present in the Source skeleton.
+- Source bones without an exact target name, separately showing which source bones receive positive VVD vertex weights.
+- Named HD2 transforms absent from the Source skeleton.
 - Active target vertex-influence usage for each matched target transform.
 - Parent-hierarchy mismatches, unresolved names, and ambiguous target names.
 
-This is a diagnostic baseline only. It does not apply a retarget, rename bones, or compare rest-pose numbers. Source SMD local Euler transforms and HD2 TransformInfo matrices must first be reconciled for coordinate handedness, axis orientation, unit scale, and matrix space before numeric pose comparison is meaningful.
+The active Source bone set is the union of positive-weight lanes across the VVD vertex pool. It is not yet split by BodyGroup or LOD, and the current Source reader warns when VVD fixup tables are present because LOD remapping is not applied. Do not treat the union count as the exact deform-bone set of one BodyGroup selection.
 
-The JSON output is local/ignored by default. The Markdown report is written to `research/skeleton_comparison/source_hd2_skeleton.md` and can be committed/shared after review. Run its regression tests with:
+This is a diagnostic baseline only. It does not apply a retarget, rename bones, or compare rest-pose numbers. Source MDL/VVD and HD2 TransformInfo require a validated axis/handedness, unit-scale, matrix-space, and bind-pose conversion before numeric pose comparison is meaningful.
+
+The JSON output is local/ignored by default. The Markdown report is written to `research/skeleton_comparison/source_hd2_skeleton.md` and can be committed/shared after review. Run its six synthetic regression tests with:
 
 ```powershell
 py -3 -m unittest discover -s tests -p "test_hd2_skeleton_compare.py" -v
