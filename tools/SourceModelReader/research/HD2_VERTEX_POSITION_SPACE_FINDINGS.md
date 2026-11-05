@@ -72,6 +72,27 @@ Phase 1 的 P0 问题是：存储的顶点位置处于哪个坐标空间，以�
 
 影响传递（Phase 5）不能假设单一权重布局：同一 Unit 的不同网格就会用不同的量化格式，下半身还是单影响 `float32`。
 
+### 2.5 逐顶点静止不变量：放置变换只生效一次（Validated，针对存储数据）
+
+对每个可解析的影响通道计算 `(p × palette_i) × bone_world_i`，与 `p × mesh_world` 比较（`mesh_world` 为该网格自己 TransformInfo 的存储矩阵）。
+
+| 范围 | 网格数 | 通道数 | 未解析通道 | 最大误差 | 平均误差 |
+|---|---:|---:|---:|---:|---:|
+| 三个样本全部蒙皮网格 | 10 | 211,956 | 0 | `3.305e-07` | ≤ `1.192e-07` |
+
+| 网格 | 矩阵 | 顶点 | 通道 | 误差 vs `p × mesh_world` | 误差 vs 原始 `p` |
+|---|---|---:|---:|---:|---:|
+| `g_torso_arm_l_female`（LOD0） | identity | 3115 | 37,380 | `2.221e-07` | `2.221e-07` |
+| `l_arm_culling`（LOD4） | non_identity | 439 | 5,268 | `2.167e-07` | `1.595e+00` |
+| Avatar CompositeUnit | identity | 27355 | 109,420 | `3.197e-07` | `3.197e-07` |
+
+判别点全在 `l_arm_culling`：它的静止两步乘积精确落在 `p × mesh_world`（`2.167e-07`，float32 噪声量级），而距离原始 `p` 差 `1.595`。若 `mesh_world` 被重复携带，乘积会落在 `p × mesh_world²`，误差不会是零；若完全没被携带，误差也不会是零。因此在这三个样本的存储数据上：
+
+- **Validated**：palette 已经包含一次且仅一次 `mesh_world`；静止输出等于 `p × mesh_world`。
+- **Candidate**：把它当作运行时着色器契约仍未经过原生验证（没有实际游戏/SDK 逐顶点参考）。
+- 说明：单位矩阵网格的两种误差数值相同，再次说明它们不具备判别力；未解析通道为 0 表示所有通道值都落在有效 palette 槽位上（含重复槽位），因此该方法无法区分"填充通道"与"真实第二影响"。
+- `packed_10_10_10_2` 权重目前未解码（`skinning` 只给出通道索引），所以本轮没有做按权重求和的 LBS 检验，只做了逐通道检验；权重求和误差对 Avatar 已知在 `0.999634 … 1.000366`。
+
 ## 3. 复现命令
 
 在 `tools/SourceModelReader` 下执行：
@@ -87,8 +108,8 @@ py -3 -m unittest discover -s tests -p "test_hd2_mesh_transform_audit.py" -v
 ## 4. 下一个最小实验
 
 1. 现有渲染 LOD 的单位矩阵使 P0 无法从渲染网格判定，需要新增样本：**同一 Unit 内至少两个 LOD、且直接绑定 MeshInfo 的矩阵非单位**（或带非单位缩放的网格）。可用 `run_hd2_skinning_batch.py` 的清单方式做小批量定向抽取，不做全游戏扫描。
-2. 用单影响顶点做静止不变量检查：`p × palette_i × bone_world_i == p × mesh_world`，把候选 palette 公式与逐顶点数据直接连起来，而不是只比较矩阵。
-3. 用独立参考校验：同一 Unit 的 SDK/Bones 参考输出或 Blender 侧导入结果，验证 `p × mesh_world` 的放置方向；本轮结论仍是 Candidate。
+2. **Bones 资源的绑定矩阵尚未解析**（本轮发现）：`bones_resource` 目前只导出 `name_count`、`lod_count`、`lod_levels` 和名字列表——下半身样本是 82 个名字、6 个 LOD 层级（每层 82）。这是独立于 Unit TransformInfo 的第二份骨骼数据源。解析其中的逐 LOD 矩阵后，可以与 `BoneInfo` palette 和 TransformInfo 世界矩阵做跨资源比对，才构成真正独立于本解析器自洽性的验证；当前所有"匹配"结论仍来自同一份数据内部的相互印证。
+3. 用独立参考校验：同一 Unit 的 SDK/Bones 参考输出或 Blender 侧导入结果，验证 `p × mesh_world` 的放置方向；本轮 §2.5 已在存储数据上验证"只生效一次"，但运行时契约仍标记为 Candidate。
 
 ## 5. 外部参考
 

@@ -36,6 +36,17 @@ union-outside is the largest distance the render meshes escape a candidate volum
 |---:|---:|---|---|---|---|---:|---:|---|---|---:|---:|
 | 4 | -1 | hips_culling | no_skin_attributes | -0.25456, -0.13770, 0.56257 | 0.25397, 0.12263, 0.90217 | 0.39275 | 0.00000 | False | True | 1.07198 | 0.58066 |
 
+### Rest-pose vertex invariant
+
+For every resolved influence lane, (p x palette) x bone_world must equal p x mesh_world. A non-zero error means the placement transform is applied twice or not at all in the stored representation.
+
+| MeshInfo | LOD | Transform | Matrix | Vertices | Lanes checked | Unresolved lanes | Max error | Mean error | Max error vs unplaced p | Within tolerance |
+|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 3 | g_legs_hips_male_shadow | identity | 608 | 2432 | 0 | 6.054e-08 | 5.411e-08 | 6.054e-08 | True |
+| 1 | 2 | g_legs_hips_male_LOD2 | identity | 339 | 1356 | 0 | 6.102e-08 | 5.397e-08 | 6.102e-08 | True |
+| 2 | 1 | g_legs_hips_male_LOD1 | identity | 738 | 2952 | 0 | 6.101e-08 | 5.442e-08 | 6.101e-08 | True |
+| 3 | 0 | g_legs_hips_male | identity | 1374 | 5496 | 0 | 4.548e-08 | 5.581e-09 | 4.548e-08 | True |
+
 ## fs05_torso_left_arm
 
 - Unit: 324fb206612ce4f7
@@ -65,6 +76,18 @@ union-outside is the largest distance the render meshes escape a candidate volum
 |---:|---:|---|---|---|---|---:|---:|---|---|---:|---:|
 | 0 | 4 | l_arm_culling | ok | -0.75140, -0.15803, 1.08176 | -0.10045, 0.29723, 1.56145 | 1.05203 | 0.00000 | False | True | 1.59117 | 0.40463 |
 
+### Rest-pose vertex invariant
+
+For every resolved influence lane, (p x palette) x bone_world must equal p x mesh_world. A non-zero error means the placement transform is applied twice or not at all in the stored representation.
+
+| MeshInfo | LOD | Transform | Matrix | Vertices | Lanes checked | Unresolved lanes | Max error | Mean error | Max error vs unplaced p | Within tolerance |
+|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 4 | l_arm_culling | non_identity | 439 | 5268 | 0 | 2.167e-07 | 8.643e-08 | 1.595e+00 | True |
+| 1 | 3 | g_torso_arm_l_female_shadow | identity | 1426 | 17112 | 0 | 3.305e-07 | 1.192e-07 | 3.305e-07 | True |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | identity | 838 | 10056 | 0 | 2.251e-07 | 1.131e-07 | 2.251e-07 | True |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | identity | 1707 | 20484 | 0 | 3.305e-07 | 1.115e-07 | 3.305e-07 | True |
+| 4 | 0 | g_torso_arm_l_female | identity | 3115 | 37380 | 0 | 2.221e-07 | 4.469e-08 | 2.221e-07 | True |
+
 ## avatar_composite
 
 - Unit: 4d1c334d294dfa97
@@ -76,6 +99,14 @@ union-outside is the largest distance the render meshes escape a candidate volum
 | 0 | 0 | 102 | (unresolved) / 1278906229 | ok | identity | 27355 | -0.02868, 0.02340, 1.28921 | 2.47694 | - | bone_index0:vec4_uint8, bone_weight0:vec4_half, color0:rgba8, normal0:packed_octahedral_normal, position0:vec3_float32, uv0:vec2_half |
 
 No correspondence test was possible: this Unit lacks a second ordinary identity-matrix render mesh to compare against.
+
+### Rest-pose vertex invariant
+
+For every resolved influence lane, (p x palette) x bone_world must equal p x mesh_world. A non-zero error means the placement transform is applied twice or not at all in the stored representation.
+
+| MeshInfo | LOD | Transform | Matrix | Vertices | Lanes checked | Unresolved lanes | Max error | Mean error | Max error vs unplaced p | Within tolerance |
+|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 0 | (unresolved) | identity | 27355 | 109420 | 0 | 3.197e-07 | 2.217e-08 | 3.197e-07 | True |
 
 ## Cross-Unit shared vertex buffers
 

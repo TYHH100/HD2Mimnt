@@ -5,11 +5,13 @@ from pathlib import Path
 
 from research.probe_hd2_vertex_position_space import (
     POSITION_BUFFER_TOLERANCE,
+    REST_INVARIANT_TOLERANCE,
     _box_vs_union,
     _max_abs_point_diff,
     build_report,
     load_unit,
     render_markdown,
+    rest_invariant_tests,
     transform_point,
 )
 
@@ -222,6 +224,81 @@ class HD2VertexPositionSpaceProbeTests(unittest.TestCase):
             self.assertEqual(unit["volume"][0]["skinning_status"], "no_skin_attributes")
         # Identical buffers under identical MeshIDs are the same mesh, not a shared asset.
         self.assertEqual(report["shared_asset_pairs"], [])
+
+
+class HD2RestInvariantTests(unittest.TestCase):
+    def load(self, fixture, label):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "unit.json"
+            path.write_text(json.dumps(fixture), encoding="utf-8")
+            return load_unit(path, label)
+
+    def fixture(self, palette_matrix):
+        return {
+            "unit": {"file_id": "unit-rest", "geometry_source": "Unit GPU payload"},
+            "package": {"name": "package-rest"},
+            "transform_info": {
+                "transforms": [
+                    {"index": 0, "name_hash": 5, "parent_index_raw": 65535,
+                     "matrix_4x4_raw": identity_matrix()},
+                    {"index": 1, "name_hash": 6, "parent_index_raw": 0,
+                     "matrix_4x4_raw": translated_matrix(1.25)},
+                    {"index": 2, "name_hash": 7, "parent_index_raw": 0,
+                     "matrix_4x4_raw": translated_matrix(0.5)},
+                ],
+                "resolved_skeleton": [
+                    {"transform_index": 0, "name": "root"},
+                    {"transform_index": 1, "name": "g_mesh"},
+                    {"transform_index": 2, "name": "r_thigh"},
+                ],
+                "hierarchy_matrix_validation": {"entries": []},
+            },
+            "mesh_info": {"records": [
+                {"index": 0, "mesh_id": 77, "transform_index": 1, "lod_index": 0},
+            ]},
+            "geometry": [{
+                "mesh_info_index": 0,
+                "mesh_id": 77,
+                "transform_index": 1,
+                "lod_index": 0,
+                "vertex_count": 2,
+                "attributes": [
+                    attribute("position", 0, "vec3_float32", [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]),
+                    attribute("bone_index", 0, "vec4_uint8", [[2, 2, 9, 9], [2, 2, 9, 9]]),
+                ],
+                "skinning": {
+                    "status": "ok",
+                    "palette": [{
+                        "palette_slot": 2,
+                        "transform_index": 2,
+                        "bone_info_matrix_raw": palette_matrix,
+                        "valid": True,
+                    }],
+                },
+            }],
+        }
+
+    def test_rest_product_lands_on_the_placed_vertex_exactly_once(self):
+        # palette = mesh_world x inverse(bone_world) = translation 1.25 - 0.5.
+        rows = rest_invariant_tests(self.load(self.fixture(translated_matrix(0.75)), "rest"),
+                                    0, REST_INVARIANT_TOLERANCE)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["lanes_checked"], 4)
+        self.assertEqual(row["lanes_unresolved"], 4)
+        self.assertLessEqual(row["max_abs_error_vs_placed"], REST_INVARIANT_TOLERANCE)
+        self.assertTrue(row["within_tolerance"])
+        # The placed target differs from the raw vertex by the mesh-world offset.
+        self.assertAlmostEqual(row["max_abs_error_vs_unplaced_vertex"], 1.25)
+
+    def test_double_applied_mesh_world_is_caught(self):
+        # mesh_world applied twice: 1.25 + 1.25 - 0.5 = 2.0.
+        rows = rest_invariant_tests(self.load(self.fixture(translated_matrix(2.0)), "rest"),
+                                    0, REST_INVARIANT_TOLERANCE)
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(rows[0]["within_tolerance"])
+        # The surplus equals exactly one extra application of the mesh-world offset.
+        self.assertAlmostEqual(rows[0]["max_abs_error_vs_placed"], 1.25)
 
 
 if __name__ == "__main__":

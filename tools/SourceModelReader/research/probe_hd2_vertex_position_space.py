@@ -28,6 +28,7 @@ DEFAULT_OUTPUT_JSON = ROOT / "research" / "skeleton_comparison" / "hd2_vertex_po
 DEFAULT_OUTPUT_MARKDOWN = ROOT / "research" / "skeleton_comparison" / "hd2_vertex_position_space.md"
 IDENTITY_TOLERANCE = 1.0e-4
 POSITION_BUFFER_TOLERANCE = 1.0e-6
+REST_INVARIANT_TOLERANCE = 1.0e-5
 
 
 def _identity_error(matrix: list[float]) -> float:
@@ -177,6 +178,14 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
             "raw_extent": None,
             "mesh_world_extent": None,
             "raw_centroid_mesh_world": None,
+            "palette": (geometry_row.get("skinning") or {}).get("palette") or [],
+            "bone_index_buffers": [
+                attribute.get("values")
+                for attribute in geometry_row.get("attributes") or []
+                if isinstance(attribute, dict)
+                and attribute.get("component_name") == "bone_index"
+                and isinstance(attribute.get("values"), list)
+            ],
             **_attribute_profile(geometry_row),
         }
         if points:
@@ -191,6 +200,11 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
 
     unit = report.get("unit") or {}
     package = report.get("package") or {}
+    transform_matrices = {
+        index: row.get("matrix_4x4_raw")
+        for index, row in transforms.items()
+        if isinstance(row.get("matrix_4x4_raw"), list) and len(row["matrix_4x4_raw"]) == 16
+    }
     del report
     return {
         "label": label,
@@ -198,8 +212,90 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
         "unit_id": unit.get("file_id"),
         "package_id": package.get("name"),
         "geometry_source": unit.get("geometry_source"),
+        "transform_matrices": transform_matrices,
         "meshes": meshes,
     }
+
+
+def rest_invariant_tests(unit: dict[str, Any], sample_limit: int, tolerance: float) -> list[dict[str, Any]]:
+    """Check the stored rest transform per vertex lane, not just per matrix.
+
+    For every influence lane the parser can resolve, compare the two-step
+    row-vector product p x palette x bone_world against p x mesh_world. The
+    product has to land on the same placed position, otherwise mesh_world is
+    being carried twice or dropped.
+    """
+    results: list[dict[str, Any]] = []
+    transforms = unit["transform_matrices"]
+    for mesh in unit["meshes"]:
+        points = mesh.get("_points")
+        palette_rows = mesh.get("palette") or []
+        lane_groups = mesh.get("bone_index_buffers") or []
+        if not points or not palette_rows or not lane_groups:
+            continue
+        palette = {}
+        for slot in palette_rows:
+            if not isinstance(slot, dict):
+                continue
+            index = slot.get("palette_slot")
+            if isinstance(index, int) and not isinstance(index, bool):
+                palette[index] = slot
+        mesh_world = mesh["stored_matrix_4x4"] or []
+        considered = points[:sample_limit] if sample_limit else points
+        max_error = 0.0
+        total_error = 0.0
+        lanes = 0
+        missing = 0
+        unplaced_error = 0.0
+        for vertex_index, point in enumerate(considered):
+            target = transform_point(point, mesh_world) if mesh_world else point
+            for buffer in lane_groups:
+                if vertex_index >= len(buffer):
+                    continue
+                lanes_per_vertex = buffer[vertex_index]
+                if not isinstance(lanes_per_vertex, list):
+                    continue
+                for bone_index in lanes_per_vertex:
+                    if not isinstance(bone_index, int) or isinstance(bone_index, bool):
+                        continue
+                    slot = palette.get(bone_index)
+                    if not slot or not slot.get("valid") or not slot.get("bone_info_matrix_raw"):
+                        missing += 1
+                        continue
+                    bone_world = transforms.get(slot.get("transform_index"))
+                    if not bone_world:
+                        missing += 1
+                        continue
+                    posed = transform_point(
+                        transform_point(point, slot["bone_info_matrix_raw"]), bone_world
+                    )
+                    error = max(abs(posed[k] - target[k]) for k in range(3))
+                    max_error = max(max_error, error)
+                    total_error += error
+                    lanes += 1
+                    if mesh_world:
+                        unplaced_error = max(
+                            unplaced_error,
+                            max(abs(posed[k] - point[k]) for k in range(3)),
+                        )
+        if not lanes:
+            continue
+        results.append({
+            "mesh_info_index": mesh["mesh_info_index"],
+            "mesh_id": mesh["mesh_id"],
+            "lod_index": mesh["lod_index"],
+            "transform_name": mesh["transform_name"],
+            "stored_matrix_identity_status": mesh["stored_matrix_identity_status"],
+            "vertices_considered": len(considered),
+            "lanes_checked": lanes,
+            "lanes_unresolved": missing,
+            "placed_target": "mesh_world" if mesh_world else "identity",
+            "max_abs_error_vs_placed": max_error,
+            "mean_abs_error_vs_placed": total_error / lanes,
+            "max_abs_error_vs_unplaced_vertex": unplaced_error,
+            "within_tolerance": max_error <= tolerance,
+        })
+    return results
 
 
 def correspondence_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any]]:
@@ -383,7 +479,11 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
     for unit in units:
         unit["correspondence"] = correspondence_tests(unit, sample_limit)
         unit["volume"] = volume_tests(unit)
+        unit["rest_invariant"] = rest_invariant_tests(
+            unit, sample_limit, REST_INVARIANT_TOLERANCE
+        )
     shared = shared_asset_checks(units, POSITION_BUFFER_TOLERANCE)
+    rest_rows = [row for unit in units for row in unit["rest_invariant"]]
     summary = {
         "units": len(units),
         "meshes_with_positions": sum(
@@ -398,6 +498,11 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         ),
         "volume_tests": sum(len(unit["volume"]) for unit in units),
         "shared_asset_pairs": len(shared),
+        "rest_invariant_meshes": len(rest_rows),
+        "rest_lanes_checked": sum(row["lanes_checked"] for row in rest_rows),
+        "rest_lanes_unresolved": sum(row["lanes_unresolved"] for row in rest_rows),
+        "rest_invariant_within_tolerance": sum(1 for row in rest_rows if row["within_tolerance"]),
+        "rest_invariant_exceeding_tolerance": sum(1 for row in rest_rows if not row["within_tolerance"]),
     }
     for unit in units:
         for mesh in unit["meshes"]:
@@ -407,6 +512,7 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "matrix_convention_candidate": "row_major_4x4_row_vector",
         "identity_tolerance": IDENTITY_TOLERANCE,
         "position_buffer_tolerance": POSITION_BUFFER_TOLERANCE,
+        "rest_invariant_tolerance": REST_INVARIANT_TOLERANCE,
         "vertex_sample_limit": sample_limit,
         "summary": summary,
         "shared_asset_pairs": shared,
@@ -514,6 +620,27 @@ def render_markdown(report: dict[str, Any]) -> str:
                     raw_compare["union_outside_max"], moved_compare["union_outside_max"],
                     test["raw_contains_render"], test["mesh_world_contains_render"],
                     raw_compare["box_outside_max"], moved_compare["box_outside_max"],
+                ))
+            lines.append("")
+
+        if unit["rest_invariant"]:
+            lines.extend([
+                "### Rest-pose vertex invariant",
+                "",
+                "For every resolved influence lane, (p x palette) x bone_world must equal "
+                "p x mesh_world. A non-zero error means the placement transform is applied "
+                "twice or not at all in the stored representation.",
+                "",
+                "| MeshInfo | LOD | Transform | Matrix | Vertices | Lanes checked | Unresolved lanes | Max error | Mean error | Max error vs unplaced p | Within tolerance |",
+                "|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|",
+            ])
+            for row in unit["rest_invariant"]:
+                lines.append("| {} | {} | {} | {} | {} | {} | {} | {:.3e} | {:.3e} | {:.3e} | {} |".format(
+                    row["mesh_info_index"], row["lod_index"],
+                    row["transform_name"] or "(unresolved)", row["stored_matrix_identity_status"],
+                    row["vertices_considered"], row["lanes_checked"], row["lanes_unresolved"],
+                    row["max_abs_error_vs_placed"], row["mean_abs_error_vs_placed"],
+                    row["max_abs_error_vs_unplaced_vertex"], row["within_tolerance"],
                 ))
             lines.append("")
 
