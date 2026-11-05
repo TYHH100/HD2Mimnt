@@ -139,18 +139,51 @@ py -3 -m unittest discover -s tests -p "test_hd2_vertex_position_space.py" -v
 py -3 -m unittest discover -s tests -p "test_hd2_mesh_transform_audit.py" -v
 py -3 research/dump_hd2_bones_resource.py "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --unit 210fb2f60f8308ea --unit-json research\skinning_audits\fs05_lower_body.json --output-markdown research\skeleton_comparison\hd2_bones_structure_lower_body.md
 py -3 -m unittest discover -s tests -p "test_hd2_resources.py" -v
+py -3 research/dump_source_bone_rest.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --output-markdown research\skeleton_comparison\source_bone_rest.md --output-json research\skeleton_comparison\source_bone_rest.json
+py -3 -m unittest discover -s tests -p "test_source_bone_rest.py" -v
 ```
 
 `--sample-limit` 可限制最近距离检验的采样顶点数，默认使用全部顶点；`--output-json` / `--output-markdown` 可改写输出路径。工具只读，不修改任何顶点。
 
-## 4. 下一个最小实验
+## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
+
+工具：`research/dump_source_bone_rest.py`（只读，调用现有 MDL 读取器组合父级 `pos`+`quat`），证据：`skeleton_comparison/source_bone_rest.md`。
+
+### 5.1 尺度（Observed + Candidate）
+
+| 参照节段 | Source 存储长度 | HD2 同节段（米） | 比值 HD2/Source | 用成人参考米数折算的 Source 单位 |
+|---|---:|---:|---:|---:|
+| 大腿（Thigh→Calf，L） | 14.7755 | 0.4296 | 0.02908 | 32.83 单位/米 |
+| 上臂（UpperArm→Forearm，L） | 10.1350 | 0.3029 | 0.02989 | 33.78 单位/米 |
+| 前臂（Forearm→Hand，L） | 9.4142 | 0.2815 | 0.02988 | 36.21 单位/米 |
+| 骨盆→头（Pelvis→Head1，Z 差） | 22.1411 | 0.7173 | 0.03240 | 36.98 单位/米 |
+| 小腿（Calf→Foot，L） | 18.3751 | 0.4255 | 0.02315 | 43.75 单位/米 |
+
+- **Observed**：HD2 Avatar 的髋部 `hips` 世界 z = `0.9735`、`head` = `1.6908`、脚 = `0.1042` —— 与成人身高一致，HD2 侧单位就是米（Z-up）。
+- **Observed**：Source 侧同模型 `Pelvis` z = `38.6179`、`Head1` z = `60.759`、`Foot` z = `5.2463`；左右对称精确到小数点后 4 位（`±3.5453`、`±4.1152`），说明父子变换组合是自洽的。
+- **Candidate**：把该 Source 样本放到 HD2 米制空间需要的统一尺度约为 **0.029–0.032**（即 1 Source 单位 ≈ 2.9–3.2 cm），四个主要节段互相吻合在 ±5% 内；小腿是唯一明显偏离的（0.0232），提示两个骨架在踝关节定义上不同，而不是尺度本身不一致。
+- 不能反过来假定"Source 单位=厘米"或"=米"：按厘米读会把成人下肢变成 15 cm，按米读会得到 65 m 高的模型。尺度必须逐模型实测（本仓库现在就是这么做的），并且**不得**写死常数。
+
+### 5.2 轴与左右（Observed，未定的那一步）
+
+| 侧 | Source `L_Thigh` 世界 X | HD2 `l_thigh` 世界 X |
+|---|---:|---:|
+| 名字含 "L" 的关节 | **+3.5453** | **−0.087** |
+| 名字含 "R" 的关节 | −3.5453 | +0.087 |
+| 上臂 L / R | +4.1152 / −4.1152 | −0.2101 / +0.2101（`l_shoulder`/`r_shoulder`） |
+
+- **Observed**：两套骨架都把高度放在 +Z，但"名为 L 的关节"分别落在 +X 与 −X。
+- **推论（Candidate）**：Source→HD2 的坐标适配必须包含**一次单轴镜像**（X 取反），纯旋转无法解释这个差异；如果实际是两套骨架朝向相反（而非手性不同），镜像轴同样是 X，因此适配公式不变，只是解释不同。
+- **Unknown**：到底是手性不同还是朝向不同。判定方法已明确：用无歧义的前向标志物（HD2 已有 `head_aim` 在头前 +Y ≈ 2 m，说明 HD2 面朝 +Y；Source 侧需要找 `Eyes`/`Jaw` 一类面部骨骼，或用 Blender 目视确认该模型朝向）。这一步做完之前不实现转换器。
+
+## 6. 下一个最小实验
 
 1. 现有渲染 LOD 的单位矩阵使 P0 无法从渲染网格判定，需要新增样本：**同一 Unit 内至少两个 LOD、且直接绑定 MeshInfo 的矩阵非单位**（或带非单位缩放的网格）。可用 `run_hd2_skinning_batch.py` 的清单方式做小批量定向抽取，不做全游戏扫描。
 2. **Bones 资源不是第二份变换数据（已否证）**：用 `research/dump_hd2_bones_resource.py` 直接读取下半身 Unit 的 Bones payload（`210fb2f60f8308ea`，与 Unit 同 FileID、不同 TypeID）：总共 1470 字节，结构被完全消费，名字块之后 **0 字节**。分区为 header(8) → 6 个 float32 → 82 个 hash → 6 个 uint32 → 1086 字节名字表。把该 Unit 全部 TransformInfo/BoneInfo 矩阵的 float32 位模式在整个 payload 里搜索，**一次命中都没有**，所以 Bones 资源只保存名称/哈希表和一组 LOD 数值，不保存绑定矩阵，不能用作独立于本解析器的变换来源。顺带取回原本被丢弃的数据：那 6 个 float 是 `0.25, 0.15, 0.07, 0.04, 0.02, 0.01`（严格递减，候选 LOD 切换阈值），6 个 uint32 全是 82（等于名字数，候选"每个 LOD 使用的骨骼数"）。`parse_bones_resource` 现在把该浮点数组导出为 `lod_float_values`，语义仍标为候选。
 3. 因此 Phase 1 要求的"独立参考校验"必须来自本仓库之外：SDK 侧的 Unit/Bones 参考导出（AQ Edition / Community SDK，按固定提交作用域）或原生游戏内观测；在此之前，`p × mesh_world` 的空间解释保持 **Candidate**（§2.5 的逐通道结论属于同一份存储数据的内部一致性，虽然已是顶点级、21 万通道的强度）。
 4. 用独立参考校验同一批顶点的放置方向：优先把 `l_arm_culling` 的包围盒与 SDK/编辑器侧导出的同名代理体积对齐。
 
-## 5. 外部参考
+## 7. 外部参考
 
 - HD2SDK-AQ-Edition（Unit / Bones 结构参考，含固定提交）：<https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/main/stingray/unit.py>、<https://github.com/Estecsky/HD2SDK-AQ-Edition/blob/main/stingray/bones.py>、<https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition/tree/4df125a5e6a34d03532a06b545f700ec5353a98f>
 - HD2 Modding Wiki（材质与纹理语义）：<https://boxofbiscuits97.github.io/HD2-Modding-Wiki/dev/materials/overview.html>
