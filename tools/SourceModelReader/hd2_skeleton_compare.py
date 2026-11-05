@@ -1,4 +1,4 @@
-"""Exact-name Source SMD to HD2 skeleton comparison.
+"""Exact-name Source model to HD2 skeleton comparison.
 
 This is a diagnostic only: no fuzzy aliases, reparenting, coordinate conversion,
 or rest-pose numeric comparison is performed.
