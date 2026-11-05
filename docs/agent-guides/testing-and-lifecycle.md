@@ -88,3 +88,7 @@
 
 - 单文件发布只作用于当前项目：被引用的 `PluginHost`/`Worker` 独立进程拿到的是 apphost，其托管依赖已被打进主程序单文件包，子进程看不到，发布版会以 `FileNotFoundException` 启动失败。正确做法是让每个子进程项目各自按“框架依赖单文件”发布，只把生成的 exe 作为 `ExcludeFromSingleFile` 项复制到发布目录；原生库与内容目录由主项目发布目录提供。不要只复制 `$(OutDir)` 里的 `子项目.*`。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
 - 给发布流程挂钩子时不要依赖 `GenerateSingleFileBundle`：产物已最新时该目标会整体跳过，挂在其上的 `BeforeTargets` 不会执行。需要修改 `ResolvedFileToPublish` 时挂到每次发布都会运行、且排在待发布列表计算之后的 `GeneratePublishDependencyFile`，并按 `RelativePath` 而不是 `Filename` 匹配项目引用产生的 apphost。来源：https://learn.microsoft.com/visualstudio/msbuild/target-build-order
+
+- 校验工具里"参考值/期望值"必须进判定门：逆向研究用的合成检验机第一轮把期望结果只写进 `measures`、没写进 `checks`，一个算错的期望值会以"全绿"的姿态留在报告里。正确做法：每个与参考值的比较都产出一个布尔检查项，数值仍保留在度量里；并配"故意写坏必须变红"的负例（换矩阵因子顺序、绕错原点、重复施加放置变换）。来源：tools/SourceModelReader/research/HD2_RETARGET_DEFORMATION_FINDINGS.md §3.2
+
+- "由构造恒等式得到的通过"不算证据：共轭铰链 `bone_world × T(-joint) × R × T(joint)` 的"关节不动"、以及 `palette × posed == mesh_world × hinge` 展开后与静止不变量是同一条矩阵等式，永远不会失败。正确做法：这类项显式标注为构造审计（`*_by_construction`）并从 gates 移出，另设真正有判别力的对照（朴素构造、因子换序、重复施加）并统计 separated/identical/not-separated；`identical`（如关节恰在原点）不得计入证据。报告里的 0 计数必须写明统计范围，例如"未解析通道=0"只描述被选中的那条顶点属性，其余属性的通道要单独计为"未检视"，否则会被读成问题已消失。来源：同上 §6.1、§6.2
