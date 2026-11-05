@@ -2,6 +2,8 @@
 """Source Model Reader - inspect Source 1 resources and export unified GLB or SMD.
 
 Initial target: Source studio model v48, VVD v4, VTX v7 (DX90/DX80).
+MDL v49 headers are accepted only when every field the reader uses resolves under the
+proven v48 offsets, and the read then carries an explicit warning.
 No third-party Python dependencies are required.
 """
 from __future__ import annotations
@@ -21,6 +23,67 @@ from typing import Iterable, Optional
 VERSION = "0.8.4-alpha"
 VERTEX_SIZE = 48
 BONE_SIZE = 216
+
+# The layout below was proven against v48 assets. One shipped addon contains a v49 model
+# whose header, bone table, material table and weight indices all resolve under the very
+# same offsets, so v49 is read only after structural validation and with a warning.
+MDL_PROVEN_VERSION = 48
+SUPPORTED_MDL_VERSIONS = (MDL_PROVEN_VERSION, 49)
+MDL_NAME_OFFSET = 12
+MDL_NAME_BYTES = 64
+MDL_DATALENGTH_OFFSET = 76
+MDL_HEADER_BYTES = 256
+# label, offset, minimum, maximum (None means "bounded by the file size instead")
+MDL_LAYOUT_FIELDS = (
+    ("num_bones", 156, 0, 4096),
+    ("bone_index", 160, MDL_HEADER_BYTES, None),
+    ("num_textures", 204, 0, 1024),
+    ("texture_index", 208, MDL_HEADER_BYTES, None),
+    ("num_cdtextures", 212, 0, 64),
+    ("cdtexture_index", 216, MDL_HEADER_BYTES, None),
+    ("num_skinrefs", 220, 0, 4096),
+    ("num_skin_families", 224, 1, 64),
+    ("skin_family_index", 228, MDL_HEADER_BYTES, None),
+    ("num_bodyparts", 232, 0, 1024),
+    ("bodypart_index", 236, MDL_HEADER_BYTES, None),
+)
+
+
+def mdl_version_error(version: int) -> Optional[str]:
+    """Return the rejection reason for an unsupported MDL version, or None."""
+    if version not in SUPPORTED_MDL_VERSIONS:
+        return (f"This alpha supports MDL v{MDL_PROVEN_VERSION} and structural "
+                f"v{SUPPORTED_MDL_VERSIONS[-1]} headers only; found v{version}")
+    return None
+
+
+def validate_mdl_header_layout(raw: bytes) -> list[str]:
+    """List the reasons a header does not fit the proven v48 field layout.
+
+    Used for versions that were not proven field-by-field. It only reports structural
+    problems, so an accepted header is one whose name, length and table pointers are all
+    plausible; it is not a claim that the format is compiler-verified.
+    """
+    problems: list[str] = []
+    size = len(raw)
+    if size < MDL_HEADER_BYTES:
+        return [f"header is only {size} bytes; the proven layout needs {MDL_HEADER_BYTES}"]
+    name = raw[MDL_NAME_OFFSET:MDL_NAME_OFFSET + MDL_NAME_BYTES].split(b"\x00")[0]
+    if not name or not all(32 <= byte < 127 for byte in name):
+        problems.append("model name is empty or not printable ASCII")
+    data_length = int.from_bytes(raw[MDL_DATALENGTH_OFFSET:MDL_DATALENGTH_OFFSET + 4],
+                                 "little", signed=True)
+    if not MDL_HEADER_BYTES <= data_length <= size:
+        problems.append(f"header dataLength {data_length} outside "
+                        f"{MDL_HEADER_BYTES}..{size}")
+    for label, offset, low, high in MDL_LAYOUT_FIELDS:
+        value = int.from_bytes(raw[offset:offset + 4], "little", signed=True)
+        bound = size if high is None else high
+        if value < low:
+            problems.append(f"{label}={value} below {low}")
+        elif value > bound:
+            problems.append(f"{label}={value} above {bound}")
+    return problems
 MODEL_SIZE = 148
 MESH_SIZE = 116
 
@@ -412,8 +475,20 @@ class SourceModel:
         if self.mdl_bytes[:4] != b"IDST":
             raise ReaderError("MDL signature is not IDST")
         self.mdl_version = self.mdl.i32(4, "MDL version")
-        if self.mdl_version != 48:
-            raise ReaderError(f"This alpha supports MDL v48 only; found v{self.mdl_version}")
+        version_error = mdl_version_error(self.mdl_version)
+        if version_error:
+            raise ReaderError(version_error)
+        self.header_layout_validated = self.mdl_version == MDL_PROVEN_VERSION
+        if not self.header_layout_validated:
+            problems = validate_mdl_header_layout(self.mdl_bytes)
+            if problems:
+                raise ReaderError(
+                    f"MDL v{self.mdl_version} does not match the proven v{MDL_PROVEN_VERSION} "
+                    f"field layout: {'; '.join(problems)}")
+            self.warnings.append(
+                f"MDL v{self.mdl_version} was read with the v{MDL_PROVEN_VERSION} field layout "
+                "after structural validation of the name, length and table pointers; "
+                "this alpha has not verified v49 against a Studio compiler.")
         self.checksum = self.mdl.u32(8, "MDL checksum")
         self.mdl_name = self.mdl.cstring(12, 64)
         self.mdl_length = self.mdl.i32(76, "MDL length")
@@ -782,7 +857,8 @@ class SourceModel:
             "archive": self.bundle.archive_info,
             "mdl": {"version": self.mdl_version, "name": self.mdl_name, "checksum": self.checksum,
                     "bytes": len(self.mdl_bytes), "bones": self.num_bones, "bodyparts": self.num_bodyparts,
-                    "textures": self.num_textures, "skin_families": self.num_skin_families},
+                    "textures": self.num_textures, "skin_families": self.num_skin_families,
+                    "layout_validated": self.header_layout_validated},
             "vvd": {"version": self.vvd_version, "checksum": self.vvd_checksum,
                     "lod_count": self.vvd_num_lods, "lod0_vertices": self.vvd_vertex_count,
                     "fixups": self.vvd_num_fixups},

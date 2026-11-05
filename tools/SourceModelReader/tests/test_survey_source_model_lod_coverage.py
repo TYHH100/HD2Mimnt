@@ -116,14 +116,14 @@ class HD2SourceLodAnalysisTests(unittest.TestCase):
     def test_markdown_states_the_single_lod_gap(self):
         profiles = [profile("single.mdl", ["A", "B"], 1, [[0]]),
                     profile("multi.mdl", ["A", "B", "C"], 2, [[0, 1], [0]])]
-        failures = [{"member": "bad.mdl", "error": "supports MDL v48 only; found v49"}]
+        failures = [{"member": "bad.mdl", "error": "MDL v51 does not match the proven v48 field layout: num_bones=9099 above 4096"}]
         markdown = render_markdown(Path("addon.gma"), profiles, failures,
                                   summarize(profiles, failures),
                                   skeleton_comparison(profiles))
         self.assertIn("# Source Model LOD Coverage Survey", markdown)
         self.assertIn("single VVD LOD, so per-LOD bone use cannot be measured", markdown)
         self.assertIn("added / 1 removed vs LOD 0", markdown)
-        self.assertIn("supports MDL v48 only; found v49", markdown)
+        self.assertIn("MDL v51 does not match the proven v48 field layout: num_bones=9099 above 4096", markdown)
         self.assertIn("## Interpretation limits", markdown)
         self.assertIn("name-level comparison", markdown)
 

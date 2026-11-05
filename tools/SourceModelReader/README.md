@@ -371,7 +371,7 @@ py -3 source_model_reader.py validate-glb "synthetic_arm_pose.glb"
 - Scans SMD files directly from folders, ZIP, or uncompressed GMA archives without extraction.
 
 
-- Reads MDL v48, VVD v4, and VTX v7 (DX90 or DX80).
+- Reads MDL v48, plus MDL v49 headers whose fields all resolve under the v48 offsets (such reads emit a warning), VVD v4, and VTX v7 (DX90 or DX80).
 - Opens a direct `.mdl`, a model folder, a `.zip` archive, or an uncompressed `.gma` archive directly.
 - Reads GMA members in place; it does not unpack the archive to disk.
 - Checks MDL/VVD/VTX checksums and GMA member CRC32 values.
@@ -546,8 +546,8 @@ See [`GLB_TEST_REPORT.md`](GLB_TEST_REPORT.md), [`DIAGNOSTICS_TEST_REPORT.md`](D
 
 ## Known alpha limitations
 
-- MDL v48 / VVD v4 / VTX v7 only.
-- VVD fixup-table remapping is not applied yet. The sample supplied for this test has zero fixups.
+- MDL v48 is the proven header; MDL v49 is only accepted after structural validation of the name, length and every table pointer, and the result is flagged. VVD v4 / VTX v7 only.
+- VVD fixup-table remapping is not applied yet. Every model in the supplied addon has zero fixups, so the path is untested rather than known-broken.
 - LOD 0 is the highest-detail path tested; other LODs have not received equivalent sample validation.
 - Source animation sequence/controller semantics, flexes, jiggle-bone simulation, hitboxes, physics, attachments, and procedural bones are not reconstructed. The separate SMD animation exporter supports ordinary multi-frame animation SMDs only.
 - VMT/VTF texture decoding, shader translation, and material texture embedding are not implemented.

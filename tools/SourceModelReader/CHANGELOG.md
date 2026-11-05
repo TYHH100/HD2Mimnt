@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.4-alpha — MDL v49 read support and whole-addon model census
+
+- Added `research/survey_source_model_lod_coverage.py`, which profiles every MDL inside a GMA/ZIP/directory: header counts, VVD and VTX LOD counts, fixups, and the positively weighted bone set per LOD, plus skeleton grouping across models.
+- Measured on the supplied addon: all 8 models carry exactly one VVD LOD, one VTX LOD and zero fixups, so per-LOD bone use is unobtainable from this asset pack as a whole; 5 distinct skeletons over 8 models, with two character models sharing an identical bone-name set.
+- The version guard now accepts MDL v49 **only** when every field the reader uses resolves under the proven v48 offsets (`validate_mdl_header_layout`), and such reads are marked with `mdl.layout_validated = false` plus a warning stating that v49 is not compiler-verified. Other versions still fail closed, and the rejection lists which field broke the layout.
+- Evidence for accepting v49: 45 printable `ValveBiped.*` bone definitions with one root and no invalid parents, sibling checksums equal to the MDL checksum, and LOD 0 geometry with zero out-of-range bone references and zero unweighted vertices.
+- Added `tests/test_mdl_header_layout.py` (9 tests) covering the gate, truncated headers, each rejected field, and a regression built from the shipped v49 field values.
+
 ## 0.8.4-alpha — Full-game Material census
 
 - Added `hd2-material-census` and a dedicated read-only scanner for Material resources across indexed SLIM packages.
