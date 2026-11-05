@@ -21,8 +21,19 @@ from source_model_reader import AssetBundle, SourceModel
 def render_markdown(report: dict[str, Any]) -> str:
     summary = report["summary"]
     target = report["target"]
+    source = report.get("source") or {}
     lines = [
         "# Source / HD2 Skeleton Comparison",
+        "",
+        "## Source Model",
+        "",
+        "- MDL: {}".format(source.get("mdl_display")),
+        "- MDL / VVD / VTX versions: {} / {} / {}".format(
+            source.get("mdl_version"), source.get("vvd_version"), source.get("vtx_version")
+        ),
+        "- VVD vertex pool: {}".format(source.get("vertex_pool_count")),
+        "- Active weighted source bones: {}".format(len(source.get("active_weighted_bone_ids") or [])),
+        "- Checksum: {}".format(source.get("checksum")),
         "",
         "## Target Unit",
         "",
@@ -60,7 +71,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             row["parent_relation"],
         ))
     if not report["matched"]:
-        lines.append("| — | — | — | — | — | — | — |")
+        lines.append("| — | — | — | — | — | — | — | — |")
 
     sections = [
         ("Source bones without exact HD2 name", report["source_unmapped"], "source_name", "source_node_id"),
@@ -68,12 +79,13 @@ def render_markdown(report: dict[str, Any]) -> str:
         ("Ambiguous source matches", report["ambiguous_source_matches"], "source_name", "source_node_id"),
     ]
     for title, rows, name_key, id_key in sections:
-        lines.extend(["", "## " + title, "", "| Name | ID / Transform | Details |", "|---|---:|---|"])
+        lines.extend(["", "## " + title, "", "| Name | ID / Transform | Active Source influence | Details |", "|---|---:|---|---|"])
         for row in rows:
             details = row.get("reason") or row.get("target_parent_name") or ""
             lines.append("| {} | {} | {} | {} |".format(
                 row.get(name_key), row.get(id_key),
-                "yes" if row.get("source_has_active_vertex_influence") else "no",
+                ("—" if row.get("source_has_active_vertex_influence") is None
+                 else ("yes" if row.get("source_has_active_vertex_influence") else "no")),
                 details,
             ))
         if not rows:
