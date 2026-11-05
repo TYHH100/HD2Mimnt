@@ -29,6 +29,7 @@ DEFAULT_OUTPUT_MARKDOWN = ROOT / "research" / "skeleton_comparison" / "hd2_verte
 IDENTITY_TOLERANCE = 1.0e-4
 POSITION_BUFFER_TOLERANCE = 1.0e-6
 REST_INVARIANT_TOLERANCE = 1.0e-5
+WEIGHT_SUM_TOLERANCE = 2.0e-3
 
 
 def _identity_error(matrix: list[float]) -> float:
@@ -186,6 +187,8 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
                 and attribute.get("component_name") == "bone_index"
                 and isinstance(attribute.get("values"), list)
             ],
+            "weight_rows": _weight_rows(geometry_row)[0],
+            "weight_format": _weight_rows(geometry_row)[1],
             **_attribute_profile(geometry_row),
         }
         if points:
@@ -295,6 +298,134 @@ def rest_invariant_tests(unit: dict[str, Any], sample_limit: int, tolerance: flo
             "max_abs_error_vs_unplaced_vertex": unplaced_error,
             "within_tolerance": max_error <= tolerance,
         })
+    return results
+
+
+def _weight_rows(geometry_row: dict[str, Any]) -> tuple[list[Any], str]:
+    """Return per-vertex weight rows and the weight format label.
+
+    Decoded rows are preferred because Format 29 stores three 10-bit weights in
+    one uint32; the raw buffer stays in the Unit JSON untouched.
+    """
+    for attribute in geometry_row.get("attributes") or []:
+        if not isinstance(attribute, dict) or attribute.get("component_name") != "bone_weight":
+            continue
+        values = attribute.get("decoded_values")
+        label = str(attribute.get("format_name"))
+        if values is None:
+            values = attribute.get("values")
+        else:
+            label += " decoded"
+        if not isinstance(values, list) or not values:
+            continue
+        if not isinstance(values[0], list):
+            return [[value] for value in values], label + " scalar"
+        return values, label
+    return [], "unavailable"
+
+
+def weight_lane_tests(unit: dict[str, Any], sample_limit: int, tolerance: float) -> list[dict[str, Any]]:
+    """Decide how weight lanes pair with bone-index lanes.
+
+    The stored weight attribute is shared by several bone-index attributes in
+    some meshes, so the pairing is not obvious. Each candidate pairing is scored
+    by two independent checks: the per-vertex weight sum must be one, and the
+    weighted rest blend must reproduce p x mesh_world. A wrong pairing fails at
+    least one of them.
+    """
+    transforms = unit["transform_matrices"]
+    results: list[dict[str, Any]] = []
+    for mesh in unit["meshes"]:
+        points = mesh.get("_points")
+        palette_rows = mesh.get("palette") or []
+        lane_groups = mesh.get("bone_index_buffers") or []
+        weight_rows = mesh.get("weight_rows") or []
+        weight_format = mesh.get("weight_format") or "unavailable"
+        if not points or not palette_rows or not lane_groups or not weight_rows:
+            continue
+        palette = {}
+        for slot in palette_rows:
+            if isinstance(slot, dict) and isinstance(slot.get("palette_slot"), int):
+                palette[slot["palette_slot"]] = slot
+        mesh_world = mesh["stored_matrix_4x4"]
+        considered = points[:sample_limit] if sample_limit else points
+        models = {
+            f"single_index_attr_{attr_index}": [attr_index]
+            for attr_index in range(len(lane_groups))
+        }
+        if len(lane_groups) > 1:
+            models["every_index_attr_shares_weights"] = list(range(len(lane_groups)))
+        for model, attr_indices in models.items():
+            sum_deviations: list[float] = []
+            blend_errors: list[float] = []
+            blend_off = 0
+            checked = 0
+            unresolved = 0
+            for vertex_index, point in enumerate(considered):
+                if vertex_index >= len(weight_rows):
+                    continue
+                weights = weight_rows[vertex_index]
+                if not isinstance(weights, list):
+                    continue
+                target = transform_point(point, mesh_world) if mesh_world else point
+                total_weight = 0.0
+                blended = [0.0, 0.0, 0.0]
+                for attr_index in attr_indices:
+                    rows = lane_groups[attr_index]
+                    if vertex_index >= len(rows) or not isinstance(rows[vertex_index], list):
+                        continue
+                    for lane, bone_index in enumerate(rows[vertex_index]):
+                        if lane >= len(weights):
+                            continue
+                        weight = weights[lane]
+                        if not isinstance(weight, (int, float)) or isinstance(weight, bool):
+                            continue
+                        if weight <= 0.0:
+                            continue
+                        slot = palette.get(bone_index) if isinstance(bone_index, int) else None
+                        if not slot or not slot.get("valid") or not slot.get("bone_info_matrix_raw"):
+                            unresolved += 1
+                            continue
+                        bone_world = transforms.get(slot.get("transform_index"))
+                        if not bone_world:
+                            unresolved += 1
+                            continue
+                        posed = transform_point(
+                            transform_point(point, slot["bone_info_matrix_raw"]), bone_world
+                        )
+                        total_weight += float(weight)
+                        for k in range(3):
+                            blended[k] += float(weight) * posed[k]
+                if total_weight <= 0.0:
+                    continue
+                checked += 1
+                sum_deviations.append(abs(total_weight - 1.0))
+                normalized = [value / total_weight for value in blended]
+                blend_error = max(abs(normalized[k] - target[k]) for k in range(3))
+                blend_errors.append(blend_error)
+                if blend_error > tolerance:
+                    blend_off += 1
+            if not checked:
+                continue
+            worst_sum = max(sum_deviations)
+            results.append({
+                "mesh_info_index": mesh["mesh_info_index"],
+                "mesh_id": mesh["mesh_id"],
+                "lod_index": mesh["lod_index"],
+                "transform_name": mesh["transform_name"],
+                "pairing_model": model,
+                "weight_format": weight_format,
+                "bone_index_attr_count": len(lane_groups),
+                "vertices_checked": checked,
+                "unresolved_lanes": unresolved,
+                "weight_sum_max_deviation": worst_sum,
+                "weight_sum_mean_deviation": sum(sum_deviations) / len(sum_deviations),
+                "normalized_blend_max_error": max(blend_errors),
+                "blend_mismatch_count": blend_off,
+                # Every lane rest-poses to the same placed point, so the blend cannot
+                # separate pairings; only a weight sum near one can.
+                "passes": worst_sum <= WEIGHT_SUM_TOLERANCE and blend_off == 0,
+            })
     return results
 
 
@@ -482,8 +613,12 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         unit["rest_invariant"] = rest_invariant_tests(
             unit, sample_limit, REST_INVARIANT_TOLERANCE
         )
+        unit["weight_pairings"] = weight_lane_tests(
+            unit, sample_limit, REST_INVARIANT_TOLERANCE
+        )
     shared = shared_asset_checks(units, POSITION_BUFFER_TOLERANCE)
     rest_rows = [row for unit in units for row in unit["rest_invariant"]]
+    pairing_rows = [row for unit in units for row in unit["weight_pairings"]]
     summary = {
         "units": len(units),
         "meshes_with_positions": sum(
@@ -503,16 +638,25 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "rest_lanes_unresolved": sum(row["lanes_unresolved"] for row in rest_rows),
         "rest_invariant_within_tolerance": sum(1 for row in rest_rows if row["within_tolerance"]),
         "rest_invariant_exceeding_tolerance": sum(1 for row in rest_rows if not row["within_tolerance"]),
+        "weight_pairing_rows": len(pairing_rows),
+        "weight_pairing_passing_models": sum(1 for row in pairing_rows if row["passes"]),
     }
     for unit in units:
         for mesh in unit["meshes"]:
+            rows = mesh.get("weight_rows") or [[]]
+            mesh["bone_index_attr_count"] = len(mesh.get("bone_index_buffers") or [])
+            mesh["weight_lane_count"] = len(rows[0]) if rows else 0
+            # Keep the report compact: the full buffers stay in the Unit JSON.
             mesh.pop("_points", None)
+            mesh.pop("bone_index_buffers", None)
+            mesh.pop("weight_rows", None)
     return {
         "schema": "SourceModelReader-HD2VertexPositionSpace1",
         "matrix_convention_candidate": "row_major_4x4_row_vector",
         "identity_tolerance": IDENTITY_TOLERANCE,
         "position_buffer_tolerance": POSITION_BUFFER_TOLERANCE,
         "rest_invariant_tolerance": REST_INVARIANT_TOLERANCE,
+        "weight_sum_tolerance": WEIGHT_SUM_TOLERANCE,
         "vertex_sample_limit": sample_limit,
         "summary": summary,
         "shared_asset_pairs": shared,
@@ -522,6 +666,8 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
             "The candidate mesh-world matrix comes from the parser's own hierarchy reconstruction, which is validated for internal consistency only.",
             "Vertices are read, never modified; no weight transfer or conversion is performed or implied by this probe.",
             "A control pair with two identity mesh-world matrices must show a near-zero raw distance before any auxiliary result is read.",
+            "A rest-pose blend cannot identify which bone-index attribute a weight vector belongs to, because every resolved lane places the vertex identically at rest; only a posed transform separates those pairings.",
+            "Weight sums are compared to one with a tolerance that covers half and ten-bit quantization, so a reported deviation is a storage precision limit, not a conversion error.",
             "Buffer identity is decided by hashing decoded attribute values; a float32 rounding difference such as negative zero is reported as a difference, not silently ignored.",
         ],
     }
@@ -641,6 +787,30 @@ def render_markdown(report: dict[str, Any]) -> str:
                     row["vertices_considered"], row["lanes_checked"], row["lanes_unresolved"],
                     row["max_abs_error_vs_placed"], row["mean_abs_error_vs_placed"],
                     row["max_abs_error_vs_unplaced_vertex"], row["within_tolerance"],
+                ))
+            lines.append("")
+
+        if unit["weight_pairings"]:
+            lines.extend([
+                "### Weight lane pairing",
+                "",
+                "At rest every resolved lane maps the vertex onto the same placed point, so the",
+                "blend itself cannot separate pairings: it is normalized by the weight sum and",
+                "reported separately. The weight sum is what discriminates, because a pairing",
+                "that reuses one weight vector across several index attributes sums above one.",
+                "",
+                "| MeshInfo | LOD | Transform | Pairing model | Weight format | Index attrs | Vertices | Unresolved lanes | Sum max dev | Sum mean dev | Normalized blend max err | Blend mismatch | Passes |",
+                "|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+            ])
+            for row in unit["weight_pairings"]:
+                lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {:.6f} | {:.6f} | {:.3e} | {} | {} |".format(
+                    row["mesh_info_index"], row["lod_index"],
+                    row["transform_name"] or "(unresolved)", row["pairing_model"],
+                    row["weight_format"], row["bone_index_attr_count"],
+                    row["vertices_checked"], row["unresolved_lanes"],
+                    row["weight_sum_max_deviation"], row["weight_sum_mean_deviation"],
+                    row["normalized_blend_max_error"], row["blend_mismatch_count"],
+                    row["passes"],
                 ))
             lines.append("")
 

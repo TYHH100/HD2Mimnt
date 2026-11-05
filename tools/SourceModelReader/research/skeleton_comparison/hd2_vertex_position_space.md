@@ -47,6 +47,20 @@ For every resolved influence lane, (p x palette) x bone_world must equal p x mes
 | 2 | 1 | g_legs_hips_male_LOD1 | identity | 738 | 2952 | 0 | 6.101e-08 | 5.442e-08 | 6.101e-08 | True |
 | 3 | 0 | g_legs_hips_male | identity | 1374 | 5496 | 0 | 4.548e-08 | 5.581e-09 | 4.548e-08 | True |
 
+### Weight lane pairing
+
+At rest every resolved lane maps the vertex onto the same placed point, so the
+blend itself cannot separate pairings: it is normalized by the weight sum and
+reported separately. The weight sum is what discriminates, because a pairing
+that reuses one weight vector across several index attributes sums above one.
+
+| MeshInfo | LOD | Transform | Pairing model | Weight format | Index attrs | Vertices | Unresolved lanes | Sum max dev | Sum mean dev | Normalized blend max err | Blend mismatch | Passes |
+|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 0 | 3 | g_legs_hips_male_shadow | single_index_attr_0 | float32 scalar | 1 | 608 | 0 | 0.000000 | 0.000000 | 6.054e-08 | 0 | True |
+| 1 | 2 | g_legs_hips_male_LOD2 | single_index_attr_0 | float32 scalar | 1 | 339 | 0 | 0.000000 | 0.000000 | 6.102e-08 | 0 | True |
+| 2 | 1 | g_legs_hips_male_LOD1 | single_index_attr_0 | float32 scalar | 1 | 738 | 0 | 0.000000 | 0.000000 | 6.101e-08 | 0 | True |
+| 3 | 0 | g_legs_hips_male | single_index_attr_0 | float32 scalar | 1 | 1374 | 0 | 0.000000 | 0.000000 | 4.548e-08 | 0 | True |
+
 ## fs05_torso_left_arm
 
 - Unit: 324fb206612ce4f7
@@ -88,6 +102,36 @@ For every resolved influence lane, (p x palette) x bone_world must equal p x mes
 | 3 | 1 | g_torso_arm_l_female_LOD1 | identity | 1707 | 20484 | 0 | 3.305e-07 | 1.115e-07 | 3.305e-07 | True |
 | 4 | 0 | g_torso_arm_l_female | identity | 3115 | 37380 | 0 | 2.221e-07 | 4.469e-08 | 2.221e-07 | True |
 
+### Weight lane pairing
+
+At rest every resolved lane maps the vertex onto the same placed point, so the
+blend itself cannot separate pairings: it is normalized by the weight sum and
+reported separately. The weight sum is what discriminates, because a pairing
+that reuses one weight vector across several index attributes sums above one.
+
+| MeshInfo | LOD | Transform | Pairing model | Weight format | Index attrs | Vertices | Unresolved lanes | Sum max dev | Sum mean dev | Normalized blend max err | Blend mismatch | Passes |
+|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 0 | 4 | l_arm_culling | single_index_attr_0 | packed_10_10_10_2 decoded | 3 | 439 | 0 | 0.001955 | 0.000862 | 2.040e-07 | 0 | True |
+| 0 | 4 | l_arm_culling | single_index_attr_1 | packed_10_10_10_2 decoded | 3 | 439 | 0 | 0.001955 | 0.000862 | 4.654e-08 | 0 | True |
+| 0 | 4 | l_arm_culling | single_index_attr_2 | packed_10_10_10_2 decoded | 3 | 439 | 0 | 0.001955 | 0.000862 | 1.913e-07 | 0 | True |
+| 0 | 4 | l_arm_culling | every_index_attr_shares_weights | packed_10_10_10_2 decoded | 3 | 439 | 0 | 2.000000 | 1.997415 | 1.352e-07 | 0 | False |
+| 1 | 3 | g_torso_arm_l_female_shadow | single_index_attr_0 | vec4_half | 3 | 1426 | 0 | 0.000366 | 0.000060 | 3.305e-07 | 0 | True |
+| 1 | 3 | g_torso_arm_l_female_shadow | single_index_attr_1 | vec4_half | 3 | 1426 | 0 | 0.000366 | 0.000060 | 3.305e-07 | 0 | True |
+| 1 | 3 | g_torso_arm_l_female_shadow | single_index_attr_2 | vec4_half | 3 | 1426 | 0 | 0.000366 | 0.000060 | 2.251e-07 | 0 | True |
+| 1 | 3 | g_torso_arm_l_female_shadow | every_index_attr_shares_weights | vec4_half | 3 | 1426 | 0 | 2.000858 | 1.999986 | 2.934e-07 | 0 | False |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | single_index_attr_0 | vec4_half | 3 | 838 | 0 | 0.000275 | 0.000043 | 2.169e-07 | 0 | True |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | single_index_attr_1 | vec4_half | 3 | 838 | 0 | 0.000275 | 0.000043 | 2.169e-07 | 0 | True |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | single_index_attr_2 | vec4_half | 3 | 838 | 0 | 0.000275 | 0.000043 | 2.251e-07 | 0 | True |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | every_index_attr_shares_weights | vec4_half | 3 | 838 | 0 | 2.000813 | 1.999998 | 1.547e-07 | 0 | False |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | single_index_attr_0 | vec4_half | 3 | 1707 | 0 | 0.000366 | 0.000065 | 3.305e-07 | 0 | True |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | single_index_attr_1 | vec4_half | 3 | 1707 | 0 | 0.000366 | 0.000065 | 3.305e-07 | 0 | True |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | single_index_attr_2 | vec4_half | 3 | 1707 | 0 | 0.000366 | 0.000065 | 2.251e-07 | 0 | True |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | every_index_attr_shares_weights | vec4_half | 3 | 1707 | 0 | 2.001099 | 1.999997 | 2.934e-07 | 0 | False |
+| 4 | 0 | g_torso_arm_l_female | single_index_attr_0 | vec4_half | 3 | 3115 | 0 | 0.000366 | 0.000073 | 2.221e-07 | 0 | True |
+| 4 | 0 | g_torso_arm_l_female | single_index_attr_1 | vec4_half | 3 | 3115 | 0 | 0.000366 | 0.000073 | 2.221e-07 | 0 | True |
+| 4 | 0 | g_torso_arm_l_female | single_index_attr_2 | vec4_half | 3 | 3115 | 0 | 0.000366 | 0.000073 | 3.981e-08 | 0 | True |
+| 4 | 0 | g_torso_arm_l_female | every_index_attr_shares_weights | vec4_half | 3 | 3115 | 0 | 2.001099 | 1.999999 | 1.611e-07 | 0 | False |
+
 ## avatar_composite
 
 - Unit: 4d1c334d294dfa97
@@ -108,6 +152,17 @@ For every resolved influence lane, (p x palette) x bone_world must equal p x mes
 |---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|
 | 0 | 0 | (unresolved) | identity | 27355 | 109420 | 0 | 3.197e-07 | 2.217e-08 | 3.197e-07 | True |
 
+### Weight lane pairing
+
+At rest every resolved lane maps the vertex onto the same placed point, so the
+blend itself cannot separate pairings: it is normalized by the weight sum and
+reported separately. The weight sum is what discriminates, because a pairing
+that reuses one weight vector across several index attributes sums above one.
+
+| MeshInfo | LOD | Transform | Pairing model | Weight format | Index attrs | Vertices | Unresolved lanes | Sum max dev | Sum mean dev | Normalized blend max err | Blend mismatch | Passes |
+|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 0 | 0 | (unresolved) | single_index_attr_0 | vec4_half | 1 | 27355 | 0 | 0.000366 | 0.000046 | 3.184e-07 | 0 | True |
+
 ## Cross-Unit shared vertex buffers
 
 | Left | Right | Vertices | Bitwise identical buffers | Differing buffers | Position max abs diff | Within tolerance |
@@ -120,4 +175,6 @@ For every resolved influence lane, (p x palette) x bone_world must equal p x mes
 - The candidate mesh-world matrix comes from the parser's own hierarchy reconstruction, which is validated for internal consistency only.
 - Vertices are read, never modified; no weight transfer or conversion is performed or implied by this probe.
 - A control pair with two identity mesh-world matrices must show a near-zero raw distance before any auxiliary result is read.
+- A rest-pose blend cannot identify which bone-index attribute a weight vector belongs to, because every resolved lane places the vertex identically at rest; only a posed transform separates those pairings.
+- Weight sums are compared to one with a tolerance that covers half and ten-bit quantization, so a reported deviation is a storage precision limit, not a conversion error.
 - Buffer identity is decided by hashing decoded attribute values; a float32 rounding difference such as negative zero is reported as a difference, not silently ignored.

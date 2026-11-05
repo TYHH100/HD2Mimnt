@@ -13,6 +13,7 @@ from research.probe_hd2_vertex_position_space import (
     render_markdown,
     rest_invariant_tests,
     transform_point,
+    weight_lane_tests,
 )
 
 
@@ -299,6 +300,75 @@ class HD2RestInvariantTests(unittest.TestCase):
         self.assertFalse(rows[0]["within_tolerance"])
         # The surplus equals exactly one extra application of the mesh-world offset.
         self.assertAlmostEqual(rows[0]["max_abs_error_vs_placed"], 1.25)
+
+
+    def pairing_fixture(self, index_attr_count):
+        lanes = [[0, 1, 0, 0], [1, 0, 1, 0]]
+        attributes = [
+            attribute("position", 0, "vec3_float32", [[0.0, 0.0, 1.0], [1.0, 0.0, 1.0]]),
+            attribute("bone_weight", 0, "vec4_half", [[0.5, 0.5, 0.0, 0.0], [0.25, 0.75, 0.0, 0.0]]),
+        ]
+        for attr_index in range(index_attr_count):
+            attributes.append(attribute("bone_index", attr_index, "vec4_uint8", lanes))
+        return {
+            "unit": {"file_id": "unit-pairing", "geometry_source": "Unit GPU payload"},
+            "package": {"name": "package-pairing"},
+            "transform_info": {
+                "transforms": [
+                    {"index": 0, "name_hash": 1, "parent_index_raw": 65535,
+                     "matrix_4x4_raw": identity_matrix()},
+                    {"index": 1, "name_hash": 2, "parent_index_raw": 0,
+                     "matrix_4x4_raw": identity_matrix()},
+                ],
+                "resolved_skeleton": [
+                    {"transform_index": 0, "name": "root"},
+                    {"transform_index": 1, "name": "g_mesh"},
+                ],
+                "hierarchy_matrix_validation": {"entries": []},
+            },
+            "mesh_info": {"records": [
+                {"index": 0, "mesh_id": 90, "transform_index": 1, "lod_index": 0},
+            ]},
+            "geometry": [{
+                "mesh_info_index": 0,
+                "mesh_id": 90,
+                "transform_index": 1,
+                "lod_index": 0,
+                "attributes": attributes,
+                "skinning": {
+                    "status": "ok",
+                    "palette": [
+                        {"palette_slot": 0, "transform_index": 1,
+                         "bone_info_matrix_raw": identity_matrix(), "valid": True},
+                        {"palette_slot": 1, "transform_index": 1,
+                         "bone_info_matrix_raw": identity_matrix(), "valid": True},
+                    ],
+                },
+            }],
+        }
+
+    def test_weight_sum_separates_pairings_that_the_rest_blend_cannot(self):
+        unit = self.load(self.pairing_fixture(index_attr_count=2), "pairing")
+        rows = {row["pairing_model"]: row
+                for row in weight_lane_tests(unit, 0, REST_INVARIANT_TOLERANCE)}
+
+        # At rest every lane places the vertex identically, so both single-attribute
+        # pairings blend to the same point with zero error: the blend is not a judge.
+        for model in ("single_index_attr_0", "single_index_attr_1"):
+            self.assertTrue(rows[model]["passes"])
+            self.assertEqual(rows[model]["normalized_blend_max_error"], 0.0)
+            self.assertEqual(rows[model]["weight_sum_max_deviation"], 0.0)
+
+        # Reusing the one weight vector across both index attributes doubles the sum.
+        shared = rows["every_index_attr_shares_weights"]
+        self.assertFalse(shared["passes"])
+        self.assertAlmostEqual(shared["weight_sum_max_deviation"], 1.0)
+
+    def test_single_index_attribute_mesh_offers_no_shared_model(self):
+        unit = self.load(self.pairing_fixture(index_attr_count=1), "pairing")
+        models = [row["pairing_model"]
+                  for row in weight_lane_tests(unit, 0, REST_INVARIANT_TOLERANCE)]
+        self.assertEqual(models, ["single_index_attr_0"])
 
 
 if __name__ == "__main__":
