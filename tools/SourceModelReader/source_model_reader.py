@@ -2595,7 +2595,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     p_hd2_texture.add_argument("--preserve-raw", action="store_true",
                                 help="Also write separate .gpu.bin and .stream.bin payload copies")
     p_hd2_texture.add_argument("--preview-png", action="store_true",
-                                help="Decode the base BC7 mip to PNG and report pixel-alpha statistics (optional dependency)")
+                                help="Decode a supported BC1/BC5_UNORM/BC7 base mip to PNG and report channel statistics (optional dependency)")
     p_hd2_texture.add_argument("--json", dest="json_path",
                                 help="Write the complete Texture metadata report to JSON")
 
@@ -2692,7 +2692,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             from hd2_material import parse_resource_id
             from hd2_resources import HD2ResourceError
             from hd2_texture import (
-                decode_bc7_preview,
+                decode_texture_preview,
                 format_hd2_texture_text,
                 inspect_hd2_texture,
             )
@@ -2705,7 +2705,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             preview_png = None
             if args.preview_png:
                 selected_payload = stream_bytes if stream_bytes else gpu_bytes
-                preview_result, preview_png = decode_bc7_preview(
+                preview_result, preview_png = decode_texture_preview(
                     report, selected_payload
                 )
 
@@ -2732,7 +2732,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             if preview_result is not None:
                 alpha = preview_result["alpha"]
                 print(
-                    f"BC7 base-mip preview: {outputs['preview_png']} "
+                    f"{preview_result['codec']} base-mip preview: {outputs['preview_png']} "
                     f"({preview_result['width']}x{preview_result['height']})"
                 )
                 print(
