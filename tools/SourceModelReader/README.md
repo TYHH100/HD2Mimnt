@@ -563,6 +563,17 @@ The reader only opens model resources and writes the requested output files. It 
 The bounded Source layout implementation is based on Valve's Source SDK 2013 public headers: [`studio.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/studio.h) and [`optimize.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/optimize.h). The output container follows the glTF 2.0 / GLB structure.
 
 
+### Compact HD2 skinning audit
+
+To inspect the actual per-section influence chain for the selected Unit, first export its full decoder report and then summarize it:
+
+```powershell
+py -3 .\source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package "18235e0c9ec0e636" --unit "4d1c334d294dfa97" --json ".\research\hd2_avatar_unit_full.json"
+py -3 .\research\summarize_hd2_skinning.py ".\research\hd2_avatar_unit_full.json" --output ".\research\hd2_avatar_skinning_audit.md"
+```
+
+The Markdown audit keeps the useful palette and active-influence evidence while avoiding a need to upload the full geometry JSON. It is diagnostic only and does not infer bind-pose matrix conventions or retarget mappings.
+
 ### Advisory humanoid alias candidates
 
 The comparison command also writes a separate `Advisory humanoid alias candidates` section. It currently contains only explicit conventional ValveBiped-to-Avatar name hypotheses for the humanoid core. It does not change the exact-name result, perform fuzzy matching, or approve retargeting.
