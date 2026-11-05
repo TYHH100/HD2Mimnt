@@ -140,3 +140,20 @@ The first scanner implementation is committed on the working branch:
 The synthetic end-to-end fixture creates one package with one Unit entry and verifies that its Unit Materials table resolves to the expected Mesh Section without requiring GPU/Stream data. The scanner's CompositeUnit path is covered at the section-mapping level with an isolated fixture.
 
 These new tests have **not yet been run in the user's Windows environment**. Pull the latest branch and run the focused test module before executing the full-game scan.
+
+
+## Mapping correction — exact Unit material slot identity
+
+The first Windows test run exposed a duplicate-match bug in `_material_mesh_matches` when one Material FileID appeared in more than one Unit Materials row.
+
+The initial implementation resolved each Mesh Section's `material_slot_id` to a Material FileID, then matched only by Material FileID. When two Unit material sections referenced the same Material resource, each row therefore collected both sets of Mesh Sections. This duplicated the per-row section counts and could attribute sibling sections to the wrong Unit material slot.
+
+The corrected rule is stricter and follows the existing `hd2-unit` mapping: a Mesh Section belongs to a particular Unit Materials row only when its `material_slot_id` exactly equals that row's `section_id`. The Material FileID is then the value attached to that exact row.
+
+This correction addresses both observed failures:
+- a single Material FileID repeated in two Unit material slots now yields one Mesh Section per slot, rather than both sections on each row;
+- CompositeUnit-backed sections now preserve their individual index ranges under the correct slot, so the second slot reports its own 60 indices instead of the first slot's 120.
+
+Fix commit: `dd23b79584d0e6c33d1846e3306c8c18b008aa63`.
+
+The two failing Windows tests have not yet been rerun after this correction. Please sync the fix and rerun the focused six-test module. The expected result is 6/6, but runtime confirmation is still pending.
