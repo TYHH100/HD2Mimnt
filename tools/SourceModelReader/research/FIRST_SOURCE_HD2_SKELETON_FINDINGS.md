@@ -147,3 +147,31 @@ Run the six synthetic comparison tests:
 ```powershell
 py -3 -m unittest discover -s tests -p "test_hd2_skeleton_compare.py" -v
 ```
+
+## BodyGroup 级活跃骨骼拆分（上面第 6 项的部分完成）
+
+工具：`research/survey_source_bodygroup_bone_use.py`（只读复用 `collect_geometry` 与
+`_weighted_bone_usage_for_triangles`，不改顶点、权重或资源字节）。对 `aes_yz_pm.mdl`
+LOD0/skin0 的 20 个 BodyGroup、42 个选项组合实测：
+
+| 指标 | 数值 |
+|---|---:|
+| 任何选项都无法移除的恒定核心 | **77** |
+| 全部选项并集 | **242** |
+| 单组合活跃骨骼 min / median / max | 124 / 136 / 236 |
+| 与默认组合有差异的选项数 | 10 / 42 |
+
+- **Observed**：并集 242 与既有报告的池并集数字一致（独立路径的交叉校验）。
+- **Observed**：`group 18 choice 1 [AES_QZ.smd]` 单独 **+100** 条骨骼（组合达到 236），
+  发型类 `group 2 choice 1 [AES_TF2.smd]` 是 +6 / −10；其余选项多为纯减少（−2 … −12）。
+  这给路线图要求的「人形核心 vs 二级链（发/缎带/尾/耳）」分界提供了数量依据：**恒定核心 77 条**
+  是可先做重定向的部分，`AES_QZ.smd` 那 100 条应作为独立子系统处理。
+- 语义限制（必须一起读）：每行是**整身组合**而非隔离的部件几何 —— 读者是相对默认组合的
+  `+/-`，不是"该部件只用这些骨骼"；隔离需要按 `ModelInfo.vertex_byte_offset` 与 mesh 顶点区间
+  过滤三角形（reader 的三角形元组只带材质，不带分组）。VVD fixup 仍未应用，
+  因此 LOD 特定的顶点重映射未覆盖；恒定核心按 LOD0 与 skin0 计算。
+- 复现：
+
+```powershell
+py -3 research/survey_source_bodygroup_bone_use.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --output-json research/skeleton_comparison/source_bodygroup_bone_use.json
+```
