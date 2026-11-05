@@ -88,6 +88,12 @@ that matrix is not the identity, which is marked per row.
 | 2 | 1 | g_legs_hips_male_LOD1 | identity | True | 2 | 0.0000, -0.0190, 0.9417 | -0.0007, -0.0089, 0.6843 | -0.0007, -0.0089, 0.6843 | 0.2576 | 0.2576 | identical |
 | 3 | 0 | g_legs_hips_male | identity | True | 4 | 0.0000, -0.0202, 0.9576 | 0.0000, 0.0006, 0.6797 | 0.0000, 0.0006, 0.6797 | 0.2786 | 0.2786 | identical |
 
+### Scale and rotation composition gate
+
+- Transforms: 16; non-uniform scale: 0; non-uniform scale with non-identity rotation (gated): 0
+
+No transform in this Unit combines non-uniform scale with rotation, so the gated composition case stays untested here.
+
 ## fs05_torso_left_arm
 
 - Unit: 324fb206612ce4f7
@@ -190,6 +196,12 @@ that matrix is not the identity, which is marked per row.
 | 3 | 1 | g_torso_arm_l_female_LOD1 | identity | True | 22 | -0.5844, 0.1524, 1.2159 | -0.4049, 0.0310, 1.3271 | -0.4049, 0.0310, 1.3271 | 0.2436 | 0.2436 | identical |
 | 4 | 0 | g_torso_arm_l_female | identity | True | 25 | -0.5143, 0.1329, 1.1944 | -0.4967, 0.0807, 1.2760 | -0.4967, 0.0807, 1.2760 | 0.0984 | 0.0984 | identical |
 
+### Scale and rotation composition gate
+
+- Transforms: 38; non-uniform scale: 0; non-uniform scale with non-identity rotation (gated): 0
+
+No transform in this Unit combines non-uniform scale with rotation, so the gated composition case stays untested here.
+
 ## avatar_composite
 
 - Unit: 4d1c334d294dfa97
@@ -240,6 +252,14 @@ that matrix is not the identity, which is marked per row.
 | MeshInfo | LOD | Transform | Matrix | Degenerate | Bones | Landmark centroid | Raw centroid | Placed centroid | Raw distance | Placed distance | Closer |
 |---:|---:|---|---|---|---:|---|---|---|---:|---:|---|
 | 0 | 0 | (unresolved) | identity | True | 88 | 0.0205, 0.1269, 1.1001 | -0.0287, 0.0234, 1.2892 | -0.0287, 0.0234, 1.2892 | 0.2211 | 0.2211 | identical |
+
+### Scale and rotation composition gate
+
+- Transforms: 107; non-uniform scale: 1; non-uniform scale with non-identity rotation (gated): 0
+
+| Transform | Row norms | Scale ratio | Rotation | Status |
+|---:|---|---:|---|---|
+| 6 | 1.000000, 54.432270, 1.000000 | 54.432270 | identity | scale only |
 
 ## fs05_shoulder_armor
 
@@ -312,6 +332,12 @@ that matrix is not the identity, which is marked per row.
 | 2 | 1 | g_shoulder_l_female_LOD1 | non_identity | False | 1 | -0.3126, -0.0505, 1.4051 | -0.0300, -0.0020, 0.0344 | -0.3132, -0.0502, 1.4708 | 1.4004 | 0.0657 | placed |
 | 3 | 0 | g_shoulder_l_female | non_identity | False | 7 | -0.0850, -0.0253, 1.2573 | -0.0387, -0.0008, 0.0263 | -0.3220, -0.0490, 1.4627 | 1.2321 | 0.3146 | placed |
 
+### Scale and rotation composition gate
+
+- Transforms: 19; non-uniform scale: 0; non-uniform scale with non-identity rotation (gated): 0
+
+No transform in this Unit combines non-uniform scale with rotation, so the gated composition case stays untested here.
+
 ## Cross-Unit shared vertex buffers
 
 | Left | Right | Vertices | Bitwise identical buffers | Differing buffers | Position max abs diff | Within tolerance |
@@ -326,4 +352,5 @@ that matrix is not the identity, which is marked per row.
 - A control pair with two identity mesh-world matrices must show a near-zero raw distance before any auxiliary result is read.
 - A rest-pose blend cannot identify which bone-index attribute a weight vector belongs to, because every resolved lane places the vertex identically at rest; only a posed transform separates those pairings.
 - Weight sums are compared to one with a tolerance that covers half and ten-bit quantization, so a reported deviation is a storage precision limit, not a conversion error.
+- A transform with non-uniform scale combined with non-identity rotation is reported as gated: the parser refuses to guess that composition, so agreement elsewhere does not license converting one.
 - Buffer identity is decided by hashing decoded attribute values; a float32 rounding difference such as negative zero is reported as a difference, not silently ignored.

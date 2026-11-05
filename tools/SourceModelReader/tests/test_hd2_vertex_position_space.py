@@ -9,6 +9,7 @@ from research.probe_hd2_vertex_position_space import (
     _box_vs_union,
     _max_abs_point_diff,
     build_report,
+    composition_audit,
     load_unit,
     render_markdown,
     rest_invariant_tests,
@@ -485,6 +486,68 @@ class HD2RestInvariantTests(unittest.TestCase):
         rows = skeleton_landmark_tests(identity)
         self.assertTrue(rows[0]["test_is_degenerate"])
         self.assertEqual(rows[0]["closer_space"], "identical")
+
+
+class HD2CompositionTests(unittest.TestCase):
+    def load(self, fixture, label):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "unit.json"
+            path.write_text(json.dumps(fixture), encoding="utf-8")
+            return load_unit(path, label)
+
+    def audit(self, matrices):
+        transforms = [
+            {"index": index, "name_hash": 100 + index,
+             "parent_index_raw": 65535 if index == 0 else 0,
+             "matrix_4x4_raw": matrix}
+            for index, matrix in enumerate(matrices)
+        ]
+        fixture = {
+            "unit": {"file_id": "unit-composition", "geometry_source": "Unit GPU payload"},
+            "package": {"name": "package-composition"},
+            "transform_info": {
+                "transforms": transforms,
+                "resolved_skeleton": [
+                    {"transform_index": index, "name": f"node_{index}"}
+                    for index in range(len(matrices))
+                ],
+                "hierarchy_matrix_validation": {"entries": []},
+            },
+            "mesh_info": {"records": []},
+            "geometry": [],
+        }
+        unit = self.load(fixture, "composition")
+        return composition_audit(unit, 1.0e-4)
+
+    def test_pure_non_uniform_scale_is_not_gated(self):
+        scale_only = [
+            2.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        report = self.audit([scale_only])
+        self.assertEqual(report["non_uniform_scale_count"], 1)
+        self.assertEqual(report["gated_scale_and_rotation_count"], 0)
+        self.assertEqual(report["non_uniform_scale"][0]["rotation_status"], "identity")
+        self.assertAlmostEqual(report["non_uniform_scale"][0]["scale_ratio"], 2.0)
+
+    def test_non_uniform_scale_combined_with_rotation_is_gated(self):
+        scaled_rotation = [
+            0.0, 2.0, 0.0, 0.0,
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ]
+        report = self.audit([scaled_rotation])
+        self.assertEqual(report["non_uniform_scale_count"], 1)
+        self.assertEqual(report["gated_scale_and_rotation_count"], 1)
+        self.assertEqual(report["gated_scale_and_rotation"][0]["rotation_status"], "non_identity")
+
+    def test_uniform_matrices_produce_no_gate_rows(self):
+        report = self.audit([identity_matrix()])
+        self.assertEqual(report["non_uniform_scale_count"], 0)
+        self.assertEqual(report["gated_scale_and_rotation_count"], 0)
 
 
 if __name__ == "__main__":

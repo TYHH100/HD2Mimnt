@@ -30,6 +30,7 @@ IDENTITY_TOLERANCE = 1.0e-4
 POSITION_BUFFER_TOLERANCE = 1.0e-6
 REST_INVARIANT_TOLERANCE = 1.0e-5
 WEIGHT_SUM_TOLERANCE = 2.0e-3
+SCALE_RATIO_TOLERANCE = 1.0e-4
 
 
 def _identity_error(matrix: list[float]) -> float:
@@ -606,6 +607,71 @@ def skeleton_landmark_tests(unit: dict[str, Any]) -> list[dict[str, Any]]:
     return results
 
 
+def _row_norms(matrix: list[float]) -> list[float]:
+    return [
+        math.sqrt(sum(matrix[row * 4 + column] ** 2 for column in range(3)))
+        for row in range(3)
+    ]
+
+
+def _rotation_only_matrix(matrix: list[float], norms: list[float]) -> list[float]:
+    """Strip per-row scale so a pure non-uniform scale reads as identity rotation.
+
+    The parser composes the local linear part as rotation times diagonal scale, so
+    each stored row is one scale factor times one rotation row.
+    """
+    result: list[float] = []
+    for row in range(3):
+        norm = norms[row] if norms[row] > 0.0 else 1.0
+        for column in range(3):
+            result.append(matrix[row * 4 + column] / norm)
+        result.append(0.0)
+    result.extend([0.0, 0.0, 0.0, 1.0])
+    return result
+
+
+def composition_audit(unit: dict[str, Any], tolerance: float) -> dict[str, Any]:
+    """List transforms whose scale is non-uniform while rotation is not identity.
+
+    The parser builds local linear matrices as rotation times diagonal scale and
+    refuses to guess when both effects are present, so the converter has to know
+    which transforms fall into that gated combination rather than trusting a
+    sample-average agreement.
+    """
+    non_uniform: list[dict[str, Any]] = []
+    gated: list[dict[str, Any]] = []
+    for index, matrix in sorted(unit["transform_matrices"].items()):
+        norms = _row_norms(matrix)
+        shortest = min(norms)
+        longest = max(norms)
+        if shortest <= 0.0:
+            continue
+        ratio = longest / shortest
+        if ratio <= 1.0 + tolerance:
+            continue
+        rotation_error = _identity_error(_rotation_only_matrix(matrix, norms))
+        entry = {
+            "transform_index": index,
+            "scale_ratio": ratio,
+            "row_norms": norms,
+            "rotation_error_after_scale_removal": rotation_error,
+            "rotation_status": (
+                "identity" if rotation_error is not None
+                and rotation_error <= IDENTITY_TOLERANCE else "non_identity"
+            ),
+        }
+        non_uniform.append(entry)
+        if entry["rotation_status"] != "identity":
+            gated.append(entry)
+    return {
+        "transform_count": len(unit["transform_matrices"]),
+        "non_uniform_scale_count": len(non_uniform),
+        "non_uniform_scale": non_uniform,
+        "gated_scale_and_rotation_count": len(gated),
+        "gated_scale_and_rotation": gated,
+    }
+
+
 def correspondence_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any]]:
     """Compare every mesh against the Unit's largest ordinary render mesh.
 
@@ -795,6 +861,7 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         )
         unit["winding"] = winding_tests(unit, sample_limit)
         unit["landmarks"] = skeleton_landmark_tests(unit)
+        unit["composition"] = composition_audit(unit, SCALE_RATIO_TOLERANCE)
     shared = shared_asset_checks(units, POSITION_BUFFER_TOLERANCE)
     rest_rows = [row for unit in units for row in unit["rest_invariant"]]
     pairing_rows = [row for unit in units for row in unit["weight_pairings"]]
@@ -834,6 +901,13 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "landmark_identical_tests": sum(1 for row in landmark_rows if row["closer_space"] == "identical"),
         "landmark_placed_closer": sum(1 for row in landmark_rows if row["closer_space"] == "placed"),
         "landmark_raw_closer": sum(1 for row in landmark_rows if row["closer_space"] == "raw"),
+        "transforms_audited": sum(unit["composition"]["transform_count"] for unit in units),
+        "non_uniform_scale_transforms": sum(
+            unit["composition"]["non_uniform_scale_count"] for unit in units
+        ),
+        "gated_scale_and_rotation_transforms": sum(
+            unit["composition"]["gated_scale_and_rotation_count"] for unit in units
+        ),
     }
     for unit in units:
         for mesh in unit["meshes"]:
@@ -855,6 +929,7 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "position_buffer_tolerance": POSITION_BUFFER_TOLERANCE,
         "rest_invariant_tolerance": REST_INVARIANT_TOLERANCE,
         "weight_sum_tolerance": WEIGHT_SUM_TOLERANCE,
+        "scale_ratio_tolerance": SCALE_RATIO_TOLERANCE,
         "vertex_sample_limit": sample_limit,
         "summary": summary,
         "shared_asset_pairs": shared,
@@ -866,6 +941,7 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
             "A control pair with two identity mesh-world matrices must show a near-zero raw distance before any auxiliary result is read.",
             "A rest-pose blend cannot identify which bone-index attribute a weight vector belongs to, because every resolved lane places the vertex identically at rest; only a posed transform separates those pairings.",
             "Weight sums are compared to one with a tolerance that covers half and ten-bit quantization, so a reported deviation is a storage precision limit, not a conversion error.",
+            "A transform with non-uniform scale combined with non-identity rotation is reported as gated: the parser refuses to guess that composition, so agreement elsewhere does not license converting one.",
             "Buffer identity is decided by hashing decoded attribute values; a float32 rounding difference such as negative zero is reported as a difference, not silently ignored.",
         ],
     }
@@ -1056,6 +1132,35 @@ def render_markdown(report: dict[str, Any]) -> str:
                     row["raw_distance_to_landmarks"], row["placed_distance_to_landmarks"],
                     row["closer_space"],
                 ))
+            lines.append("")
+
+        composition = unit["composition"]
+        lines.extend([
+            "### Scale and rotation composition gate",
+            "",
+            "- Transforms: {}; non-uniform scale: {}; non-uniform scale with non-identity rotation (gated): {}".format(
+                composition["transform_count"],
+                composition["non_uniform_scale_count"],
+                composition["gated_scale_and_rotation_count"],
+            ),
+            "",
+        ])
+        if composition["non_uniform_scale"]:
+            lines.extend([
+                "| Transform | Row norms | Scale ratio | Rotation | Status |",
+                "|---:|---|---:|---|---|",
+            ])
+            for row in composition["non_uniform_scale"]:
+                lines.append("| {} | {} | {:.6f} | {} | {} |".format(
+                    row["transform_index"],
+                    ", ".join(f"{value:.6f}" for value in row["row_norms"]),
+                    row["scale_ratio"], row["rotation_status"],
+                    "gated" if row["rotation_status"] != "identity" else "scale only",
+                ))
+            lines.append("")
+        else:
+            lines.append("No transform in this Unit combines non-uniform scale with rotation, "
+                         "so the gated composition case stays untested here.")
             lines.append("")
 
     lines.extend([

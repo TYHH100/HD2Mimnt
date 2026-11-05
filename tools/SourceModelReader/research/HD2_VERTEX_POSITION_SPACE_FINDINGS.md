@@ -173,6 +173,19 @@ py -3 source_model_reader.py hd2-unit "G:\AppData\SteamLibrary\steamapps\common\
 py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=research/skinning_audits/fs05_lower_body.json --unit fs05_torso_left_arm=research/skinning_audits/fs05_torso_left_arm.json --unit avatar_composite=research/skinning_audits/avatar_composite.json --unit fs05_shoulder_armor=research/skeleton_comparison/unit_90b57e547e7ff7bb.json
 ```
 
+### 2.9 非均匀缩放 + 旋转的组合门控（Observed）
+
+探针新增 `composition_audit`：按行范数检测非均匀缩放（比例阈值 `1e-4`），再去除逐行缩放后判断旋转是否为单位矩阵。四个样本共 180 个 TransformInfo 变换：
+
+| 指标 | 数量 |
+|---|---:|
+| 审计的变换总数 | 180 |
+| 非均匀缩放 | 1（即已知的 `attach_cam_1`） |
+| 非均匀缩放 **且** 非单位旋转（需门控） | 0 |
+
+- **Observed**：本地样本里不存在"非均匀缩放叠加非单位旋转"的变换，因此这一组合仍未被任何真实数据检验过；解析器在这种组合出现时拒绝猜测（既有行为），探针现在会把它显式列出来，而不是靠"整体一致"掩盖。
+- 判定顺序说明：检测基于存储矩阵的行范数差异与去缩放后的行向量与单位矩阵的偏差；对不含切变的 `rotation × diag(scale)` 矩阵，这与列约定无关。
+
 ## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
 
 工具：`research/dump_source_bone_rest.py`（只读，调用现有 MDL 读取器组合父级 `pos`+`quat`），证据：`skeleton_comparison/source_bone_rest.md`。
