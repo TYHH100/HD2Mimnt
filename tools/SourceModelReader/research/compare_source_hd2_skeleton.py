@@ -271,12 +271,15 @@ def main() -> int:
     print("Target Unit: {}".format(args.target_unit))
     print("Exact name matches: {}".format(report["summary"]["exact_name_match_count"]))
     print("Source unmapped: {}".format(report["summary"]["source_unmapped_count"]))
+    print("Active source exact matches: {}".format(report["summary"]["source_active_weighted_exact_match_count"]))
     print("Active source unmapped: {}".format(report["summary"]["source_active_weighted_unmapped_count"]))
+    print("Active source ambiguous: {}".format(report["summary"]["source_active_weighted_ambiguous_count"]))
     print("HD2-only: {}".format(report["summary"]["target_only_named_transform_count"]))
     print("Parent mismatches: {}".format(report["summary"]["parent_mismatch_count"]))
     print("Status: {}".format(report["summary"]["status"]))
     print("JSON: {}".format(args.output_json))
     print("Markdown: {}".format(args.output_markdown))
+    # Exit 1 means the report was generated but contains mapping/structure warnings.
     return 0 if report["summary"]["status"] == "ok" else 1
 
 
