@@ -97,7 +97,7 @@ A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar r
 
 **Remaining 0.8.4 work**
 
-**Implemented diagnostic baseline:** `hd2_skeleton_compare.py` and `research/compare_source_hd2_skeleton.py` now compare a selected Source SMD against an HD2 Unit skeleton using exact case-folded names, parent relationships, active target influence flags, and explicit missing/ambiguous/target-only reports. No alias guesses, automatic mapping, or rest-pose numeric comparison is performed.
+**Implemented diagnostic baseline:** `hd2_skeleton_compare.py` and `research/compare_source_hd2_skeleton.py` compare compiled Source MDL bone definitions and positive-weight VVD bone usage against an HD2 Unit skeleton. The report includes exact case-folded name matches, active source/target weight status, parent relationships, and explicit missing/ambiguous/target-only lists. The source active-bone set is currently a union across the stored VVD vertex pool, not split by BodyGroup/LOD; no alias guesses, automatic mapping, or rest-pose numeric comparison are performed.
 
 **Remaining work:**
 - Add a reviewed, explicit alias/mapping table only for bone names whose semantic identity is independently established.
