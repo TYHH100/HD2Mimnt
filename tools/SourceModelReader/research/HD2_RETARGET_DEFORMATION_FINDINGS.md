@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | 矩阵布局 | row-major 4×4，行向量 `p × M`，平移在浮点 12–15 | 顶点位置空间探针 §2.5、mesh 审计 |
 | palette 候选 | `mesh_world × inverse(bone_world)` | BoneInfo palette 比对（162 槽 `1.74e-7`） |
-| 骨骼姿态构造 | `rotation × translate(joint)`（先绕自身原点转，再平移到关节） | 本轮发现，见 §3.1 |
+| 骨骼姿态构造 | `rotation × translate(joint)`（先绕自身原点转，再平移到关节）；对已旋转的骨骼用共轭 `bone_world × T(-joint) × R × T(joint)` | 本轮发现，见 §3.1 与 §4 |
 | 跨引擎适配 | 尺度 `0.030524`，符号 `(-1, -1, +1)`＝绕 +Z 转 180° | 静止关节对与朝向证据 |
 | 混合 | 按权重和归一化 | 上一轮残差分析：非归一化会偏移 `(Σw-1) × 静态目标` |
 
@@ -42,7 +42,7 @@
 `joint + R·(v - joint)`，报告字段 `expected_minus_blended` 实测 `0.0`，并升级为硬检查
 `matches_rigid_rotation_about_joint`。教训：任何"参考值"必须进门，否则等于没测。
 
-## 4. 八个用例、三十条检查（全绿）
+## 4. 九个用例、三十五条检查（全绿）
 
 复现：`py -3 research/verify_hd2_retarget_deformation.py`（全通过时退出码 0，有失败返回 1）
 
@@ -52,10 +52,16 @@
 | `two_bone_blend_sweep` | 5 | 位移随权重严格线性 `0 → 0.184989`；半径在 0.5 处下沉 `0.2417 → 0.223302` |
 | `weight_sum_scale_invariance` | 5 | `(0.7,0.3)`、`(1.4,0.6)`、`(70,30)` 结果完全一致；全零权重抛 `ValueError` |
 | `translated_root` | 3 | 顶点偏移与关节偏移逐轴相等，量 `0.722842` |
+| `hinge_on_a_rotated_bone` | 5 | 带旋转的骨骼 + 带旋转的 mesh_world：期望差 `0.0`，朴素绕原点旋转把关节甩开 `0.727407` |
 | `double_application_refused` | 3 | 正确 `0.0`；重复带 `mesh_world` 偏 `1.465405`；palette 顺序写反偏 `0.621278` |
 | `non_uniform_scale_gate` | 3 | 尺度比 `2.0`、归一化后非对角 `1.0` → 拒绝；均匀缩放比 `1.0` 不误判 |
 | `adapter_scale_and_orientation` | 4 | 线性部分行列式 `+1.0`（是旋转不是镜像）；左仍排在右之前 |
 | `adapter_maps_joint_deltas` | 3 | 差值长度比 `0.030524`；先各自适配再相减与先相减再适配一致 |
+
+`hinge_on_a_rotated_bone` 是通往真实矩阵的那一步：HD2 的 TransformInfo 不是纯平移，所以"关节不动"这条
+不变量必须在**骨骼自身带旋转、且 mesh_world 也带旋转**的情形下再验一次。这里的铰链写成共轭
+`bone_world × T(-joint) × R × T(joint)`，于是 `palette × posed` 相对静止恰好差一个"绕真实关节的刚体旋转"；
+作为对照保留的 `bone_world × R` 把关节甩到 `0.727407` 之外，正是 §3.1 那个坑在带旋转样本上的放大版。
 
 值得单独记一笔的是 `double_application_refused`：它现在用带旋转的 `mesh_world` 与
 `bone_world`（15° Z 旋转 + 平移，25° X 旋转 + 平移），所以重复放置和顺序写反都能被**旋转部分**

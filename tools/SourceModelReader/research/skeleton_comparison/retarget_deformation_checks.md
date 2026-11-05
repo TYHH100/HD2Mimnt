@@ -81,6 +81,24 @@ Every case is built from synthetic vertices plus the measured rest joints. No HD
 - joint_offset: [0.4, 0.05, 0.6]
 - offset_magnitude: 0.722842
 
+## hinge_on_a_rotated_bone
+
+| Check | Result |
+|---|:---|
+| rest_reproduces_placed_position | pass |
+| joint_stays_fixed | pass |
+| matches_rigid_rotation_of_the_placed_vertex | pass |
+| vertex_to_joint_distance_preserved | pass |
+| rotate_about_model_origin_rejected | pass |
+
+- joint: [0.11, 0.02, 1.4051]
+- placed_vertex: [-0.25689, -0.030756, 1.45647]
+- vertex_to_joint: 0.37393
+- hinged_vertex: [-0.25689, -0.049641, 1.42421]
+- hinge_minus_expected: 0.0
+- naive_joint_displacement: 0.727407
+- naive_minus_hinged: 0.727407
+
 ## double_application_refused
 
 | Check | Result |

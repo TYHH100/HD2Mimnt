@@ -17,11 +17,14 @@ from research.verify_hd2_retarget_deformation import (  # noqa: E402
     HD2_METERS_PER_SOURCE_UNIT,
     RIGID_TOLERANCE,
     adapter,
+    axis_angle,
+    basis_row,
     blend,
     build_report,
     case_adapter_scale_and_orientation,
     case_adapter_maps_joint_deltas,
     case_double_application_refused,
+    case_hinge_on_a_rotated_bone,
     case_non_uniform_scale_gate,
     case_single_bone_rigid,
     case_translated_root,
@@ -29,17 +32,21 @@ from research.verify_hd2_retarget_deformation import (  # noqa: E402
     case_weight_sum_scale_invariance,
     distance,
     evaluate,
+    hinge_about_point,
     identity,
     invert_affine,
     joint_pose,
+    local_frame_hinge,
     main,
     multiply,
     palette_for,
     render_markdown,
     rotate_x,
+    rotate_y,
     rotate_z,
     transform_point,
     translate,
+    world_origin_hinge,
 )
 
 JOINT_A = [0.0, 0.0, 0.9417]
@@ -105,6 +112,60 @@ class HD2RetargetMatrixHelpersTests(unittest.TestCase):
         self.assertGreater(distance(wrong_order, joint), 0.3)
         self.assertTrue(_flat_close(wrong_order, transform_point(joint, rotate_x(angle))))
 
+    def test_axis_angle_reproduces_the_principal_builders(self):
+        angle = math.radians(40.0)
+        point = [0.7, -0.35, 0.22]
+        for axis, builder in (((1.0, 0.0, 0.0), rotate_x),
+                              ((0.0, 1.0, 0.0), rotate_y),
+                              ((0.0, 0.0, 1.0), rotate_z)):
+            generic = transform_point(point, axis_angle(list(axis), angle))
+            specific = transform_point(point, builder(angle))
+            self.assertTrue(_flat_close(generic, specific), str(axis))
+
+    def test_axis_angle_normalizes_the_axis_and_refuses_zero(self):
+        point = [0.0, 0.0, 1.0]
+        unit_axis = transform_point(point, axis_angle([1.0, 1.0, 0.0], math.radians(90.0)))
+        scaled_axis = transform_point(point, axis_angle([3.0, 3.0, 0.0], math.radians(90.0)))
+        self.assertTrue(_flat_close(unit_axis, scaled_axis))
+        # Rodrigues: v is perpendicular to the axis, so it sweeps to u x v, and the
+        # 90 degree case lands on (1/sqrt2, -1/sqrt2, 0) in the row-vector layout.
+        root = math.sqrt(0.5)
+        self.assertTrue(_flat_close(unit_axis, [root, -root, 0.0], 1.0e-12))
+        self.assertAlmostEqual(distance(unit_axis, [0.0, 0.0, 0.0]),
+                               distance(point, [0.0, 0.0, 0.0]), places=12)
+        with self.assertRaises(ValueError):
+            axis_angle([0.0, 0.0, 0.0], math.radians(30.0))
+
+    def test_hinge_about_point_rotates_about_the_joint_not_the_origin(self):
+        joint = [0.11, 0.02, 1.4051]
+        spin = axis_angle([1.0, 0.0, 0.0], math.radians(30.0))
+        hinge = hinge_about_point(joint, spin)
+        point = [0.31, 0.22, 1.60]
+
+        self.assertTrue(_flat_close(transform_point(joint, hinge), joint, 1.0e-12))
+        self.assertGreater(distance(transform_point([0.0, 0.0, 0.0], hinge),
+                                    [0.0, 0.0, 0.0]), 0.3)
+        expected = transform_point([point[k] - joint[k] for k in range(3)], spin)
+        got = transform_point(point, hinge)
+        self.assertTrue(_flat_close(got, [joint[k] + expected[k] for k in range(3)]))
+        self.assertAlmostEqual(distance(got, joint), distance(point, joint), places=12)
+
+    def test_local_frame_hinge_keeps_the_joint_while_world_origin_hinge_drags_it(self):
+        joint = [0.11, 0.02, 1.4051]
+        bone_world = multiply(rotate_y(math.radians(20.0)), translate(*joint))
+        spin = axis_angle([1.0, 0.0, 0.0], math.radians(30.0))
+
+        local = transform_point([0.0, 0.0, 0.0], local_frame_hinge(bone_world, joint, spin))
+        naive = transform_point([0.0, 0.0, 0.0], world_origin_hinge(bone_world, spin))
+        self.assertTrue(_flat_close(local, joint, 1.0e-12))
+        self.assertGreater(distance(naive, joint), 0.3)
+
+    def test_basis_row_reads_the_bone_axes(self):
+        bone_world = multiply(rotate_z(math.radians(90.0)), translate(1.0, 2.0, 3.0))
+        self.assertTrue(_flat_close(basis_row(bone_world, 0), [0.0, 1.0, 0.0], 1.0e-12))
+        self.assertTrue(_flat_close(basis_row(bone_world, 2), [0.0, 0.0, 1.0], 1.0e-12))
+        self.assertEqual(bone_world[12:15], [1.0, 2.0, 3.0])
+
     def test_palette_then_bone_world_reproduces_mesh_world(self):
         mesh_world = multiply(rotate_z(math.radians(12.0)),
                               translate(-0.28328, -0.04818, 1.43647))
@@ -139,6 +200,19 @@ class HD2RetargetBlendTests(unittest.TestCase):
         reference = blend(vertex, self.palettes, poses, [0.7, 0.3])
         scaled = blend(vertex, self.palettes, poses, [2.1, 0.9])
         self.assertTrue(_flat_close(reference, scaled, RIGID_TOLERANCE))
+
+    def test_hinging_one_bone_moves_a_blended_vertex_by_its_weight_fraction(self):
+        vertex = [0.03, 0.01, 0.72]
+        spin = axis_angle([1.0, 0.0, 0.0], math.radians(35.0))
+        posed_a = local_frame_hinge(translate(*JOINT_A), JOINT_A, spin)
+        static_b = translate(*JOINT_B)
+        single = blend(vertex, [self.palettes[0]], [posed_a], [1.0])
+        self.assertGreater(distance(single, vertex), 0.1)
+        for weight_a in (0.25, 0.5, 0.75):
+            blended = blend(vertex, self.palettes, [posed_a, static_b],
+                            [weight_a, 1.0 - weight_a])
+            expected = [vertex[k] + weight_a * (single[k] - vertex[k]) for k in range(3)]
+            self.assertTrue(_flat_close(blended, expected, 1.0e-12), weight_a)
 
     def test_swap_of_the_palette_order_breaks_the_rest_invariant(self):
         mesh_world = multiply(rotate_z(math.radians(15.0)),
@@ -217,6 +291,16 @@ class HD2RetargetCaseTests(unittest.TestCase):
         self.assertEqual(row["measures"]["vertex_offset"], row["measures"]["joint_offset"])
         self.assertAlmostEqual(row["measures"]["offset_magnitude"],
                                math.sqrt(0.4 ** 2 + 0.05 ** 2 + 0.6 ** 2), places=6)
+
+    def test_hinge_on_rotated_bone_case_passes_and_the_control_moves(self):
+        row = case_hinge_on_a_rotated_bone()
+        measures = row["measures"]
+        self.assertEqual(row["measures"]["hinge_minus_expected"], 0.0)
+        self.assertGreater(measures["naive_joint_displacement"], 0.3)
+        self.assertGreater(measures["naive_minus_hinged"], 0.1)
+        self.assertAlmostEqual(measures["vertex_to_joint"],
+                               distance(measures["placed_vertex"], measures["joint"]),
+                               places=6)
 
     def test_double_application_and_palette_swap_report_larger_errors(self):
         row = case_double_application_refused()

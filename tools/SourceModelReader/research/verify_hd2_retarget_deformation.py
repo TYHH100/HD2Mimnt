@@ -59,6 +59,45 @@ def rotate_z(angle_radians: float) -> list[float]:
             0.0, 0.0, 0.0, 1.0]
 
 
+def rotate_y(angle_radians: float) -> list[float]:
+    cosine = math.cos(angle_radians)
+    sine = math.sin(angle_radians)
+    return [cosine, 0.0, -sine, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            sine, 0.0, cosine, 0.0,
+            0.0, 0.0, 0.0, 1.0]
+
+
+def axis_angle(axis: list[float], angle_radians: float) -> list[float]:
+    """Rotation about an arbitrary unit axis, in the same row-vector layout.
+
+    Rodrigues' formula, transposed into row-major form so the existing
+    transform_point can consume it directly.
+    """
+    length = math.sqrt(sum(value * value for value in axis))
+    if length <= 0.0:
+        raise ValueError("axis must be non-zero")
+    x, y, z = (value / length for value in axis)
+    cosine = math.cos(angle_radians)
+    sine = math.sin(angle_radians)
+    carried = 1.0 - cosine
+    return [
+        cosine + x * x * carried,
+        y * x * carried + z * sine,
+        z * x * carried - y * sine,
+        0.0,
+        x * y * carried - z * sine,
+        cosine + y * y * carried,
+        z * y * carried + x * sine,
+        0.0,
+        x * z * carried + y * sine,
+        y * z * carried - x * sine,
+        cosine + z * z * carried,
+        0.0,
+        0.0, 0.0, 0.0, 1.0,
+    ]
+
+
 def multiply(left: list[float], right: list[float]) -> list[float]:
     """Row-major, row-vector product: the result applies left and then right."""
     out = [0.0] * 16
@@ -86,6 +125,35 @@ def transform_point(point: list[float], matrix: list[float]) -> list[float]:
         x * matrix[1] + y * matrix[5] + z * matrix[9] + matrix[13],
         x * matrix[2] + y * matrix[6] + z * matrix[10] + matrix[14],
     ]
+
+
+def hinge_about_point(joint: list[float], rotation: list[float]) -> list[float]:
+    """Rotate about `joint` rather than about the origin."""
+    return multiply(
+        translate(-joint[0], -joint[1], -joint[2]),
+        multiply(rotation, translate(joint[0], joint[1], joint[2])),
+    )
+
+
+def local_frame_hinge(bone_world: list[float], joint: list[float],
+                      rotation: list[float]) -> list[float]:
+    """Pose a bone with a hinge through its own joint.
+
+    The conjugation keeps the bone origin fixed, so palette x posed differs from the
+    rest palette by a rigid rotation about the joint rather than by a rotation about
+    the model origin.
+    """
+    return multiply(bone_world, hinge_about_point(joint, rotation))
+
+
+def world_origin_hinge(bone_world: list[float], rotation: list[float]) -> list[float]:
+    """The naive alternative kept for the control: rotate about the model origin."""
+    return multiply(bone_world, rotation)
+
+
+def basis_row(matrix: list[float], row: int) -> list[float]:
+    """The row-vector basis row, i.e. where that local axis lands after the matrix."""
+    return [matrix[row * 4 + column] for column in range(3)]
 
 
 def rotation_rows(matrix: list[float]) -> list[list[float]]:
@@ -448,10 +516,54 @@ def case_adapter_maps_joint_deltas() -> dict[str, Any]:
     })
 
 
+def case_hinge_on_a_rotated_bone() -> dict[str, Any]:
+    """A hinge through a bone that is already rotated: the bridge to real matrices.
+
+    Real TransformInfo matrices carry rotation as well as translation, so the joint
+    fixity cannot be checked with translation-only pivots. This case builds a rotated
+    bone under a rotated mesh_world and hinges it about its own origin.
+    """
+    mesh_world = multiply(rotate_z(math.radians(15.0)),
+                          translate(-0.28328, -0.04818, 1.43647))
+    joint = [0.11, 0.02, 1.4051]
+    bone_world = multiply(rotate_y(math.radians(20.0)), translate(*joint))
+    palette = palette_for(mesh_world, bone_world)
+    vertex = [0.03, 0.01, 0.02]
+    placed = transform_point(vertex, mesh_world)
+    angle = math.radians(30.0)
+    spin = axis_angle([1.0, 0.0, 0.0], angle)
+
+    rest = blend(vertex, [palette], [bone_world], [1.0])
+    bone_posed = local_frame_hinge(bone_world, joint, spin)
+    posed = blend(vertex, [palette], [bone_posed], [1.0])
+    naive_posed = blend(vertex, [palette], [world_origin_hinge(bone_world, spin)], [1.0])
+    expected = [joint[axis] + transform_point([placed[k] - joint[k] for k in range(3)],
+                                              spin)[axis] for axis in range(3)]
+    naive_joint = transform_point([0.0, 0.0, 0.0], world_origin_hinge(bone_world, spin))
+
+    return _row("hinge_on_a_rotated_bone", {
+        "rest_reproduces_placed_position": distance(rest, placed) <= RIGID_TOLERANCE,
+        "joint_stays_fixed": distance(transform_point([0.0, 0.0, 0.0], bone_posed), joint)
+                             <= RIGID_TOLERANCE,
+        "matches_rigid_rotation_of_the_placed_vertex": distance(posed, expected) <= RIGID_TOLERANCE,
+        "vertex_to_joint_distance_preserved": abs(distance(posed, joint) - distance(placed, joint))
+                                             <= RIGID_TOLERANCE,
+        "rotate_about_model_origin_rejected": distance(naive_posed, expected) > 1.0e-3,
+    }, {
+        "joint": _rounded(joint),
+        "placed_vertex": _rounded(placed),
+        "vertex_to_joint": round(distance(placed, joint), MEASURE_DIGITS),
+        "hinged_vertex": _rounded(posed),
+        "hinge_minus_expected": round(distance(posed, expected), 12),
+        "naive_joint_displacement": round(distance(naive_joint, joint), MEASURE_DIGITS),
+        "naive_minus_hinged": round(distance(naive_posed, posed), MEASURE_DIGITS),
+    })
+
+
 CASES = (case_single_bone_rigid, case_two_bone_blend, case_weight_sum_scale_invariance,
-         case_translated_root, case_double_application_refused,
-         case_non_uniform_scale_gate, case_adapter_scale_and_orientation,
-         case_adapter_maps_joint_deltas)
+         case_translated_root, case_hinge_on_a_rotated_bone,
+         case_double_application_refused, case_non_uniform_scale_gate,
+         case_adapter_scale_and_orientation, case_adapter_maps_joint_deltas)
 
 
 def evaluate() -> dict[str, Any]:
