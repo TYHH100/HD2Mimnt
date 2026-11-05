@@ -187,6 +187,42 @@ py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=researc
 - **Observed**：本地样本里不存在"非均匀缩放叠加非单位旋转"的变换，因此这一组合仍未被任何真实数据检验过；解析器在这种组合出现时拒绝猜测（既有行为），探针现在会把它显式列出来，而不是靠"整体一致"掩盖。
 - 判定顺序说明：检测基于存储矩阵的行范数差异与去缩放后的行向量与单位矩阵的偏差；对不含切变的 `rotation × diag(scale)` 矩阵，这与列约定无关。
 
+#### 2.9.1 整包普查（Observed，新增工具）
+
+`research/survey_hd2_matrix_composition.py` 只读 TOC 侧的 TransformInfo 与 BoneInfo 两张表，
+因此可以一次扫完整包。两个包合计 **52 个 Unit、2275 个矩阵**（节点矩阵 + palette 矩阵）：
+
+| 包 | Unit | 矩阵 | 单位基 | 均匀缩放 | 各向异性缩放 | 旋转 | 镜像 | 旋转×非均匀缩放 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `8670598c1f4462dc` | 22 | 1210 | 291 | 0 | 0 | 919 | 0 | 0 |
+| `18235e0c9ec0e636` | 30 | 1065 | 397 | 8 | 2 | 658 | 0 | 0 |
+
+新量到的事实（都是 Observed，不是运行时结论）：
+
+- **非单位均匀缩放确实存在**：`diag(100,100,100)` 出现在四个不同 Unit 的 transform 索引 2，
+  且四处 name_hash 相同（`3161672020`，本地名字表未解析）；另有 `0.3333` 三个节点与
+  `0.7306` 一个节点。所以"HD2 节点基一定是单位缩放"这个假设是错的，转换器必须逐节点读缩放。
+- **各向异性只有一个真实样本**：`attach_cam_1`（hash `2599842778`，Unit `4d1c334d294dfa97`
+  即 Avatar CompositeUnit）轴缩放 `(1, 54.43227, 1)`，无旋转。它在同一 Unit 的 BoneInfo
+  记录 0 槽位 87（`real_index 6`）上的 palette 矩阵轴缩放是 `(1, 0.01837146, 1)` ≈ 其倒数，
+  与 `mesh_world × inverse(bone_world)` 自洽；且该节点 `has_active_vertex_influence = False`，
+  不参与形变，这也是门控组合从未真实出现的原因。
+- **2275 个矩阵里没有镜像基、也没有"旋转×非均匀缩放"**：门控依旧无真实样本可测（与 §2.9 一致，
+  只是把"四个样本"扩成了两个整包）；同时说明 HD2 自己在这两个包里不引入反射基，转换器若在
+  映射中产生 `det < 0`，那是自己的缺陷而不是需要模仿的行为。
+- 两种顺序可由行正交性区分：行向量约定下"先各向异性缩放再旋转"行仍正交但长度不等，
+  "先旋转再缩放"行被切变。这两种分类由
+  [`../tests/test_hd2_matrix_composition.py`](../tests/test_hd2_matrix_composition.py)（14 条）钉住。
+
+复现：
+
+```
+py -3 research/survey_hd2_matrix_composition.py "<HD2 data>" --package 8670598c1f4462dc --output-json research\\skeleton_comparison\\matrix_composition_8670598c.json --output-markdown research\\skeleton_comparison\\matrix_composition_8670598c.md
+py -3 research/survey_hd2_matrix_composition.py "<HD2 data>" --package 18235e0c9ec0e636 --output-json research\\skeleton_comparison\\matrix_composition_18235e0c.json --output-markdown research\\skeleton_comparison\\matrix_composition_18235e0c.md
+py -3 -m unittest discover -s tests -p "test_hd2_matrix_composition.py" -v
+```
+
+
 ### 2.10 八 Unit 泛化运行（Observed）
 
 把同包另外 4 个 Unit（`7e5111d05840be1a`、`901fc9c35857dad2`、`be65eae060a0267c`、`f2715c19b24ecd8b`）解码后与原始 3 个样本一起跑探针（`--unit` 可重复传，共 8 个 Unit、41 个网格条目）：
