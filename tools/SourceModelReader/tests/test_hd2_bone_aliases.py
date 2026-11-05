@@ -32,7 +32,8 @@ class BoneAliasCandidateTests(unittest.TestCase):
                     "target_name": "hips",
                     "target_transform_index": 9,
                     "target_parent_name": "boss",
-                    "target_has_active_vertex_influence": True,
+                    "has_active_vertex_influence": True,
+                    "active_vertex_influence_lane_count": 3,
                 },
             ],
         }
