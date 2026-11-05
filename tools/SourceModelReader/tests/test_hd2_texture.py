@@ -259,7 +259,7 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(preview["channels"]["red"]["minimum"], 10)
         self.assertEqual(preview["channels"]["green"]["minimum"], 20)
         self.assertEqual(preview["channels"]["blue"]["minimum"], 30)
-        self.assertTrue(png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
 
     def test_bc5_preview_marks_alpha_as_decoder_fill_and_reports_rg(self):
         import sys
@@ -297,7 +297,7 @@ class TextureParserTests(unittest.TestCase):
         self.assertEqual(preview["channels"]["green"]["maximum"], 35)
         self.assertEqual(preview["channels"]["blue"]["unique_values"], 1)
         self.assertIn("Not a source alpha channel", preview["alpha"]["interpretation"])
-        self.assertTrue(png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        self.assertTrue(png.startswith(b"\x89PNG\r\n\x1a\n"))
 
     def test_bc7_preview_reports_missing_optional_dependency(self):
         import sys
