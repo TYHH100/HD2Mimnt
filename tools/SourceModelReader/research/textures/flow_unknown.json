@@ -1,0 +1,327 @@
+{
+  "schema": "SourceModelReader-HD2Texture1",
+  "texture_toc_size": 340,
+  "trailing_toc_size": 0,
+  "trailing_toc_hex": "",
+  "mipmap_table_hex": "00000000b8aa02000002000200000200b8aa00000001000100800200b82a00008000800000a00200b80a00004000400000a80200b80200002000200000aa0200b80000001000100080aa02003800000008000800a0aa02001800000004000400a8aa02001000000002000200b0aa02000800000001000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "header": {
+    "unknown_id": 164579826,
+    "unknown_1": 1,
+    "unknown_2": 3
+  },
+  "mipmaps": [
+    {
+      "index": 0,
+      "start": 0,
+      "bytes_left": 174776,
+      "height": 512,
+      "width": 512,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 1,
+      "start": 131072,
+      "bytes_left": 43704,
+      "height": 256,
+      "width": 256,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 2,
+      "start": 163840,
+      "bytes_left": 10936,
+      "height": 128,
+      "width": 128,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 3,
+      "start": 172032,
+      "bytes_left": 2744,
+      "height": 64,
+      "width": 64,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 4,
+      "start": 174080,
+      "bytes_left": 696,
+      "height": 32,
+      "width": 32,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 5,
+      "start": 174592,
+      "bytes_left": 184,
+      "height": 16,
+      "width": 16,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 6,
+      "start": 174720,
+      "bytes_left": 56,
+      "height": 8,
+      "width": 8,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 7,
+      "start": 174752,
+      "bytes_left": 24,
+      "height": 4,
+      "width": 4,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 8,
+      "start": 174760,
+      "bytes_left": 16,
+      "height": 2,
+      "width": 2,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 9,
+      "start": 174768,
+      "bytes_left": 8,
+      "height": 1,
+      "width": 1,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 10,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 11,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 12,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 13,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 14,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    }
+  ],
+  "mip_chain": {
+    "format_family": "BC1",
+    "storage": "block_compressed",
+    "block_bytes": 8,
+    "bytes_per_pixel": null,
+    "array_size": 1,
+    "single_array_bytes": 174776,
+    "expected_full_chain_bytes": 174776,
+    "levels": [
+      {
+        "index": 0,
+        "width": 512,
+        "height": 512,
+        "start": 0,
+        "level_bytes": 131072,
+        "bytes_left": 174776
+      },
+      {
+        "index": 1,
+        "width": 256,
+        "height": 256,
+        "start": 131072,
+        "level_bytes": 32768,
+        "bytes_left": 43704
+      },
+      {
+        "index": 2,
+        "width": 128,
+        "height": 128,
+        "start": 163840,
+        "level_bytes": 8192,
+        "bytes_left": 10936
+      },
+      {
+        "index": 3,
+        "width": 64,
+        "height": 64,
+        "start": 172032,
+        "level_bytes": 2048,
+        "bytes_left": 2744
+      },
+      {
+        "index": 4,
+        "width": 32,
+        "height": 32,
+        "start": 174080,
+        "level_bytes": 512,
+        "bytes_left": 696
+      },
+      {
+        "index": 5,
+        "width": 16,
+        "height": 16,
+        "start": 174592,
+        "level_bytes": 128,
+        "bytes_left": 184
+      },
+      {
+        "index": 6,
+        "width": 8,
+        "height": 8,
+        "start": 174720,
+        "level_bytes": 32,
+        "bytes_left": 56
+      },
+      {
+        "index": 7,
+        "width": 4,
+        "height": 4,
+        "start": 174752,
+        "level_bytes": 8,
+        "bytes_left": 24
+      },
+      {
+        "index": 8,
+        "width": 2,
+        "height": 2,
+        "start": 174760,
+        "level_bytes": 8,
+        "bytes_left": 16
+      },
+      {
+        "index": 9,
+        "width": 1,
+        "height": 1,
+        "start": 174768,
+        "level_bytes": 8,
+        "bytes_left": 8
+      }
+    ]
+  },
+  "mipmap_validation": {
+    "status": "match",
+    "populated_records": 10,
+    "missing_records": [],
+    "mismatches": [],
+    "reason": null
+  },
+  "payload_layouts": {
+    "gpu": {
+      "size": 2744,
+      "layout": "mip_tail_from_level_3",
+      "matches_full_chain": false,
+      "candidate_tail_start_index": 3,
+      "candidate_tail_start_width": 64,
+      "candidate_tail_start_height": 64,
+      "single_array_full_chain_bytes": 174776,
+      "expected_full_chain_bytes": 174776
+    },
+    "stream": {
+      "size": 174776,
+      "layout": "full_mip_chain",
+      "matches_full_chain": true,
+      "candidate_tail_start_index": 0,
+      "candidate_tail_start_width": 512,
+      "candidate_tail_start_height": 512,
+      "single_array_full_chain_bytes": 174776,
+      "expected_full_chain_bytes": 174776
+    }
+  },
+  "dds": {
+    "header_size_bytes": 148,
+    "magic": "DDS ",
+    "dw_size": 124,
+    "flags": 135175,
+    "width": 512,
+    "height": 512,
+    "pitch_or_linear_size": 0,
+    "depth": 0,
+    "mip_count": 10,
+    "pixel_format_size": 32,
+    "four_cc": "DX10",
+    "dxgi_format": 71,
+    "dxgi_format_name": "BC1_UNORM",
+    "resource_dimension": 3,
+    "misc_flag": 0,
+    "array_size": 1,
+    "misc_flags_2": 0,
+    "alpha_mode_bits": 0,
+    "alpha_mode_name": "unknown",
+    "raw_header_hex": "444453207c00000007100200000200000002000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000400000044583130000000000000000000000000000000000000000008104000000000000000000000000000000000004700000003000000000000000100000000000000"
+  },
+  "payloads": {
+    "gpu": {
+      "size": 2744,
+      "sha256": "6ba91db278761756e7f34ec57c219f7db056d99fa35131668202cd6dd8b663e8"
+    },
+    "stream": {
+      "size": 174776,
+      "sha256": "1944682d0c35f2e676736a34435067bf722da776268b5b91efe878af81064367"
+    },
+    "selected_source": "stream",
+    "selected": {
+      "size": 174776,
+      "sha256": "1944682d0c35f2e676736a34435067bf722da776268b5b91efe878af81064367"
+    }
+  },
+  "dds_export_bytes": 174924,
+  "notes": [
+    "Both GPU and Stream payloads are present. The public SDK read path selects Stream when non-empty; both byte sequences are preserved in this report.",
+    "All populated TOC mipmap records match the calculated dimensions, byte offsets and remaining-byte counts for this DXGI format.",
+    "The GPU payload matches a contiguous mip tail beginning at level 3 (64x64).",
+    "The STREAM payload matches the calculated complete mip chain."
+  ],
+  "warnings": [],
+  "package": {
+    "name": "70b4860e8169622e",
+    "container": "slim"
+  },
+  "resource": {
+    "file_id": "7f37735b6a73092a",
+    "type_id": "cd4238c6a0c69e32",
+    "entry_index": 40,
+    "toc_row_index": 40,
+    "toc_offset": 12109312,
+    "stream_offset": 12037664,
+    "gpu_offset": 700544,
+    "toc_bytes": 340,
+    "stream_bytes": 174776,
+    "gpu_bytes": 2744
+  },
+  "summary": {
+    "status": "ok",
+    "gpu_bytes": 2744,
+    "stream_bytes": 174776,
+    "selected_payload_source": "stream",
+    "selected_payload_bytes": 174776
+  },
+  "outputs": {
+    "dds": "research\\textures\\flow_unknown.dds",
+    "gpu_raw": "research\\textures\\flow_unknown.gpu.bin",
+    "stream_raw": "research\\textures\\flow_unknown.stream.bin"
+  }
+}

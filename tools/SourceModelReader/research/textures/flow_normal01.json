@@ -1,0 +1,335 @@
+{
+  "schema": "SourceModelReader-HD2Texture1",
+  "texture_toc_size": 340,
+  "trailing_toc_size": 0,
+  "trailing_toc_hex": "",
+  "mipmap_table_hex": "000000007055150000040004000010007055050000020002000014007055010000010001000015007055000080008000004015007015000040004000005015007005000020002000005415007001000010001000005515007000000008000800405515003000000004000400505515002000000002000200605515001000000001000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "header": {
+    "unknown_id": 3273827396,
+    "unknown_1": 1,
+    "unknown_2": 1
+  },
+  "mipmaps": [
+    {
+      "index": 0,
+      "start": 0,
+      "bytes_left": 1398128,
+      "height": 1024,
+      "width": 1024,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 1,
+      "start": 1048576,
+      "bytes_left": 349552,
+      "height": 512,
+      "width": 512,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 2,
+      "start": 1310720,
+      "bytes_left": 87408,
+      "height": 256,
+      "width": 256,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 3,
+      "start": 1376256,
+      "bytes_left": 21872,
+      "height": 128,
+      "width": 128,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 4,
+      "start": 1392640,
+      "bytes_left": 5488,
+      "height": 64,
+      "width": 64,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 5,
+      "start": 1396736,
+      "bytes_left": 1392,
+      "height": 32,
+      "width": 32,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 6,
+      "start": 1397760,
+      "bytes_left": 368,
+      "height": 16,
+      "width": 16,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 7,
+      "start": 1398016,
+      "bytes_left": 112,
+      "height": 8,
+      "width": 8,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 8,
+      "start": 1398080,
+      "bytes_left": 48,
+      "height": 4,
+      "width": 4,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 9,
+      "start": 1398096,
+      "bytes_left": 32,
+      "height": 2,
+      "width": 2,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 10,
+      "start": 1398112,
+      "bytes_left": 16,
+      "height": 1,
+      "width": 1,
+      "has_nonzero_fields": true
+    },
+    {
+      "index": 11,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 12,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 13,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    },
+    {
+      "index": 14,
+      "start": 0,
+      "bytes_left": 0,
+      "height": 0,
+      "width": 0,
+      "has_nonzero_fields": false
+    }
+  ],
+  "mip_chain": {
+    "format_family": "BC5",
+    "storage": "block_compressed",
+    "block_bytes": 16,
+    "bytes_per_pixel": null,
+    "array_size": 1,
+    "single_array_bytes": 1398128,
+    "expected_full_chain_bytes": 1398128,
+    "levels": [
+      {
+        "index": 0,
+        "width": 1024,
+        "height": 1024,
+        "start": 0,
+        "level_bytes": 1048576,
+        "bytes_left": 1398128
+      },
+      {
+        "index": 1,
+        "width": 512,
+        "height": 512,
+        "start": 1048576,
+        "level_bytes": 262144,
+        "bytes_left": 349552
+      },
+      {
+        "index": 2,
+        "width": 256,
+        "height": 256,
+        "start": 1310720,
+        "level_bytes": 65536,
+        "bytes_left": 87408
+      },
+      {
+        "index": 3,
+        "width": 128,
+        "height": 128,
+        "start": 1376256,
+        "level_bytes": 16384,
+        "bytes_left": 21872
+      },
+      {
+        "index": 4,
+        "width": 64,
+        "height": 64,
+        "start": 1392640,
+        "level_bytes": 4096,
+        "bytes_left": 5488
+      },
+      {
+        "index": 5,
+        "width": 32,
+        "height": 32,
+        "start": 1396736,
+        "level_bytes": 1024,
+        "bytes_left": 1392
+      },
+      {
+        "index": 6,
+        "width": 16,
+        "height": 16,
+        "start": 1397760,
+        "level_bytes": 256,
+        "bytes_left": 368
+      },
+      {
+        "index": 7,
+        "width": 8,
+        "height": 8,
+        "start": 1398016,
+        "level_bytes": 64,
+        "bytes_left": 112
+      },
+      {
+        "index": 8,
+        "width": 4,
+        "height": 4,
+        "start": 1398080,
+        "level_bytes": 16,
+        "bytes_left": 48
+      },
+      {
+        "index": 9,
+        "width": 2,
+        "height": 2,
+        "start": 1398096,
+        "level_bytes": 16,
+        "bytes_left": 32
+      },
+      {
+        "index": 10,
+        "width": 1,
+        "height": 1,
+        "start": 1398112,
+        "level_bytes": 16,
+        "bytes_left": 16
+      }
+    ]
+  },
+  "mipmap_validation": {
+    "status": "match",
+    "populated_records": 11,
+    "missing_records": [],
+    "mismatches": [],
+    "reason": null
+  },
+  "payload_layouts": {
+    "gpu": {
+      "size": 349552,
+      "layout": "mip_tail_from_level_1",
+      "matches_full_chain": false,
+      "candidate_tail_start_index": 1,
+      "candidate_tail_start_width": 512,
+      "candidate_tail_start_height": 512,
+      "single_array_full_chain_bytes": 1398128,
+      "expected_full_chain_bytes": 1398128
+    },
+    "stream": {
+      "size": 1398128,
+      "layout": "full_mip_chain",
+      "matches_full_chain": true,
+      "candidate_tail_start_index": 0,
+      "candidate_tail_start_width": 1024,
+      "candidate_tail_start_height": 1024,
+      "single_array_full_chain_bytes": 1398128,
+      "expected_full_chain_bytes": 1398128
+    }
+  },
+  "dds": {
+    "header_size_bytes": 148,
+    "magic": "DDS ",
+    "dw_size": 124,
+    "flags": 135175,
+    "width": 1024,
+    "height": 1024,
+    "pitch_or_linear_size": 0,
+    "depth": 0,
+    "mip_count": 11,
+    "pixel_format_size": 32,
+    "four_cc": "DX10",
+    "dxgi_format": 83,
+    "dxgi_format_name": "BC5_UNORM",
+    "resource_dimension": 3,
+    "misc_flag": 0,
+    "array_size": 1,
+    "misc_flags_2": 0,
+    "alpha_mode_bits": 0,
+    "alpha_mode_name": "unknown",
+    "raw_header_hex": "444453207c00000007100200000400000004000000000000000000000b0000000000000000000000000000000000000000000000000000000000000055564552000000004e56545400010200200000000400000044583130000000000000000000000000000000000000000008104000000000000000000000000000000000005300000003000000000000000100000000000000"
+  },
+  "payloads": {
+    "gpu": {
+      "size": 349552,
+      "sha256": "ddb5686678591c6e8f3abb372489def8bd2bf23ace528b4f97f83c09cfdd0a9b"
+    },
+    "stream": {
+      "size": 1398128,
+      "sha256": "596c53cbae1e149014c87adc0a4b01e9174a0073e58cd66ad3093aaf41ee0d82"
+    },
+    "selected_source": "stream",
+    "selected": {
+      "size": 1398128,
+      "sha256": "596c53cbae1e149014c87adc0a4b01e9174a0073e58cd66ad3093aaf41ee0d82"
+    }
+  },
+  "dds_export_bytes": 1398276,
+  "notes": [
+    "Both GPU and Stream payloads are present. The public SDK read path selects Stream when non-empty; both byte sequences are preserved in this report.",
+    "All populated TOC mipmap records match the calculated dimensions, byte offsets and remaining-byte counts for this DXGI format.",
+    "The GPU payload matches a contiguous mip tail beginning at level 1 (512x512).",
+    "The STREAM payload matches the calculated complete mip chain."
+  ],
+  "warnings": [],
+  "package": {
+    "name": "70b4860e8169622e",
+    "container": "slim"
+  },
+  "resource": {
+    "file_id": "371ef38cf24b6cc2",
+    "type_id": "cd4238c6a0c69e32",
+    "entry_index": 38,
+    "toc_row_index": 38,
+    "toc_offset": 12108608,
+    "stream_offset": 9241408,
+    "gpu_offset": 1408,
+    "toc_bytes": 340,
+    "stream_bytes": 1398128,
+    "gpu_bytes": 349552
+  },
+  "summary": {
+    "status": "ok",
+    "gpu_bytes": 349552,
+    "stream_bytes": 1398128,
+    "selected_payload_source": "stream",
+    "selected_payload_bytes": 1398128
+  },
+  "outputs": {
+    "dds": "research\\textures\\flow_normal01.dds",
+    "gpu_raw": "research\\textures\\flow_normal01.gpu.bin",
+    "stream_raw": "research\\textures\\flow_normal01.stream.bin"
+  }
+}
