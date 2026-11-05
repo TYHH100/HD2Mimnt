@@ -36,7 +36,7 @@ def _run_one(root: Path, game_data: str, target: dict[str, Any], work: Path, pyt
         "geometry_source": source, "exit_code": result.returncode,
         "status": "failed", "stdout": result.stdout,
     }
-    if result.returncode >= 2 or not json_path.is_file():
+    if result.returncode != 0 or not json_path.is_file():
         row["failure"] = "hd2-unit failed or did not produce JSON"
         return row
     try:
@@ -79,9 +79,16 @@ def main() -> int:
     if not isinstance(targets, list) or not targets:
         parser.error("manifest must be a non-empty JSON array")
     required = {"name", "package", "unit"}
+    seen_names: set[str] = set()
     for index, target in enumerate(targets):
         if not isinstance(target, dict) or not required.issubset(target):
             parser.error("manifest item {} must contain name, package and unit".format(index))
+        name = str(target["name"])
+        if not name or Path(name).name != name or name in {".", ".."}:
+            parser.error("manifest item {} has an unsafe name; use a simple file name".format(index))
+        if name in seen_names:
+            parser.error("manifest contains duplicate sample name: {}".format(name))
+        seen_names.add(name)
 
     rows = []
     with tempfile.TemporaryDirectory(prefix="hd2_skinning_batch_") as temporary:
