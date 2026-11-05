@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 from hd2_skeleton_compare import compare_source_skeleton_to_hd2
 from hd2_unit import inspect_hd2_unit
-from smd_reader import SMDParseError, parse_smd_bytes
+from smd_reader import parse_smd_bytes
 from source_model_reader import collect_smd_sources
 
 
@@ -109,6 +109,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Matching policy and limitations",
         "",
+        "- Source entries are all declared SMD nodes, including helper or currently unweighted nodes; this comparison does not yet filter by Source VVD vertex weights.",
         "- Names are matched exactly after Unicode case-folding and trimming edge whitespace.",
         "- No punctuation stripping, prefix guessing, fuzzy matching, or automatic aliasing is performed.",
         "- Parent relationships are compared only when both parents resolve to names.",
@@ -201,7 +202,7 @@ def main() -> int:
             args.game_data, args.target_package, args.target_unit
         )
         report = compare_source_skeleton_to_hd2(source_doc, target_report)
-    except (SMDParseError, Exception) as exc:
+    except Exception as exc:
         parser.error("Skeleton comparison failed: {}".format(exc))
 
     report["source"] = {
