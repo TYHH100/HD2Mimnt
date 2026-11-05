@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from hd2_skeleton_compare import compare_source_skeleton_to_hd2
+from hd2_bone_aliases import build_alias_candidates
 from hd2_unit import inspect_hd2_unit
 from smd_reader import SMDDocument, SMDNode
 from source_model_reader import AssetBundle, SourceModel
@@ -72,6 +73,38 @@ def render_markdown(report: dict[str, Any]) -> str:
         ))
     if not report["matched"]:
         lines.append("| — | — | — | — | — | — | — | — |")
+
+    alias_report = report.get("alias_candidates") or {}
+    lines.extend([
+        "",
+        "## Advisory humanoid alias candidates",
+        "",
+        "This section is hypothesis-only. It does not modify exact-name matches or approve a retarget.",
+        "",
+        "| Source bone | Source active | HD2 candidate | Target active | Parent check |",
+        "|---|---|---|---|---|",
+    ])
+    for row in alias_report.get("candidates", []):
+        lines.append("| {} | {} | {} | {} | {} |".format(
+            row["source_name"],
+            "yes" if row["source_active_vertex_influence"] else "no",
+            row["target_name"],
+            "yes" if row["target_active_vertex_influence"] else "no",
+            row["parent_status"],
+        ))
+    if not alias_report.get("candidates"):
+        lines.append("| — | — | — | — | no candidates |")
+    lines.extend([
+        "",
+        "Candidate count: {}. Parent matches: {}. Parent mismatches: {}. Parent checks deferred: {}.".format(
+            alias_report.get("candidate_count", 0),
+            alias_report.get("parent_match_count", 0),
+            alias_report.get("parent_mismatch_count", 0),
+            alias_report.get("parent_not_checked_count", 0),
+        ),
+        "",
+        "All candidates remain advisory-only; rest-pose, matrix-space, side and deformation validation is still required.",
+    ])
 
     sections = [
         ("Source bones without exact HD2 name", report["source_unmapped"], "source_name", "source_node_id"),
@@ -228,6 +261,7 @@ def main() -> int:
             source_active_node_ids=set(active_source_bones),
             source_kind="compiled_mdl_v{}".format(source_model.mdl_version),
         )
+        report["alias_candidates"] = build_alias_candidates(report)
     except Exception as exc:
         parser.error("Skeleton comparison failed: {}".format(exc))
     finally:
