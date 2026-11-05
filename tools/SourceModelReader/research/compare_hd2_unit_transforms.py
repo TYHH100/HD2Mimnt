@@ -221,7 +221,12 @@ def compare_pair(
         if "unknown" in (left_role, right_role):
             role_status = "unavailable"
         else:
-            role_status = "matches" if left_role == right_role else "differs"
+            # Weighted vs. unweighted is mesh usage, not a change between
+            # skeleton and mesh-transform roles. active_status reports that
+            # difference separately.
+            left_scope = _comparison_scope(left_role)
+            right_scope = _comparison_scope(right_role)
+            role_status = "matches" if left_scope == right_scope else "differs"
 
         rows.append({
             "name": name,
@@ -410,7 +415,10 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "name": name,
             "transform_roles": roles,
             "comparison_scope": comparison_scope,
-            "transform_role_consistent": len(set(roles)) == 1,
+            "transform_role_consistent": len(
+                {_comparison_scope(role) for role in roles}
+            ) == 1 and "unknown" not in roles,
+            "transform_role_details_consistent": len(set(roles)) == 1,
             "transform_indices": [row["index"] for row in rows],
             "parent_names": parents,
             "parent_consistent": len(set(parents)) == 1 and "(unresolved)" not in parents,
