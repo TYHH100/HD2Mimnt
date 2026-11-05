@@ -73,12 +73,10 @@ def _read_package_entries(index: SlimBundleIndex, package_name: str) -> tuple[di
 
     unit_type_id = TYPE_IDS["Unit"]
     composite_type_id = TYPE_IDS["CompositeUnit"]
-    if declared_counts.get(unit_type_id, 0) == 0:
-        return {}, {}, num_files, []
-
     unit_entries: dict[int, dict] = {}
     composite_entries: dict[int, dict] = {}
     actual_units = 0
+    actual_composites = 0
 
     for first_row in range(0, num_files, ENTRY_CHUNK_ROWS):
         row_count = min(ENTRY_CHUNK_ROWS, num_files - first_row)
@@ -104,14 +102,21 @@ def _read_package_entries(index: SlimBundleIndex, package_name: str) -> tuple[di
                 actual_units += 1
                 unit_entries[file_id] = entry
             else:
+                actual_composites += 1
                 composite_entries[file_id] = entry
 
     declared_units = declared_counts.get(unit_type_id, 0)
+    declared_composites = declared_counts.get(composite_type_id, 0)
     warnings = []
     if declared_units != actual_units:
         warnings.append(
             f"Unit type table declares {declared_units} entries but "
             f"the TOC entry table contains {actual_units}"
+        )
+    if declared_composites != actual_composites:
+        warnings.append(
+            f"CompositeUnit type table declares {declared_composites} entries but "
+            f"the TOC entry table contains {actual_composites}"
         )
     return unit_entries, composite_entries, num_files, warnings
 
