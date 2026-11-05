@@ -192,3 +192,36 @@ py -3 research/survey_source_bodygroup_bone_use.py gmpublisher.gma --model "mode
 - **Observed**：该模型只有一个 LOD，且没有任何 fixup 记录；reader 的"存在 N 条 fixup 未应用"告警只在 `num_fixups != 0` 时追加，因此在本样本上从未触发。
 - 结论修正：LOD 级顶点/骨骼用量不是本仓库的代码缺口，而是**样本能力问题**——需要一个 `vvd_num_lods > 1` 或含非零 fixup 的 Source 模型才能验证。这条与 1.0.0 的「测试多个独立模型」要求是同一件事，已在 ROADMAP 的 0.8.4 剩余工作里改口径。
 - 因此本节上方的 BodyGroup 组合拆分是本样本上唯一可做的"活跃集合收缩"实验，其 77 / 242 结果不受 fixup 影响。
+
+## 静止关节数值证据与轴假设的判别力（Phase 3 第一轮）
+
+工具：`research/compare_source_hd2_rest_joints.py`；输出：`research/skeleton_comparison/source_hd2_rest_joints.md`。
+它只做三件事：用 22 条建议别名里能配对的父子段自估尺度、在四种轴假设下**仅对齐根关节**后量残差、
+逐条给出 review disposition。所有行保留 alias 层的 `advisory_only` 标记，**不批准、不应用任何映射**。
+
+| 假设（Source→HD2 符号） | 关节数 | 平均残差 | 中位残差 | 最大残差 | 最差关节 |
+|---|---:|---:|---:|---:|---|
+| `rot180_z` (-x,-y,+z) | 22 | **0.0961 m** | 0.0847 | 0.2343 | 左右手 @0.2343 |
+| `mirror_x` (-x,+y,+z) | 22 | 0.1009 m | 0.0927 | 0.2435 | 左右脚 @0.2435 |
+| `scale_only` (+x,+y,+z) | 22 | 0.3676 m | 0.2639 | 1.3017 | 手 @1.3017 |
+| `mirror_y` (+x,-y,+z) | 22 | 0.3614 m | 0.2603 | 1.3183 | 手 @1.3183 |
+
+- **Observed**：至少需要一个 X/Y 取反——不取反的两种假设平均残差 ~0.36 m，取反的两种 ~0.10 m，差 3.8 倍。
+- **修正（重要）**：仅凭关节位置**无法**在 `rot180_z` 与 `mirror_x` 之间做判别（0.0961 vs 0.1009 m，差 4.8 mm）。
+  因此上一节"两套骨架同手性、差 180° 而非镜像"的依据只剩**朝向证据**（前发在 −Y、马尾 +Y；HD2 `head_aim` 在头前 +Y）
+  与手性代数，而不是关节残差。这一点必须写清，因为它直接决定三角形绕序要不要翻面（见位置空间结论文档 §2.7）。
+- **Observed（残差来源）**：两种取反假设下肢体**方向**余弦都 ≈ +0.99（上臂 0.997/1.000、大腿 0.993/0.990、
+  髋→spine2 0.998/0.962），残差主要来自**比例与静止姿态**：
+  段长比 上臂 1.02、大腿 1.05、膝→脚 **1.33**、髋→spine2 **1.39**；肘→手方向余弦仅 0.74（前臂静止角不同），
+  这正是"手"在两种假设下都是最差关节的原因。
+- **对转换设计的后果（Candidate）**：统一尺度不能把这个模型贴合到 HD2 骨架——`0.030524` 是 17 段的**中位数**，
+  而逐段比从 1.00 跨到 1.39，说明重定向必须携带逐段比例（或按目标骨架重新摆姿势），
+  这与 Phase 4 的静止/绑定姿态校验合并处理；不得用全局 scale 强行贴合。
+- 尺度独立复核：本脚本由父子段长自估 `0.030524` HD2 米/Source 单位，与上文 landmark 法测得的 `0.029–0.032`
+  两条不同路径一致（同一模型、同样本，不是外部参考）。
+
+复现：
+
+```powershell
+py -3 research/compare_source_hd2_rest_joints.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --skeleton-json research/skeleton_comparison/source_hd2_skeleton.json --hd2-json research/skinning_audits/avatar_composite.json --output-markdown research/skeleton_comparison/source_hd2_rest_joints.md
+```
