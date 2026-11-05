@@ -235,3 +235,24 @@ py -3 research/survey_source_bodygroup_bone_use.py gmpublisher.gma --model "mode
 ```powershell
 py -3 research/compare_source_hd2_rest_joints.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --skeleton-json research/skeleton_comparison/source_hd2_skeleton.json --hd2-json research/skinning_audits/avatar_composite.json --output-markdown research/skeleton_comparison/source_hd2_rest_joints.md
 ```
+
+## 名字哈希：并集解析与哈希函数否证（Phase 3）
+
+工具：`research/resolve_hd2_transform_names.py`；输出：`research/skeleton_comparison/hd2_name_hash_resolution.md`。
+
+- **Observed**：8 个 Unit 的 Bones 名字表并集有 **140** 个不同 `(name, hash)` 对（单 Unit 只有 82 或 90）。
+  按并集重解析后，原本未解析的哈希里 **4 条被解出**：`skeleton`(975cebbd)、`collision`(a3d491d1)、
+  `c_culling`(178e51ef)、`game_mesh`(315cd161) —— 它们在 FS-05 各 Unit 的 Bones 表里有名字，Avatar 自己的表缺这些条目。
+  状态合计：本 Unit 已解析 235 行、并集新解析 4 行、歧义 0 行、仍未解析 19 行（**16 个不同哈希**）。
+- **否定结果**：14 种候选字符串哈希（FNV-1a 的多种编码/初值变体、djb2、sdbm、Jenkins one-at-a-time、
+  murmur2-32 seed0、CRC32）对这 140 对**命中全为 0** → HD2 的 name hash 不能靠常见实现猜，必须取 SDK 实现。
+  脚本内置候选表，拿到实现后加进 `HASH_CANDIDATES` 即可对真实全量验证；
+  测试 `test_candidate_table_can_validate_a_hash_that_reproduces_the_pairs` 固定了这条验证路径可执行。
+- 未解析的 16 个哈希不做名字猜测、不参与映射表；只影响骨架命名完整度，不影响已解析通道或静止关节证据。
+
+复现：
+
+```powershell
+py -3 research/resolve_hd2_transform_names.py --unit avatar_composite=research/skinning_audits/avatar_composite.json --unit fs05_lower_body=research/skinning_audits/fs05_lower_body.json --unit fs05_torso_left_arm=research/skinning_audits/fs05_torso_left_arm.json --unit fs05_shoulder=research/skeleton_comparison/unit_90b57e547e7ff7bb.json --output-markdown research/skeleton_comparison/hd2_name_hash_resolution.md
+py -3 -m unittest discover -s tests -p "test_hd2_name_hash_resolution.py" -v
+```
