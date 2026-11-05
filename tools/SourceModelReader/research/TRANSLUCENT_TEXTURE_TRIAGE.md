@@ -15,7 +15,7 @@ This is a much more useful clue than the generic word “Translucent”: the mat
 
 ## 2. The eight Translucent sample variables are now named
 
-The following IDs from `material_translucent_a.json` and `material_translucent_b.json` match the AQ Edition shader-variable dictionary pinned at commit `71b380046d33d552eef0892bd48661ff25591380`:
+The following IDs from `material_translucent_a.json` and `material_translucent_b.json` match the AQ Edition shader-variable dictionary pinned at commit `71b380046d33d552eef0892bd48661ff25591380`. The instance identities are Sample A = Material `2f80391371cce33e` in package `029a193f2a08167c` (`OpacityBase=1.0`) and Sample B = Material `e2b99ac44dc829f2` in package `0118c2cfda4f68a5` (`OpacityBase=0.4`); the latest batch output is therefore a successful reinspection of Sample B, not a new third instance.
 
 | Variable ID | SDK label | Sample A | Sample B |
 |---|---|---:|---:|
