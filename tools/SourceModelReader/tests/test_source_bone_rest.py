@@ -7,7 +7,7 @@ for candidate in (ROOT, ROOT / "research"):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from dump_source_bone_rest import build_world_positions, chain_lengths  # noqa: E402
+from dump_source_bone_rest import build_world_positions, chain_lengths, facing_evidence  # noqa: E402
 
 
 IDENTITY = (0.0, 0.0, 0.0, 1.0)
@@ -57,6 +57,26 @@ class SourceBoneRestTests(unittest.TestCase):
         self.assertAlmostEqual(measured["stored_units"], 0.45, places=9)
         self.assertAlmostEqual(measured["stored_units_per_meter"], 1.0, places=9)
         self.assertEqual(rows["thigh_right"]["status"], "bone_not_found")
+
+
+    def test_facing_uses_measured_y_signs_not_a_single_name(self):
+        positions = {
+            "Hair_Frount_01_01": [0.0, -4.6, 64.0],
+            "Hair_Front_02_01": [0.0, -4.1, 63.0],
+            "Back_Hair_Ponytail_L": [0.0, 2.7, 66.0],
+            "Back_Hair_Ponytail_R": [0.0, 2.8, 66.0],
+            "ValveBiped.Bip01_Pelvis": [0.0, -1.0, 38.6],
+        }
+        evidence = facing_evidence(positions)
+        self.assertLess(evidence["front_mean_y"], evidence["back_mean_y"])
+        self.assertEqual(evidence["inferred_facing_axis"], "-Y")
+        self.assertNotIn("ValveBiped.Bip01_Pelvis",
+                         [row["name"] for row in evidence["front_marker_bones"]])
+
+    def test_facing_is_undetermined_without_markers(self):
+        evidence = facing_evidence({"ValveBiped.Bip01_Pelvis": [0.0, 0.0, 1.0]})
+        self.assertIsNone(evidence["inferred_facing_axis"])
+        self.assertEqual(evidence["front_marker_bones"], [])
 
 
 if __name__ == "__main__":

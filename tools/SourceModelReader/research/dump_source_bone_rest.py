@@ -145,6 +145,42 @@ def chain_lengths(positions: dict[str, list[float]]) -> list[dict[str, Any]]:
     return rows
 
 
+FRONT_MARKERS = ("frount", "front", "bang", "eye", "jaw", "nose", "mouth", "tongue", "visor")
+BACK_MARKERS = ("back", "ponytail", "cape", "tail")
+
+
+def facing_evidence(positions: dict[str, list[float]]) -> dict[str, Any]:
+    """Infer which way the model faces from front and back marker bones.
+
+    Hair and accessory bones are authored relative to the body, so their lateral
+    Y positions separate the face side from the back side without needing a
+    camera view. The author misspelling "Frount" is matched deliberately.
+    """
+    def collect(markers: tuple[str, ...]) -> list[dict[str, Any]]:
+        rows = [
+            {"name": name, "y": position[1]}
+            for name, position in positions.items()
+            if any(marker in str(name).lower() for marker in markers)
+        ]
+        rows.sort(key=lambda row: abs(row["y"]), reverse=True)
+        return rows[:12]
+
+    front = collect(FRONT_MARKERS)
+    back = collect(BACK_MARKERS)
+    front_mean = sum(row["y"] for row in front) / len(front) if front else None
+    back_mean = sum(row["y"] for row in back) / len(back) if back else None
+    inferred = None
+    if front_mean is not None and back_mean is not None:
+        inferred = "-Y" if front_mean < back_mean else "+Y"
+    return {
+        "front_marker_bones": front,
+        "front_mean_y": front_mean,
+        "back_marker_bones": back,
+        "back_mean_y": back_mean,
+        "inferred_facing_axis": inferred,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", help=".mdl, model folder, ZIP or uncompressed .gma")
@@ -171,6 +207,7 @@ def main() -> int:
 
     positions = build_world_positions(bones)
     rows = chain_lengths(positions)
+    facing = facing_evidence(positions)
     measured = [row for row in rows if row["status"] == "measured"]
     ratios = [row["stored_units_per_meter"] for row in measured
               if row["stored_units_per_meter"] not in (None, 0.0)]
@@ -186,6 +223,7 @@ def main() -> int:
         "bone_count": len(bones),
         "named_positions": len(positions),
         "chains": rows,
+        "facing": facing,
         "ratio_median": sorted(ratios)[len(ratios) // 2] if ratios else None,
         "ratio_min": min(ratios) if ratios else None,
         "ratio_max": max(ratios) if ratios else None,
@@ -194,6 +232,7 @@ def main() -> int:
             "Segment lengths are compared against loose adult reference ranges, so the derived ratio is a scale indication, not a calibrated unit proof.",
             "Rest positions come from composing parent-relative pos and quat; the reader does not apply axis conversion flags beyond what the MDL already stores.",
             "Nothing here converts, rescales or rewrites Source geometry; it only measures it.",
+            "Facing markers are selected by the model author's bone names, but the evidence is the sign of the measured Y values, not the wording of a name.",
         ],
     }
     lines = [
@@ -222,6 +261,18 @@ def main() -> int:
         if row:
             lines.append("- {}: min {:.4f}, max {:.4f}, size {:.4f}".format(
                 axis.upper(), row["min"], row["max"], row["size"]))
+    lines.extend(["", "## Facing evidence (rest position Y)", ""])
+    lines.append("- Front marker bones ({}), mean Y: {}".format(
+        len(facing["front_marker_bones"]),
+        "(none)" if facing["front_mean_y"] is None else format(facing["front_mean_y"], ".4f")))
+    for row in facing["front_marker_bones"]:
+        lines.append("  - {} Y {:.4f}".format(row["name"], row["y"]))
+    lines.append("- Back marker bones ({}), mean Y: {}".format(
+        len(facing["back_marker_bones"]),
+        "(none)" if facing["back_mean_y"] is None else format(facing["back_mean_y"], ".4f")))
+    for row in facing["back_marker_bones"]:
+        lines.append("  - {} Y {:.4f}".format(row["name"], row["y"]))
+    lines.append("- Inferred facing: {}".format(facing["inferred_facing_axis"] or "undetermined"))
     lines.extend(["", "## Interpretation limits", ""])
     lines.extend("- " + item for item in report["interpretation_limits"])
     markdown = "\n".join(lines) + "\n"
