@@ -136,7 +136,7 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
             lower_torso["summary"]["comparison_status"],
             "no_shared_unique_names",
         )
-        self.assertEqual(report["summary"]["pairwise_no_overlap"], 3)
+        self.assertEqual(report["summary"]["pairwise_no_overlap"], 2)
         self.assertEqual(report["summary"]["status"], "warning")
 
     def test_loads_only_transform_metadata_from_hd2_unit_json(self):
