@@ -91,7 +91,7 @@ def _summarize_vertex_rows(vertex_rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     return {
         "vertex_count": len(vertex_rows),
-        "active_influence_count": sum(influence_counts.values()),
+        "active_influence_count": sum(influence_count * vertex_count for influence_count, vertex_count in influence_counts.items()),
         "influence_count_histogram": dict(sorted(influence_counts.items())),
         "weight_sum_stats": weight_stats,
         "mapping_rows": mapping_rows,
