@@ -436,3 +436,57 @@ Expected report distinctions:
 - `flow_normal01.json` and `flow_normal02.json`: BC5 stored R/G statistics; alpha is explicitly decoder-filled and not a source channel.
 
 No shader equation, blend mode, or material channel binding is inferred from these texture previews alone.
+
+
+## 15. Translucent Flowing base-mip pixel analysis — 2026-11-05
+
+All four preview-enabled reports are present with decoder version 1.0.6. The images were decoded from mip 0 of their selected Stream payloads.
+
+| Resource / node role | Codec | Dimensions | Stored-channel summary | Source-alpha result |
+|---|---|---:|---|---|
+| `fa0bb48a25ed50fe`, Noise02 + Noise01 | BC7 | 1024×1024 | R: 0–255 / 256 values; G: 2–252 / 251; B: 2–255 / 254 | Only 254 and 255; no zero-alpha pixels |
+| `7f37735b6a73092a`, blank UI slot | BC1 | 512×512 | R/B histograms have identical distributions; G has a closely related distribution; preview looks like dark, vertical grayscale streaks | All 262,144 pixels decode to A=255 |
+| `628b6b9b554e06e2`, Normal02 | BC5_UNORM | 1024×1024 | Stored R: 18–235 / 208 values; G: 18–233 / 200 | No source alpha; output A=255 is decoder fill |
+| `371ef38cf24b6cc2`, Normal01 | BC5_UNORM | 1024×1024 | Stored R: 22–230 / 207 values; G: 48–204 / 153 | No source alpha; output A=255 is decoder fill |
+
+### Noise-map alpha: the earlier "partial" count must be interpreted carefully
+
+The BC7 Noise texture has exactly two alpha values:
+- A=254: 262,757 pixels (25.0585%)
+- A=255: 785,819 pixels (74.9415%)
+- A=0: 0 pixels
+- No alpha value below 254 is present.
+
+The generic report's `partial_alpha_pixels` field counts any value strictly between 0 and 255, so it labels the 254 pixels as "partial". For this texture, that is a codec-level endpoint distinction, not evidence of useful translucency: both values are effectively fully opaque, with only a one-step difference in 8-bit alpha. Do not describe the Noise texture as a fractional-opacity mask on the basis of that 25.0585% count.
+
+This differs sharply from the Glass BC7 resource, where 255 alpha values occur and 99.66812% of pixels have values between 1 and 254. Glass remains the only current sample with strong pixel-level evidence of a broad fractional-alpha texture distribution.
+
+### Blank BC1 slot: visually structured, but still semantically unnamed
+
+The decoded `flow_unknown.png` appears as dark, mostly grayscale vertical streaks with brighter, narrow vertical bands. Its red and blue channel histograms are exactly equal (this is equality of distributions, not proof of per-pixel R=B); green is close but not identical. The BC1 decoder reports A=255 for every pixel, so this sample contains no decoded transparent palette pixels.
+
+This makes "structured luminance/noise mask or flow pattern" a reasonable research hypothesis from visual appearance and the AQ template's blank second slot, but the exact shader input role is still unresolved. Keep the raw node type `0x001ff6d4` and FileID as the authoritative identity.
+
+### BC5 normals: two independent two-component resources
+
+The Normal01 and Normal02 reports have different R/G statistics and different payload hashes. Both use BC5_UNORM, whose decoder writes the two compressed components to PNG R/G and fills B=0, A=255. That A channel is synthetic output and must be excluded from any alpha interpretation.
+
+The R/G distributions are centered near 128, consistent with two signed-normal components stored in an unsigned normalized representation. This is a format-level/visual consistency check, not proof of the shader's exact tangent-space convention. No Z reconstruction, Y inversion, normal-length renormalization or color-space transform is applied in this preview path. Those operations must remain explicit future steps, not silently baked into the extracted data.
+
+### Implications for the material-conversion objective
+
+- The Flowing noise texture is not currently evidenced as a transparency map; its BC7 alpha is essentially opaque.
+- The unnamed BC1 texture has no alpha transparency in this instance. Its visual pattern may still be used as a scalar mask through RGB/luminance, but that use is unverified.
+- The two normal textures are independent BC5 two-component maps, consistent with the SDK's Normal01/Normal02 labels.
+- The Glass resource remains a stronger lead for studying static fractional-opacity data than any of these Flowing resources.
+
+The shader may sample BC1/BC7 data from a named or unnamed node in ways not encoded in the texture format. Final node semantics, blending, time animation and render state are still pending source/template or controlled in-game correlation.
+
+## 16. Test execution evidence status
+
+The latest synced tree contains the updated `tests/test_hd2_texture.py` with BC1 and BC5 preview unit tests. The repository has no GitHub Actions workflow run associated with the current synced commit, and no uploaded local test log/report was found in the test directory. Therefore test execution remains **unverified**. Static source review confirms the new codec dispatch, backward-compatible BC7 wrapper, BC5 source-alpha guard, CLI dynamic codec label, and the two new test cases are present; this is not a substitute for running the test suite.
+
+A successful local test run should be recorded with:
+```powershell
+py -3 -m unittest discover -s tests -p "test_hd2_texture.py" -v
+```
