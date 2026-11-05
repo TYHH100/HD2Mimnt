@@ -1,0 +1,505 @@
+{
+  "schema": "SourceModelReader-HD2ResourceLookup1",
+  "data_directory": "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data",
+  "container": "slim",
+  "search": {
+    "resource_type": "Texture",
+    "resource_type_id": "cd4238c6a0c69e32",
+    "requested_resource_count": 4,
+    "max_packages": null
+  },
+  "summary": {
+    "status": "ok",
+    "package_count_in_index": 9725,
+    "package_count_scannable": 3522,
+    "package_count_scanned": 3522,
+    "package_count_with_requested_type": 3160,
+    "resource_entry_rows_scanned": 317992,
+    "resource_ids_found": 4,
+    "resource_ids_not_found_in_scanned_packages": 0,
+    "package_count_errors": 0,
+    "scan_complete": true
+  },
+  "resources": [
+    {
+      "file_id": "371ef38cf24b6cc2",
+      "status": "found",
+      "matches": [
+        {
+          "package": "0ce5ae89049afa50",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 15
+        },
+        {
+          "package": "0ee80406705e198f",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 5
+        },
+        {
+          "package": "101a99f1755e6b28",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 7
+        },
+        {
+          "package": "11e277ec64a271ca",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 15
+        },
+        {
+          "package": "1293ec11993f6435",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 9
+        },
+        {
+          "package": "186ef517622fab7c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 10
+        },
+        {
+          "package": "1a1062c29bb676b3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 10
+        },
+        {
+          "package": "26e55c961966846a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 11
+        },
+        {
+          "package": "29488a393340f3c0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 9
+        },
+        {
+          "package": "51d38d61924be3f7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 10
+        },
+        {
+          "package": "53027d7c592e0c82",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 14
+        },
+        {
+          "package": "6ac709cabc02ed1b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 6
+        },
+        {
+          "package": "70b4860e8169622e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 38
+        },
+        {
+          "package": "839fd82867e7c995",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 5
+        },
+        {
+          "package": "874b8bf04612066e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 10
+        },
+        {
+          "package": "a734a09a58d93b2a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 12
+        },
+        {
+          "package": "a7997b72652b43e4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 14
+        },
+        {
+          "package": "af384c8ffe8ea6f1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 12
+        },
+        {
+          "package": "b6616bd463a43aa3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 7
+        },
+        {
+          "package": "b78dff18c2a33897",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 11
+        },
+        {
+          "package": "be01f1529f774970",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 108
+        },
+        {
+          "package": "c65949c22d7b2c1c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 13
+        },
+        {
+          "package": "dd7fcc53ad148876",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 12
+        },
+        {
+          "package": "efbed5b2d5a59f9b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 9
+        }
+      ]
+    },
+    {
+      "file_id": "628b6b9b554e06e2",
+      "status": "found",
+      "matches": [
+        {
+          "package": "0ce5ae89049afa50",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 19
+        },
+        {
+          "package": "101a99f1755e6b28",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 10
+        },
+        {
+          "package": "11e277ec64a271ca",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 21
+        },
+        {
+          "package": "186ef517622fab7c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 16
+        },
+        {
+          "package": "1a1062c29bb676b3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 15
+        },
+        {
+          "package": "26e55c961966846a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 17
+        },
+        {
+          "package": "29488a393340f3c0",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 11
+        },
+        {
+          "package": "51d38d61924be3f7",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 13
+        },
+        {
+          "package": "53027d7c592e0c82",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 20
+        },
+        {
+          "package": "6ac709cabc02ed1b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 11
+        },
+        {
+          "package": "70b4860e8169622e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 39
+        },
+        {
+          "package": "874b8bf04612066e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 13
+        },
+        {
+          "package": "a734a09a58d93b2a",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 17
+        },
+        {
+          "package": "a7997b72652b43e4",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 21
+        },
+        {
+          "package": "af384c8ffe8ea6f1",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 17
+        },
+        {
+          "package": "b6616bd463a43aa3",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 9
+        },
+        {
+          "package": "b78dff18c2a33897",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 17
+        },
+        {
+          "package": "be01f1529f774970",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 127
+        },
+        {
+          "package": "c65949c22d7b2c1c",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 19
+        },
+        {
+          "package": "dd7fcc53ad148876",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 18
+        },
+        {
+          "package": "efbed5b2d5a59f9b",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 349552,
+          "entry_index": 16
+        }
+      ]
+    },
+    {
+      "file_id": "7f37735b6a73092a",
+      "status": "found",
+      "matches": [
+        {
+          "package": "70b4860e8169622e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 174776,
+          "gpu_bytes": 2744,
+          "entry_index": 40
+        },
+        {
+          "package": "be01f1529f774970",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 174776,
+          "gpu_bytes": 2744,
+          "entry_index": 137
+        }
+      ]
+    },
+    {
+      "file_id": "fa0bb48a25ed50fe",
+      "status": "found",
+      "matches": [
+        {
+          "package": "70b4860e8169622e",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 1392,
+          "entry_index": 44
+        },
+        {
+          "package": "be01f1529f774970",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 1392,
+          "entry_index": 186
+        },
+        {
+          "package": "fc5b6bff0db90aab",
+          "type_id": "cd4238c6a0c69e32",
+          "type": "Texture",
+          "toc_bytes": 340,
+          "stream_bytes": 1398128,
+          "gpu_bytes": 1392,
+          "entry_index": 2883
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "The lookup reads SLIM TOC entry tables only; it does not load Material, Texture, GPU or Stream payloads.",
+    "A resource not found in the successfully scanned packages is not proof of global absence when the scan is incomplete or package errors occurred.",
+    "Texture decoding, DDS extraction and material shader interpretation are separate operations."
+  ]
+}
