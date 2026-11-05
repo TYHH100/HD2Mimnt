@@ -186,6 +186,23 @@ py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=researc
 - **Observed**：本地样本里不存在"非均匀缩放叠加非单位旋转"的变换，因此这一组合仍未被任何真实数据检验过；解析器在这种组合出现时拒绝猜测（既有行为），探针现在会把它显式列出来，而不是靠"整体一致"掩盖。
 - 判定顺序说明：检测基于存储矩阵的行范数差异与去缩放后的行向量与单位矩阵的偏差；对不含切变的 `rotation × diag(scale)` 矩阵，这与列约定无关。
 
+### 2.10 八 Unit 泛化运行（Observed）
+
+把同包另外 4 个 Unit（`7e5111d05840be1a`、`901fc9c35857dad2`、`be65eae060a0267c`、`f2715c19b24ecd8b`）解码后与原始 3 个样本一起跑探针（`--unit` 可重复传，共 8 个 Unit、41 个网格条目）：
+
+| 指标 | 数值 |
+|---|---:|
+| 静止不变量检验的网格 / 通道 / 未解析通道 | 30 / 389,215 / 1,045 |
+| 静止不变量在容差内的网格 | 30（无一超差） |
+| 骨骼标尺检验 / 非退化 / 同侧（单位矩阵） | 30 / 5 / 25 |
+| 非退化检验中 placed 更近 / raw 更近 | **5 / 0** |
+
+- **泛化范围要如实说**：可判别（矩阵非单位且能解析出骨骼标尺）的检验只有 5 次，来自 1 个肩甲 Unit 的 4 个 LOD 加上躯干样本的 `l_arm_culling`。其余 Unit 的渲染 LOD 矩阵都是单位矩阵，检验自动同侧，不能算作支持证据；所以"位置处于网格自身局部空间"目前是**在全部可判别样本上都成立、但可判别样本仅来自 2 个 Unit** 的结论。
+- **Observed（Phase 2 新材料）**：辅助几何至少有两大类，且都无蒙皮、LOD 都是 -1、矩阵都非单位——
+  - 身体轮廓型：439 顶点 / 760 面（`hips_culling`、`r_leg_culling`、`l_leg_culling`，与 §2.2 的共享缓冲同类）；
+  - 简单盒型：24 顶点（`torso_culling`、`helmet_culling`）。
+- **Observed（新问题）**：`g_torso_undergarment_*` 的蒙皮状态是 `partial`，8 Unit 合计 1,045 条影响通道无法在网格级 palette 解析。这不影响静止不变量（已解析通道全部通过），但会直接影响权重传递，需要在 Phase 1 收尾或 Phase 5 前定位是解析缺口还是真实的多 BoneInfo 分段语义。
+
 ## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
 
 工具：`research/dump_source_bone_rest.py`（只读，调用现有 MDL 读取器组合父级 `pos`+`quat`），证据：`skeleton_comparison/source_bone_rest.md`。
