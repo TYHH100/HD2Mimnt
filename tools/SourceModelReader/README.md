@@ -563,6 +563,20 @@ The reader only opens model resources and writes the requested output files. It 
 The bounded Source layout implementation is based on Valve's Source SDK 2013 public headers: [`studio.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/studio.h) and [`optimize.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/optimize.h). The output container follows the glTF 2.0 / GLB structure.
 
 
+### Advisory humanoid alias candidates
+
+The comparison command also writes a separate `Advisory humanoid alias candidates` section. It currently contains only explicit conventional ValveBiped-to-Avatar name hypotheses for the humanoid core. It does not change the exact-name result, perform fuzzy matching, or approve retargeting.
+
+A candidate's parent check is performed only when its Source parent also has an explicit alias candidate. The expected HD2 parent is then compared with the actual parent of the target candidate. A mismatch is a useful warning that the proposed name correspondence may be structurally wrong; it is not silently repaired. A missing Source/target row is reported as absent rather than guessed.
+
+Hair, ear, tail, ribbon, Qun/VRD, physics and accessory chains are intentionally excluded. Finger mappings are also deferred until the core hand hierarchy and target finger semantics have been inspected. All aliases remain advisory until rest-pose, coordinate-space and deformation checks pass.
+
+Run the alias-specific tests with:
+
+```powershell
+py -3 -m unittest discover -s tests -p "test_hd2_bone_aliases.py" -v
+```
+
 ## Source-to-HD2 skeleton comparison (experimental)
 
 The research helper `research/compare_source_hd2_skeleton.py` compares the compiled Source MDL bone table and positive-weight VVD bone usage with a decoded HD2 Unit skeleton. It reads the Source model from a GMA, ZIP, model directory, or MDL file, then reads the target Unit from the installed game's data directory.
