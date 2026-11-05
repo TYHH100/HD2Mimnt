@@ -496,11 +496,20 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         )
         for pair in pairs.values()
     )
+    pair_skeleton_local_unavailable = sum(
+        pair["summary"]["skeleton_local_transform_unavailable_count"]
+        for pair in pairs.values()
+    )
+    pair_mesh_local_unavailable = sum(
+        pair["summary"]["mesh_transform_local_transform_unavailable_count"]
+        for pair in pairs.values()
+    )
     has_skeleton_warning = bool(
         pair_skeleton_matrix_mismatches
         or pair_skeleton_parent_mismatches
         or pair_skeleton_local_mismatches
         or pair_skeleton_unavailable
+        or pair_skeleton_local_unavailable
         or pair_role_mismatches
         or pair_unknown_scope
         or pair_no_overlap
@@ -510,6 +519,7 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
         or pair_mesh_parent_mismatches
         or pair_mesh_local_mismatches
         or pair_mesh_unavailable
+        or pair_mesh_local_unavailable
     )
     diagnostic_status = (
         "warning" if has_skeleton_warning
@@ -546,6 +556,8 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "pairwise_transform_role_mismatches": pair_role_mismatches,
             "pairwise_skeleton_matrix_unavailable": pair_skeleton_unavailable,
             "pairwise_mesh_transform_matrix_unavailable": pair_mesh_unavailable,
+            "pairwise_skeleton_local_transform_unavailable": pair_skeleton_local_unavailable,
+            "pairwise_mesh_transform_local_transform_unavailable": pair_mesh_local_unavailable,
             "pairwise_unknown_scope_transforms": pair_unknown_scope,
             "three_way_shared_unique_named_transform_count": len(common_all),
             "status": diagnostic_status,
