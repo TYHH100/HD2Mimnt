@@ -203,6 +203,23 @@ py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=researc
   - 简单盒型：24 顶点（`torso_culling`、`helmet_culling`）。
 - **Observed（新问题）**：`g_torso_undergarment_*` 的蒙皮状态是 `partial`，8 Unit 合计 1,045 条影响通道无法在网格级 palette 解析。这不影响静止不变量（已解析通道全部通过），但会直接影响权重传递，需要在 Phase 1 收尾或 Phase 5 前定位是解析缺口还是真实的多 BoneInfo 分段语义。
 
+### 2.11 "未解析影响通道"的真实来源（Observed + Hypothesis）
+
+8 Unit 泛化里出现的 1,045 条未解析通道被定位到**具体属性**，不是随机丢数据：
+
+| Unit | 第三个 bone_index 属性（`vec4_uint32`）的非零值 | 出现次数 | 该值在全局 Bones 名称表(82)里的名字 |
+|---|---|---:|---|
+| `be65eae060a0267c` | 16 | 399 | `hips` |
+| `f2715c19b24ecd8b` | 16 | 646 | `hips` |
+| `324fb206612ce4f7`（躯干/左臂） | 1 | 1194 | `FbxAxisSystem_ConvertNode` |
+| `7e5111d05840be1a`、`901fc9c35857dad2`、下半身、Avatar | 无非零值 | 0 | — |
+
+- **Observed**：每个网格的该属性只有**一个**非零值（其余全为 0），且未解析通道数与该属性非零值个数一一对应；palette 的槽位范围是 0..5、`BoneInfo.real_indices` 是 `[5,6,7,8,10,11]` 一类，因此值 16/1 根本不在 palette 空间里。
+- **Hypothesis**：这个 `vec4_uint32` 属性是**全局骨骼表的锚点引用**（内衣挂在 `hips`、臂挂衣物挂在根/轴转换节点上都讲得通），而不是第四条蒙皮权重通道。
+- 反例风险：同一值也可以在 TransformInfo 索引空间里解释（be65 的 16 = `g_torso_undergarment_female_LOD2`，一个网格节点），这条读法不合理，但样本太少，不能仅凭"名字看起来对"就定案。
+- **未做改动的原因**：解析器把三个 bone_index 属性统一走 palette 解析，是"未解析"计数的来源；在没有第二种证据之前不改共享解析语义（交接规则：不改矩阵/语义，除非另有诊断）。原始值本身已完整保留，不会被丢弃。
+- **最小判定实验**：在同包 22 个 Unit 里找是否存在某网格的该属性出现 ≥2 个不同非零值——若出现"随顶点变化"的多个值，锚点假说被否证（它更像分段索引）；若始终每网格一个值，则再取一个 `BoneInfo` 记录数与值域不同的 Unit 交叉确认。
+
 ## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
 
 工具：`research/dump_source_bone_rest.py`（只读，调用现有 MDL 读取器组合父级 `pos`+`quat`），证据：`skeleton_comparison/source_bone_rest.md`。
