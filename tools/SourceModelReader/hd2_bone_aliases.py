@@ -79,7 +79,8 @@ def build_alias_candidates(comparison: dict[str, Any]) -> dict[str, Any]:
             "target_name": target_name,
             "target_transform_index": target.get("target_transform_index"),
             "target_parent_name": actual_target_parent,
-            "target_active_vertex_influence": target.get("target_has_active_vertex_influence"),
+            "target_active_vertex_influence": target.get("has_active_vertex_influence"),
+            "target_active_vertex_influence_lane_count": target.get("active_vertex_influence_lane_count", 0),
             "parent_status": parent_status,
             "approval": "advisory_only",
         })
