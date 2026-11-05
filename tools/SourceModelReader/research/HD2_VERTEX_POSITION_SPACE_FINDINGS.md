@@ -140,6 +140,7 @@ py -3 -m unittest discover -s tests -p "test_hd2_mesh_transform_audit.py" -v
 py -3 research/dump_hd2_bones_resource.py "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --unit 210fb2f60f8308ea --unit-json research\skinning_audits\fs05_lower_body.json --output-markdown research\skeleton_comparison\hd2_bones_structure_lower_body.md
 py -3 -m unittest discover -s tests -p "test_hd2_resources.py" -v
 py -3 research/dump_source_bone_rest.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --output-markdown research\skeleton_comparison\source_bone_rest.md --output-json research\skeleton_comparison\source_bone_rest.json
+py -3 research/survey_hd2_aux_bone_index.py "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --survey-json research\skeleton_comparison\survey_8670598c.json --output-markdown research\skeleton_comparison\aux_census_8670598c.md
 py -3 -m unittest discover -s tests -p "test_source_bone_rest.py" -v
 ```
 
@@ -215,10 +216,14 @@ py -3 research/probe_hd2_vertex_position_space.py --unit fs05_lower_body=researc
 | `7e5111d05840be1a`、`901fc9c35857dad2`、下半身、Avatar | 无非零值 | 0 | — |
 
 - **Observed**：每个网格的该属性只有**一个**非零值（其余全为 0），且未解析通道数与该属性非零值个数一一对应；palette 的槽位范围是 0..5、`BoneInfo.real_indices` 是 `[5,6,7,8,10,11]` 一类，因此值 16/1 根本不在 palette 空间里。
-- **Hypothesis**：这个 `vec4_uint32` 属性是**全局骨骼表的锚点引用**（内衣挂在 `hips`、臂挂衣物挂在根/轴转换节点上都讲得通），而不是第四条蒙皮权重通道。
-- 反例风险：同一值也可以在 TransformInfo 索引空间里解释（be65 的 16 = `g_torso_undergarment_female_LOD2`，一个网格节点），这条读法不合理，但样本太少，不能仅凭"名字看起来对"就定案。
-- **未做改动的原因**：解析器把三个 bone_index 属性统一走 palette 解析，是"未解析"计数的来源；在没有第二种证据之前不改共享解析语义（交接规则：不改矩阵/语义，除非另有诊断）。原始值本身已完整保留，不会被丢弃。
-- **最小判定实验**：在同包 22 个 Unit 里找是否存在某网格的该属性出现 ≥2 个不同非零值——若出现"随顶点变化"的多个值，锚点假说被否证（它更像分段索引）；若始终每网格一个值，则再取一个 `BoneInfo` 记录数与值域不同的 Unit 交叉确认。
+- **Hypothesis（已被本仓库内的空间检验削弱，暂不采信）**：该属性是全局骨骼表的锚点引用（内衣挂 `hips`、臂挂衣物挂根节点）。
+- **Observed（反证）**：对整个包做普查（22 个 Unit、114 个已解码网格）后：44 个网格带非零值，**没有任何网格出现两个以上不同值**；但带标记的顶点是稀疏子集，并且**空间上不落在所指骨骼上**——
+  - `be65eae060a0267c` 四层 LOD：标记顶点 z 均值 `1.620–1.626`，未标记 `1.270–1.293`，网格范围 `0.974–1.686`，而 `hips` 在 z≈`0.97`；标记集中在网格**上端**（胸/颈区），不是髋部。
+  - `324fb206612ce4f7` 躯干/左臂：标记顶点 z 均值 `1.430–1.432` vs 未标记 `1.256–1.344`，同样偏上。
+  - 因此"这些顶点挂在 `hips`/根节点上"的读法与顶点分布矛盾；把它当作**蒙皮权重通道的补充索引**也与"每网格常量、且值域超出 palette"矛盾。
+- **Unknown（当前定级）**：该属性语义未定。候选解释剩下：物理/布料区域编号、刚体分组 id、或未被本解析器识别的第三种索引空间。
+- **未做改动的原因**：解析器把三个 bone_index 属性统一走 palette 解析，是"未解析"计数的来源；在语义确定前不改共享解析器（交接规则：无诊断不改语义）。原始值完整保留，`unresolved_active_influence_count` 只影响这部分顶点子集，静止不变量检验在全部已解析通道上仍通过，因此 §2.8 的位置结论不受影响。
+- **下一个判定实验**：把这些常数值与同包 `Physics`/布料资源的编号空间对齐比较（若 16 在物理资源里是刚体/区域索引，则该读法得到正证）；或参照 SDK 侧顶点声明文档确认该语义。此项在 Phase 5 权重传递前必须定案。
 
 ## 5. 跨引擎坐标契约第一轮测量（Source 样本 ↔ HD2 Avatar）
 
