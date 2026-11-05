@@ -2546,6 +2546,26 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Write the full Material census report to JSON",
     )
 
+    p_hd2_material_users = sub.add_parser(
+        "hd2-material-users",
+        help="Find Unit and Mesh Section references to selected Material FileIDs",
+    )
+    p_hd2_material_users.add_argument(
+        "input", help="HD2 game data directory containing bundles.nxa",
+    )
+    p_hd2_material_users.add_argument(
+        "--material", action="append", required=True, metavar="FILE_ID",
+        help="Material FileID to trace (hexadecimal; repeat for multiple materials)",
+    )
+    p_hd2_material_users.add_argument(
+        "--max-packages", type=int,
+        help="Optional package limit for a partial diagnostic scan",
+    )
+    p_hd2_material_users.add_argument(
+        "--json", dest="json_path",
+        help="Write Unit/Material/Mesh Section reference results to JSON",
+    )
+
     p_hd2_find = sub.add_parser(
         "hd2-find",
         help="Locate resource FileIDs across SLIM packages using TOC entries only",
@@ -2631,6 +2651,33 @@ def main(argv: Optional[list[str]] = None) -> int:
                 include_descriptors=args.include_descriptors,
             )
             print(format_material_census_text(report, top=args.top))
+            if args.json_path:
+                out = Path(args.json_path)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(
+                    json.dumps(report, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                print(f"JSON report: {out}")
+            return 1 if report["summary"]["status"] == "warning" else 0
+        except (HD2ResourceError, OSError, struct.error, ValueError, TypeError,
+                KeyError, OverflowError) as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+    if args.command == "hd2-material-users":
+        try:
+            from hd2_material import parse_resource_id
+            from hd2_material_users import (
+                format_material_users_text,
+                scan_slim_material_users,
+            )
+            from hd2_resources import HD2ResourceError
+
+            material_ids = [parse_resource_id(value) for value in args.material]
+            report = scan_slim_material_users(
+                args.input, material_ids, max_packages=args.max_packages
+            )
+            print(format_material_users_text(report))
             if args.json_path:
                 out = Path(args.json_path)
                 out.parent.mkdir(parents=True, exist_ok=True)
