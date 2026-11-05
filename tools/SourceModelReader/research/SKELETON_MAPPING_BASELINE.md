@@ -6,15 +6,15 @@ Status: diagnostic implementation added; local regression and real-sample compar
 
 ## Why this step exists
 
-The Source reader already reconstructs the Source 1 model skeleton and can compare SMD slices to their compiled MDL bone definitions. The HD2 Unit reader resolves target TransformInfo names and parents through Bones hashes, and identifies which target transforms are reached by positive-weight vertex lanes.
+The Source reader reconstructs compiled MDL v48 bone definitions and reads VVD vertex influences. The HD2 Unit reader resolves target TransformInfo names and parents through Bones hashes, and identifies which target transforms are reached by positive-weight vertex lanes.
 
-The next missing link is a conservative comparison between these two independently parsed skeletons.
+The missing link was a conservative comparison between these independently parsed skeletons, while keeping source and target active-weight information separate.
 
 ## Implemented files
 
 - `hd2_skeleton_compare.py`: pure comparison logic.
 - `tests/test_hd2_skeleton_compare.py`: synthetic tests for exact name matching, parent mismatch, duplicate/ambiguous target names, unresolved target hashes, and the rule that rest-pose numeric comparison is not performed.
-- `research/compare_source_hd2_skeleton.py`: one-command bridge that reads a Source SMD from a GMA/ZIP/directory/file, inspects a selected HD2 Unit from local game data, and writes JSON plus Markdown.
+- `research/compare_source_hd2_skeleton.py`: one-command bridge that reads a compiled Source MDL/VVD/VTX model from a GMA/ZIP/directory/file, inspects a selected HD2 Unit from local game data, and writes JSON plus Markdown.
 
 ## Matching policy
 
@@ -26,13 +26,13 @@ The next missing link is a conservative comparison between these two independent
 6. Report whether the matched HD2 TransformInfo node is actively reached by positive-weight target vertex lanes.
 7. Never apply mapping or reparenting as a side effect.
 
-The Source list currently consists of every node declared by the selected SMD. It includes helper or currently unweighted nodes; the SMD parser does not yet filter this list using the Source VVD vertex-weight data. Therefore, `source_unmapped_count` is not yet equivalent to “number of source deformation bones missing from HD2”.
+The Source list consists of all compiled MDL bone definitions. The script separately derives an active set from positive-weight VVD lanes, so `source_active_weighted_unmapped_count` identifies unmatched source bones that actually receive vertex weights. This active set is currently a union across the stored VVD vertex pool, not a per-BodyGroup or per-LOD selection. Non-zero VVD fixups are reported by the existing parser but are not applied.
 
 ## Coordinate and pose limitation
 
 The tool deliberately does not compare numeric rest-pose transforms.
 
-Source SMD stores local position and Euler rotation values. The HD2 reader currently reports TransformInfo hierarchy entries and raw matrices, with a separately validated HD2 matrix reconstruction path. Before comparing pose numbers across engines, a dedicated adapter must establish:
+Source MDL provides bone local position, quaternion/Euler fields, and poseToBone matrices; the HD2 reader reports TransformInfo hierarchy entries and raw matrices, with a separately validated HD2 matrix reconstruction path. Before comparing pose numbers across engines, a dedicated adapter must establish:
 - axis orientation and handedness;
 - unit scale;
 - local versus model/world matrix space;
@@ -58,16 +58,16 @@ From `tools/SourceModelReader`:
 py -3 -m unittest discover -s tests -p "test_hd2_skeleton_compare.py" -v
 ```
 
-Then compare the sample Source GMA against the Avatar target:
+Then compare the compiled sample Source model against the Avatar target:
 
 ```powershell
 py -3 .\\research\\compare_source_hd2_skeleton.py `
     --source-container "D:\\Models\\gmpublisher.gma" `
-    --source-entry "AES_T.smd" `
+    --model "models/lc_84/aes_yz_pm.mdl" `
     --game-data "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
 ```
 
-The SMD entry can be a full member path or a basename when unique. If the GMA does not contain raw SMD files, supply the extracted SMD directory or ZIP instead.
+The model path is matched against MDL members in the archive. Use `--vtx-extension ".dx80.vtx"` if the selected archive/model uses the DX80 VTX sibling rather than DX90.
 
 ## Outputs
 
