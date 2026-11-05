@@ -97,11 +97,11 @@ A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar r
 
 **Remaining 0.8.4 work**
 
-**Implemented diagnostic baseline:** `hd2_skeleton_compare.py` and `research/compare_source_hd2_skeleton.py` compare compiled Source MDL bone definitions and positive-weight VVD bone usage against an HD2 Unit skeleton. The report includes exact case-folded name matches, active source/target weight status, parent relationships, and explicit missing/ambiguous/target-only lists. The source active-bone set is currently a union across the stored VVD vertex pool, not split by BodyGroup/LOD; no alias guesses, automatic mapping, or rest-pose numeric comparison are performed.
+**Implemented diagnostic baseline:** `hd2_skeleton_compare.py` and `research/compare_source_hd2_skeleton.py` compare compiled Source MDL bone definitions and positive-weight VVD bone usage against an HD2 Unit skeleton. The report includes exact case-folded name matches, active source/target weight status, parent relationships, and explicit missing/ambiguous/target-only lists. `hd2_bone_aliases.py` adds a separate advisory-only ValveBiped humanoid alias candidate layer; it does not alter exact matches or approve retargeting. Candidate parent relationships are checked when the Source parent has an explicit candidate alias. The source active-bone set is currently a union across the stored VVD vertex pool, not split by BodyGroup/LOD.
 
 **Remaining work:**
-- Add a reviewed, explicit alias/mapping table only for bone names whose semantic identity is independently established.
-- Run the comparison against the supplied GMod sample and a verified HD2 Avatar/armor target; review coverage and parent mismatches.
+- Review the advisory ValveBiped-to-Avatar candidates and their parent-graph mismatches; do not promote them to approved mappings yet.
+- Run the updated comparison against the supplied GMod sample and a verified HD2 Avatar/armor target; inspect the generated candidate table and identify virtual/root branches.
 - Validate Source-to-HD2 coordinate, handedness, unit-scale and matrix-space conversion before comparing rest poses.
 - Measure bind-pose alignment and simulate test rotations on representative target joints.
 - Validate geometry and deformation against native HD2 reference behavior.
