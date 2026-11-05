@@ -95,6 +95,23 @@ The first proposed humanoid alias table is intentionally not treated as a retarg
 
 This is precisely why candidate aliases must be checked against hierarchy rather than accepted from anatomical labels alone. It may still be possible to retarget these joints through a transform adapter, but direct parent-preserving substitution is not established. The next comparison should consider the Source and HD2 skeletons as transform graphs and explicitly represent virtual/root branches instead of silently reparenting either side.
 
+## First real alias-candidate report (2026-11-05)
+
+The updated local comparison report now contains 22 explicit humanoid alias candidates:
+
+- 15 candidate parent relationships match.
+- 3 candidate parent relationships mismatch.
+- 4 parent relationships are deferred because the Source parent has no alias candidate.
+- All 22 candidate target transforms are reported as **not actively weighted** in this selected Avatar Unit.
+
+The last point is a critical diagnostic observation, not yet proof that the Unit is invalid. The report's target active-weight fields come from the decoded Unit mesh weight-usage summary, while the named target transforms come from the Unit's Bones resource. Before interpreting the 22 inactive candidates as an actual rig incompatibility, inspect the mesh's per-section bone palette, local-to-global transform indices, and the exact weight lanes used by vertices. The current report collapses this into a transform-level boolean and does not yet provide the per-section evidence needed to distinguish a real inactive transform from an index/palette accounting problem.
+
+The three structural mismatches are:
+- `ValveBiped.Bip01_Spine -> spine1`: Source parent candidate is `hips`, while HD2 `spine1` is parented to `boss`. This indicates a root/hip branch difference.
+- `ValveBiped.Bip01_L_Toe0 -> l_toe` and right-side equivalent: Source toe is directly parented to the Source foot candidate, while HD2 `l_toe/r_toe` are parented to `l_ball/r_ball`. HD2 inserts a ball joint between foot and toe.
+
+These differences should not be "fixed" by changing the aliases blindly. The transform graph and vertex palette must be examined first.
+
 ## Important limitations
 
 1. Source active-bone usage is currently a union over the stored VVD vertex pool, not split by BodyGroup or LOD.
