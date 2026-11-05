@@ -171,6 +171,8 @@ def compare_source_skeleton_to_hd2(source: SMDDocument, target_report: dict[str,
         },
         "matching_policy": {
             "name_matching": "exact Unicode casefold after trimming edge whitespace",
+            "source_nodes_are_declared_smd_nodes": True,
+            "source_active_vertex_influence_filter": "not available from SMDDocument; includes declared helper/unweighted nodes",
             "punctuation_or_alias_guessing": False,
             "parent_comparison": "compare resolved parent names only",
             "rest_pose_numeric_comparison": "not performed",
