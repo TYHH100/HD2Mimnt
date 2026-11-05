@@ -15,7 +15,7 @@ This is a much more useful clue than the generic word “Translucent”: the mat
 
 ## 2. The eight Translucent sample variables are now named
 
-The following IDs from `material_translucent_a.json` and `material_translucent_b.json` match the AQ Edition shader-variable dictionary pinned at commit `71b380046d33d552eef0892bd48661ff25591380`:
+The following IDs from `material_translucent_a.json` and `material_translucent_b.json` match the AQ Edition shader-variable dictionary pinned at commit `71b380046d33d552eef0892bd48661ff25591380`. The instance identities are Sample A = Material `2f80391371cce33e` in package `029a193f2a08167c` (`OpacityBase=1.0`) and Sample B = Material `e2b99ac44dc829f2` in package `0118c2cfda4f68a5` (`OpacityBase=0.4`); the latest batch output is therefore a successful reinspection of Sample B, not a new third instance.
 
 | Variable ID | SDK label | Sample A | Sample B |
 |---|---|---:|---:|
@@ -211,3 +211,38 @@ This correction narrows the discrepancy precisely:
 - Community Edition hash dictionary: raw node type ID → `NormalXyRoughnessOpacity`.
 - AQ Edition template UI: ParentMaterialID alias `glass` → one UI slot labelled `Glass stain`.
 - The mapping between those two representations remains unresolved.
+
+
+## 12. Full-census representative instance: `e2b99ac44dc829f2`
+
+A fresh local `hd2-material` inspection of Material FileID `e2b99ac44dc829f2` in package `0118c2cfda4f68a5` completed and wrote its JSON report. The CLI returned exit code 1 because the referenced Texture is not present in that *same package*. This is the command's warning status, not a Material parse failure: the report contains all eight variable descriptors and the full raw value payload, and the Texture FileID is independently found by the complete global Texture lookup.
+
+The pinned AQ Edition shader-variable dictionary resolves the eight IDs as follows:
+
+| Variable ID | Name | Class | Value |
+|---|---|---|---|
+| `0xab58e70d` | `OpacityBase` | Scalar | 0.4 |
+| `0x43695f7b` | `ResolutionSetting` | Scalar | 3.0 |
+| `0x4dec56f9` | `RoughnessBase` | Scalar | 0.1 |
+| `0x393cf79e` | `SpecularBase` | Scalar | 0.5 |
+| `0xcb577b8f` | `BaseColor` | Vector3 | (0.4511, 0.1576, 0.1576) |
+| `0x3c8b121f` | `AlphaColor` | Vector3 | (0, 0, 0) |
+| `0x5ac3e52f` | `AlphaColorWeight` | Scalar | 0 |
+| `0x5a341fb6` | `TextureTile` | Scalar | 0 |
+
+This makes the family-level opacity control concrete: the child material instance explicitly stores `OpacityBase=0.4`. It is strong evidence that this instance is authored with a fractional opacity parameter. It still does not establish the engine's final blend state, alpha convention, depth-write behavior, culling, or whether the shader combines the parameter with sampled texture opacity in a particular way.
+
+The sole texture node is type `0xdab4d0ee`, referencing Texture FileID `bf281073a422022c`. Its type name resolves in the pinned Community Edition texture-type dictionary as `NormalXyRoughnessOpacity`; AQ's separate glass template UI labels its one slot `Glass stain`. These are distinct metadata representations and their mapping is not yet explained.
+
+The existing complete Texture lookup report finds `bf281073a422022c` in 182 packages across all 3,522 scannable packages, with no global misses. The recorded entries all have TOC 340 bytes, GPU 4 bytes and Stream 0 bytes. A separate texture inspection of this FileID in package `00cf0ef7df912a6e` decoded a 1×1 RGBA8 texture. The lookup did not hash every occurrence's GPU payload, so identical bytes across all 182 copies are not proven. The reference being absent from package `0118c2cfda4f68a5` is therefore an ordinary cross-package dependency, not evidence of a broken Material.
+
+The Material declares 64 bytes of variable data while 76 bytes remain after the descriptor table; the final 12 bytes are zero in this inspected payload. All eight descriptors report `elements=0` and `elementStride=0`. Preserve these as observed raw fields; do not reinterpret zero elements as an empty variable or assume the trailing 12 bytes are a universal family trailer.
+
+### Batch CLI exit-code handling
+
+For `hd2-material`, the CLI returns:
+- `0`: report status is `ok`;
+- `1`: report was generated but has warning status (for example, one or more texture dependencies are not in the selected package);
+- `2`: an exception prevented a normal report.
+
+A batch runner should therefore treat exit code 1 as a report-bearing warning and continue, while treating 2 or higher as a hard failure. The JSON report is written before the warning return code is emitted.
