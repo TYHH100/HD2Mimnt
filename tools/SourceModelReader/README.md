@@ -583,13 +583,14 @@ The report includes:
 - Source bones without an exact target name, separately showing which source bones receive positive VVD vertex weights.
 - Named HD2 transforms absent from the Source skeleton.
 - Active target vertex-influence usage for each matched target transform.
+- Counts of active Source bones that exactly match, remain unmapped, or are ambiguous.
 - Parent-hierarchy mismatches, unresolved names, and ambiguous target names.
 
 The active Source bone set is the union of positive-weight lanes across the VVD vertex pool. It is not yet split by BodyGroup or LOD, and the current Source reader warns when VVD fixup tables are present because LOD remapping is not applied. Do not treat the union count as the exact deform-bone set of one BodyGroup selection.
 
 This is a diagnostic baseline only. It does not apply a retarget, rename bones, or compare rest-pose numbers. Source MDL/VVD and HD2 TransformInfo require a validated axis/handedness, unit-scale, matrix-space, and bind-pose conversion before numeric pose comparison is meaningful.
 
-The JSON output is local/ignored by default. The Markdown report is written to `research/skeleton_comparison/source_hd2_skeleton.md` and can be committed/shared after review. Run its six synthetic regression tests with:
+The JSON output is local/ignored by default. The Markdown report is written to `research/skeleton_comparison/source_hd2_skeleton.md` and can be committed/shared after review. Exit code 1 means a report was produced but mapping/structure warnings were found; it is not an extraction crash. Run its six synthetic regression tests with:
 
 ```powershell
 py -3 -m unittest discover -s tests -p "test_hd2_skeleton_compare.py" -v
