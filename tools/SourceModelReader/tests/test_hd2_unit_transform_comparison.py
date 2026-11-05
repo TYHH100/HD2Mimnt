@@ -8,6 +8,7 @@ from research.compare_hd2_unit_transforms import (
     compare_pair,
     load_unit,
     render_markdown,
+    _transform_role,
 )
 
 
@@ -248,6 +249,74 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(row["left_transform_role"], "unweighted_skeleton")
         self.assertEqual(row["comparison_scope"], "skeleton_transform")
 
+
+    def test_classifies_mesh_only_ancestors_but_keeps_shared_active_ancestors_as_skeleton(self):
+        fixture = {
+            "unit": {"file_id": "mesh-hierarchy-unit", "geometry_source": "Unit"},
+            "package": {"name": "mesh-hierarchy-package"},
+            "summary": {"status": "ok"},
+            "mesh_info": {
+                "records": [{"index": 0, "mesh_id": 900, "transform_index": 4}],
+            },
+            "transform_info": {
+                "transforms": [
+                    {"index": 0, "name_hash": 10, "parent_index_raw": 65535,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                    {"index": 1, "name_hash": 11, "parent_index_raw": 0,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                    {"index": 2, "name_hash": 12, "parent_index_raw": 1,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                    {"index": 3, "name_hash": 13, "parent_index_raw": 2,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                    {"index": 4, "name_hash": 14, "parent_index_raw": 3,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                    {"index": 5, "name_hash": 15, "parent_index_raw": 1,
+                     "position": [0, 0, 0], "rotation_3x3": [1, 0, 0, 0, 1, 0, 0, 0, 1],
+                     "scale": [1, 1, 1], "matrix_4x4_raw": [
+                         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]},
+                ],
+                "resolved_skeleton": [
+                    {"transform_index": 0, "name": "entity_root", "name_ambiguous": False,
+                     "has_active_vertex_influence": False, "active_vertex_influence_lane_count": 0},
+                    {"transform_index": 1, "name": "shared_root", "name_ambiguous": False,
+                     "has_active_vertex_influence": False, "active_vertex_influence_lane_count": 0},
+                    {"transform_index": 2, "name": "game_mesh", "name_ambiguous": False,
+                     "has_active_vertex_influence": False, "active_vertex_influence_lane_count": 0},
+                    {"transform_index": 3, "name": "mesh_group", "name_ambiguous": False,
+                     "has_active_vertex_influence": False, "active_vertex_influence_lane_count": 0},
+                    {"transform_index": 4, "name": "render_mesh", "name_ambiguous": False,
+                     "has_active_vertex_influence": False, "active_vertex_influence_lane_count": 0},
+                    {"transform_index": 5, "name": "hips", "name_ambiguous": False,
+                     "has_active_vertex_influence": True, "active_vertex_influence_lane_count": 4},
+                ],
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mesh-hierarchy.json"
+            path.write_text(json.dumps(fixture), encoding="utf-8")
+            unit = load_unit(path, "mesh-hierarchy")
+
+        roles = {
+            row["name"]: _transform_role(row)
+            for row in unit["records"]
+            if row["name"]
+        }
+        self.assertEqual(roles["render_mesh"], "mesh_transform")
+        self.assertEqual(roles["mesh_group"], "mesh_hierarchy_transform")
+        self.assertEqual(roles["game_mesh"], "mesh_hierarchy_transform")
+        self.assertEqual(roles["shared_root"], "unweighted_skeleton")
+        self.assertEqual(roles["entity_root"], "unweighted_skeleton")
+        self.assertEqual(roles["hips"], "weighted_skeleton")
 
     def test_weight_usage_difference_does_not_change_skeleton_transform_scope(self):
         left = make_unit("left", [
