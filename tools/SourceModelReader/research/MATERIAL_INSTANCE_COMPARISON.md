@@ -356,3 +356,83 @@ The next batch should export the four unique Texture FileIDs from package `70b48
 The lookup's payload byte sizes suggest that three resources may be 1024×1024 BC7 textures and one may be a 512×512 BC1 texture, but this is only a size-derived expectation. The DDS headers must decide the actual format and dimensions.
 
 The Glass pixel-alpha result is now positive at the texture-data level: 99.66812% of base-mip pixels contain non-endpoint alpha values and 255 distinct alpha values occur. Do not elevate this to a confirmed Glass fractional-blend shader contract until a material/mesh or controlled in-game test links the sampled alpha component to final surface opacity.
+
+
+## 13. Translucent Flowing texture exports — 2026-11-05
+
+The four unique Texture FileIDs referenced by both inspected Translucent Flowing game instances have now been extracted from package `70b4860e8169622e`. Each JSON report has status `ok`, no warnings, and all populated TOC mipmap records match the calculated format-specific chain.
+
+| Node role | Raw node type | Dictionary / AQ UI mapping | Texture FileID | Dimensions | DXGI format | Mips | Stream bytes |
+|---|---|---|---|---:|---|---:|---:|
+| Noise02 Mask | `0x55c87149` | Community: NoiseMap02; AQ: Noise02 Mask | `fa0bb48a25ed50fe` | 1024×1024 | BC7_UNORM | 11 | 1,398,128 |
+| Noise01 Mask | `0xfbef0214` | Community: NoiseMap01; AQ: Noise01 Mask | `fa0bb48a25ed50fe` | 1024×1024 | BC7_UNORM | 11 | 1,398,128 |
+| Blank UI slot | `0x001ff6d4` | No matching entry in pinned Community texturetypes dictionary; AQ template UI slot 1 is blank | `7f37735b6a73092a` | 512×512 | BC1_UNORM | 10 | 174,776 |
+| Normal02 | `0x5a3bc7c0` | Community: NormalMap02; AQ UI slot is blank Pos | `628b6b9b554e06e2` | 1024×1024 | BC5_UNORM | 11 | 1,398,128 |
+| Normal01 | `0x2b33d35f` | Community: NormalMap01; AQ UI slot is blank Pos | `371ef38cf24b6cc2` | 1024×1024 | BC5_UNORM | 11 | 1,398,128 |
+
+The first two nodes intentionally share one Texture FileID but remain distinct ordered node roles. The table therefore has five material nodes and four unique Texture resources.
+
+### Resource payload layout
+
+All four Stream payloads match the full mip chain. GPU resources are resident mip tails:
+- The 1024×1024 BC7 noise texture GPU payload (1,392 bytes) begins at mip 5 (32×32).
+- The 1024×1024 BC5 normal textures GPU payloads (349,552 bytes) begin at mip 1 (512×512).
+- The 512×512 BC1 texture GPU payload (2,744 bytes) begins at mip 3 (64×64).
+
+The 11-level 1024×1024 mip chains and 10-level 512×512 chain are internally consistent with the selected DXGI block sizes. These format/dimension facts are taken from the actual DDS headers and validated mip records, not inferred from resource byte size.
+
+### First interpretation, with limits
+
+The two BC5 resources align with the explicit NormalMap01/NormalMap02 node labels. BC5 is a two-component block format; `texture2ddecoder` emits the stored components as PNG R and G, with B=0 and A=255 used as output fill values. The generated Alpha histogram for BC5 must therefore **not** be interpreted as source transparency. No normal-Z reconstruction or signed-space conversion is applied by the preview path.
+
+The BC7 resource is the pair of NoiseMap01/NoiseMap02 slots. Pixel channels still need decoding before deciding whether its alpha is meaningful or whether it is simply an unused decoder output component for the effect.
+
+The BC1 resource is wired into raw node type `0x001ff6d4`, which has no friendly type label in the pinned Community dictionary and has a blank AQ UI slot label. Its actual pixel content and shader role remain unknown. BC1 can represent a one-bit transparent palette entry in its three-color mode, but that codec capability is not evidence that this specific texture is used for cutout.
+
+AQ's pinned `TextureTypeLookup["translucent_flowing"]` has five ordered UI labels: Noise02 Mask, blank, Noise01 Mask, blank Pos, blank Pos. This mapping agrees with the order of the five material nodes. It does not assign semantic names to the blank slots.
+
+## 14. Multi-codec base-mip preview support
+
+SourceModelReader now has a shared `decode_texture_preview` path for:
+- BC1_UNORM / BC1_UNORM_SRGB (DXGI 71 / 72)
+- BC5_UNORM (DXGI 83)
+- BC7_UNORM / BC7_UNORM_SRGB (DXGI 98 / 99)
+
+The existing `decode_bc7_preview` function remains as a backward-compatible wrapper. The CLI `--preview-png` option now dispatches based on the actual DDS DXGI format rather than assuming BC7.
+
+The preview path retains the prior safety checks: Texture2D only, ArraySize=1, known full mip chain selected, base-mip input range validated, and maximum decoded pixel limit enforced. It emits one RGBA PNG plus per-channel 256-bin histograms and min/max/unique-value counts.
+
+Channel semantics are called out explicitly:
+- BC1: decoder alpha can be a binary transparency signal from BC1's three-color palette mode; no fractional-alpha behavior is expected from the codec.
+- BC5_UNORM: output R/G represent the two stored BC5 components. Output B=0 and A=255 are decoder fill values; the JSON marks `source_alpha_available=false`.
+- BC7: all decoded RGBA components are reported without inferring their Material shader meaning.
+
+The CLI summary also skips presenting BC5's filled Alpha as a source alpha channel and instead prints R/G statistics.
+
+Unit tests were added for BC1 binary-alpha handling and BC5 channel/fill-alpha handling, and the existing BC7 compatibility tests remain. **These tests were added but have not yet been executed in the user's Windows environment.** The user should pull/sync the branch and run the SourceModelReader test suite before treating this code change as runtime-verified.
+
+### Next pixel-content check
+
+After pulling this code, rerun each existing Flowing texture extraction with `--preview-png` to add base-mip PNGs and channel histograms to their JSON reports. One command per unique resource is sufficient:
+
+```powershell
+$gameData = "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
+$package = "70b4860e8169622e"
+$jobs = @(
+    @{ Name="flow_noise"; Id="fa0bb48a25ed50fe" },
+    @{ Name="flow_unknown"; Id="7f37735b6a73092a" },
+    @{ Name="flow_normal02"; Id="628b6b9b554e06e2" },
+    @{ Name="flow_normal01"; Id="371ef38cf24b6cc2" }
+)
+foreach ($job in $jobs) {
+    py -3 .\\source_model_reader.py hd2-texture $gameData --package $package --texture $job.Id --output ".\\research\\textures\\$($job.Name).dds" --preserve-raw --preview-png --json ".\\research\\textures\\$($job.Name).json"
+    if ($LASTEXITCODE -ge 2) { throw "Texture preview failed: $($job.Name)" }
+}
+```
+
+Expected report distinctions:
+- `flow_noise.json`: BC7 RGBA statistics.
+- `flow_unknown.json`: BC1 decoded color plus binary alpha statistics.
+- `flow_normal01.json` and `flow_normal02.json`: BC5 stored R/G statistics; alpha is explicitly decoder-filled and not a source channel.
+
+No shader equation, blend mode, or material channel binding is inferred from these texture previews alone.
