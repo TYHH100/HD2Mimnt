@@ -112,17 +112,18 @@ def render_markdown(report: dict[str, Any]) -> str:
         ("Ambiguous source matches", report["ambiguous_source_matches"], "source_name", "source_node_id"),
     ]
     for title, rows, name_key, id_key in sections:
-        lines.extend(["", "## " + title, "", "| Name | ID / Transform | Active Source influence | Details |", "|---|---:|---|---|"])
+        lines.extend(["", "## " + title, "", "| Name | Transform | Active target influence | Lanes | Parent |", "|---|---:|---|---:|---|"])
         for row in rows:
             details = row.get("reason") or row.get("target_parent_name") or ""
-            lines.append("| {} | {} | {} | {} |".format(
+            lines.append("| {} | {} | {} | {} | {} |".format(
                 row.get(name_key), row.get(id_key),
-                ("—" if row.get("source_has_active_vertex_influence") is None
-                 else ("yes" if row.get("source_has_active_vertex_influence") else "no")),
+                ("—" if row.get("has_active_vertex_influence") is None
+                 else ("yes" if row.get("has_active_vertex_influence") else "no")),
+                row.get("active_vertex_influence_lane_count", 0),
                 details,
             ))
         if not rows:
-            lines.append("| — | — | — | none |")
+            lines.append("| — | — | — | — | none |")
 
     lines.extend([
         "",
