@@ -81,7 +81,7 @@ py -3 -m unittest discover -s tests -v
 After tests pass, run the full-game Glass reference scan:
 
 ```powershell
-$gameData = "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
+$gameData = "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data"
 $materials = @(
     "e2b99ac44dc829f2",
     "8b3ff5502ac52c25",
@@ -102,9 +102,9 @@ $argsList = @($gameData, "hd2-material-users")
 foreach ($id in $materials) {
     $argsList += @("--material", $id)
 }
-$argsList += @("--json", ".\\research\\glass_material_users.json")
+$argsList += @("--json", ".\research\glass_material_users.json")
 
-py -3 .\\source_model_reader.py @argsList
+py -3 .\source_model_reader.py @argsList
 if ($LASTEXITCODE -ge 2) {
     throw "Glass material user scan failed."
 }
