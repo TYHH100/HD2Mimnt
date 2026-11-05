@@ -306,3 +306,38 @@ foreach ($item in $textures) {
 ```
 
 The first and second node roles intentionally share one Texture FileID. Extracting the same resource under two role labels is optional; one raw export is sufficient, but the node mapping must remain duplicated in any material graph representation.
+
+
+## 11. Glass BC7 pixel-alpha decode — 2026-11-05
+
+The user reran the Glass extraction with the optional `texture2ddecoder==1.0.6` preview path. The updated JSON report is `research/textures/glass_4406087459ab9513.json`, and the 512×512 decoded PNG is checked in beside it.
+
+Decoder report:
+- Status: ok; decoder: texture2ddecoder 1.0.6; codec: BC7; DXGI 98 (`BC7_UNORM`).
+- Decoded mip: level 0, 512×512.
+- Decoded input: 262,144 bytes; decoded output: 1,048,576 bytes RGBA8.
+- Alpha minimum: 0; maximum: 255; unique values: 255.
+- Fully transparent: 865 / 262,144 pixels (0.32997%).
+- Partial alpha: 261,274 / 262,144 pixels (99.66812%).
+- Fully opaque: 5 / 262,144 pixels (0.00191%).
+- Non-opaque: 262,139 / 262,144 pixels (99.99809%).
+- Alpha histogram: 256 bins; total count matches the full 512×512 pixel count.
+
+The decoded PNG visually has a blue/purple, fine-detail appearance consistent with the look of a normal-map-style texture. This is a visual observation only; it does not independently identify the RGB channel layout.
+
+### What this establishes
+
+1. The BC7 texture payload genuinely decodes to a broad range of pixel-alpha values. The alpha component is not merely a binary 0/255 cutout mask in the decoded base mip.
+2. This is consistent with the Community Edition node-type label `NormalXyRoughnessOpacity` and the AQ Glass preset's exact reference to this Texture FileID.
+3. It raises confidence that the resource is a packed surface-data texture with meaningful alpha variation, and makes it the strongest current candidate for studying per-pixel opacity in the Glass family.
+
+### What this does not establish
+
+- The decoder only measures stored BC7 alpha values; it does not prove the Glass shader samples alpha as opacity.
+- The pixel histogram alone cannot identify which RGB channel carries roughness or whether all RGB channels are used as expected.
+- The screenshot/preview is not a proof of the actual channel packing.
+- The render blend mode, depth-write/sort policy, culling and two-sided behavior remain unknown.
+
+Therefore, do not yet implement a conversion rule that writes source transparency directly into this alpha channel. The next verification should correlate the texture's RGB/alpha components with an in-game material/mesh sample and a controlled Glass parameter change.
+
+The Glass pixel-level report is a positive result: fractional alpha data exists in the exact resource referenced by AQ's Glass template. It is not yet a shader-behavior proof.
