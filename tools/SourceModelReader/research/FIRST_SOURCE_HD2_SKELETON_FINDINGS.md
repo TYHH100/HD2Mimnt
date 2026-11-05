@@ -89,6 +89,12 @@ This supports treating the `*_VRD` nodes as currently unweighted helper candidat
 
 These are naming/anatomy hypotheses only. In particular, do not directly map all hair, ribbon, tail, ear, or `Qun_*` chains onto HD2 cape bones. Those are separate deformation systems and may need mesh/weight adaptation or may be unrepresentable on the target rig.
 
+## New structural warning from the advisory alias design
+
+The first proposed humanoid alias table is intentionally not treated as a retarget map. In particular, the inspected HD2 Avatar hierarchy has `hips` parented to `boss`, while `spine1` is also parented to `boss`; `spine2` is parented to `spine1`, and `chest` to `spine2`. The conventional Source ValveBiped chain is expected to run pelvis -> spine -> spine1 -> spine2. Therefore, the candidate `ValveBiped.Bip01_Spine -> spine1` is expected to expose a parent mismatch if the Source parent is `ValveBiped.Bip01_Pelvis`.
+
+This is precisely why candidate aliases must be checked against hierarchy rather than accepted from anatomical labels alone. It may still be possible to retarget these joints through a transform adapter, but direct parent-preserving substitution is not established. The next comparison should consider the Source and HD2 skeletons as transform graphs and explicitly represent virtual/root branches instead of silently reparenting either side.
+
 ## Important limitations
 
 1. Source active-bone usage is currently a union over the stored VVD vertex pool, not split by BodyGroup or LOD.
