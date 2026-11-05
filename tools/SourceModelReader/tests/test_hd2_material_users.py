@@ -1,9 +1,78 @@
+import struct
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from hd2_material_users import _material_mesh_matches
+from hd2_material_users import (
+    _material_mesh_matches,
+    scan_slim_material_users,
+)
+from hd2_resources import TOC_MAGIC, TYPE_IDS
+
+
+class FakeSlimIndex:
+    def __init__(self, package_bytes):
+        self.packages = {"fixture": SimpleNamespace(size=len(package_bytes))}
+        self.package_bytes = package_bytes
+
+    def reconstruct_range(self, package_name, offset, size):
+        if package_name != "fixture":
+            raise KeyError(package_name)
+        return self.package_bytes[offset:offset + size]
+
+
+def make_unit_toc(material_id, section_id=0x101, mesh_id=0xAABBCCDD):
+    mesh_offset = 160
+    item_start = mesh_offset + 12
+    materials_offset = 336
+    data = bytearray(materials_offset + 16)
+
+    # Unit header: version 10800438, MeshInfo offset and Materials offset.
+    struct.pack_into("<I", data, 44, 10800438)
+    struct.pack_into("<I", data, 100, mesh_offset)
+    struct.pack_into("<I", data, 112, materials_offset)
+
+    # One MeshInfo record, with one local material slot and one section.
+    struct.pack_into("<I", data, mesh_offset, 1)
+    struct.pack_into("<II", data, mesh_offset + 4, 12, 0)
+    struct.pack_into("<4I", data, item_start + 40, mesh_id, 0, 0, 0)
+    struct.pack_into("<iI", data, item_start + 56, 0, 0)
+    struct.pack_into("<I", data, item_start + 104, 1)
+    struct.pack_into("<I", data, item_start + 108, 128)
+    struct.pack_into("<I", data, item_start + 120, 1)
+    struct.pack_into("<I", data, item_start + 124, 132)
+    struct.pack_into("<I", data, item_start + 128, section_id)
+    struct.pack_into("<6I", data, item_start + 132, 0, 0, 3, 0, 3, 0)
+
+    # Unit Materials table maps section_id to Material FileID.
+    struct.pack_into("<I", data, materials_offset, 1)
+    struct.pack_into("<I", data, materials_offset + 4, section_id)
+    struct.pack_into("<Q", data, materials_offset + 8, material_id)
+    return bytes(data)
+
+
+def make_package_with_one_unit(unit_id, unit_toc):
+    type_offset = 72
+    entries_offset = type_offset + 32
+    unit_offset = entries_offset + 80
+    package = bytearray(unit_offset + len(unit_toc))
+    struct.pack_into("<4I", package, 0, TOC_MAGIC, 1, 1, 0)
+    struct.pack_into(
+        "<QQQII", package, type_offset,
+        0, TYPE_IDS["Unit"], 1, 0, 0,
+    )
+    struct.pack_into(
+        "<QQQ", package, entries_offset,
+        unit_id, TYPE_IDS["Unit"], unit_offset,
+    )
+    struct.pack_into("<I", package, entries_offset + 56, len(unit_toc))
+    struct.pack_into("<I", package, entries_offset + 76, 0)
+    package[unit_offset:unit_offset + len(unit_toc)] = unit_toc
+    return bytes(package)
 
 
 class MaterialUserMappingTests(unittest.TestCase):
@@ -116,6 +185,29 @@ class MaterialUserMappingTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0]["mesh_section_count"], 0)
         self.assertEqual(matches[0]["mesh_sections"], [])
+
+    def test_global_scan_maps_unit_material_to_mesh_section_without_gpu_reads(self):
+        unit_id = 0x1122334455667788
+        unit_toc = make_unit_toc(self.TARGET)
+        package_bytes = make_package_with_one_unit(unit_id, unit_toc)
+        fake_index = FakeSlimIndex(package_bytes)
+
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("hd2_material_users.SlimBundleIndex", return_value=fake_index):
+                report = scan_slim_material_users(temp, [self.TARGET])
+
+        summary = report["summary"]
+        self.assertTrue(summary["scan_complete"])
+        self.assertEqual(summary["unit_count_scanned"], 1)
+        self.assertEqual(summary["unit_parse_success_count"], 1)
+        self.assertEqual(summary["unit_parse_error_count"], 0)
+        self.assertEqual(summary["material_unit_reference_count"], 1)
+        self.assertEqual(summary["mesh_section_match_count"], 1)
+        reference = report["resources"][0]["references"][0]
+        self.assertEqual(reference["unit_id"], f"{unit_id:016x}")
+        self.assertEqual(reference["mesh_sections"][0]["mesh_id"], "aabbccdd")
+        self.assertEqual(reference["mesh_sections"][0]["section_index"], 0)
+        self.assertEqual(reference["mesh_sections"][0]["vertex_count"], 3)
 
     def test_cli_help_exposes_material_users_command(self):
         script = Path(__file__).resolve().parents[1] / "source_model_reader.py"
