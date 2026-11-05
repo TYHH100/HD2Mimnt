@@ -229,6 +229,7 @@ def compare_pair(
         "active_flag_difference_count": sum(row["active_status"] == "differs" for row in rows),
         "max_position_abs_error": max(position_errors) if position_errors else None,
         "max_stored_matrix_abs_error": max(matrix_errors) if matrix_errors else None,
+        "comparison_status": "compared" if common else "no_shared_unique_names",
         "tolerance": tolerance,
     }
     return {
@@ -298,6 +299,18 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
     pair_unavailable_matrices = sum(
         pair["summary"]["stored_matrix_unavailable_count"] for pair in pairs.values()
     )
+    pair_no_overlap = sum(
+        pair["summary"]["shared_unique_named_transform_count"] == 0
+        for pair in pairs.values()
+    )
+    pair_local_transform_unavailable = sum(
+        pair["summary"]["position_mismatch_count"] * 0
+        + sum(row["position_status"] == "unavailable"
+              or row["rotation_status"] == "unavailable"
+              or row["scale_status"] == "unavailable"
+              for row in pair["transforms"])
+        for pair in pairs.values()
+    )
     return {
         "schema": "SourceModelReader-HD2UnitTransformComparison1",
         "tolerance": tolerance,
@@ -315,8 +328,13 @@ def build_report(units: list[dict[str, Any]], tolerance: float) -> dict[str, Any
             "pairwise_stored_matrix_mismatches": pair_matrix_mismatches,
             "pairwise_parent_mismatches": pair_parent_mismatches,
             "pairwise_stored_matrix_unavailable": pair_unavailable_matrices,
+            "pairwise_no_overlap": pair_no_overlap,
+            "pairwise_local_transform_unavailable": pair_local_transform_unavailable,
+            "three_way_shared_unique_named_transform_count": len(common_all),
             "status": "warning" if (
-                pair_matrix_mismatches or pair_parent_mismatches or pair_unavailable_matrices
+                pair_matrix_mismatches or pair_parent_mismatches
+                or pair_unavailable_matrices or pair_no_overlap
+                or pair_local_transform_unavailable
             ) else "ok",
         },
         "interpretation_limits": [
