@@ -61,6 +61,20 @@ that reuses one weight vector across several index attributes sums above one.
 | 2 | 1 | g_legs_hips_male_LOD1 | single_index_attr_0 | float32 scalar | 1 | 738 | 0 | 0.000000 | 0.000000 | 6.101e-08 | 0 | True |
 | 3 | 0 | g_legs_hips_male | single_index_attr_0 | float32 scalar | 1 | 1374 | 0 | 0.000000 | 0.000000 | 4.548e-08 | 0 | True |
 
+### Triangle winding against stored normals
+
+The face normal uses the right-handed cross product of the stored vertex
+order. Agreement with the stored normals shows the two conventions inside the
+file do not contradict each other; it does not fix absolute handedness.
+
+| MeshInfo | LOD | Transform | Section | Faces checked | Agree | Oppose | Degenerate | Mean dot | Conclusion |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 3 | g_legs_hips_male_shadow | 0 | 976 | 964 | 0 | 12 | 0.9398 | consistent |
+| 1 | 2 | g_legs_hips_male_LOD2 | 0 | 488 | 484 | 0 | 4 | 0.9504 | consistent |
+| 2 | 1 | g_legs_hips_male_LOD1 | 0 | 1222 | 1213 | 0 | 9 | 0.9434 | consistent |
+| 3 | 0 | g_legs_hips_male | 0 | 2444 | 2408 | 0 | 36 | 0.9445 | consistent |
+| 4 | -1 | hips_culling | 0 | 760 | 760 | 0 | 0 | 0.9988 | consistent |
+
 ## fs05_torso_left_arm
 
 - Unit: 324fb206612ce4f7
@@ -132,6 +146,23 @@ that reuses one weight vector across several index attributes sums above one.
 | 4 | 0 | g_torso_arm_l_female | single_index_attr_2 | vec4_half | 3 | 3115 | 0 | 0.000366 | 0.000073 | 3.981e-08 | 0 | True |
 | 4 | 0 | g_torso_arm_l_female | every_index_attr_shares_weights | vec4_half | 3 | 3115 | 0 | 2.001099 | 1.999999 | 1.611e-07 | 0 | False |
 
+### Triangle winding against stored normals
+
+The face normal uses the right-handed cross product of the stored vertex
+order. Agreement with the stored normals shows the two conventions inside the
+file do not contradict each other; it does not fix absolute handedness.
+
+| MeshInfo | LOD | Transform | Section | Faces checked | Agree | Oppose | Degenerate | Mean dot | Conclusion |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 4 | l_arm_culling | 0 | 760 | 760 | 0 | 0 | 0.9988 | consistent |
+| 1 | 3 | g_torso_arm_l_female_shadow | 0 | 2089 | 2004 | 5 | 80 | 0.8978 | consistent |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | 0 | 476 | 428 | 4 | 44 | 0.7969 | mixed |
+| 2 | 2 | g_torso_arm_l_female_LOD2 | 1 | 568 | 548 | 0 | 20 | 0.9131 | consistent |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | 0 | 685 | 638 | 5 | 42 | 0.8300 | consistent |
+| 3 | 1 | g_torso_arm_l_female_LOD1 | 1 | 1927 | 1885 | 0 | 42 | 0.9407 | consistent |
+| 4 | 0 | g_torso_arm_l_female | 0 | 4531 | 4484 | 0 | 47 | 0.9620 | consistent |
+| 4 | 0 | g_torso_arm_l_female | 1 | 696 | 649 | 5 | 42 | 0.8324 | consistent |
+
 ## avatar_composite
 
 - Unit: 4d1c334d294dfa97
@@ -162,6 +193,16 @@ that reuses one weight vector across several index attributes sums above one.
 | MeshInfo | LOD | Transform | Pairing model | Weight format | Index attrs | Vertices | Unresolved lanes | Sum max dev | Sum mean dev | Normalized blend max err | Blend mismatch | Passes |
 |---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | 0 | 0 | (unresolved) | single_index_attr_0 | vec4_half | 1 | 27355 | 0 | 0.000366 | 0.000046 | 3.184e-07 | 0 | True |
+
+### Triangle winding against stored normals
+
+The face normal uses the right-handed cross product of the stored vertex
+order. Agreement with the stored normals shows the two conventions inside the
+file do not contradict each other; it does not fix absolute handedness.
+
+| MeshInfo | LOD | Transform | Section | Faces checked | Agree | Oppose | Degenerate | Mean dot | Conclusion |
+|---:|---:|---|---:|---:|---:|---:|---:|---:|---|
+| 0 | 0 | (unresolved) | 0 | 41165 | 40578 | 6 | 581 | 0.9401 | consistent |
 
 ## Cross-Unit shared vertex buffers
 

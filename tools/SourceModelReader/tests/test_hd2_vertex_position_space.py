@@ -14,6 +14,7 @@ from research.probe_hd2_vertex_position_space import (
     rest_invariant_tests,
     transform_point,
     weight_lane_tests,
+    winding_tests,
 )
 
 
@@ -369,6 +370,57 @@ class HD2RestInvariantTests(unittest.TestCase):
         models = [row["pairing_model"]
                   for row in weight_lane_tests(unit, 0, REST_INVARIANT_TOLERANCE)]
         self.assertEqual(models, ["single_index_attr_0"])
+
+
+    def test_winding_agrees_with_stored_normals_only_when_order_matches(self):
+        def fixture(indices):
+            return {
+                "unit": {"file_id": "unit-winding", "geometry_source": "Unit GPU payload"},
+                "package": {"name": "package-winding"},
+                "transform_info": {
+                    "transforms": [{
+                        "index": 0, "name_hash": 1, "parent_index_raw": 65535,
+                        "matrix_4x4_raw": identity_matrix(),
+                    }],
+                    "resolved_skeleton": [{"transform_index": 0, "name": "g_mesh"}],
+                    "hierarchy_matrix_validation": {"entries": []},
+                },
+                "mesh_info": {"records": [
+                    {"index": 0, "mesh_id": 55, "transform_index": 0, "lod_index": 0},
+                ]},
+                "geometry": [{
+                    "mesh_info_index": 0,
+                    "mesh_id": 55,
+                    "transform_index": 0,
+                    "lod_index": 0,
+                    "attributes": [
+                        attribute("position", 0, "vec3_float32",
+                                  [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+                        {
+                            "component_name": "normal",
+                            "component_index": 0,
+                            "format_name": "packed_octahedral_normal",
+                            "values": [0, 0, 0],
+                            "decoded_values": [[0.0, 0.0, 1.0]] * 3,
+                        },
+                    ],
+                    "sections": [{"index": 0, "indices": indices}],
+                    "skinning": {"status": "no_skin_attributes"},
+                }],
+            }
+
+        counter_clockwise = self.load(fixture([0, 1, 2]), "ccw")
+        clockwise = self.load(fixture([0, 2, 1]), "cw")
+
+        agree = winding_tests(counter_clockwise, 0)
+        flipped = winding_tests(clockwise, 0)
+        self.assertEqual(len(agree), 1)
+        self.assertEqual(agree[0]["winding_conclusion"], "consistent")
+        self.assertEqual(agree[0]["agree_with_stored_normals"], 1)
+        self.assertAlmostEqual(agree[0]["mean_dot"], 1.0)
+        self.assertEqual(flipped[0]["winding_conclusion"], "inverted")
+        self.assertEqual(flipped[0]["oppose_stored_normals"], 1)
+        self.assertAlmostEqual(flipped[0]["mean_dot"], -1.0)
 
 
 if __name__ == "__main__":

@@ -189,6 +189,12 @@ def load_unit(path: Path, label: str) -> dict[str, Any]:
             ],
             "weight_rows": _weight_rows(geometry_row)[0],
             "weight_format": _weight_rows(geometry_row)[1],
+            "normal_rows": _normal_rows(geometry_row),
+            "section_index_buffers": [
+                {"index": section.get("index"), "indices": section.get("indices")}
+                for section in geometry_row.get("sections") or []
+                if isinstance(section, dict) and isinstance(section.get("indices"), list)
+            ],
             **_attribute_profile(geometry_row),
         }
         if points:
@@ -429,6 +435,110 @@ def weight_lane_tests(unit: dict[str, Any], sample_limit: int, tolerance: float)
     return results
 
 
+def _normal_rows(geometry_row: dict[str, Any]) -> list[Any]:
+    for attribute in geometry_row.get("attributes") or []:
+        if not isinstance(attribute, dict) or attribute.get("component_name") != "normal":
+            continue
+        values = attribute.get("decoded_values")
+        if values is None:
+            values = attribute.get("values")
+        if isinstance(values, list) and values and isinstance(values[0], list):
+            return values
+    return []
+
+
+def _cross(left: list[float], right: list[float]) -> list[float]:
+    return [
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0],
+    ]
+
+
+def _normalize(vector: list[float]) -> list[float] | None:
+    length = math.sqrt(sum(component * component for component in vector))
+    if length <= 0.0 or not math.isfinite(length):
+        return None
+    return [component / length for component in vector]
+
+
+def winding_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any]]:
+    """Compare stored triangle winding with stored vertex normals.
+
+    The cross product here is the right-handed one. If most faces agree with the
+    stored normals, the two conventions are consistent inside the file, which is
+    what a converter must preserve. Absolute handedness of the space is a
+    separate question this test cannot answer.
+    """
+    results: list[dict[str, Any]] = []
+    for mesh in unit["meshes"]:
+        points = mesh.get("_points")
+        normals = mesh.get("normal_rows")
+        if not points or not normals or len(normals) != len(points):
+            continue
+        for section in mesh.get("section_index_buffers") or []:
+            indices = section.get("indices")
+            if not isinstance(indices, list) or len(indices) < 3:
+                continue
+            limit = len(indices)
+            if sample_limit:
+                limit = min(limit, sample_limit * 3)
+            agree = 0
+            oppose = 0
+            flat = 0
+            dot_sum = 0.0
+            faces = 0
+            for step in range(0, limit - 2, 3):
+                a, b, c = indices[step], indices[step + 1], indices[step + 2]
+                if not all(isinstance(value, int) and 0 <= value < len(points)
+                           for value in (a, b, c)):
+                    continue
+                first = points[b]
+                second = points[c]
+                base = points[a]
+                face_normal = _normalize(_cross(
+                    [first[k] - base[k] for k in range(3)],
+                    [second[k] - base[k] for k in range(3)],
+                ))
+                if face_normal is None:
+                    flat += 1
+                    continue
+                stored = _normalize([
+                    sum(normals[index][k] for index in (a, b, c)) / 3.0 for k in range(3)
+                ])
+                if stored is None:
+                    flat += 1
+                    continue
+                dot = sum(face_normal[k] * stored[k] for k in range(3))
+                dot_sum += dot
+                faces += 1
+                if dot > 0.5:
+                    agree += 1
+                elif dot < -0.5:
+                    oppose += 1
+                else:
+                    flat += 1
+            if not faces:
+                continue
+            results.append({
+                "mesh_info_index": mesh["mesh_info_index"],
+                "lod_index": mesh["lod_index"],
+                "transform_name": mesh["transform_name"],
+                "section_index": section.get("index"),
+                "faces_checked": faces,
+                "agree_with_stored_normals": agree,
+                "oppose_stored_normals": oppose,
+                "degenerate_or_oblique": flat,
+                "mean_dot": dot_sum / faces,
+                "winding_conclusion": (
+                    "consistent" if agree >= oppose and agree > 0
+                    and agree / faces >= 0.9 else
+                    "inverted" if oppose / faces >= 0.9 else "mixed"
+                ),
+            })
+    return results
+
+
 def correspondence_tests(unit: dict[str, Any], sample_limit: int) -> list[dict[str, Any]]:
     """Compare every mesh against the Unit's largest ordinary render mesh.
 
@@ -616,9 +726,11 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         unit["weight_pairings"] = weight_lane_tests(
             unit, sample_limit, REST_INVARIANT_TOLERANCE
         )
+        unit["winding"] = winding_tests(unit, sample_limit)
     shared = shared_asset_checks(units, POSITION_BUFFER_TOLERANCE)
     rest_rows = [row for unit in units for row in unit["rest_invariant"]]
     pairing_rows = [row for unit in units for row in unit["weight_pairings"]]
+    winding_rows = [row for unit in units for row in unit["winding"]]
     summary = {
         "units": len(units),
         "meshes_with_positions": sum(
@@ -640,16 +752,28 @@ def build_report(units: list[dict[str, Any]], sample_limit: int) -> dict[str, An
         "rest_invariant_exceeding_tolerance": sum(1 for row in rest_rows if not row["within_tolerance"]),
         "weight_pairing_rows": len(pairing_rows),
         "weight_pairing_passing_models": sum(1 for row in pairing_rows if row["passes"]),
+        "winding_sections_checked": len(winding_rows),
+        "winding_faces_checked": sum(row["faces_checked"] for row in winding_rows),
+        "winding_consistent_sections": sum(
+            1 for row in winding_rows if row["winding_conclusion"] == "consistent"
+        ),
+        "winding_inverted_sections": sum(
+            1 for row in winding_rows if row["winding_conclusion"] == "inverted"
+        ),
     }
     for unit in units:
         for mesh in unit["meshes"]:
             rows = mesh.get("weight_rows") or [[]]
             mesh["bone_index_attr_count"] = len(mesh.get("bone_index_buffers") or [])
             mesh["weight_lane_count"] = len(rows[0]) if rows else 0
+            mesh["section_count"] = len(mesh.get("section_index_buffers") or [])
+            mesh["stored_normal_rows"] = len(mesh.get("normal_rows") or [])
             # Keep the report compact: the full buffers stay in the Unit JSON.
             mesh.pop("_points", None)
             mesh.pop("bone_index_buffers", None)
             mesh.pop("weight_rows", None)
+            mesh.pop("normal_rows", None)
+            mesh.pop("section_index_buffers", None)
     return {
         "schema": "SourceModelReader-HD2VertexPositionSpace1",
         "matrix_convention_candidate": "row_major_4x4_row_vector",
@@ -811,6 +935,27 @@ def render_markdown(report: dict[str, Any]) -> str:
                     row["weight_sum_max_deviation"], row["weight_sum_mean_deviation"],
                     row["normalized_blend_max_error"], row["blend_mismatch_count"],
                     row["passes"],
+                ))
+            lines.append("")
+
+        if unit["winding"]:
+            lines.extend([
+                "### Triangle winding against stored normals",
+                "",
+                "The face normal uses the right-handed cross product of the stored vertex",
+                "order. Agreement with the stored normals shows the two conventions inside the",
+                "file do not contradict each other; it does not fix absolute handedness.",
+                "",
+                "| MeshInfo | LOD | Transform | Section | Faces checked | Agree | Oppose | Degenerate | Mean dot | Conclusion |",
+                "|---:|---:|---|---:|---:|---:|---:|---:|---:|---|",
+            ])
+            for row in unit["winding"]:
+                lines.append("| {} | {} | {} | {} | {} | {} | {} | {} | {:.4f} | {} |".format(
+                    row["mesh_info_index"], row["lod_index"],
+                    row["transform_name"] or "(unresolved)", row["section_index"],
+                    row["faces_checked"], row["agree_with_stored_normals"],
+                    row["oppose_stored_normals"], row["degenerate_or_oblique"],
+                    row["mean_dot"], row["winding_conclusion"],
                 ))
             lines.append("")
 
