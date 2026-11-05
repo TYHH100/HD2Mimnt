@@ -2,7 +2,7 @@
 
 Date: 2026-11-05
 
-Status: diagnostic tool and synthetic regression tests added; local test execution and fresh real-Unit report generation are pending.
+Status: diagnostic tool and synthetic regression tests added; MeshInfo-linked mesh transforms are separated from the skeleton comparison. Local test execution and fresh real-Unit report generation are pending.
 
 ## Purpose
 
@@ -16,7 +16,10 @@ The comparison checks:
 - resolved parent-bone names;
 - stored local `position`, `rotation_3x3`, and `scale`;
 - stored `matrix_4x4_raw` values, including linear and translation component differences;
-- whether each named TransformInfo is actively referenced by the selected mesh.
+- direct mesh bindings from `MeshInfo.records[].transform_index`;
+- whether each named TransformInfo is actively referenced by vertex skinning.
+
+A TransformInfo referenced by MeshInfo is classified as a mesh transform. Other uniquely resolved named transforms remain in the skeleton scope, including transforms with no direct vertex influence. A transform can be both mesh-bound and actively weighted; that dual role is retained explicitly.
 
 Only unique, resolved names are compared. Ambiguous and unresolved names remain excluded instead of being guessed.
 
@@ -50,16 +53,19 @@ The default tolerance is `1e-4`. Outputs:
 
 The Markdown report is the shareable summary. The JSON output contains the complete pairwise rows and the names common to all three Units. A pair with no shared unique names is explicitly marked `no_shared_unique_names` and contributes to an overall `warning`; this prevents an empty comparison from appearing to pass.
 
+The JSON and Markdown retain raw all-transform mismatch totals, but also split matrix differences into skeleton and mesh-transform scopes. A mismatch isolated to MeshInfo-bound transforms produces diagnostic status `review`, not a skeleton warning. Differences in mesh-space transforms remain visible and must still be resolved before vertex conversion.
+
 ## Interpretation
 
 A small or zero numeric difference across these selected Unit samples is evidence that their stored TransformInfo entries agree under the compared representation. It does not independently establish:
 - universal axis orientation, handedness, or unit scale;
 - that all raw matrices represent the same semantic space across every Unit type;
+- that a MeshInfo-bound transform is disposable or unrelated to all bone behavior;
 - inverse-bind semantics or runtime GPU skinning behavior;
 - animated deformation;
 - correctness of a Source-to-HD2 retarget map.
 
-The existing Unit parser separately validates the relationship between each Unit's reconstructed hierarchy matrix and its stored TransformInfo matrix, and checks active BoneInfo palette matrices against the candidate `MeshWorld * inverse(BoneWorld)` formula. This new tool adds the missing cross-Unit name-based numeric comparison; it does not replace those validations.
+The existing Unit parser separately validates the relationship between each Unit's reconstructed hierarchy matrix and its stored TransformInfo matrix, and checks active BoneInfo palette matrices against the candidate `MeshWorld * inverse(BoneWorld)` formula. This tool uses MeshInfo's explicit `transform_index` reference to keep mesh-space nodes separate from the skeleton comparison; it does not discard or rewrite their transforms.
 
 ## Files
 
