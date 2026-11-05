@@ -112,7 +112,8 @@ A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar r
 **Remaining work:**
 - Review the advisory ValveBiped-to-Avatar candidates and their parent-graph mismatches; do not promote them to approved mappings yet. Generate the compact per-section BoneInfo palette audit with `research/summarize_hd2_skinning.py`; all 22 candidate transforms are now confirmed active in the corrected comparison report.
 - Run the updated comparison against the supplied GMod sample and a verified HD2 Avatar/armor target; inspect the generated candidate table and identify virtual/root branches.
-- Validate Source-to-HD2 coordinate, handedness, unit-scale and matrix-space conversion before comparing rest poses.
+- Validate Source-to-HD2 coordinate, handedness, unit-scale and matrix-space conversion before comparing rest poses. Measured so far: HD2 is meter-scale Z-up facing +Y, this Source sample is single-LOD with 0 VVD fixups and needs a scale of `0.029-0.032` with a 180° rotation about +Z rather than a mirror; the HD2 mesh placement space is validated on stored data (see the placement section above). What is left on this line is an external reference for the runtime shader order.
+- Source BoneGroup-level bone use is measured with `research/survey_source_bodygroup_bone_use.py`: 42 combinations, 77 bones no choice can remove, union 242, one skirt choice adding 100 of its own. LOD-level use is not obtainable from this model at all, because it carries one VVD LOD, one VTX LOD and zero fixups, so the earlier "fixups not applied" note reads as an untested code path rather than a live data gap; it needs a second multi-LOD model, which is also the 1.0.0 requirement to test more than one independent model.
 - Measure bind-pose alignment and simulate test rotations on representative target joints.
 - Validate geometry and deformation against native HD2 reference behavior.
 

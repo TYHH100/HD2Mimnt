@@ -135,8 +135,8 @@ The Unit decoder already resolves this chain per section and per index set. A ne
 2. Resolve the 17 HD2 transform hashes using the local SDK/hash dictionaries and structural parent context.
 3. Compare the two skeleton hierarchies and rest-pose transforms only after coordinate, unit-scale, matrix-space, and bind-pose conventions are validated.
 4. Identify the correct HD2 target Unit for the armor replacement workflow; keep the Avatar Unit as a reference baseline only.
-5. Analyze accessory/secondary chains (hair, ribbons, tail, ears, `Qun_*`) separately from the humanoid core.
-6. Extend VVD analysis to BodyGroup/LOD-specific vertex usage before using the active-bone set for a conversion.
+5. Analyze accessory/secondary chains (hair, ribbons, tail, ears, `Qun_*`) separately from the humanoid core. The BodyGroup survey now gives the quantitative seam: 77 bones are used by every one of the 42 combinations, and one skirt choice alone contributes 100 bones that no other combination needs.
+6. BodyGroup-level vertex usage is measured (see the survey below: 77 invariant core out of a 242 union). LOD-level usage cannot be measured on this model: it has one VVD LOD, one VTX LOD and zero fixups, so it needs a different Source model rather than a reader change.
 
 ## Reproduction
 
@@ -175,3 +175,20 @@ LOD0/skin0 的 20 个 BodyGroup、42 个选项组合实测：
 ```powershell
 py -3 research/survey_source_bodygroup_bone_use.py gmpublisher.gma --model "models/lc_84/aes_yz_pm.mdl" --output-json research/skeleton_comparison/source_bodygroup_bone_use.json
 ```
+
+### 更正：LOD 级顶点用量在本样本上不适用（Observed）
+
+上面第 6 项里「按 LOD 拆」的部分，先前被记成"reader 未应用非零 VVD fixup"造成的缺口。直接读 VVD 头后事实是：
+
+| 字段 | 值 |
+|---|---:|
+| `vvd_num_lods` | 1 |
+| `vvd_lod_counts` | `(94858, 94858, …)` 8 项同值，仅索引 0 有意义 |
+| `vvd_num_fixups` | **0** |
+| `vtx_num_lods` | 1 |
+| `vvd_vertex_start` / `vvd_tangent_start` | 64 / 4553248（`fixup_start` 亦为 64，即 fixup 区为空） |
+| LOD0 重建三角形 | 106,663；请求 LOD1–LOD3 直接 `LOD n is unavailable` |
+
+- **Observed**：该模型只有一个 LOD，且没有任何 fixup 记录；reader 的"存在 N 条 fixup 未应用"告警只在 `num_fixups != 0` 时追加，因此在本样本上从未触发。
+- 结论修正：LOD 级顶点/骨骼用量不是本仓库的代码缺口，而是**样本能力问题**——需要一个 `vvd_num_lods > 1` 或含非零 fixup 的 Source 模型才能验证。这条与 1.0.0 的「测试多个独立模型」要求是同一件事，已在 ROADMAP 的 0.8.4 剩余工作里改口径。
+- 因此本节上方的 BodyGroup 组合拆分是本样本上唯一可做的"活跃集合收缩"实验，其 77 / 242 结果不受 fixup 影响。
