@@ -98,7 +98,7 @@ $materials = @(
     "b5c17c3e6bd81b1f"
 )
 
-$argsList = @($gameData, "hd2-material-users")
+$argsList = @("hd2-material-users", $gameData)
 foreach ($id in $materials) {
     $argsList += @("--material", $id)
 }
