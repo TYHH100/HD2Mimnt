@@ -50,6 +50,39 @@
 |---|---|---|---:|---|---|---|---|
 | — | — | — | — | — | — | — | — |
 
+## Advisory humanoid alias candidates
+
+This section is hypothesis-only. It does not modify exact-name matches or approve a retarget.
+
+| Source bone | Source active | HD2 candidate | Target active | Parent check |
+|---|---|---|---|---|
+| ValveBiped.Bip01_Pelvis | yes | hips | no | not_checked_source_parent_has_no_candidate_alias |
+| ValveBiped.Bip01_Spine | yes | spine1 | no | mismatch |
+| ValveBiped.Bip01_Spine1 | yes | spine2 | no | match |
+| ValveBiped.Bip01_Spine2 | yes | chest | no | match |
+| ValveBiped.Bip01_Neck1 | yes | neck | no | not_checked_source_parent_has_no_candidate_alias |
+| ValveBiped.Bip01_Head1 | yes | head | no | match |
+| ValveBiped.Bip01_L_Thigh | yes | l_thigh | no | match |
+| ValveBiped.Bip01_L_Calf | yes | l_knee | no | match |
+| ValveBiped.Bip01_L_Foot | yes | l_foot | no | match |
+| ValveBiped.Bip01_L_Toe0 | yes | l_toe | no | mismatch |
+| ValveBiped.Bip01_L_Clavicle | yes | l_clavicle | no | not_checked_source_parent_has_no_candidate_alias |
+| ValveBiped.Bip01_L_UpperArm | yes | l_shoulder | no | match |
+| ValveBiped.Bip01_L_Forearm | yes | l_elbow | no | match |
+| ValveBiped.Bip01_L_Hand | yes | l_hand | no | match |
+| ValveBiped.Bip01_R_Thigh | yes | r_thigh | no | match |
+| ValveBiped.Bip01_R_Calf | yes | r_knee | no | match |
+| ValveBiped.Bip01_R_Foot | yes | r_foot | no | match |
+| ValveBiped.Bip01_R_Toe0 | yes | r_toe | no | mismatch |
+| ValveBiped.Bip01_R_Clavicle | yes | r_clavicle | no | not_checked_source_parent_has_no_candidate_alias |
+| ValveBiped.Bip01_R_UpperArm | yes | r_shoulder | no | match |
+| ValveBiped.Bip01_R_Forearm | yes | r_elbow | no | match |
+| ValveBiped.Bip01_R_Hand | yes | r_hand | no | match |
+
+Candidate count: 22. Parent matches: 15. Parent mismatches: 3. Parent checks deferred: 4.
+
+All candidates remain advisory-only; rest-pose, matrix-space, side and deformation validation is still required.
+
 ## Source bones without exact HD2 name
 
 | Name | ID / Transform | Active Source influence | Details |
