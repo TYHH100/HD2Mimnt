@@ -289,7 +289,20 @@ class HD2UnitTransformComparisonTests(unittest.TestCase):
         self.assertEqual(pair["summary"]["skeleton_stored_matrix_mismatch_count"], 0)
         self.assertEqual(pair["summary"]["mesh_hierarchy_stored_matrix_mismatch_count"], 1)
         self.assertEqual(report["summary"]["pairwise_skeleton_matrix_mismatches"], 0)
-        self.assertEqual(report["summary"]["pairwise_mesh_hierarchy_matrix_mismatches"], 1)
+
+        # The report aggregates mismatch events across all three pairwise
+        # Unit comparisons. The translated torso sample differs from both
+        # identity-matrix samples, so this one named transform contributes
+        # two pairwise mismatch events.
+        lower_avatar = report["pairwise_comparisons"]["lower__vs__avatar"]
+        torso_avatar = report["pairwise_comparisons"]["torso__vs__avatar"]
+        self.assertEqual(
+            lower_avatar["summary"]["mesh_hierarchy_stored_matrix_mismatch_count"], 0
+        )
+        self.assertEqual(
+            torso_avatar["summary"]["mesh_hierarchy_stored_matrix_mismatch_count"], 1
+        )
+        self.assertEqual(report["summary"]["pairwise_mesh_hierarchy_matrix_mismatches"], 2)
         self.assertEqual(report["summary"]["status"], "review")
 
 
