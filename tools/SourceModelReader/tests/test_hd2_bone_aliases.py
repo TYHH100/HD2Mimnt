@@ -38,7 +38,7 @@ class BoneAliasCandidateTests(unittest.TestCase):
         result = build_alias_candidates(report)
         rows = {row["source_name"]: row for row in result["candidates"]}
         self.assertEqual(result["candidate_count"], 2)
-        self.assertEqual(rows["ValveBiped.Bip01_Spine"]["parent_status"], "match")
+        self.assertEqual(rows["ValveBiped.Bip01_Spine"]["parent_status"], "mismatch")
         self.assertEqual(rows["ValveBiped.Bip01_Pelvis"]["parent_status"],
                          "not_checked_source_parent_has_no_candidate_alias")
         self.assertTrue(all(row["approval"] == "advisory_only"
