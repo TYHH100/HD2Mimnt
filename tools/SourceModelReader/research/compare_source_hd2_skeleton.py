@@ -131,7 +131,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "- Names are matched exactly after Unicode case-folding and trimming edge whitespace.",
         "- No punctuation stripping, prefix guessing, fuzzy matching, or automatic aliasing is performed.",
         "- Parent relationships are compared only when both parents resolve to names.",
-        "- Rest-pose numeric values are not compared. Source SMD local Euler transforms and HD2 TransformInfo matrices need a validated coordinate, unit-scale, and matrix-space conversion.",
+        "- Rest-pose numeric values are not compared. Source MDL local bone transforms and poseToBone matrices require a validated coordinate, unit-scale, and matrix-space conversion before comparison with HD2 TransformInfo.",
         "- No retargeting or bone mapping is applied. This is a diagnostic report only.",
         "",
         "## Source warnings",
