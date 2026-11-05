@@ -4,6 +4,8 @@ A dependency-free Python tool for reading a bounded subset of Source 1 model res
 
 Material research notes: [MATERIAL_FORMAT_NOTES.md](MATERIAL_FORMAT_NOTES.md). These document the observed Material/Texture resource layout and transparency distinctions; no automatic material conversion is implemented yet.
 
+Large game-data inventories, full Unit dumps, raw census JSON, and exported texture binaries/previews are local generated artifacts. They are intentionally excluded by `.gitignore`; the durable research findings are kept in Markdown and compact metadata JSON. The commands below still generate local output files when needed.
+
 ## 0.8.4 — Transform hierarchy and mesh-space matrix diagnostics
 
 The HD2 Unit report now reconstructs the TransformInfo hierarchy from each transform's local rotation, position, scale and parent index. The candidate row-vector composition is:

@@ -1,8 +1,8 @@
 # Full Material Census Results
 
 Date: 2026-11-05
-Source report: `hd2_material_census_full.json`
-Compact target-family summary: `hd2_material_census_full_summary.json`
+Original raw report: `hd2_material_census_full.json` (41.7 MB; generated, validated, then removed from the active branch during repository cleanup). The older duplicate `hd2_material_census.json` had the same SHA-256 and was also removed.
+Compact target-family summary retained: `hd2_material_census_full_summary.json`.
 
 ## 1. Scan completeness
 
@@ -111,3 +111,12 @@ Use the package IDs listed in the tables above. Extracting these seven materials
 
 - `hd2_material_census_full.json`: 41,736,058-byte complete census output.
 - `hd2_material_census_full_summary.json`: compact target-family summary derived from that exact full report; records the source blob SHA.
+
+
+## Repository cleanup note
+
+The large raw census JSON is intentionally not tracked in the current branch. The validated totals and the four target-family summaries remain in this document and in `hd2_material_census_full_summary.json`. The raw scan can be regenerated from the installed HD2 data directory with:
+
+```powershell
+py -3 .\\source_model_reader.py hd2-material-census "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data" --json ".\\research\\hd2_material_census_full.json"
+```

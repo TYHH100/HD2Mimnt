@@ -6,3 +6,33 @@ __pycache__/
 *_validation.json
 *.glb
 *_hd2_inventory.json
+
+# Large generated game-data snapshots; durable conclusions live in the research notes.
+hd2_avatar_unit.json
+fs05_unit_*.json
+avatar_transform_check*.json
+fs05_transform_check*.json
+smd_audit_*.json
+audit.json
+hd2_avatar_inventory.json
+hd2_base_inventory.json
+hd2_package_catalog.json
+fs05_player_inventory.json
+
+# Full census and full cross-package lookup dumps are reproducible from local game data.
+research/hd2_material_census*.json
+!research/hd2_material_census_full_summary.json
+research/glass_material_users.json
+research/hd2_material_census_smoke.json
+research/hd2_package_catalog.json
+
+# Extracted texture payloads/previews are reproducible; retain only their JSON analysis.
+research/*.dds
+research/*.bin
+research/textures/*.dds
+research/textures/*.png
+research/textures/*.bin
+
+# The Markdown batch summary is the shareable summary; omit its duplicate JSON.
+research/unit_inspections/glass_unit_batch_summary.json
+research/unit_inspections/*.log

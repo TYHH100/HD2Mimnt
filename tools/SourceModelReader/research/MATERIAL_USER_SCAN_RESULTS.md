@@ -4,7 +4,7 @@ Date: 2026-11-05
 
 ## Scope and integrity
 
-Source report: `research/glass_material_users.json` (blob SHA `57baa509b5aa03ff36dcbf86dd5279d650f04074`).
+Original scan JSON (`research/glass_material_users.json`, blob SHA `57baa509b5aa03ff36dcbf86dd5279d650f04074`) was a generated 2.9 MB dump and has been removed from the active branch after extracting the full aggregate results and the 44 Unit identities listed in the appendix below.
 
 The scan covered all 3,522 scannable packages in the 9,725-package index. It encountered 48,020 Unit resource entries across package TOCs and parsed all 48,020 successfully. There were no package scan errors and no Unit parse errors.
 
@@ -154,3 +154,55 @@ This reads the five compact JSON files from `research/unit_inspections` and writ
 The Markdown report includes per-candidate material tables, active skeleton transforms, mesh/LOD/Section layouts, vertex component formats, skinning status per section, BoneInfo remap sizes, and parser warnings. Share this Markdown file for the next analysis pass; the LFS JSON files do not need to be uploaded again.
 
 This exporter is a reporting step only. It does not reread game packages, change parser behavior, or claim asset classification from geometry counts alone.
+
+
+## Appendix — all 44 distinct Unit IDs discovered
+
+The original 2.9 MB scan JSON was removed from the active branch after its aggregate results and this de-duplicated candidate index were extracted. The table below retains all 44 Unit identities, their geometry source, any CompositeUnit ID, the number of distinct packages where that Unit ID was observed, and up to three example packages. Package samples are examples, not a complete occurrence listing.
+
+| Material FileID | Unit FileID | Geometry source | CompositeUnit | Package copies | Example packages |
+|---|---|---|---|---:|---|
+| `0f3201437c248dfc` | `4e401cc877093220` | Unit | — | 11 | `1e33cc1600ff38f3`, `23bb68bd2e366fdf`, `2c26bc4c6592fa14` |
+| `0f3201437c248dfc` | `9bb22e306a372df6` | Unit | — | 1 | `b18d1859b2cc7be1` |
+| `0f3201437c248dfc` | `dec89a1588c9d726` | Unit | — | 1 | `fc5b6bff0db90aab` |
+| `2f80391371cce33e` | `0e8c6a2fe8d85cd4` | Unit | — | 30 | `08e7b8b93e0dc696`, `09d2644a0c95e209`, `1230a746045f365f` |
+| `2f80391371cce33e` | `246144231754fff4` | Unit | — | 70 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `36cb1938d1756a85` | Unit | — | 34 | `0692f83587540ae5`, `08e7b8b93e0dc696`, `09d2644a0c95e209` |
+| `2f80391371cce33e` | `4b7cd895ff08ec3f` | Unit | — | 62 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `9cc3230408df50f5` | Unit | — | 61 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `af02e6fdc559e24b` | Unit | — | 69 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `af5f4fa5c016cb57` | Unit | — | 72 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `b75bfa3a59b88a66` | Unit | — | 80 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `d4a33051e7e84676` | Unit | — | 64 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `2f80391371cce33e` | `da6fa6152cbadcef` | Unit | — | 34 | `08e7b8b93e0dc696`, `09d2644a0c95e209`, `1230a746045f365f` |
+| `2f80391371cce33e` | `fbf9b84a311e56d8` | Unit | — | 69 | `029a193f2a08167c`, `031216af8ef63607`, `064e2fb84ddc7ab7` |
+| `5942631a102e7a6f` | `aecb777074d05515` | Unit | — | 1 | `7ed1f941859987b4` |
+| `62650e2896e2b3e3` | `48d71ca5d261c852` | Unit | — | 2 | `9bfa7eb1324c29a5`, `9c3d59d7095b4c6a` |
+| `6caeffbc028219fb` | `16bc189b4d7cb3fe` | Unit | — | 2 | `5dcc1c4250a662aa`, `dc340e17314bc86a` |
+| `83f08d5592664073` | `ca4a3eeb62f8b328` | Unit | — | 2 | `09985dc611a3a8b6`, `fc5b6bff0db90aab` |
+| `8b3ff5502ac52c25` | `1fb1f1a548b29abf` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `8b3ff5502ac52c25` | `2d3bc1683a54298d` | Unit | — | 4 | `01edaa2a7e84b840`, `4b34b7e4d302fb84`, `ab58b061f0aec8e7` |
+| `8b3ff5502ac52c25` | `4aff102712823c1e` | Unit | — | 3 | `161694e194f95f99`, `7f76463558ffe625`, `f2b6fce59b619737` |
+| `8b3ff5502ac52c25` | `551e7b935eff221a` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `8b3ff5502ac52c25` | `560ebb3b22a00adf` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `8b3ff5502ac52c25` | `7643744b05735c7e` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `8b3ff5502ac52c25` | `773c4184e4bad0df` | Unit | — | 1 | `6286516637d5c967` |
+| `8b3ff5502ac52c25` | `d7ea827cb1503bc4` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `93d9723a39dab3d1` | `9ea89ceea6f8e766` | Unit | — | 3 | `0a9651116d7d42b5`, `7c5edf52fd8827de`, `9514b4daa7f4c881` |
+| `9423bb5f9a715c2e` | `12738f0c0c22b686` | Unit | — | 2 | `09985dc611a3a8b6`, `3b2c86dd5b316eb2` |
+| `9423bb5f9a715c2e` | `33cb06b89be208da` | Unit | — | 2 | `79219a4244b09ed8`, `fc5b6bff0db90aab` |
+| `9423bb5f9a715c2e` | `5367951cd4da72d9` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `b5c17c3e6bd81b1f` | `3b9bcf29e38da0a6` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `b5c17c3e6bd81b1f` | `4c1cb88bb68e1731` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `b5c17c3e6bd81b1f` | `8df85c4ad06c8d72` | CompositeUnit | `ddf83b892394e370` | 1 | `fc5b6bff0db90aab` |
+| `e2b99ac44dc829f2` | `15e08c8f0cdd1e08` | Unit | — | 51 | `0118c2cfda4f68a5`, `0149ef7d2ee3efca`, `03fbef05fbf99b12` |
+| `e2b99ac44dc829f2` | `1664e06696cb08e3` | Unit | — | 60 | `009da023c64d178d`, `03fbef05fbf99b12`, `08e7b8b93e0dc696` |
+| `e2b99ac44dc829f2` | `1a226f730402d1f7` | Unit | — | 1 | `09985dc611a3a8b6` |
+| `e2b99ac44dc829f2` | `41959e4ac040df31` | Unit | — | 10 | `1f881b1c0b28d702`, `36f864f8c720ddb2`, `4a7ea58e8d4be432` |
+| `e2b99ac44dc829f2` | `566076565486f3b8` | Unit | — | 4 | `6530ed7ec71647d1`, `9bfa7eb1324c29a5`, `b3694945bb1617ed` |
+| `e2b99ac44dc829f2` | `5ae9a9da3521e252` | Unit | — | 84 | `039fb224d76ccab4`, `04e78679f001a447`, `078d187f158c0d8f` |
+| `e2b99ac44dc829f2` | `a4958229b27acad1` | Unit | — | 3 | `6530ed7ec71647d1`, `b3694945bb1617ed`, `c38aeb09bc59b2c4` |
+| `e2b99ac44dc829f2` | `b6e76076e5c6fe44` | Unit | — | 4 | `0b930572f0d4d0ab`, `50ec5ffdc83537a5`, `947df36a9103d1c8` |
+| `e2b99ac44dc829f2` | `ddce99c2b35bd47a` | Unit | — | 22 | `09985dc611a3a8b6`, `149952f0a7588552`, `2a6f3b4aa3866047` |
+| `e2b99ac44dc829f2` | `df685b4dc75bc874` | Unit | — | 9 | `0149ef7d2ee3efca`, `0dc8fcabdb02111d`, `1230a746045f365f` |
+| `e2b99ac44dc829f2` | `fce2415f35ce21fb` | Unit | — | 4 | `6530ed7ec71647d1`, `b3694945bb1617ed`, `c38aeb09bc59b2c4` |
