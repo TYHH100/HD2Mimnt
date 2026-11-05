@@ -341,3 +341,18 @@ The decoded PNG visually has a blue/purple, fine-detail appearance consistent wi
 Therefore, do not yet implement a conversion rule that writes source transparency directly into this alpha channel. The next verification should correlate the texture's RGB/alpha components with an in-game material/mesh sample and a controlled Glass parameter change.
 
 The Glass pixel-level report is a positive result: fractional alpha data exists in the exact resource referenced by AQ's Glass template. It is not yet a shader-behavior proof.
+
+
+## 12. Current extraction queue state
+
+At the current branch snapshot (2026-11-05), the Texture folder contains the five Alpha Clip+ / Glass texture exports and the additional decoded Glass PNG. It does **not** yet contain any of the four `flow_*.json` reports or raw payload exports. The global lookup is complete, but Flowing image extraction is still pending.
+
+The next batch should export the four unique Texture FileIDs from package `70b4860e8169622e`:
+- `fa0bb48a25ed50fe` — used by both Noise02 Mask and Noise01 Mask nodes (one extraction is enough; keep two node edges).
+- `7f37735b6a73092a` — raw node type `0x001ff6d4`, slot label is blank in AQ's UI mapping.
+- `628b6b9b554e06e2` — NormalMap02.
+- `371ef38cf24b6cc2` — NormalMap01.
+
+The lookup's payload byte sizes suggest that three resources may be 1024×1024 BC7 textures and one may be a 512×512 BC1 texture, but this is only a size-derived expectation. The DDS headers must decide the actual format and dimensions.
+
+The Glass pixel-alpha result is now positive at the texture-data level: 99.66812% of base-mip pixels contain non-endpoint alpha values and 255 distinct alpha values occur. Do not elevate this to a confirmed Glass fractional-blend shader contract until a material/mesh or controlled in-game test links the sampled alpha component to final surface opacity.
