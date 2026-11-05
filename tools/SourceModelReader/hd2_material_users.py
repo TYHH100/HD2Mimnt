@@ -270,6 +270,11 @@ def scan_slim_material_users(
                     composite_status = None
 
                     if header.composite_ref:
+                        # A CompositeUnit owns the actual material section layout.
+                        # If it cannot be resolved, an empty mapping prevents the
+                        # Unit-side placeholder MeshInfo from being mistaken for
+                        # direct mesh sections.
+                        composite_mesh_info = {}
                         geometry_source = "CompositeUnit"
                         composite_entry = composite_entries.get(header.composite_ref)
                         if composite_entry is None:
