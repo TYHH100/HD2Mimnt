@@ -561,3 +561,34 @@ The reader only opens model resources and writes the requested output files. It 
 ## Format references
 
 The bounded Source layout implementation is based on Valve's Source SDK 2013 public headers: [`studio.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/studio.h) and [`optimize.h`](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/public/optimize.h). The output container follows the glTF 2.0 / GLB structure.
+
+
+## Source-to-HD2 skeleton comparison (experimental)
+
+The research helper `research/compare_source_hd2_skeleton.py` compares one Source SMD skeleton with a decoded HD2 Unit skeleton. It reads Source SMD files from a single SMD, directory, ZIP, or uncompressed GMA, and reads the target Unit from the installed game's data directory.
+
+Example using the sample GMA and the known HD2 Avatar target Unit:
+
+```powershell
+py -3 .\\research\\compare_source_hd2_skeleton.py `
+    --source-container "D:\\Models\\gmpublisher.gma" `
+    --source-entry "AES_T.smd" `
+    --game-data "G:\\AppData\\SteamLibrary\\steamapps\\common\\Helldivers 2\\data"
+```
+
+The default target is the previously inspected Avatar Unit (`18235e0c9ec0e636 / 4d1c334d294dfa97`). Override it with `--target-package` and `--target-unit` to compare another Unit. The source entry may be a full archive path or a basename if it is unique.
+
+The report includes:
+- Exact case-insensitive bone-name matches (edge whitespace is trimmed; punctuation and aliases are not guessed).
+- Source bones without an exact target name.
+- Named HD2 transforms not present in the Source skeleton.
+- Active target vertex-influence usage for each matched target transform.
+- Parent-hierarchy mismatches, unresolved names, and ambiguous target names.
+
+This is a diagnostic baseline only. It does not apply a retarget, rename bones, or compare rest-pose numbers. Source SMD local Euler transforms and HD2 TransformInfo matrices must first be reconciled for coordinate handedness, axis orientation, unit scale, and matrix space before numeric pose comparison is meaningful.
+
+The JSON output is local/ignored by default. The Markdown report is written to `research/skeleton_comparison/source_hd2_skeleton.md` and can be committed/shared after review. Run its regression tests with:
+
+```powershell
+py -3 -m unittest discover -s tests -p "test_hd2_skeleton_compare.py" -v
+```
