@@ -55,7 +55,8 @@ def _palette(mesh_world: list[float], bone_world: list[float]) -> list[float]:
 
 def build_unit(mesh_world: list[float] = MESH_WORLD, swap_palette_a: bool = False,
                bad_lane: bool = False, second_attribute: bool = False,
-               ambiguous_pairing: bool = False) -> dict:
+               ambiguous_pairing: bool = False,
+               second_buffer: list[list[int]] | None = None) -> dict:
     """A Unit dict shaped exactly like the position-space probe's loader output."""
     palette_a = _palette(mesh_world, WORLD_A)
     if swap_palette_a:
@@ -101,6 +102,9 @@ def build_unit(mesh_world: list[float] = MESH_WORLD, swap_palette_a: bool = Fals
         "meshes": [mesh],
         "hinge": {"rows": [], "skipped_meshes": []},
     }
+    if second_buffer is not None:
+        mesh["bone_index_buffers"] = [list(LANES), list(second_buffer)]
+        mesh["weight_rows"] = [list(row) for row in WEIGHTS]
     if ambiguous_pairing and second_attribute:
         mesh["weight_rows"] = [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]]
         mesh["bone_index_buffers"] = [list(LANES), list(LANES)]
@@ -195,6 +199,40 @@ class HD2RealBoneHingeChecksTests(unittest.TestCase):
         self.assertTrue(rows)
         self.assertTrue(all(row["pairing_model"] for row in rows))
         self.assertTrue(any(row["pairing_ambiguous"] for row in rows))
+
+
+class HD2RealBoneHingePairingTests(unittest.TestCase):
+    def test_differing_alternative_attribute_is_reported_as_ambiguous(self):
+        other = [[1, 0], [1, 0], [0, 1], [1, 0]]
+        unit = build_unit(second_buffer=other)
+        result = hinge_tests(unit, 0, 0, DEFAULT_ANGLE_DEGREES, REST_INVARIANT_TOLERANCE)
+        rows = result["rows"]
+        self.assertTrue(rows, result["skipped_meshes"])
+        for row in rows:
+            self.assertEqual(row["pairing_model"], "single_index_attr_0")
+            self.assertTrue(row["pairing_ambiguous"], row["passing_models"])
+            self.assertIn("single_index_attr_1", row["passing_models"])
+            self.assertTrue(row["alternative_passing_models_differ"])
+            self.assertEqual(row["vacuous_models"], [])
+
+    def test_identical_alternative_attribute_does_not_claim_difference(self):
+        rows = hinge_tests(build_unit(second_attribute=True), 0, 0, DEFAULT_ANGLE_DEGREES,
+                           REST_INVARIANT_TOLERANCE)["rows"]
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertTrue(row["pairing_ambiguous"])
+            self.assertFalse(row["alternative_passing_models_differ"])
+
+    def test_low_coverage_alternative_is_listed_as_vacuous_not_ambiguous(self):
+        unusable = [[2, 2], [2, 2], [2, 2], [0, 1]]
+        unit = build_unit(second_buffer=unusable)
+        rows = hinge_tests(unit, 0, 0, DEFAULT_ANGLE_DEGREES,
+                           REST_INVARIANT_TOLERANCE)["rows"]
+        self.assertTrue(rows, "the well-covered pairing must still be checked")
+        for row in rows:
+            self.assertFalse(row["pairing_ambiguous"], row["passing_models"])
+            self.assertEqual(row["passing_models"], ["single_index_attr_0"])
+            self.assertEqual(row["vacuous_models"], ["single_index_attr_1"])
 
 
 class HD2RealBoneHingeReportTests(unittest.TestCase):

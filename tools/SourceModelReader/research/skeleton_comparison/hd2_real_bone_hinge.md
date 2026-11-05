@@ -32,6 +32,8 @@
 | Max lanes in unexamined index attributes per mesh | 24920 |
 | Unexamined lane slots (all meshes) | 60200 on 5 meshes |
 | Rows from ambiguous pairings | 465 |
+| Rows whose alternative pairing holds other indices | 465 |
+| Rows with vacuous models excluded from the tally | 0 |
 
 Gates: every row within tolerance = **True**; no control left unseparated = **True**
 
@@ -877,6 +879,8 @@ Gates: every row within tolerance = **True**; no control left unseparated = **Tr
 - A hinge whose joint sits at the space origin cannot separate the two pose constructions; those rows are labelled identical instead of counted as evidence.
 - Unresolved lanes are counted and skipped, not guessed; they are the partial-skinning lanes already documented for the vec4_uint32 attribute.
 - Lanes carried by bone-index attributes that the chosen pairing does not consult are counted separately as unexamined, so a zero unresolved count is not a claim that every index attribute behaves.
+- Where a mesh offers several passing pairings, the alternative attribute can hold different bone indices while producing the same placed point; that is a rest-level degeneracy, so the tool keeps one chosen pairing and reports the alternatives instead of pretending the question is closed.
+- Pairing models that resolve fewer than half the vertices of the best model are listed as vacuous rather than counted as ambiguity, because a model whose lanes are all unusable passes by checking nothing.
 - Joint fixity of the conjugated hinge is an algebraic identity of the construction, reported as a construction audit rather than as evidence; the measured discriminators are the hinge identity, the rigid distance and the blend linearity.
 - The hinge identity reduces to the same matrix equation as the rest invariant, so it is a re-expression of that contract through a rotation and a real joint rather than a new independent constraint.
 - The dropped-placement gap is unchanged by the hinge because a rigid rotation preserves distance, which is why the rest check already decided it.

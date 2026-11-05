@@ -91,22 +91,58 @@ def _pairing_choices(unit: dict[str, Any], sample_limit: int) -> dict[Any, dict[
     """Pick one weight/bone-index pairing per mesh using the probe's own scorer.
 
     The pairing was settled in the position-space probe by the per-vertex weight sum;
-    reusing that scorer here stops the two tools from drifting apart.
+    reusing that scorer here stops the two tools from drifting apart. Where several
+    models pass, the report keeps their names and whether the alternatives actually hold
+    different bone indices, because at rest every lane blends onto the same placed point
+    and no rest quantity can separate them.
     """
+    passing: dict[Any, list[dict[str, Any]]] = {}
     chosen: dict[Any, dict[str, Any]] = {}
-    tally: dict[Any, int] = {}
     for row in weight_lane_tests(unit, sample_limit, REST_INVARIANT_TOLERANCE):
         key = row["mesh_info_index"]
         if not row["passes"]:
             continue
-        tally[key] = tally.get(key, 0) + 1
+        passing.setdefault(key, []).append(row)
         current = chosen.get(key)
         if current is None or row["vertices_checked"] > current["vertices_checked"]:
             chosen[key] = row
     for key, row in chosen.items():
-        row["passing_model_count"] = tally[key]
-        row["pairing_ambiguous"] = tally[key] > 1
+        group = passing[key]
+        best_checked = max(item["vertices_checked"] for item in group)
+        # A model that resolves almost no vertex can pass vacuously: with every lane
+        # unusable, nothing is summed and nothing is blended. Only models covering at
+        # least half as many vertices as the best one compete for the pairing.
+        strong = [item for item in group
+                  if item["vertices_checked"] >= 0.5 * best_checked]
+        names = sorted(str(item["pairing_model"]) for item in strong)
+        row["passing_models"] = names
+        row["passing_model_count"] = len(names)
+        row["vacuous_models"] = sorted(
+            str(item["pairing_model"]) for item in group if item not in strong)
+        row["pairing_ambiguous"] = len(names) > 1
+        mesh = next((candidate for candidate in unit["meshes"]
+                     if candidate["mesh_info_index"] == key), None)
+        buffers = (mesh or {}).get("bone_index_buffers") or []
+        chosen_indices = _attr_indices(str(row["pairing_model"]), len(buffers))
+        row["alternative_passing_models_differ"] = any(
+            _attr_indices(name, len(buffers)) != chosen_indices
+            and _buffer_sets_differ(buffers, _attr_indices(name, len(buffers)),
+                                    chosen_indices)
+            for name in names if name != row["pairing_model"]
+        ) if len(buffers) > 1 else False
     return chosen
+
+
+def _buffer_sets_differ(buffers: list[Any], first: list[int], second: list[int]) -> bool:
+    """True when the two attribute groups hold different bone index rows."""
+    for index in first:
+        for other in second:
+            if index == other:
+                continue
+            if index < len(buffers) and other < len(buffers) \
+                    and buffers[index] != buffers[other]:
+                return True
+    return False
 
 
 def _vertex_lanes(mesh: dict[str, Any], vertex_index: int,
@@ -386,6 +422,10 @@ def hinge_tests(unit: dict[str, Any], sample_limit: int, max_bones: int,
                     "stored_matrix_identity_status": mesh["stored_matrix_identity_status"],
                     "pairing_model": choice["pairing_model"],
                     "pairing_ambiguous": choice["pairing_ambiguous"],
+                    "passing_models": choice["passing_models"],
+                    "vacuous_models": choice["vacuous_models"],
+                    "alternative_passing_models_differ":
+                        choice["alternative_passing_models_differ"],
                     "vertices_sampled": sampled["vertices_sampled"],
                     "vertices_total": sampled["vertices_total"],
                     "vertices_with_lanes": sampled["vertices_with_lanes"],
@@ -444,6 +484,10 @@ def summarize(units: list[dict[str, Any]]) -> dict[str, Any]:
         "total_lanes_in_unexamined_attributes": sum(per_mesh_lanes),
         "meshes_with_unexamined_lanes": sum(1 for value in per_mesh_lanes if value > 0),
         "pairing_ambiguous_rows": sum(1 for row in live if row.get("pairing_ambiguous")),
+        "rows_with_differing_alternatives": sum(
+            1 for row in live if row.get("alternative_passing_models_differ")),
+        "rows_with_vacuous_models_excluded": sum(
+            1 for row in live if row.get("vacuous_models")),
         "max_hinge_error": max((row.get("hinge_max_error", 0.0) for row in live), default=0.0),
         "max_rigid_error": max((row.get("rigid_max_error", 0.0) for row in live), default=0.0),
         "max_blend_error": max((row.get("blend_max_error", 0.0) for row in live), default=0.0),
@@ -499,6 +543,8 @@ def build_report(units: list[dict[str, Any]], sample_limit: int, max_bones: int,
             "A hinge whose joint sits at the space origin cannot separate the two pose constructions; those rows are labelled identical instead of counted as evidence.",
             "Unresolved lanes are counted and skipped, not guessed; they are the partial-skinning lanes already documented for the vec4_uint32 attribute.",
             "Lanes carried by bone-index attributes that the chosen pairing does not consult are counted separately as unexamined, so a zero unresolved count is not a claim that every index attribute behaves.",
+            "Where a mesh offers several passing pairings, the alternative attribute can hold different bone indices while producing the same placed point; that is a rest-level degeneracy, so the tool keeps one chosen pairing and reports the alternatives instead of pretending the question is closed.",
+            "Pairing models that resolve fewer than half the vertices of the best model are listed as vacuous rather than counted as ambiguity, because a model whose lanes are all unusable passes by checking nothing.",
             "Joint fixity of the conjugated hinge is an algebraic identity of the construction, reported as a construction audit rather than as evidence; the measured discriminators are the hinge identity, the rigid distance and the blend linearity.",
             "The hinge identity reduces to the same matrix equation as the rest invariant, so it is a re-expression of that contract through a rotation and a real joint rather than a new independent constraint.",
             "The dropped-placement gap is unchanged by the hinge because a rigid rotation preserves distance, which is why the rest check already decided it.",
@@ -553,6 +599,10 @@ def render_markdown(report: dict[str, Any]) -> str:
             summary["total_lanes_in_unexamined_attributes"],
             summary["meshes_with_unexamined_lanes"]),
         "| Rows from ambiguous pairings | {} |".format(summary["pairing_ambiguous_rows"]),
+        "| Rows whose alternative pairing holds other indices | {} |".format(
+            summary["rows_with_differing_alternatives"]),
+        "| Rows with vacuous models excluded from the tally | {} |".format(
+            summary["rows_with_vacuous_models_excluded"]),
         "",
         "Gates: every row within tolerance = **{}**; no control left unseparated = **{}**".format(
             report["gates"]["every_row_within_tolerance"],
