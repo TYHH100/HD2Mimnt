@@ -97,8 +97,12 @@ A name-and-Rest-matrix cross-check against AQ Edition's pinned 63-entry Avatar r
 
 **Remaining 0.8.4 work**
 
-- Compare candidate source bones to the verified HD2 target skeleton by explicit mapping rules.
-- Report unmapped, ambiguous, extra and target-only bones.
+**Implemented diagnostic baseline:** `hd2_skeleton_compare.py` and `research/compare_source_hd2_skeleton.py` now compare a selected Source SMD against an HD2 Unit skeleton using exact case-folded names, parent relationships, active target influence flags, and explicit missing/ambiguous/target-only reports. No alias guesses, automatic mapping, or rest-pose numeric comparison is performed.
+
+**Remaining work:**
+- Add a reviewed, explicit alias/mapping table only for bone names whose semantic identity is independently established.
+- Run the comparison against the supplied GMod sample and a verified HD2 Avatar/armor target; review coverage and parent mismatches.
+- Validate Source-to-HD2 coordinate, handedness, unit-scale and matrix-space conversion before comparing rest poses.
 - Measure bind-pose alignment and simulate test rotations on representative target joints.
 - Validate geometry and deformation against native HD2 reference behavior.
 
