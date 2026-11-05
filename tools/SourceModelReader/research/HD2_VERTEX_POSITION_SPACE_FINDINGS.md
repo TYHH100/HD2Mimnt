@@ -101,6 +101,8 @@ Phase 1 的 P0 问题是：存储的顶点位置处于哪个坐标空间，以�
 py -3 research/probe_hd2_vertex_position_space.py
 py -3 -m unittest discover -s tests -p "test_hd2_vertex_position_space.py" -v
 py -3 -m unittest discover -s tests -p "test_hd2_mesh_transform_audit.py" -v
+py -3 research/dump_hd2_bones_resource.py "G:\AppData\SteamLibrary\steamapps\common\Helldivers 2\data" --package 8670598c1f4462dc --unit 210fb2f60f8308ea --unit-json research\skinning_audits\fs05_lower_body.json --output-markdown research\skeleton_comparison\hd2_bones_structure_lower_body.md
+py -3 -m unittest discover -s tests -p "test_hd2_resources.py" -v
 ```
 
 `--sample-limit` 可限制最近距离检验的采样顶点数，默认使用全部顶点；`--output-json` / `--output-markdown` 可改写输出路径。工具只读，不修改任何顶点。
@@ -108,8 +110,9 @@ py -3 -m unittest discover -s tests -p "test_hd2_mesh_transform_audit.py" -v
 ## 4. 下一个最小实验
 
 1. 现有渲染 LOD 的单位矩阵使 P0 无法从渲染网格判定，需要新增样本：**同一 Unit 内至少两个 LOD、且直接绑定 MeshInfo 的矩阵非单位**（或带非单位缩放的网格）。可用 `run_hd2_skinning_batch.py` 的清单方式做小批量定向抽取，不做全游戏扫描。
-2. **Bones 资源的绑定矩阵尚未解析**（本轮发现）：`bones_resource` 目前只导出 `name_count`、`lod_count`、`lod_levels` 和名字列表——下半身样本是 82 个名字、6 个 LOD 层级（每层 82）。这是独立于 Unit TransformInfo 的第二份骨骼数据源。解析其中的逐 LOD 矩阵后，可以与 `BoneInfo` palette 和 TransformInfo 世界矩阵做跨资源比对，才构成真正独立于本解析器自洽性的验证；当前所有"匹配"结论仍来自同一份数据内部的相互印证。
-3. 用独立参考校验：同一 Unit 的 SDK/Bones 参考输出或 Blender 侧导入结果，验证 `p × mesh_world` 的放置方向；本轮 §2.5 已在存储数据上验证"只生效一次"，但运行时契约仍标记为 Candidate。
+2. **Bones 资源不是第二份变换数据（已否证）**：用 `research/dump_hd2_bones_resource.py` 直接读取下半身 Unit 的 Bones payload（`210fb2f60f8308ea`，与 Unit 同 FileID、不同 TypeID）：总共 1470 字节，结构被完全消费，名字块之后 **0 字节**。分区为 header(8) → 6 个 float32 → 82 个 hash → 6 个 uint32 → 1086 字节名字表。把该 Unit 全部 TransformInfo/BoneInfo 矩阵的 float32 位模式在整个 payload 里搜索，**一次命中都没有**，所以 Bones 资源只保存名称/哈希表和一组 LOD 数值，不保存绑定矩阵，不能用作独立于本解析器的变换来源。顺带取回原本被丢弃的数据：那 6 个 float 是 `0.25, 0.15, 0.07, 0.04, 0.02, 0.01`（严格递减，候选 LOD 切换阈值），6 个 uint32 全是 82（等于名字数，候选"每个 LOD 使用的骨骼数"）。`parse_bones_resource` 现在把该浮点数组导出为 `lod_float_values`，语义仍标为候选。
+3. 因此 Phase 1 要求的"独立参考校验"必须来自本仓库之外：SDK 侧的 Unit/Bones 参考导出（AQ Edition / Community SDK，按固定提交作用域）或原生游戏内观测；在此之前，`p × mesh_world` 的空间解释保持 **Candidate**（§2.5 的逐通道结论属于同一份存储数据的内部一致性，虽然已是顶点级、21 万通道的强度）。
+4. 用独立参考校验同一批顶点的放置方向：优先把 `l_arm_culling` 的包围盒与 SDK/编辑器侧导出的同名代理体积对齐。
 
 ## 5. 外部参考
 

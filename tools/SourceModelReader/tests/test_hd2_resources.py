@@ -208,6 +208,27 @@ class ResourceTOCTests(unittest.TestCase):
         report = parse_bones_resource(bad)
         self.assertTrue(report["warnings"])
 
+    def test_bones_parser_exposes_the_lod_float_array(self):
+        payload = (
+            struct.pack("<2I", 2, 2)
+            + struct.pack("<2f", 0.5, 0.25)
+            + struct.pack("<2I", 1, 2)
+            + struct.pack("<2I", 2, 2)
+            + b"root\0spine\0"
+        )
+        report = parse_bones_resource(payload)
+        self.assertEqual(report["lod_float_values"], [0.5, 0.25])
+        self.assertEqual(report["lod_levels"], [2, 2])
+        self.assertEqual([row["name"] for row in report["bones"]], ["root", "spine"])
+        self.assertEqual(report["warnings"], [])
+
+    def test_bones_parser_reports_empty_arrays_without_lods(self):
+        payload = struct.pack("<2I", 1, 0) + struct.pack("<I", 7) + b"root\0"
+        report = parse_bones_resource(payload)
+        self.assertEqual(report["lod_float_values"], [])
+        self.assertEqual(report["lod_levels"], [])
+        self.assertEqual(report["name_count"], 1)
+
 
 def inspect_hd2_package_from_package(package):
     from hd2_resources import build_resource_report

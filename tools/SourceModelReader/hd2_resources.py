@@ -679,6 +679,7 @@ def parse_bones_resource(data: bytes) -> dict:
         raise HD2ResourceError("Bones resource count exceeds safety limits")
     offset = 8
     _check_range(data, offset, num_lods * 4, "Bones LOD float array")
+    lod_float_values = list(struct.unpack_from(f"<{num_lods}f", data, offset)) if num_lods else []
     offset += num_lods * 4
     _check_range(data, offset, num_names * 4, "Bones hash array")
     hashes = list(struct.unpack_from(f"<{num_names}I", data, offset)) if num_names else []
@@ -703,6 +704,12 @@ def parse_bones_resource(data: bytes) -> dict:
     return {
         "name_count": num_names,
         "lod_count": num_lods,
+        "lod_float_values": lod_float_values,
+        "lod_float_note": (
+            "Raw float32 array following the header. In the FS-05 sample it is strictly "
+            "decreasing (0.25, 0.15, 0.07, 0.04, 0.02, 0.01), which is a candidate LOD "
+            "switch threshold list; the runtime meaning is not proven."
+        ),
         "lod_levels": lod_levels,
         "bones": pairs,
         "warnings": warnings,
