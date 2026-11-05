@@ -14,8 +14,8 @@ if str(ROOT) not in sys.path:
 
 from hd2_skeleton_compare import compare_source_skeleton_to_hd2
 from hd2_unit import inspect_hd2_unit
-from smd_reader import parse_smd_bytes
-from source_model_reader import collect_smd_sources
+from smd_reader import SMDDocument, SMDNode
+from source_model_reader import AssetBundle, SourceModel
 
 
 def render_markdown(report: dict[str, Any]) -> str:
@@ -109,7 +109,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Matching policy and limitations",
         "",
-        "- Source entries are all declared SMD nodes, including helper or currently unweighted nodes; this comparison does not yet filter by Source VVD vertex weights.",
+        "- The Source skeleton comes from compiled MDL bone definitions. Active source bones are derived from positive-weight VVD lanes across the stored vertex pool.",
+        "- The VVD active-bone set is a union across the stored model vertex pool; it is not a per-BodyGroup or per-LOD usage report. Non-zero VVD fixup tables remain a parser limitation.",
         "- Names are matched exactly after Unicode case-folding and trimming edge whitespace.",
         "- No punctuation stripping, prefix guessing, fuzzy matching, or automatic aliasing is performed.",
         "- Parent relationships are compared only when both parents resolve to names.",
@@ -138,8 +139,14 @@ def main() -> int:
         help="Source GMA, ZIP, SMD directory, or one SMD file",
     )
     parser.add_argument(
-        "--source-entry",
-        help="SMD path in the container; basename accepted only if unique",
+        "--model",
+        default="models/lc_84/aes_yz_pm.mdl",
+        help="Compiled MDL path/name inside the GMA, ZIP, or model directory",
+    )
+    parser.add_argument(
+        "--vtx-extension",
+        default=".dx90.vtx",
+        help="Sibling VTX extension, default .dx90.vtx",
     )
     parser.add_argument(
         "--game-data",
@@ -166,50 +173,68 @@ def main() -> int:
     if not args.game_data.is_dir():
         parser.error("HD2 game data directory does not exist: {}".format(args.game_data))
 
+    bundle = None
     try:
-        sources, source_metadata = collect_smd_sources(args.source_container)
-    except Exception as exc:
-        parser.error("Could not read Source container: {}".format(exc))
-    if not sources:
-        parser.error("No SMD files were found in the Source container")
+        bundle = AssetBundle(args.source_container, model_hint=args.model)
+        source_model = SourceModel(bundle, vtx_extension=args.vtx_extension)
 
-    if args.source_entry:
-        query = args.source_entry.replace("\\", "/").casefold()
-        matches = [
-            (name, data) for name, data in sources
-            if name.replace("\\", "/").casefold() == query
-            or Path(name.replace("\\", "/")).name.casefold() == query
+        source_nodes = [
+            SMDNode(bone.index, bone.name, bone.parent)
+            for bone in source_model.bones
         ]
-        if len(matches) != 1:
-            choices = "\n".join("- " + name for name, _ in sources[:80])
-            parser.error(
-                "Source entry did not resolve to exactly one SMD. Available entries:\n" + choices
-            )
-        source_name, source_bytes = matches[0]
-    elif len(sources) == 1:
-        source_name, source_bytes = sources[0]
-    else:
-        choices = "\n".join("- " + name for name, _ in sources[:80])
-        parser.error(
-            "The source container has {} SMD files. Specify --source-entry.\n{}".format(
-                len(sources), choices
-            )
+        source_doc = SMDDocument(
+            source=bundle.mdl_display,
+            version=None,
+            nodes=source_nodes,
+            frames={},
+            triangle_count=None,
+            triangle_vertex_records=0,
+            materials=[],
+            warnings=list(source_model.warnings),
+            infos=[],
         )
 
-    try:
-        source_doc = parse_smd_bytes(source_bytes, source_name)
+        active_source_bones: dict[int, int] = {}
+        for vertex in source_model.vertices:
+            for lane in range(vertex.num_bones):
+                weight = float(vertex.weights[lane])
+                bone_index = int(vertex.bones[lane])
+                if weight > 1e-8 and 0 <= bone_index < len(source_model.bones):
+                    active_source_bones[bone_index] = active_source_bones.get(bone_index, 0) + 1
+
         target_report = inspect_hd2_unit(
             args.game_data, args.target_package, args.target_unit
         )
-        report = compare_source_skeleton_to_hd2(source_doc, target_report)
+        report = compare_source_skeleton_to_hd2(
+            source_doc,
+            target_report,
+            source_active_node_ids=set(active_source_bones),
+            source_kind="compiled_mdl_v{}".format(source_model.mdl_version),
+        )
     except Exception as exc:
         parser.error("Skeleton comparison failed: {}".format(exc))
+    finally:
+        if bundle is not None:
+            bundle.close()
 
     report["source"] = {
         "container": str(args.source_container),
-        "container_metadata": source_metadata,
-        "entry": source_name,
+        "model": args.model,
+        "mdl_display": source_doc.source,
+        "mdl_version": source_model.mdl_version,
+        "vvd_version": source_model.vvd_version,
+        "vtx_version": source_model.vtx_version,
+        "vtx_extension": args.vtx_extension,
+        "checksum": source_model.checksum,
+        "vertex_pool_count": len(source_model.vertices),
+        "active_weighted_bone_ids": sorted(active_source_bones),
+        "active_weighted_lane_counts": {
+            str(key): value for key, value in sorted(active_source_bones.items())
+        },
+        "source_warnings": list(source_model.warnings),
     }
+    report["summary"]["source_vertex_pool_count"] = len(source_model.vertices)
+    report["summary"]["source_active_weighted_bone_count"] = len(active_source_bones)
     report["summary"]["target_unit_decode_status"] = target_report.get("summary", {}).get("status")
     report["summary"]["target_unit_mesh_count"] = target_report.get("summary", {}).get("decoded_mesh_count")
     report["summary"]["target_unit_vertex_count"] = target_report.get("summary", {}).get("vertex_count")
@@ -221,10 +246,15 @@ def main() -> int:
     )
     args.output_markdown.write_text(render_markdown(report), encoding="utf-8")
 
-    print("Source: {} ({})".format(source_name, source_doc.smd_type))
+    print("Source: {} ({} bones, {} active weighted)".format(
+        source_doc.source,
+        len(source_model.bones),
+        len(active_source_bones),
+    ))
     print("Target Unit: {}".format(args.target_unit))
     print("Exact name matches: {}".format(report["summary"]["exact_name_match_count"]))
     print("Source unmapped: {}".format(report["summary"]["source_unmapped_count"]))
+    print("Active source unmapped: {}".format(report["summary"]["source_active_weighted_unmapped_count"]))
     print("HD2-only: {}".format(report["summary"]["target_only_named_transform_count"]))
     print("Parent mismatches: {}".format(report["summary"]["parent_mismatch_count"]))
     print("Status: {}".format(report["summary"]["status"]))
