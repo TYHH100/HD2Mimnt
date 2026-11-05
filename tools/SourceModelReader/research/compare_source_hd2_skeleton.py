@@ -81,15 +81,16 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "This section is hypothesis-only. It does not modify exact-name matches or approve a retarget.",
         "",
-        "| Source bone | Source active | HD2 candidate | Target active | Parent check |",
-        "|---|---|---|---|---|",
+        "| Source bone | Source active | HD2 candidate | Target active | Target lanes | Parent check |",
+        "|---|---|---|---:|---|---|",
     ])
     for row in alias_report.get("candidates", []):
-        lines.append("| {} | {} | {} | {} | {} |".format(
+        lines.append("| {} | {} | {} | {} | {} | {} |".format(
             row["source_name"],
             "yes" if row["source_active_vertex_influence"] else "no",
             row["target_name"],
             "yes" if row["target_active_vertex_influence"] else "no",
+            row["target_active_vertex_influence_lane_count"],
             row["parent_status"],
         ))
     if not alias_report.get("candidates"):
