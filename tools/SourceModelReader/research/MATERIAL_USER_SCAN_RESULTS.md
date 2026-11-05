@@ -137,3 +137,20 @@ The runner:
 A non-zero final exit code means at least one focused test or Unit inspection failed. Successful candidate reports are retained. The script reads game data only; it does not modify packages or game files.
 
 This is a research batch helper, not a new parser or a claim that the five candidates are character assets. Their actual roles must be classified from the resulting geometry, skeleton, and material-section evidence.
+
+
+### Detailed report export (after the batch)
+
+The five compact JSON reports are tracked with Git LFS to keep the repository history manageable. The ordinary GitHub contents API returns only LFS pointer files for those JSON assets. To produce an upload-friendly text report locally, run:
+
+```powershell
+py -3 .\\research\\export_glass_unit_details.py
+```
+
+This reads the five compact JSON files from `research/unit_inspections` and writes:
+
+`research/unit_inspections/glass_unit_detailed_inspection.md`
+
+The Markdown report includes per-candidate material tables, active skeleton transforms, mesh/LOD/Section layouts, vertex component formats, skinning status per section, BoneInfo remap sizes, and parser warnings. Share this Markdown file for the next analysis pass; the LFS JSON files do not need to be uploaded again.
+
+This exporter is a reporting step only. It does not reread game packages, change parser behavior, or claim asset classification from geometry counts alone.
