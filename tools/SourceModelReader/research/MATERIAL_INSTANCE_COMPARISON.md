@@ -490,3 +490,22 @@ A successful local test run should be recorded with:
 ```powershell
 py -3 -m unittest discover -s tests -p "test_hd2_texture.py" -v
 ```
+
+
+## 17. AQ Flowing preset confirms the unnamed node type is template-native
+
+The pinned AQ Edition binary `materials/translucent_flowing.material` (commit `71b380046d33d552eef0892bd48661ff25591380`) was decoded and its five ordered texture-node descriptors were compared directly with both game Material samples.
+
+The raw node-type sequence is identical in the AQ preset, game instance `7b25f93956fd9aff`, and game instance `344020be12d962b5`:
+
+1. `0x55c87149`
+2. `0x001ff6d4`
+3. `0xfbef0214`
+4. `0x5a3bc7c0`
+5. `0x2b33d35f`
+
+This establishes that `0x001ff6d4` is not a game-instance anomaly: it is part of the canonical five-slot Translucent Flowing template schema. AQ's `TextureTypeLookup["translucent_flowing"]` leaves UI slot 1 blank, and the pinned Community dictionary also has no friendly label for this raw ID. The correct label remains "unnamed template-native slot"; its shader input role is still unknown.
+
+The five Texture FileIDs in the AQ preset are all different from the game instances' five node references. Therefore, the canonical node layout is shared while concrete per-instance resources are independently assigned. The two game samples share the exact same resource-ID sequence with each other, but the AQ bundled preset is a separate resource set.
+
+This strengthens the material-schema evidence without resolving the unknown node's sampling semantics. Do not assign it a guessed name such as "flow mask", "flow direction" or "distortion" until there is direct shader or controlled in-game evidence.
