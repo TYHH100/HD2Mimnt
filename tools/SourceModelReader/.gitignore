@@ -36,3 +36,6 @@ research/textures/*.bin
 # The Markdown batch summary is the shareable summary; omit its duplicate JSON.
 research/unit_inspections/glass_unit_batch_summary.json
 research/unit_inspections/*.log
+
+# Generated Source-to-HD2 comparison data; the Markdown report is shareable.
+research/skeleton_comparison/*.json
