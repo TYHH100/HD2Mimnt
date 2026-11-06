@@ -17,8 +17,11 @@ public class ModRepositoryTests : IDisposable
         using (var legacy = new HD2MimntDbContext(_dbPath))
         {
             await legacy.InitializeDatabaseAsync();
-            // 模拟引入判重指纹之前的数据库。
+            // 模拟引入判重指纹之前的数据库：那个年代既没有该列，也没有按它建的判重索引。
             using var connection = await legacy.OpenConnectionAsync();
+            using var dropIndex = connection.CreateCommand();
+            dropIndex.CommandText = "DROP INDEX IF EXISTS idx_mods_content_fingerprint";
+            await dropIndex.ExecuteNonQueryAsync();
             using var drop = connection.CreateCommand();
             drop.CommandText = "ALTER TABLE Mods DROP COLUMN ContentFingerprint";
             await drop.ExecuteNonQueryAsync();
@@ -37,6 +40,33 @@ public class ModRepositoryTests : IDisposable
 
         await repository.SetContentFingerprintAsync(id, "abc");
         Assert.Equal("abc", (await repository.GetByIdAsync(id))!.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task FindContentCandidates_ShouldReturnIdentityMatchesAndUnidentifiedRows()
+    {
+        using var context = new HD2MimntDbContext(_dbPath);
+        await context.InitializeDatabaseAsync();
+        var repository = new ModRepository(context);
+        Mod Create(string name, string hash, string fingerprint) => new()
+        {
+            Id = Guid.NewGuid(), Name = name, Version = "1.0", Path = Path.Combine(Path.GetTempPath(), name),
+            ImportedAt = DateTime.UtcNow, ModifiedAt = DateTime.UtcNow, Hash = hash, ContentFingerprint = fingerprint
+        };
+        var matchedByHash = Create("A", "hash-1", "fp-1");
+        var unrelated = Create("B", "hash-2", "fp-2");
+        var missingHash = Create("C", "", "fp-1");
+        var missingFingerprint = Create("D", "hash-1", "");
+        foreach (var mod in new[] { matchedByHash, unrelated, missingHash, missingFingerprint })
+            await repository.AddAsync(mod);
+
+        var candidates = (await repository.FindContentCandidatesAsync("hash-1", "fp-1")).Select(m => m.Id).ToList();
+
+        Assert.Contains(matchedByHash.Id, candidates);
+        Assert.Contains(missingHash.Id, candidates);
+        Assert.Contains(missingFingerprint.Id, candidates);
+        // 身份已持久化且与本次导入无关的行不再进入判重循环。
+        Assert.DoesNotContain(unrelated.Id, candidates);
     }
 
     [Fact]

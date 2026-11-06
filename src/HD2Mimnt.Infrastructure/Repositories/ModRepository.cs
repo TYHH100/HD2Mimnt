@@ -82,6 +82,46 @@ public class ModRepository : IModRepository
         return mods;
     }
 
+    /// <summary>
+    /// 判重候选：内容身份命中的行，以及身份尚未持久化、需要补算指纹的旧行。
+    /// 每个条件都用单独的索引查找再合并，混合 OR 会让 SQLite 放弃索引退回全表扫描。
+    /// </summary>
+    public async Task<IEnumerable<Mod>> FindContentCandidatesAsync(string hash, string contentFingerprint,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        var branches = new List<string>();
+        if (!string.IsNullOrWhiteSpace(hash))
+        {
+            branches.Add("SELECT * FROM Mods WHERE Hash = @Hash");
+            command.Parameters.AddWithValue("@Hash", hash);
+        }
+        if (!string.IsNullOrWhiteSpace(contentFingerprint))
+        {
+            branches.Add("SELECT * FROM Mods WHERE ContentFingerprint = @Fingerprint");
+            command.Parameters.AddWithValue("@Fingerprint", contentFingerprint);
+        }
+        // 旧库行没有持久化身份，SQL 无法按值命中，必须补算后才能判重；已迁移的库里这些分支各返回零行。
+        branches.Add("SELECT * FROM Mods WHERE Hash IS NULL");
+        branches.Add("SELECT * FROM Mods WHERE Hash = ''");
+        branches.Add("SELECT * FROM Mods WHERE ContentFingerprint IS NULL");
+        branches.Add("SELECT * FROM Mods WHERE ContentFingerprint = ''");
+        command.CommandText = string.Join(" UNION ALL ", branches);
+
+        var mods = new List<Mod>();
+        var seen = new HashSet<Guid>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var mod = MapToMod(reader);
+            if (seen.Add(mod.Id)) mods.Add(mod);
+        }
+
+        return mods;
+    }
+
     public async Task<IEnumerable<Mod>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);

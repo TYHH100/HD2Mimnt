@@ -113,6 +113,9 @@ public sealed class ModCollectionImportTests : IDisposable
         Assert.Equal("RS-67“空密码”潜行中甲-材质包",
             await File.ReadAllTextAsync(Path.Combine(game, "data", $"{PatchPrefix}.patch_1")));
 
+        // 合集库内副本多写了选项树文件：落库哈希必须是库内容的哈希，不能沿用暂存树的。
+        Assert.Equal(await ModHashService.CalculateAsync(mod.Path), mod.Hash);
+
         // 同一份散装文件夹重复添加仍按内容判重，不能因为合集是生成的清单而漏判。
         await Assert.ThrowsAsync<InvalidOperationException>(() => _import.ImportModAsync(source));
         Assert.Single(await _mods.GetAllAsync());

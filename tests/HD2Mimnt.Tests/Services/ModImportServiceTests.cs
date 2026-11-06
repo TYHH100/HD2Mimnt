@@ -431,7 +431,7 @@ public sealed class ModImportServiceTests : IDisposable
         var reports = new List<ModImportProgress>();
         var id = await CreateService().ImportModAsync(zip, progress: new InlineProgress(reports.Add));
         var mod = (await _modRepository.GetByIdAsync(id))!;
-        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IAS 组件", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
+        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IAS 组件", "读取模组清单", "分析模组文件", "计算哈希", "复制模组文件", "识别资源类型", "保存模组", "模组已保存" },
             reports.Select(p => p.Step).Distinct());
         Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
         Assert.Contains(reports, p => p.Step == "解压模组" && p.IsIndeterminate);
@@ -495,6 +495,30 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.NotEqual(firstId, secondId);
         Assert.NotEqual((await _modRepository.GetByIdAsync(firstId))!.ContentFingerprint,
             (await _modRepository.GetByIdAsync(secondId))!.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateFolder_ShouldRejectBeforeCopyingIntoLibrary()
+    {
+        var first = Path.Combine(_tempDirectory, "preflight-first");
+        Directory.CreateDirectory(first);
+        File.WriteAllText(Path.Combine(first, "body.patch"), "content");
+        var firstId = await CreateService().ImportModAsync(first);
+        var libraryEntries = Directory.EnumerateFileSystemEntries(_storageDirectory).ToList();
+
+        var copy = Path.Combine(_tempDirectory, "preflight-copy");
+        Directory.CreateDirectory(copy);
+        File.WriteAllText(Path.Combine(copy, "body.patch"), "content");
+        var reports = new List<ModImportProgress>();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateService().ImportModAsync(copy, progress: new InlineProgress(reports.Add)));
+
+        Assert.Contains("模组库中已存在相同内容", error.Message);
+        // 判重已前移：重复包在暂存树上算完身份就被拒绝，不再先拷一份进库再丢弃。
+        Assert.Contains(reports, p => p.Step == "计算哈希");
+        Assert.DoesNotContain(reports, p => p.Step == "复制模组文件");
+        Assert.Equal(libraryEntries, Directory.EnumerateFileSystemEntries(_storageDirectory).ToList());
+        Assert.Equal(new[] { firstId }, (await _modRepository.GetAllAsync()).Select(m => m.Id));
     }
 
     [Fact]

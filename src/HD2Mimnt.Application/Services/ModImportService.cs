@@ -25,6 +25,12 @@ public class ModImportService
     private readonly SettingsService? _settingsService;
     private readonly SemaphoreSlim _importGate = new(1, 1);
 
+    // 进度区间：30 分析源内容 → 32-37 暂存树哈希 → 38 复制前判重 → 40-80 复制入库
+    // → 80 资源类型 → 84-89 库内身份重算与复检 → 90 保存
+    private const double PreflightFingerprintStart = 38;
+    private const double FingerprintStart = 89;
+    private const double SourceHashStart = 32;
+
     public ModImportService(
         IModRepository modRepository,
         string modsStoragePath,
@@ -50,15 +56,30 @@ public class ModImportService
         IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
         Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
-        var mod = await PrepareModAsync(sourcePath, cancellationToken, progress, confirmHd2Ir: confirmHd2Ir);
+        var rejectDuplicates = _settingsService?.GetSetting(SettingKeys.AllowDuplicateImports, false) != true;
+        var staged = await StageModSourceAsync(sourcePath, cancellationToken, progress, null, confirmHd2Ir);
+        if (rejectDuplicates)
+        {
+            // 预检只为省掉一次完整复制：内容身份已在暂存树上算出，重复包不必先拷进库再丢弃。
+            await _importGate.WaitAsync(cancellationToken);
+            try
+            {
+                await RejectDuplicateAsync(staged, cancellationToken, progress, preflight: true);
+            }
+            finally
+            {
+                _importGate.Release();
+            }
+        }
+        var mod = await StoreStagedModAsync(staged, cancellationToken, progress);
         var saved = false;
         var entered = false;
         try
         {
             await _importGate.WaitAsync(cancellationToken);
             entered = true;
-            if (_settingsService?.GetSetting(SettingKeys.AllowDuplicateImports, false) != true)
-                await RejectDuplicateAsync(mod, cancellationToken, progress);
+            // 预检与落库之间可能有别的导入提交同一内容，所以判重和保存仍要在同一把锁里按权威值再走一遍。
+            if (rejectDuplicates) await RejectDuplicateAsync(staged, cancellationToken, progress);
             cancellationToken.ThrowIfCancellationRequested();
             if (sourceLink != null)
             {
@@ -86,20 +107,34 @@ public class ModImportService
         }
     }
 
-    private async Task RejectDuplicateAsync(Mod prepared, CancellationToken token,
-        IProgress<ModImportProgress>? progress = null)
+    /// <param name="preflight">复制入库前的预检：比较的是暂存树，作者元数据也只能从暂存树读。</param>
+    private async Task RejectDuplicateAsync(StagedSource staged, CancellationToken token,
+        IProgress<ModImportProgress>? progress = null, bool preflight = false)
     {
-        // 作者元数据只依赖导入副本本身，解析一次即可。
-        var metadata = await ReadAuthorMetadataAsync(prepared.Path, token);
+        var prepared = staged.Mod;
+        // 判重指纹排开了库内才会写入的生成身份，暂存树与库内副本等价；完整目录哈希只在身份稳定时才可比较。
+        var compareHash = !preflight || staged.IdentityStableInStore;
+        // 作者元数据只依赖被比较的那份内容本身，解析一次即可。
+        var metadata = await ReadAuthorMetadataAsync(preflight ? staged.SourceRoot : prepared.Path, token);
         var store = new ModVersionStore(_modsStoragePath);
-        foreach (var existing in await _modRepository.GetAllAsync(token))
+        // 只在内容身份命中的行 + 身份未持久化的旧行 + 有本地版本索引的行上判定，不再扫整张 Mods 表逐行读盘。
+        var candidates = new Dictionary<Guid, Mod>();
+        foreach (var existing in await _modRepository.FindContentCandidatesAsync(
+                     prepared.Hash, prepared.ContentFingerprint, token))
+            candidates[existing.Id] = existing;
+        var extraIds = ModVersionStore.ListModIdsWithVersions(_modsStoragePath)
+            .Where(id => !candidates.ContainsKey(id)).ToList();
+        if (extraIds.Count > 0)
+            foreach (var existing in await _modRepository.GetByIdsAsync(extraIds, token)) candidates.TryAdd(existing.Id, existing);
+        foreach (var existing in candidates.Values.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase))
         {
             token.ThrowIfCancellationRequested();
             var hasContent = Directory.Exists(existing.Path);
             // 旧库条目没有持久化指纹：首次遇到时补算并落库，之后判重只比较字符串，不再重扫模组内容。
             if (hasContent && string.IsNullOrWhiteSpace(existing.ContentFingerprint))
             {
-                existing.ContentFingerprint = await ComputeFingerprintAsync(existing.Path, token, progress);
+                existing.ContentFingerprint = await ComputeFingerprintAsync(existing.Path, token, progress,
+                    preflight ? PreflightFingerprintStart : FingerprintStart);
                 await _modRepository.SetContentFingerprintAsync(existing.Id, existing.ContentFingerprint, CancellationToken.None);
             }
             var versions = await store.ReadAsync(existing.Id, token);
@@ -108,7 +143,8 @@ public class ModImportService
             {
                 if (string.IsNullOrWhiteSpace(version.Content.ContentFingerprint) && Directory.Exists(version.Content.Path))
                 {
-                    version.Content.ContentFingerprint = await ComputeFingerprintAsync(version.Content.Path, token, progress);
+                    version.Content.ContentFingerprint = await ComputeFingerprintAsync(version.Content.Path, token, progress,
+                        preflight ? PreflightFingerprintStart : FingerprintStart);
                     versionsChanged = true;
                 }
             }
@@ -120,11 +156,12 @@ public class ModImportService
                     await store.WriteAsync(existing.Id, versions, CancellationToken.None);
             }
 
-            if (hasContent && await IsSameContentAsync(prepared, metadata, existing, token))
+            if (hasContent && await IsSameContentAsync(prepared, metadata, existing, token, compareHash))
                 throw new InvalidOperationException($"模组库中已存在相同内容：{existing.Name}。如需独立副本，请在设置中开启“允许重复导入”。");
             foreach (var version in versions)
             {
-                if (!Directory.Exists(version.Content.Path) || !await IsSameContentAsync(prepared, metadata, version.Content, token)) continue;
+                if (!Directory.Exists(version.Content.Path)
+                    || !await IsSameContentAsync(prepared, metadata, version.Content, token, compareHash)) continue;
                 throw new InvalidOperationException($"此内容已保存在 {existing.Name} 的本地版本中，请在模组详情中切换版本。");
             }
         }
@@ -132,10 +169,10 @@ public class ModImportService
 
     /// <summary>补算旧库条目的判重指纹；只读一次内容。</summary>
     private static Task<string> ComputeFingerprintAsync(string path, CancellationToken token,
-        IProgress<ModImportProgress>? progress)
+        IProgress<ModImportProgress>? progress, double startPercentage = 89)
         => ModDirectoryHash.CalculateAsync(path, token, progress: progress,
             includeFile: ModHashService.AuthorContentFilter(path), stepName: "判重比对",
-            startPercentage: 89, spanPercentage: 0);
+            startPercentage: startPercentage, spanPercentage: 0);
 
     /// <summary>作者元数据指纹：排除导入生成的档案，并剔除运行时身份（清单 GUID）。</summary>
     private static async Task<string> ReadAuthorMetadataAsync(string root, CancellationToken token)
@@ -156,9 +193,10 @@ public class ModImportService
         return Sort(manifest)!.ToJsonString();
     }
 
-    private async Task<bool> IsSameContentAsync(Mod prepared, string metadata, Mod existing, CancellationToken token)
+    private async Task<bool> IsSameContentAsync(Mod prepared, string metadata, Mod existing, CancellationToken token,
+        bool compareHash = true)
     {
-        if (!string.IsNullOrWhiteSpace(existing.Hash) && existing.Hash == prepared.Hash) return true;
+        if (compareHash && !string.IsNullOrWhiteSpace(existing.Hash) && existing.Hash == prepared.Hash) return true;
         // 旧包规范化会生成清单 GUID；HD2IR 映射还包含随机 ID/时间。
         // 指纹已排除这些生成身份，持久化后判重不需要再读一遍模组内容。
         if (string.IsNullOrWhiteSpace(existing.ContentFingerprint) || existing.ContentFingerprint != prepared.ContentFingerprint) return false;
@@ -171,6 +209,31 @@ public class ModImportService
     internal async Task<Mod> PrepareModAsync(string sourcePath, CancellationToken cancellationToken = default,
         IProgress<ModImportProgress>? progress = null, ExternalMigrationMod? migration = null,
         Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
+        => await StoreStagedModAsync(await StageModSourceAsync(sourcePath, cancellationToken, progress, migration, confirmHd2Ir),
+            cancellationToken, progress);
+
+    /// <summary>暂存阶段的结果：源树已定位并带上内容身份，等待复制入库。</summary>
+    private sealed class StagedSource
+    {
+        public required Mod Mod { get; init; }
+        public required string SourceRoot { get; init; }
+        public required string TempExtractPath { get; init; }
+        public required string Hd2IrWorkspace { get; init; }
+        public required bool IsArchiveFile { get; init; }
+        public required ModManifest? Manifest { get; init; }
+        public required ExternalMigrationMod? Migration { get; init; }
+        public required long SourceTotalSize { get; init; }
+        public required bool IsCollection { get; init; }
+        public required bool NormalizeAuthorManifest { get; init; }
+        public required bool WriteGeneratedManifest { get; init; }
+        /// <summary>落库副本是否会改写参与完整目录哈希的身份字节；false 时暂存树的哈希就是落库哈希。</summary>
+        public required bool IdentityStableInStore { get; init; }
+    }
+
+    /// <summary>解压、识别、读取清单，并在暂存树上一次读取算出目录哈希与判重指纹；不触碰模组库。</summary>
+    private async Task<StagedSource> StageModSourceAsync(string sourcePath, CancellationToken cancellationToken,
+        IProgress<ModImportProgress>? progress, ExternalMigrationMod? migration,
+        Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir)
     {
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(new(0, "检查源文件", Path.GetFileName(sourcePath)));
@@ -186,8 +249,7 @@ public class ModImportService
         string? modRootPath = null;
         string fallbackName;
         bool isArchiveFile = false;
-        string? targetPath = null;
-        bool saved = false;
+        var handedOver = false;
 
         try
         {
@@ -294,37 +356,99 @@ public class ModImportService
                     System.Text.Json.JsonSerializer.Serialize(hd2Ir.LogicalMod), cancellationToken);
             }
 
-            // 复制 Mod 到存储目录
-            targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
-            Directory.CreateDirectory(targetPath);
+            // 内容身份在暂存树上一次读取算出：重复包可以在复制入库前判定，身份稳定的副本还能直接把这两个值落库。
+            // 外部管理器迁回不走判重，且库内一定会重写清单，等复制完再按库内容算一次即可。
             if (migration == null)
             {
-                await CopyDirectoryAsync(modRootPath, targetPath, modInfo.TotalSize, progress, cancellationToken);
+                var (sourceHash, sourceFingerprint) = await ModHashService.CalculateWithFingerprintAsync(modRootPath,
+                    cancellationToken, progress, stepName: "计算哈希", startPercentage: SourceHashStart, spanPercentage: 5);
+                mod.Hash = sourceHash;
+                mod.ContentFingerprint = sourceFingerprint;
+            }
+
+            // 库内副本只有在写合集选项树、或作者清单仍内嵌扩展需要拆分时才改变身份字节；
+            // 导入生成的档案带标记，本来就不参与完整目录哈希。
+            var normalizeAuthorManifest = hasParsedManifest && hd2Ir == null;
+            var identityStableInStore = migration == null && collection == null
+                && (!normalizeAuthorManifest || !await AuthorManifestWillBeNormalizedAsync(modRootPath, cancellationToken));
+
+            cancellationToken.ThrowIfCancellationRequested();
+            handedOver = true;
+            return new StagedSource
+            {
+                Mod = mod,
+                SourceRoot = modRootPath,
+                TempExtractPath = tempExtractPath,
+                Hd2IrWorkspace = hd2IrWorkspace,
+                IsArchiveFile = isArchiveFile,
+                Manifest = manifest,
+                Migration = migration,
+                SourceTotalSize = modInfo.TotalSize,
+                IsCollection = collection != null,
+                NormalizeAuthorManifest = normalizeAuthorManifest,
+                WriteGeneratedManifest = hd2Ir == null && collection == null && !normalizeAuthorManifest && manifest != null,
+                IdentityStableInStore = identityStableInStore
+            };
+        }
+        finally
+        {
+            // 交接给入库阶段后，暂存目录由 StoreStagedModAsync 统一清理；失败时在这里就地回收。
+            if (!handedOver)
+            {
+                if (Directory.Exists(hd2IrWorkspace))
+                {
+                    try { Directory.Delete(hd2IrWorkspace, true); }
+                    catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IAS 临时目录失败: {TempPath}", hd2IrWorkspace); }
+                }
+                if (isArchiveFile && Directory.Exists(tempExtractPath))
+                {
+                    try { Directory.Delete(tempExtractPath, true); }
+                    catch (Exception ex) { _logger?.LogWarning(ex, "清理临时目录失败: {TempPath}", tempExtractPath); }
+                }
+            }
+        }
+    }
+
+    /// <summary>把暂存树复制入库并补齐库内身份；失败或取消时清理本次副本与暂存目录。</summary>
+    private async Task<Mod> StoreStagedModAsync(StagedSource staged, CancellationToken cancellationToken,
+        IProgress<ModImportProgress>? progress)
+    {
+        var mod = staged.Mod;
+        var manifest = staged.Manifest;
+        var targetPath = Path.Combine(_modsStoragePath, mod.Id.ToString());
+        var saved = false;
+        try
+        {
+            // 复制 Mod 到存储目录
+            Directory.CreateDirectory(targetPath);
+            if (staged.Migration == null)
+            {
+                await CopyDirectoryAsync(staged.SourceRoot, targetPath, staged.SourceTotalSize, progress, cancellationToken);
                 // 合集：生成的组件分组/选项树只进管理器自有 JSON，作者子清单保持原字节。
-                if (collection != null) await Hd2IrIntegrationService.SaveOptionsAsync(targetPath, manifest!, cancellationToken);
-                else if (hasParsedManifest && hd2Ir == null) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
+                if (staged.IsCollection) await Hd2IrIntegrationService.SaveOptionsAsync(targetPath, manifest!, cancellationToken);
+                else if (staged.NormalizeAuthorManifest) await NormalizeStoredManifestAsync(targetPath, manifest!, cancellationToken);
                 // 无作者清单的普通模组：把推断档案写进库内副本，便于查看和复用；
                 // 文件带生成标记，不参与内容哈希与判重元数据。
-                else if (hd2Ir == null && manifest != null)
-                    _manifestParser.SaveGeneratedToFile(manifest, Path.Combine(targetPath, "manifest.json"));
+                else if (staged.WriteGeneratedManifest)
+                    _manifestParser.SaveGeneratedToFile(manifest!, Path.Combine(targetPath, "manifest.json"));
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
             }
             else
             {
-                await CopyMigratedDirectoryAsync(migration, targetPath, cancellationToken);
+                await CopyMigratedDirectoryAsync(staged.Migration, targetPath, cancellationToken);
                 var manifestPath = Path.Combine(targetPath, "manifest.json");
                 System.Text.Json.Nodes.JsonObject? original = null;
                 if (File.Exists(manifestPath))
                     original = await ManifestPackage.ReadAsync(manifestPath, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(migration.ImagePath))
+                if (!string.IsNullOrWhiteSpace(staged.Migration.ImagePath))
                 {
-                    if (!File.Exists(migration.ImagePath)) throw new FileNotFoundException("源预览图不存在", migration.ImagePath);
-                    var imageName = "migration-preview" + Path.GetExtension(migration.ImagePath);
-                    await CopyMigrationFileAsync(migration.ImagePath, Path.Combine(targetPath, imageName), cancellationToken);
+                    if (!File.Exists(staged.Migration.ImagePath)) throw new FileNotFoundException("源预览图不存在", staged.Migration.ImagePath);
+                    var imageName = "migration-preview" + Path.GetExtension(staged.Migration.ImagePath);
+                    await CopyMigrationFileAsync(staged.Migration.ImagePath, Path.Combine(targetPath, imageName), cancellationToken);
                     manifest!.IconPath = imageName;
                     mod.ThumbnailPath = Path.Combine(targetPath, imageName);
                 }
-                manifest!.Tags = migration.Tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                manifest!.Tags = staged.Migration.Tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 mod.Tags = manifest.Tags;
                 _manifestParser.SaveToFile(manifest, manifestPath, original);
                 mod.Size = AnalyzeModContent(targetPath, cancellationToken).TotalSize;
@@ -342,10 +466,13 @@ public class ModImportService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             { _logger?.LogWarning(ex, "BSL 依赖识别失败: {ModPath}", mod.Path); }
-            // 目录哈希与判重指纹一次读取同时算出，判重不再单独重扫库内副本。
-            var (hash, fingerprint) = await ModHashService.CalculateWithFingerprintAsync(targetPath, cancellationToken, progress);
-            mod.Hash = hash;
-            mod.ContentFingerprint = fingerprint;
+            // 身份稳定的副本内容与暂存树逐字节一致，沿用暂存树哈希即可；只有改写过身份字节的才按库内容重算。
+            if (!staged.IdentityStableInStore)
+            {
+                var (hash, fingerprint) = await ModHashService.CalculateWithFingerprintAsync(targetPath, cancellationToken, progress);
+                mod.Hash = hash;
+                mod.ContentFingerprint = fingerprint;
+            }
 
             // 将准备好的副本交给调用方；更新不创建临时 Mod 行。
             cancellationToken.ThrowIfCancellationRequested();
@@ -356,27 +483,27 @@ public class ModImportService
         }
         finally
         {
-            if (Directory.Exists(hd2IrWorkspace))
+            if (Directory.Exists(staged.Hd2IrWorkspace))
             {
-                try { Directory.Delete(hd2IrWorkspace, true); }
-                catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IAS 临时目录失败: {TempPath}", hd2IrWorkspace); }
+                try { Directory.Delete(staged.Hd2IrWorkspace, true); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "清理 HD2IAS 临时目录失败: {TempPath}", staged.Hd2IrWorkspace); }
             }
             // 取消或失败时移除尚未落库的副本，保留已成功导入的模组。
-            if (!saved && targetPath != null && Directory.Exists(targetPath))
+            if (!saved && Directory.Exists(targetPath))
             {
                 try { Directory.Delete(targetPath, true); }
                 catch (Exception ex) { _logger?.LogWarning(ex, "清理未完成的导入失败: {TargetPath}", targetPath); }
             }
             // 清理临时目录
-            if (isArchiveFile && Directory.Exists(tempExtractPath))
+            if (staged.IsArchiveFile && Directory.Exists(staged.TempExtractPath))
             {
                 try
                 {
-                    Directory.Delete(tempExtractPath, true);
+                    Directory.Delete(staged.TempExtractPath, true);
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "清理临时目录失败: {TempPath}", tempExtractPath);
+                    _logger?.LogWarning(ex, "清理临时目录失败: {TempPath}", staged.TempExtractPath);
                 }
             }
         }
@@ -589,21 +716,34 @@ public class ModImportService
         }
     }
 
+    /// <summary>清单是否仍内嵌管理器扩展字段；已符合标准的包保持原字节及内容哈希。</summary>
+    private static bool AuthorManifestNeedsNormalization(System.Text.Json.Nodes.JsonObject original)
+        => !System.Text.Json.Nodes.JsonNode.DeepEquals(original, ManifestPackage.Separate(original).Manifest);
+
+    /// <summary>规范化会重写根清单和扩展文件，参与完整目录哈希的身份字节随之改变；暂存阶段据此预判库内是否需要重算。</summary>
+    private async Task<bool> AuthorManifestWillBeNormalizedAsync(string root, CancellationToken token)
+    {
+        var path = Path.Combine(root, "manifest.json");
+        if (!File.Exists(path)) return false;
+        return AuthorManifestNeedsNormalization(ManifestPackage.Parse(await File.ReadAllTextAsync(path, token)));
+    }
+
     private async Task NormalizeStoredManifestAsync(string directory, ModManifest manifest, CancellationToken token)
     {
         var path = Path.Combine(directory, "manifest.json");
         var original = ManifestPackage.Parse(await File.ReadAllTextAsync(path, token));
-        // 已符合标准的包保持原字节及内容哈希；仅转换仍内嵌扩展的库副本。
-        if (System.Text.Json.Nodes.JsonNode.DeepEquals(original, ManifestPackage.Separate(original).Manifest)) return;
-        var combined = await ManifestPackage.ReadAsync(path, token,
-            error => _logger?.LogWarning(error, "扩展元数据不可用，保留清单中的兼容字段: {Path}", path));
-        foreach (var key in combined.Select(pair => pair.Key).Where(key => key.Equals("Guid", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("Version", StringComparison.OrdinalIgnoreCase) || key.Equals("ModVersion", StringComparison.OrdinalIgnoreCase)).ToArray())
-            combined.Remove(key);
-        combined["Guid"] = manifest.Guid.ToString();
-        if (manifest.ManifestVersion == ManifestVersion.V1) combined["Version"] = 1;
-        combined["ModVersion"] = manifest.Version;
-        await ManifestPackage.SaveAsync(path, combined, token);
+        if (AuthorManifestNeedsNormalization(original))
+        {
+            var combined = await ManifestPackage.ReadAsync(path, token,
+                error => _logger?.LogWarning(error, "扩展元数据不可用，保留清单中的兼容字段: {Path}", path));
+            foreach (var key in combined.Select(pair => pair.Key).Where(key => key.Equals("Guid", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("Version", StringComparison.OrdinalIgnoreCase) || key.Equals("ModVersion", StringComparison.OrdinalIgnoreCase)).ToArray())
+                combined.Remove(key);
+            combined["Guid"] = manifest.Guid.ToString();
+            if (manifest.ManifestVersion == ManifestVersion.V1) combined["Version"] = 1;
+            combined["ModVersion"] = manifest.Version;
+            await ManifestPackage.SaveAsync(path, combined, token);
+        }
     }
 
     /// <summary>
@@ -819,7 +959,7 @@ public class ModImportService
     private static async Task CopyDirectoryAsync(string sourceDir, string targetDir, long totalSize,
         IProgress<ModImportProgress>? progress, CancellationToken cancellationToken)
     {
-        progress?.Report(new(35, "复制模组文件", "准备复制到模组库"));
+        progress?.Report(new(40, "复制模组文件", "准备复制到模组库"));
         long copied = 0;
         var buffer = new byte[81920];
         var lastReport = Environment.TickCount64;
@@ -838,7 +978,7 @@ public class ModImportService
                 copied += read;
                 if (Environment.TickCount64 - lastReport >= 100)
                 {
-                    progress?.Report(new(35 + (totalSize > 0 ? 45d * copied / totalSize : 45), "复制模组文件", relativePath));
+                    progress?.Report(new(40 + (totalSize > 0 ? 40d * copied / totalSize : 40), "复制模组文件", relativePath));
                     lastReport = Environment.TickCount64;
                 }
             }

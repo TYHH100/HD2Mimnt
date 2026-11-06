@@ -565,6 +565,8 @@ public class HD2MimntDbContext : IDisposable
         // 轻量列迁移：老库补列后才能读写新字段（判重指纹、平台信息等）。
         foreach (var (table, column, type) in new[]
         {
+            // 极旧库的 Mods 表连 Hash 都没有：插入模组和判重索引都依赖该列，必须先补再建索引。
+            ("Mods", "Hash", "TEXT"),
             ("Mods", "ContentFingerprint", "TEXT"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
@@ -594,6 +596,16 @@ public class HD2MimntDbContext : IDisposable
                 alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
                 await alter.ExecuteNonQueryAsync(cancellationToken);
             }
+        }
+
+        // 判重按内容身份取候选行，避免每次导入扫整张 Mods 表并逐行读盘；依赖上面补的 Hash/ContentFingerprint 列。
+        using (var contentIndexes = connection.CreateCommand())
+        {
+            contentIndexes.CommandText = """
+                CREATE INDEX IF NOT EXISTS idx_mods_hash ON Mods(Hash);
+                CREATE INDEX IF NOT EXISTS idx_mods_content_fingerprint ON Mods(ContentFingerprint);
+                """;
+            await contentIndexes.ExecuteNonQueryAsync(cancellationToken);
         }
 
         // 这些索引依赖本次新增的列；必须在旧库补列之后创建，不能放进上方初始 SQL。

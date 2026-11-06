@@ -8,7 +8,21 @@ namespace HD2Mimnt.Infrastructure.Storage;
 public sealed class ModVersionStore(string libraryPath)
 {
     private sealed record Document(int SchemaVersion, Guid ModId, List<LocalModVersion> Versions);
-    private string GetPath(Guid id) => Path.Combine(libraryPath, ".hd2mimnt-versions", id.ToString("N") + ".json");
+    private const string IndexDirectoryName = ".hd2mimnt-versions";
+    private string GetPath(Guid id) => Path.Combine(libraryPath, IndexDirectoryName, id.ToString("N") + ".json");
+
+    /// <summary>一次目录列举得到有本地版本索引的模组，判重不必为库里每个模组各打开一个索引文件。</summary>
+    public static IReadOnlyCollection<Guid> ListModIdsWithVersions(string libraryPath)
+    {
+        var directory = Path.Combine(libraryPath, IndexDirectoryName);
+        if (!Directory.Exists(directory)) return Array.Empty<Guid>();
+        var ids = new List<Guid>();
+        foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            if (Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out var id)) ids.Add(id);
+        }
+        return ids;
+    }
 
     public async Task<List<LocalModVersion>> ReadAsync(Guid id, CancellationToken token = default)
     {
