@@ -508,6 +508,16 @@ public class HD2MimntDbContext : IDisposable
                 CheckedAtUtc TEXT NOT NULL,
                 ContentStamp TEXT NOT NULL
             );
+
+            -- 自动拆包 Lua 处理记录：功能关闭再开启时跳过已处理模组；ContentStamp 变化即重拆。
+            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            CREATE TABLE IF NOT EXISTS LuaExtractionResults (
+                ModId TEXT PRIMARY KEY,
+                ExtractedAtUtc TEXT NOT NULL,
+                SourceCount INTEGER NOT NULL,
+                BytecodeCount INTEGER NOT NULL,
+                ContentStamp TEXT NOT NULL
+            );
         ";
 
         using var command = connection.CreateCommand();

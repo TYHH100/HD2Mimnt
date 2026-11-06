@@ -102,6 +102,22 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(0, events);
     }
 
+    [Fact]
+    public async Task LibraryCategory_LuaAutoExtract_ShouldDefaultOffAndSaveReload()
+    {
+        // 默认关闭：未写入任何设置时加载结果必须为 false。
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        Assert.False(vm.LuaAutoExtract);
+        vm.SelectedCategory = "模组库";
+        vm.LuaAutoExtract = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(_settingsService.GetSetting(SettingKeys.LuaAutoExtract, false));
+        using var reloaded = CreateViewModel("invalid-game-path");
+        await reloaded.LoadAsync();
+        Assert.True(reloaded.LuaAutoExtract);
+    }
+
     [Theory]
     [InlineData("配置文件", "Deployment.DefaultMethod", "Profiles.LockLoaders")]
     [InlineData("模组库", "Search.Fuzzy", "Library.ImportAutoClose")]

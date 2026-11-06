@@ -3788,6 +3788,11 @@
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>导入后自动加入并启用模组；没有启用的配置文件时，仅保留在模组库。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>导入完成后自动关闭悬浮卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
+  <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>自动拆包 Lua 模组</value></data>
+  <data name="Settings.Library.LuaAutoExtractHelp" xml:space="preserve"><value>默认关闭。开启后自动把模组内的 Lua 脚本拆包提取到该模组文件夹下的 LuaExtracted 专用文件夹，方便之后审查；模组库中已有模组会立即补拆，已处理过的模组不会重复提取。</value></data>
+  <data name="Settings.Library.LuaExtractTitle" xml:space="preserve"><value>自动拆包 Lua</value></data>
+  <data name="Settings.Library.LuaExtractedSummary" xml:space="preserve"><value>已为 {0} 个模组提取 Lua：源码 {1} 个、字节码 {2} 个，可在各模组文件夹的 LuaExtracted 中查看。</value></data>
+  <data name="Settings.Library.LuaExtractFailed" xml:space="preserve"><value>自动拆包 Lua 失败：{0}</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>这些组件将作为一个模组导入，可在配置选项中分别启停。</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>合并添加</value></data>
   <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS 组件</value></data>

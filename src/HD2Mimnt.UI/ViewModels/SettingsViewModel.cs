@@ -73,6 +73,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _importAutoClose;
     [ObservableProperty] private bool _keepModVersions;
     [ObservableProperty] private bool _allowDuplicateImports;
+    [ObservableProperty] private bool _luaAutoExtract;
     [ObservableProperty] private bool _compatibilityCheckOnStartup;
     [ObservableProperty] private bool _compatibilityEnableBatchRepair;
     [ObservableProperty] private bool _compatibilityAutoCheckImport;
@@ -275,6 +276,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
+            LuaAutoExtract = await _settingsService.GetSettingAsync(SettingKeys.LuaAutoExtract, false);
             ForceManifestV1 = await _settingsService.GetSettingAsync(SettingKeys.ForceManifestV1, true);
             LoadCompatibilitySettings();
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
@@ -440,7 +442,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.ShowModThumbnails] = ShowThumbnails,
         [SettingKeys.ImportAutoClose] = ImportAutoClose,
         [SettingKeys.KeepModVersions] = KeepModVersions,
-        [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports
+        [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports,
+        [SettingKeys.LuaAutoExtract] = LuaAutoExtract
     };
 
     private Dictionary<string, object> GetSearchPreferences() => new()

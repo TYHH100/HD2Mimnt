@@ -17,13 +17,17 @@ public static class ModHashService
         => ModDirectoryHash.CalculateWithFingerprintAsync(directory, cancellationToken, progress,
             AuthorContentFilter(directory), stepName, startPercentage, spanPercentage);
 
-    /// <summary>判重只比较作者内容：生成身份（组件映射、组件选项树、导入自动生成的档案）不计入。</summary>
+    /// <summary>判重只比较作者内容：生成身份（组件映射、组件选项树、导入自动生成的档案）与 Lua 拆包派生目录不计入。</summary>
     public static Func<string, bool> AuthorContentFilter(string root) => path =>
     {
+        var relative = Path.GetRelativePath(root, path);
+        // LuaExtracted 为审查用派生目录，不计入作者内容。
+        var luaRoot = Path.Combine(root, ModDerivedContent.LuaFolderName);
+        if (relative.StartsWith(luaRoot, StringComparison.OrdinalIgnoreCase)
+            && (relative.Length == luaRoot.Length || relative[luaRoot.Length] is '\\' or '/')) return false;
         // 只有根目录下的这几种文件属于生成身份；其余文件直接放行，避免为每个文件计算相对路径。
         var name = Path.GetFileName(path.AsSpan());
         if (!IsGeneratedContentName(name)) return true;
-        var relative = Path.GetRelativePath(root, path);
         return !relative.AsSpan().Equals(name, StringComparison.OrdinalIgnoreCase);
     };
 

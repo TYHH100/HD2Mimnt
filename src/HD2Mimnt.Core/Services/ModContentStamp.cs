@@ -12,9 +12,13 @@ public static class ModContentStamp
         var count = 0;
         long totalBytes = 0;
         long maxTicks = 0;
+        var luaRoot = Path.Combine(directory, ModDerivedContent.LuaFolderName);
         foreach (var path in Directory.EnumerateFiles(directory, "*", new EnumerationOptions
                  { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }))
         {
+            // 拆包输出是派生审查产物，不改变模组内容身份。
+            if (path.StartsWith(luaRoot, StringComparison.OrdinalIgnoreCase)
+                && (path.Length == luaRoot.Length || path[luaRoot.Length] is '\\' or '/')) continue;
             var info = new FileInfo(path);
             if (!info.Exists) continue;
             count++;

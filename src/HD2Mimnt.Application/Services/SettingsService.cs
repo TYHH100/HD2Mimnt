@@ -342,6 +342,10 @@ public static class SettingKeys
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
 
+    // Lua 审查：导入与存量模组的自动拆包默认关闭，需要用户明确开启。
+    // 键前缀为 Library，随“模组库”分类一起保存与恢复默认。
+    public const string LuaAutoExtract = "Library.LuaAutoExtract";
+
     // 兼容性：耗时的启动检查需要用户明确开启。
     public const string CompatibilityCheckOnStartup = "Compatibility.CheckOnStartup";
     public const string CompatibilityEnableBatchRepair = "Compatibility.EnableBatchRepair";

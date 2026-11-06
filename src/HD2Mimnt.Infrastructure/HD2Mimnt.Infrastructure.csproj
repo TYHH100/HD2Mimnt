@@ -12,7 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" />
+    <!-- 仅为 Services/ImageLoaderService、ImageCacheService 提供编译期 Avalonia.Base 类型（Bitmap/PixelSize/
+         CreateScaledBitmap）。ExcludeAssets="runtime" 使 Avalonia 不流入 Worker/Cli 的发布与 deps.json——
+         这两个子进程不消费图像服务；图像服务实际消费方只有 UI，其自身另行完整引用 Avalonia。
+         勿改为无排除的完整引用，否则 Worker/Cli 单文件包被迫捆绑整套 Avalonia，发布体积放大约 4MB/个；
+         也勿在 Worker/Cli 路径新增对图像服务的调用（运行时会因缺少 Avalonia.Base 而 TypeLoadException）。 -->
+    <PackageReference Include="Avalonia" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="SharpCompress" />
     <PackageReference Include="K4os.Compression.LZ4" />

@@ -31,6 +31,7 @@ jobs:
         run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^V', '')"
 
       # 与 Release.pubxml 一致：win-x64、框架依赖、单文件。
+      # 框架依赖单文件不支持 EnableCompressionInSingleFile（NETSDK1176，仅自包含发布可用）。
       # 子进程 exe（PluginHost/Worker）由 UI csproj 的 PublishChildProcessHosts 目标补齐。
       - name: Publish app
         shell: pwsh

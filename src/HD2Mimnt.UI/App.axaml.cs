@@ -396,6 +396,8 @@ public partial class App : Avalonia.Application
             Path.Combine(storageLocations.AppDataPath, "SoundFixBackups")));
         services.AddTransient<SoundFixViewModel>();
         services.AddSingleton<ModCompatibilityService>();
+        services.AddSingleton<ILuaExtractionStore, LuaExtractionRepository>();
+        services.AddSingleton<LuaExtractionService>();
 
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
@@ -509,7 +511,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
-            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>()));
+            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
+            sp.GetRequiredService<LuaExtractionService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),

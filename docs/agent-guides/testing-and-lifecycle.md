@@ -80,11 +80,14 @@
 
 - "路径必须位于根内"与长度前缀管道帧是共享设施：新代码一律使用 `HD2Mimnt.Core.IO.PathGuard.IsInsideRoot/ResolveInsideRoot` 和 `HD2Mimnt.Core.IPC.PipeFrame`（含 ReadExactly 短读循环与 8MB 帧上限），不要手写 `GetFullPath + StartsWith` 前缀比较或第二份帧读取器。`LruCache` 构造可传驱逐回调释放原生资源（如 Bitmap），回调在锁外执行；`ImageLoaderService.CancelPendingLoads` 是代际令牌，Cancel 后新加载仍可用。
 
+- 管道探测超时易错点：`NamedPipeClientStream.ConnectAsync` 连接**不存在**的管道不会立即失败，而是等满超时才抛 `OperationCanceledException`（.NET 10 实测行为）。管理器未运行时这是每条 CLI 命令的固定开销——CLI 管道探测取 300ms×3 次约 1.3 秒封顶（`HD2Mimnt.Cli/Program.cs` 的 `TryConnectAsync`），勿调回秒级超时；管理器监听实例重建是毫秒级窗口，靠 3 次短重试覆盖而非单次长等。来源：https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeclientstream.connectasync
+
 - 包版本只在仓库根 `Directory.Packages.props`（CPM）声明，项目引用不带 Version；公共属性（net10.0/Nullable/ImplicitUsings）在 `Directory.Build.props`。升版本先确认目标版本已被缓存（新版本需联网）。`System.Drawing.Common` 有意保留 9.0.0。来源：https://learn.microsoft.com/nuget/consume-packages/Central-Package-Management
 
 - 平台兼容警告（CA1416）由 `Directory.Build.props` 统一注入的程序集级 `SupportedOSPlatform("windows")` 治理——本应用仅面向 Windows，新的跨平台边界才需要单独处理；警告基线为 0，提交前保持 `dotnet build` 0 警告。
 
 - UITests 合并运行的 "Cannot get KeyValueStorage on the idle test context" 级联：机制是测试遗留延迟工作（window.Close 级联、未到期定时器）在 xUnit v3 idle 上下文执行并毒化 headless 宿主，且 xUnit 把上一测试的清理失败记到下一测试头上；`UiScope.DisposeAsync` 的 RunJobs 排空可消除确定性触发，但未到期任务仍偶发，新增 UI 测试应在断言完成后排空 dispatcher 并确保后台服务可释放。根治需 Avalonia.Headless.XUnit/xunit.v3 上游修复。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless.XUnit/AvaloniaTestRunner.cs
 
-- 单文件发布只作用于当前项目：被引用的 `PluginHost`/`Worker` 独立进程拿到的是 apphost，其托管依赖已被打进主程序单文件包，子进程看不到，发布版会以 `FileNotFoundException` 启动失败。正确做法是让每个子进程项目各自按“框架依赖单文件”发布，只把生成的 exe 作为 `ExcludeFromSingleFile` 项复制到发布目录；原生库与内容目录由主项目发布目录提供。不要只复制 `$(OutDir)` 里的 `子项目.*`。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
+- 单文件发布只作用于当前项目：被引用的 `PluginHost`/`Worker` 独立进程拿到的是 apphost，其托管依赖已被打进主程序单文件包，子进程看不到，发布版会以 `FileNotFoundException` 启动失败。正确做法是让每个子进程项目各自按“框架依赖单文件”发布，只把生成的 exe 作为 `ExcludeFromSingleFile` 项复制到发布目录；原生库与内容目录由主项目发布目录提供。不要只复制 `$(OutDir)` 里的 `子项目.*`。子进程的发布属性（含 `EnableCompressionInSingleFile`）须在 UI 工程 `PublishChildProcessHosts` 的 MSBuild `Properties` 里逐个显式传递，MSBuild 任务不会把父项目属性自动流入子发布。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
+- 发布体积易错点：`Infrastructure` 的 `Avalonia` 引用带 `ExcludeAssets="runtime"`（仅提供 `ImageLoaderService`/`ImageCacheService` 的编译期 `Avalonia.Base` 类型），勿改为无排除的完整引用——否则 Worker/Cli 的单文件包会被迫捆绑整套 Avalonia，体积放大约 4MB/个；同时也勿在 Worker/Cli 路径新增对图像服务的调用（运行时缺少 Avalonia.Base 会 `TypeLoadException`，图像服务实际消费方只有 UI）。另注意 `EnableCompressionInSingleFile` 仅自包含发布可用，框架依赖单文件发布报 NETSDK1176——想给框架依赖单文件包"压缩瘦身"是走不通的。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
 - 给发布流程挂钩子时不要依赖 `GenerateSingleFileBundle`：产物已最新时该目标会整体跳过，挂在其上的 `BeforeTargets` 不会执行。需要修改 `ResolvedFileToPublish` 时挂到每次发布都会运行、且排在待发布列表计算之后的 `GeneratePublishDependencyFile`，并按 `RelativePath` 而不是 `Filename` 匹配项目引用产生的 apphost。来源：https://learn.microsoft.com/visualstudio/msbuild/target-build-order

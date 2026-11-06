@@ -3788,6 +3788,11 @@ Last checked: {7}</value>
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>After import, add and enable mods in the active profile. If no profile is active, keep them in the library.</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>Close the import card after completion</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>Close after all mods import successfully. Keep results open on failure or cancellation.</value></data>
+  <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>Auto-unpack Lua mods</value></data>
+  <data name="Settings.Library.LuaAutoExtractHelp" xml:space="preserve"><value>Off by default. When enabled, Lua scripts inside mods are automatically extracted to a dedicated LuaExtracted folder in each mod folder for review; existing mods in the library are unpacked right away, and already-processed mods are not extracted again.</value></data>
+  <data name="Settings.Library.LuaExtractTitle" xml:space="preserve"><value>Auto-unpack Lua</value></data>
+  <data name="Settings.Library.LuaExtractedSummary" xml:space="preserve"><value>Extracted Lua for {0} mods: {1} source scripts, {2} bytecode files. Check the LuaExtracted folder in each mod folder.</value></data>
+  <data name="Settings.Library.LuaExtractFailed" xml:space="preserve"><value>Auto Lua extraction failed: {0}</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>These components will be imported as one mod. You can enable each component in profile options.</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>Import together</value></data>
   <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS components</value></data>

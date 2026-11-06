@@ -19,6 +19,9 @@ internal static class Program
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
+    // 单次管道探测超时：管理器未运行时这是每条命令的固定等待（见 TryConnectAsync 的 remarks）。
+    private static readonly TimeSpan s_ConnectProbeTimeout = TimeSpan.FromMilliseconds(300);
+
     private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -38,7 +41,7 @@ internal static class Program
         // launch 在本地处理：管理器已在运行则直接确认，否则拉起并等待就绪。
         if (tokens[0].Equals("launch", StringComparison.OrdinalIgnoreCase))
         {
-            await using var probe = await TryConnectAsync(TimeSpan.FromSeconds(2));
+            await using var probe = await TryConnectAsync(s_ConnectProbeTimeout);
             if (probe != null) return Print(json, new CliPipeResult(0, "管理器已在运行，CLI 管道就绪。", null, false));
             return await LaunchAsync(json);
         }
@@ -47,7 +50,7 @@ internal static class Program
         var packet = new CliPipePacket(tokens, json, yes);
 
         // 管理器在运行时仍交给它执行，保持与图形界面同一份内存状态；没运行则直接在本进程执行。
-        await using var client = await TryConnectAsync(TimeSpan.FromSeconds(2));
+        await using var client = await TryConnectAsync(s_ConnectProbeTimeout);
         if (client != null)
         {
             var result = await SendOverPipeAsync(client, packet, timeout);
@@ -60,6 +63,12 @@ internal static class Program
     }
 
     /// <summary>尝试连接管理器管道；未运行或监听尚未就绪时返回 null。</summary>
+    /// <remarks>
+    /// 管理器未运行时，.NET 的 ConnectAsync 连接不存在的管道不会立即失败，而是等满超时才抛
+    /// OperationCanceledException（实测 .NET 10 行为）。超时取值必须保守：这是无 UI 环境下
+    /// 每条 CLI 命令的固定开销，3 次 × 2 秒的旧取值会让每条命令白等约 6.5 秒。
+    /// 监听实例重建是毫秒级窗口，300 毫秒 × 3 次足够覆盖。
+    /// </remarks>
     private static async Task<NamedPipeClientStream?> TryConnectAsync(TimeSpan connectTimeout)
     {
         for (var attempt = 0; attempt < 3; attempt++)

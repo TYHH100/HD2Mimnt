@@ -10,6 +10,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -48,6 +49,8 @@ public partial class LibraryViewModel : ObservableObject
     private readonly IConfirmationService _confirmationService;
     private readonly ImagePreviewService? _imagePreview;
     private readonly SettingsService? _settingsService;
+    private readonly LuaExtractionService? _luaExtraction;
+    private CancellationTokenSource? _luaExtractionCts;
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
@@ -294,11 +297,13 @@ public partial class LibraryViewModel : ObservableObject
         ModOnlineService? modOnlineService = null,
         IWebsiteDownloadLauncher? websiteLauncher = null,
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
-        PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null)
+        PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
+        LuaExtractionService? luaExtraction = null)
     {
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
+        _luaExtraction = luaExtraction;
         _modService = modService;
         LocalVersions = new(modService, confirmationService, async () =>
         {
@@ -322,7 +327,7 @@ public partial class LibraryViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
         _settingsService = settingsService;
-        if (_settingsService != null) _settingsService.SettingChanged += OnSearchSettingsChanged;
+        if (_settingsService != null) _settingsService.SettingChanged += OnLibrarySettingsChanged;
         _modSelection = new(() => FilteredMods, () => SelectedMods, SyncListSelection,
             (mod, focused) => mod.IsFocused = focused);
 
@@ -550,13 +555,86 @@ public partial class LibraryViewModel : ObservableObject
         _searchDebounceTimer.Start();
     }
 
-    /// <summary>设置页保存搜索选项后，立即按新规则刷新已有查询。</summary>
-    private void OnSearchSettingsChanged(object? sender, SettingChangedEventArgs e)
+    /// <summary>设置页保存模组库/搜索选项后的运行时响应：搜索规则立即刷新，Lua 自动拆包开关驱动补拆或取消。</summary>
+    private void OnLibrarySettingsChanged(object? sender, SettingChangedEventArgs e)
     {
-        if (e.Key is not (SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)) return;
-        if (string.IsNullOrWhiteSpace(SearchText)) return;
-        if (Dispatcher.UIThread.CheckAccess()) _ = ExecuteSearchAsync();
-        else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
+        if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
+        {
+            if (string.IsNullOrWhiteSpace(SearchText)) return;
+            if (Dispatcher.UIThread.CheckAccess()) _ = ExecuteSearchAsync();
+            else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
+            return;
+        }
+        if (e.Key == SettingKeys.LuaAutoExtract && _luaExtraction != null)
+        {
+            if (_luaExtraction.IsEnabled)
+            {
+                // 开启即补拆模组库全部存量模组；未处理过的模组由服务按记录跳过。
+                if (Dispatcher.UIThread.CheckAccess()) _ = ExtractAllLuaAsync();
+                else Dispatcher.UIThread.Post(() => _ = ExtractAllLuaAsync());
+            }
+            else
+            {
+                _luaExtractionCts?.Cancel();
+            }
+        }
+    }
+
+    /// <summary>开启开关后后台补拆全库 Lua；关闭开关或开启新一轮时取消在途任务。</summary>
+    private async Task ExtractAllLuaAsync()
+    {
+        if (_luaExtraction == null) return;
+        _luaExtractionCts?.Cancel();
+        _luaExtractionCts?.Dispose();
+        _luaExtractionCts = new CancellationTokenSource();
+        var token = _luaExtractionCts.Token;
+        try
+        {
+            var summary = await _luaExtraction.ExtractForLibraryAsync(token);
+            ShowLuaExtractionSummary(summary);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 开关被关闭或新一轮补拆已取代本次任务。
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(
+                UiLocalization.Current.Format("Settings.Library.LuaExtractFailed", ex.Message),
+                UiLocalization.Current["Settings.Library.LuaExtractTitle"]);
+        }
+    }
+
+    /// <summary>导入批次完成后按自动拆包设置在后台提取新模组的 Lua；与兼容性检查同样不并入 ImportCompletion。</summary>
+    private async Task ExtractImportedLuaAsync()
+    {
+        if (_luaExtraction == null || Import.ImportedIds.Count == 0) return;
+        var importedIds = Import.ImportedIds.ToArray();
+        var token = _luaExtractionCts?.Token ?? CancellationToken.None;
+        try
+        {
+            var summary = await _luaExtraction.ExtractForModsAsync(importedIds, token);
+            ShowLuaExtractionSummary(summary);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 开关被关闭；已处理模组有记录，重开后不会重复提取。
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(
+                UiLocalization.Current.Format("Settings.Library.LuaExtractFailed", ex.Message),
+                UiLocalization.Current["Settings.Library.LuaExtractTitle"]);
+        }
+    }
+
+    private void ShowLuaExtractionSummary(LuaExtractionBatchSummary summary)
+    {
+        if (summary.ProcessedMods == 0) return;
+        _notificationService.ShowInfo(
+            UiLocalization.Current.Format("Settings.Library.LuaExtractedSummary",
+                summary.ProcessedMods, summary.SourceCount, summary.BytecodeCount),
+            UiLocalization.Current["Settings.Library.LuaExtractTitle"]);
     }
 
     /// <summary>
@@ -1157,6 +1235,7 @@ public partial class LibraryViewModel : ObservableObject
         }
         // 批次结束（含取消）后统一检查本次导入的模组；不并入 ImportCompletion，下载交接无需等待检查。
         _ = CheckImportedCompatibilityAsync();
+        _ = ExtractImportedLuaAsync();
     }
 
     /// <summary>导入前为自动加入当前配置准备可选分组；任一开关关闭或没有分组时保持原追加逻辑。</summary>
