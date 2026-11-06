@@ -5,7 +5,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 身份派生（BLAKE2s）是内部实现，但需要逐位对齐官方 SDK 的固定向量。 -->
+    <InternalsVisibleTo Include="HD2Mimnt.ModelConversion.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../HD2Mimnt.Core/HD2Mimnt.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Stingray 贴图资源需要 BC1/BC3 编码（与 Infrastructure 的预览解码共用同一包）。 -->
+    <PackageReference Include="BCnEncoder.Net" />
   </ItemGroup>
 
 </Project>

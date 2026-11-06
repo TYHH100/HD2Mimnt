@@ -25,11 +25,30 @@ public sealed class SourceParsingTests
 
     [Theory]
     [InlineData(47)]
-    [InlineData(49)]
+    [InlineData(50)]
     public void Mdl_UnverifiedVersion_Rejects(int version)
     {
         var data = SourceFixture.Mdl(); SourceFixture.Int(data, 4, version);
         Assert.Throws<SourceFormatException>(() => MdlFile.Parse(data));
+    }
+
+    [Fact]
+    public void Mdl_V49Layout_ParsesAndSkipsJiggleBoing()
+    {
+        // v49（Alien Swarm/L4D2 系）与 v48 的表布局一致，但 jiggle bone 没有 boing 数据块：
+        // boing 位置放垃圾字节也必须能解析，且 boing 参数归零而不是读进垃圾。
+        var data = SourceFixture.Mdl(); SourceFixture.Int(data, 4, 49);
+        SourceFixture.Int(data, 408 + 164, 5); SourceFixture.Int(data, 408 + 168, 1300 - 408);
+        SourceFixture.Int(data, 1300, 0xE1);
+        for (var i = 0; i < 29; i++) SourceFixture.Float(data, 1304 + i * 4, i + 0.25f);
+        SourceFixture.Float(data, 1300 + 120, float.NaN);
+        SourceFixture.Float(data, 1300 + 124, float.PositiveInfinity);
+        var parsed = MdlFile.Parse(data);
+        Assert.Equal(49, parsed.Header.Version);
+        var jiggle = Assert.IsType<MdlJiggleBone>(Assert.Single(parsed.Bones).Jiggle);
+        Assert.Equal(0.25f, jiggle.Length);
+        Assert.Equal(28.25f, jiggle.BaseForwardFriction);
+        Assert.Equal(new MdlJiggleBoing(0, 0, 0, 0, 0), jiggle.Boing);
     }
 
     [Fact]

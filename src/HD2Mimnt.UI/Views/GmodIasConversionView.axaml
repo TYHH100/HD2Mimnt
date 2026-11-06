@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
+             x:Class="HD2Mimnt.UI.Views.GmodIasConversionView" x:DataType="vm:GmodIasConversionViewModel">
+  <StackPanel Classes="section" Spacing="12">
+    <TextBlock x:Name="GmodIasTitle" Text="{loc:Loc GmodIas.Title}" Classes="section-title" />
+    <TextBlock Text="{loc:Loc GmodIas.Description}" Classes="muted" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc GmodIas.BoundaryNote}" Classes="muted" TextWrapping="Wrap" />
+
+    <TextBlock Text="{loc:Loc GmodIas.Addon}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBox x:Name="GmodIasAddonPath" Text="{Binding AddonPath}" IsEnabled="{Binding CanEdit}"
+               PlaceholderText="{loc:Loc GmodIas.AddonPlaceholder}" />
+      <Button Grid.Column="1" x:Name="GmodIasBrowseAddonFile" Content="{loc:Loc GmodIas.BrowseFile}"
+              Click="OnBrowseAddonFileClicked" IsEnabled="{Binding CanEdit}" />
+      <Button Grid.Column="2" x:Name="GmodIasBrowseAddonFolder" Content="{loc:Loc GmodIas.BrowseFolder}"
+              Click="OnBrowseAddonFolderClicked" IsEnabled="{Binding CanEdit}" />
+    </Grid>
+
+    <TextBlock Text="{loc:Loc GmodIas.Model}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <ComboBox x:Name="GmodIasModelCombo" ItemsSource="{Binding ModelOptions}"
+                SelectedItem="{Binding SelectedModel}" IsEnabled="{Binding CanEdit}"
+                PlaceholderText="{loc:Loc GmodIas.ModelPlaceholder}" HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:GmodModelOption">
+            <StackPanel Spacing="1">
+              <TextBlock Text="{Binding Path}" />
+              <TextBlock Text="{Binding Detail}" Classes="muted" FontSize="11" />
+            </StackPanel>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Grid.Column="1" x:Name="GmodIasAnalyze" Content="{loc:Loc GmodIas.Analyze}"
+              Command="{Binding AnalyzeAddonCommand}" IsEnabled="{Binding CanAnalyze}" />
+      <Button Grid.Column="2" x:Name="GmodIasBrowseModel" Content="{loc:Loc GmodIas.Browse}"
+              Click="OnBrowseModelClicked" IsEnabled="{Binding CanEdit}" />
+    </Grid>
+    <TextBlock x:Name="GmodIasAnalysisNote" Text="{Binding AnalysisNote}" Classes="muted"
+               IsVisible="{Binding HasAnalysisNote}" TextWrapping="Wrap" FontSize="11" />
+
+    <TextBlock Text="{loc:Loc GmodIas.Output}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBox x:Name="GmodIasOutputDirectory" Text="{Binding OutputDirectory}" IsEnabled="{Binding CanEdit}"
+               PlaceholderText="{loc:Loc GmodIas.OutputPlaceholder}" />
+      <Button Grid.Column="1" x:Name="GmodIasBrowseOutput" Content="{loc:Loc GmodIas.Browse}"
+              Click="OnBrowseOutputClicked" IsEnabled="{Binding CanEdit}" />
+    </Grid>
+
+    <TextBlock Text="{loc:Loc GmodIas.TargetArmor}" FontWeight="SemiBold" />
+    <Grid ColumnDefinitions="190,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <TextBlock Grid.Row="0" Text="{loc:Loc GmodIas.TargetBodyArmor}" Classes="muted" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="0" Grid.Column="1" x:Name="GmodIasBodyArmorCombo" ItemsSource="{Binding BodyArmors}"
+                SelectedItem="{Binding SelectedBodyArmor}" IsEnabled="{Binding CanEdit}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:GmodArmorOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+
+      <TextBlock Grid.Row="1" Text="{loc:Loc GmodIas.TargetHelmetArmor}" Classes="muted" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" x:Name="GmodIasHelmetArmorCombo" ItemsSource="{Binding HelmetArmors}"
+                SelectedItem="{Binding SelectedHelmetArmor}" IsEnabled="{Binding CanEdit}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:GmodArmorOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </Grid>
+    <TextBlock x:Name="GmodIasArmorNote" Text="{Binding ArmorCatalogNote}" Classes="muted"
+               IsVisible="{Binding HasArmorCatalogNote}" TextWrapping="Wrap" FontSize="11" />
+
+    <Expander x:Name="GmodIasAdvancedExpander">
+      <Expander.Header><TextBlock Text="{loc:Loc GmodIas.Advanced}" FontWeight="SemiBold" /></Expander.Header>
+      <StackPanel Spacing="12" Margin="0,8,0,0">
+      <Grid ColumnDefinitions="190,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+        <TextBlock Grid.Row="0" Text="{loc:Loc GmodIas.ProjectId}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ProjectId}" IsEnabled="{Binding CanEdit}"
+                 PlaceholderText="{loc:Loc GmodIas.ProjectIdPlaceholder}" />
+
+        <TextBlock Grid.Row="1" Text="{loc:Loc GmodIas.ArchiveId}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ArchiveId}" IsEnabled="{Binding CanEdit}"
+                 PlaceholderText="{loc:Loc GmodIas.HexPlaceholder}" />
+
+        <TextBlock Grid.Row="2" Text="{loc:Loc GmodIas.HelmetArchiveId}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="2" Grid.Column="1" x:Name="GmodIasHelmetArchiveId" Text="{Binding HelmetArchiveId}"
+                 IsEnabled="{Binding CanEdit}" PlaceholderText="{loc:Loc GmodIas.HelmetArchiveIdPlaceholder}" />
+
+        <TextBlock Grid.Row="3" Text="{loc:Loc GmodIas.EquipmentKey}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding EquipmentKey}" IsEnabled="{Binding CanEdit}"
+                 PlaceholderText="0x02030405" />
+
+        <TextBlock Grid.Row="4" Text="{loc:Loc GmodIas.NativeUnitIds}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding NativeUnitIds}" IsEnabled="{Binding CanEdit}"
+                 PlaceholderText="0x101,0x201" />
+
+        <TextBlock Grid.Row="5" Text="{loc:Loc GmodIas.Domain}" Classes="muted" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="5" Grid.Column="1" SelectedIndex="{Binding DomainIndex}" IsEnabled="{Binding CanEdit}"
+                  HorizontalAlignment="Stretch">
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.DomainBody}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.DomainHelmet}" /></ComboBoxItem>
+        </ComboBox>
+
+        <TextBlock Grid.Row="6" Text="{loc:Loc GmodIas.PartSplit}" Classes="muted" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="6" Grid.Column="1" x:Name="GmodIasPartSplitCombo"
+                  SelectedIndex="{Binding PartSplitIndex}" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Stretch">
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.PartSplitBoth}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.PartSplitBody}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.PartSplitHelmet}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.PartSplitNone}" /></ComboBoxItem>
+        </ComboBox>
+
+        <TextBlock Grid.Row="7" Text="{loc:Loc GmodIas.SwitchMode}" Classes="muted" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="7" Grid.Column="1" SelectedIndex="{Binding SwitchModeIndex}" IsEnabled="{Binding CanEdit}"
+                  HorizontalAlignment="Stretch">
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.SwitchModeAuto}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.SwitchModeIndependent}" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="{loc:Loc GmodIas.SwitchModeComposite}" /></ComboBoxItem>
+        </ComboBox>
+
+        <TextBlock Grid.Row="8" Text="{loc:Loc GmodIas.SwitchSelection}" Classes="muted" VerticalAlignment="Center" />
+        <TextBox Grid.Row="8" Grid.Column="1" x:Name="GmodIasSwitchSelection" Text="{Binding SwitchSelection}"
+                 IsEnabled="{Binding CanEdit}" PlaceholderText="{loc:Loc GmodIas.SwitchSelectionPlaceholder}" />
+      </Grid>
+      <StackPanel Spacing="8">
+        <CheckBox Content="{loc:Loc GmodIas.IncludeSkin}" IsChecked="{Binding IncludeSkin}" IsEnabled="{Binding CanEdit}" />
+        <CheckBox Content="{loc:Loc GmodIas.IncludePhysics}" IsChecked="{Binding IncludePhysics}" IsEnabled="{Binding CanEdit}" />
+        <CheckBox Content="{loc:Loc GmodIas.IncludeRawSource}" IsChecked="{Binding IncludeRawSource}" IsEnabled="{Binding CanEdit}" />
+      </StackPanel>
+      </StackPanel>
+    </Expander>
+
+    <WrapPanel>
+      <Button x:Name="GmodIasConvertButton" Content="{loc:Loc GmodIas.Convert}" Classes="accent"
+              Command="{Binding ConvertCommand}" Margin="0,0,8,8" />
+      <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" Margin="0,0,8,8" />
+    </WrapPanel>
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+    <TextBlock x:Name="GmodIasStatus" Text="{Binding StatusMessage}" Classes="muted" TextWrapping="Wrap" />
+    <TextBlock x:Name="GmodIasResult" Text="{Binding ResultText}" IsVisible="{Binding HasResult}" TextWrapping="Wrap" />
+    <Expander x:Name="GmodIasIssuesExpander" IsVisible="{Binding HasResult}">
+      <Expander.Header><TextBlock Text="{loc:Loc GmodIas.Issues}" FontWeight="SemiBold" /></Expander.Header>
+      <TextBlock Text="{Binding IssuesText}" TextWrapping="Wrap" Classes="muted" />
+    </Expander>
+  </StackPanel>
+</UserControl>

@@ -56,6 +56,8 @@
 
 - UI 只通过 Application 服务访问模组、配置文件和部署数据；不要在 View 或 ViewModel 中直接访问 SQLite、部署实现或复制文件。
 
+- Application 服务的请求/返回类型不能暴露下层格式程序集的实体（如 `GmodConversionReport`）或枚举：UI 项目没有该程序集的直接引用，即使 `--no-restore` 能编译也会报 CS0012。用应用层枚举与只含基元类型的摘要 DTO 做投影，服务内部再映射到格式层类型；UI ViewModel 只绑定应用层 DTO。本轮 GMOD→IAS 工具页据此使用 `GmodIasDomain` / `GmodIasSwitchMode` / `GmodIasConversionSummary`。来源：[分层依赖规则](https://learn.microsoft.com/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures)。
+
 - 导出完整选项截图时复用管理器的 `ModOptionsSelector`，在独立控件中按无限高度测量并展开全部子项，不能截取 ScrollViewer 视口或修改屏幕预览的折叠状态。渲染前关闭 `Expander.ContentTransition` 与控件 `Transitions`，避免把半透明渐显中间帧写入 PNG；验证末项图片完整且不透明。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Expander.cs
 
 - Avalonia 的 `ObservableCollection` 和控件状态只能在 UI 上下文更新。后台筛选/排序先计算普通 `List`，回到 UI 上下文后再替换集合。

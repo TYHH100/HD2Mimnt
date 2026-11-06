@@ -10,7 +10,10 @@ public sealed class MdlFile
     public const int MeshSize = 116;
     public const int TextureSize = 64;
     public const int AttachmentSize = 92;
-    private const int SupportedVersion = 48;
+    /// <summary>CS:GO / GMOD 主流布局（studiohdr_t + mstudiojigglebone_t 带 boing 数据）。</summary>
+    private const int V48Version = 48;
+    /// <summary>Alien Swarm / L4D2 / SFM 分支：头部与各表布局与 v48 逐字节一致，仅 jiggle bone 无 boing。</summary>
+    private const int V49Version = 49;
 
     private MdlFile(BinaryBlock block)
     {
@@ -79,9 +82,10 @@ public sealed class MdlFile
         }
 
         var version = block.I32(4);
-        if (version != SupportedVersion)
+        if (version is not (V48Version or V49Version))
         {
-            throw new SourceFormatException($"Unsupported MDL version {version}; only the verified v{SupportedVersion} layout is supported");
+            throw new SourceFormatException(
+                $"Unsupported MDL version {version}; only the verified v{V48Version} and v{V49Version} layouts are supported");
         }
 
         var length = block.I32(76);
@@ -160,8 +164,7 @@ public sealed class MdlFile
                 Block.I32(offset + 172),
                 surfacePropOffset != 0 ? Block.RelativeCString(offset, surfacePropOffset, string.Empty) : string.Empty,
                 Block.I32(offset + 180),
-                jiggle));
-        }
+                jiggle));        }
 
         foreach (var bone in bones)
         {
@@ -181,11 +184,13 @@ public sealed class MdlFile
         Block.Check(offset, coreSize, $"jiggle bone data for bone {boneIndex} ({boneName})");
         var values = Block.Floats(offset + 4, (coreSize - 4) / 4, "jiggle floats");
         var flags = (MdlJiggleFlags)Block.I32(offset);
-        Block.Check(offset + coreSize, boingSize, $"jiggle boing data for bone {boneIndex} ({boneName})");
-        var boingValues = Block.Floats(offset + coreSize, boingSize / 4, "jiggle boing floats");
-        if (values.Concat(boingValues).Any(value => !float.IsFinite(value)))
+        // boing 是 v48（CS:GO 系编译器）追加的数据块；v49（Alien Swarm/L4D2 系）结构止于 120 字节，
+        // 其后的字节属于其他表，读进来只会产生垃圾参数。
+        var boing = Header.Version >= V49Version
+            ? new MdlJiggleBoing(0, 0, 0, 0, 0)
+            : ParseBoing(offset + coreSize, boneIndex, boneName, boingSize);
+        if (values.Any(value => !float.IsFinite(value)))
             throw new SourceFormatException($"Non-finite jiggle parameters for bone {boneName}");
-        var boing = new MdlJiggleBoing(boingValues[0], boingValues[1], boingValues[2], boingValues[3], boingValues[4]);
 
         return new MdlJiggleBone(
             flags,
@@ -199,6 +204,15 @@ public sealed class MdlFile
             values[23], values[24], values[25],
             values[26], values[27], values[28],
             boing);
+    }
+
+    private MdlJiggleBoing ParseBoing(int offset, int boneIndex, string boneName, int boingSize)
+    {
+        Block.Check(offset, boingSize, $"jiggle boing data for bone {boneIndex} ({boneName})");
+        var boingValues = Block.Floats(offset, boingSize / 4, "jiggle boing floats");
+        if (boingValues.Any(value => !float.IsFinite(value)))
+            throw new SourceFormatException($"Non-finite jiggle boing parameters for bone {boneName}");
+        return new MdlJiggleBoing(boingValues[0], boingValues[1], boingValues[2], boingValues[3], boingValues[4]);
     }
 
     private void ParseMaterials()

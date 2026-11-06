@@ -4410,4 +4410,86 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>Medium</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>High</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>Max</value></data>
+  <data name="GmodIas.NavItem" xml:space="preserve"><value>GMOD model conversion</value></data>
+  <data name="GmodIas.Title" xml:space="preserve"><value>GMOD model to HD2 IAS conversion</value></data>
+  <data name="GmodIas.Description" xml:space="preserve"><value>Convert a Garry's Mod (Source engine) model into an HD2 IAS conversion bundle. All bodygroup alternatives, skin families, materials, textures, physics bones and addon source files are retained.</value></data>
+  <data name="GmodIas.BoundaryNote" xml:space="preserve"><value>The converter emits a complete HD2GEOM1 geometry bundle plus IAS runtime files. Writing the game-native Stingray .unit meshes still requires the Blender toolchain (AQ_Toolkit / HD2-BatchTool / HD2SDK); see conversion-report.json.</value></data>
+  <data name="GmodIas.Addon" xml:space="preserve"><value>GMOD addon (.gma or extracted folder)</value></data>
+  <data name="GmodIas.AddonPlaceholder" xml:space="preserve"><value>Path to a .gma file or an extracted addon folder</value></data>
+  <data name="GmodIas.BrowseFile" xml:space="preserve"><value>File…</value></data>
+  <data name="GmodIas.BrowseFolder" xml:space="preserve"><value>Folder…</value></data>
+  <data name="GmodIas.BrowseAddon" xml:space="preserve"><value>Choose GMOD addon</value></data>
+  <data name="GmodIas.BrowseModel" xml:space="preserve"><value>Choose Source model</value></data>
+  <data name="GmodIas.BrowseOutput" xml:space="preserve"><value>Choose output folder</value></data>
+  <data name="GmodIas.Browse" xml:space="preserve"><value>Browse…</value></data>
+  <data name="GmodIas.Model" xml:space="preserve"><value>Model path inside the addon</value></data>
+  <data name="GmodIas.ModelPlaceholder" xml:space="preserve"><value>e.g. models/player/character.mdl</value></data>
+  <data name="GmodIas.Output" xml:space="preserve"><value>Output folder</value></data>
+  <data name="GmodIas.OutputPlaceholder" xml:space="preserve"><value>Folder that receives the conversion bundle</value></data>
+  <data name="GmodIas.Advanced" xml:space="preserve"><value>IAS publishing options</value></data>
+  <data name="GmodIas.ProjectId" xml:space="preserve"><value>Project ID</value></data>
+  <data name="GmodIas.ProjectIdPlaceholder" xml:space="preserve"><value>Leave blank to derive from the model name</value></data>
+  <data name="GmodIas.ArchiveId" xml:space="preserve"><value>Archive ID (hex)</value></data>
+  <data name="GmodIas.HexPlaceholder" xml:space="preserve"><value>Leave blank for a stable derived ID</value></data>
+  <data name="GmodIas.EquipmentKey" xml:space="preserve"><value>Equipment key (hex)</value></data>
+  <data name="GmodIas.NativeUnitIds" xml:space="preserve"><value>Native Unit IDs (hex, comma separated)</value></data>
+  <data name="GmodIas.Domain" xml:space="preserve"><value>Content domain</value></data>
+  <data name="GmodIas.DomainBody" xml:space="preserve"><value>Body</value></data>
+  <data name="GmodIas.DomainHelmet" xml:space="preserve"><value>Helmet</value></data>
+  <data name="GmodIas.SwitchMode" xml:space="preserve"><value>Switch mode</value></data>
+  <data name="GmodIas.SwitchModeAuto" xml:space="preserve"><value>Automatic (combine shared-resource switches)</value></data>
+  <data name="GmodIas.SwitchModeIndependent" xml:space="preserve"><value>Independent (requires disjoint Native Units)</value></data>
+  <data name="GmodIas.SwitchModeComposite" xml:space="preserve"><value>Always composite</value></data>
+  <data name="GmodIas.IncludeSkin" xml:space="preserve"><value>Publish skin families as IAS options</value></data>
+  <data name="GmodIas.IncludePhysics" xml:space="preserve"><value>Generate HD2PHY1 physics profiles</value></data>
+  <data name="GmodIas.IncludeRawSource" xml:space="preserve"><value>Copy all addon source files verbatim</value></data>
+  <data name="GmodIas.Convert" xml:space="preserve"><value>Convert</value></data>
+  <data name="GmodIas.Issues" xml:space="preserve"><value>Conversion notes</value></data>
+  <data name="GmodIas.Ready" xml:space="preserve"><value>Fill in the addon, model path and output folder, then convert.</value></data>
+  <data name="GmodIas.Converting" xml:space="preserve"><value>Converting the GMOD model…</value></data>
+  <data name="GmodIas.Completed" xml:space="preserve"><value>Conversion complete: {0} files written.</value></data>
+  <data name="GmodIas.Cancelled" xml:space="preserve"><value>Conversion cancelled; no files were written.</value></data>
+  <data name="GmodIas.Failed" xml:space="preserve"><value>Conversion failed: {0}</value></data>
+  <data name="GmodIas.InvalidArchive" xml:space="preserve"><value>Archive ID must be a nonzero hexadecimal 64-bit value.</value></data>
+  <data name="GmodIas.InvalidEquipment" xml:space="preserve"><value>Equipment key must be a nonzero hexadecimal 32-bit value.</value></data>
+  <data name="GmodIas.InvalidNative" xml:space="preserve"><value>Native Unit IDs must be nonzero, unique hexadecimal values separated by commas.</value></data>
+  <data name="GmodIas.ConfirmTitle" xml:space="preserve"><value>Confirm conversion output</value></data>
+  <data name="GmodIas.ConfirmMessage" xml:space="preserve"><value>Writing the conversion bundle to {0} may overwrite files with the same names. Continue?</value></data>
+  <data name="GmodIas.ResultOutput" xml:space="preserve"><value>Output: {0} ({1} files)</value></data>
+  <data name="GmodIas.ResultGeometry" xml:space="preserve"><value>Model: {0} bones, {1} meshes, {2} vertices, {3} triangles</value></data>
+  <data name="GmodIas.ResultAssets" xml:space="preserve"><value>Assets: {0} materials, {1} textures ({2} decoded), {3} source files</value></data>
+  <data name="GmodIas.ResultSwitches" xml:space="preserve"><value>IAS: {0} switch group(s), {1} options, {2} rig profiles</value></data>
+  <data name="GmodIas.ResultPhysics" xml:space="preserve"><value>Physics: {0} chains, {1} joints, {2} HD2PHY1 profiles</value></data>
+  <data name="GmodIas.ResultPackage" xml:space="preserve"><value>Runnable package: {0} units, {1} material resources, {2} game textures, {3} of patch data (import the package/ folder as a data mod)</value></data>
+  <data name="GmodIas.TargetArmor" xml:space="preserve"><value>Target armour</value></data>
+  <data name="GmodIas.TargetBodyArmor" xml:space="preserve"><value>Body armour</value></data>
+  <data name="GmodIas.TargetHelmetArmor" xml:space="preserve"><value>Helmet</value></data>
+  <data name="GmodIas.ArmorNone" xml:space="preserve"><value>(not specified)</value></data>
+  <data name="GmodIas.ArmorCatalogLoaded" xml:space="preserve"><value>Armour catalog: {0} body armour set(s), {1} helmet(s). Pick the armour this mod replaces; the model takes over one Unit and the remaining plate slots are cleared.</value></data>
+  <data name="GmodIas.ArmorCatalogMissing" xml:space="preserve"><value>Armour catalog not found ({0}). Only the manual Archive / Native Unit fields are usable, and such a package will not attach to any in-game armour.</value></data>
+  <data name="GmodIas.ArmorCatalogInvalid" xml:space="preserve"><value>Armour catalog could not be read: {0}</value></data>
+  <data name="GmodIas.ResultRuntimePack" xml:space="preserve"><value>Rig companion: {0} ({1}; import it together with the data mod)</value></data>
+  <data name="GmodIas.ResultTarget" xml:space="preserve"><value>Target armour: {0}</value></data>
+  <data name="GmodIas.Analyze" xml:space="preserve"><value>Analyze</value></data>
+  <data name="GmodIas.Analyzing" xml:space="preserve"><value>Scanning the addon for convertible models…</value></data>
+  <data name="GmodIas.Analyzed" xml:space="preserve"><value>Found {0} convertible model(s) in the addon.</value></data>
+  <data name="GmodIas.AnalyzedWithSkipped" xml:space="preserve"><value>Found {0} convertible model(s); {1} more were skipped (missing VVD/VTX or unsupported format).</value></data>
+  <data name="GmodIas.AnalyzedEmpty" xml:space="preserve"><value>No convertible model found. {0} .mdl file(s) were inspected; each needs a v48 or v49 MDL with VVD and VTX siblings.</value></data>
+  <data name="GmodIas.AnalysisFailed" xml:space="preserve"><value>Addon analysis failed: {0}</value></data>
+  <data name="GmodIas.ModelDetail" xml:space="preserve"><value>{0} bones · {1} meshes · {2} bodygroup switches · {3} jiggle bones · {4} materials</value></data>
+  <data name="GmodIas.AddonRequired" xml:space="preserve"><value>Choose the GMOD addon first; its models are listed automatically.</value></data>
+  <data name="GmodIas.ModelOutsideAddon" xml:space="preserve"><value>The selected model is outside the addon folder; pick one from the list.</value></data>
+  <data name="GmodIas.GmaManualPath" xml:space="preserve"><value>A .gma addon only exposes addon-relative paths; pick the model from the list.</value></data>
+  <data name="GmodIas.HelmetArchiveId" xml:space="preserve"><value>Helmet Archive ID (hex)</value></data>
+  <data name="GmodIas.HelmetArchiveIdPlaceholder" xml:space="preserve"><value>Leave blank for a stable derived ID</value></data>
+  <data name="GmodIas.PartSplit" xml:space="preserve"><value>Body / helmet split</value></data>
+  <data name="GmodIas.PartSplitBoth" xml:space="preserve"><value>Both (body/ and helmet/ bundles)</value></data>
+  <data name="GmodIas.PartSplitBody" xml:space="preserve"><value>Body only</value></data>
+  <data name="GmodIas.PartSplitHelmet" xml:space="preserve"><value>Helmet only</value></data>
+  <data name="GmodIas.PartSplitNone" xml:space="preserve"><value>Single bundle (no split)</value></data>
+  <data name="GmodIas.SwitchSelection" xml:space="preserve"><value>Exposed switches</value></data>
+  <data name="GmodIas.SwitchSelectionPlaceholder" xml:space="preserve"><value>e.g. skin,bodygroup:1 — leave blank to publish every switch</value></data>
+  <data name="GmodIas.InvalidSwitchSelection" xml:space="preserve"><value>Exposed switches must be "skin" or "bodygroup:N", separated by commas.</value></data>
+  <data name="GmodIas.ResultPart" xml:space="preserve"><value>{0} part → {1}: {2} meshes, {3} triangles, {4} options</value></data>
+  <data name="GmodIas.PartWhole" xml:space="preserve"><value>Whole model</value></data>
 </root>

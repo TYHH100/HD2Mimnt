@@ -150,6 +150,7 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .artifacts/
 .clean-code-check/
 .claude/
+.workbuddy/
 .zcode/
 .layout-validation/
 .tmp-platform-download-*/
@@ -166,3 +167,9 @@ tools/SourceModelReader/*.json
 tools/SourceModelReader/*.dds
 tools/SourceModelReader/*.bin
 tools/SourceModelReader/research/skeleton_comparison/*.json
+
+## Reverse-engineering reference scratch files (not part of the project)
+as_search.json
+as_studio.h
+as_tree.json
+sio_*.py

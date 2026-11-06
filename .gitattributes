@@ -1,0 +1,6 @@
+# Byte-exact golden fixtures must survive Windows checkouts unchanged.
+# With core.autocrlf=true, git would otherwise rewrite LF into CRLF and break
+# the IAS manifest / HD2PHY1 byte-for-byte regression tests.
+tests/HD2Mimnt.ModelConversion.Tests/Fixtures/*.ini -text
+tests/HD2Mimnt.ModelConversion.Tests/Fixtures/*.bin -text
+tests/HD2Mimnt.ModelConversion.Tests/Fixtures/*.json -text

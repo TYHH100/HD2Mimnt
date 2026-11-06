@@ -53,9 +53,22 @@ public sealed class IasCompanionBuilderTests
     [Fact]
     public void Build_DifferentArchives_DoNotShareOutputNames()
     {
-        var first = IasCompanionBuilder.Build("same-project", "owned", Document(false), Binding());
-        var other = Document(false) with { ArchiveId = 0x123456 };
-        var second = IasCompanionBuilder.Build("same-project", "owned", other, Binding() with { ArchiveId = 0x123456 });
+        // 身份按「项目 + Archive」派生，所以同名的两个部位包不会互相覆盖。
+        static (IReadOnlyList<IasCompanionFile> Files, IasFreePartsDocument Document) For(ulong archive)
+        {
+            var document = Document(false) with
+            {
+                ArchiveId = archive,
+                ManifestId = IasIdentity.Difference(IasIdentity.Project("same-project"), archive)
+            };
+            var files = IasCompanionBuilder.Build(IasIdentity.Project("same-project"),
+                IasIdentity.Owned(IasIdentity.Project("same-project"), archive), document,
+                Binding() with { ArchiveId = archive });
+            return (files, document);
+        }
+
+        var (first, _) = For(0xabcdef);
+        var (second, _) = For(0x123456);
         Assert.Empty(first.Select(file => file.Name).Intersect(second.Select(file => file.Name)));
     }
 

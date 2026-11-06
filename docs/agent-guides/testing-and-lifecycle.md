@@ -22,7 +22,9 @@
 
 - `async` 和 `Task.Yield()` 不会把同步文件删除移到后台，UI 调用的部署清理须显式在后台执行；进度通过捕获 UI 上下文的 `Progress<T>` 回传，文件级更新限频，结束后的旧回调用本次操作标识拦截。部署/清理采用与导入一致的居中进度浮窗，不改成底部进度条；关闭浮窗仅收起显示，后台继续执行，顶部入口可重新打开，取消和退出须等待执行体结束再释放令牌和服务。回归用暂停的同步清理验证浮窗、收起后 UI 实际输入、跨页重新打开、取消保留追踪与重试。来源：[异步场景与 Task.Run](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios)、[Progress<T> 上下文](https://learn.microsoft.com/dotnet/api/system.progress-1)。
 
-- 修改后先顺序执行 `dotnet build HD2Mimnt.slnx --no-restore` 和相关测试；共享 SQLite 输出的测试程序集已禁用类级并行，避免全局池清理互相干扰。
+- 修改后先顺序执行 `dotnet build HD2Mimnt.slnx --no-restore` 和相关测试；共享 SQLite 输出的测试程序集已禁用类级并行，避免全局池清理互相干扰。**新增或删除 `ProjectReference` 后必须先重新 `dotnet restore`**：`--no-restore` 构建能成功，但旧的 `project.assets.json` / `.deps.json` 不会登记新程序集，测试宿主运行时才抛 `FileNotFoundException`（本轮 GMOD 转换接入 UI/CLI 时实际出现）。来源：[.NET 项目依赖解析](https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props)。
+
+- Windows 检出启用 `core.autocrlf=true` 时会把 LF 的字节级 golden 样本转成 CRLF，使「与参考实现逐字节相同」的断言稳定失败；这类文件必须在根 `.gitattributes` 标为 `-text`（`-text` 同时禁止检出与提交两侧的换行转换），而不是改生成器去迎合工作区副本。判断是基线问题还是回归时，用 `git cat-file blob HEAD:<path>` 比较提交内容，必要时在临时 worktree 上跑同一用例并在结束后移除。来源：[gitattributes](https://git-scm.com/docs/gitattributes)、[core.autocrlf](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coreautocrlf)。
 
 - 仅在实际需要时添加文档和测试，不用占位页面或“Coming Soon”文案冒充完成。
 
