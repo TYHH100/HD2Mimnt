@@ -116,7 +116,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModelPreviewViewModel? ModelPreview => _libraryViewModel.ModelPreview;
     public AudioPreviewViewModel? AudioPreview => _libraryViewModel.AudioPreview;
     public BrowseModsViewModel? BrowseModsViewModel { get; }
-    public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
@@ -147,7 +146,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NexusModsTestService nexusModsTestService,
         ManagerMigrationViewModel? managerMigrationViewModel = null,
         BrowseModsViewModel? browseModsViewModel = null,
-        CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
         DirectDownloadViewModel? directDownloadViewModel = null,
         ModCreationViewModel? modCreationViewModel = null,
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
@@ -202,7 +200,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
         BrowseModsViewModel = browseModsViewModel;
-        CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
         DirectDownloadViewModel = directDownloadViewModel;
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
@@ -213,9 +210,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         //     Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
         MoreViewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
-                && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
-                _ = diagnostics.RefreshCommand.ExecuteAsync(null);
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2IASVisible
                 && Hd2IASManagementViewModel is { } ias)
             {
@@ -892,7 +886,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _libraryViewModel.LocalVersions.StopAsync();
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
-        if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
         if (IasSystemViewModel != null) await IasSystemViewModel.CancelAndWaitAsync();

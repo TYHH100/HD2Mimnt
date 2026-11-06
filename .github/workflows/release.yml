@@ -41,7 +41,7 @@ jobs:
           -p:PublishSingleFile=true
           -p:Version=$env:VERSION
 
-      # 主包不含 .pdb；调试符号单独打包，配合 minidump-stackwalk 排查崩溃转储
+      # 主包不含 .pdb；调试符号单独打包，便于事后排查本应用与子进程崩溃
       - name: Package release and symbols
         shell: pwsh
         run: |

@@ -3822,7 +3822,6 @@ public sealed partial class FluentAvaloniaUiTests
 
         public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
             HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null,
-            HD2Mimnt.Core.Interfaces.IMinidumpAnalyzer? minidumpAnalyzer = null,
             HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null,
             NexusModsOAuthOptions? nexusOAuthOptions = null,
             HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null, HttpMessageHandler? ayakaHandler = null,
@@ -3851,7 +3850,6 @@ public sealed partial class FluentAvaloniaUiTests
                 services.AddSingleton<IBrowserLauncher>(scope.WebsiteLauncher);
                 services.AddSingleton(new BrowserDownloadHandoffService(Path.Combine(scope._root, "BrowserDownloads"), TimeSpan.FromMilliseconds(20)));
                 if (systemLanguage != null) services.AddSingleton(systemLanguage);
-                if (minidumpAnalyzer != null) services.AddSingleton(minidumpAnalyzer);
                 if (directDownloads != null) services.AddSingleton(directDownloads);
                 if (nexusOAuthOptions != null) services.AddSingleton(nexusOAuthOptions);
                 if (nexusOAuthClient != null) services.AddSingleton(nexusOAuthClient);

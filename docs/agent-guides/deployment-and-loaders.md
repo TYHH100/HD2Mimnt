@@ -21,8 +21,6 @@
 
 - 大补丁复制使用池化 1MiB 缓冲区、顺序读取和目标空间预分配，关闭 FileStream 的额外缓冲；仍逐块检查取消，并在流关闭后删除取消产生的副本。预取消不能删除现有目标。优化用同一数据集交替测量并校验内容；热缓存复制及数据库登记的局部提速不能当作完整游戏部署提速。来源：https://learn.microsoft.com/dotnet/api/system.io.filestreamoptions
 
-- 崩溃排查使用独立 `CrashDeploymentSnapshots` 保留最近部署及正常基准，不能依赖清理后会删除的部署记录，也不能用当前库/配置补造历史。时间匹配读取 minidump 文件头的 UTC 时间，排除崩溃后部署；比较共同成员的相对顺序，避免新增项引起索引平移后误报所有模组顺序改变。版本、库哈希与文件元数据变化只是候选线索，不能直接定为崩溃原因。功能边界见[崩溃排查](../features/CRASH_DIAGNOSTICS.md)。来源：https://github.com/rust-minidump/rust-minidump/blob/v0.27.0/minidump-processor/json-schema.md 、https://learn.microsoft.com/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_header
-
 - 冲突检测比较实际选中补丁内的 `(Type ID, Resource ID)`，不能按原补丁名判断（部署会重编号）。文件集与补丁数值顺序复用 `PatchDeploymentPlanner`，模组顺序复用 `BslProfilePolicy`；同模组多次提供资源不算自冲突，预期生效者取实际部署末项。版本/主数据/Stream/GPU 大小相同只能说明潜在覆盖，不能证明内容相同或游戏兼容；损坏补丁单独列出并标记检测不完整。测试应生成真实 TOC，覆盖异名同资源、同名异资源、相同 ID 不同类型、正反部署方向及选项过滤。来源：https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition
 
 - BSL 扫描的正常取消使用协作式退出并将公开任务完成为 Canceled，不能返回成功的 None/null 或缓存识别版本；已知 GUID 快速路径及写入缓存前也必须检查取消。调试器的“抛出时中断”可能停在已处理的取消异常上，须区分调试中断与未处理崩溃，不能用吞掉取消异常掩盖问题。来源：https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation

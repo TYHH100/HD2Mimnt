@@ -16,7 +16,6 @@ using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
-using HD2Mimnt.Infrastructure.Diagnostics;
 using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
@@ -419,12 +418,6 @@ public partial class App : Avalonia.Application
         // 部署相关（补充缺失的注册）
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
         services.AddSingleton<DeploymentStateMigrationService>();
-        services.AddSingleton<ICrashHistoryRepository>(_ => new CrashHistoryRepository(dbPath));
-        services.AddSingleton<CrashDeploymentHistoryService>();
-        services.AddSingleton<IMinidumpAnalyzer>(sp => new MinidumpStackwalkAnalyzer(
-            Path.Combine(AppContext.BaseDirectory, "Tools", "minidump-stackwalk", "minidump-stackwalk.exe"),
-            storageSettings.Current.TempPath, sp.GetService<ILogger<MinidumpStackwalkAnalyzer>>()));
-        services.AddSingleton<CrashDiagnosticsService>();
 
         // 注册三种部署方法
         services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();
@@ -442,7 +435,6 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IDeploymentRepository>(),
             sp.GetServices<IDeploymentMethod>(),
             sp.GetService<ILogger<DeploymentService>>(),
-            sp.GetRequiredService<CrashDeploymentHistoryService>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<DeploymentStateMigrationService>(),
             // IAS armor 配套生成在部署成功后触发；延迟解析避免 ModService↔DeploymentService 构造环。
@@ -565,7 +557,6 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NotificationService>()));
         services.AddTransient(sp => new LogViewModel(
             sp.GetRequiredService<IFileLogService>(), sp.GetRequiredService<SettingsService>()));
-        services.AddTransient<CrashDiagnosticsViewModel>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader, HD2Mimnt.Infrastructure.Hd2IAS.PackageManifestReader>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASRuntimeInspector, HD2Mimnt.Infrastructure.Hd2IAS.RuntimeCompatibilityChecker>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler, HD2Mimnt.Infrastructure.Hd2IAS.LuaCompilerValidator>();
@@ -624,7 +615,6 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NexusModsTestService>(),
             sp.GetRequiredService<ManagerMigrationViewModel>(),
             sp.GetRequiredService<BrowseModsViewModel>(),
-            sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
             // HD2IAS 管理：上游仍在内测，旧管理页重新开放入口，页内各区块默认折叠。

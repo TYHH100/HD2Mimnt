@@ -1,7 +1,6 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
-using HD2Mimnt.Core.Diagnostics;
 using HD2Mimnt.Core.IO;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +17,6 @@ public class DeploymentService
     private readonly IDeploymentRepository _deploymentRepository;
     private readonly ILogger<DeploymentService>? _logger;
     private readonly Dictionary<DeploymentMethod, IDeploymentMethod> _deploymentMethods;
-    private readonly CrashDeploymentHistoryService? _crashHistory;
     private readonly SettingsService? _settingsService;
     private readonly DeploymentStateMigrationService? _stateMigration;
     private readonly Func<IIasCompanionService?>? _iasCompanionProvider;
@@ -35,7 +33,6 @@ public class DeploymentService
         IDeploymentRepository deploymentRepository,
         IEnumerable<IDeploymentMethod> deploymentMethods,
         ILogger<DeploymentService>? logger = null,
-        CrashDeploymentHistoryService? crashHistory = null,
         SettingsService? settingsService = null,
         DeploymentStateMigrationService? stateMigration = null,
         Func<IIasCompanionService?>? iasCompanionProvider = null,
@@ -45,7 +42,6 @@ public class DeploymentService
         _modRepository = modRepository;
         _deploymentRepository = deploymentRepository;
         _logger = logger;
-        _crashHistory = crashHistory;
         _settingsService = settingsService;
         _stateMigration = stateMigration;
         _iasCompanionProvider = iasCompanionProvider;
@@ -226,7 +222,6 @@ public class DeploymentService
         var filesDeleted = 0;
         var recordsDeleted = 0;
         var preserved = 0;
-        var allRecordsCleaned = true;
         var hadIasDeployments = deploymentList.Any(record => string.Equals(record.Workflow,
             Hd2IrIntegrationService.Workflow, StringComparison.OrdinalIgnoreCase));
         foreach (var deployment in deploymentList)
@@ -236,18 +231,6 @@ public class DeploymentService
             filesDeleted += result.FilesDeleted;
             recordsDeleted += result.RecordDeleted ? 1 : 0;
             preserved += result.PreservedFiles;
-            allRecordsCleaned &= result.RecordDeleted;
-        }
-
-        if (legacySessionId.HasValue && allRecordsCleaned)
-        {
-            // 旧记录已逐条删除；若会话里还有其它安装的记录不能按会话整删。
-            await RecordRemovalAsync(legacySessionId.Value, null);
-        }
-        else if (gamePath != null && allRecordsCleaned)
-        {
-            foreach (var sessionId in deploymentList.Select(record => record.SessionId).Distinct())
-                await RecordRemovalAsync(sessionId, null);
         }
 
         var preservedSummary = preserved > 0 ? $"，保留未变更 {preserved} 个" : string.Empty;
@@ -425,8 +408,6 @@ public class DeploymentService
             }
 
             RaiseDeploymentsChanged();
-            foreach (var sessionId in records.Select(record => record.SessionId).Distinct())
-                await RecordRemovalAsync(sessionId, new[] { modId });
             _logger?.LogInformation("已清理 Mod 部署文件及记录: {ModId}，{RecordsDeleted} 个记录", modId, records.Count);
         }
         finally
@@ -561,13 +542,6 @@ public class DeploymentService
                 File.Move(move.Target, move.Original);
             throw;
         }
-    }
-
-    private async Task RecordRemovalAsync(Guid sessionId, IReadOnlyCollection<Guid>? removedModIds)
-    {
-        if (_crashHistory == null) return;
-        try { await _crashHistory.RecordRemovalAsync(sessionId, removedModIds, CancellationToken.None); }
-        catch (Exception error) { _logger?.LogWarning(error, "记录部署清理时间线失败"); }
     }
 
     /// <summary>
@@ -763,7 +737,6 @@ public class DeploymentService
             Order = plan.Order, StartTime = DateTime.UtcNow, TotalMods = plan.TotalMods,
             SkippedMods = plan.SkippedModNames.Count
         };
-        CrashDeploymentSnapshot? diagnosticSnapshot = null;
         try
         {
             await CheckPlanCompatibilityAsync(plan, cancellationToken);
@@ -773,23 +746,6 @@ public class DeploymentService
                 Message = targeted ? "正在自动增量部署..." : "部署计划已生成，开始对账...",
                 TotalMods = plan.TotalMods
             });
-
-            if (_crashHistory != null)
-            {
-                try
-                {
-                    var selected = plan.Mods.Select(mod => (mod.Mod, mod.OptionsSnapshotJson ?? string.Empty,
-                        (IReadOnlyList<string>)plan.Files.Where(file => file.ModId == mod.Mod.Id)
-                            .Select(file => file.SourcePath).ToArray())).ToArray();
-                    diagnosticSnapshot = await _crashHistory.CaptureAsync(plan.SessionId, profile, plan.GamePath,
-                        DateTime.UtcNow, selected, cancellationToken);
-                    await _crashHistory.SaveAsync(diagnosticSnapshot, cancellationToken);
-                }
-                catch (Exception error) when (error is not OperationCanceledException)
-                {
-                    _logger?.LogWarning(error, "保存崩溃排查部署快照失败");
-                }
-            }
 
             var outcome = await _reconciler.ApplyAsync(plan, progress, cancellationToken);
             result.SessionId = outcome.SessionId;
@@ -842,16 +798,6 @@ public class DeploymentService
         finally
         {
             result.EndTime = DateTime.UtcNow;
-            if (_crashHistory != null && diagnosticSnapshot != null)
-            {
-                try
-                {
-                    await _crashHistory.SaveAsync(
-                        diagnosticSnapshot with { Status = result.Status.ToString(), EndedUtc = result.EndTime },
-                        CancellationToken.None);
-                }
-                catch (Exception error) { _logger?.LogWarning(error, "完成崩溃排查部署快照失败"); }
-            }
         }
         return result;
     }

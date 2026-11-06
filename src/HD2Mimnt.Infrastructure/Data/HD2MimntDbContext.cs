@@ -172,13 +172,6 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_tasks_status ON Tasks(Status);
             CREATE INDEX IF NOT EXISTS idx_tasks_starttime ON Tasks(StartTime DESC);
 
-            CREATE TABLE IF NOT EXISTS CrashDeploymentSnapshots (
-                SessionId TEXT PRIMARY KEY,
-                StartedUtc TEXT NOT NULL,
-                KnownGood INTEGER NOT NULL DEFAULT 0,
-                SnapshotJson TEXT NOT NULL
-            );
-
             CREATE TABLE IF NOT EXISTS DeploymentRecords (
                 Id TEXT PRIMARY KEY,
                 SessionId TEXT NOT NULL,

@@ -25,12 +25,6 @@
     <Content Include="Assets\Fonts\Monocraft.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Tools\minidump-stackwalk\minidump-stackwalk.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Tools\minidump-stackwalk\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Tools\minidump-stackwalk\NOTICE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
   <!-- 子进程宿主是独立进程，无法读取 UI 单文件包里内存加载的托管程序集。
        只复制 $(OutDir) 里的 apphost 会漏掉 Core/PluginSDK 等依赖，发布版启动即 FileNotFoundException。
        这里把两个子项目各自按“框架依赖单文件”重新发布，每个子进程只随应用带一个 exe；

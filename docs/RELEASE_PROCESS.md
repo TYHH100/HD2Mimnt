@@ -38,8 +38,8 @@
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。
 - 步骤：发布 UI 主程序（自带还原与依赖构建）→ 主包与符号包分离打包 → 创建 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
-- 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`，配合 `minidump-stackwalk` 排查崩溃转储。
-- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 与 `minidump-stackwalk` 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。
+- 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
+- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。
 - 产物为框架依赖发布，运行需安装 [.NET Desktop Runtime 10.0 x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ## 注意事项

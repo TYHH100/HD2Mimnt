@@ -59,7 +59,6 @@ internal static class HeadlessHost
         services.AddSingleton<IModRepository, ModRepository>();
         services.AddSingleton<IProfileRepository, ProfileRepository>();
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
-        services.AddSingleton<ICrashHistoryRepository>(_ => new CrashHistoryRepository(locations.DatabasePath));
         services.AddSingleton<ICompatibilityResultStore, CompatibilityResultRepository>();
 
         services.AddSingleton(sp => new SettingsService(
@@ -69,7 +68,6 @@ internal static class HeadlessHost
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<SettingsService>()));
         services.AddSingleton<DeploymentStateMigrationService>();
-        services.AddSingleton<CrashDeploymentHistoryService>();
 
         services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
@@ -95,7 +93,6 @@ internal static class HeadlessHost
             sp.GetRequiredService<IDeploymentRepository>(),
             sp.GetServices<IDeploymentMethod>(),
             sp.GetService<ILogger<DeploymentService>>(),
-            sp.GetRequiredService<CrashDeploymentHistoryService>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<DeploymentStateMigrationService>(),
             // 与 UI 相同：部署成功后才触发 armor 配套生成，延迟解析避免 ModService↔DeploymentService 构造环。
