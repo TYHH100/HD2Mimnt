@@ -50,6 +50,27 @@ public sealed class CliCommandCatalog
         Add(new CliCommandDescriptor("ias status", "ias status", "查看 IAS 安装位置与运行时状态。"), CliHandlers.Settings.IasStatusAsync);
         Add(new CliCommandDescriptor("ias components", "ias components", "列出 IAS 模型组件。"), CliHandlers.Settings.IasComponentsAsync);
 
+        Add(new CliCommandDescriptor("gmod-ias list",
+            "gmod-ias list <addon.gma|目录>",
+            "列出 GMOD addon 内可转换的模型（骨骼/网格/开关/skin/动骨/材质统计），用于挑选 convert 的模型参数。"),
+            CliHandlers.GmodIas.ListAsync);
+
+        Add(new CliCommandDescriptor("gmod-ias armors",
+            "gmod-ias armors [--domain body|helmet] [--filter 关键字]",
+            "列出可作为替换目标的身体护甲与头盔（代号、名称、Archive ID、Unit 闭包大小），供 convert 的 --armor 使用。"),
+            CliHandlers.GmodIas.ArmorsAsync);
+
+        Add(new CliCommandDescriptor("gmod-ias convert",
+            "gmod-ias convert <addon.gma|目录> <model.mdl> <输出目录> [--project ID] " +
+            "[--armor 代号|Archive] [--helmet-armor 代号|Archive] " +
+            "[--archive 十六进制] [--domain body|helmet] [--equipment 十六进制] [--native 十六进制,...] " +
+            "[--switch-mode auto|independent|composite] [--split both|body|helmet|none] " +
+            "[--helmet-archive 十六进制] [--no-skin] [--no-physics] [--no-source]",
+            "把 GMOD(Source) 模型转换成 HD2 IAS 转换包。默认按骨骼权重把头与身体拆成 body/ 与 helmet/ 两套包，" +
+            "保留全部备选/皮肤/材质/贴图/动骨源文件并生成 IAS 开关。用 --armor 选择游戏内要替换的护甲，" +
+            "产物会同时给出 package/ 数据模组与 *.hd2irpack.zip 独立骨架配套包。",
+            RequiresYes: true), CliHandlers.GmodIas.ConvertAsync);
+
         return new CliCommandCatalog(commands);
     }
 

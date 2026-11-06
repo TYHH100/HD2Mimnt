@@ -1,0 +1,95 @@
+{
+  "document": {
+    "unit_id": "0x0000000000001101",
+    "palette_slots": 3,
+    "fixed_dt": 0.016666666666666666,
+    "bones": [
+      {
+        "name": "root",
+        "palette_slot": 0,
+        "parent_slot": -1,
+        "rest_head": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rest_basis": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "name": "hair_a",
+        "palette_slot": 1,
+        "parent_slot": 0,
+        "rest_head": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      {
+        "name": "hair_b",
+        "palette_slot": 2,
+        "parent_slot": 1,
+        "rest_head": [
+          0.0,
+          0.0,
+          2.0
+        ]
+      }
+    ],
+    "chains": [
+      {
+        "name": "hair_chain",
+        "stiffness": 8.0,
+        "damping": 0.25,
+        "joints": [
+          {
+            "bone": "root",
+            "radius": 0.02,
+            "limit_kind": "CONE",
+            "limit_angle": 0.5,
+            "limit_angle2": 0.5
+          },
+          {
+            "bone": "hair_a",
+            "radius": 0.02,
+            "limit_kind": "CONE",
+            "limit_angle": 0.5,
+            "limit_angle2": 0.5
+          },
+          {
+            "bone": "hair_b",
+            "radius": 0.02,
+            "limit_kind": "CONE",
+            "limit_angle": 0.5,
+            "limit_angle2": 0.5
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "version": 1,
+    "unit_id": "0000000000001101",
+    "skeleton_fingerprint": "1cfb2094d38c35a2",
+    "palette_slots": 3,
+    "target_bones": 3,
+    "chains": 1,
+    "joints": 3,
+    "colliders": 0,
+    "chain_links": 0,
+    "link_collisions": 0,
+    "capabilities": 0,
+    "payload_crc32": "1bcbc2c4",
+    "bytes": 692
+  }
+}

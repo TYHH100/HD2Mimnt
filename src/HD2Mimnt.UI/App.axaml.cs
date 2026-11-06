@@ -599,6 +599,8 @@ public partial class App : Avalonia.Application
                 Path.Combine(appDataPath, "Cache", "IAS-Generator"),
                 Path.Combine(appDataPath, "IAS-System", "deployment.json")));
         services.AddTransient<IasSystemViewModel>();
+        services.AddSingleton<GmodIasConversionService>();
+        services.AddTransient<GmodIasConversionViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -630,6 +632,6 @@ public partial class App : Avalonia.Application
             // HD2IAS 管理：上游仍在内测，旧管理页重新开放入口，页内各区块默认折叠。
             sp.GetRequiredService<Hd2IASManagementViewModel>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
-            sp.GetRequiredService<IasSystemViewModel>()));
+            sp.GetRequiredService<IasSystemViewModel>(), sp.GetRequiredService<GmodIasConversionViewModel>()));
     }
 }

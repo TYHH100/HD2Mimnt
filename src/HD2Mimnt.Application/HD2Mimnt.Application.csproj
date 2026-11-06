@@ -7,11 +7,17 @@
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.ModelConversion\HD2Mimnt.ModelConversion.csproj" />
     <ProjectReference Include="..\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" />
+  </ItemGroup>
+
+  <!-- 目标护甲目录：由 tools/ArmorTargets/build_armor_targets.py 生成，随程序分发。 -->
+  <ItemGroup>
+    <Content Include="Config\ArmorTargets.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>

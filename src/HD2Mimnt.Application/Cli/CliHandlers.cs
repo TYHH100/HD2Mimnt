@@ -6,7 +6,7 @@ using HD2Mimnt.Core.Interfaces;
 namespace HD2Mimnt.Application.Cli;
 
 /// <summary>CLI 命令 handler 集合；只编排现有 Application 服务，不新增业务逻辑。</summary>
-internal static class CliHandlers
+internal static partial class CliHandlers
 {
     internal static class Status
     {

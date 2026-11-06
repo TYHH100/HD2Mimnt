@@ -122,6 +122,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
+    public GmodIasConversionViewModel? GmodIasConversionViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
 
@@ -152,7 +153,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ModCreationViewModel? modCreationViewModel = null,
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
         SoundFixViewModel? soundFixViewModel = null,
-        IasSystemViewModel? iasSystemViewModel = null)
+        IasSystemViewModel? iasSystemViewModel = null,
+        GmodIasConversionViewModel? gmodIasConversionViewModel = null)
     {
         Compatibility = compatibility;
         if (Compatibility != null)
@@ -208,6 +210,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
         IasSystemViewModel = iasSystemViewModel;
+        GmodIasConversionViewModel = gmodIasConversionViewModel;
         // 旧版 HD2IAS 的运行时缺失自动提醒暂时停用（上游内测期）；页面与手动刷新保留。
         // if (Hd2IASManagementViewModel != null)
         //     Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;

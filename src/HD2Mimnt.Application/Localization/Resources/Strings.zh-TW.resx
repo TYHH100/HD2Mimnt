@@ -4410,4 +4410,86 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>中</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>高</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>最高</value></data>
+  <data name="GmodIas.NavItem" xml:space="preserve"><value>GMOD 模型轉換</value></data>
+  <data name="GmodIas.Title" xml:space="preserve"><value>GMOD 模型轉 HD2 IAS</value></data>
+  <data name="GmodIas.Description" xml:space="preserve"><value>把 Garry's Mod（Source 引擎）模型轉換為 HD2 IAS 轉換包，保留全部 bodygroup 替代、skin 家族、材質、貼圖、動骨以及 addon 原始檔。</value></data>
+  <data name="GmodIas.BoundaryNote" xml:space="preserve"><value>轉換器產出完整的 HD2GEOM1 幾何包與 IAS 執行時期檔案；遊戲原生 Stingray .unit 網格仍需 Blender 工具鏈（AQ_Toolkit / HD2-BatchTool / HD2SDK）寫出，詳見 conversion-report.json。</value></data>
+  <data name="GmodIas.Addon" xml:space="preserve"><value>GMOD addon（.gma 或已解壓目錄）</value></data>
+  <data name="GmodIas.AddonPlaceholder" xml:space="preserve"><value>.gma 檔案路徑或已解壓的 addon 目錄</value></data>
+  <data name="GmodIas.BrowseFile" xml:space="preserve"><value>檔案…</value></data>
+  <data name="GmodIas.BrowseFolder" xml:space="preserve"><value>目錄…</value></data>
+  <data name="GmodIas.BrowseAddon" xml:space="preserve"><value>選擇 GMOD addon</value></data>
+  <data name="GmodIas.BrowseModel" xml:space="preserve"><value>選擇 Source 模型</value></data>
+  <data name="GmodIas.BrowseOutput" xml:space="preserve"><value>選擇輸出目錄</value></data>
+  <data name="GmodIas.Browse" xml:space="preserve"><value>瀏覽…</value></data>
+  <data name="GmodIas.Model" xml:space="preserve"><value>addon 內的模型路徑</value></data>
+  <data name="GmodIas.ModelPlaceholder" xml:space="preserve"><value>例如 models/player/character.mdl</value></data>
+  <data name="GmodIas.Output" xml:space="preserve"><value>輸出目錄</value></data>
+  <data name="GmodIas.OutputPlaceholder" xml:space="preserve"><value>接收轉換包的目錄</value></data>
+  <data name="GmodIas.Advanced" xml:space="preserve"><value>IAS 發佈選項</value></data>
+  <data name="GmodIas.ProjectId" xml:space="preserve"><value>專案 ID</value></data>
+  <data name="GmodIas.ProjectIdPlaceholder" xml:space="preserve"><value>留空則依模型名稱自動產生</value></data>
+  <data name="GmodIas.ArchiveId" xml:space="preserve"><value>Archive ID（十六進位）</value></data>
+  <data name="GmodIas.HexPlaceholder" xml:space="preserve"><value>留空則產生穩定的衍生 ID</value></data>
+  <data name="GmodIas.EquipmentKey" xml:space="preserve"><value>Equipment Key（十六進位）</value></data>
+  <data name="GmodIas.NativeUnitIds" xml:space="preserve"><value>Native Unit ID（十六進位，逗號分隔）</value></data>
+  <data name="GmodIas.Domain" xml:space="preserve"><value>內容域</value></data>
+  <data name="GmodIas.DomainBody" xml:space="preserve"><value>身體</value></data>
+  <data name="GmodIas.DomainHelmet" xml:space="preserve"><value>頭盔</value></data>
+  <data name="GmodIas.SwitchMode" xml:space="preserve"><value>開關模式</value></data>
+  <data name="GmodIas.SwitchModeAuto" xml:space="preserve"><value>自動（共用資源的開關合併）</value></data>
+  <data name="GmodIas.SwitchModeIndependent" xml:space="preserve"><value>獨立（需要互不重疊的 Native Unit）</value></data>
+  <data name="GmodIas.SwitchModeComposite" xml:space="preserve"><value>始終組合</value></data>
+  <data name="GmodIas.IncludeSkin" xml:space="preserve"><value>把 skin 家族發佈為 IAS 選項</value></data>
+  <data name="GmodIas.IncludePhysics" xml:space="preserve"><value>產生 HD2PHY1 動骨資源</value></data>
+  <data name="GmodIas.IncludeRawSource" xml:space="preserve"><value>逐位元組複製全部 addon 原始檔</value></data>
+  <data name="GmodIas.Convert" xml:space="preserve"><value>開始轉換</value></data>
+  <data name="GmodIas.Issues" xml:space="preserve"><value>轉換說明</value></data>
+  <data name="GmodIas.Ready" xml:space="preserve"><value>填寫 addon、模型路徑與輸出目錄後開始轉換。</value></data>
+  <data name="GmodIas.Converting" xml:space="preserve"><value>正在轉換 GMOD 模型…</value></data>
+  <data name="GmodIas.Completed" xml:space="preserve"><value>轉換完成：已寫入 {0} 個檔案。</value></data>
+  <data name="GmodIas.Cancelled" xml:space="preserve"><value>已取消，未寫入檔案。</value></data>
+  <data name="GmodIas.Failed" xml:space="preserve"><value>轉換失敗：{0}</value></data>
+  <data name="GmodIas.InvalidArchive" xml:space="preserve"><value>Archive ID 必須是非零的 64 位十六進位值。</value></data>
+  <data name="GmodIas.InvalidEquipment" xml:space="preserve"><value>Equipment Key 必須是非零的 32 位十六進位值。</value></data>
+  <data name="GmodIas.InvalidNative" xml:space="preserve"><value>Native Unit ID 必須是非零、互不重複的十六進位值，以逗號分隔。</value></data>
+  <data name="GmodIas.ConfirmTitle" xml:space="preserve"><value>確認轉換輸出</value></data>
+  <data name="GmodIas.ConfirmMessage" xml:space="preserve"><value>寫入到 {0} 可能覆蓋同名檔案，是否繼續？</value></data>
+  <data name="GmodIas.ResultOutput" xml:space="preserve"><value>輸出：{0}（{1} 個檔案）</value></data>
+  <data name="GmodIas.ResultGeometry" xml:space="preserve"><value>模型：{0} 根骨骼、{1} 個網格、{2} 個頂點、{3} 個三角面</value></data>
+  <data name="GmodIas.ResultAssets" xml:space="preserve"><value>資源：{0} 個材質、{1} 張貼圖（已解碼 {2}）、{3} 個原始檔</value></data>
+  <data name="GmodIas.ResultSwitches" xml:space="preserve"><value>IAS：{0} 組開關、{1} 個選項、{2} 份 rig profile</value></data>
+  <data name="GmodIas.ResultPhysics" xml:space="preserve"><value>動骨：{0} 條鏈、{1} 個節點、{2} 份 HD2PHY1</value></data>
+  <data name="GmodIas.ResultPackage" xml:space="preserve"><value>可執行資料包：{0} 個 Unit、{1} 個材質資源、{2} 張遊戲貼圖、補丁 {3}（匯入 package/ 目錄即為 data 模組）</value></data>
+  <data name="GmodIas.TargetArmor" xml:space="preserve"><value>目標護甲</value></data>
+  <data name="GmodIas.TargetBodyArmor" xml:space="preserve"><value>身體護甲</value></data>
+  <data name="GmodIas.TargetHelmetArmor" xml:space="preserve"><value>頭盔</value></data>
+  <data name="GmodIas.ArmorNone" xml:space="preserve"><value>（不指定）</value></data>
+  <data name="GmodIas.ArmorCatalogLoaded" xml:space="preserve"><value>目標護甲目錄：身體 {0} 套、頭盔 {1} 套。選擇模型要替換的護甲：模型接管一個 Unit，其餘甲片槽位自動清空。</value></data>
+  <data name="GmodIas.ArmorCatalogMissing" xml:space="preserve"><value>找不到目標護甲目錄（{0}）：只能用進階面板手填 Archive / Native Unit，這種產物在遊戲裡不會掛到任何護甲上。</value></data>
+  <data name="GmodIas.ArmorCatalogInvalid" xml:space="preserve"><value>目標護甲目錄無法讀取：{0}</value></data>
+  <data name="GmodIas.ResultRuntimePack" xml:space="preserve"><value>獨立骨架配套包：{0}（{1}，需與 data 模組一起匯入）</value></data>
+  <data name="GmodIas.ResultTarget" xml:space="preserve"><value>目標護甲：{0}</value></data>
+  <data name="GmodIas.Analyze" xml:space="preserve"><value>分析 addon</value></data>
+  <data name="GmodIas.Analyzing" xml:space="preserve"><value>正在掃描 addon 內的可轉換模型…</value></data>
+  <data name="GmodIas.Analyzed" xml:space="preserve"><value>已從 addon 分析出 {0} 個可轉換模型。</value></data>
+  <data name="GmodIas.AnalyzedWithSkipped" xml:space="preserve"><value>已分析出 {0} 個可轉換模型；另有 {1} 個模型被跳過（缺少 VVD/VTX 或格式不受支援）。</value></data>
+  <data name="GmodIas.AnalyzedEmpty" xml:space="preserve"><value>沒有找到可轉換的模型：已檢查 {0} 個 .mdl，需為 v48/v49 MDL 且帶同名 VVD 與 VTX。</value></data>
+  <data name="GmodIas.AnalysisFailed" xml:space="preserve"><value>分析 addon 失敗：{0}</value></data>
+  <data name="GmodIas.ModelDetail" xml:space="preserve"><value>{0} 骨骼 · {1} 網格 · {2} 個開關 · {3} 根動骨 · {4} 個材質</value></data>
+  <data name="GmodIas.AddonRequired" xml:space="preserve"><value>請先選擇 GMOD addon，模型會自動列出。</value></data>
+  <data name="GmodIas.ModelOutsideAddon" xml:space="preserve"><value>所選模型不在 addon 目錄內，請從下拉列表中選擇。</value></data>
+  <data name="GmodIas.GmaManualPath" xml:space="preserve"><value>.gma addon 只能使用 addon 內相對路徑，請從下拉列表選擇模型。</value></data>
+  <data name="GmodIas.HelmetArchiveId" xml:space="preserve"><value>頭盔 Archive ID（十六進位）</value></data>
+  <data name="GmodIas.HelmetArchiveIdPlaceholder" xml:space="preserve"><value>留空則自動衍生穩定 ID</value></data>
+  <data name="GmodIas.PartSplit" xml:space="preserve"><value>身體 / 頭盔拆分</value></data>
+  <data name="GmodIas.PartSplitBoth" xml:space="preserve"><value>身體與頭盔（分 body/ 與 helmet/ 兩包）</value></data>
+  <data name="GmodIas.PartSplitBody" xml:space="preserve"><value>僅身體</value></data>
+  <data name="GmodIas.PartSplitHelmet" xml:space="preserve"><value>僅頭盔</value></data>
+  <data name="GmodIas.PartSplitNone" xml:space="preserve"><value>整包輸出（不拆分）</value></data>
+  <data name="GmodIas.SwitchSelection" xml:space="preserve"><value>發布的開關</value></data>
+  <data name="GmodIas.SwitchSelectionPlaceholder" xml:space="preserve"><value>例如 skin,bodygroup:1；留空則發布全部開關</value></data>
+  <data name="GmodIas.InvalidSwitchSelection" xml:space="preserve"><value>發布的開關只能是 skin 或 bodygroup:編號，多個用逗號分隔。</value></data>
+  <data name="GmodIas.ResultPart" xml:space="preserve"><value>{0}包 → {1}：{2} 個網格、{3} 個三角面、{4} 個選項</value></data>
+  <data name="GmodIas.PartWhole" xml:space="preserve"><value>整模型</value></data>
 </root>

@@ -8,7 +8,25 @@ public static class Crc32
     public static uint Compute(ReadOnlySpan<byte> data, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        return Compute(data, ReadOnlySpan<byte>.Empty, cancellationToken);
+    }
+
+    /// <summary>
+    /// 两段数据当作一段计算（PNG 的 CRC 覆盖「类型 + 数据」），避免为大块数据拼接到栈或堆上。
+    /// </summary>
+    public static uint Compute(ReadOnlySpan<byte> first, ReadOnlySpan<byte> second,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         var crc = 0xFFFFFFFFu;
+        crc = Accumulate(crc, first, cancellationToken);
+        crc = Accumulate(crc, second, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ~crc;
+    }
+
+    private static uint Accumulate(uint crc, ReadOnlySpan<byte> data, CancellationToken cancellationToken)
+    {
         while (!data.IsEmpty)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -21,8 +39,7 @@ public static class Crc32
             data = data[count..];
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-        return ~crc;
+        return crc;
     }
 
     private static uint[] BuildTable()
