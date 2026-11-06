@@ -1,0 +1,447 @@
+{
+  "source_bones": [
+    {
+      "name": "root",
+      "parent": -1,
+      "flags": [
+        "root"
+      ],
+      "rest_local": [
+        0,
+        -1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2,
+        0,
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "name": "r_shoulder",
+      "parent": 0,
+      "flags": [],
+      "rest_local": [
+        0,
+        0,
+        1,
+        2,
+        0,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "r_elbow",
+      "parent": 1,
+      "flags": [],
+      "rest_local": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "r_hand",
+      "parent": 2,
+      "flags": [],
+      "rest_local": [
+        0,
+        1,
+        0,
+        0.25,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0.5
+      ]
+    },
+    {
+      "name": "l_shoulder",
+      "parent": 0,
+      "flags": [],
+      "rest_local": [
+        0,
+        0,
+        -1,
+        -2,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "l_elbow",
+      "parent": 4,
+      "flags": [],
+      "rest_local": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        -1,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "l_hand",
+      "parent": 5,
+      "flags": [],
+      "rest_local": [
+        0,
+        -1,
+        0,
+        -0.25,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0.5
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "unit_id": 1161981756646125696,
+      "target_bones": [
+        {
+          "name": "target_root",
+          "parent": -1,
+          "source_index": 0,
+          "palette_slot": 2,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation"
+          ],
+          "translation_scale": 0.5,
+          "rest_local": [
+            0,
+            -1,
+            0,
+            1,
+            1,
+            0,
+            0,
+            2,
+            0,
+            0,
+            1,
+            3
+          ]
+        },
+        {
+          "name": "target_r_shoulder",
+          "parent": 0,
+          "source_index": 1,
+          "palette_slot": 4,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            0,
+            0,
+            1,
+            2,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "target_r_elbow",
+          "parent": 1,
+          "source_index": 2,
+          "palette_slot": 6,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1,
+            0,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "target_r_hand",
+          "parent": 2,
+          "source_index": 3,
+          "palette_slot": 8,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation",
+            "right_hand"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            0,
+            1,
+            0,
+            0.25,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0.5
+          ]
+        },
+        {
+          "name": "target_l_shoulder",
+          "parent": 0,
+          "source_index": 4,
+          "palette_slot": 10,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            0,
+            0,
+            -1,
+            -2,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "name": "target_l_elbow",
+          "parent": 4,
+          "source_index": 5,
+          "palette_slot": 12,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            -1,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "target_l_hand",
+          "parent": 5,
+          "source_index": 6,
+          "palette_slot": 14,
+          "flags": [
+            "scene_graph_index",
+            "source_parent_space",
+            "transfer_translation",
+            "left_hand"
+          ],
+          "translation_scale": 1.0,
+          "rest_local": [
+            0,
+            -1,
+            0,
+            -0.25,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0.5
+          ]
+        }
+      ],
+      "needle_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "needle_to_palette": -64,
+      "palette_slots": 16,
+      "flags": [
+        "dynamic_pose_match",
+        "gender_male"
+      ],
+      "hand_grips": [
+        {
+          "hand": 3,
+          "side": 0,
+          "hand_to_grip": [
+            1,
+            0,
+            0,
+            0.125,
+            0,
+            0,
+            -1,
+            -0.25,
+            0,
+            1,
+            0,
+            0.5
+          ]
+        },
+        {
+          "hand": 6,
+          "side": 1,
+          "hand_to_grip": [
+            0,
+            0,
+            1,
+            -0.125,
+            0,
+            1,
+            0,
+            0.25,
+            -1,
+            0,
+            0,
+            -0.5
+          ]
+        }
+      ]
+    },
+    {
+      "unit_id": 18446744073709551615,
+      "target_bones": [
+        {
+          "name": "global_wrist",
+          "parent": -1,
+          "source_index": 3,
+          "palette_slot": 0,
+          "flags": [
+            "scene_graph_index",
+            "source_global_pose"
+          ],
+          "translation_scale": 100.0,
+          "rest_local": [
+            0.0,
+            0.0,
+            1.0,
+            0.5,
+            -1.0,
+            0.0,
+            0.0,
+            4.0,
+            0.0,
+            -1.0,
+            0.0,
+            3.75
+          ]
+        }
+      ],
+      "needle_hex": "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "needle_to_palette": -2147483648,
+      "palette_slots": 1,
+      "flags": [
+        "observe_only",
+        "gender_female"
+      ],
+      "hand_grips": []
+    }
+  ],
+  "_fixture": {
+    "description": "Entirely synthetic protocol fixture; no game/model resources or SDK implementation included.",
+    "producer": "Read-only importlib.spec_from_file_location of user-supplied hd2_system/rig_format.py; py -3 -B",
+    "producer_sha256": "e9adb5b8622ac688bbb283a7e2689328b9b450776b479f44044552860dc70e0c",
+    "sizes": {
+      "header": 32,
+      "source": 120,
+      "profile": 28,
+      "target": 132,
+      "grip": 64
+    },
+    "binary_sha256": "0f7d5b671c64d689546e717c3cadd0aa26f9f7ccac879bfe0b33543846837e58",
+    "summary": {
+      "source_bones": 7,
+      "profiles": [
+        {
+          "unit_id": "1020304050607080",
+          "target_bones": 7,
+          "palette_slots": 16,
+          "needle_bytes": 32,
+          "rig_gender": "MALE"
+        },
+        {
+          "unit_id": "ffffffffffffffff",
+          "target_bones": 1,
+          "palette_slots": 1,
+          "needle_bytes": 16,
+          "rig_gender": "FEMALE"
+        }
+      ],
+      "hand_grips": 2,
+      "payload_crc32": "398688f8"
+    }
+  }
+}

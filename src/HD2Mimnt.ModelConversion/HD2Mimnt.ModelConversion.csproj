@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HD2Mimnt.ModelConversion</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HD2Mimnt.Core/HD2Mimnt.Core.csproj" />
+  </ItemGroup>
+
+</Project>

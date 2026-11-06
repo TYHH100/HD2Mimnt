@@ -1,0 +1,146 @@
+{
+  "plan": {
+    "schema": "HD2IndependentPackagePlan1",
+    "project_id": "source-fixture",
+    "project_name": "fixture",
+    "archive_name": "0123456789abcdef",
+    "content_domain": "BODY",
+    "resource_target_policy": "PROJECT_ARCHIVE_ALIASES",
+    "native_saves": [
+      {
+        "part_slot": "Hips",
+        "native_unit_id": 769,
+        "base_unit_id": 13057,
+        "object_names": [
+          "base"
+        ]
+      }
+    ],
+    "difference_manifest": {
+      "difference_logic": "FREE",
+      "base_group": {
+        "name": "base"
+      },
+      "free_parts": [
+        {
+          "part_slot": "Torso",
+          "name": "上衣",
+          "options": [
+            {
+              "id": "on",
+              "name": "显示",
+              "order": 0,
+              "part_slot": "Torso",
+              "object_names": [
+                "on"
+              ],
+              "routes": [
+                {
+                  "native_unit_id": 258,
+                  "difference_unit_id": 4354
+                },
+                {
+                  "native_unit_id": 257,
+                  "difference_unit_id": 4353
+                }
+              ]
+            },
+            {
+              "id": "off",
+              "name": "隐藏",
+              "order": 1,
+              "part_slot": "Torso",
+              "object_names": [
+                "off"
+              ],
+              "routes": [
+                {
+                  "native_unit_id": 257,
+                  "difference_unit_id": 4609
+                },
+                {
+                  "native_unit_id": 258,
+                  "difference_unit_id": 4610
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "part_slot": "LeftArm",
+          "name": "袖子",
+          "options": [
+            {
+              "id": "long",
+              "name": "长袖",
+              "order": 0,
+              "part_slot": "LeftArm",
+              "object_names": [
+                "long"
+              ],
+              "routes": [
+                {
+                  "native_unit_id": 513,
+                  "difference_unit_id": 8449
+                }
+              ]
+            },
+            {
+              "id": "short",
+              "name": "短袖",
+              "order": 1,
+              "part_slot": "LeftArm",
+              "object_names": [
+                "short"
+              ],
+              "routes": [
+                {
+                  "native_unit_id": 513,
+                  "difference_unit_id": 8705
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "catalog": {
+    "targets": {
+      "0123456789abcdef": {
+        "domain": "BODY",
+        "equipment": [
+          {
+            "key": "02030405",
+            "unit_ids": [
+              "101",
+              "102",
+              "201",
+              "301"
+            ]
+          },
+          {
+            "key": "01020304",
+            "unit_ids": [
+              "101",
+              "102",
+              "201",
+              "301"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "profiles": [
+    4353,
+    8705,
+    13057
+  ],
+  "reference_source": "https://github.com/Estecsky/HD2SDK-AQ-Edition",
+  "source_sha256": {
+    "free_runtime_manifest.py": "4dc49b24ced7565f90ed342104ca7a1ab4f84f6ab69ee4a94a7f17684b521e99",
+    "runtime_manifest.py": "07bf1c08d20f838ecaa81a94f906b185e98c5e35eb5ee97933594b160d22bdfd",
+    "resource_isolation.py": "d11d62ab68640c27e13c282427958e381305350ba03cfcc49b76f213f0c5f991"
+  }
+}

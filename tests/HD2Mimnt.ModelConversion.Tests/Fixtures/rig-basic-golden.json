@@ -1,0 +1,86 @@
+{
+  "source_bones": [
+    {
+      "name": "root",
+      "parent": -1,
+      "flags": [
+        "root"
+      ],
+      "rest_local": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "unit_id": 1,
+      "target_bones": [
+        {
+          "name": "bone",
+          "parent": -1,
+          "source_index": -1,
+          "palette_slot": 0,
+          "flags": [],
+          "translation_scale": 0.0,
+          "rest_local": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ]
+        }
+      ],
+      "needle_hex": "000102030405060708090a0b0c0d0e0f",
+      "needle_to_palette": 2147483647,
+      "palette_slots": 1,
+      "flags": [],
+      "hand_grips": []
+    }
+  ],
+  "_fixture": {
+    "description": "Entirely synthetic protocol fixture; no game/model resources or SDK implementation included.",
+    "producer": "Read-only importlib.spec_from_file_location of user-supplied hd2_system/rig_format.py; py -3 -B",
+    "producer_sha256": "e9adb5b8622ac688bbb283a7e2689328b9b450776b479f44044552860dc70e0c",
+    "sizes": {
+      "header": 32,
+      "source": 120,
+      "profile": 28,
+      "target": 132,
+      "grip": 64
+    },
+    "binary_sha256": "5776ad916cf271487358a417b58be55df63e6bad8c0415454ef73b7fbbe9afb0",
+    "summary": {
+      "source_bones": 1,
+      "profiles": [
+        {
+          "unit_id": "0000000000000001",
+          "target_bones": 1,
+          "palette_slots": 1,
+          "needle_bytes": 16,
+          "rig_gender": null
+        }
+      ],
+      "hand_grips": 0,
+      "payload_crc32": "0312ed60"
+    }
+  }
+}
