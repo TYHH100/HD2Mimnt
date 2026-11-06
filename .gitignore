@@ -166,3 +166,5 @@ tools/SourceModelReader/*.json
 tools/SourceModelReader/*.dds
 tools/SourceModelReader/*.bin
 tools/SourceModelReader/research/skeleton_comparison/*.json
+tools/SourceModelReader/1/*
+tools/SourceModelReader/sb-out/*
