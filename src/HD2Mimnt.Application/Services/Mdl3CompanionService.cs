@@ -12,12 +12,15 @@ namespace HD2Mimnt.Application.Services;
 public class Mdl3CompanionService
 {
     private readonly Mdl3CompanionInstaller _installer;
+    private readonly EacCertificateInstaller _eacCertificates;
     private readonly ILogger<Mdl3CompanionService>? _logger;
 
     public Mdl3CompanionService(IAuthenticodeVerifier? verifier = null,
-        ILogger<Mdl3CompanionService>? logger = null, string? localApplicationData = null)
+        ILogger<Mdl3CompanionService>? logger = null, string? localApplicationData = null,
+        EacCertificateInstaller? eacCertificateInstaller = null)
     {
         _installer = new Mdl3CompanionInstaller(verifier, localApplicationData);
+        _eacCertificates = eacCertificateInstaller ?? new EacCertificateInstaller();
         _logger = logger;
     }
 
@@ -26,13 +29,39 @@ public class Mdl3CompanionService
 
     public CompanionStatus GetStatus(Mod mod) => _installer.GetStatus(mod.Path);
 
-    /// <summary>确保伴生组件已安装；已是目标状态时静默跳过（无进度、结果不带消息）。游戏运行中或签名/哈希校验失败时抛出异常。</summary>
+    /// <summary>确保伴生组件已安装；已是目标状态时静默跳过（无进度、结果不带消息）。游戏运行中或签名/哈希校验失败时抛出异常。
+    /// 先按官方 EAC Fix Kit 语义补装签名链中间 CA 证书（已装则静默跳过）：缺中间 CA 会让签名链校验失败进而拒绝整个安装；
+    /// 证书安装失败只附加警告，不阻断伴生文件本身。</summary>
     public Task<CompanionOperationResult> EnsureInstalledAsync(Mod mod, string gamePath,
         IProgress<string>? progress = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        string? certificateNote = null;
+        try
+        {
+            var certificateResult = _eacCertificates.EnsureInstalled(mod.Path,
+                message => progress?.Report(message), cancellationToken);
+            certificateNote = certificateResult.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "MDL3 EAC 信任证书安装失败: {ModId}", mod.Id);
+            certificateNote = $"EAC 信任证书安装失败：{ex.Message}";
+        }
+
         var result = _installer.Install(mod.Path, gamePath, progress: message => progress?.Report(message),
             cancellationToken: cancellationToken);
+        if (result.Success && !string.IsNullOrEmpty(certificateNote))
+            result = result with
+            {
+                Message = string.IsNullOrEmpty(result.Message)
+                    ? certificateNote
+                    : $"{result.Message}；{certificateNote}"
+            };
         return Task.FromResult(result);
     }
 

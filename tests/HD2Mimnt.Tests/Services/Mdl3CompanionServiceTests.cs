@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using HD2Mimnt.Application.Services;
@@ -34,8 +36,8 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
             new[] { new CopyDeploymentMethod() }, companionService: CreateService());
     }
 
-    private Mdl3CompanionService CreateService()
-        => new(_verifier, localApplicationData: LibraryPath);
+    private Mdl3CompanionService CreateService(EacCertificateInstaller? eacCertificates = null)
+        => new(_verifier, localApplicationData: LibraryPath, eacCertificateInstaller: eacCertificates);
 
     private string LibraryPath => Path.Combine(_root, "localappdata");
     private string DataRoot => Path.Combine(LibraryPath, "MDL3");
@@ -333,6 +335,89 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
             ["version"] = "3.0.0-dev.21",
         });
         File.WriteAllText(Path.Combine(modDirectory, "BUILD.json"), json);
+    }
+
+    [Fact]
+    public void Install_WithKitZip_ShouldImportCertificateAndMentionInResult()
+    {
+        var mod = AddMod("MDL3");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!);
+        WriteKitZip(mod.Path);
+        var store = new RecordingCertificateStore();
+        var service = CreateService(new EacCertificateInstaller(store));
+
+        var result = service.EnsureInstalledAsync(mod, _root).GetAwaiter().GetResult();
+
+        Assert.True(result.Success, result.Message);
+        Assert.Single(store.Added);
+        Assert.Contains("已安装 EAC 信任证书", result.Message);
+    }
+
+    [Fact]
+    public void Install_WhenCertificateStoreFails_ShouldNotBlockCompanionInstall()
+    {
+        var mod = AddMod("MDL3");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!);
+        WriteKitZip(mod.Path);
+        var service = CreateService(new EacCertificateInstaller(new ThrowingCertificateStore()));
+
+        var result = service.EnsureInstalledAsync(mod, _root).GetAwaiter().GetResult();
+
+        // 证书装不上只附加警告，伴生文件本身照常安装。
+        Assert.True(result.Success, result.Message);
+        Assert.True(File.Exists(Path.Combine(DataRoot, "Native", "mdl_native_bridge.dll")));
+        Assert.Contains("EAC 信任证书安装失败", result.Message);
+    }
+
+    [Fact]
+    public void Install_WithoutKitZip_ShouldStaySilentAboutCertificate()
+    {
+        var mod = AddMod("MDL3");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!);
+        var store = new RecordingCertificateStore();
+        var service = CreateService(new EacCertificateInstaller(store));
+
+        var progress = new CollectingProgress();
+        var result = service.EnsureInstalledAsync(mod, _root, progress).GetAwaiter().GetResult();
+
+        Assert.True(result.Success);
+        Assert.Empty(store.Added);
+        Assert.DoesNotContain("证书", string.Join("；", progress.Messages));
+    }
+
+    /// <summary>在 mod 目录写出官方 Fix Kit 形态的 zip（含 tools/ 下的 Certum 中间 CA 证书）。</summary>
+    private static void WriteKitZip(string modDirectory)
+    {
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest(
+            $"CN={EacCertificateInstaller.ExpectedSubjectFragment}, O=Asseco Data Systems S.A., C=PL",
+            rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(1));
+        var staging = Path.Combine(modDirectory, "eac-kit-staging", "MDL3-EAC-Fix-Kit-1.0.2", "tools");
+        Directory.CreateDirectory(staging);
+        File.WriteAllBytes(Path.Combine(staging, "Certum_Code_Signing_2021_CA.cer"),
+            certificate.Export(X509ContentType.Cert));
+        ZipFile.CreateFromDirectory(Path.Combine(modDirectory, "eac-kit-staging"),
+            Path.Combine(modDirectory, "MDL3-EAC-Fix-Kit-1.0.2.zip"));
+        Directory.Delete(Path.Combine(modDirectory, "eac-kit-staging"), true);
+    }
+
+    private sealed class RecordingCertificateStore : IEacCertificateStore
+    {
+        public List<X509Certificate2> Added { get; } = [];
+
+        public bool Contains(X509Certificate2 certificate)
+            => Added.Any(item => item.Thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
+
+        public void Add(X509Certificate2 certificate) => Added.Add(certificate);
+    }
+
+    private sealed class ThrowingCertificateStore : IEacCertificateStore
+    {
+        public bool Contains(X509Certificate2 certificate) => false;
+
+        public void Add(X509Certificate2 certificate) => throw new CryptographicException("模拟存储写入失败");
     }
 
     private sealed class StubVerifier(AuthenticodeVerifyResult result) : IAuthenticodeVerifier
