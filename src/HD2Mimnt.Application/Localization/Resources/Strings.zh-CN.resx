@@ -549,6 +549,45 @@
   <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
     <value>项目地址：https://github.com/TYHH100/HD2Mimnt</value>
   </data>
+  <data name="Updates.CheckNow" xml:space="preserve">
+    <value>检查应用更新</value>
+  </data>
+  <data name="Updates.Checking" xml:space="preserve">
+    <value>正在检查更新…</value>
+  </data>
+  <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
+    <value>启动时检查更新</value>
+  </data>
+  <data name="Updates.UpToDate" xml:space="preserve">
+    <value>已是最新版本。</value>
+  </data>
+  <data name="Updates.CheckFailed" xml:space="preserve">
+    <value>检查更新失败。</value>
+  </data>
+  <data name="Updates.NewVersionAvailable" xml:space="preserve">
+    <value>发现新版本 {0}</value>
+  </data>
+  <data name="Updates.DownloadAndInstall" xml:space="preserve">
+    <value>下载并安装</value>
+  </data>
+  <data name="Updates.OpenReleasePage" xml:space="preserve">
+    <value>打开发布页</value>
+  </data>
+  <data name="Updates.Downloading" xml:space="preserve">
+    <value>正在下载更新，完成后将自动重启安装…</value>
+  </data>
+  <data name="Updates.ManualDownloadHint" xml:space="preserve">
+    <value>该版本未找到自动安装包，请前往发布页手动下载。</value>
+  </data>
+  <data name="Updates.NotificationTitle" xml:space="preserve">
+    <value>HD2Mimnt 更新</value>
+  </data>
+  <data name="Updates.NotificationBody" xml:space="preserve">
+    <value>发现新版本 {0}。</value>
+  </data>
+  <data name="Updates.NotificationAction" xml:space="preserve">
+    <value>前往更新</value>
+  </data>
   <data name="UI.PluginManagement" xml:space="preserve">
     <value>插件管理</value>
   </data>

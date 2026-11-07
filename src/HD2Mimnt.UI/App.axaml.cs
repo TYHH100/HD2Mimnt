@@ -596,6 +596,19 @@ public partial class App : Avalonia.Application
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
+        // 应用自更新：检查/下载/安装编排 + "关于"页视图模型
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("app-update", (_, _) => new System.Net.Http.HttpClient());
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(sp =>
+            new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
+                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")));
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateService>(sp =>
+            new HD2Mimnt.Application.Services.AppUpdateService(
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(),
+                sp.GetRequiredService<IHttpDownloadService>(),
+                sp.GetRequiredService<StorageSettingsService>(),
+                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>()));
+        services.AddSingleton<AppUpdateViewModel>();
+
         services.AddTransient(sp => new MainWindowViewModel(
             sp.GetRequiredService<LibraryViewModel>(),
             sp.GetRequiredService<ProfileViewModel>(),
@@ -623,6 +636,7 @@ public partial class App : Avalonia.Application
             // HD2IAS 管理：上游仍在内测，旧管理页重新开放入口，页内各区块默认折叠。
             sp.GetRequiredService<Hd2IASManagementViewModel>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
-            sp.GetRequiredService<IasSystemViewModel>()));
+            sp.GetRequiredService<IasSystemViewModel>(),
+            sp.GetRequiredService<AppUpdateViewModel>()));
     }
 }

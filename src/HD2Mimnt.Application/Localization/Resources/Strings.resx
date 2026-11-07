@@ -549,6 +549,45 @@
   <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
     <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
   </data>
+  <data name="Updates.CheckNow" xml:space="preserve">
+    <value>Check for app updates</value>
+  </data>
+  <data name="Updates.Checking" xml:space="preserve">
+    <value>Checking for updates…</value>
+  </data>
+  <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
+    <value>Check for updates on startup</value>
+  </data>
+  <data name="Updates.UpToDate" xml:space="preserve">
+    <value>You're on the latest version.</value>
+  </data>
+  <data name="Updates.CheckFailed" xml:space="preserve">
+    <value>Update check failed.</value>
+  </data>
+  <data name="Updates.NewVersionAvailable" xml:space="preserve">
+    <value>New version {0} available</value>
+  </data>
+  <data name="Updates.DownloadAndInstall" xml:space="preserve">
+    <value>Download and install</value>
+  </data>
+  <data name="Updates.OpenReleasePage" xml:space="preserve">
+    <value>Open release page</value>
+  </data>
+  <data name="Updates.Downloading" xml:space="preserve">
+    <value>Downloading update; the app will restart to install it…</value>
+  </data>
+  <data name="Updates.ManualDownloadHint" xml:space="preserve">
+    <value>No automatic installer was found for this release. Please download it from the release page.</value>
+  </data>
+  <data name="Updates.NotificationTitle" xml:space="preserve">
+    <value>HD2Mimnt update</value>
+  </data>
+  <data name="Updates.NotificationBody" xml:space="preserve">
+    <value>New version {0} is available.</value>
+  </data>
+  <data name="Updates.NotificationAction" xml:space="preserve">
+    <value>Go to update</value>
+  </data>
   <data name="UI.PluginManagement" xml:space="preserve">
     <value>Plugin management</value>
   </data>

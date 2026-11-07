@@ -3,12 +3,14 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
 using System.IO;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 
@@ -19,6 +21,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModCompatibilityViewModel? Compatibility { get; }
     public Task StartupCompatibilityTask { get; private set; } = Task.CompletedTask;
     private bool _startupCompatibilityStarted;
+    private bool _startupUpdateCheckStarted;
     private bool _closingCompatibility;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly ProfileViewModel _profileViewModel;
@@ -123,6 +126,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public IasSystemViewModel? IasSystemViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
+    public AppUpdateViewModel? AppUpdateViewModel { get; }
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -150,7 +154,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ModCreationViewModel? modCreationViewModel = null,
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
         SoundFixViewModel? soundFixViewModel = null,
-        IasSystemViewModel? iasSystemViewModel = null)
+        IasSystemViewModel? iasSystemViewModel = null,
+        AppUpdateViewModel? appUpdateViewModel = null)
     {
         Compatibility = compatibility;
         if (Compatibility != null)
@@ -205,6 +210,23 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
         IasSystemViewModel = iasSystemViewModel;
+        AppUpdateViewModel = appUpdateViewModel;
+        if (AppUpdateViewModel != null)
+        {
+            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"关于"分类处理。
+            AppUpdateViewModel.UpdateAvailableDetected += () =>
+            {
+                var version = AppUpdateViewModel.LatestVersion ?? string.Empty;
+                _notificationService.ShowWithAction(NotificationLevel.Info,
+                    UiLocalization.Current.Format("Updates.NotificationBody", version),
+                    UiLocalization.Current["Updates.NotificationAction"],
+                    () => Dispatcher.UIThread.Post(() => MoreViewModel.SelectedCategory = "关于"),
+                    UiLocalization.Current["Updates.NotificationTitle"]);
+            };
+            // 安装脚本已启动，立即退出应用让脚本完成文件替换并重启。
+            AppUpdateViewModel.InstallLaunched += () =>
+                (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+        }
         // 旧版 HD2IAS 的运行时缺失自动提醒暂时停用（上游内测期）；页面与手动刷新保留。
         // if (Hd2IASManagementViewModel != null)
         //     Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
@@ -581,6 +603,13 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         {
             _startupCompatibilityStarted = true;
             StartupCompatibilityTask = RunStartupCompatibilityAsync();
+        }
+
+        // 应用自更新：默认关闭，开启设置后启动静默检查，仅发现新版本时弹通知。
+        if (!_startupUpdateCheckStarted && AppUpdateViewModel != null)
+        {
+            _startupUpdateCheckStarted = true;
+            _ = AppUpdateViewModel.CheckOnStartupAsync();
         }
     }
 
