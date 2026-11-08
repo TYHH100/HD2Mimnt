@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
     <ProjectReference Include="..\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" />
+    <!-- Lua 解释器只在宿主进程里；主程序不引用，脚本与解释器都不进 UI 进程 -->
+    <ProjectReference Include="..\HD2Mimnt.PluginLua\HD2Mimnt.PluginLua.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -70,6 +70,22 @@ public class PluginLoader : IDisposable
         return _pluginInstance;
     }
 
+    /// <summary>
+    /// 只加载命令库：不实例化 IPlugin 入口类型，仅扫描并注册 IPluginCommand。
+    /// 混合插件里的 DLL 走的正是这条路——它提供底层能力，由脚本驱动。
+    /// </summary>
+    public Task LoadCommandLibraryAsync(string assemblyPath, CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(assemblyPath))
+        {
+            throw new FileNotFoundException($"Plugin assembly not found: {assemblyPath}");
+        }
+
+        _pluginAssembly = _loadContext.LoadFromAssemblyPath(assemblyPath);
+        DiscoverCommands();
+        return Task.CompletedTask;
+    }
+
     /// <summary>已发现的命令实现，键为 Descriptor.Name（忽略大小写）。</summary>
     public IReadOnlyDictionary<string, IPluginCommand> Commands => _commands;
 
