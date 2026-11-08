@@ -636,6 +636,24 @@
   <data name="UI.PluginPermissionRequest" xml:space="preserve">
     <value>Plugin permission request</value>
   </data>
+  <data name="UI.PluginCommandResult" xml:space="preserve">
+    <value>Plugin command result</value>
+  </data>
+  <data name="UI.PluginCommandNeedsPermission" xml:space="preserve">
+    <value>needs permission</value>
+  </data>
+  <data name="UI.MarkdownSource" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="UI.MarkdownRendered" xml:space="preserve">
+    <value>Rendered</value>
+  </data>
+  <data name="UI.PluginThemeReset" xml:space="preserve">
+    <value>Reset theme</value>
+  </data>
+  <data name="UI.PluginThemeActive" xml:space="preserve">
+    <value>Active theme: {0}</value>
+  </data>
   <data name="UI.ThisPluginRequestsAccessToSystemResources" xml:space="preserve">
     <value>This plugin requests access to system resources.</value>
   </data>
