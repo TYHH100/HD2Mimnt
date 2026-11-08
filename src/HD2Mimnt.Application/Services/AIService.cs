@@ -366,6 +366,46 @@ public class AIService : IAIService
         return await provider.SendRequestAsync(context, cancellationToken);
     }
 
+    /// <summary>
+    /// 通用文本补全。插件等受控调用方只能拿到文本结果：
+    /// 配置（含 API Key）始终留在本进程，返回内容由调用方再做一次脱敏。
+    /// </summary>
+    public async Task<AIResponse> CompleteAsync(
+        string prompt,
+        string? systemPrompt = null,
+        int? maxOutputTokens = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            return new AIResponse { Success = false, Error = "提示词不能为空" };
+        }
+
+        var config = await _configRepository.GetActiveProviderAsync(cancellationToken);
+        if (config == null)
+        {
+            return new AIResponse { Success = false, Error = "未配置 AI 服务，请先在设置中填写并保存。" };
+        }
+
+        // 仓库每次返回新对象，可安全就地收紧上限；不允许超过用户配置。
+        if (maxOutputTokens is > 0 and var requested && requested < config.MaxTokens)
+        {
+            config.MaxTokens = requested;
+        }
+
+        var context = new AIAnalysisContext
+        {
+            ContextType = AIContextType.PluginRequest,
+            Data = new Dictionary<string, string>
+            {
+                ["prompt"] = prompt,
+                ["system"] = systemPrompt ?? string.Empty
+            }
+        };
+
+        return await CreateProvider(config).SendRequestAsync(context, cancellationToken);
+    }
+
     private async Task<IAIProvider?> GetActiveProviderOrFail(CancellationToken cancellationToken)
     {
         var config = await _configRepository.GetActiveProviderAsync(cancellationToken);

@@ -194,16 +194,19 @@ public class PluginHostContext : IPluginContext
     public IPluginStorage Storage { get; }
     public IPluginModAccess ModAccess { get; }
     public IPluginConfiguration Configuration { get; }
+    public IPluginAiClient AI { get; }
 
     public PluginHostContext(
         IPluginLogger logger,
         IPluginStorage storage,
         IPluginModAccess modAccess,
-        IPluginConfiguration configuration)
+        IPluginConfiguration configuration,
+        IPluginAiClient ai)
     {
         Logger = logger;
         Storage = storage;
         ModAccess = modAccess;
         Configuration = configuration;
+        AI = ai;
     }
 }
