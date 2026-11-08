@@ -51,6 +51,19 @@ public class PluginManifest
     public List<string> RequestedPermissions { get; set; } = new();
 
     /// <summary>
+    /// Commands the plugin contributes to the host application.
+    /// Declared here so the UI can list them before the plugin process starts;
+    /// each entry must have a matching IPluginCommand implementation in the assembly.
+    /// </summary>
+    public List<PluginCommandDescriptor> Commands { get; set; } = new();
+
+    /// <summary>
+    /// 声明式界面贡献：页面、功能菜单、浮窗与主题包。
+    /// 管理器读取声明并用自己的控件渲染，插件程序集不进入 UI 进程。
+    /// </summary>
+    public PluginUiContributions Ui { get; set; } = new();
+
+    /// <summary>
     /// Assembly file name (e.g., "MyPlugin.dll")
     /// </summary>
     public string Assembly { get; set; } = string.Empty;

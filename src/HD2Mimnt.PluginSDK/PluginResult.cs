@@ -26,11 +26,17 @@ public class PluginResult
     public Dictionary<string, string> Metadata { get; set; } = new();
 
     /// <summary>
+    /// 可选的界面更新。插件通过声明式区块让管理器刷新页面/浮窗，
+    /// 不接触任何 UI 对象；为空时管理器只展示 <see cref="Message"/>。
+    /// </summary>
+    public PluginUiUpdate? Ui { get; set; }
+
+    /// <summary>
     /// Create a successful result
     /// </summary>
-    public static PluginResult Ok(string? message = null)
+    public static PluginResult Ok(string? message = null, PluginUiUpdate? ui = null)
     {
-        return new PluginResult { Success = true, Message = message };
+        return new PluginResult { Success = true, Message = message, Ui = ui };
     }
 
     /// <summary>

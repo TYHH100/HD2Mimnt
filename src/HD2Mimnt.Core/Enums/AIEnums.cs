@@ -74,5 +74,10 @@ public enum AIContextType
     /// <summary>
     /// Security check
     /// </summary>
-    SecurityCheck
+    SecurityCheck,
+
+    /// <summary>
+    /// 插件发起的通用文本请求；由主程序代发，提示词需经安全扫描。
+    /// </summary>
+    PluginRequest
 }

@@ -24,6 +24,12 @@ public interface IPluginContext
     /// Plugin configuration management
     /// </summary>
     IPluginConfiguration Configuration { get; }
+
+    /// <summary>
+    /// 受限 AI 能力：只收发文本，不暴露任何密钥或请求凭据。
+    /// 需要 manifest 声明 "ai.use" 权限。
+    /// </summary>
+    IPluginAiClient AI { get; }
 }
 
 /// <summary>

@@ -51,6 +51,19 @@ public interface IAIService
     Task<AIResponse> CheckSecurityAsync(string modId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 通用文本补全。供插件等受控调用方使用：
+    /// 请求在本进程内完成，API Key 不会传给调用方，也不会写入返回内容。
+    /// </summary>
+    /// <param name="prompt">用户提示词。</param>
+    /// <param name="systemPrompt">可选的系统提示，会与内置安全约束合并。</param>
+    /// <param name="maxOutputTokens">可选的输出上限，超过配置上限时以配置为准。</param>
+    Task<AIResponse> CompleteAsync(
+        string prompt,
+        string? systemPrompt = null,
+        int? maxOutputTokens = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get active AI provider configuration
     /// </summary>
     Task<AIProviderConfig?> GetActiveProviderAsync(CancellationToken cancellationToken = default);
