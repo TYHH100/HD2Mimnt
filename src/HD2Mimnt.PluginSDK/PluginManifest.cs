@@ -64,14 +64,43 @@ public class PluginManifest
     public PluginUiContributions Ui { get; set; } = new();
 
     /// <summary>
-    /// Assembly file name (e.g., "MyPlugin.dll")
+    /// Assembly file name (e.g., "MyPlugin.dll")。
+    /// 脚本型插件可以留空；填写时为“混合插件”，脚本通过 hd2.dll.call 调用该程序集里的命令。
     /// </summary>
     public string Assembly { get; set; } = string.Empty;
 
     /// <summary>
-    /// Fully qualified entry type name (e.g., "MyPlugin.MyPlugin")
+    /// Fully qualified entry type name (e.g., "MyPlugin.MyPlugin")。
+    /// 仅编译型插件必需；脚本型与混合型留空。
     /// </summary>
     public string EntryType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 实现形态，取值见 <see cref="PluginKinds"/>：dotnet（默认）或 lua。
+    /// 缺省按 dotnet 处理，旧清单无需改动。
+    /// </summary>
+    public string Kind { get; set; } = PluginKinds.DotNet;
+
+    /// <summary>
+    /// 脚本型插件的入口文件（相对清单目录，如 "main.lua"）。
+    /// 其它 .lua 文件可用 hd2.require("模块名") 按需加载。
+    /// </summary>
+    public string Script { get; set; } = string.Empty;
+
+    /// <summary>是否为脚本型插件。</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsScriptPlugin => PluginKinds.IsLua(Kind);
+
+    /// <summary>是否为“脚本主控 + DLL 提供底层能力”的混合插件。</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsHybrid => IsScriptPlugin && !string.IsNullOrWhiteSpace(Assembly);
+
+    /// <summary>
+    /// 插件入口文件（相对清单目录）。脚本型返回 <see cref="Script"/>，
+    /// 编译型返回 <see cref="Assembly"/>。安装与完整性校验都以它为准。
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string EntryFile => IsScriptPlugin ? Script : Assembly;
 }
 
 /// <summary>

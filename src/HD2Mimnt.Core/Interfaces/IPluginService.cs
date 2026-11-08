@@ -188,6 +188,9 @@ public sealed class PluginManifestPreview
     public string Description { get; init; } = string.Empty;
     public string PermissionMode { get; init; } = "Sandbox";
     public IReadOnlyList<string> RequestedPermissions { get; init; } = Array.Empty<string>();
+
+    /// <summary>实现形态：dotnet 或 lua；用于安装对话框向用户交代“这个插件是脚本”。</summary>
+    public string Kind { get; init; } = PluginSDK.PluginKinds.DotNet;
 }
 
 /// <summary>

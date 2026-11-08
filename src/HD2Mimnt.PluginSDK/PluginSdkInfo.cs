@@ -11,7 +11,7 @@ namespace HD2Mimnt.PluginSDK;
 public static class PluginSdkInfo
 {
     /// <summary>当前契约版本。</summary>
-    public const string Version = "1.2.0";
+    public const string Version = "1.3.0";
 
     /// <summary>当前契约主版本，用于 manifest.ApiVersion 兼容性判断。</summary>
     public const int MajorVersion = 1;
