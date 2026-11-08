@@ -1,0 +1,20 @@
+{
+  "id": "com.hd2mimnt.samples.hello",
+  "name": "Hello World 示例",
+  "version": "1.0.0",
+  "author": "HD2Mimnt",
+  "description": "最小可用插件：向管理器贡献一个 hello 命令。",
+  "apiVersion": "1.1.0",
+  "runtime": "net10.0",
+  "permissionMode": "Sandbox",
+  "requestedPermissions": [],
+  "commands": [
+    {
+      "name": "hello",
+      "displayName": "打个招呼",
+      "description": "读取可选参数 {\"name\":\"...\"}，返回问候语并累计调用次数。"
+    }
+  ],
+  "assembly": "HelloWorld.dll",
+  "entryType": "HD2Mimnt.Samples.HelloWorld.HelloWorldPlugin"
+}

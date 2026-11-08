@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>ThemeShowcase</AssemblyName>
+    <RootNamespace>HD2Mimnt.Samples.ThemeShowcase</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- SDK 由宿主进程提供，示例输出目录只保留插件自身程序集与 manifest -->
+    <ProjectReference Include="..\..\..\src\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
