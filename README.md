@@ -10,7 +10,7 @@ Helldivers 2（绝地潜兵 2）模组管理器，基于 .NET 10 与 Avalonia �
 - **配置系统**：多套 Profile 管理不同场景下启用的模组，一键切换
 - **多种部署方式**：Copy、符号链接、硬链接
 - **后台任务**：扫描、导入、部署异步执行，支持进度查看与取消
-- **插件系统**：提供 SDK 与独立宿主进程，插件隔离运行
+- **插件系统**：提供 SDK 与独立宿主进程，插件隔离运行；支持 DLL、Lua 脚本以及两者混合编写
 
 ## 技术栈
 
@@ -37,7 +37,7 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 | `HD2Mimnt.Infrastructure` | 数据访问、部署实现、工作流 |
 | `HD2Mimnt.Application` | 业务服务与流程编排 |
 | `HD2Mimnt.UI` | Avalonia 界面（MVVM） |
-| `HD2Mimnt.PluginSDK` / `PluginHost` | 插件 SDK 与隔离宿主进程 |
+| `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | 插件 SDK、隔离宿主进程与 Lua 脚本运行时 |
 | `HD2Mimnt.Worker` | 后台工作进程 |
 
 `tests/` 下分为单元测试（Tests）、UI 测试（UITests）、稳定性（StabilityTests）与性能（PerformanceTests）四个测试项目。

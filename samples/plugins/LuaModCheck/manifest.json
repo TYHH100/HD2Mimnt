@@ -1,0 +1,99 @@
+{
+  // 纯 Lua 插件：没有 DLL、没有编译步骤，清单与脚本就是全部内容
+  "id": "com.hd2mimnt.samples.lua-mod-check",
+  "name": "Lua 模组体检",
+  "version": "1.0.0",
+  "author": "HD2Mimnt Samples",
+  "description": "纯 Lua 插件示例：读取模组信息、统计执行次数并生成体检报告，全程不需要编译。",
+  "apiVersion": "1.3.0",
+
+  // kind 缺省为 dotnet；lua 表示入口是一段脚本
+  "kind": "lua",
+  "script": "main.lua",
+
+  "permissionMode": "Sandbox",
+  "requestedPermissions": [],
+
+  "commands": [
+    {
+      "name": "lua-mod-check",
+      "displayName": "模组体检",
+      "description": "检查模组信息的完整度，脚本直接产出报告。",
+      "placement": "modContextMenu"
+    }
+  ],
+
+  "ui": {
+    "pages": [
+      {
+        "id": "lua-check",
+        "title": "Lua 体检",
+        "icon": "Checkmark",
+        "description": "本页完全由 Lua 脚本声明与填充，没有任何编译产物。",
+        "blocks": [
+          {
+            "type": "notice",
+            "tone": "info",
+            "title": "脚本插件",
+            "text": "页面结构来自 manifest，内容由 main.lua 生成。插件运行在独立进程，拿不到任何密钥。"
+          },
+          {
+            "type": "markdown",
+            "text": "## 能做什么\n\n- 在**模组右键菜单**里执行体检\n- 用 `hd2.storage` 记住执行次数（插件私有目录）\n- 用 `hd2.ui` 拼装报告，管理器负责渲染\n\n> 需要底层计算能力时，可以再挂一个 DLL，见 LuaHybrid 示例。"
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "label": "对当前页面执行一次",
+                "icon": "Play",
+                "style": "primary",
+                "command": "lua-mod-check"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "dialogs": [
+      {
+        "id": "lua-check-help",
+        "title": "脚本插件说明",
+        "description": "Lua 与 DLL 走同一套进程隔离、权限与界面模型。",
+        "width": 520,
+        "height": 420,
+        "blocks": [
+          {
+            "type": "markdown",
+            "text": "### 与 DLL 插件的差别\n\n**相同**：独立进程、同一份权限清单、同样的 `ui` 声明式界面、同样过密钥扫描。\n\n**不同**：脚本不需要编译，改完 `main.lua` 重装即可生效。"
+          },
+          {
+            "type": "facts",
+            "facts": [
+              { "label": "入口", "value": "main.lua" },
+              { "label": "解释器", "value": "宿主内置（Lua 5.2 沙箱）" },
+              { "label": "可用全局", "value": "hd2 / 标准库子集" }
+            ]
+          }
+        ]
+      }
+    ],
+    "menus": [
+      {
+        "id": "lua-check-menu",
+        "placement": "mainMenu",
+        "label": "Lua 模组体检",
+        "icon": "Checkmark",
+        "description": "演示纯脚本插件提供的功能入口",
+        "command": "lua-mod-check"
+      },
+      {
+        "id": "lua-check-help-menu",
+        "placement": "mainMenu",
+        "label": "脚本插件说明",
+        "icon": "Info",
+        "dialog": "lua-check-help"
+      }
+    ]
+  }
+}

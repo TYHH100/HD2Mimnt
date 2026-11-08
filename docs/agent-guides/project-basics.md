@@ -14,7 +14,7 @@ HD2Mimnt 是基于 .NET 10、Avalonia 和 SQLite 的 Helldivers 2 模组管理�
 | `HD2Mimnt.Infrastructure` | SQLite Repository、部署实现、工作流、平台适配器 |
 | `HD2Mimnt.Application` | 业务服务与流程编排 |
 | `HD2Mimnt.UI` | Avalonia View、ViewModel、DI 注册 |
-| `HD2Mimnt.PluginSDK` / `PluginHost` | 插件接口与独立进程宿主、IPC、权限声明 |
+| `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | 插件接口、独立进程宿主与 IPC、Lua 脚本运行时（MoonSharp，只在宿主进程引用） |
 | `HD2Mimnt.Worker` | 后台工作进程 |
 
 - UI 入口：`src/HD2Mimnt.UI/Program.cs`；DI 注册检查 `App.axaml.cs` 中的 `ConfigureServices`，尤其手动构造工厂。
@@ -50,6 +50,9 @@ dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-c
 - 插件用 `IPlugin` 提供生命周期，用 `IPluginCommand` 向管理器贡献可执行命令：manifest 的 `Commands` 声明元数据（`Placement` 决定入口：`pluginPage` 出现在插件管理页，`modContextMenu` 出现在模组卡片右键菜单并在调用时附带模组名称/作者/说明，`mainMenu` 进入导航栏“插件功能”菜单，`libraryToolbar` 进入模组库工具栏），宿主扫描程序集内的实现并按 `Descriptor.Name` 分发；`IPluginService.ExecutePluginCommandAsync` 校验声明与命令权限、按需拉起宿主并写执行历史。`IModPlugin`、`IDeploymentPlugin`、`IAnalysisPlugin` 目前只有定义，导入/部署主流程尚未调用。插件界面扩展必须保持声明式（主程序渲染），不得把插件程序集加载进 UI 进程。
 - 声明式界面在 manifest 的 `ui` 节点：`pages` 生成导航项（`PluginPageView`），`dialogs` 生成浮窗（`PluginUiDialog`），`menus` 按 placement 进入功能菜单 / 模组库工具栏 / 模组右键菜单，`themes` 提供设计令牌覆盖（`PluginThemeService`，白名单见 `Tokens`）。渲染统一走 `PluginUiPresenter`，区块类型见 `PluginUiBlockTypes`；交互由 `PluginUiSurfaceViewModel.ExecuteAsync` 发命令，参数形如 `{ "ui": { surfaceId, actionId, values } }`，插件用 `PluginResult.Ok(null, PluginUiUpdate...)` 回传增量区块。`PluginHostManager` 对 `UiJson` 同样做密钥扫描，命中真实密钥立即终止宿主。
 - 插件结果文本经常是 Markdown（尤其 AI 输出），展示必须用 `MarkdownView` / `MarkdownRenderer`，不要退化为原始文本。安装校验会拒绝 id 重复、菜单无 command/dialog、引用不存在浮窗的界面声明。
+- 插件有三种形态，都由 manifest 的 `kind` 区分并跑同一套隔离/权限/界面模型：`dotnet`（默认，`assembly` + `entryType`）、`lua`（`script`，宿主用 `PluginLua` 里的 MoonSharp 沙箱执行）、混合（`kind=lua` 且填 `assembly`，脚本用 `hd2.dll.call` 调用程序集里的 `IPluginCommand`，DLL 按“命令库”加载，不实例化 `IPlugin`）。入口文件统一由 `PluginManifest.EntryFile` 解析，安装时把**入口文件**的 SHA-256 记为完整性锚点，所以脚本插件被改脚本也会拒绝启动。
+- `PluginHost` 用 `IPluginRuntime` 抽象两种运行时（`DotNetPluginRuntime` / `LuaPluginHostRuntime`），新增插件形态时实现该接口并在 `PluginRuntimeFactory` 分派，不要在 `Program` 里写 if 分支。Lua 侧 `hd2` 表是脚本触达宿主的唯一入口：没有 io/os/debug/loadfile/package，模块加载限定在插件目录内（`hd2.require` 拒绝 `..` 与绝对路径），`hd2.ai` 仍走 IPC 由主进程代发。
+- Lua 命令默认 30 秒超时。MoonSharp 无法安全中断脚本，超时后 `LuaPluginRuntime.HasRunawayExecution` 置位，宿主把超时错误回执发出后 `Environment` 退出回收进程；不要试图在宿主里"取消"一个死循环脚本。
 - **文本行不能用横向 `StackPanel` 排版**：横向容器以无限宽度测量子元素，`TextWrapping.Wrap` 不生效，长文本会被撑成超宽单行、溢出右边并被裁切（列表「符号 + 文字」曾因此实测出 1143px 的行宽）。一律用 `Grid` + `ColumnDefinitions="Auto,*"`，符号放 Auto、文本放 `*`。行内元素（`InlineUIContainer`）的高度必须小于 `LineHeight`，否则会把该行基线顶下去，看起来像行距不匀。
 - 视图 code-behind **不要手写 `private void InitializeComponent()`**。Avalonia 的名称生成器会生成带默认参数的同名方法并负责给 `x:Name` 字段赋值；手写一个无参版本会因精确匹配胜出而被调用，导致所有 `x:Name` 字段保持 `null`（表现为构造期 `NullReferenceException` 或控件永远不响应）。只保留 `InitializeComponent();` 调用即可，`x:Name` 也避免与基类成员重名（如 `Presenter`）。
 - 插件贡献的界面入口必须随启用/停用/安装/卸载/授权变更立即刷新：`PluginManagementViewModel.NotifyContributionsChanged()` 是唯一通知点，漏调就会残留导航项与菜单项。所有「清空集合再逐条追加」的刷新逻辑都要先把结果拼进局部集合、最后一次替换，或合并并发调用，否则右键菜单反复弹出时会在 `await` 处交错产生重复条目。

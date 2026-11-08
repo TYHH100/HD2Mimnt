@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 混合插件的 DLL 部分：只提供底层计算能力，由 main.lua 通过 hd2.dll.call 调用。
+       这里不实现 IPlugin 入口，宿主按“命令库”方式加载它。 -->
+  <PropertyGroup>
+    <AssemblyName>HybridTools</AssemblyName>
+    <RootNamespace>HD2Mimnt.Samples.LuaHybrid.Tools</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 把清单与脚本一并带到输出目录，使输出目录本身就是一个可安装的插件目录 -->
+    <None Update="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="main.lua" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
