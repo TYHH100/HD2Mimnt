@@ -48,6 +48,12 @@ public partial class PluginManagementViewModel : ObservableObject
     public event EventHandler? InstallManifestRequested;
     public event EventHandler<PluginItemViewModel>? PermissionEditorRequested;
 
+    /// <summary>插件安装/启停/授权/卸载后触发，供主窗口刷新页面与功能菜单入口。</summary>
+    public event EventHandler? ContributionsChanged;
+
+    [ObservableProperty]
+    private string _activeThemeName = string.Empty;
+
     public PluginManagementViewModel(IPluginService pluginService)
         : this(pluginService, new TestConfirmationService())
     {
@@ -64,6 +70,13 @@ public partial class PluginManagementViewModel : ObservableObject
         await LoadPluginsAsync();
     }
 
+    /// <summary>
+    /// 通知主窗口重新读取插件的界面贡献（导航页 / 功能菜单 / 工具栏）。
+    /// 启用、停用、卸载、授权变更都会改变可用贡献集合，必须显式通知，
+    /// 否则已经停用的插件仍会占着导航项和菜单入口。
+    /// </summary>
+    private void NotifyContributionsChanged() => ContributionsChanged?.Invoke(this, EventArgs.Empty);
+
     [RelayCommand]
     private async Task LoadPluginsAsync()
     {
@@ -73,16 +86,26 @@ public partial class PluginManagementViewModel : ObservableObject
         try
         {
             var plugins = await _pluginService.GetAllPluginsAsync();
+            var uiBundles = await _pluginService.GetUiContributionsAsync() ?? new List<PluginUiBundle>();
+            var bundleByPlugin = uiBundles.ToDictionary(b => b.PluginId, StringComparer.Ordinal);
 
             InstalledPlugins.Clear();
             foreach (var plugin in plugins)
             {
                 var permissions = await _pluginService.GetPluginPermissionsAsync(plugin.Id);
-                InstalledPlugins.Add(new PluginItemViewModel(plugin, permissions.ToList()));
+                // 模组右键菜单类的命令在这里没有目标模组，只在管理页展示通用命令
+                var commands = (await _pluginService.GetPluginCommandsAsync(plugin.Id)
+                        ?? new List<PluginCommandInfo>())
+                    .Where(c => !HD2Mimnt.PluginSDK.PluginCommandPlacements.IsModContextMenu(c.Placement))
+                    .ToList();
+
+                bundleByPlugin.TryGetValue(plugin.Id, out var bundle);
+                InstalledPlugins.Add(new PluginItemViewModel(plugin, permissions.ToList(), commands, RunCommandAsync, bundle));
             }
 
             UpdateStatistics();
             StatusMessage = $"已加载 {InstalledPlugins.Count} 个插件";
+            NotifyContributionsChanged();
         }
         catch (Exception ex)
         {
@@ -122,6 +145,8 @@ public partial class PluginManagementViewModel : ObservableObject
 
         await RefreshPermissionsAsync(plugin);
         StatusMessage = $"已更新 {plugin.Name} 的权限";
+        // 菜单项的可用状态依赖授权结果，撤销授权后必须同步禁用对应入口
+        NotifyContributionsChanged();
     }
 
     public async Task RefreshPermissionsAsync(PluginItemViewModel plugin)
@@ -130,13 +155,16 @@ public partial class PluginManagementViewModel : ObservableObject
         plugin.ReplacePermissions(permissions);
     }
 
-    public async Task InstallPluginAsync(string manifestPath, CancellationToken cancellationToken = default)
+    public async Task InstallPluginAsync(
+        string manifestPath,
+        PluginInstallConsent? consent = null,
+        CancellationToken cancellationToken = default)
     {
         IsLoading = true;
         StatusMessage = "正在安装插件...";
         try
         {
-            var result = await _pluginService.InstallPluginAsync(manifestPath, cancellationToken);
+            var result = await _pluginService.InstallPluginAsync(manifestPath, consent, cancellationToken);
             if (result.Success)
             {
                 await LoadPluginsAsync();
@@ -176,6 +204,7 @@ public partial class PluginManagementViewModel : ObservableObject
                 plugin.IsEnabled = true;
                 UpdateStatistics();
                 StatusMessage = $"已启用 {plugin.Name}";
+                NotifyContributionsChanged();
             }
             else
             {
@@ -208,6 +237,7 @@ public partial class PluginManagementViewModel : ObservableObject
                 plugin.IsEnabled = false;
                 UpdateStatistics();
                 StatusMessage = $"已停用 {plugin.Name}";
+                NotifyContributionsChanged();
             }
             else
             {
@@ -247,6 +277,7 @@ public partial class PluginManagementViewModel : ObservableObject
                 InstalledPlugins.Remove(plugin);
                 UpdateStatistics();
                 StatusMessage = $"已卸载 {plugin.Name}";
+                NotifyContributionsChanged();
             }
             else
             {
@@ -282,6 +313,42 @@ public partial class PluginManagementViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// 执行插件声明的命令。宿主未运行时由 PluginService 按需拉起；
+    /// 结果写入状态栏，明细同时落在执行历史中。
+    /// </summary>
+    public async Task RunCommandAsync(PluginCommandItemViewModel? command)
+    {
+        if (command == null) return;
+
+        IsLoading = true;
+        StatusMessage = $"正在执行 {command.DisplayName}...";
+
+        try
+        {
+            var result = await _pluginService.ExecutePluginCommandAsync(command.PluginId, command.Name);
+
+            if (result.Success)
+            {
+                StatusMessage = string.IsNullOrWhiteSpace(result.Message)
+                    ? $"命令 {command.DisplayName} 已执行"
+                    : $"命令 {command.DisplayName} 已执行：{result.Message}";
+            }
+            else
+            {
+                StatusMessage = $"命令 {command.DisplayName} 执行失败：{result.Error ?? result.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"命令 {command.DisplayName} 执行失败：{ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -294,6 +361,34 @@ public partial class PluginManagementViewModel : ObservableObject
         IsHistoryOpen = false;
         HistoryPlugin = null;
         ExecutionHistory.Clear();
+    }
+
+    /// <summary>应用插件声明的主题包（只覆盖白名单设计令牌）。</summary>
+    [RelayCommand]
+    private void ApplyTheme(PluginThemeOption? option)
+    {
+        if (option is null) return;
+
+        if (!option.Bundle.HasPermission("ui.theme"))
+        {
+            StatusMessage = "该主题需要权限 ui.theme，请在权限设置中授予后再试。";
+            return;
+        }
+
+        var ignored = PluginThemeService.Apply(option.Bundle, option.Theme);
+        ActiveThemeName = $"{option.Bundle.PluginName} · {option.Theme.Name}";
+        StatusMessage = ignored.Count == 0
+            ? $"已应用主题 {ActiveThemeName}"
+            : $"已应用主题 {ActiveThemeName}；已忽略不支持的令牌：{string.Join(", ", ignored)}";
+    }
+
+    /// <summary>恢复管理器自带配色。</summary>
+    [RelayCommand]
+    private void ResetTheme()
+    {
+        PluginThemeService.Reset();
+        ActiveThemeName = string.Empty;
+        StatusMessage = "已恢复默认主题";
     }
 
     private void UpdateStatistics()
@@ -344,6 +439,17 @@ public partial class PluginItemViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<PluginPermission> _permissions = new();
 
+    /// <summary>插件通过 manifest 声明的可执行命令，界面上渲染为按钮。</summary>
+    public ObservableCollection<PluginCommandItemViewModel> Commands { get; } = new();
+
+    /// <summary>插件声明的主题包。</summary>
+    public ObservableCollection<PluginThemeOption> Themes { get; } = new();
+
+    /// <summary>插件的完整界面声明；没有贡献时为 null。</summary>
+    public PluginUiBundle? Bundle { get; }
+
+    public bool HasThemes => Themes.Count > 0;
+
     public string InstalledAtFormatted => InstalledAt.ToString("yyyy-MM-dd HH:mm");
 
     public string StatusText => IsEnabled ? "已启用" : "已停用";
@@ -357,6 +463,16 @@ public partial class PluginItemViewModel : ObservableObject
     public int GrantedPermissionsCount => Permissions.Count(p => p.Granted);
 
     public PluginItemViewModel(Plugin plugin, List<PluginPermission> permissions)
+        : this(plugin, permissions, Array.Empty<PluginCommandInfo>(), _ => Task.CompletedTask)
+    {
+    }
+
+    public PluginItemViewModel(
+        Plugin plugin,
+        List<PluginPermission> permissions,
+        IEnumerable<PluginCommandInfo> commands,
+        Func<PluginCommandItemViewModel, Task> executeCommand,
+        PluginUiBundle? bundle = null)
     {
         _pluginId = plugin.Id;
         _name = plugin.Name;
@@ -367,10 +483,22 @@ public partial class PluginItemViewModel : ObservableObject
         _permissionMode = plugin.PermissionMode;
         _installedAt = plugin.InstalledAt;
         _assemblyPath = plugin.AssemblyPath;
+        Bundle = bundle;
 
         foreach (var permission in permissions)
         {
             Permissions.Add(permission);
+        }
+
+        foreach (var command in commands)
+        {
+            Commands.Add(new PluginCommandItemViewModel(this, command, executeCommand));
+        }
+
+        foreach (var theme in bundle?.Ui.Themes ?? new List<HD2Mimnt.PluginSDK.PluginThemeContribution>())
+        {
+            if (string.IsNullOrWhiteSpace(theme.Id) || string.IsNullOrWhiteSpace(theme.Name)) continue;
+            Themes.Add(new PluginThemeOption(bundle!, theme));
         }
     }
 
@@ -379,4 +507,56 @@ public partial class PluginItemViewModel : ObservableObject
         Permissions = new ObservableCollection<PluginPermission>(permissions);
         OnPropertyChanged(nameof(GrantedPermissionsCount));
     }
+}
+
+/// <summary>插件声明的主题包，供设置页一键应用。</summary>
+public sealed class PluginThemeOption
+{
+    public PluginThemeOption(PluginUiBundle bundle, HD2Mimnt.PluginSDK.PluginThemeContribution theme)
+    {
+        Bundle = bundle;
+        Theme = theme;
+    }
+
+    public PluginUiBundle Bundle { get; }
+
+    public HD2Mimnt.PluginSDK.PluginThemeContribution Theme { get; }
+
+    public string Name => Theme.Name;
+
+    public string? Description => Theme.Description;
+
+    public string ToolTipText => string.IsNullOrWhiteSpace(Description) ? Name : $"{Name}\n{Description}";
+}
+
+/// <summary>
+/// 插件声明的可执行命令，对应界面上一个按钮。
+/// </summary>
+public sealed class PluginCommandItemViewModel
+{
+    public PluginCommandItemViewModel(
+        PluginItemViewModel owner,
+        PluginCommandInfo command,
+        Func<PluginCommandItemViewModel, Task> executeCommand)
+    {
+        PluginId = owner.PluginId;
+        Name = command.Name;
+        DisplayName = string.IsNullOrWhiteSpace(command.DisplayName) ? command.Name : command.DisplayName;
+        Description = command.Description;
+        RequiredPermission = command.RequiredPermission;
+
+        ExecuteCommand = new AsyncRelayCommand(() => executeCommand(this));
+    }
+
+    public string PluginId { get; }
+    public string Name { get; }
+    public string DisplayName { get; }
+    public string? Description { get; }
+    public string? RequiredPermission { get; }
+
+    public IAsyncRelayCommand ExecuteCommand { get; }
+
+    public string ToolTipText => string.IsNullOrWhiteSpace(Description)
+        ? DisplayName
+        : $"{DisplayName}\n{Description}";
 }

@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:core="using:HD2Mimnt.Core.Entities"
+             xmlns:intf="using:HD2Mimnt.Core.Interfaces"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
              xmlns:avConverters="using:Avalonia.Data.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -39,6 +40,25 @@
                     <Button x:Name="CheckLibraryCompatibilityButton" Classes="side-nav" Command="{Binding CheckLibraryCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}">
             <StackPanel Orientation="Horizontal" Spacing="10"><controls:UtilityIcon Kind="Repair" Width="16" Height="16"/><TextBlock Text="{loc:Loc Compatibility.Title}" TextTrimming="CharacterEllipsis"/></StackPanel>
           </Button>
+          <!-- 插件贡献到模组库工具栏的动作（commands[].placement = libraryToolbar 或 ui.menus） -->
+          <ItemsControl ItemsSource="{Binding LibraryPluginActions}"
+                        IsVisible="{Binding LibraryPluginActions.Count, Converter={StaticResource GreaterThanZeroConverter}}"
+                        Margin="0,2,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:LibraryPluginAction">
+                <Button Classes="side-nav" Margin="0,1"
+                        IsEnabled="{Binding IsPermissionGranted}"
+                        Command="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).RunLibraryPluginCommandCommand}"
+                        CommandParameter="{Binding}"
+                        ToolTip.Tip="{Binding Description}">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <controls:UtilityIcon Kind="{Binding IconKind}" Width="16" Height="16" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
           <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
                 </StackPanel>
 

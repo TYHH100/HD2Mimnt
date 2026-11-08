@@ -266,9 +266,16 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginPermissionRepository, PluginPermissionRepository>();
         services.AddSingleton<IPluginExecutionRepository, PluginExecutionRepository>();
         services.AddSingleton<IPlatformCredentialStore, PlatformCredentialStore>();
-        services.AddSingleton<IPluginHostManager, PluginHostManager>();
         services.AddSingleton<IAIProviderConfigRepository, AIProviderConfigRepository>();
         services.AddSingleton<IAIService, AIService>();
+
+        // 插件安全边界：密钥守卫、AI 中介、违规上报
+        services.AddSingleton<IPluginSecretGuard, PluginSecretGuard>();
+        services.AddSingleton<IPluginAiBroker, PluginAiBroker>();
+        // 会话级授权：安装时选“仅本次允许”的权限只留在内存，重启失效
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginGrantSession, HD2Mimnt.Core.Interfaces.PluginGrantSession>();
+        services.AddSingleton<IPluginSecurityReporter, PluginSecurityReporter>();
+        services.AddSingleton<IPluginHostManager, PluginHostManager>();
         services.AddSingleton<OptionTranslationService>();
 
         // 图片服务
@@ -512,7 +519,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
-            sp.GetRequiredService<LuaExtractionService>()));
+            sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -637,6 +644,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<Hd2IASManagementViewModel>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
             sp.GetRequiredService<IasSystemViewModel>(),
-            sp.GetRequiredService<AppUpdateViewModel>()));
+            sp.GetRequiredService<AppUpdateViewModel>(),
+            sp.GetRequiredService<IPluginService>()));
     }
 }

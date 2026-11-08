@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.PluginSDK;
 using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
@@ -41,9 +43,23 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
+    private readonly IPluginService? _pluginService;
+    private string? _pluginUiSignature;
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
     private string? _tutorialOriginToolsCategory;
+
+    /// <summary>
+    /// 固定页（配置 / 模组库 / 冲突 / 工具 / 设置 / 浏览 / 创作）在 <see cref="SelectedTabIndex"/> 中占用的槽位数，
+    /// 插件页面从这里开始顺延。主窗口构建导航项时复用同一个常量。
+    /// </summary>
+    public const int PluginPageOffset = 7;
+
+    /// <summary>插件贡献的独立页面，安装/启用后作为导航项出现。</summary>
+    public ObservableCollection<PluginUiSurfaceViewModel> PluginPages { get; } = new();
+
+    /// <summary>插件贡献到导航栏“插件”菜单的入口。</summary>
+    public ObservableCollection<PluginMenuEntry> PluginMenus { get; } = new();
 
     public string AppVersion => AppInfo.Version;
 
@@ -155,8 +171,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
         SoundFixViewModel? soundFixViewModel = null,
         IasSystemViewModel? iasSystemViewModel = null,
-        AppUpdateViewModel? appUpdateViewModel = null)
+        AppUpdateViewModel? appUpdateViewModel = null,
+        IPluginService? pluginService = null)
     {
+        _pluginService = pluginService;
         Compatibility = compatibility;
         if (Compatibility != null)
         {
@@ -197,6 +215,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskCenterViewModel = taskCenterViewModel;
         _externalToolsViewModel = externalToolsViewModel;
         _pluginManagementViewModel = pluginManagementViewModel;
+        _pluginManagementViewModel.ContributionsChanged += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => SafeAsync.FireAndForget(
+                RefreshPluginUiAsync(),
+                "刷新插件界面贡献"));
         _backupViewModel = backupViewModel;
         _logViewModel = logViewModel;
         NotificationPanelViewModel = notificationPanelViewModel;
@@ -340,9 +362,179 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
     }
 
-    private void NavigateForTutorialStep()
+    /// <summary>
+    /// 重新读取所有已启用插件的声明式界面贡献。
+    /// 插件安装 / 启停 / 授权后由设置页事件触发，无需重启管理器。
+    /// </summary>
+    public async Task RefreshPluginUiAsync()
     {
-        if (Tutorial.CurrentStep.PageIndex == 3)
+        if (_pluginService is null) return;
+
+        try
+        {
+            var bundles = await _pluginService.GetUiContributionsAsync();
+            if (bundles is null) return;
+
+            // 设置页每次加载都会触发刷新；贡献没变时不重建页面，避免丢失用户输入
+            var signature = string.Join("\n", bundles.Select(b =>
+                $"{b.PluginId}|{b.PluginName}|{string.Join(",", b.GrantedPermissions.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))}|" +
+                string.Join(",", b.Ui.Pages.Select(p => $"{p.Id}:{p.Title}:{p.Blocks.Count}")) + "|" +
+                string.Join(",", b.Ui.Menus.Select(m => $"{m.Id}:{m.Label}:{m.Command}:{m.Dialog}"))));
+
+            if (string.Equals(signature, _pluginUiSignature, StringComparison.Ordinal)) return;
+            _pluginUiSignature = signature;
+
+            // 重建会换掉全部视图模型实例，先按「插件 + 页面 id」记住用户当前所在页，
+            // 序号在页面增删后会变化，用 id 才能稳定还原，否则插件停用时会跳到别的页面。
+            string? previousPluginId = null;
+            string? previousSurfaceId = null;
+            var previousIndex = SelectedTabIndex - PluginPageOffset;
+            if (previousIndex >= 0 && previousIndex < PluginPages.Count)
+            {
+                previousPluginId = PluginPages[previousIndex].PluginId;
+                previousSurfaceId = PluginPages[previousIndex].SurfaceId;
+            }
+
+            PluginPages.Clear();
+            PluginMenus.Clear();
+
+            foreach (var bundle in bundles)
+            {
+                foreach (var page in bundle.Ui.Pages)
+                {
+                    if (string.IsNullOrWhiteSpace(page.Id)) continue;
+                    PluginPages.Add(new PluginUiSurfaceViewModel(
+                        bundle,
+                        page.Id,
+                        page.Title,
+                        page.Description,
+                        page.Icon,
+                        page.Blocks,
+                        isPage: true,
+                        _pluginService));
+                }
+
+                foreach (var menu in bundle.Ui.Menus)
+                {
+                    if (!PluginCommandPlacements.IsMainMenu(menu.Placement)) continue;
+                    if (string.IsNullOrWhiteSpace(menu.Command) && string.IsNullOrWhiteSpace(menu.Dialog)) continue;
+
+                    PluginMenus.Add(new PluginMenuEntry
+                    {
+                        PluginId = bundle.PluginId,
+                        PluginName = bundle.PluginName,
+                        Label = string.IsNullOrWhiteSpace(menu.Label) ? menu.Id : menu.Label,
+                        Icon = menu.Icon,
+                        Command = menu.Command,
+                        Arguments = menu.Arguments,
+                        Dialog = menu.Dialog,
+                        RequiredPermission = menu.RequiredPermission,
+                        IsPermissionGranted = bundle.HasPermission(menu.RequiredPermission),
+                        Bundle = bundle
+                    });
+                }
+            }
+
+            // 还原用户原来停留的插件页。仍存在就按新序号重新指向（重建换了实例），
+            // 已被移除（停用 / 卸载）则退回设置页，避免停在空标签或别人的页面上。
+            if (previousIndex >= 0)
+            {
+                var restored = -1;
+                if (previousPluginId is not null && previousSurfaceId is not null)
+                {
+                    for (var i = 0; i < PluginPages.Count; i++)
+                    {
+                        if (string.Equals(PluginPages[i].PluginId, previousPluginId, StringComparison.Ordinal)
+                            && string.Equals(PluginPages[i].SurfaceId, previousSurfaceId, StringComparison.Ordinal))
+                        {
+                            restored = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (restored >= 0)
+                {
+                    SelectedTabIndex = PluginPageOffset + restored;
+                    CurrentView = PluginPages[restored];
+                    StatusBarText = PluginPages[restored].Title;
+                }
+                else
+                {
+                    SelectedTabIndex = 4;
+                    CurrentView = _settingsViewModel;
+                    StatusBarText = "插件设置";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"读取插件界面贡献失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>导航到第 index 个插件页面（Tab 索引位于固定页之后）。</summary>
+    public void NavigateToPluginPage(int index)
+    {
+        if (index < 0 || index >= PluginPages.Count) return;
+        SelectedTabIndex = PluginPageOffset + index;
+        CurrentView = PluginPages[index];
+        StatusBarText = PluginPages[index].Title;
+    }
+
+    /// <summary>为功能菜单项创建浮窗界面；该菜单项没有浮窗时返回 null。</summary>
+    public PluginUiSurfaceViewModel? CreatePluginDialog(PluginMenuEntry entry)
+        => string.IsNullOrWhiteSpace(entry.Dialog)
+            ? null
+            : PluginUiSurfaceViewModel.CreateDialogSurface(entry.Bundle, entry.Dialog, _pluginService);
+
+    /// <summary>
+    /// 执行功能菜单里的插件命令。返回 null 表示没有可展示的结果（例如返回了界面更新）。
+    /// </summary>
+    public async Task<PluginCommandResultEventArgs?> RunPluginMenuAsync(PluginMenuEntry entry)
+    {
+        if (!entry.IsPermissionGranted)
+        {
+            return new PluginCommandResultEventArgs
+            {
+                Title = entry.Label,
+                PluginName = entry.PluginName,
+                Content = $"该功能需要权限 **{entry.RequiredPermission}**。\n\n请在「设置 → 插件」中为「{entry.PluginName}」授权后重试。"
+            };
+        }
+
+        if (_pluginService is null || string.IsNullOrWhiteSpace(entry.Command))
+        {
+            return null;
+        }
+
+        var result = await _pluginService.ExecutePluginCommandAsync(entry.PluginId, entry.Command, entry.Arguments);
+
+        if (!result.Success)
+        {
+            return new PluginCommandResultEventArgs
+            {
+                Title = entry.Label,
+                PluginName = entry.PluginName,
+                Content = $"命令执行失败：{result.Error ?? result.Message ?? "未知错误"}"
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(result.Message))
+        {
+            return null;
+        }
+
+        return new PluginCommandResultEventArgs
+        {
+            Title = entry.Label,
+            PluginName = entry.PluginName,
+            Content = result.Message
+        };
+    }
+
+    private void NavigateForTutorialStep()
+    {        if (Tutorial.CurrentStep.PageIndex == 3)
             MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
         if (Tutorial.CurrentStep.PageIndex == 4)
             SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
@@ -350,8 +542,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     }
 
     private void NavigateToPage(int pageIndex)
-    {
-        switch (pageIndex)
+    {        switch (pageIndex)
         {
             case 0: NavigateToProfiles(); break;
             case 1: NavigateToLibrary(); break;

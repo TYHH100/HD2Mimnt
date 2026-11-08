@@ -17,7 +17,7 @@ public partial class PluginPermissionDialog : Window
         AvaloniaXamlLoader.Load(this);
     }
 
-    public static async Task<PluginPermissionDialogResult> ShowAsync(
+    public static async Task<PluginPermissionDialogViewModel> ShowAsync(
         Window owner,
         string pluginName,
         string version,
@@ -33,7 +33,7 @@ public partial class PluginPermissionDialog : Window
 
         await dialog.ShowDialog(owner);
 
-        return viewModel.Result;
+        return viewModel;
     }
 
     public static async Task<PluginPermissionDialogViewModel> ShowManagementAsync(

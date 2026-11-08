@@ -53,6 +53,9 @@
           <Button x:Name="OpenDeploymentProgressButton" IsVisible="{Binding LibraryViewModel.IsDeploying}"
                   Command="{Binding LibraryViewModel.OpenDeploymentProgressCommand}"
                   Content="{loc:LocalizedBinding LibraryViewModel.DeploymentTitle}"/>
+          <Button x:Name="PluginMenuButton" Classes="icon-button" IsVisible="False" ToolTip.Tip="插件功能">
+            <controls:UtilityIcon Kind="Plugin"/>
+          </Button>
           <Grid>
             <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="{loc:Loc UI.OpenTaskCenter}"><controls:UtilityIcon Kind="Tasks"/></Button>
             <fa:FAInfoBadge Value="{Binding RunningTaskCount}" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}"

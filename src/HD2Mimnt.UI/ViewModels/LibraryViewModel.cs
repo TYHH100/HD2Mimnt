@@ -4,6 +4,7 @@ using HD2Mimnt.Application.Search;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Resources;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -50,7 +51,23 @@ public partial class LibraryViewModel : ObservableObject
     private readonly ImagePreviewService? _imagePreview;
     private readonly SettingsService? _settingsService;
     private readonly LuaExtractionService? _luaExtraction;
+    private readonly IPluginService? _pluginService;
     private CancellationTokenSource? _luaExtractionCts;
+
+    /// <summary>插件贡献到模组右键菜单的命令（已启用插件、按授权状态标注）。</summary>
+    private List<PluginCommandContribution> _modPluginCommands = new();
+
+    /// <summary>正在进行的插件命令刷新任务，用于合并同一时刻的重复请求。</summary>
+    private Task? _pluginCommandRefresh;
+
+    /// <summary>插件贡献到模组库工具栏的入口（命令或浮窗）。</summary>
+    public ObservableCollection<LibraryPluginAction> LibraryPluginActions { get; } = new();
+
+    /// <summary>插件请求打开浮窗；视图据此弹出声明式窗口。</summary>
+    public event EventHandler<PluginUiSurfaceViewModel>? PluginDialogReady;
+
+    /// <summary>插件命令执行完毕后由视图弹出结果窗口（AI 摘要等文本可能较长）。</summary>
+    public event EventHandler<PluginCommandResultEventArgs>? PluginCommandResultReady;
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
@@ -298,8 +315,9 @@ public partial class LibraryViewModel : ObservableObject
         IWebsiteDownloadLauncher? websiteLauncher = null,
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
-        LuaExtractionService? luaExtraction = null)
+        LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null)
     {
+        _pluginService = pluginService;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
@@ -339,6 +357,229 @@ public partial class LibraryViewModel : ObservableObject
     {
         await LoadModsAsync();
         await _searchService.BuildIndexAsync();
+        await RefreshPluginCommandsAsync();
+    }
+
+    /// <summary>
+    /// 刷新插件贡献到模组右键菜单的命令。插件未启用或权限未授予时也会返回，
+    /// 由菜单以禁用状态展示，避免用户以为“插件没生效”。
+    /// </summary>
+    public Task RefreshPluginCommandsAsync()
+    {
+        // 右键菜单每次弹出都会调用，启动阶段也可能同时触发。
+        // 若两次并发执行，“清空 → 追加”会交错，同一入口被追加两遍，
+        // 因此合并同一时刻的重复请求，只跑一次。
+        if (_pluginCommandRefresh is { IsCompleted: false } running) return running;
+
+        _pluginCommandRefresh = RefreshPluginCommandsCoreAsync();
+        return _pluginCommandRefresh;
+    }
+
+    private async Task RefreshPluginCommandsCoreAsync()
+    {
+        if (_pluginService is null) return;
+
+        try
+        {
+            _modPluginCommands = await _pluginService.GetContributedCommandsAsync(
+                PluginSDK.PluginCommandPlacements.ModContextMenu);
+
+            // 先在局部集合里拼完整，再一次性替换。
+            // 直接往 ObservableCollection 里 Clear + 逐个 Add，中间一旦有其他刷新插入就会重复。
+            var actions = new List<LibraryPluginAction>();
+
+            // 旧式命令贡献（commands[].placement = libraryToolbar）继续支持
+            var toolbarCommands = await _pluginService.GetContributedCommandsAsync(
+                PluginSDK.PluginCommandPlacements.LibraryToolbar);
+            foreach (var command in toolbarCommands)
+            {
+                actions.Add(new LibraryPluginAction
+                {
+                    PluginId = command.PluginId,
+                    PluginName = command.PluginName,
+                    DisplayName = command.DisplayName,
+                    Description = command.Description,
+                    Command = command.Name,
+                    RequiredPermission = command.RequiredPermission,
+                    IsPermissionGranted = command.IsPermissionGranted
+                });
+            }
+
+            // 声明式菜单贡献：可以只指向一个浮窗，不需要命令实现
+            var bundles = await _pluginService.GetUiContributionsAsync() ?? new List<PluginUiBundle>();
+            foreach (var bundle in bundles)
+            {
+                foreach (var menu in bundle.Ui.Menus)
+                {
+                    if (!PluginSDK.PluginCommandPlacements.IsLibraryToolbar(menu.Placement)) continue;
+                    if (string.IsNullOrWhiteSpace(menu.Command) && string.IsNullOrWhiteSpace(menu.Dialog)) continue;
+
+                    actions.Add(new LibraryPluginAction
+                    {
+                        PluginId = bundle.PluginId,
+                        PluginName = bundle.PluginName,
+                        DisplayName = string.IsNullOrWhiteSpace(menu.Label) ? menu.Id : menu.Label,
+                        Description = menu.Description,
+                        Icon = menu.Icon,
+                        Command = menu.Command,
+                        Arguments = menu.Arguments,
+                        Dialog = menu.Dialog,
+                        RequiredPermission = menu.RequiredPermission,
+                        IsPermissionGranted = bundle.HasPermission(menu.RequiredPermission),
+                        Bundle = bundle
+                    });
+                }
+            }
+
+            LibraryPluginActions.Clear();
+            foreach (var action in actions)
+            {
+                LibraryPluginActions.Add(action);
+            }
+        }
+        catch (Exception ex)
+        {
+            _modPluginCommands = new List<PluginCommandContribution>();
+            LibraryPluginActions.Clear();
+            System.Diagnostics.Debug.WriteLine($"刷新插件命令失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>当前可用于模组右键菜单的插件命令快照，供视图构建菜单。</summary>
+    public IReadOnlyList<PluginCommandContribution> GetModPluginCommands() => _modPluginCommands;
+
+    /// <summary>
+    /// 执行插件贡献到模组菜单的命令：把目标模组的元数据作为参数传给插件进程，
+    /// 插件只能拿到名称/作者/说明这类展示信息，拿不到文件路径与密钥。
+    /// </summary>
+    [RelayCommand]
+    private async Task RunModPluginCommandAsync(ModPluginInvocation? invocation)
+    {
+        if (invocation is null) return;
+        if (_pluginService is null)
+        {
+            _notificationService.ShowError("插件服务不可用，无法执行该命令。", invocation.Command.DisplayName);
+            return;
+        }
+
+        var (mod, command) = invocation;
+        if (!command.IsPermissionGranted)
+        {
+            _notificationService.ShowWarning(
+                $"该命令需要权限“{command.RequiredPermission}”，请在设置 → 插件中授权后再试。",
+                command.DisplayName);
+            return;
+        }
+
+        try
+        {
+            var payload = BuildModCommandArguments(mod);
+            var result = await _pluginService.ExecutePluginCommandAsync(command.PluginId, command.Name, payload);
+
+            if (result.Success)
+            {
+                PluginCommandResultReady?.Invoke(this, new PluginCommandResultEventArgs
+                {
+                    Title = command.DisplayName,
+                    PluginName = command.PluginName,
+                    Content = string.IsNullOrWhiteSpace(result.Message) ? "命令已执行完成。" : result.Message
+                });
+            }
+            else
+            {
+                _notificationService.ShowError(
+                    result.Error ?? result.Message ?? "插件命令执行失败。",
+                    $"{command.DisplayName} 执行失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(ex.Message, $"{command.DisplayName} 执行失败");
+        }
+    }
+
+    /// <summary>
+    /// 执行插件贡献到模组库工具栏的入口：可打开声明式浮窗，也可执行命令。
+    /// </summary>
+    [RelayCommand]
+    private async Task RunLibraryPluginCommandAsync(LibraryPluginAction? action)
+    {
+        if (action is null) return;
+        if (_pluginService is null)
+        {
+            _notificationService.ShowError("插件服务不可用，无法执行该命令。", action.DisplayName);
+            return;
+        }
+
+        if (!action.IsPermissionGranted)
+        {
+            _notificationService.ShowWarning(
+                $"该功能需要权限“{action.RequiredPermission}”，请在设置 → 插件中授权后再试。",
+                action.DisplayName);
+            return;
+        }
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(action.Dialog))
+            {
+                var surface = PluginUiSurfaceViewModel.CreateDialogSurface(action.Bundle, action.Dialog, _pluginService);
+                if (surface is not null)
+                {
+                    PluginDialogReady?.Invoke(this, surface);
+                }
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(action.Command)) return;
+
+            var result = await _pluginService.ExecutePluginCommandAsync(
+                action.PluginId, action.Command, action.Arguments);
+
+            if (result.Success)
+            {
+                PluginCommandResultReady?.Invoke(this, new PluginCommandResultEventArgs
+                {
+                    Title = action.DisplayName,
+                    PluginName = action.PluginName,
+                    Content = string.IsNullOrWhiteSpace(result.Message) ? "命令已执行完成。" : result.Message
+                });
+            }
+            else
+            {
+                _notificationService.ShowError(
+                    result.Error ?? result.Message ?? "插件命令执行失败。",
+                    $"{action.DisplayName} 执行失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(ex.Message, $"{action.DisplayName} 执行失败");
+        }
+    }
+
+    private static string BuildModCommandArguments(ModItemViewModel mod)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.AppendLine($"模组名称：{mod.Name}");
+        if (!string.IsNullOrWhiteSpace(mod.Version)) builder.AppendLine($"版本：{mod.Version}");
+        if (!string.IsNullOrWhiteSpace(mod.Author)) builder.AppendLine($"作者：{mod.Author}");
+        if (!string.IsNullOrWhiteSpace(mod.Description)) builder.AppendLine($"说明：{mod.Description}");
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["mod"] = new Dictionary<string, object?>
+            {
+                ["id"] = mod.Id.ToString(),
+                ["name"] = mod.Name,
+                ["version"] = mod.Version,
+                ["author"] = mod.Author,
+                ["description"] = mod.Description
+            },
+            ["text"] = builder.ToString().TrimEnd()
+        };
+
+        return System.Text.Json.JsonSerializer.Serialize(payload);
     }
 
     public async Task RefreshProfileStateAsync()
@@ -1875,4 +2116,47 @@ public partial class ProfileChoiceViewModel : ObservableObject
         IsActive = isActive;
         IsSelected = isActive;
     }
+}
+
+/// <summary>模组右键菜单中一条插件命令的调用参数（目标模组 + 命令来源）。</summary>
+public sealed record ModPluginInvocation(ModItemViewModel Mod, PluginCommandContribution Command);
+
+/// <summary>插件命令执行完成后的展示内容，由视图弹出结果窗口。</summary>
+public sealed class PluginCommandResultEventArgs : EventArgs
+{
+    public string Title { get; init; } = string.Empty;
+
+    public string PluginName { get; init; } = string.Empty;
+
+    public string Content { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// 模组库工具栏上的一条插件入口：可能是命令，也可能只指向一个声明式浮窗。
+/// </summary>
+public sealed class LibraryPluginAction
+{
+    public string PluginId { get; init; } = string.Empty;
+
+    public string PluginName { get; init; } = string.Empty;
+
+    public string DisplayName { get; init; } = string.Empty;
+
+    public string? Description { get; init; }
+
+    public string? Icon { get; init; }
+
+    public string? Command { get; init; }
+
+    public string? Arguments { get; init; }
+
+    public string? Dialog { get; init; }
+
+    public string? RequiredPermission { get; init; }
+
+    public bool IsPermissionGranted { get; init; } = true;
+
+    public HD2Mimnt.Core.Interfaces.PluginUiBundle? Bundle { get; init; }
+
+    public string IconKind => string.IsNullOrWhiteSpace(Icon) ? "Plugin" : Icon;
 }

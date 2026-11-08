@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        xmlns:controls="using:HD2Mimnt.UI.Controls"
+        mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="520"
+        x:Class="HD2Mimnt.UI.Views.PluginUiDialog"
+        x:DataType="vm:PluginUiSurfaceViewModel"
+        Title="{Binding Title}"
+        Width="620" Height="520" MinWidth="420" MinHeight="320"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface1Brush}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Padding="24,16" VerticalScrollBarVisibility="Auto">
+            <controls:PluginUiPresenter x:Name="SurfacePresenter" Surface="{Binding}"/>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Padding="24,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding StatusMessage}" FontSize="12" TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <Button Grid.Column="1" Content="{loc:Loc Common.Close}" Click="OnCloseClick" Classes="accent" MinWidth="100"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
