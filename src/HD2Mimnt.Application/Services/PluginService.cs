@@ -70,10 +70,15 @@ public class PluginService : IPluginService
                 return PluginOperationResult.ErrorResult("Invalid manifest path");
             }
 
-            var assemblyPath = Path.Combine(manifestDirectory, manifest.Assembly);
-            if (!File.Exists(assemblyPath))
+            // 入口文件按类型解析：编译型是程序集，脚本型是 .lua；
+            // 混合插件（脚本 + DLL）以脚本为入口，DLL 由宿主在脚本进程内挂载
+            var entryFile = manifest.EntryFile;
+            var entryPath = Path.Combine(manifestDirectory, entryFile);
+            if (!File.Exists(entryPath))
             {
-                return PluginOperationResult.ErrorResult("Plugin assembly not found", assemblyPath);
+                return PluginOperationResult.ErrorResult(
+                    manifest.IsScriptPlugin ? "Plugin script not found" : "Plugin assembly not found",
+                    entryPath);
             }
 
             var plugin = new Plugin
@@ -84,9 +89,10 @@ public class PluginService : IPluginService
                 Author = manifest.Author,
                 Description = manifest.Description,
                 ManifestPath = manifestPath,
-                AssemblyPath = assemblyPath,
-                // 完整性锚点：安装时固定程序集内容，启动前比对防替换
-                AssemblySha256 = await ComputeFileSha256Async(assemblyPath, cancellationToken),
+                // 对脚本型插件，这里记录脚本路径；完整性校验锚定的就是它
+                AssemblyPath = entryPath,
+                // 完整性锚点：安装时固定入口文件内容，启动前比对防替换
+                AssemblySha256 = await ComputeFileSha256Async(entryPath, cancellationToken),
                 InstalledAt = DateTime.UtcNow,
                 Enabled = true,
                 PermissionMode = manifest.PermissionMode.ToString()
@@ -150,7 +156,7 @@ public class PluginService : IPluginService
         }
         if (!File.Exists(plugin.AssemblyPath))
         {
-            return PluginOperationResult.ErrorResult("Plugin assembly not found", plugin.AssemblyPath);
+            return PluginOperationResult.ErrorResult("插件入口文件不存在", plugin.AssemblyPath);
         }
 
         var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
@@ -159,7 +165,7 @@ public class PluginService : IPluginService
             if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
             {
                 return PluginOperationResult.ErrorResult(
-                    "插件程序集与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+                    "插件入口文件与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
             }
         }
         else
@@ -316,14 +322,37 @@ public class PluginService : IPluginService
                 result.Errors.Add($"Invalid version format: {manifest.Version}");
             }
 
-            if (string.IsNullOrWhiteSpace(manifest.Assembly))
-            {
-                result.Errors.Add("Plugin Assembly is required");
-            }
+            var isScript = manifest.IsScriptPlugin;
 
-            if (string.IsNullOrWhiteSpace(manifest.EntryType))
+            if (isScript)
             {
-                result.Errors.Add("Plugin EntryType is required");
+                if (string.IsNullOrWhiteSpace(manifest.Script))
+                {
+                    result.Errors.Add("Lua 插件必须声明 Script（入口脚本文件名，如 main.lua）");
+                }
+                else if (!manifest.Script.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Errors.Add($"Lua 插件入口脚本必须是 .lua 文件：{manifest.Script}");
+                }
+
+                // 混合插件：DLL 可选，声明了就必须存在
+                if (!string.IsNullOrWhiteSpace(manifest.Assembly)
+                    && !File.Exists(Path.Combine(Path.GetDirectoryName(manifestPath) ?? ".", manifest.Assembly)))
+                {
+                    result.Errors.Add($"混合插件声明的程序集不存在：{manifest.Assembly}");
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(manifest.Assembly))
+                {
+                    result.Errors.Add("Plugin Assembly is required");
+                }
+
+                if (string.IsNullOrWhiteSpace(manifest.EntryType))
+                {
+                    result.Errors.Add("Plugin EntryType is required");
+                }
             }
 
             // 契约版本不兼容时直接拒绝安装：避免宿主加载到无法工作的插件后静默失败
@@ -346,12 +375,14 @@ public class PluginService : IPluginService
             ValidateUiContributions(manifest.Ui, result);
 
             var manifestDirectory = Path.GetDirectoryName(manifestPath);
-            if (!string.IsNullOrEmpty(manifestDirectory))
+            if (!string.IsNullOrEmpty(manifestDirectory) && !string.IsNullOrWhiteSpace(manifest.EntryFile))
             {
-                var assemblyPath = Path.Combine(manifestDirectory, manifest.Assembly);
-                if (!File.Exists(assemblyPath))
+                var entryPath = Path.Combine(manifestDirectory, manifest.EntryFile);
+                if (!File.Exists(entryPath))
                 {
-                    result.Errors.Add($"Plugin assembly not found: {manifest.Assembly}");
+                    result.Errors.Add(manifest.IsScriptPlugin
+                        ? $"插件入口脚本不存在：{manifest.EntryFile}"
+                        : $"Plugin assembly not found: {manifest.EntryFile}");
                 }
             }
 
@@ -383,7 +414,8 @@ public class PluginService : IPluginService
                 Author = manifest.Author,
                 Description = manifest.Description,
                 PermissionMode = manifest.PermissionMode.ToString(),
-                RequestedPermissions = manifest.RequestedPermissions.ToArray()
+                RequestedPermissions = manifest.RequestedPermissions.ToArray(),
+                Kind = PluginSDK.PluginKinds.Normalize(manifest.Kind)
             };
         }
         catch
