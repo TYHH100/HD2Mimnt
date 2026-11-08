@@ -53,6 +53,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private DeploymentMethod _defaultDeploymentMethod = DeploymentMethod.Copy;
     [ObservableProperty] private bool _deployBottomToTop;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
+    [ObservableProperty] private bool _overwriteDeploymentConflicts = true;
     [ObservableProperty] private bool _showThumbnails = true;
     [ObservableProperty] private bool _searchFuzzy;
     [ObservableProperty] private bool _searchPinyin;
@@ -285,6 +286,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DeployBottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
                 == DeploymentOrder.BottomToTop.ToString();
             CheckBeforeDeploy = await _settingsService.GetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, true);
+            OverwriteDeploymentConflicts = await _settingsService.GetSettingAsync(SettingKeys.DeploymentOverwriteConflicts, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
             SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
             SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
@@ -434,7 +436,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         [SettingKeys.DefaultDeploymentMethod] = DefaultDeploymentMethod.ToString(),
         [SettingKeys.DefaultDeploymentOrder] = (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString(),
-        [SettingKeys.DeploymentCheckBeforeDeploy] = CheckBeforeDeploy
+        [SettingKeys.DeploymentCheckBeforeDeploy] = CheckBeforeDeploy,
+        [SettingKeys.DeploymentOverwriteConflicts] = OverwriteDeploymentConflicts
     };
 
     private Dictionary<string, object> GetLibraryPreferences() => new()

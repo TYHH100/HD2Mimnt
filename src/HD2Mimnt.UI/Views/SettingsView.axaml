@@ -199,6 +199,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.DeployFromBottomToTop}" Description="{loc:Loc UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Deployment.OverwriteConflicts}" Description="{loc:Loc Settings.Deployment.OverwriteConflictsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="OverwriteDeploymentConflictsToggle" IsChecked="{Binding OverwriteDeploymentConflicts}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander x:Name="LibrarySettings" Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.KeepVersions}" Description="{loc:Loc Settings.Library.KeepVersionsHelp}">

@@ -61,6 +61,11 @@ public class DeploymentServiceIntegrationTests : IDisposable
             Directory.Delete(_testSourceDir, true);
         if (Directory.Exists(_testTargetDir))
             Directory.Delete(_testTargetDir, true);
+        foreach (var path in _extraCleanupPaths)
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
     }
 
     [Fact]
@@ -699,6 +704,137 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Equal("first", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_1")));
         Assert.Equal("second", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.patch_2")));
         Assert.Equal("other", File.ReadAllText(Path.Combine(data, "f9ced2d898787705.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_ForeignFileAtTargetNumber_ShouldOverwriteByDefault()
+    {
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(first);
+        var deploy = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, deploy.Status);
+
+        // 模拟 HD2CharacterLibrary 等外部工具在游戏目录生成的 Lua 补丁占用下一个目标编号。
+        var data = Path.Combine(_testTargetDir, "data");
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_1"), "foreign");
+
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, second.Id);
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("second", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_1")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_ForeignFileAtTargetNumber_ShouldFailWhenOverwriteDisabled()
+    {
+        var service = CreateOverwriteConflictsService(overwriteConflicts: false);
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(first);
+        var deploy = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, deploy.Status);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_1"), "foreign");
+
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, second.Id);
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("不属于当前部署", result.ErrorMessage);
+        Assert.Equal("foreign", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_1")));
+        Assert.Equal("first", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfile_ForeignFileWithIdenticalContent_ShouldAdoptEvenWhenOverwriteDisabled()
+    {
+        var service = CreateOverwriteConflictsService(overwriteConflicts: false);
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(first);
+        var deploy = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, deploy.Status);
+
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        var data = Path.Combine(_testTargetDir, "data");
+        // 内容与部署源完全一致的占用文件走收养路径，不受开关影响。
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_1"), "second");
+
+        await new ProfileService(_profileRepository, _modRepository).AddModToProfileAsync(profile.Id, second.Id);
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("second", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_1")));
+    }
+
+    [Fact]
+    public async Task DeleteModDeployment_ForeignFileAtCompactionTarget_ShouldOverwriteByDefault()
+    {
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        var profile = await AddPatchProfileAsync(first, second);
+        var sessionId = await SeedDriftedDeploymentStateAsync(profile.Id, first.Id, second.Id);
+
+        // 删除 first 触发编号压缩：second 需前移到被外部文件占用的 patch_0，默认强制覆盖。
+        await _deploymentService.DeleteModDeploymentRecordsAsync(first.Id);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal("second", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+        Assert.False(File.Exists(Path.Combine(data, "0123456789abcdef.patch_1")));
+        Assert.NotEmpty(await _deploymentService.GetDeploymentsBySessionIdAsync(sessionId));
+    }
+
+    [Fact]
+    public async Task DeleteModDeployment_ForeignFileAtCompactionTarget_ShouldFailWhenOverwriteDisabled()
+    {
+        var service = CreateOverwriteConflictsService(overwriteConflicts: false);
+        var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
+        var second = await AddPatchModAsync("second", "0123456789abcdef.patch_3");
+        var profile = await AddPatchProfileAsync(first, second);
+        var sessionId = await SeedDriftedDeploymentStateAsync(profile.Id, first.Id, second.Id,
+            service: service);
+
+        await Assert.ThrowsAsync<IOException>(() => service.DeleteModDeploymentRecordsAsync(first.Id));
+
+        // 占用文件保留、second 未被移动，second 的记录保留供重试。
+        var data = Path.Combine(_testTargetDir, "data");
+        Assert.Equal("foreign", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+        Assert.Equal("second", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_1")));
+        Assert.NotEmpty(await service.GetDeploymentsBySessionIdAsync(sessionId));
+    }
+
+    /// <summary>
+    /// 构造记录漂移的部署状态：first 的记录指向已脱离实际占位的 patch_9，patch_0 由外部文件占用，
+    /// second 追踪真实的 patch_1，使删除 first 后的编号压缩必须面对被占用的目标。
+    /// </summary>
+    private async Task<Guid> SeedDriftedDeploymentStateAsync(Guid profileId, Guid firstId, Guid secondId,
+        DeploymentService? service = null)
+    {
+        var deploymentService = service ?? _deploymentService;
+        var data = Path.Combine(_testTargetDir, "data");
+        Directory.CreateDirectory(data);
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_0"), "foreign");
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_1"), "second");
+        File.WriteAllText(Path.Combine(data, "0123456789abcdef.patch_9"), "orphan");
+
+        var sessionId = Guid.NewGuid();
+        var firstRecord = await deploymentService.CreateDeploymentRecordAsync(sessionId, profileId, firstId,
+            DeploymentMethod.Copy);
+        var secondRecord = await deploymentService.CreateDeploymentRecordAsync(sessionId, profileId, secondId,
+            DeploymentMethod.Copy);
+        await deploymentService.AddDeploymentFileAsync(firstRecord.Id, firstId, "orphan-source",
+            Path.Combine(data, "0123456789abcdef.patch_9"), DeploymentMethod.Copy);
+        await deploymentService.AddDeploymentFileAsync(secondRecord.Id, secondId, "second-source",
+            Path.Combine(data, "0123456789abcdef.patch_1"), DeploymentMethod.Copy);
+        return sessionId;
     }
 
     [Theory]
@@ -1438,6 +1574,23 @@ public class DeploymentServiceIntegrationTests : IDisposable
 
         Assert.Null(result);
         Assert.Equal("disabled", File.ReadAllText(target));
+    }
+
+    private readonly List<string> _extraCleanupPaths = new();
+
+    /// <summary>构造带设置开关的部署服务；独立设置库避免与主 DbContext 抢占同一 SQLite 文件。</summary>
+    private DeploymentService CreateOverwriteConflictsService(bool overwriteConflicts)
+    {
+        var dbPath = Path.Combine(Path.GetTempPath(), $"test_deployment_settings_{Guid.NewGuid()}.db");
+        var appData = Path.Combine(Path.GetTempPath(), $"test_deployment_appdata_{Guid.NewGuid()}");
+        Directory.CreateDirectory(appData);
+        _extraCleanupPaths.Add(dbPath);
+        _extraCleanupPaths.Add(appData);
+        var settings = new SettingsService(new SettingsRepository(dbPath), appData);
+        settings.SetSettingAsync(SettingKeys.DeploymentOverwriteConflicts, overwriteConflicts).Wait();
+        return new DeploymentService(_profileRepository, _modRepository, _deploymentRepository,
+            new List<HD2Mimnt.Core.Interfaces.IDeploymentMethod> { new CopyDeploymentMethod() },
+            settingsService: settings);
     }
 
     private async Task<Mod> AddPatchModAsync(string name, string fileName)

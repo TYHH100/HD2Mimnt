@@ -46,7 +46,8 @@ internal sealed class DeploymentReconciler
     }
 
     public async Task<ReconcileOutcome> ApplyAsync(DeploymentPlan plan,
-        IProgress<DeploymentProgress>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<DeploymentProgress>? progress = null, CancellationToken cancellationToken = default,
+        bool overwriteConflicts = true)
     {
         var newTemps = new List<(string Temp, string Target)>();
         var staged = new List<(string Temp, string Old, string New)>();
@@ -100,7 +101,7 @@ internal sealed class DeploymentReconciler
                     0, 0, 0, 0, operations.Count, 0, null, true);
             }
 
-            ValidateOperations(operations, removed);
+            ValidateOperations(operations, removed, overwriteConflicts);
 
             // 1. 写入临时文件；这是唯一响应取消的落盘阶段。
             foreach (var operation in operations.Where(operation =>
@@ -181,7 +182,12 @@ internal sealed class DeploymentReconciler
             newTemps.Clear();
             foreach (var (temp, _, target) in staged)
             {
-                if (Exists(target)) throw new IOException($"移动目标已被占用：{target}");
+                if (Exists(target))
+                {
+                    if (!overwriteConflicts) throw new IOException($"移动目标已被占用：{target}");
+                    // 开启强制覆盖时允许覆盖未追踪的外部占用文件；受追踪的目标已在 ValidateOperations 拦截。
+                    File.Delete(target);
+                }
                 File.Move(temp, target);
             }
             staged.Clear();
@@ -255,7 +261,7 @@ internal sealed class DeploymentReconciler
     }
 
     private void ValidateOperations(IReadOnlyList<FileOperation> operations,
-        IReadOnlyList<DeploymentFile> removed)
+        IReadOnlyList<DeploymentFile> removed, bool overwriteConflicts)
     {
         var removeTargets = removed.Select(file => DeploymentPlanBuilder.NormalizePath(file.TargetPath))
             .Concat(operations.Where(operation => operation.Kind == OperationKind.MoveReplace)
@@ -278,6 +284,10 @@ internal sealed class DeploymentReconciler
                 case OperationKind.Add:
                 case OperationKind.Replace:
                 case OperationKind.MoveReplace:
+                    if (operation.Kind == OperationKind.Add && !overwriteConflicts
+                        && operation.Current == null && Exists(target))
+                        throw new IOException(
+                            $"目标已存在且不属于当前部署：{target}。可开启“强制覆盖冲突的补丁文件”或先清理该文件。");
                     var source = new FileInfo(operation.Desired.SourcePath);
                     if (!source.Exists) throw new FileNotFoundException("部署源文件缺失", operation.Desired.SourcePath);
                     if (operation.Desired.IsPatchBase && source.Length == 0)
@@ -286,9 +296,11 @@ internal sealed class DeploymentReconciler
                 case OperationKind.Move:
                     if (!Exists(target)) break;
                     // 目标可以是另一个待移动来源（交换编号），也可以是本次将删除的旧目标；
-                    // 其余已存在目标属于未追踪文件或仍被保留的目标，不能覆盖。
+                    // 其余已存在目标属于未追踪文件或仍被保留的目标。
                     if (removeTargets.Contains(target) || stagedSources.Contains(target)) break;
-                    throw new IOException($"移动目标已存在且不属于当前部署：{target}");
+                    if (!overwriteConflicts)
+                        throw new IOException($"移动目标已存在且不属于当前部署：{target}");
+                    break;
                 case OperationKind.KeepAtNew:
                     if (!Exists(target))
                         throw new IOException($"已移动目标缺失：{target}");

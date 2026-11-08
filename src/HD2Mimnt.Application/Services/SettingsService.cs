@@ -330,6 +330,8 @@ public static class SettingKeys
     public const string DefaultDeploymentOrder = "Deployment.DefaultOrder";
     public const string DeploymentCheckBeforeDeploy = "Deployment.CheckBefore";
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
+    // 部署/重编号目标被未追踪外部文件（如 HD2CharacterLibrary 生成的 Lua 补丁）占用时是否强制覆盖。
+    public const string DeploymentOverwriteConflicts = "Deployment.OverwriteConflicts";
 
     // 搜索相关
     public const string SearchFuzzy = "Search.Fuzzy";

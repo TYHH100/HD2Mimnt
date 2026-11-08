@@ -448,13 +448,13 @@ public class DeploymentService
         var moved = new List<(string Original, string Target)>();
         try
         {
-            // 移动阶段不接受半途取消；按升序填补空位，不覆盖未追踪文件，链接移动不触碰源文件。
+            // 移动阶段不接受半途取消；按升序填补空位，链接移动不触碰源文件。
             foreach (var rename in renames)
             {
                 // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
                 if (!DeploymentTargetExists(rename.File.TargetPath))
                     continue;
-                File.Move(rename.File.TargetPath, rename.TargetPath);
+                MoveCompactedFile(rename.File.TargetPath, rename.TargetPath);
                 moved.Add((rename.File.TargetPath, rename.TargetPath));
             }
             await _deploymentRepository.CommitModDeploymentRemovalAsync(removedIds,
@@ -466,6 +466,15 @@ public class DeploymentService
                 File.Move(move.Target, move.Original);
             throw;
         }
+    }
+
+    // 编号压缩重命名：开启强制覆盖时目标上的未追踪占用文件直接移除（与部署对账同一开关语义）；关闭时保持原样由 File.Move 抛错。
+    private void MoveCompactedFile(string sourcePath, string targetPath)
+    {
+        var overwriteConflicts = _settingsService?.GetSetting(SettingKeys.DeploymentOverwriteConflicts, true) ?? true;
+        if (overwriteConflicts && DeploymentTargetExists(targetPath))
+            File.Delete(targetPath);
+        File.Move(sourcePath, targetPath);
     }
 
     // 与 DeploymentReconciler 的存在判断一致：悬空符号链接仍算存在，交给物理移动抛出真实异常。
@@ -530,7 +539,7 @@ public class DeploymentService
                 // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
                 if (!DeploymentTargetExists(rename.File.TargetPath))
                     continue;
-                File.Move(rename.File.TargetPath, rename.TargetPath);
+                MoveCompactedFile(rename.File.TargetPath, rename.TargetPath);
                 moved.Add((rename.File.TargetPath, rename.TargetPath));
             }
             await _deploymentRepository.CommitModDeploymentRemovalAsync(removedIds,
@@ -747,7 +756,9 @@ public class DeploymentService
                 TotalMods = plan.TotalMods
             });
 
-            var outcome = await _reconciler.ApplyAsync(plan, progress, cancellationToken);
+            var overwriteConflicts = _settingsService?.GetSetting(SettingKeys.DeploymentOverwriteConflicts, true) ?? true;
+            var outcome = await _reconciler.ApplyAsync(plan, progress, cancellationToken,
+                overwriteConflicts: overwriteConflicts);
             result.SessionId = outcome.SessionId;
             result.Status = outcome.Status;
             result.ErrorMessage = outcome.ErrorMessage;

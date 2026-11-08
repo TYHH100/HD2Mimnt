@@ -3825,6 +3825,8 @@
   <data name="Creator.ExportScreenshot" xml:space="preserve"><value>匯出長截圖（展開全部）</value></data>
   <data name="Settings.Profiles.AutoAddImportedMods" xml:space="preserve"><value>新增模組自動加入目前啟用的設定檔</value></data>
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>匯入後自動加入並啟用模組；沒有啟用的設定檔時，僅保留在模組庫。</value></data>
+  <data name="Settings.Deployment.OverwriteConflicts" xml:space="preserve"><value>強制覆蓋衝突的補丁檔案</value></data>
+  <data name="Settings.Deployment.OverwriteConflictsHelp" xml:space="preserve"><value>預設開啟。部署或重排編號時，若目標編號已被外部工具（如 HD2CharacterLibrary 產生的 Lua 補丁）佔用，直接覆蓋該檔案；關閉後遇到佔用將中止操作並提示。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>匯入完成後自動關閉浮動卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部匯入成功後關閉；失敗或取消時保留結果。</value></data>
   <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>自動拆包 Lua 模組</value></data>
