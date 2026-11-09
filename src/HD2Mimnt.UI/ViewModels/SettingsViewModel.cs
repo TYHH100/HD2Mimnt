@@ -57,7 +57,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _showThumbnails = true;
     [ObservableProperty] private bool _searchFuzzy;
     [ObservableProperty] private bool _searchPinyin;
-    [ObservableProperty] private string _theme = "Dark";
+    [ObservableProperty] private string _theme = AppThemeService.DefaultTheme;
     [ObservableProperty] private string _listDensity = "Comfortable";
     [ObservableProperty] private string _backgroundImagePath = string.Empty;
     [ObservableProperty] private double _backgroundImageOpacity = 25;
@@ -290,7 +290,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
             SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
             SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
-            Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark");
+            Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, AppThemeService.DefaultTheme);
             ListDensity = await _settingsService.GetSettingAsync(SettingKeys.ListDensity, "Comfortable");
             BackgroundImagePath = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
             BackgroundImageOpacity = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImageOpacity, 25.0);
@@ -557,7 +557,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // UI 分类还包含语言与隐藏入口；外观重置不能清空 UI.HiddenEntries。
             var defaults = new Dictionary<string, object>
             {
-                [SettingKeys.Theme] = "Dark", [SettingKeys.ListDensity] = "Comfortable",
+                [SettingKeys.Theme] = AppThemeService.DefaultTheme, [SettingKeys.ListDensity] = "Comfortable",
                 [SettingKeys.BackgroundImagePath] = string.Empty, [SettingKeys.BackgroundImageOpacity] = 25d,
                 [SettingKeys.BackgroundBlur] = 0d, [SettingKeys.CardOpacity] = 100d,
                 [SettingKeys.EnableAnimations] = true, [SettingKeys.Language] = LanguageCodes.Automatic

@@ -22,6 +22,7 @@
 
 ## 注意事项（易错点）
 
+- **启动期主题必须在窗口创建前应用**：`App.axaml` 的 `RequestedThemeVariant="Dark"` 只是无设置时的默认外观；保存的主题由 `App.InitializeDesktopAsync` 在 `new MainWindow()` 之前用 `SettingsService.GetSetting(SettingKeys.Theme, AppThemeService.DefaultTheme)` 同步读取并 `Apply`（`SettingsService` 构造时已同步载入设置）。若只在 `MainWindowViewModel.InitializeAsync` 里应用，此时窗口已经 `Show()`，浅色/皮肤主题用户会先看到一帧深色再切换，对光敏感用户尤其明显。`Apply` 按 Application 记录当前主题，同一主题重复调用直接返回，所以设置加载触发的二次 `Apply` 不会卸载重装皮肤产生闪动。
 - **不要注册自定义 `ThemeVariant`**：FluentAvalonia 只按 Light/Dark 解析自身资源；皮肤必须以 Dark（或 Light）变体为基础叠加覆盖。
 - **皮肤不能常驻 `App.axaml`**：合并进 App.axaml 会污染无头 UI 测试和默认外观，只能在 `Apply` 时动态挂载。
 - **换肤卸载顺序**：先移除样式、再移除字典；皮肤已挂载内容由 `AppliedSkin` 记录，不要在皮肤之外手动增删字典或样式。

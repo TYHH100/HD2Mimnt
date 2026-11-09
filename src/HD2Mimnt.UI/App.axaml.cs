@@ -166,6 +166,19 @@ public partial class App : Avalonia.Application
             // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
             Program.CliPipeHost = new CliCommandPipeHost(host.Services);
 
+            // 主题必须在窗口创建前应用：App.axaml 的默认深色会先渲染，等设置异步加载完再切换，
+            // 浅色/皮肤主题用户会先看到一帧深色。SettingsService 构造时已同步载入设置，可直接读取。
+            try
+            {
+                AppThemeService.Apply(ServiceProvider.GetRequiredService<SettingsService>()
+                    .GetSetting(SettingKeys.Theme, AppThemeService.DefaultTheme));
+            }
+            catch (Exception ex)
+            {
+                // 换肤失败不能阻断启动：保留默认深色，用户仍可在设置页重新选择。
+                startupLogger.LogWarning(ex, "启动期应用保存的主题失败，使用默认深色");
+            }
+
             // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
             Program.MainWindowViewModel = mainViewModel;
