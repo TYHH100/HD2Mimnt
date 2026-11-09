@@ -69,6 +69,19 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.NotEqual("UI.ClearCompletedTasks", clearButton.Content?.ToString());
             Assert.Contains(finished.Id, viewModel.Tasks.Select(task => task.Id));
 
+            // 校验入口在任何任务状态下都可见，且文案已本地化。
+            var validateButton = view.GetVisualDescendants().OfType<Button>()
+                .Single(button => ReferenceEquals(button.Command, viewModel.ValidateLibraryCommand));
+            Assert.True(validateButton.IsEffectivelyVisible);
+            Assert.NotEqual("Task.ValidateLibrary", validateButton.Content?.ToString());
+
+            // 强制终止只出现在运行中的任务上。
+            var forceButtons = view.GetVisualDescendants().OfType<Button>()
+                .Where(button => ReferenceEquals(button.Command, viewModel.ForceTerminateCommand)).ToList();
+            Assert.Contains(forceButtons, button => button.IsEffectivelyVisible && IdOf(button) == running.Id);
+            Assert.DoesNotContain(forceButtons, button => button.IsEffectivelyVisible &&
+                (IdOf(button) == finished.Id || IdOf(button) == failed.Id));
+
             // 已结束的任务才有删除按钮，运行中的任务只能取消。
             var deleteButtons = view.GetVisualDescendants().OfType<Button>()
                 .Where(button => ReferenceEquals(button.Command, viewModel.DeleteCommand)).ToList();

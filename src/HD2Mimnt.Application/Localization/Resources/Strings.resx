@@ -2477,6 +2477,21 @@ See the Conflicts page for details.</value>
   <data name="Task.ForceTerminated" xml:space="preserve">
     <value>Force terminated</value>
   </data>
+  <data name="Task.ValidateLibrary" xml:space="preserve">
+    <value>Validate Library</value>
+  </data>
+  <data name="Task.ValidateLibraryHint" xml:space="preserve">
+    <value>Validate all mods in the library in a background worker process</value>
+  </data>
+  <data name="Task.ForceTerminate" xml:space="preserve">
+    <value>Force Terminate</value>
+  </data>
+  <data name="Task.ForceTerminateHint" xml:space="preserve">
+    <value>Kill the worker process when the task stops responding to cancel</value>
+  </data>
+  <data name="Task.ForceTerminateConfirm" xml:space="preserve">
+    <value>Force terminate this task? Its worker process will be killed immediately and unfinished work may leave partial results.</value>
+  </data>
   <data name="Plugin.FullAccess" xml:space="preserve">
     <value>Full Access</value>
   </data>

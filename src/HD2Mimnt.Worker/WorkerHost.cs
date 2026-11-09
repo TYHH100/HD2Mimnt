@@ -5,14 +5,18 @@ using HD2Mimnt.Worker.IPC;
 namespace HD2Mimnt.Worker;
 
 /// <summary>
-/// Host environment for worker execution, provides IPC communication
+/// Worker 进程侧 IPC 门面：接收执行命令与取消信号，向主程序回传进度和终态。
 /// </summary>
-public class WorkerHost
+public class WorkerHost : IDisposable
 {
     private readonly Guid _taskId;
     private readonly NamedPipeClient _pipeClient;
+    private readonly CancellationTokenSource _cancellation = new();
 
     public Guid TaskId => _taskId;
+
+    /// <summary>主程序发来 Cancel 消息时触发；业务代码用它取消实际工作。</summary>
+    public CancellationToken CancellationRequested => _cancellation.Token;
 
     public WorkerHost(Guid taskId, string pipeName)
     {
@@ -20,17 +24,11 @@ public class WorkerHost
         _pipeClient = new NamedPipeClient(pipeName);
     }
 
-    /// <summary>
-    /// Connect to the main app via named pipe
-    /// </summary>
     public async Task ConnectAsync(int timeoutMilliseconds = 5000, CancellationToken cancellationToken = default)
     {
         await _pipeClient.ConnectAsync(timeoutMilliseconds, cancellationToken);
     }
 
-    /// <summary>
-    /// Receive the execute command from main app
-    /// </summary>
     public async Task<ExecuteWorkerCommand?> ReceiveCommandAsync(CancellationToken cancellationToken = default)
     {
         var message = await _pipeClient.ReceiveMessageAsync(cancellationToken);
@@ -43,72 +41,84 @@ public class WorkerHost
     }
 
     /// <summary>
-    /// Send progress update to main app
+    /// 后台监听主程序的后续消息：收到 Cancel 触发取消令牌；对端关闭即结束。
+    /// 与业务执行同生命周期，由 Dispose 停止。
     /// </summary>
-    public async Task SendProgressAsync(int currentStep, int totalSteps, string? message = null, CancellationToken cancellationToken = default)
+    public async Task WatchForCancellationAsync()
     {
-        var progress = new WorkerProgressResponse
+        try
         {
-            CurrentStep = currentStep,
-            TotalSteps = totalSteps,
-            Message = message
-        };
-
-        var workerMessage = new WorkerMessage
-        {
-            MessageType = "Progress",
-            TaskId = _taskId,
-            Payload = JsonSerializer.Serialize(progress)
-        };
-
-        await _pipeClient.SendMessageAsync(workerMessage, cancellationToken);
+            while (!_cancellation.IsCancellationRequested)
+            {
+                var message = await _pipeClient.ReceiveMessageAsync(_cancellation.Token);
+                if (message == null) return;
+                if (message.MessageType == "Cancel")
+                {
+                    _cancellation.Cancel();
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (IOException) { }
+        catch (ObjectDisposedException) { }
     }
 
-    /// <summary>
-    /// Send completion response to main app
-    /// </summary>
-    public async Task SendCompletedAsync(bool success, string? result = null, List<string>? errors = null, CancellationToken cancellationToken = default)
+    public Task SendProgressAsync(double progress, string stage, string? currentItem = null,
+        string? message = null, CancellationToken cancellationToken = default)
     {
-        var completed = new WorkerCompletedResponse
+        var payload = new WorkerProgressResponse
+        {
+            Progress = progress,
+            Stage = stage,
+            CurrentItem = currentItem ?? string.Empty,
+            Message = message ?? string.Empty
+        };
+        return SendAsync("Progress", payload, cancellationToken);
+    }
+
+    public Task SendCompletedAsync(bool success, string? result = null, List<string>? errors = null,
+        bool partiallyFailed = false, CancellationToken cancellationToken = default)
+    {
+        var payload = new WorkerCompletedResponse
         {
             Success = success,
+            PartiallyFailed = partiallyFailed,
             Result = result,
             Errors = errors
         };
-
-        var workerMessage = new WorkerMessage
-        {
-            MessageType = "Completed",
-            TaskId = _taskId,
-            Payload = JsonSerializer.Serialize(completed)
-        };
-
-        await _pipeClient.SendMessageAsync(workerMessage, cancellationToken);
+        return SendAsync("Completed", payload, cancellationToken);
     }
 
-    /// <summary>
-    /// Send error response to main app
-    /// </summary>
-    public async Task SendErrorAsync(Exception exception, CancellationToken cancellationToken = default)
+    /// <summary>业务已响应取消并清理完毕后的终态回执。</summary>
+    public Task SendCancelledAsync(CancellationToken cancellationToken = default)
+        => SendAsync<object?>("Cancelled", null, cancellationToken);
+
+    public Task SendErrorAsync(Exception exception, CancellationToken cancellationToken = default)
     {
-        var error = new WorkerErrorResponse
+        var payload = new WorkerErrorResponse
         {
             ErrorMessage = exception.Message,
             StackTrace = exception.StackTrace
         };
+        return SendAsync("Error", payload, cancellationToken);
+    }
 
-        var workerMessage = new WorkerMessage
+    private Task SendAsync<T>(string messageType, T payload, CancellationToken cancellationToken)
+    {
+        var message = new WorkerMessage
         {
-            MessageType = "Error",
+            MessageType = messageType,
             TaskId = _taskId,
-            Payload = JsonSerializer.Serialize(error)
+            Payload = payload is null ? null : JsonSerializer.Serialize(payload)
         };
-
-        await _pipeClient.SendMessageAsync(workerMessage, cancellationToken);
+        return _pipeClient.SendMessageAsync(message, cancellationToken);
     }
 
     public void Dispose()
     {
-        _pipeClient?.Dispose();
+        try { _cancellation.Cancel(); } catch (ObjectDisposedException) { }
+        _pipeClient.Dispose();
+        _cancellation.Dispose();
     }
 }

@@ -15,11 +15,13 @@ public class NamedPipeServer : IDisposable
     public NamedPipeServer(string pipeName)
     {
         _pipeName = pipeName;
+        // 用字节模式：PipeFrame 已自带长度前缀分帧；消息模式在对端不读管道时
+        // 会让 WriteAsync 永久阻塞（挂起的 Worker 正是这种情况），取消消息就发不出去。
         _pipeServer = new NamedPipeServerStream(
             pipeName,
             PipeDirection.InOut,
             1,
-            PipeTransmissionMode.Message,
+            PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 

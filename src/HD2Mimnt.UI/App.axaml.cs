@@ -8,7 +8,6 @@ using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Application.Localization;
-using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.AudioPreview;
@@ -164,6 +163,8 @@ public partial class App : Avalonia.Application
             {
                 taskService.RegisterWorker(worker);
             }
+            // 批量校验在 HD2Mimnt.Worker 独立进程执行，崩溃/卡死不影响主 UI。
+            taskService.RegisterProcessWorker("Validation");
 
             // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
             Program.CliPipeHost = new CliCommandPipeHost(host.Services);
@@ -442,13 +443,10 @@ public partial class App : Avalonia.Application
             sp.GetService<ILogger<SearchService>>()));
 
         // Task Center
+        services.AddSingleton<IWorkerHostManager>(sp => new WorkerHostManager(
+            sp.GetService<ILogger<WorkerHostManager>>()));
         services.AddSingleton<TaskService>();
         services.AddSingleton<PlatformDownloadTaskRunner>();
-
-        // Workers
-        services.AddSingleton<IWorker, ImportWorker>();
-        services.AddSingleton<IWorker, ScanWorker>();
-        services.AddSingleton<IWorker, ValidationWorker>();
 
         // 部署相关（补充缺失的注册）
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();

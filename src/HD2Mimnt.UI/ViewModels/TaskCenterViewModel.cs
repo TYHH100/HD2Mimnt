@@ -114,6 +114,26 @@ public partial class TaskCenterViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ValidateLibraryAsync()
+    {
+        try
+        {
+            var id = await _taskService.CreateTaskAsync(
+                UiLocalization.Current["Task.ValidateLibrary"], "Validation");
+            await _taskService.StartTaskAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnUiThreadAsync(() =>
+            {
+                HasError = true;
+                ErrorMessage = ex.Message;
+            });
+        }
+    }
+
+    [RelayCommand]
     private async Task CancelAsync(ModTask? task)
     {
         if (task == null || task.Status != Core.Entities.TaskStatus.Running) return;
@@ -129,6 +149,28 @@ public partial class TaskCenterViewModel : ObservableObject
                 HasError = true;
                 ErrorMessage = $"取消任务失败: {ex.Message}";
                 StatusMessage = "取消任务失败";
+            });
+        }
+    }
+
+    [RelayCommand]
+    private async Task ForceTerminateAsync(ModTask? task)
+    {
+        if (task == null || task.Status != Core.Entities.TaskStatus.Running) return;
+        var localizer = UiLocalization.Current;
+        if (!await _confirmationService.ConfirmAsync(localizer["Task.ForceTerminate"],
+                localizer["Task.ForceTerminateConfirm"])) return;
+        try
+        {
+            await _taskService.ForceTerminateTaskAsync(task.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await ApplyOnUiThreadAsync(() =>
+            {
+                HasError = true;
+                ErrorMessage = ex.Message;
             });
         }
     }

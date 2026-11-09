@@ -68,6 +68,20 @@
 
 - 任务完成事件必须在最终状态写入数据库并从运行任务集合移除后发布；UI 通知处理器只负责呈现结果和刷新视图，不能在事件回调中重新执行任务状态持久化。
 
+- 进程 Worker（`HD2Mimnt.Worker`）必须与主程序读同一份数据目录：子进程通过继承的 `HD2MIMNT_DATA_PATH`/`storage-locations.json` 定位数据库，不能回落到默认 `%LOCALAPPDATA%`，否则隔离测试或存储搬迁后 Worker 会操作另一份库。新增 Worker 服务时在 `Program.ConfigureServices` 注册，不要在子进程里复制主程序的完整 DI。
+
+- 取消进程 Worker 必须立即转发：桥接（`TaskService.ProcessWorker`）要用令牌与完成回执竞速，先调用 `CancelWorkerAsync`（发送 Cancel 消息、等待宽限期、超时 Kill），再等待 Worker 清理并返回 `Cancelled`；只在 Worker 自然结束后检查令牌会让任务中心一直卡在“运行中”。来源：[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)
+
+- Worker 管道关闭但没有任何终态回执时必须判为崩溃（等待进程退出并读取退出码后 `SetCrashed`），否则 `WaitForCompletionAsync` 永久等待；同理，连接阶段失败、启动异常和 Worker 回传 Error 要分别映射为超时/失败，不能混成一个状态。管道帧读写统一用 `HD2Mimnt.Core.IPC.PipeFrame`，子进程侧的客户端也要用它（手写读取会短读截断）。来源：https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeclientstream.connectasync
+
+- 命名管道服务端不要用 `PipeTransmissionMode.Message`：对端卡死、不读管道时服务端 `WriteAsync` 会永久阻塞，取消消息根本发不出去（.NET 10 实测）。`PipeFrame` 已自带长度前缀分帧，主程序与 Worker 之间的管道统一用字节模式，并且发送取消消息本身也要有超时，超时直接进入 Kill 分支。来源：[NamedPipeServerStream](https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeserverstream.-ctor)
+
+- Worker 的“结果回执”与“进程清理”是两件事：监听循环先 `SetResult`，随后才在 finally 里杀进程、移出运行表。取消接口必须在回执后继续等待 `CleanupCompleted`，否则调用方（含任务中心）拿到 Cancelled 时进程仍在运行，`IsWorkerRunningAsync` 仍为 true。
+
+- Worker 端批量作业单项失败不中断整体：逐项上报进度，结束时汇总 `PartiallyFailed` 与错误列表；主程序桥接先判 `PartiallyFailed` 再判 `Success=false`，否则部分失败会被误标为 `Failed`。
+
+- 真实 Worker 进程的集成测试通过 `HD2MIMNT_DATA_PATH` 指向临时目录并在用例内初始化数据库；该变量是进程级状态，相关测试集合必须 `DisableParallelization`，并在结束时恢复原值、删除临时目录。宿主可执行文件路径、连接超时与取消宽限期在 `WorkerHostManager` 构造中可注入，便于用快速失败的程序验证连接超时。崩溃/挂起/优雅取消用 `tests/HD2Mimnt.WorkerStub` 替身进程验证（行为由 Command 的 `Arguments["Behavior"]` 指定），不要为测试往生产 Worker 里加休眠开关。来源：[xUnit v2 collection](https://xunit.net/docs/running-tests-in-parallel)
+
 - 强制终止任务必须与后台执行体的最终写入使用同一任务级闸门；先标记并持久化 `ForceTerminated`，后台取消回调不能覆盖终止状态，也不能重复发布完成事件。
 
 - Avalonia 12 的 `Avalonia.Headless.XUnit` 依赖 xUnit v3，与现有 xUnit v2 单元测试分项目运行；UI 测试放在 `HD2Mimnt.UITests`，通过 `AvaloniaTestApplication` 复用宿主 UI 线程，不能给旧测试程序集引入第二套 xUnit。来源：https://www.nuget.org/packages/Avalonia.Headless.XUnit/12.0.3

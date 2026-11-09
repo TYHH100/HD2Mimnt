@@ -10,6 +10,7 @@ namespace HD2Mimnt.Application.Services;
 public class TaskService
 {
     private readonly ITaskRepository _taskRepository;
+    private readonly IWorkerHostManager? _workerHostManager;
     private readonly ConcurrentDictionary<Guid, Task> _executions = new();
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _runningTasks;
     private readonly ConcurrentDictionary<string, IWorker> _workers;
@@ -21,9 +22,11 @@ public class TaskService
 
     public TaskService(
         ITaskRepository taskRepository,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        IWorkerHostManager? workerHostManager = null)
     {
         _taskRepository = taskRepository;
+        _workerHostManager = workerHostManager;
         _runningTasks = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         _workers = new ConcurrentDictionary<string, IWorker>();
         _taskStateGates = new ConcurrentDictionary<Guid, SemaphoreSlim>();
@@ -36,6 +39,19 @@ public class TaskService
     public void RegisterWorker(IWorker worker)
     {
         _workers[worker.Type] = worker;
+    }
+
+    /// <summary>
+    /// 注册在 HD2Mimnt.Worker 独立进程执行的任务类型；
+    /// Worker 崩溃/卡死不影响主程序，取消走优雅通知 + Kill 兜底，强杀直接终止进程。
+    /// </summary>
+    public void RegisterProcessWorker(string type,
+        Func<ModTask, Dictionary<string, string>>? argumentsFactory = null)
+    {
+        if (_workerHostManager == null)
+            throw new InvalidOperationException("进程 Worker 需要 IWorkerHostManager，请在构造 TaskService 时注入。");
+        RegisterWorker(new ProcessWorker(type, _workerHostManager,
+            argumentsFactory ?? (_ => new Dictionary<string, string>())));
     }
 
     /// <summary>
@@ -175,6 +191,8 @@ public class TaskService
                             try
                             {
                                 if (Volatile.Read(ref progressClosed) != 0) break;
+                                // 强制终止后进度不得再写回，否则会把 Running 状态复活
+                                if (_forceTerminatedTasks.ContainsKey(taskId)) break;
                                 task.Progress = latest.Progress;
                                 task.Stage = latest.Stage;
                                 task.CurrentItem = latest.CurrentItem;
@@ -204,37 +222,46 @@ public class TaskService
                 Volatile.Write(ref progressClosed, 1);
 
                 // 任务完成 - 但如果 Worker 已经设置了状态（如 PartiallyFailed），则保留
-                if (task.Status == Core.Entities.TaskStatus.Running)
+                if (!_forceTerminatedTasks.ContainsKey(taskId))
                 {
-                    task.Status = Core.Entities.TaskStatus.Completed;
+                    if (task.Status == Core.Entities.TaskStatus.Running)
+                    {
+                        task.Status = Core.Entities.TaskStatus.Completed;
+                    }
+                    task.Progress = 100;
+                    if (string.IsNullOrEmpty(task.Stage) || task.Stage == "Running")
+                    {
+                        task.Stage = "Completed";
+                    }
+                    if (string.IsNullOrEmpty(task.Message))
+                    {
+                        task.Message = "Task completed successfully";
+                    }
+                    task.EndTime = DateTime.UtcNow;
                 }
-                task.Progress = 100;
-                if (string.IsNullOrEmpty(task.Stage) || task.Stage == "Running")
-                {
-                    task.Stage = "Completed";
-                }
-                if (string.IsNullOrEmpty(task.Message))
-                {
-                    task.Message = "Task completed successfully";
-                }
-                task.EndTime = DateTime.UtcNow;
             }
             catch (OperationCanceledException)
             {
-                // 任务被取消
-                task.Status = Core.Entities.TaskStatus.Cancelled;
-                task.Stage = "Cancelled";
-                task.Message = "Task was cancelled";
-                task.EndTime = DateTime.UtcNow;
+                // 任务被取消；已强制终止时保留终止终态，执行体不得覆盖
+                if (!_forceTerminatedTasks.ContainsKey(taskId))
+                {
+                    task.Status = Core.Entities.TaskStatus.Cancelled;
+                    task.Stage = "Cancelled";
+                    task.Message = "Task was cancelled";
+                    task.EndTime = DateTime.UtcNow;
+                }
             }
             catch (Exception ex)
             {
-                // 任务失败
-                task.Status = Core.Entities.TaskStatus.Failed;
-                task.Stage = "Failed";
-                task.Message = ex.Message;
-                task.Errors.Add(ex.ToString());
-                task.EndTime = DateTime.UtcNow;
+                // 任务失败；已强制终止时保留终止终态
+                if (!_forceTerminatedTasks.ContainsKey(taskId))
+                {
+                    task.Status = Core.Entities.TaskStatus.Failed;
+                    task.Stage = "Failed";
+                    task.Message = ex.Message;
+                    task.Errors.Add(ex.ToString());
+                    task.EndTime = DateTime.UtcNow;
+                }
             }
             finally
             {
@@ -304,6 +331,8 @@ public class TaskService
             return;
         }
 
+        // 进程 Worker 必须先杀进程再持久化终态，否则运行中的 Worker 会继续改游戏/数据库；
+        // 但杀进程会让执行体立即收尾，因此必须持有任务闸门后再杀，避免终态被写成 Failed/Cancelled。
         var stateGate = _taskStateGates.GetOrAdd(taskId, _ => new SemaphoreSlim(1, 1));
         await stateGate.WaitAsync(cancellationToken);
         try
@@ -314,9 +343,15 @@ public class TaskService
             }
 
             _forceTerminatedTasks[taskId] = 0;
-            cts.Cancel();
 
             var task = await _taskRepository.GetByIdAsync(taskId, cancellationToken);
+            if (task != null && _workers.TryGetValue(task.Type, out var registeredWorker)
+                && registeredWorker is ProcessWorker processWorker)
+            {
+                await processWorker.ForceTerminateAsync(taskId);
+            }
+
+            cts.Cancel();
             if (task == null)
             {
                 return;
@@ -439,6 +474,77 @@ public class TaskService
             {
                 Failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
                 throw;
+            }
+        }
+    }
+
+    /// <summary>把任务执行体桥接到 HD2Mimnt.Worker 独立进程，终态语义与进程内 Worker 一致。</summary>
+    private sealed class ProcessWorker(
+        string type,
+        IWorkerHostManager manager,
+        Func<ModTask, Dictionary<string, string>> argumentsFactory) : IWorker
+    {
+        public string Type => type;
+
+        public Task ForceTerminateAsync(Guid taskId) => manager.ForceTerminateWorkerAsync(taskId);
+
+        public async Task ExecuteAsync(ModTask task, IProgress<TaskProgress> progress, CancellationToken cancellationToken)
+        {
+            // 不用 Progress<T>（构造时捕获同步上下文会经 UI 调度器转发）；
+            // 监听循环线程直接报告，TaskService 的进度收件箱是非阻塞的。
+            var bridge = new SynchronousProgress<WorkerTaskProgress>(p => progress.Report(new TaskProgress
+            {
+                Progress = p.Progress,
+                Stage = p.Stage,
+                CurrentItem = p.CurrentItem,
+                Message = p.Message
+            }));
+
+            var id = await manager.StartWorkerAsync(Type, argumentsFactory(task), bridge, cancellationToken, task.Id);
+            var completion = manager.WaitForCompletionAsync(id, CancellationToken.None);
+            try
+            {
+                // 取消必须立即转发给 Worker 并等待其清理；不能等 Worker 自然结束后才处理。
+                var cancelSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                await using var registration = cancellationToken.Register(() => cancelSignal.TrySetResult());
+                var winner = await Task.WhenAny(completion, cancelSignal.Task);
+                if (winner == cancelSignal.Task)
+                {
+                    await manager.CancelWorkerAsync(id);
+                    try { await completion; } catch { }
+                    throw new OperationCanceledException();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                await manager.CancelWorkerAsync(id);
+                throw;
+            }
+
+            var result = await completion;
+            if (result.Cancelled || cancellationToken.IsCancellationRequested)
+            {
+                await manager.CancelWorkerAsync(id);
+                throw new OperationCanceledException();
+            }
+
+            task.Errors.AddRange(result.Errors);
+            task.Result = result.Result ?? string.Empty;
+            if (result.PartiallyFailed)
+            {
+                // 部分成功：单项失败已写入 Errors，整体仍算完成，保留 PartiallyFailed
+                task.Status = Core.Entities.TaskStatus.PartiallyFailed;
+                return;
+            }
+
+            if (result.Crashed || !result.Success)
+            {
+                throw new InvalidOperationException(result.Errors.FirstOrDefault()
+                    ?? result.Result ?? "Worker process failed");
             }
         }
     }

@@ -2477,6 +2477,21 @@
   <data name="Task.ForceTerminated" xml:space="preserve">
     <value>已強制終止</value>
   </data>
+  <data name="Task.ValidateLibrary" xml:space="preserve">
+    <value>校驗模組庫</value>
+  </data>
+  <data name="Task.ValidateLibraryHint" xml:space="preserve">
+    <value>在獨立背景程序中校驗模組庫中的全部模組</value>
+  </data>
+  <data name="Task.ForceTerminate" xml:space="preserve">
+    <value>強制終止</value>
+  </data>
+  <data name="Task.ForceTerminateHint" xml:space="preserve">
+    <value>任務無回應時直接終止其工作程序</value>
+  </data>
+  <data name="Task.ForceTerminateConfirm" xml:space="preserve">
+    <value>確定強制終止該任務嗎？將立即結束其工作程序，未完成的操作可能留下部分結果。</value>
+  </data>
   <data name="Plugin.FullAccess" xml:space="preserve">
     <value>完全訪問</value>
   </data>

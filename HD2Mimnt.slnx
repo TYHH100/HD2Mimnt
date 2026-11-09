@@ -21,5 +21,6 @@
     <Project Path="tests/HD2Mimnt.PerformanceTests/HD2Mimnt.PerformanceTests.csproj" />
     <Project Path="tests/HD2Mimnt.StabilityTests/HD2Mimnt.StabilityTests.csproj" />
     <Project Path="tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj" />
+    <Project Path="tests/HD2Mimnt.WorkerStub/HD2Mimnt.WorkerStub.csproj" />
   </Folder>
 </Solution>

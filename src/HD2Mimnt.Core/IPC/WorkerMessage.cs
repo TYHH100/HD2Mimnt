@@ -6,7 +6,7 @@ namespace HD2Mimnt.Core.IPC;
 public class WorkerMessage
 {
     /// <summary>
-    /// Type of message: "Command", "Response", "Progress", "Error", "Completed"
+    /// Type of message: "Command", "Cancel", "Cancelled", "Progress", "Error", "Completed"
     /// </summary>
     public string MessageType { get; set; } = string.Empty;
 
@@ -27,7 +27,7 @@ public class WorkerMessage
 public class ExecuteWorkerCommand
 {
     /// <summary>
-    /// Type of worker: "Import", "Scan", "Validation"
+    /// Type of worker: "Validation"
     /// </summary>
     public string WorkerType { get; set; } = string.Empty;
 
@@ -38,24 +38,17 @@ public class ExecuteWorkerCommand
 }
 
 /// <summary>
-/// Progress update from worker
+/// Progress update from worker; fields mirror <see cref="Interfaces.TaskProgress"/>.
 /// </summary>
 public class WorkerProgressResponse
 {
-    /// <summary>
-    /// Current step number
-    /// </summary>
-    public int CurrentStep { get; set; }
+    public double Progress { get; set; }
 
-    /// <summary>
-    /// Total number of steps
-    /// </summary>
-    public int TotalSteps { get; set; }
+    public string Stage { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Progress message
-    /// </summary>
-    public string? Message { get; set; }
+    public string CurrentItem { get; set; } = string.Empty;
+
+    public string Message { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -67,6 +60,11 @@ public class WorkerCompletedResponse
     /// Whether the worker completed successfully
     /// </summary>
     public bool Success { get; set; }
+
+    /// <summary>
+    /// 部分成功（如批量校验存在失败项）；主程序映射为 PartiallyFailed。
+    /// </summary>
+    public bool PartiallyFailed { get; set; }
 
     /// <summary>
     /// Result data (JSON-serialized)

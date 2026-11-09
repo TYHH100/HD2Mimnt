@@ -1,32 +1,27 @@
-﻿using HD2Mimnt.Core.Interfaces;
+﻿using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
+using HD2Mimnt.Infrastructure.Storage;
+using HD2Mimnt.Infrastructure.Workflows;
 using HD2Mimnt.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 /// <summary>
-/// Worker process entry point
-/// Executes background tasks in isolated process
+/// Worker 进程入口：在独立进程执行后台任务，崩溃或被强杀不影响主程序 UI。
 /// </summary>
-class Program
+internal static class Program
 {
-    static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         Guid taskId = Guid.Empty;
-        string workerType = string.Empty;
         string pipeName = string.Empty;
 
-        // Parse command line arguments
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--task-id" && i + 1 < args.Length)
             {
                 Guid.TryParse(args[i + 1], out taskId);
-            }
-            else if (args[i] == "--worker" && i + 1 < args.Length)
-            {
-                workerType = args[i + 1];
             }
             else if (args[i] == "--pipe-name" && i + 1 < args.Length)
             {
@@ -34,70 +29,74 @@ class Program
             }
         }
 
-        if (taskId == Guid.Empty || string.IsNullOrEmpty(workerType) || string.IsNullOrEmpty(pipeName))
+        if (taskId == Guid.Empty || string.IsNullOrEmpty(pipeName))
         {
-            Console.Error.WriteLine("Usage: HD2Mimnt.Worker.exe --task-id <guid> --worker <type> --pipe-name <name>");
+            Console.Error.WriteLine("Usage: HD2Mimnt.Worker.exe --task-id <guid> --pipe-name <name>");
             return 1;
         }
 
-        WorkerHost? host = null;
-
+        using var host = new WorkerHost(taskId, pipeName);
         try
         {
-            // Setup dependency injection
+            await host.ConnectAsync(timeoutMilliseconds: 5000);
+            var command = await host.ReceiveCommandAsync();
+            if (command == null)
+            {
+                await host.SendErrorAsync(new InvalidOperationException("Failed to receive execute command"));
+                return 1;
+            }
+
             var services = new ServiceCollection();
             ConfigureServices(services);
-            var serviceProvider = services.BuildServiceProvider();
+            await using var serviceProvider = services.BuildServiceProvider();
+            await serviceProvider.GetRequiredService<HD2MimntDbContext>().InitializeDatabaseAsync();
 
-            // Create worker host and connect to main app
-            host = new WorkerHost(taskId, pipeName);
-            await host.ConnectAsync(timeoutMilliseconds: 5000);
-
-            // Create and execute worker
-            var worker = WorkerFactory.Create(workerType, host, serviceProvider);
-            await worker.ExecuteAsync();
-
-            return 0; // Success
+            var watch = host.WatchForCancellationAsync();
+            var task = WorkerFactory.Create(command.WorkerType, serviceProvider);
+            try
+            {
+                await task.ExecuteAsync(host, command, host.CancellationRequested);
+            }
+            catch (OperationCanceledException) when (host.CancellationRequested.IsCancellationRequested)
+            {
+                await host.SendCancelledAsync();
+            }
+            await watch;
+            return 0;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Worker process failed: {ex.Message}");
-            Console.Error.WriteLine(ex.StackTrace);
-
-            if (host != null)
+            Console.Error.WriteLine($"Worker process failed: {ex}");
+            try
             {
-                try
-                {
+                if (host.CancellationRequested.IsCancellationRequested)
+                    await host.SendCancelledAsync();
+                else
                     await host.SendErrorAsync(ex);
-                }
-                catch
-                {
-                    // Failed to send error, pipe may be disconnected
-                }
             }
-
-            return 1; // Failure
-        }
-        finally
-        {
-            host?.Dispose();
+            catch
+            {
+                // 管道已断开（主程序退出或强杀），无需回执
+            }
+            return 1;
         }
     }
 
-    static void ConfigureServices(IServiceCollection services)
+    private static void ConfigureServices(IServiceCollection services)
     {
-        // Database
-        services.AddSingleton<HD2MimntDbContext>();
+        // 与主程序读同一份定位文件（HD2MIMNT_DATA_PATH 由主进程环境继承），
+        // 保证隔离测试与存储搬迁后 Worker 打开的是同一个数据库。
+        var storage = new StorageSettingsService(new StorageLocationStore());
 
-        // Repositories
+        services.AddSingleton(new HD2MimntDbContext(storage.Current.DatabasePath));
         services.AddSingleton<IModRepository, ModRepository>();
-        services.AddSingleton<IProfileRepository, ProfileRepository>();
-
-        // Logging
-        services.AddLogging(builder =>
+        services.AddSingleton<IWorkflowRegistry>(_ =>
         {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Information);
+            var registry = new WorkflowRegistry();
+            registry.RegisterWorkflow(new V1Workflow());
+            registry.RegisterWorkflow(new LegacyWorkflow());
+            registry.RegisterWorkflow(new IntegratedArmorWorkflow());
+            return registry;
         });
     }
 }
