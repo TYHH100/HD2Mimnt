@@ -13,6 +13,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
+using TaskStatus = HD2Mimnt.Core.Entities.TaskStatus;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -52,6 +53,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly SettingsService? _settingsService;
     private readonly LuaExtractionService? _luaExtraction;
     private readonly IPluginService? _pluginService;
+    private readonly TaskService? _taskService;
     private CancellationTokenSource? _luaExtractionCts;
 
     /// <summary>插件贡献到模组右键菜单的命令（已启用插件、按授权状态标注）。</summary>
@@ -315,8 +317,10 @@ public partial class LibraryViewModel : ObservableObject
         IWebsiteDownloadLauncher? websiteLauncher = null,
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
-        LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null)
+        LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
+        TaskService? taskService = null)
     {
+        _taskService = taskService;
         _pluginService = pluginService;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
@@ -328,7 +332,7 @@ public partial class LibraryViewModel : ObservableObject
             await LoadModsAsync();
             await searchService.BuildIndexAsync();
         });
-        Import = new ModImportViewModel(modService, settingsService);
+        Import = new ModImportViewModel(modService, settingsService, taskService);
         ModLink = modLinkService == null ? null : new ModLinkViewModel(modLinkService);
         ModOnline = modOnlineService == null ? null : new ModOnlineViewModel(modOnlineService, async () =>
         {
@@ -1583,21 +1587,26 @@ public partial class LibraryViewModel : ObservableObject
                 return;
 
             DeploymentMessage = "正在准备部署...";
-            var progress = new Progress<DeploymentProgress>(p =>
+            var progress = new Progress<TaskProgress>(p =>
             {
-                if (ReferenceEquals(_deploymentCts, deploymentCts) && !deploymentCts.IsCancellationRequested)
+                if (ReferenceEquals(_deploymentCts, deploymentCts) && !deploymentCts.IsCancellationRequested
+                    && !string.IsNullOrWhiteSpace(p.Message))
                     DeploymentMessage = p.Message;
             });
             var savedOrder = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
                 : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
             var deploymentOrder = savedOrder == DeploymentOrder.BottomToTop.ToString()
                 ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom;
-            var result = await Task.Run(() => _deploymentService.DeployProfileAsync(
-                profile.Id, CurrentDeploymentMethod, deploymentOrder, gamePath, progress, deploymentCts.Token));
-            if (result.Status == DeploymentStatus.Completed)
-                _notificationService.ShowSuccess(result.Message ?? $"已部署 {result.CompletedMods} 个模组", "部署完成");
-            else
-                _notificationService.ShowWarning(result.ErrorMessage ?? result.Message ?? "部署未完全成功", "部署结果");
+            // 部署在独立 Worker 进程执行：清理/复制大量文件不会卡住 UI，进程崩溃也只影响本任务。
+            var outcome = await RequireTaskService().RunProcessTaskAsync("部署模组", "Deployment",
+                new Dictionary<string, string>
+                {
+                    ["ProfileId"] = profile.Id.ToString(),
+                    ["Method"] = CurrentDeploymentMethod.ToString(),
+                    ["Order"] = deploymentOrder.ToString(),
+                    ["GamePath"] = gamePath
+                }, progress, cancellationToken: deploymentCts.Token);
+            ShowDeploymentOutcome(outcome.Task);
             await LoadModsAsync();
         }
         catch (OperationCanceledException)
@@ -1638,21 +1647,35 @@ public partial class LibraryViewModel : ObservableObject
         DeploymentMessage = "正在清理部署文件...";
         try
         {
-            var progress = new Progress<string>(message =>
-            {
-                if (ReferenceEquals(_deploymentCts, deploymentCts) && !deploymentCts.IsCancellationRequested)
-                    DeploymentMessage = message;
-            });
-            var fileProgress = new Progress<DeploymentCleanupProgress>(value =>
+            var progress = new Progress<TaskProgress>(p =>
             {
                 if (!ReferenceEquals(_deploymentCts, deploymentCts) || deploymentCts.IsCancellationRequested) return;
-                IsDeploymentIndeterminate = value.TotalFiles == 0;
-                DeploymentProgress = value.TotalFiles > 0 ? 100.0 * value.ProcessedFiles / value.TotalFiles : 0;
-                DeploymentFileCount = $"{value.ProcessedFiles:N0} / {value.TotalFiles:N0}";
+                if (!string.IsNullOrWhiteSpace(p.Message)) DeploymentMessage = p.Message;
+                if (!string.IsNullOrWhiteSpace(p.CurrentItem))
+                {
+                    // 文件进度一开始就是 "0 / N"，此时也应结束不确定态。
+                    DeploymentFileCount = p.CurrentItem;
+                    IsDeploymentIndeterminate = false;
+                    DeploymentProgress = Math.Clamp(p.Progress, 0, 100);
+                }
             });
-            var result = await Task.Run(() => _deploymentService.PreDeploymentCleanupAsync(
-                progress, deploymentCts.Token, fileProgress));
-            _notificationService.ShowSuccess($"已清理 {result.FilesDeleted} 个文件", "清理完成");
+            var outcome = await RequireTaskService().RunProcessTaskAsync("清理部署", "Cleanup",
+                progressObserver: progress, cancellationToken: deploymentCts.Token);
+            switch (outcome.Task?.Status)
+            {
+                case TaskStatus.Completed:
+                    _notificationService.ShowSuccess(outcome.Task.Result ?? "清理完成", "清理完成");
+                    break;
+                case TaskStatus.Cancelled:
+                    _notificationService.ShowWarning("清理部署已取消", "清理部署");
+                    break;
+                case TaskStatus.ForceTerminated:
+                    _notificationService.ShowWarning("清理部署已强制终止", "清理部署");
+                    break;
+                default:
+                    _notificationService.ShowError(outcome.Task?.Message ?? "清理失败", "清理部署");
+                    break;
+            }
             await LoadModsAsync();
         }
         catch (OperationCanceledException)
@@ -1671,6 +1694,31 @@ public partial class LibraryViewModel : ObservableObject
             IsDeploymentProgressOpen = false;
             DeploymentMessage = string.Empty;
             ResetDeploymentProgress();
+        }
+    }
+
+    private TaskService RequireTaskService()
+        => _taskService ?? throw new InvalidOperationException("部署与清理需要在任务服务可用时运行。");
+
+    private void ShowDeploymentOutcome(ModTask? task)
+    {
+        switch (task?.Status)
+        {
+            case TaskStatus.Completed:
+                _notificationService.ShowSuccess(string.IsNullOrWhiteSpace(task.Result) ? "部署完成" : task.Result, "部署完成");
+                break;
+            case TaskStatus.PartiallyFailed:
+                _notificationService.ShowWarning(task.Result ?? "部署未完全成功", "部署结果");
+                break;
+            case TaskStatus.Cancelled:
+                _notificationService.ShowWarning("部署已取消", "部署模组");
+                break;
+            case TaskStatus.ForceTerminated:
+                _notificationService.ShowWarning("部署已强制终止", "部署模组");
+                break;
+            default:
+                _notificationService.ShowError(task?.Message ?? "部署失败", "部署模组");
+                break;
         }
     }
 

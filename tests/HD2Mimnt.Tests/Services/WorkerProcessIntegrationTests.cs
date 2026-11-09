@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Data;
@@ -98,6 +99,57 @@ public sealed class WorkerProcessIntegrationTests : IDisposable
         await _manager.ForceTerminateWorkerAsync(taskId);
 
         Assert.False(await _manager.IsWorkerRunningAsync(taskId));
+    }
+
+    [Fact]
+    public async Task Cleanup_NoDeployments_CompletesWithoutError()
+    {
+        await InitializeLibraryAsync();
+
+        var taskId = await _manager.StartWorkerAsync("Cleanup", new Dictionary<string, string>());
+        var result = await _manager.WaitForCompletionAsync(taskId).WaitAsync(Timeout);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.False(result.Crashed);
+    }
+
+    [Fact]
+    public async Task Deployment_UnknownProfile_ReportsFailure()
+    {
+        await InitializeLibraryAsync();
+
+        var taskId = await _manager.StartWorkerAsync("Deployment", new Dictionary<string, string>
+        {
+            ["ProfileId"] = Guid.NewGuid().ToString(),
+            ["Method"] = "Copy",
+            ["Order"] = "TopToBottom",
+            ["GamePath"] = Path.Combine(_root, "game")
+        });
+        var result = await _manager.WaitForCompletionAsync(taskId).WaitAsync(Timeout);
+
+        Assert.False(result.Success);
+        Assert.False(result.Crashed);
+        Assert.NotEmpty(result.Errors);
+    }
+
+    [Fact]
+    public async Task Import_FolderWithManifest_CreatesModAndReturnsIds()
+    {
+        var source = await CreateModDirectoryAsync("importable");
+
+        var taskId = await _manager.StartWorkerAsync("Import", new Dictionary<string, string>
+        {
+            ["Paths"] = JsonSerializer.Serialize(new[] { source })
+        });
+        var result = await _manager.WaitForCompletionAsync(taskId).WaitAsync(Timeout);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var importedIds = JsonSerializer.Deserialize<List<Guid>>(result.Data!)!;
+        var importedId = Assert.Single(importedIds);
+
+        using var context = new HD2MimntDbContext(Path.Combine(_root, "hd2mimnt.db"));
+        var repository = new ModRepository(context);
+        Assert.NotNull(await repository.GetByIdAsync(importedId, CancellationToken.None));
     }
 
     [Fact]

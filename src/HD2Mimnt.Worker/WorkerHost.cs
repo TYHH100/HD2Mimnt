@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using HD2Mimnt.Core.IPC;
 using HD2Mimnt.Worker.IPC;
@@ -7,11 +8,12 @@ namespace HD2Mimnt.Worker;
 /// <summary>
 /// Worker 进程侧 IPC 门面：接收执行命令与取消信号，向主程序回传进度和终态。
 /// </summary>
-public class WorkerHost : IDisposable
+public class WorkerHost : IWorkerTaskHost, IDisposable
 {
     private readonly Guid _taskId;
     private readonly NamedPipeClient _pipeClient;
     private readonly CancellationTokenSource _cancellation = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<WorkerPromptResponse>> _pendingPrompts = new();
 
     public Guid TaskId => _taskId;
 
@@ -57,6 +59,13 @@ public class WorkerHost : IDisposable
                     _cancellation.Cancel();
                     return;
                 }
+
+                if (message.MessageType == "PromptResponse")
+                {
+                    var response = JsonSerializer.Deserialize<WorkerPromptResponse>(message.Payload ?? "{}");
+                    if (response != null && _pendingPrompts.TryRemove(response.RequestId, out var pending))
+                        pending.TrySetResult(response);
+                }
             }
         }
         catch (OperationCanceledException) { }
@@ -78,16 +87,44 @@ public class WorkerHost : IDisposable
     }
 
     public Task SendCompletedAsync(bool success, string? result = null, List<string>? errors = null,
-        bool partiallyFailed = false, CancellationToken cancellationToken = default)
+        bool partiallyFailed = false, CancellationToken cancellationToken = default, string? data = null)
     {
         var payload = new WorkerCompletedResponse
         {
             Success = success,
             PartiallyFailed = partiallyFailed,
             Result = result,
-            Errors = errors
+            Errors = errors,
+            Data = data
         };
         return SendAsync("Completed", payload, cancellationToken);
+    }
+
+    /// <summary>
+    /// 请求主程序交互（例如询问压缩包密码）；主程序在 UI 线程处理后回传结果。
+    /// 任务取消时抛出 OperationCanceledException，业务按取消收尾。
+    /// </summary>
+    public async Task<WorkerPromptResponse> PromptAsync(string kind, string? title = null, string? payload = null,
+        CancellationToken cancellationToken = default)
+    {
+        var requestId = Guid.NewGuid().ToString("N");
+        var completion = new TaskCompletionSource<WorkerPromptResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingPrompts[requestId] = completion;
+        try
+        {
+            await SendAsync("Prompt", new WorkerPromptRequest
+            {
+                RequestId = requestId,
+                Kind = kind,
+                Title = title,
+                Payload = payload
+            }, cancellationToken);
+            return await completion.Task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            _pendingPrompts.TryRemove(requestId, out _);
+        }
     }
 
     /// <summary>业务已响应取消并清理完毕后的终态回执。</summary>

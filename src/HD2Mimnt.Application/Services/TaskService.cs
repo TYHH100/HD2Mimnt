@@ -16,6 +16,10 @@ public class TaskService
     private readonly ConcurrentDictionary<string, IWorker> _workers;
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _taskStateGates;
     private readonly ConcurrentDictionary<Guid, byte> _forceTerminatedTasks;
+    private readonly ConcurrentDictionary<Guid, IReadOnlyDictionary<string, string>> _taskArguments = new();
+    private readonly ConcurrentDictionary<Guid, IProgress<TaskProgress>> _taskProgressObservers = new();
+    private readonly ConcurrentDictionary<Guid, WorkerPromptHandler> _taskPromptHandlers = new();
+    private readonly ConcurrentDictionary<Guid, string> _taskResultData = new();
 
     public event EventHandler<TaskCompletedEventArgs>? TaskCompleted;
     public event EventHandler? TaskStarted;
@@ -50,8 +54,19 @@ public class TaskService
     {
         if (_workerHostManager == null)
             throw new InvalidOperationException("进程 Worker 需要 IWorkerHostManager，请在构造 TaskService 时注入。");
+        var argumentsFor = argumentsFactory ?? (_ => new Dictionary<string, string>());
         RegisterWorker(new ProcessWorker(type, _workerHostManager,
-            argumentsFactory ?? (_ => new Dictionary<string, string>())));
+            task =>
+            {
+                var merged = new Dictionary<string, string>(argumentsFor(task));
+                if (_taskArguments.TryGetValue(task.Id, out var extra))
+                {
+                    foreach (var pair in extra) merged[pair.Key] = pair.Value;
+                }
+                return merged;
+            },
+            taskId => _taskPromptHandlers.GetValueOrDefault(taskId),
+            (taskId, data) => _taskResultData[taskId] = data));
     }
 
     /// <summary>
@@ -77,6 +92,15 @@ public class TaskService
 
         await _taskRepository.AddAsync(task, cancellationToken);
         return task.Id;
+    }
+
+    /// <summary>创建任务并登记执行参数（只存在内存：任务启动后立即消费，不随任务记录持久化）。</summary>
+    public async Task<Guid> CreateTaskAsync(string name, string type,
+        IReadOnlyDictionary<string, string>? arguments, CancellationToken cancellationToken = default)
+    {
+        var id = await CreateTaskAsync(name, type, cancellationToken);
+        if (arguments is { Count: > 0 }) _taskArguments[id] = new Dictionary<string, string>(arguments);
+        return id;
     }
 
     /// <summary>
@@ -114,6 +138,39 @@ public class TaskService
             throw new OperationCanceledException();
         if (result?.Status != Core.Entities.TaskStatus.Completed)
             throw new InvalidOperationException(result?.Message ?? "任务执行失败。");
+    }
+
+    /// <summary>
+    /// 运行一个已注册的进程 Worker：创建任务记录并传入参数、进度观察者和交互处理器，
+    /// 返回任务终态与任务私有结果数据（JSON）。取消返回 Cancelled 终态而不抛异常。
+    /// </summary>
+    public async Task<ProcessTaskOutcome> RunProcessTaskAsync(
+        string name,
+        string type,
+        IReadOnlyDictionary<string, string>? arguments = null,
+        IProgress<TaskProgress>? progressObserver = null,
+        WorkerPromptHandler? promptHandler = null,
+        CancellationToken cancellationToken = default)
+    {
+        var id = await CreateTaskAsync(name, type, arguments, cancellationToken);
+        if (progressObserver != null) _taskProgressObservers[id] = progressObserver;
+        if (promptHandler != null) _taskPromptHandlers[id] = promptHandler;
+        try
+        {
+            try { await StartTaskAsync(id, cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            await WaitForTaskAsync(id, CancellationToken.None);
+            var task = await _taskRepository.GetByIdAsync(id, CancellationToken.None);
+            _taskResultData.TryRemove(id, out var data);
+            return new ProcessTaskOutcome(task, data);
+        }
+        finally
+        {
+            _taskProgressObservers.TryRemove(id, out _);
+            _taskPromptHandlers.TryRemove(id, out _);
+            _taskArguments.TryRemove(id, out _);
+            _taskResultData.TryRemove(id, out _);
+        }
     }
 
     private async Task StartTaskAsync(ModTask task, IWorker worker, CancellationToken cancellationToken)
@@ -172,6 +229,11 @@ public class TaskService
                 var progress = new SynchronousProgress<TaskProgress>(p =>
                 {
                     if (Volatile.Read(ref progressClosed) != 0) return;
+                    // UI 浮层等调用方观察者只做展示，异常不能影响任务执行与落库
+                    if (_taskProgressObservers.TryGetValue(taskId, out var observer))
+                    {
+                        try { observer.Report(p); } catch { }
+                    }
                     progressInbox.Enqueue(p);
                     if (Interlocked.CompareExchange(ref progressWriteScheduled, 1, 0) == 0)
                         _ = PersistProgressAsync();
@@ -283,6 +345,7 @@ public class TaskService
                 finally
                 {
                     _runningTasks.TryRemove(taskId, out _);
+                    _taskArguments.TryRemove(taskId, out _);
                     stateGate.Release();
                     cts.Dispose();
                     _taskStateGates.TryRemove(taskId, out _);
@@ -482,7 +545,9 @@ public class TaskService
     private sealed class ProcessWorker(
         string type,
         IWorkerHostManager manager,
-        Func<ModTask, Dictionary<string, string>> argumentsFactory) : IWorker
+        Func<ModTask, Dictionary<string, string>> argumentsFactory,
+        Func<Guid, WorkerPromptHandler?> promptHandlerLookup,
+        Action<Guid, string> dataSink) : IWorker
     {
         public string Type => type;
 
@@ -500,7 +565,8 @@ public class TaskService
                 Message = p.Message
             }));
 
-            var id = await manager.StartWorkerAsync(Type, argumentsFactory(task), bridge, cancellationToken, task.Id);
+            var id = await manager.StartWorkerAsync(Type, argumentsFactory(task), bridge, cancellationToken, task.Id,
+                promptHandlerLookup(task.Id));
             var completion = manager.WaitForCompletionAsync(id, CancellationToken.None);
             try
             {
@@ -534,6 +600,7 @@ public class TaskService
 
             task.Errors.AddRange(result.Errors);
             task.Result = result.Result ?? string.Empty;
+            if (!string.IsNullOrEmpty(result.Data)) dataSink(task.Id, result.Data);
             if (result.PartiallyFailed)
             {
                 // 部分成功：单项失败已写入 Errors，整体仍算完成，保留 PartiallyFailed
@@ -556,3 +623,6 @@ public sealed class TaskCompletedEventArgs : EventArgs
 
     public TaskCompletedEventArgs(ModTask task) => Task = task;
 }
+
+/// <summary>进程 Worker 的运行结果：任务终态记录 + 任务私有结果数据（JSON，可能为空）。</summary>
+public sealed record ProcessTaskOutcome(ModTask? Task, string? Data);

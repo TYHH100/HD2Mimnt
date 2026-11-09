@@ -3816,6 +3816,7 @@ public sealed partial class FluentAvaloniaUiTests
     private sealed class UiScope : IAsyncDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), $"HD2Mimnt-FluentUi-{Guid.NewGuid():N}");
+        private string? _originalDataPath;
         public string Root => _root;
         public RecordingWebsiteLauncher WebsiteLauncher { get; } = new();
         public ServiceProvider Services { get; private set; } = null!;
@@ -3836,10 +3837,13 @@ public sealed partial class FluentAvaloniaUiTests
             HD2Mimnt.Core.Interfaces.IGameSoundBankReader? soundBanks = null,
             HD2Mimnt.Core.Interfaces.IModelPreviewReader? modelPreviewReader = null,
             HD2Mimnt.Core.AudioPreview.IAudioPreviewReader? audioPreviewReader = null,
-            HD2Mimnt.Core.AudioPreview.IAudioPlaybackEngine? audioPlayback = null)
+            HD2Mimnt.Core.AudioPreview.IAudioPlaybackEngine? audioPlayback = null,
+            Func<IServiceProvider, HD2Mimnt.Core.Interfaces.IWorkerHostManager>? workerHostManagerFactory = null)
         {
             var scope = new UiScope();
-            var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
+            // 子进程 Worker 在测试运行时才启动，环境变量必须覆盖整个 scope 生命周期，
+            // 否则 Worker 会打开真实用户数据目录。
+            scope._originalDataPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
             try
             {
                 Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", scope._root);
@@ -3863,6 +3867,8 @@ public sealed partial class FluentAvaloniaUiTests
                 if (modelPreviewReader != null) services.AddSingleton(modelPreviewReader);
                 if (audioPreviewReader != null) services.AddSingleton(audioPreviewReader);
                 if (audioPlayback != null) services.AddSingleton(audioPlayback);
+                if (workerHostManagerFactory != null)
+                    services.AddSingleton<HD2Mimnt.Core.Interfaces.IWorkerHostManager>(workerHostManagerFactory);
                 if (iasPackages != null) services.AddSingleton(iasPackages);
                 if (iasCompiler != null) services.AddSingleton(iasCompiler);
                 if (iasUpdates != null) services.AddSingleton(iasUpdates);
@@ -3881,7 +3887,11 @@ public sealed partial class FluentAvaloniaUiTests
                         downloadTransport: ayakaDownloadHandler));
                 scope.Services = services.BuildServiceProvider();
             }
-            finally { Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", originalPath); }
+            catch
+            {
+                Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", scope._originalDataPath);
+                throw;
+            }
 
             try
             {
@@ -3914,6 +3924,7 @@ public sealed partial class FluentAvaloniaUiTests
             Dispatcher.UIThread.RunJobs();
             await Services.DisposeAsync();
             Dispatcher.UIThread.RunJobs();
+            Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", _originalDataPath);
             // 服务释放后连接会回到 SQLite 连接池并继续持有 hd2mimnt.db，删临时目录前必须清池；
             // 杀软/索引器也可能瞬时持锁，带退避重试删除。
             for (var attempt = 0; Directory.Exists(_root); attempt++)

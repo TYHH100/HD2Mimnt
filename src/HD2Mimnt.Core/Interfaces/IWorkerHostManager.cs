@@ -1,4 +1,10 @@
+using HD2Mimnt.Core.IPC;
+
 namespace HD2Mimnt.Core.Interfaces;
+
+/// <summary>主程序处理 Worker 交互请求（密码、确认等）的委托。</summary>
+public delegate Task<WorkerPromptResponse> WorkerPromptHandler(
+    WorkerPromptRequest request, CancellationToken cancellationToken);
 
 /// <summary>
 /// Progress information for worker tasks
@@ -20,6 +26,7 @@ public class WorkerResult
     public bool PartiallyFailed { get; set; }
     public bool Cancelled { get; set; }
     public string? Result { get; set; }
+    public string? Data { get; set; }
     public List<string> Errors { get; set; } = new();
     public bool Crashed { get; set; }
 }
@@ -38,7 +45,8 @@ public interface IWorkerHostManager
         Dictionary<string, string> arguments,
         IProgress<WorkerTaskProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        Guid? taskId = null);
+        Guid? taskId = null,
+        WorkerPromptHandler? promptHandler = null);
 
     /// <summary>
     /// Check if a worker is currently running

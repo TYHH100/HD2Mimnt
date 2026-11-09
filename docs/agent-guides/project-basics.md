@@ -59,7 +59,7 @@ dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-c
 - 插件贡献的界面入口必须随启用/停用/安装/卸载/授权变更立即刷新：`PluginManagementViewModel.NotifyContributionsChanged()` 是唯一通知点，漏调就会残留导航项与菜单项。所有「清空集合再逐条追加」的刷新逻辑都要先把结果拼进局部集合、最后一次替换，或合并并发调用，否则右键菜单反复弹出时会在 `await` 处交错产生重复条目。
 - 插件 AI 只能经 `PluginAiBroker` 代理：密钥留在主进程，提示词/日志/结果统一过 `PluginSecretGuard`，命中真实密钥时 `PluginHostManager` 立即强杀宿主、`PluginSecurityReporter` 停用插件并写入 `Blocked` 历史。`ai.use` 不随安装自动授予。新增任何插件出口文本都必须走 `Sanitize`，不能直传。
 - 插件 manifest 的 `Id` 是任意稳定字符串（反向域名或 GUID），IPC 全程按字符串传递；读取 manifest 必须用 `PluginManifestJson.Options`（大小写不敏感、字符串枚举）。安装对话框按逐项勾选授权，`PluginInstallConsent.PersistGrants=false`（仅本次允许）写入 `IPluginGrantSession` 内存授权，`CheckPermissionAsync` 与 `PluginAiBroker` 都必须先查它。IPC 消息类型在 `Application/Services/PluginHostManager.cs` 与 `PluginHost/IPC/PluginHostMessage.cs` 各定义一份、靠 JSON 字段名隐式匹配，改字段必须两处同步。
-- 长任务通过 `TaskService` 创建、报告阶段/进度并结束。批量校验由 `HD2Mimnt.Worker` 独立进程执行（`TaskService.RegisterProcessWorker` + `WorkerHostManager`），Worker 崩溃/被强杀不会拖死 UI；导入与部署仍在主进程内执行。进程隔离、取消与终态约束见 [测试与生命周期指南](testing-and-lifecycle.md)。
+- 长任务通过 `TaskService` 创建、报告阶段/进度并结束。批量校验、导入、部署与清理都在 `HD2Mimnt.Worker` 独立进程执行（`TaskService.RegisterProcessWorker` + `WorkerHostManager`，注册在 DI 工厂里），Worker 崩溃/被强杀不会拖死 UI。导入的密码与 HD2IR 确认经 IPC 交互请求回到主进程弹窗；部署/清理靠 `DeploymentResult.Status` 判定终态。进程隔离、取消、交互请求与终态约束见 [测试与生命周期指南](testing-and-lifecycle.md)。
 - 外部平台实现 `IModPlatform`，通过 `PlatformRegistry` 使用；平台模型、认证、下载流程隔离在独立模块，见 [平台指南](platforms-and-downloads.md)。
 - 核心表包括 `Mods`、`Profiles`、`ProfileMods`、`Tasks`、`DeploymentRecords`、`DeploymentFiles`；字段变动须检查实体、补列、SQL 写入/读取和参数绑定，不能只增加实体属性。
 

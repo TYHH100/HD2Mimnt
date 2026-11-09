@@ -1,11 +1,15 @@
 ﻿using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Deployment;
+using HD2Mimnt.Infrastructure.NativeCompanion;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Storage;
 using HD2Mimnt.Infrastructure.Workflows;
 using HD2Mimnt.Worker;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Worker 进程入口：在独立进程执行后台任务，崩溃或被强杀不影响主程序 UI。
@@ -50,6 +54,7 @@ internal static class Program
             ConfigureServices(services);
             await using var serviceProvider = services.BuildServiceProvider();
             await serviceProvider.GetRequiredService<HD2MimntDbContext>().InitializeDatabaseAsync();
+            await PrepareStorageStateAsync(command.WorkerType, serviceProvider);
 
             var watch = host.WatchForCancellationAsync();
             var task = WorkerFactory.Create(command.WorkerType, serviceProvider);
@@ -82,14 +87,90 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// 部署/清理/导入依赖设置缓存、配置初始化和部署状态迁移，启动顺序与 CLI headless 一致；
+    /// 纯校验任务不需要这些写入，避免无谓修改数据库。
+    /// </summary>
+    private static async Task PrepareStorageStateAsync(string workerType, IServiceProvider services)
+    {
+        if (workerType is not ("Deployment" or "Cleanup" or "Import")) return;
+
+        var settings = services.GetRequiredService<SettingsService>();
+        await services.GetRequiredService<DeploymentStateMigrationService>()
+            .EnsureMigratedAsync(settings.GetEffectiveGamePath(), CancellationToken.None);
+        await services.GetRequiredService<ProfileService>().InitializeAsync(CancellationToken.None);
+    }
+
     private static void ConfigureServices(IServiceCollection services)
     {
         // 与主程序读同一份定位文件（HD2MIMNT_DATA_PATH 由主进程环境继承），
         // 保证隔离测试与存储搬迁后 Worker 打开的是同一个数据库。
         var storage = new StorageSettingsService(new StorageLocationStore());
+        var locations = storage.Current;
+        Directory.CreateDirectory(locations.AppDataPath);
+        Directory.CreateDirectory(locations.ModsPath);
+        Directory.CreateDirectory(locations.CachePath);
+        Directory.CreateDirectory(locations.TempPath);
+        Directory.CreateDirectory(locations.ImageCachePath);
+        Directory.CreateDirectory(locations.DownloadsPath);
+        // 与 UI/CLI 一致：用户覆盖的加载器目录也要在子进程生效，否则导入识别和部署排序会用默认目录。
+        LoaderRegistry.Initialize(locations.AppDataPath);
 
-        services.AddSingleton(new HD2MimntDbContext(storage.Current.DatabasePath));
+        services.AddSingleton(storage);
+        services.AddSingleton(new HD2MimntDbContext(locations.DatabasePath));
+        services.AddSingleton<ISettingsRepository>(_ => new SettingsRepository(locations.DatabasePath));
         services.AddSingleton<IModRepository, ModRepository>();
+        services.AddSingleton<IProfileRepository, ProfileRepository>();
+        services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
+
+        services.AddSingleton(sp => new SettingsService(
+            sp.GetRequiredService<ISettingsRepository>(), locations.AppDataPath, sp.GetService<ILogger<SettingsService>>()));
+        services.AddSingleton(sp => new ProfileService(
+            sp.GetRequiredService<IProfileRepository>(),
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton(sp => new DeploymentStateMigrationService(
+            sp.GetRequiredService<HD2MimntDbContext>(), sp.GetService<ILogger<DeploymentStateMigrationService>>()));
+
+        services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();
+        services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
+        services.AddSingleton<IDeploymentMethod, HardLinkDeploymentMethod>();
+        services.AddSingleton(sp => new Mdl3CompanionService(
+            sp.GetService<IAuthenticodeVerifier>() ?? new AuthenticodeVerifier(),
+            sp.GetService<ILogger<Mdl3CompanionService>>()));
+
+        services.AddSingleton<IIasSystemService>(sp => new IasSystemService(
+            sp.GetRequiredService<ModService>(), sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton<IIasCompanionService>(sp => new IasCompanionService(
+            sp.GetRequiredService<IIasSystemService>(),
+            sp.GetRequiredService<ModService>(),
+            sp.GetRequiredService<IDeploymentRepository>(),
+            sp.GetRequiredService<SettingsService>(),
+            Path.Combine(locations.AppDataPath, "IAS-Transactions"),
+            Path.Combine(locations.AppDataPath, "Cache", "IAS-Generator"),
+            Path.Combine(locations.AppDataPath, "IAS-System", "deployment.json")));
+
+        services.AddSingleton(sp => new DeploymentService(
+            sp.GetRequiredService<IProfileRepository>(),
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<IDeploymentRepository>(),
+            sp.GetServices<IDeploymentMethod>(),
+            sp.GetService<ILogger<DeploymentService>>(),
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<DeploymentStateMigrationService>(),
+            // 与 UI 相同：部署成功后才触发 armor 配套生成，延迟解析避免 ModService↔DeploymentService 构造环。
+            () => sp.GetService<IIasCompanionService>(),
+            sp.GetRequiredService<Mdl3CompanionService>()));
+
+        services.AddSingleton(sp => new ModService(
+            sp.GetRequiredService<IModRepository>(),
+            locations.ModsPath,
+            sp.GetService<ILogger<ModService>>(),
+            sp.GetRequiredService<DeploymentService>(),
+            locations.TempPath,
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ProfileService>()));
+
         services.AddSingleton<IWorkflowRegistry>(_ =>
         {
             var registry = new WorkflowRegistry();

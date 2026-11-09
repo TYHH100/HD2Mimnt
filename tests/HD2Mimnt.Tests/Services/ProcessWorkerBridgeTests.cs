@@ -27,9 +27,10 @@ public sealed class ProcessWorkerBridgeTests : IDisposable
 
         _hostManager
             .Setup(m => m.StartWorkerAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>()))
+                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>(),
+                It.IsAny<WorkerPromptHandler?>()))
             .ReturnsAsync((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? _,
-                CancellationToken _, Guid? taskId) => taskId ?? Guid.NewGuid());
+                CancellationToken _, Guid? taskId, WorkerPromptHandler? _) => taskId ?? Guid.NewGuid());
         _hostManager
             .Setup(m => m.WaitForCompletionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(_completion.Task);
@@ -43,11 +44,12 @@ public sealed class ProcessWorkerBridgeTests : IDisposable
     {
         Guid? startedId = null;
         _hostManager.Setup(m => m.StartWorkerAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>()))
+                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>(),
+                It.IsAny<WorkerPromptHandler?>()))
             .Callback((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? _,
-                CancellationToken _, Guid? taskId) => startedId = taskId)
+                CancellationToken _, Guid? taskId, WorkerPromptHandler? _) => startedId = taskId)
             .ReturnsAsync((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? _,
-                CancellationToken _, Guid? taskId) => taskId ?? Guid.NewGuid());
+                CancellationToken _, Guid? taskId, WorkerPromptHandler? _) => taskId ?? Guid.NewGuid());
 
         var id = await _taskService.CreateTaskAsync("Validate", "Validation");
         await _taskService.StartTaskAsync(id);
@@ -148,15 +150,46 @@ public sealed class ProcessWorkerBridgeTests : IDisposable
     }
 
     [Fact]
+    public async Task RunProcessTaskAsync_PassesArgumentsPromptHandlerAndReturnsData()
+    {
+        Dictionary<string, string>? capturedArguments = null;
+        WorkerPromptHandler? capturedPrompt = null;
+        _hostManager.Setup(m => m.StartWorkerAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>(),
+                It.IsAny<WorkerPromptHandler?>()))
+            .Callback((string _, Dictionary<string, string> arguments, IProgress<WorkerTaskProgress>? _,
+                CancellationToken _, Guid? _, WorkerPromptHandler? prompts) =>
+            {
+                capturedArguments = arguments;
+                capturedPrompt = prompts;
+            })
+            .ReturnsAsync((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? _,
+                CancellationToken _, Guid? taskId, WorkerPromptHandler? _) => taskId ?? Guid.NewGuid());
+
+        _completion.SetResult(new WorkerResult { Success = true, Result = "ok", Data = "[\"imported\"]" });
+        var promptHandler = new WorkerPromptHandler((_, _) =>
+            Task.FromResult(new Core.IPC.WorkerPromptResponse { Accepted = true }));
+
+        var outcome = await _taskService.RunProcessTaskAsync("导入", "Validation",
+            new Dictionary<string, string> { ["Paths"] = "[\"a.zip\"]" }, promptHandler: promptHandler);
+
+        Assert.Equal(Core.Entities.TaskStatus.Completed, outcome.Task!.Status);
+        Assert.Equal("[\"imported\"]", outcome.Data);
+        Assert.Equal("[\"a.zip\"]", capturedArguments!["Paths"]);
+        Assert.Same(promptHandler, capturedPrompt);
+    }
+
+    [Fact]
     public async Task WorkerProgress_IsForwardedToTaskRecord()
     {
         IProgress<WorkerTaskProgress>? captured = null;
         _hostManager.Setup(m => m.StartWorkerAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, string>>(),
-                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>()))
+                It.IsAny<IProgress<WorkerTaskProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<Guid?>(),
+                It.IsAny<WorkerPromptHandler?>()))
             .Callback((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? progress,
-                CancellationToken _, Guid? _) => captured = progress)
+                CancellationToken _, Guid? _, WorkerPromptHandler? _) => captured = progress)
             .ReturnsAsync((string _, Dictionary<string, string> _, IProgress<WorkerTaskProgress>? _,
-                CancellationToken _, Guid? taskId) => taskId ?? Guid.NewGuid());
+                CancellationToken _, Guid? taskId, WorkerPromptHandler? _) => taskId ?? Guid.NewGuid());
 
         var id = await _taskService.CreateTaskAsync("Validate", "Validation");
         await _taskService.StartTaskAsync(id);

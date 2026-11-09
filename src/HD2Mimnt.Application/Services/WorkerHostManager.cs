@@ -42,7 +42,8 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
         Dictionary<string, string> arguments,
         IProgress<WorkerTaskProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        Guid? taskId = null)
+        Guid? taskId = null,
+        WorkerPromptHandler? promptHandler = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var id = taskId ?? Guid.NewGuid();
@@ -99,7 +100,8 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
                 Payload = JsonSerializer.Serialize(command)
             }, cancellationToken);
 
-            var worker = new WorkerProcess(id, process, pipeServer, progress, standardError, standardErrorCapture);
+            var worker = new WorkerProcess(id, process, pipeServer, progress, promptHandler,
+                standardError, standardErrorCapture);
             // 结果缓存与进程生命周期解耦：Worker 可能在调用方取结果前就崩溃并清理完毕。
             _completions[id] = worker.CompletionTask;
             if (!_runningWorkers.TryAdd(id, worker))
@@ -149,8 +151,15 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
                     case "Completed":
                         var completedData = JsonSerializer.Deserialize<WorkerCompletedResponse>(message.Payload ?? "{}");
                         worker.SetResult(completedData?.Success ?? false, completedData?.Result,
-                            completedData?.Errors, completedData?.PartiallyFailed ?? false);
+                            completedData?.Errors, completedData?.PartiallyFailed ?? false, completedData?.Data);
                         return;
+
+                    case "Prompt":
+                        // 交互请求要等用户操作，不能阻塞监听循环（否则进度与取消都收不到）。
+                        // 不带 Handler 的 Worker 直接拒绝，让业务按缺少输入失败。
+                        var promptData = JsonSerializer.Deserialize<WorkerPromptRequest>(message.Payload ?? "{}");
+                        if (promptData != null) _ = RespondToPromptAsync(worker, promptData);
+                        break;
 
                     case "Cancelled":
                         worker.SetCancelled();
@@ -186,6 +195,42 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
         finally
         {
             CleanupWorker(worker);
+        }
+    }
+
+    private async Task RespondToPromptAsync(WorkerProcess worker, WorkerPromptRequest request)
+    {
+        var response = new WorkerPromptResponse { RequestId = request.RequestId, Accepted = false };
+        if (worker.PromptHandler != null)
+        {
+            try
+            {
+                response = await worker.PromptHandler(request, worker.ListenerCts.Token);
+                response.RequestId = request.RequestId;
+            }
+            catch (OperationCanceledException)
+            {
+                // Worker 已结束或任务取消，不需要回复
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "处理 Worker 交互请求失败 {TaskId}/{Kind}", worker.TaskId, request.Kind);
+            }
+        }
+
+        try
+        {
+            await worker.Pipe.SendMessageAsync(new WorkerMessage
+            {
+                MessageType = "PromptResponse",
+                TaskId = worker.TaskId,
+                Payload = JsonSerializer.Serialize(response)
+            }, worker.ListenerCts.Token);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException)
+        {
+            // Worker 已退出，回复无处可去
         }
     }
 
@@ -253,7 +298,11 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
     {
         if (_runningWorkers.TryGetValue(taskId, out var worker))
         {
-            return await worker.CompletionTask.WaitAsync(cancellationToken);
+            var result = await worker.CompletionTask.WaitAsync(cancellationToken);
+            // 终态回执由监听线程先置结果、再在 finally 清理进程；调用方拿到结果时应已可再次启动同任务。
+            try { await worker.CleanupCompleted.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken); }
+            catch (TimeoutException) { }
+            return result;
         }
 
         if (_completions.TryGetValue(taskId, out var completion))
@@ -321,6 +370,7 @@ internal class WorkerProcess : IDisposable
     public Process Process { get; }
     public NamedPipeServer Pipe { get; }
     public IProgress<WorkerTaskProgress>? Progress { get; }
+    public WorkerPromptHandler? PromptHandler { get; }
     public Task StandardErrorCapture { get; }
 
     private readonly StringBuilder _standardError;
@@ -350,23 +400,27 @@ internal class WorkerProcess : IDisposable
     public Task<WorkerResult> CompletionTask => _completionSource.Task;
 
     public WorkerProcess(Guid taskId, Process process, NamedPipeServer pipe,
-        IProgress<WorkerTaskProgress>? progress, StringBuilder standardError, Task standardErrorCapture)
+        IProgress<WorkerTaskProgress>? progress, WorkerPromptHandler? promptHandler,
+        StringBuilder standardError, Task standardErrorCapture)
     {
         TaskId = taskId;
         Process = process;
         Pipe = pipe;
         Progress = progress;
+        PromptHandler = promptHandler;
         _standardError = standardError;
         StandardErrorCapture = standardErrorCapture;
     }
 
-    public void SetResult(bool success, string? result, List<string>? errors, bool partiallyFailed)
+    public void SetResult(bool success, string? result, List<string>? errors, bool partiallyFailed,
+        string? data = null)
     {
         _completionSource.TrySetResult(new WorkerResult
         {
             Success = success,
             PartiallyFailed = partiallyFailed,
             Result = result,
+            Data = data,
             Errors = errors ?? new List<string>(),
             Crashed = false
         });

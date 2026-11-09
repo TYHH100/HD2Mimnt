@@ -56,6 +56,9 @@ public sealed class OfflineInteropService : IAsyncDisposable
         _worker = Task.Run(RunAsync);
     }
 
+    /// <summary>进程 Worker 完成任务后调用：子进程写库不会触发本进程的服务事件。</summary>
+    public void RequestRefresh() => _updates.Writer.TryWrite(true);
+
     private void Changed(object? sender, EventArgs args) => _updates.Writer.TryWrite(true);
     private void ProfilesChanged(object? sender, ProfilesChangedEventArgs args) => Changed(sender, args);
     private void SettingChanged(object? sender, SettingChangedEventArgs args) => Changed(sender, args);

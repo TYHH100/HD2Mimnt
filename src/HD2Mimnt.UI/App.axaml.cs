@@ -158,13 +158,10 @@ public partial class App : Avalonia.Application
             }
 
             var taskService = ServiceProvider.GetRequiredService<TaskService>();
-            var workers = ServiceProvider.GetServices<IWorker>();
-            foreach (var worker in workers)
+            foreach (var worker in ServiceProvider.GetServices<IWorker>())
             {
                 taskService.RegisterWorker(worker);
             }
-            // 批量校验在 HD2Mimnt.Worker 独立进程执行，崩溃/卡死不影响主 UI。
-            taskService.RegisterProcessWorker("Validation");
 
             // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
             Program.CliPipeHost = new CliCommandPipeHost(host.Services);
@@ -212,6 +209,11 @@ public partial class App : Avalonia.Application
             await main.InitializeAsync();
             var interop = ServiceProvider!.GetRequiredService<OfflineInteropService>();
             await interop.StartAsync();
+            // 导入/部署/清理在子进程写入数据库，主进程的服务事件不会触发，任务结束后主动刷新离线快照。
+            ServiceProvider!.GetRequiredService<TaskService>().TaskCompleted += (_, args) =>
+            {
+                if (args.Task.Type is "Import" or "Deployment" or "Cleanup") interop.RequestRefresh();
+            };
             if (interop.LastError is { } interopError)
                 ServiceProvider!.GetRequiredService<NotificationService>().ShowWarning(interopError, UiLocalization.Current["Interop.Title"]);
             if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
@@ -445,7 +447,20 @@ public partial class App : Avalonia.Application
         // Task Center
         services.AddSingleton<IWorkerHostManager>(sp => new WorkerHostManager(
             sp.GetService<ILogger<WorkerHostManager>>()));
-        services.AddSingleton<TaskService>();
+        services.AddSingleton(sp =>
+        {
+            var taskService = new TaskService(
+                sp.GetRequiredService<ITaskRepository>(),
+                sp,
+                sp.GetRequiredService<IWorkerHostManager>());
+            // 重 IO 任务在 HD2Mimnt.Worker 独立进程执行，崩溃/卡死不影响主 UI。
+            // 注册放在 DI 工厂里，UI 测试只构建服务容器也能拿到完整任务图。
+            taskService.RegisterProcessWorker("Validation");
+            taskService.RegisterProcessWorker("Deployment");
+            taskService.RegisterProcessWorker("Cleanup");
+            taskService.RegisterProcessWorker("Import");
+            return taskService;
+        });
         services.AddSingleton<PlatformDownloadTaskRunner>();
 
         // 部署相关（补充缺失的注册）
@@ -544,7 +559,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
-            sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>()));
+            sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
+            sp.GetRequiredService<TaskService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),

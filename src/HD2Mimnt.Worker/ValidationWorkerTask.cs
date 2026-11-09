@@ -9,7 +9,7 @@ namespace HD2Mimnt.Worker;
 /// </summary>
 public sealed class ValidationWorkerTask(IModRepository modRepository, IWorkflowRegistry workflowRegistry) : IWorkerTask
 {
-    public async Task ExecuteAsync(WorkerHost host, ExecuteWorkerCommand command, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(IWorkerTaskHost host, ExecuteWorkerCommand command, CancellationToken cancellationToken)
     {
         await host.SendProgressAsync(0, "Loading Mods", message: "Loading mod list...", cancellationToken: cancellationToken);
         var mods = (await modRepository.GetAllAsync(cancellationToken)).ToList();

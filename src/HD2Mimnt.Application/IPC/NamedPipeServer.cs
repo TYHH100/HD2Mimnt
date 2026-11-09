@@ -11,6 +11,8 @@ public class NamedPipeServer : IDisposable
 {
     private readonly NamedPipeServerStream _pipeServer;
     private readonly string _pipeName;
+    // 监听线程回复 PromptResponse 与取消/启动发送可能并发，PipeFrame 写帧不能交错。
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
 
     public NamedPipeServer(string pipeName)
     {
@@ -30,8 +32,12 @@ public class NamedPipeServer : IDisposable
         await _pipeServer.WaitForConnectionAsync(cancellationToken);
     }
 
-    public Task SendMessageAsync(WorkerMessage message, CancellationToken cancellationToken = default)
-        => PipeFrame.SendAsync(_pipeServer, JsonSerializer.Serialize(message), cancellationToken);
+    public async Task SendMessageAsync(WorkerMessage message, CancellationToken cancellationToken = default)
+    {
+        await _sendGate.WaitAsync(cancellationToken);
+        try { await PipeFrame.SendAsync(_pipeServer, JsonSerializer.Serialize(message), cancellationToken); }
+        finally { _sendGate.Release(); }
+    }
 
     public async Task<WorkerMessage?> ReceiveMessageAsync(CancellationToken cancellationToken = default)
     {
@@ -44,5 +50,6 @@ public class NamedPipeServer : IDisposable
     public void Dispose()
     {
         _pipeServer?.Dispose();
+        _sendGate.Dispose();
     }
 }

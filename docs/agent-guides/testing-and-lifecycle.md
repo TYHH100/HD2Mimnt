@@ -81,6 +81,11 @@
 - Worker 端批量作业单项失败不中断整体：逐项上报进度，结束时汇总 `PartiallyFailed` 与错误列表；主程序桥接先判 `PartiallyFailed` 再判 `Success=false`，否则部分失败会被误标为 `Failed`。
 
 - 真实 Worker 进程的集成测试通过 `HD2MIMNT_DATA_PATH` 指向临时目录并在用例内初始化数据库；该变量是进程级状态，相关测试集合必须 `DisableParallelization`，并在结束时恢复原值、删除临时目录。宿主可执行文件路径、连接超时与取消宽限期在 `WorkerHostManager` 构造中可注入，便于用快速失败的程序验证连接超时。崩溃/挂起/优雅取消用 `tests/HD2Mimnt.WorkerStub` 替身进程验证（行为由 Command 的 `Arguments["Behavior"]` 指定），不要为测试往生产 Worker 里加休眠开关。来源：[xUnit v2 collection](https://xunit.net/docs/running-tests-in-parallel)
+- UI 测试里的 `HD2MIMNT_DATA_PATH` 必须覆盖整个 scope 生命周期，而不是构建完服务容器就恢复：子进程 Worker 是测试动作发生时才启动的，提前恢复会让它打开真实用户数据目录。需要注入阻塞式部署方法的 UI 测试改用回环 `IWorkerHostManager`（在本进程执行 `DeploymentWorkerTask`/`CleanupWorkerTask`），只有管道传输被替换，TaskService→Worker 任务的链路仍然真实。
+- Worker 任务要用完整服务图：导入/部署/清理依赖 `SettingsService`、`ProfileService`、`DeploymentStateMigrationService`、`IDeploymentMethod`×3、IAS/MDL3 伴生与 `LoaderRegistry.Initialize`，与 `HD2Mimnt.Cli/HeadlessHost` 保持一致；启动时先完成部署状态迁移和配置初始化，纯校验任务可跳过这些写入。Worker 里不要用 `Progress<T>`（无同步上下文，顺序不可控），进度统一走 `WorkerProgressReporter`（同步发送 + 100ms 节流，首条必须送达，否则长任务首帧阻塞时 UI 一直停在不确定态）。
+- Worker 不能弹窗：压缩包密码与 HD2IR 组件确认必须走 `Prompt`/`PromptResponse` 双向消息（`WorkerHost.PromptAsync` ↔ `WorkerHostManager` 的 `WorkerPromptHandler`）。主程序监听循环收到 Prompt 后要异步处理、不能 await 卡住循环（否则进度和取消都收不到），并发写管道要有发送闸门。没有 Handler 的 Worker 直接拒绝请求，业务按失败/取消处理。
+- `DeployProfileAsync`/`ReconcileAfterModUpdateAsync` 不抛异常，失败与取消通过 `DeploymentResult.Status` 返回：Worker 任务必须按状态映射 Completed/PartiallyFailed/Cancelled/Failed，只看异常会把失败部署报成成功。
+- 子进程写库不会触发主进程的 `ModsChanged`/`DeploymentsChanged` 事件；`TaskCompleted` 后要对 Import/Deployment/Cleanup 调用 `OfflineInteropService.RequestRefresh()`，否则离线快照停留在旧状态。来源：https://learn.microsoft.com/dotnet/standard/events/observer-design-pattern
 
 - 强制终止任务必须与后台执行体的最终写入使用同一任务级闸门；先标记并持久化 `ForceTerminated`，后台取消回调不能覆盖终止状态，也不能重复发布完成事件。
 
