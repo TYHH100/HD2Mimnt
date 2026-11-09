@@ -86,6 +86,7 @@
 - Worker 不能弹窗：压缩包密码与 HD2IR 组件确认必须走 `Prompt`/`PromptResponse` 双向消息（`WorkerHost.PromptAsync` ↔ `WorkerHostManager` 的 `WorkerPromptHandler`）。主程序监听循环收到 Prompt 后要异步处理、不能 await 卡住循环（否则进度和取消都收不到），并发写管道要有发送闸门。没有 Handler 的 Worker 直接拒绝请求，业务按失败/取消处理。
 - `DeployProfileAsync`/`ReconcileAfterModUpdateAsync` 不抛异常，失败与取消通过 `DeploymentResult.Status` 返回：Worker 任务必须按状态映射 Completed/PartiallyFailed/Cancelled/Failed，只看异常会把失败部署报成成功。
 - 子进程写库不会触发主进程的 `ModsChanged`/`DeploymentsChanged` 事件；`TaskCompleted` 后要对 Import/Deployment/Cleanup 调用 `OfflineInteropService.RequestRefresh()`，否则离线快照停留在旧状态。来源：https://learn.microsoft.com/dotnet/standard/events/observer-design-pattern
+- 发起方自己会提示结果的任务（`RunProcessTaskAsync`：导入/部署/清理浮层）用 `TaskCompletedEventArgs.NotifyUser=false` 抑制通用“后台任务已完成”通知；只有任务中心单独发起的任务保留通用通知，否则用户会同时收到两条重复提示。
 
 - 强制终止任务必须与后台执行体的最终写入使用同一任务级闸门；先标记并持久化 `ForceTerminated`，后台取消回调不能覆盖终止状态，也不能重复发布完成事件。
 

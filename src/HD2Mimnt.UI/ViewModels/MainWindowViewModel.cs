@@ -652,7 +652,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnTaskCompleted(object? sender, TaskCompletedEventArgs e)
     {
-        QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
+        // 导入/部署/清理由发起浮层提示结果，这里只刷新运行状态，避免重复通知。
+        if (e.NotifyUser) QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
+        else QueueUiRefresh(UpdateRunningTasksAsync);
     }
 
     private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);

@@ -180,6 +180,33 @@ public sealed class ProcessWorkerBridgeTests : IDisposable
     }
 
     [Fact]
+    public async Task RunProcessTaskAsync_SuppressesGenericCompletionNotification()
+    {
+        TaskCompletedEventArgs? completed = null;
+        _taskService.TaskCompleted += (_, args) => completed = args;
+        _completion.SetResult(new WorkerResult { Success = true });
+
+        await _taskService.RunProcessTaskAsync("导入", "Validation");
+
+        Assert.NotNull(completed);
+        Assert.False(completed!.NotifyUser);
+    }
+
+    [Fact]
+    public async Task StartTaskAsync_KeepsGenericCompletionNotification()
+    {
+        TaskCompletedEventArgs? completed = null;
+        _taskService.TaskCompleted += (_, args) => completed = args;
+        var id = await _taskService.CreateTaskAsync("Validate", "Validation");
+        await _taskService.StartTaskAsync(id);
+        _completion.SetResult(new WorkerResult { Success = true });
+        await _taskService.WaitForTaskAsync(id);
+
+        Assert.NotNull(completed);
+        Assert.True(completed!.NotifyUser);
+    }
+
+    [Fact]
     public async Task WorkerProgress_IsForwardedToTaskRecord()
     {
         IProgress<WorkerTaskProgress>? captured = null;

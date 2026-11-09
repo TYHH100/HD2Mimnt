@@ -288,6 +288,11 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         var arguments = new Dictionary<string, string> { ["Paths"] = JsonSerializer.Serialize(sources) };
         if (sourceLink != null) arguments["SourceLink"] = JsonSerializer.Serialize(sourceLink);
 
+        // Worker 冷启动要加载运行时并初始化服务，先显示不确定进度，避免浮层停在 0% 像卡死。
+        Step = "准备添加";
+        Detail = "正在启动后台导入进程...";
+        IsIndeterminate = true;
+        FileProgress = OverallProgress = 0;
         _lastWorkerFile = string.Empty;
         var progress = new Progress<TaskProgress>(p =>
         {
@@ -297,8 +302,10 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
             {
                 _lastWorkerFile = p.CurrentItem;
                 CurrentFile = p.CurrentItem;
-                ProcessedCount = Math.Min(TotalCount, ProcessedCount + 1);
             }
+            // Worker 每导入完一个文件才报“导入完成”，按它统计已处理数量。
+            if (p.Stage == "导入完成")
+                ProcessedCount = Math.Min(TotalCount, ProcessedCount + 1);
             if (!string.IsNullOrWhiteSpace(p.Stage)) Step = p.Stage;
             if (!string.IsNullOrWhiteSpace(p.Message)) Detail = p.Message;
             IsIndeterminate = false;

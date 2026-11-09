@@ -20,6 +20,8 @@ public class TaskService
     private readonly ConcurrentDictionary<Guid, IProgress<TaskProgress>> _taskProgressObservers = new();
     private readonly ConcurrentDictionary<Guid, WorkerPromptHandler> _taskPromptHandlers = new();
     private readonly ConcurrentDictionary<Guid, string> _taskResultData = new();
+    // 发起方自己会提示结果（导入/部署/清理浮层），避免再弹一条通用“后台任务已完成”。
+    private readonly ConcurrentDictionary<Guid, byte> _tasksWithoutAutoNotification = new();
 
     public event EventHandler<TaskCompletedEventArgs>? TaskCompleted;
     public event EventHandler? TaskStarted;
@@ -153,6 +155,7 @@ public class TaskService
         CancellationToken cancellationToken = default)
     {
         var id = await CreateTaskAsync(name, type, arguments, cancellationToken);
+        _tasksWithoutAutoNotification[id] = 0;
         if (progressObserver != null) _taskProgressObservers[id] = progressObserver;
         if (promptHandler != null) _taskPromptHandlers[id] = promptHandler;
         try
@@ -170,6 +173,7 @@ public class TaskService
             _taskPromptHandlers.TryRemove(id, out _);
             _taskArguments.TryRemove(id, out _);
             _taskResultData.TryRemove(id, out _);
+            _tasksWithoutAutoNotification.TryRemove(id, out _);
         }
     }
 
@@ -335,7 +339,8 @@ public class TaskService
                     {
                         await _taskRepository.UpdateAsync(task, CancellationToken.None);
                         _runningTasks.TryRemove(taskId, out _);
-                        TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task));
+                        var notifyUser = !_tasksWithoutAutoNotification.TryRemove(taskId, out _);
+                        TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task, notifyUser));
                     }
                 }
                 catch (Exception error)
@@ -426,7 +431,8 @@ public class TaskService
             task.EndTime = DateTime.UtcNow;
             await _taskRepository.UpdateAsync(task, cancellationToken);
             _runningTasks.TryRemove(taskId, out _);
-            TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task));
+            var notifyUser = !_tasksWithoutAutoNotification.TryRemove(taskId, out _);
+            TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task, notifyUser));
         }
         finally
         {
@@ -621,7 +627,14 @@ public sealed class TaskCompletedEventArgs : EventArgs
 {
     public ModTask Task { get; }
 
-    public TaskCompletedEventArgs(ModTask task) => Task = task;
+    /// <summary>是否由任务中心统一弹“后台任务”通知；发起方已有自己的结果提示时为 false。</summary>
+    public bool NotifyUser { get; }
+
+    public TaskCompletedEventArgs(ModTask task, bool notifyUser = true)
+    {
+        Task = task;
+        NotifyUser = notifyUser;
+    }
 }
 
 /// <summary>进程 Worker 的运行结果：任务终态记录 + 任务私有结果数据（JSON，可能为空）。</summary>

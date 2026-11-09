@@ -1849,6 +1849,11 @@ public sealed partial class FluentAvaloniaUiTests
                 Assert.Empty(Directory.GetFiles(game));
                 Assert.Equal(activeId, (await profiles.GetActiveProfileAsync())!.Id);
             }
+
+            // 部署结果由发起浮层提示，后台任务不再重复弹通用完成通知。
+            await main.WaitForRefreshesAsync();
+            Assert.DoesNotContain(services.GetRequiredService<NotificationService>().GetRecentNotifications(),
+                notification => notification.Title == "后台任务");
         }
         finally
         {

@@ -95,9 +95,13 @@ internal static class Program
     {
         if (workerType is not ("Deployment" or "Cleanup" or "Import")) return;
 
-        var settings = services.GetRequiredService<SettingsService>();
-        await services.GetRequiredService<DeploymentStateMigrationService>()
-            .EnsureMigratedAsync(settings.GetEffectiveGamePath(), CancellationToken.None);
+        // 只有部署/清理需要把旧会话记录迁移成当前安装状态；导入不读部署表，跳过整库迁移。
+        if (workerType is "Deployment" or "Cleanup")
+        {
+            var settings = services.GetRequiredService<SettingsService>();
+            await services.GetRequiredService<DeploymentStateMigrationService>()
+                .EnsureMigratedAsync(settings.GetEffectiveGamePath(), CancellationToken.None);
+        }
         await services.GetRequiredService<ProfileService>().InitializeAsync(CancellationToken.None);
     }
 
