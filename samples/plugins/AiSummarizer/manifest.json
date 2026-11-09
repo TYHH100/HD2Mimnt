@@ -1,0 +1,124 @@
+{
+  // 插件清单：camelCase、字符串枚举与注释都会被正确解析
+  "id": "com.hd2mimnt.samples.ai-summary",
+  "name": "AI 摘要示例",
+  "version": "1.2.0",
+  "author": "HD2Mimnt",
+  "description": "把较长的模组说明压缩成要点，演示 ai.use 代理调用与声明式页面/浮窗。",
+  "apiVersion": "1.2.0",
+  "runtime": "net10.0",
+  "permissionMode": "Sandbox",
+  "requestedPermissions": ["ai.use"],
+
+  "commands": [
+    {
+      "name": "summarize",
+      "displayName": "AI 摘要",
+      "description": "在模组卡片右键菜单中，对模组说明生成三条以内的要点。",
+      "requiredPermission": "ai.use",
+      "placement": "modContextMenu"
+    }
+  ],
+
+  "ui": {
+    "pages": [
+      {
+        "id": "ai-tools",
+        "title": "AI 工具",
+        "icon": "Plugin",
+        "description": "把任意文本压缩成要点。输入内容后点击“生成摘要”，结果会显示在下方。",
+        "blocks": [
+          {
+            "type": "markdown",
+            "text": "这是插件贡献的页面：界面由管理器渲染，插件只发送 **Markdown 与区块数据**。\n\n- 插件运行在独立进程，拿不到 API Key\n- 页面、按钮、输入框都由声明描述\n- 结果支持 Markdown 渲染"
+          },
+          {
+            "type": "notice",
+            "tone": "info",
+            "title": "提示",
+            "text": "第一次使用需要在「设置 → 插件」中授予 `ai.use` 权限。"
+          },
+          {
+            "type": "input",
+            "id": "source-text",
+            "title": "待摘要的文本",
+            "input": {
+              "id": "text",
+              "placeholder": "粘贴模组说明、更新日志或任意长文本…",
+              "multiline": true,
+              "rows": 6
+            }
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "id": "run-summary",
+                "label": "生成摘要",
+                "icon": "Check",
+                "style": "primary",
+                "command": "summarize",
+                "requiredPermission": "ai.use"
+              }
+            ]
+          },
+          { "type": "divider" },
+          { "id": "result", "type": "markdown", "text": "_结果会显示在这里。_" }
+        ]
+      }
+    ],
+
+    "dialogs": [
+      {
+        "id": "quick-summary",
+        "title": "快速 AI 摘要",
+        "description": "不用离开当前页面，粘贴文本后直接生成要点。",
+        "blocks": [
+          {
+            "type": "input",
+            "id": "dialog-input",
+            "title": "文本",
+            "input": { "id": "text", "multiline": true, "rows": 5, "placeholder": "粘贴内容…" }
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "id": "dialog-run",
+                "label": "生成摘要",
+                "style": "primary",
+                "command": "summarize",
+                "requiredPermission": "ai.use"
+              }
+            ]
+          },
+          { "id": "result", "type": "markdown", "text": "_结果会显示在这里。_" }
+        ]
+      }
+    ],
+
+    "menus": [
+      {
+        "id": "open-quick-summary",
+        "placement": "mainMenu",
+        "label": "快速 AI 摘要…",
+        "icon": "Plugin",
+        "description": "打开浮窗，对任意文本生成摘要。",
+        "dialog": "quick-summary",
+        "requiredPermission": "ai.use"
+      },
+      {
+        "id": "toolbar-quick-summary",
+        "placement": "libraryToolbar",
+        "label": "快速 AI 摘要",
+        "icon": "Plugin",
+        "description": "在模组库直接打开 AI 摘要浮窗。",
+        "dialog": "quick-summary",
+        "requiredPermission": "ai.use"
+      }
+    ]
+  },
+
+  "assembly": "AiSummarizer.dll",
+  "entryType": "HD2Mimnt.Samples.AiSummarizer.AiSummarizerPlugin"
+}

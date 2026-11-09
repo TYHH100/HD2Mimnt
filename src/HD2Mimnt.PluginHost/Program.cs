@@ -12,15 +12,15 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
-        Guid pluginId = Guid.Empty;
-        string pipeName = string.Empty;
+        var pluginId = string.Empty;
+        var pipeName = string.Empty;
 
         // Parse command line arguments
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--plugin-id" && i + 1 < args.Length)
             {
-                Guid.TryParse(args[i + 1], out pluginId);
+                pluginId = args[i + 1];
             }
             else if (args[i] == "--pipe-name" && i + 1 < args.Length)
             {
@@ -28,14 +28,14 @@ class Program
             }
         }
 
-        if (pluginId == Guid.Empty || string.IsNullOrEmpty(pipeName))
+        if (string.IsNullOrWhiteSpace(pluginId) || string.IsNullOrEmpty(pipeName))
         {
-            Console.Error.WriteLine("Usage: HD2Mimnt.PluginHost.exe --plugin-id <guid> --pipe-name <name>");
+            Console.Error.WriteLine("Usage: HD2Mimnt.PluginHost.exe --plugin-id <id> --pipe-name <name>");
             return 1;
         }
 
         PluginHostPipeClient? pipeClient = null;
-        PluginLoader? pluginLoader = null;
+        IPluginRuntime? runtime = null;
 
         try
         {
@@ -43,22 +43,7 @@ class Program
             pipeClient = new PluginHostPipeClient(pipeName);
             await pipeClient.ConnectAsync(timeoutMilliseconds: 10000);
 
-            // Create plugin loader
-            pluginLoader = new PluginLoader(pluginId.ToString());
-
-            // Wait for LoadPlugin command
-            var loadCommand = await pipeClient.ReceiveMessageAsync<LoadPluginCommand>();
-            if (loadCommand == null)
-            {
-                throw new InvalidOperationException("Failed to receive LoadPlugin command");
-            }
-
-            // Load plugin assembly
-            var plugin = await pluginLoader.LoadPluginAsync(
-                loadCommand.PluginPath,
-                loadCommand.ManifestPath);
-
-            // Create plugin context
+            // Create logger first: 运行时加载阶段（含脚本解释）就要能回传日志
             var logger = new PluginHostLogger((level, message, exception) =>
             {
                 var logMsg = new PluginLogMessage
@@ -72,13 +57,31 @@ class Program
                 pipeClient.SendMessageAsync(logMsg).Wait();
             });
 
-            var storage = new PluginHostStorage(pluginId.ToString());
+            // Wait for LoadPlugin command
+            var loadCommand = await pipeClient.ReceiveMessageAsync<LoadPluginCommand>();
+            if (loadCommand == null)
+            {
+                throw new InvalidOperationException("Failed to receive LoadPlugin command");
+            }
+
+            // 按 manifest 的 kind 选择运行时：程序集插件或 Lua 脚本插件
+            runtime = await PluginRuntimeFactory.CreateAsync(pluginId, loadCommand, logger);
+
+            // Create plugin context
+            var storage = new PluginHostStorage(pluginId);
             var modAccess = new PluginHostModAccess();
-            var configuration = new PluginHostConfiguration(pluginId.ToString());
-            var context = new PluginHostContext(logger, storage, modAccess, configuration);
+            var configuration = new PluginHostConfiguration(pluginId);
+            var ai = new PluginHostAiClient(pipeClient, pluginId);
+            var context = new PluginHostContext(logger, storage, modAccess, configuration, ai);
 
             // Initialize plugin
-            await plugin.InitializeAsync(context);
+            await runtime.InitializeAsync(context);
+
+            // 声明与实现一致性：manifest 声明但没有实现的命令在这里暴露，不阻断加载
+            foreach (var diagnostic in runtime.Diagnostics)
+            {
+                logger.Warning(diagnostic);
+            }
 
             // Send ready response
             await pipeClient.SendMessageAsync(new PluginCompletedResponse
@@ -98,12 +101,19 @@ class Program
                 if (TryMessageType(json) == nameof(ExecutePluginCommand) &&
                     JsonSerializer.Deserialize<ExecutePluginCommand>(json) is { } executeCmd)
                 {
-                    await HandleExecuteCommandAsync(plugin, executeCmd, pipeClient, pluginId);
+                    await HandleExecuteCommandAsync(runtime, context, executeCmd, pipeClient, pluginId);
+
+                    // 脚本超时后无法安全中断 Lua 状态机：回执已发出，这里回收整个进程
+                    if (runtime.HasRunawayExecution)
+                    {
+                        logger.Error("检测到失控执行，插件宿主进程即将退出");
+                        return 70;
+                    }
                 }
             }
 
             // Shutdown plugin
-            await plugin.ShutdownAsync();
+            await runtime.ShutdownAsync();
 
             return 0; // Success
         }
@@ -134,28 +144,51 @@ class Program
         }
         finally
         {
-            pluginLoader?.Dispose();
+            runtime?.Dispose();
             pipeClient?.Dispose();
         }
     }
 
     static async Task HandleExecuteCommandAsync(
-        IPlugin plugin,
+        IPluginRuntime runtime,
+        PluginHostContext context,
         ExecutePluginCommand command,
         PluginHostPipeClient pipeClient,
-        Guid pluginId)
+        string pluginId)
     {
         try
         {
-            // TODO: Use reflection to invoke plugin methods dynamically
-            // For now, just send completed response
+            if (!runtime.Commands.TryGetValue(command.MethodName, out var handler))
+            {
+                await pipeClient.SendMessageAsync(new PluginCompletedResponse
+                {
+                    Type = nameof(PluginCompletedResponse),
+                    PluginId = pluginId,
+                    Success = false,
+                    Errors = new List<string> { $"插件未提供命令 '{command.MethodName}'" }
+                });
+                return;
+            }
+
+            var commandContext = new PluginCommandContext(
+                context.Logger,
+                context.Storage,
+                context.Configuration,
+                command.ArgumentsJson,
+                context.AI);
+
+            var result = await handler.ExecuteAsync(commandContext, CancellationToken.None);
 
             await pipeClient.SendMessageAsync(new PluginCompletedResponse
             {
                 Type = nameof(PluginCompletedResponse),
                 PluginId = pluginId,
-                Success = true,
-                ResultJson = $"Executed {command.MethodName}"
+                Success = result.Success,
+                ResultJson = result.Success ? result.Message : null,
+                UiJson = result.Ui is null
+                    ? null
+                    : JsonSerializer.Serialize(result.Ui, PluginManifestJson.Options),
+                Errors = result.Success ? null : new List<string> { result.Error ?? "命令执行失败" }
             });
         }
         catch (Exception ex)

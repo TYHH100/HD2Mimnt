@@ -153,6 +153,29 @@ public sealed class ArchivePasswordTests : IDisposable
     }
 
     [Fact]
+    public async Task SevenZipWithEmptyFile_ShouldExtractWithoutRequestingPassword()
+    {
+        var source = Path.Combine(_root, "unencrypted-source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "测试.patch_0"), "完整内容");
+        await File.WriteAllBytesAsync(Path.Combine(source, "空文件.txt"), []);
+        var service = new ModCreationService();
+        var document = service.Create();
+        document.SourceDirectory = source;
+        document.Manifest.Name = "Unencrypted mod";
+        var archive = Path.Combine(_root, "unencrypted.7z");
+        await service.ExportArchiveAsync(document, archive, ModArchiveCompression.Fast);
+
+        using var scope = PasswordAwareArchiveExtractor.BeginRequest((name, _) =>
+            throw new InvalidOperationException($"不应为 {name} 请求密码"));
+        var destination = Path.Combine(_root, "unencrypted-extracted");
+        await new PasswordAwareArchiveExtractor(_passwords).ExtractToDirectoryAsync(archive, destination);
+
+        Assert.Equal("完整内容", await File.ReadAllTextAsync(Path.Combine(destination, "测试.patch_0")));
+        Assert.Empty(await File.ReadAllBytesAsync(Path.Combine(destination, "空文件.txt")));
+    }
+
+    [Fact]
     public async Task CorruptArchive_ShouldNotRequestPassword()
     {
         var archive = Path.Combine(_root, "broken.zip");

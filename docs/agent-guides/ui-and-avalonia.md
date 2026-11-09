@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 多列 `Grid` 的每个子元素必须显式写 `Grid.Column`：漏写的子元素全部落在第 0 列互相重叠（插件管理页统计行「插件 / 总数 / 已启用」曾实测叠在一起）。列数与子元素列号逐一核对；布局回归断言相邻文本 `Bounds` 不相交，见 `PluginManagementLayoutTests`。来源：https://docs.avaloniaui.net/docs/reference/controls/grid
+
 - 模组库、配置页及详情面板点击卡片图片放大时，通过 Application 的 `ModService.ReadOriginalPreviewAsync` 读取清单指定图片或根目录图片，再完整解码；不能把卡片的 `IconBitmap` / `Icon` 或生成的 256px 缩略图直接交给放大层。原图由共享预览持有，关闭时释放；加载期间关闭或打开其它图片后，旧加载结果不能重新打开覆盖层。回归同时断言缩略图为 256px、放大图保持原始尺寸。来源：[Avalonia Bitmap](https://docs.avaloniaui.net/docs/reference/graphics/bitmaps)。
 
 - 配置页本地启停、选项和排序操作的 `ProfilesChanged` 经过异步刷新队列时，必须在事件发布时捕获 `IsApplyingLocalChange`，队列执行时按捕获值跳过当前页重复重载；不能读取已在服务返回后复原的抑制标记。自动冲突检查在最后一次变更后等待 1500 ms 合并，过期任务取消并串行清理；后台范围包含配置读取、加载器识别和资源扫描准备，不能仅把最终资源解析放进 `Task.Run`。回归检查连续开关、选项保存、排序后卡片实例保留与只完成一次扫描。来源：[异步场景与 Task.Run](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios)。
@@ -36,6 +38,8 @@
 
 - 用户分组保存于 `ProfileSeparators`，固定 Lua 分组的折叠及颜色单独保存于 `Profiles`；颜色用 `#RRGGBB`，空值跟随主题，标题保留主题文字并以色条区分。两种分组折叠只影响显示，不改启用/选项/顺序、不参与部署；分隔符添加、删除、改名、颜色和折叠保存仍通知界面刷新，但通过 `ProfilesChangedEventArgs.AffectsConflictResults=false` 保留冲突结果，不能触发重检或取消正在进行的扫描。反向时 Lua 分隔符隐藏其上方固定成员，固定分隔符仍不可拖动或删除。搜索按完整成员显示匹配项，不改变保存的折叠状态；排序事务保存完整模组顺序及用户分隔符落点，不能按折叠/过滤后的索引改变归属。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
 
+- 加入指定分组与展开分组标题冻结：分组移动统一走 `ProfileService.MoveModsToGroupAsync` / `AddModsToProfileGroupAsync`，按“未分组段 + 分组块”重建普通模组顺序与分隔符 `Order`/`MemberCount`，固定加载器模组直接忽略，不能只改界面集合。“展开的分组标题滚动时吸附在顶部”默认关闭：标题始终留在 `ProfileRows` 中，`ProfileView` 随滚动找到视口顶边所在行，再向前找最近的展开用户分组，只把一个 `StickyGroupHeader` 吸附在列表上方；滚到下一个分组时替换，未展开分组和 Lua 分隔符不吸附。模组顺序不变。拖动、落点和预览使用 `ProfileRows` 的下标；拖动经过吸顶标题时必须高亮该标题，松手调用 `DropModsIntoGroupAsync` 直接加入该分组，不能只把它当作普通排序落点。模组库弹窗只在单选配置文件时提供分组选择，未指定或多选时保留追加逻辑；导入自动添加的分组选择须在批次结束后再显示和应用，不能在导入过程中移动尚未全部落库的成员。来源：https://docs.avaloniaui.net/docs/reference/controls/itemscontrol 、https://docs.avaloniaui.net/docs/concepts/input/pointer
+
 - 依赖加载器分隔符使用 `ChevronAngle` 表达部署方向：常规部署展开箭头向下（90°），从下到上部署向上（-90°）；不要只改固定图标，否则方向切换后 UI 与列表顺序不一致。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
 - 收起的用户分组需要保存 `MemberCount` 结束边界，拖入其下方或移动整组时只保留原有成员，组外模组正常显示；仅保存起点会让后续模组自动归组。旧数据的 null 沿用原范围，操作时补齐边界；展开、搜索、重新加载、复制配置和组内移出/删除都要保持边界一致，排序与边界通过同一次服务写入保存。回归覆盖正反部署方向、末尾分组及实际 DragOver/Drop。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop 、https://www.sqlite.org/lang_altertable.html
@@ -45,6 +49,8 @@
 - 外部文件导入拖放统一在 MainWindow 冒泡路由处理并启用 handledEventsToo（DragDrop 事件不走隧道路由），先识别本地文件再标记 Handled，避免页面子控件吞掉事件或内部排序覆盖 Copy；根容器使用透明背景覆盖空白区域。提示层不参与命中测试，DragLeave 只有窗口坐标越界才隐藏，不能因子控件之间移动反复显隐；无文件数据继续交给内部排序。来源：https://docs.avaloniaui.net/docs/concepts/input/routed-events
 
 - 弹出通知的计时器随视图挂载/卸载启动和停止，横幅收起不能删除通知历史；后台通知事件先派发到 UI 线程。Avalonia 位移动画使用已创建的 `TranslateTransform` 和 `TranslateTransform.X`，不要直接对 `RenderTransform` 写关键帧，否则可能编译通过但运行时报无 Animator；必须用 Headless 实际显示通知验证。来源：https://docs.avaloniaui.net/docs/guides/graphics-and-animation/keyframe-animations
+
+- 页面整体“Q弹”彩蛋使用组合器动画（`ElementComposition.GetElementVisual` 后动画 `CompositionVisual.Scale`），不要用 `DispatcherTimer` 逐帧修改大量元素的 `RenderTransform`，否则 UI 线程和渲染会掉帧；`CenterPoint` 设为元素底部中心实现底部固定、宽高反向的压扁/拉长。组合器 `StopAnimation` 会保留服务端最后一帧，必须再启动一个极短的复位关键帧动画把原 `Scale` 写回，单纯给 `Scale` 赋同值不会重新提交；组合缩放不参与命中测试，持续模式要保留稳定的关闭入口（例如排除状态栏后连点版本号切换）。参考动效：[DesktopJelly](https://github.com/chadaidai01/DesktopJelly)。
 
 - 顶部导航使用 `FANavigationViewItem.Tag` 作为稳定页面编号，选择事件和反向高亮按 Tag 查找，不能将 MenuItems 的显示下标直接当作 SelectedTabIndex。插入导航时核对快捷命令和隐藏 TabControl 页面编号；教程恢复、导航与语言测试也按 Tag 找条目。现有页面 0–4 保留，“浏览模组”为 5、Ctrl+6，“模组创建”为 6、Ctrl+7，显示在模组库和浏览模组之后。数字快捷键的 XAML Gesture 必须写 Ctrl+D1 等枚举名，不能写 Ctrl+1：当前 KeyGesture 会将纯数字按枚举整数解析（例如 7 变成 Pause）。隐藏主页面标签的样式限定为 TabControl#PageHost > TabItem，不能用宽泛 TabItem 选择器，否则页面内部的编辑标签也会被隐藏；教程打开时还需在导航 RelayCommand 的 CanExecute 阻止快捷导航：窗口 KeyBinding 可能早于 KeyDown 隧道处理，单靠事件 Handled 不足以拦截。教程自身通过内部导航方法切换页面。回归使用真实按键和内部标签点击。来源：https://github.com/amwx/FluentAvalonia 、https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Input/KeyGesture.cs 、https://docs.avaloniaui.net/docs/reference/styles/style-selector-syntax
 
@@ -70,6 +76,18 @@
 
 - 页面色彩、圆角和间距集中到 `Styles/AppResources.axaml`、`Styles/AppStyles.axaml`；主要按钮使用组件库的 `accent` 类，图标使用 `UtilityIcon`（FluentAvalonia FASymbolIcon）。不要复制页面调色板、文字/emoji 图标或基础控件状态模板。来源：https://github.com/amwx/FluentAvalonia
 
+- Ore 开关按 ore-ui 参考图是"I/O 双键位"设计：没有外圈描边和灰色底槽，`OreTrack` 只是透明布局容器，可见部分是左右两颗键帽（激活侧露出绿色 I 槽/灰色 O 槽，非激活侧被滑块盖住）；滑块颜色不随 IsChecked 变化，悬停变白、按下变深、聚焦时滑块描边变白。Avalonia ToggleSwitch 用 `PART_SwitchKnob.Bounds.Width` 作为滑块行程并平移 `PART_MovingKnobs`，行程 = `PART_SwitchKnob` 宽度 = 容器宽 − 滑块宽，键位槽宽必须与滑块宽对齐（左槽从 0 起、右槽止于容器宽），否则选中态滑块盖不住键位槽。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/ToggleSwitch.cs
+
+- Ore 皮肤的默认按钮与开关使用深色描边，白色 2px 描边只作为 `:focus` 状态；不要把白色描边写成常驻样式。开关滑块尺寸要与 `PART_SwitchKnob` 等分宽度配合，避免滑块贴住或溢出轨道边缘。
+
+- 自定义 ToggleSwitch 模板不要复用 FluentAvalonia 的 `OuterBorder` / `SwitchKnobBounds` 名称：FA 的隐式主题会按名字设置 Opacity，开启态会把轨道隐藏。模板外观元素要用独有名称，并通过应用级样式直接设置 `Template`（而不是切换 ControlTheme），运行时换肤才能保留 `PART_SwitchKnob` / `PART_MovingKnobs` 等必需部件。Ore 皮肤的整体色板、浅色输入框和绿色选中页签以[官方设计系统参考](https://zh.minecraft.wiki/w/Ore_UI?variant=zh#设计系统)为准。来源：https://github.com/amwx/FluentAvalonia/blob/FAv3/src/FluentAvalonia/Styling/ControlThemes/BasicControls/ToggleSwitchStyles.axaml
+
+- 隐藏 TabControl 的页签不能只在 `TabControl.Styles` 里设 `IsVisible=False`：运行时换肤或样式重算会让被隐藏的 TabItem 短暂参与测量，页签条被撑到 192px，内容上方出现大片空白。现有 TabItem 必须直接设本地 `IsVisible="False"`（样式保留用于后续页签），并回归切换深色/浅色/Ore 后内容是否紧贴导航。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/TabControl.cs
+
+- Ore 顶部导航分段按钮必须样式化内层 presenter：`fa|FANavigationViewItem /template/ Border#LayoutRoot` 是死选择器，`/template/` 只匹配 TemplatedParent 为样式目标的元素，LayoutRoot 位于内层 `FANavigationViewItemPresenter` 模板中，应改用 `uip|FANavigationViewItemPresenter /template/ Border#LayoutRoot`（顶部项模板不绑定 Border 属性，描边与浮雕只能这样加）。选中凹陷态用 `:selected` 伪类反转内阴影并加 Margin；模板里硬编码的属性值（如顶部 SelectionIndicator 的 16×3）优先级高于普通样式，覆盖需带激活器的样式或放弃覆盖。来源：https://github.com/amwx/FluentAvalonia/blob/master/src/FluentAvalonia/Styling/ControlThemes/FAControls/NavigationView/NavigationViewItemPresenterStyles.axaml
+
+- 主题切换统一走 `AppThemeService`：Dark/Light/System 映射 FluentAvalonia 变体，Ore 皮肤由 `OreSkin.axaml`（语义色、强调色、字体、圆角）、`OreControls.axaml`（按钮 ControlTheme 与 FluentAvalonia 资源覆盖）和 `OreStyles.axaml`（应用级样式）组成，切走时先移除样式再移除字典。Avalonia 隐式 ControlTheme 只在控件挂载时解析，运行时换肤必须用样式显式设置 `Theme`，否则已有控件不会刷新模板；皮肤也不能在 `App.axaml` 里常驻合并，否则无头 UI 测试和默认外观都会被污染。`CardFillBrush` 等仍要绑定运行时透明度 token，强调色覆盖 `SystemAccentColor*` 即可联动全部 FluentAvalonia 控件；显示字体通过 `DisplayFontFamily` 切换，Monocraft（OFL-1.1，许可证见 `Assets/Fonts/OFL.txt`）不再内嵌进程序集，改由 `DisplayFontService` 在换肤时从应用目录 `Assets/Fonts` 注册到当前 `FontManager`，文件缺失就保留皮肤自带的回退字体。不要为皮肤登记自定义 `ThemeVariant`，FluentAvalonia 只按 Light/Dark 解析自身资源。来源：[FluentAvaloniaTheme](https://github.com/amwx/FluentAvalonia/blob/FAv3/src/FluentAvalonia/Styling/Core/FluentAvaloniaTheme.axaml.cs)、[Avalonia ResourceDictionary](https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Base/Controls/ResourceDictionary.cs)、[Monocraft](https://github.com/IdreesInc/Monocraft)
+
 - 运行时背景透明度只更新 `CardSurfaceOpacity`、`ChromeSurfaceOpacity`、`ContentSurfaceOpacity`，不能用新画刷覆盖动态资源，否则跟随系统切换主题时颜色会失联。
 
 - 模态弹窗即使复用 `card` 样式，也必须显式使用不透明的主题背景（如 `{DynamicResource Surface2Brush}`），避免受卡片透明度设置影响而透出底层文字；验证低透明度及深浅主题切换。来源：https://docs.avaloniaui.net/docs/guides/styles-and-resources/resources
@@ -94,9 +112,9 @@
 
 - 数字定位转换落点时，正向列表普通模组区域末尾要映射为 `Guid.Empty` 分隔符锚点，不能用第一项 Lua 模组 ID，否则合法的区域内移动被误拒绝；反向列表末尾保留 null 锚点。回归覆盖含 Lua 分组的单选、多选、正反向和越界拒绝。
 
-- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
+- Lua 分隔符在两种方向下都位于普通模组与固定区域之间：正向为普通 → 分隔符 → Lua 依赖 / 加载器 / SmoothBoot，反向为 SmoothBoot / 加载器 / Lua 依赖 → 分隔符 → 普通，不能将反向分隔符索引写死为 0。显示、拖放校验、实际移动和数字定位共用分组边界；反向依赖区域末尾使用 `Guid.Empty`，普通区域末尾使用 null。固定区域为空时系统分隔符隐藏，两个方向下真实列表末尾的 null 锚点均须允许普通模组排序，不能仍按跨越固定分组拒绝。搜索后按可见成员计算分隔符位置。开启“自由排序（保留分组）”后分隔符只作显示锚点：组员按保存顺序混排，折叠只隐藏组员，分隔符贴首个（正向）或末个（反向）可见组员；拖放锚点必须跳过该只读分隔符，不能把 `_luaSeparator.ModId` 传给排序服务。来源：https://docs.avaloniaui.net/docs/concepts/input/drag-and-drop
 
-- 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
+- 配置页普通模组和 Lua 依赖模组支持常规多选；按用户要求，BSL、MDL、BML、SmoothBoot 和分隔符不可选中。点击、范围选择、Ctrl+A 共用 `CanSelect`，范围选择和全选必须跳过固定卡片；交互控件保留自身输入行为，跨分组的多选集仍禁止排序。来源：https://docs.avaloniaui.net/docs/reference/controls/listbox
 
 - 当前 FluentAvaloniaTheme 下右键菜单使用 `FAMenuFlyout` / `FAMenuFlyoutItem`；原生 `ContextMenu` 的 IsOpen 为 true 不代表菜单可见，必须实际验证条目布局和鼠标点击。模组列表统一捕获右键冒泡事件并启用 handledEventsToo，兼容子控件吞掉事件。顺序号使用版本号前的独立 chip，不能依赖缩略图占位文字。来源：https://github.com/amwx/FluentAvalonia
 
@@ -111,6 +129,8 @@
 - 右键菜单在 PointerReleased / ContextRequested 阶段打开，不要在 PointerPressed 提前弹出后又在 ContextRequested 关闭重建；列表的 handledEventsToo 松开事件只作兜底，共享 AppContextMenu 对当前已打开菜单去重。回归检查同次手势仅赋值和打开一次、未发生关闭，并实际点击菜单项。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Control.cs
 
 
+- 模组详情的名称/描述/图片编辑由宿主页面就地更新列表项、搜索索引和卡片缩略图；`UpdateModMetadataAsync` / `SetCustomThumbnailAsync` 仍会发布 `ModsChanged`，配置页必须在调用期间抑制配置页刷新，否则整页重载会关闭正在编辑的详情。自定义图片只替换卡片缩略图，放大预览仍读取模组原图；缩略图路径不变时必须按新的文件修改时间重新解码，不能复用已加载的 `Bitmap`，也不能在 View/ViewModel 里直接写文件或访问数据库。保存名称/描述只改库内记录，不改写模组目录里的 `manifest.json`。来源：[Avalonia Bitmap](https://docs.avaloniaui.net/docs/reference/graphics/bitmaps)、[MVVM 异步命令](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/asyncrelaycommand)、[Avalonia StorageProvider](https://docs.avaloniaui.net/docs/concepts/services/storage-provider/)；回归见 `ProfileModDetails_ShouldEditNameAndDescriptionWithoutClosingPanel`、`ModDetails_ShouldChangeAndRestoreImageFromEitherPage`。
+
 - 兼容性入口共用 Application 门面和全局浮窗；配置范围取完整 ProfileMods，不能取过滤／折叠后的显示列表，也不能用 CanDrag 禁用加载器的只读检查。混合 LOD 的 Unit 选择按 Mod ID 独立传入批量接口；修改选项先使旧计划失效，修复／恢复后的 UI 刷新必须等待。详情补算 Hash 属于派生缓存回填，不触发 ModsChanged 全库重载，否则会关闭正在读取的详情。前端流程见[兼容性说明](../features/MOD_COMPATIBILITY.md)。来源：[MVVM 异步命令](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/asyncrelaycommand)、[Avalonia 虚拟化](https://docs.avaloniaui.net/docs/reference/controls/virtualizingstackpanel)。
 
 - 位图预览必须跟界面生命周期绑定：选项弹窗关闭时取消未完成的解码并 `Dispose` 已加载的卡片/组件/子选项位图，正在显示其中的图片预览也要先关闭；反复开关弹窗不能继续累积原生位图内存。列表缩略图用库页与配置页共享的弱引用解码缓存（键含文件修改时间），不要再用无上限强引用字典，也不要每次页面刷新都整批重新解码。解码期间弹窗可能已关闭，完成回调必须检查取消/销毁状态并直接释放位图。验证不能只看托管堆：Headless 下位图可能被 finalizer 提前回收，需结合 `Process.PrivateMemorySize64` 与真实应用观察；本轮用户在真实应用中报告滚动与反复开关选项后内存持续上升，修复后回归覆盖“关闭后 Image 为空且卡片已销毁、再次打开仍能正常解码”。来源：[Avalonia Bitmap](https://docs.avaloniaui.net/docs/reference/graphics/bitmaps)、[IDisposable 模式](https://learn.microsoft.com/dotnet/standard/garbage-collection/implementing-dispose)、[进程私有内存](https://learn.microsoft.com/dotnet/api/system.diagnostics.process.privatememorysize64)。
@@ -121,4 +141,10 @@
 
 - 搜索设置“模糊搜索/拼音搜索”位于“设置 → 搜索”，分类标识 `搜索`、入口 ID `settings.search`、键 `Search.Fuzzy`/`Search.Pinyin`，默认关闭；保存后用 `SettingsService.SettingChanged` 让模组库、配置文件和日志中已有查询立即重算。所有本地搜索框共用 `SearchMatcher`：关闭时保持原有连续包含匹配，模糊搜索只增加不连续字符匹配，拼音搜索使用 `PinyinData.g.cs` 的全拼和首字母（含常见多音字候选），不引入运行时包；在线平台搜索由服务端执行，不套用本地规则。新增此类设置要同时接入三语、分类重置、入口自定义和真实控件回归；拼音表通过 `tools/generate-pinyin-data.py` 重新生成。来源：[xUnit](https://xunit.net/)、[Avalonia Headless](https://docs.avaloniaui.net/docs/concepts/headless/)。
 
-- 创建页的压缩格式、档位、加密和密码库集中在“打包设置”标签页，避免继续增高顶部 Auto 区域、挤压编辑内容。TabControl 与表单 ScrollViewer 的内容显式 Stretch；长路径输入不能撑出右侧按钮。布局回归检查窄窗口、中英文和深浅主题下的实际控件边界、Extent/Viewport 与展开后的滚动，不能只检查 IsEffectivelyVisible。来源：[TabControl](https://docs.avaloniaui.net/controls/navigation/tabcontrol)、[ScrollViewer](https://docs.avaloniaui.net/controls/layout/containers/scrollviewer)。
+- 创建页的压缩格式、档位和加密集中在“打包设置”标签页，避免继续增高顶部 Auto 区域、挤压编辑内容（原第三项“密码库”面板于 2026-11-02 随入口下线，待重写）。TabControl 与表单 ScrollViewer 的内容显式 Stretch；长路径输入不能撑出右侧按钮。布局回归检查窄窗口、中英文和深浅主题下的实际控件边界、Extent/Viewport 与展开后的滚动，不能只检查 IsEffectivelyVisible。来源：[TabControl](https://docs.avaloniaui.net/controls/navigation/tabcontrol)、[ScrollViewer](https://docs.avaloniaui.net/controls/layout/containers/scrollviewer)。
+
+- 底部状态栏的部署标签来自 `ProfileViewModel.ActiveProfileDeploymentStatus`：拿激活配置中**启用**的模组与本机当前部署记录（`Completed`/`PartiallyFailed`）比对，全部命中为已部署、部分命中为部分部署、无命中或没有启用模组为未部署。停用模组不计入——它们本就不参与部署，算进去会把正常配置误报成“部分部署”；卡片则仍按模组独立显示部署状态，两者口径不同是明确的。它也不表示“游戏内容与配置完全一致”（当前没有待重部署检测）。激活配置可能不是正在查看的那个，所以列表刷新跳过重载时仍要单独重算。XAML 不要绑定 ViewModel 里只声明未赋值的属性——原 `MainWindowViewModel.DeploymentStatus`/`IsDeployed` 就永远停在初始值“未部署”。新增此类展示属性必须确认存在写入路径，并用 headless 断言状态栏实际文本。来源：[Avalonia 数据绑定](https://docs.avaloniaui.net/docs/concepts/data-binding/)
+
+- Avalonia 12 相对 11 有 API 移除，XAML 属性需以实际程序集为准：`Slider.IsMoveToPointEnabled` 已删除（点击定位需自行处理），`TextBox.Watermark` 改为 `PlaceholderText`；这些只报 AVLN 警告/错误，运行时才暴露成绑定失效。音频预览（`AudioPreviewOverlay`）的异构行（分组头 + 条目）用 `ListBox.DataTemplates` 的类型匹配模板 + 扁平 `ObservableCollection` 实现，保持 ListBox 虚拟化；异构模板不要用 ContentControl 包一层运行时判型。跨程序集公开的句柄类若构造参数是宿主类的私有嵌套类型，会触发 CS0051（用委托封装读取/释放代替直接暴露，见 `SlimPackageHandle`）。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Slider.cs 、https://docs.avaloniaui.net/docs/concepts/data-binding/
+
+- FluentAvalonia 滚动条悬停“先展开才能拖”由 `ScrollBar.ShowDelay`（默认 0.5s）与收起态滑块的 `scaleX(0.35)` 缩放命中区共同造成：`IsExpanded` 延迟置 true 前，滑块命中区只有缩放后的约 4px 细条，按下多半落在轨道上变成翻页。要求悬停即可拖动时在 `AppStyles.axaml` 设 `ScrollBar ShowDelay=0`（已在 2026-10-31 落地），不要去改 FA 模板里的缩放变换。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Avalonia.Controls/Primitives/ScrollBar.cs 、https://github.com/amwx/FluentAvalonia/blob/master/src/FluentAvalonia/Styling/ControlThemes/BasicControls/ScrollBarStyles.axaml

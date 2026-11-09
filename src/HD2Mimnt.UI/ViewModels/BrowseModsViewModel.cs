@@ -108,6 +108,12 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     [ObservableProperty] private bool _isWaitingForBrowser;
     [ObservableProperty] private double _progress;
     [ObservableProperty] private bool _isIndeterminate;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDownloadSegments))]
+    private IReadOnlyList<DownloadSegmentProgress>? _downloadSegments;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDownloadProgress))]
+    private string _downloadProgressText = "";
     [ObservableProperty] private bool _isLoadingImage;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
@@ -126,6 +132,8 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     public string SuggestedFileName => SelectedFile?.FileName is { Length: > 0 } name ? Path.GetFileName(name) : "mod-download.zip";
     public bool HasDetails => Details != null;
     public bool HasMessage => !string.IsNullOrWhiteSpace(Message);
+    public bool HasDownloadSegments => DownloadSegments is { Count: > 0 };
+    public bool HasDownloadProgress => HasDownloadSegments || !string.IsNullOrWhiteSpace(DownloadProgressText);
     public bool HasNoResults => HasLoaded && Mods.Count == 0;
     public object DisplayMessage => (object?)_displayError ?? Message;
     public bool CanPreviousPage => !IsBusy && HasPagination && _searchResult?.Page > 1;
@@ -333,8 +341,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         var progress = new InlineProgress<DownloadProgress>(value => Dispatcher.UIThread.Post(() =>
         {
             if (!downloading || _executionToken != token || token.IsCancellationRequested) return;
-            Progress = value.Percentage;
-            IsIndeterminate = value.TotalBytes <= 0;
+            ApplyDownloadProgress(value);
         }));
         Message = "正在下载所选文件…";
         await service.DownloadAndImportAsync(mod.Id, file, input, async (archive, importToken) =>
@@ -342,6 +349,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
             downloading = false;
             Message = "下载完成，正在导入模组…";
             IsIndeterminate = true;
+            ClearDownloadProgress();
             if (ImportPlatformArchiveAsync != null) await ImportPlatformArchiveAsync(archive, source, importToken);
             else await (ImportDownloadedArchiveAsync ?? throw new InvalidOperationException("模组导入不可用。"))(archive, importToken);
         }, progress, token);
@@ -407,8 +415,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                 var progress = new InlineProgress<DownloadProgress>(value => Dispatcher.UIThread.Post(() =>
                     {
                         if (!downloading || _executionToken != token || token.IsCancellationRequested) return;
-                        Progress = value.Percentage;
-                        IsIndeterminate = value.TotalBytes <= 0;
+                        ApplyDownloadProgress(value);
                     }));
                 if (import)
                 {
@@ -417,6 +424,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
                         downloading = false;
                         Message = "下载完成，正在导入模组…";
                         IsIndeterminate = true;
+                        ClearDownloadProgress();
                         await ImportArchiveAsync(archive, importToken);
                     }, progress, token);
                     Message = "模组已下载并导入模组库。";
@@ -499,6 +507,7 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
         Message = "";
         Progress = 0;
         IsIndeterminate = true;
+        ClearDownloadProgress();
         try
         {
             if (downloadName != null && downloadTasks != null)
@@ -567,6 +576,24 @@ public partial class BrowseModsViewModel(ModBrowseService service, IWebsiteDownl
     {
         public TaskCompletionSource<string> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
+
+    private void ApplyDownloadProgress(DownloadProgress value)
+    {
+        Progress = value.Percentage;
+        IsIndeterminate = value.TotalBytes <= 0;
+        DownloadProgressText = $"{Size(value.DownloadedBytes)} / {(value.TotalBytes > 0 ? Size(value.TotalBytes) : "?")} · {Size(value.BytesPerSecond)}/s";
+        DownloadSegments = value.Segments;
+    }
+
+    private void ClearDownloadProgress()
+    {
+        DownloadProgressText = "";
+        DownloadSegments = null;
+    }
+
+    private static string Size(long bytes) => bytes >= 1024 * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.0} GiB" :
+        bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.0} MiB" : bytes >= 1024 ? $"{bytes / 1024d:0.0} KiB" : $"{bytes} B";
+
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T> { public void Report(T value) => report(value); }
 }
 

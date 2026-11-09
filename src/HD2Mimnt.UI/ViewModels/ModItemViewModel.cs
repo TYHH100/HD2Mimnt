@@ -50,6 +50,41 @@ public partial class ModItemViewModel : ObservableObject
         OnPropertyChanged(string.Empty);
     }
 
+    /// <summary>仅同步名称/描述等摘要字段，保留当前部署状态和图片编辑状态。</summary>
+    public void ApplyMetadata(Mod saved)
+    {
+        _mod = saved;
+        OnPropertyChanged(string.Empty);
+    }
+
+    public void SetThumbnailPath(string thumbnailPath)
+    {
+        _mod.ThumbnailPath = thumbnailPath;
+        OnPropertyChanged(nameof(ThumbnailPath));
+    }
+
+    public async Task ApplyThumbnailAsync(string thumbnailPath, CancellationToken cancellationToken = default)
+    {
+        SetThumbnailPath(thumbnailPath);
+        await ReloadIconAsync(cancellationToken);
+    }
+
+    /// <summary>图片文件已替换但路径不变，必须丢弃当前位图并重新解码（缓存键含修改时间）。</summary>
+    public async Task ReloadIconAsync(CancellationToken cancellationToken = default)
+    {
+        Icon = null;
+        if (string.IsNullOrEmpty(ThumbnailPath)) return;
+        try
+        {
+            Icon = await ModImageCache.DecodeAsync(ThumbnailPath, 256, cancellationToken);
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            // 图标加载失败，保持为 null
+        }
+    }
+
     // 基础信息
     public Guid Id => _mod.Id;
     public string Name => _mod.Name;
@@ -178,6 +213,25 @@ public partial class ModItemViewModel : ObservableObject
     [ObservableProperty]
     private int _order;
 
+    // 详情面板内联编辑名称/描述
+    [ObservableProperty]
+    private bool _isEditingMetadata;
+
+    [ObservableProperty]
+    private string _editName = string.Empty;
+
+    [ObservableProperty]
+    private string _editDescription = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSavingMetadata;
+
+    [ObservableProperty]
+    private bool _isChangingImage;
+
+    /// <summary>由详情面板宿主页面提供：保存名称与描述并返回是否成功。</summary>
+    public Func<ModItemViewModel, string, string, Task<bool>>? SaveMetadataHandler { get; set; }
+
     // 图标
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IconBitmap))]
@@ -211,6 +265,31 @@ public partial class ModItemViewModel : ObservableObject
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" && string.IsNullOrEmpty(uri.UserInfo))
             browser.Open(uri.AbsoluteUri);
+    }
+
+    [RelayCommand]
+    private void BeginEditMetadata()
+    {
+        if (IsSavingMetadata) return;
+        EditName = Name;
+        EditDescription = Description;
+        IsEditingMetadata = true;
+    }
+
+    [RelayCommand]
+    private void CancelEditMetadata() => IsEditingMetadata = false;
+
+    [RelayCommand]
+    private async Task SaveMetadataAsync()
+    {
+        if (IsSavingMetadata || SaveMetadataHandler == null) return;
+        IsSavingMetadata = true;
+        try
+        {
+            if (await SaveMetadataHandler(this, EditName.Trim(), EditDescription.Trim()))
+                IsEditingMetadata = false;
+        }
+        finally { IsSavingMetadata = false; }
     }
 
     partial void OnIsEnabledChanged(bool value)

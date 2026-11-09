@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 测试替身：模拟 Worker 的正常/崩溃/挂起/响应取消，用于验证 WorkerHostManager 的进程生命周期。
+       由管理器拉起（传入 task-id 与 pipe-name），行为经 Command 的 Arguments["Behavior"] 指定。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
+  </ItemGroup>
+
+</Project>

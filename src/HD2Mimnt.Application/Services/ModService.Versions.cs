@@ -13,7 +13,8 @@ public partial class ModService
         finally { _mutationGate.Release(); }
     }
 
-    public async Task<ModReplacementResult> SwitchLocalVersionAsync(Guid id, Guid versionId, CancellationToken token = default)
+    public async Task<ModReplacementResult> SwitchLocalVersionAsync(Guid id, Guid versionId,
+        CancellationToken token = default, IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         await _mutationGate.WaitAsync(token);
         try
@@ -24,13 +25,12 @@ public partial class ModService
             var previous = await store.ReadAsync(id, token);
             var selected = previous.SingleOrDefault(v => v.Id == versionId) ?? throw new KeyNotFoundException("本地版本已不存在。");
             if (!Directory.Exists(selected.Content.Path)) throw new DirectoryNotFoundException("本地版本文件已缺失。");
-            var hash = await ModHashService.CalculateAsync(selected.Content.Path, token);
+            var (hash, fingerprint) = await ModHashService.CalculateWithFingerprintAsync(selected.Content.Path, token);
             if (!string.IsNullOrWhiteSpace(selected.Content.Hash) && hash != selected.Content.Hash)
                 throw new InvalidDataException("本地版本文件已变更，无法切换。");
             var next = previous.Where(v => v.Id != versionId).Append(new LocalModVersion(Guid.NewGuid(), DateTime.UtcNow,
                 ModVersionStore.Clone(mod))).ToList();
             var wasDeployed = _deploymentService != null && (await _deploymentService.GetModDeploymentHistoryAsync(id, token)).Any();
-            if (_deploymentService != null) await _deploymentService.DeleteModDeploymentRecordsAsync(id, token);
             token.ThrowIfCancellationRequested();
             var content = selected.Content;
             mod.Path = content.Path;
@@ -39,6 +39,7 @@ public partial class ModService
             mod.LogicalMod = content.LogicalMod;
             mod.WorkflowType = content.WorkflowType;
             mod.Hash = hash;
+            mod.ContentFingerprint = string.IsNullOrWhiteSpace(content.ContentFingerprint) ? fingerprint : content.ContentFingerprint;
             mod.Size = content.Size;
             mod.Category = content.Category;
             mod.ResourceTypeIds = content.ResourceTypeIds;
@@ -61,8 +62,10 @@ public partial class ModService
             await store.WriteAsync(id, next, CancellationToken.None);
             try { await SaveLinkedModAsync(mod, CancellationToken.None); }
             catch { await store.WriteAsync(id, previous, CancellationToken.None); throw; }
+            var (deployment, deploymentWarning) = await ReconcileDeploymentAfterUpdateAsync(
+                id, wasDeployed, deploymentProgress, token);
             RaiseModsChanged();
-            return new(mod, wasDeployed, null);
+            return new(mod, wasDeployed, deployment, deploymentWarning);
         }
         finally { _mutationGate.Release(); }
     }

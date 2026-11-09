@@ -70,6 +70,24 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(failWrite ? 0 : 1, notifications);
     }
 
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    public async Task IsLoaderOrderLocked_ShouldOnlyRemainLockedWhenFixedGroupsAreActive(
+        bool lockLoaders, bool freeLoaderOrder, bool expected)
+    {
+        var service = new SettingsService(_root);
+        await service.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.ProfilesLockLoaders] = lockLoaders,
+            [SettingKeys.ProfilesFreeLoaderOrder] = freeLoaderOrder
+        });
+
+        Assert.Equal(expected, service.IsLoaderOrderLocked());
+    }
+
     [Fact]
     public async Task SetSettingAsync_Notification_ShouldAllowReentrantRead()
     {

@@ -53,6 +53,9 @@
           <Button x:Name="OpenDeploymentProgressButton" IsVisible="{Binding LibraryViewModel.IsDeploying}"
                   Command="{Binding LibraryViewModel.OpenDeploymentProgressCommand}"
                   Content="{loc:LocalizedBinding LibraryViewModel.DeploymentTitle}"/>
+          <Button x:Name="PluginMenuButton" Classes="icon-button" IsVisible="False" ToolTip.Tip="插件功能">
+            <controls:UtilityIcon Kind="Plugin"/>
+          </Button>
           <Grid>
             <Button x:Name="TaskCenterButton" Command="{Binding OpenTaskCenterCommand}" Classes="icon-button" ToolTip.Tip="{loc:Loc UI.OpenTaskCenter}"><controls:UtilityIcon Kind="Tasks"/></Button>
             <fa:FAInfoBadge Value="{Binding RunningTaskCount}" IsVisible="{Binding RunningTaskCount, Converter={StaticResource GreaterThanZeroConverter}}"
@@ -69,25 +72,28 @@
         <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
         <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
           <TabControl.Styles><Style Selector="TabControl#PageHost > TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
-          <TabItem><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
-          <TabItem><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
-          <TabItem><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
-          <TabItem><views:MoreView/></TabItem>
-          <TabItem><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
-          <TabItem><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
-          <TabItem><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:MoreView/></TabItem>
+          <TabItem IsVisible="False"><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:BrowseModsView DataContext="{Binding BrowseModsViewModel}"/></TabItem>
+          <TabItem IsVisible="False"><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
         </TabControl>
       </Border>
     </fa:FANavigationView>
-    <Border Grid.Row="1" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
+    <Border x:Name="StatusBar" Grid.Row="1" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
       <Grid Height="32" ColumnDefinitions="*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <TextBlock Text="{loc:LocalizedBinding StatusBarText}" Classes="caption-text"/>
           <TextBlock Text="·" Classes="caption-text"/>
           <TextBlock Text="{Binding CurrentProfileName}" Classes="caption-text"/>
-          <TextBlock Text="{loc:LocalizedBinding DeploymentStatus}" Classes="caption-text"/>
+          <TextBlock Text="{loc:LocalizedBinding ProfileViewModel.ActiveProfileDeploymentStatus}" Classes="caption-text"/>
         </StackPanel>
-        <TextBlock Grid.Column="1" Text="v0.1.0" Classes="caption-text" VerticalAlignment="Center"/>
+        <Border x:Name="VersionBadge" Grid.Column="1" Background="Transparent" Padding="6,2" VerticalAlignment="Center"
+                PointerPressed="OnVersionBadgePointerPressed">
+          <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}" Classes="caption-text"/>
+        </Border>
       </Grid>
     </Border>
     <controls:NotificationToastHost x:Name="ToastHost" DataContext="{Binding NotificationPanelViewModel}"
@@ -146,6 +152,8 @@
         </Grid>
       </Border>
     </Border>
+    <controls:ModelPreviewOverlay x:Name="ModelPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding ModelPreview}" ZIndex="370"/>
+    <controls:AudioPreviewOverlay x:Name="AudioPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding AudioPreview}" ZIndex="375"/>
     <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="2" DataContext="{Binding Compatibility}" ZIndex="360"/>
     <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
     <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"

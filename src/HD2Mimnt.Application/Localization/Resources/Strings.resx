@@ -544,10 +544,49 @@
     <value>About HD2Mimnt</value>
   </data>
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
-    <value>Helldivers 2 mod manager · Version 0.1.0-alpha</value>
+    <value>Helldivers 2 mod manager · Version {0}</value>
   </data>
   <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
     <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
+  </data>
+  <data name="Updates.CheckNow" xml:space="preserve">
+    <value>Check for app updates</value>
+  </data>
+  <data name="Updates.Checking" xml:space="preserve">
+    <value>Checking for updates…</value>
+  </data>
+  <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
+    <value>Check for updates on startup</value>
+  </data>
+  <data name="Updates.UpToDate" xml:space="preserve">
+    <value>You're on the latest version.</value>
+  </data>
+  <data name="Updates.CheckFailed" xml:space="preserve">
+    <value>Update check failed.</value>
+  </data>
+  <data name="Updates.NewVersionAvailable" xml:space="preserve">
+    <value>New version {0} available</value>
+  </data>
+  <data name="Updates.DownloadAndInstall" xml:space="preserve">
+    <value>Download and install</value>
+  </data>
+  <data name="Updates.OpenReleasePage" xml:space="preserve">
+    <value>Open release page</value>
+  </data>
+  <data name="Updates.Downloading" xml:space="preserve">
+    <value>Downloading update; the app will restart to install it…</value>
+  </data>
+  <data name="Updates.ManualDownloadHint" xml:space="preserve">
+    <value>No automatic installer was found for this release. Please download it from the release page.</value>
+  </data>
+  <data name="Updates.NotificationTitle" xml:space="preserve">
+    <value>HD2Mimnt update</value>
+  </data>
+  <data name="Updates.NotificationBody" xml:space="preserve">
+    <value>New version {0} is available.</value>
+  </data>
+  <data name="Updates.NotificationAction" xml:space="preserve">
+    <value>Go to update</value>
   </data>
   <data name="UI.PluginManagement" xml:space="preserve">
     <value>Plugin management</value>
@@ -596,6 +635,24 @@
   </data>
   <data name="UI.PluginPermissionRequest" xml:space="preserve">
     <value>Plugin permission request</value>
+  </data>
+  <data name="UI.PluginCommandResult" xml:space="preserve">
+    <value>Plugin command result</value>
+  </data>
+  <data name="UI.PluginCommandNeedsPermission" xml:space="preserve">
+    <value>needs permission</value>
+  </data>
+  <data name="UI.MarkdownSource" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="UI.MarkdownRendered" xml:space="preserve">
+    <value>Rendered</value>
+  </data>
+  <data name="UI.PluginThemeReset" xml:space="preserve">
+    <value>Reset theme</value>
+  </data>
+  <data name="UI.PluginThemeActive" xml:space="preserve">
+    <value>Active theme: {0}</value>
   </data>
   <data name="UI.ThisPluginRequestsAccessToSystemResources" xml:space="preserve">
     <value>This plugin requests access to system resources.</value>
@@ -855,7 +912,7 @@ Deny: do not install this plugin</value>
     <value>Deploy from bottom to top</value>
   </data>
   <data name="UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie" xml:space="preserve">
-    <value>When off, deploy from top to bottom. The Lua group moves to the start or end: dependencies → BSL / MDL → SmoothBoot. SmoothBoot has the highest priority.</value>
+    <value>When off, deploy from top to bottom. The Lua group moves to the start or end: dependencies → BSL / MDL / Boot Mod Loader → SmoothBoot. SmoothBoot has the highest priority.</value>
   </data>
   <data name="UI.ShowModThumbnails" xml:space="preserve">
     <value>Show mod thumbnails</value>
@@ -870,7 +927,10 @@ Deny: do not install this plugin</value>
     <value>Concurrent connections per file</value>
   </data>
   <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
-    <value>Used when the server supports segments; fewer connections are used for small files.</value>
+    <value>Used when the server supports segments. Range: 1–256; values above 64 trigger a warning. Fewer connections are used for small files.</value>
+  </data>
+  <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
+    <value>Download settings saved. More than 64 concurrent connections may be throttled or rejected by the server; keeping it at 64 or lower is recommended.</value>
   </data>
   <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
     <value>Minimum segment size (MiB)</value>
@@ -964,6 +1024,21 @@ Deny: do not install this plugin</value>
   </data>
   <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
     <value>Failed to load task center</value>
+  </data>
+  <data name="UI.ClearCompletedTasks" xml:space="preserve">
+    <value>Clear completed tasks</value>
+  </data>
+  <data name="UI.ClearCompletedTasksHint" xml:space="preserve">
+    <value>Removes finished task records only; running tasks are untouched</value>
+  </data>
+  <data name="UI.ConfirmClearCompletedTasks" xml:space="preserve">
+    <value>Permanently delete all finished task records? Running tasks are not affected.</value>
+  </data>
+  <data name="UI.DeleteTaskRecord" xml:space="preserve">
+    <value>Delete task record</value>
+  </data>
+  <data name="UI.FailedToDeleteTask" xml:space="preserve">
+    <value>Failed to delete task: {0}</value>
   </data>
   <data name="UI.NexusModsLinkHandler" xml:space="preserve">
     <value>Nexus Mods link handler</value>
@@ -1913,10 +1988,7 @@ Still waiting for valid authorization for the selected file.</value>
     <value>Failed to remove selected mods: {0}</value>
   </data>
   <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
-    <value>Loader dependencies and BSL / MDL</value>
-  </data>
-  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
-    <value>Dependencies → BSL / MDL (choose one) → SmoothBoot (highest priority) · follows deployment direction</value>
+    <value>Loader dependencies and Lua loaders</value>
   </data>
   <data name="UI.All" xml:space="preserve">
     <value>All</value>
@@ -2083,15 +2155,6 @@ Still waiting for valid authorization for the selected file.</value>
     <value>
 
 See the Conflicts page for details.</value>
-  </data>
-  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
-    <value>SmoothBoot · Highest priority</value>
-  </data>
-  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
-    <value>BSL / MDL · Fixed after dependencies</value>
-  </data>
-  <data name="UI.LoaderDependency" xml:space="preserve">
-    <value>Loader dependency</value>
   </data>
   <data name="UI.CacheInformationNotLoaded" xml:space="preserve">
     <value>Cache information not loaded</value>
@@ -2307,7 +2370,7 @@ See the Conflicts page for details.</value>
     <value>{0} and {1} mods</value>
   </data>
   <data name="UI.ReleaseToPlaceBeforeTheBSLSeparator" xml:space="preserve">
-    <value>Release to place before the BSL separator</value>
+    <value>Release to place before the Lua group</value>
   </data>
   <data name="UI.ChooseBackgroundImage" xml:space="preserve">
     <value>Choose background image</value>
@@ -2329,6 +2392,12 @@ See the Conflicts page for details.</value>
   </data>
   <data name="Options.System" xml:space="preserve">
     <value>Follow system</value>
+  </data>
+  <data name="Options.Ore" xml:space="preserve">
+    <value>Ore</value>
+  </data>
+  <data name="Options.Helldivers" xml:space="preserve">
+    <value>Helldivers</value>
   </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>Comfortable</value>
@@ -2375,6 +2444,9 @@ See the Conflicts page for details.</value>
   <data name="Shell.NotDeployed" xml:space="preserve">
     <value>Not Deployed</value>
   </data>
+  <data name="Shell.PartiallyDeployed" xml:space="preserve">
+    <value>Partially Deployed</value>
+  </data>
   <data name="Shell.Idle" xml:space="preserve">
     <value>Idle</value>
   </data>
@@ -2404,6 +2476,21 @@ See the Conflicts page for details.</value>
   </data>
   <data name="Task.ForceTerminated" xml:space="preserve">
     <value>Force terminated</value>
+  </data>
+  <data name="Task.ValidateLibrary" xml:space="preserve">
+    <value>Validate Library</value>
+  </data>
+  <data name="Task.ValidateLibraryHint" xml:space="preserve">
+    <value>Validate all mods in the library in a background worker process</value>
+  </data>
+  <data name="Task.ForceTerminate" xml:space="preserve">
+    <value>Force Terminate</value>
+  </data>
+  <data name="Task.ForceTerminateHint" xml:space="preserve">
+    <value>Kill the worker process when the task stops responding to cancel</value>
+  </data>
+  <data name="Task.ForceTerminateConfirm" xml:space="preserve">
+    <value>Force terminate this task? Its worker process will be killed immediately and unfinished work may leave partial results.</value>
   </data>
   <data name="Plugin.FullAccess" xml:space="preserve">
     <value>Full Access</value>
@@ -3105,195 +3192,6 @@ Cache: {2}</value>
   <data name="Browse.InvalidLink" xml:space="preserve">
     <value>Enter a Helldivers 2 mod page URL, such as https://www.nexusmods.com/helldivers2/mods/16633.</value>
   </data>
-  <data name="Crash.Title" xml:space="preserve">
-    <value>Game crash diagnostics</value>
-  </data>
-  <data name="Crash.Description" xml:space="preserve">
-    <value>Analyze a local minidump offline and compare deployments before the crash. Clues identify what to test first; they do not prove which mod caused the crash.</value>
-  </data>
-  <data name="Crash.ToolMissing" xml:space="preserve">
-    <value>The bundled analyzer is missing. Restore Tools/minidump-stackwalk from the application package.</value>
-  </data>
-  <data name="Crash.Path" xml:space="preserve">
-    <value>Path to a .dmp or .mdmp file</value>
-  </data>
-  <data name="Crash.Browse" xml:space="preserve">
-    <value>Choose dump</value>
-  </data>
-  <data name="Crash.RecentDumps" xml:space="preserve">
-    <value>Recent game dumps</value>
-  </data>
-  <data name="Crash.Refresh" xml:space="preserve">
-    <value>Refresh dumps and history</value>
-  </data>
-  <data name="Crash.Analyze" xml:space="preserve">
-    <value>Analyze crash</value>
-  </data>
-  <data name="Crash.Export" xml:space="preserve">
-    <value>Export JSON report</value>
-  </data>
-  <data name="Crash.History" xml:space="preserve">
-    <value>Recent deployments and working baseline</value>
-  </data>
-  <data name="Crash.HistoryHelp" xml:space="preserve">
-    <value>Snapshots are recorded from now on and survive deployment cleanup. After verifying a deployment works in-game, select it and mark it as working. Keep the game path configured in Settings.</value>
-  </data>
-  <data name="Crash.KnownGood" xml:space="preserve">
-    <value>Confirmed working by you</value>
-  </data>
-  <data name="Crash.MarkGood" xml:space="preserve">
-    <value>Mark selected deployment as working</value>
-  </data>
-  <data name="Crash.Found" xml:space="preserve">
-    <value>Found {0} dumps and {1} deployment snapshots.</value>
-  </data>
-  <data name="Crash.Complete" xml:space="preserve">
-    <value>Analysis complete.</value>
-  </data>
-  <data name="Crash.MarkedGood" xml:space="preserve">
-    <value>Working baseline saved. Analyze the dump again to refresh the comparison.</value>
-  </data>
-  <data name="Crash.Exported" xml:space="preserve">
-    <value>Report exported: {0}</value>
-  </data>
-  <data name="Crash.Working" xml:space="preserve">
-    <value>Processing…</value>
-  </data>
-  <data name="Crash.Cancelled" xml:space="preserve">
-    <value>Cancelled; the analyzer has stopped.</value>
-  </data>
-  <data name="Crash.Failed" xml:space="preserve">
-    <value>Operation failed: {0}</value>
-  </data>
-  <data name="Crash.Unknown" xml:space="preserve">
-    <value>Unknown</value>
-  </data>
-  <data name="Crash.NotGame" xml:space="preserve">
-    <value>The main module is not confirmed as helldivers2.exe; game mod attribution is unavailable.</value>
-  </data>
-  <data name="Crash.ModClues" xml:space="preserve">
-    <value>Mod-related module clues found; reproduce to confirm.</value>
-  </data>
-  <data name="Crash.Inconclusive" xml:space="preserve">
-    <value>Insufficient evidence to determine whether mods caused the crash.</value>
-  </data>
-  <data name="Crash.Details" xml:space="preserve">
-    <value>Exception: {0}
-Address: {1}
-Main module: {2}
-Dump time: {3}</value>
-  </data>
-  <data name="Crash.ManagedModuleInStack" xml:space="preserve">
-    <value>{0} appears in the crashing thread and matches current deployment filenames: {1}. Filename matching is a clue, not binary identity.</value>
-  </data>
-  <data name="Crash.ManagedModuleLoaded" xml:space="preserve">
-    <value>{0} is loaded and matches deployment filenames: {1}. Loading alone does not establish a cause.</value>
-  </data>
-  <data name="Crash.PossibleHookLoaded" xml:space="preserve">
-    <value>{0} has a common proxy/hook DLL name. It may also be a system DLL; ownership is unknown.</value>
-  </data>
-  <data name="Crash.Ambiguous" xml:space="preserve">
-    <value>Multiple modules share this name; the owner cannot be resolved.</value>
-  </data>
-  <data name="Crash.ScanFrame" xml:space="preserve">
-    <value>The stack contains scan-derived frames, which have lower reliability.</value>
-  </data>
-  <data name="Crash.MissingSymbols" xml:space="preserve">
-    <value>Function symbols or frames are missing. Game resource mods and Lua scripts usually cannot be identified from DLL names alone.</value>
-  </data>
-  <data name="Crash.LaterDeployment" xml:space="preserve">
-    <value>Current deployment is newer than this dump; current DLL ownership is excluded from attribution.</value>
-  </data>
-  <data name="Crash.NoTimestamp" xml:space="preserve">
-    <value>Dump timestamp is missing; deployment history cannot be matched reliably.</value>
-  </data>
-  <data name="Crash.ContextFailed" xml:space="preserve">
-    <value>Deployment context unavailable: {0}</value>
-  </data>
-  <data name="Crash.Deployment" xml:space="preserve">
-    <value>Deployment before the crash: {0} ({1})</value>
-  </data>
-  <data name="Crash.GoodBaseline" xml:space="preserve">
-    <value>Compared with confirmed working deployment: {0}</value>
-  </data>
-  <data name="Crash.PreviousBaseline" xml:space="preserve">
-    <value>Compared with previous completed deployment: {0}</value>
-  </data>
-  <data name="Crash.UnverifiedBaseline" xml:space="preserve">
-    <value>The previous deployment has not been confirmed working; differences only help prioritize tests.</value>
-  </data>
-  <data name="Crash.NoBaseline" xml:space="preserve">
-    <value>No earlier baseline exists. Mark a deployment working after testing it in-game.</value>
-  </data>
-  <data name="Crash.IncompleteDeployment" xml:space="preserve">
-    <value>This deployment was incomplete or still running at the crash time; check deployment errors first.</value>
-  </data>
-  <data name="Crash.NoHistory" xml:space="preserve">
-    <value>No matching deployment snapshot was recorded before this dump. Historical snapshots cannot be reconstructed from the current profile.</value>
-  </data>
-  <data name="Crash.Change" xml:space="preserve">
-    <value>{0}: {1}</value>
-  </data>
-  <data name="Crash.ChangeAdded" xml:space="preserve">
-    <value>New / enabled</value>
-  </data>
-  <data name="Crash.ChangeUpdated" xml:space="preserve">
-    <value>Version, hash or file metadata changed</value>
-  </data>
-  <data name="Crash.ChangeOptionsChanged" xml:space="preserve">
-    <value>Options changed</value>
-  </data>
-  <data name="Crash.ChangeOrderChanged" xml:space="preserve">
-    <value>Relative order changed</value>
-  </data>
-  <data name="Crash.ChangeRemoved" xml:space="preserve">
-    <value>Removed / disabled (possible dependency)</value>
-  </data>
-  <data name="Crash.ChangesTitle" xml:space="preserve">
-    <value>Changes to prioritize</value>
-  </data>
-  <data name="Crash.NoChanges" xml:space="preserve">
-    <value>No changes listed. This may mean the baseline is missing or unchanged; it does not rule mods out.</value>
-  </data>
-  <data name="Crash.CluesTitle" xml:space="preserve">
-    <value>Module clues</value>
-  </data>
-  <data name="Crash.NoClues" xml:space="preserve">
-    <value>No attributable module clues. Resource mods may still be involved.</value>
-  </data>
-  <data name="Crash.NextSteps" xml:space="preserve">
-    <value>Suggested reproduction steps</value>
-  </data>
-  <data name="Crash.Steps" xml:space="preserve">
-    <value>1. Reproduce the same scene with a known working deployment or a clean game baseline.
-2. Test newly added or changed mods first. Disable half of the suspects at a time and redeploy; keep required loaders and dependencies together.
-3. Compare repeated crashes and record which combination stops and restores the crash.
-A DLL listed in a dump, a resource conflict or a recent change alone does not prove the cause. Deployments from other tools and later manual edits are not tracked here.</value>
-  </data>
-  <data name="Crash.Stack" xml:space="preserve">
-    <value>Crashing thread (up to 128 frames)</value>
-  </data>
-  <data name="Crash.Modules" xml:space="preserve">
-    <value>Loaded modules</value>
-  </data>
-  <data name="Crash.StatusCompleted" xml:space="preserve">
-    <value>Completed</value>
-  </data>
-  <data name="Crash.StatusDeploying" xml:space="preserve">
-    <value>Deploying</value>
-  </data>
-  <data name="Crash.StatusPartiallyFailed" xml:space="preserve">
-    <value>Partially failed</value>
-  </data>
-  <data name="Crash.StatusFailed" xml:space="preserve">
-    <value>Failed</value>
-  </data>
-  <data name="Crash.StatusCancelled" xml:space="preserve">
-    <value>Cancelled</value>
-  </data>
-  <data name="Crash.StatusInProgressAtCrash" xml:space="preserve">
-    <value>In progress at crash time</value>
-  </data>
   <data name="Interop.Title" xml:space="preserve">
     <value>Offline mod interface</value>
   </data>
@@ -3627,7 +3525,9 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>Entry visibility saved and applied</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>All entries are visible again</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>Lock loader positions</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order. BSL and MDL remain mutually exclusive.</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>On by default: keep Lua dependencies, BSL/MDL/Boot Mod Loader, Chef Shared Loader and SmoothBoot in their fixed group. Turn off to select and reorder them like other mods; deployment follows the saved order and no longer requires a host loader for Lua dependencies or SmoothBoot. BSL, MDL and Boot Mod Loader remain mutually exclusive; Chef Shared Loader and MDL3 can be enabled alongside Boot Mod Loader and deploy right before it.</value></data>
+  <data name="Settings.Profiles.FreeLoaderOrder" xml:space="preserve"><value>Free sorting (keep groups)</value></data>
+  <data name="Settings.Profiles.FreeLoaderOrderHelp" xml:space="preserve"><value>Available when loader positions are locked. Lua dependencies and loader groups stay visible and keep being classified automatically, but every mod — including loaders — can be dragged anywhere. Deployment follows the saved order and no longer requires a host loader for Lua dependencies or SmoothBoot.</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>This mod has not been published yet. Try again later or check its publication status on Nexus Mods.</value></data>
   <data name="Browse.ModUnavailable" xml:space="preserve"><value>Nexus Mods reports that this mod is currently unavailable. Check its status on Nexus Mods and try again later; the API did not specify the cause.</value></data>
   <data name="Logs.Help" xml:space="preserve"><value>Select an entry to read its full details. Filters affect display only. Configure recording in Settings → Logs.</value></data>
@@ -3641,6 +3541,9 @@ A DLL listed in a dump, a resource conflict or a recent change alone does not pr
   <data name="Logs.CopySelected" xml:space="preserve"><value>Copy selected entry</value></data>
   <data name="Logs.Recording" xml:space="preserve"><value>Log recording</value></data>
   <data name="Logs.RecordingHelp" xml:space="preserve"><value>Defaults to Warning and above. Save to apply immediately and retain after restart. Temporarily select Debug to inspect API responses.</value></data>
+  <data name="Logs.Retention" xml:space="preserve"><value>Log retention</value></data>
+  <data name="Logs.RetentionHelp" xml:space="preserve"><value>One log file per day; files older than the retention period are removed automatically. Changes take effect immediately.</value></data>
+  <data name="Logs.RetentionUnit" xml:space="preserve"><value>days</value></data>
   <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API responses are redacted before logging. Detailed levels produce more logs; restore Warning after diagnosis.</value></data>
   <data name="Logs.Saved" xml:space="preserve"><value>Log settings saved and applied</value></data>
   <data name="Logs.SaveFailed" xml:space="preserve"><value>Failed to save log settings: {0}</value></data>
@@ -3958,8 +3861,15 @@ Last checked: {7}</value>
   <data name="Creator.ExportScreenshot" xml:space="preserve"><value>Export full screenshot (expand all)</value></data>
   <data name="Settings.Profiles.AutoAddImportedMods" xml:space="preserve"><value>Automatically add new mods to the active profile</value></data>
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>After import, add and enable mods in the active profile. If no profile is active, keep them in the library.</value></data>
+  <data name="Settings.Deployment.OverwriteConflicts" xml:space="preserve"><value>Force overwrite conflicting patch files</value></data>
+  <data name="Settings.Deployment.OverwriteConflictsHelp" xml:space="preserve"><value>On by default. When deploying or renumbering, a target patch number already occupied by a file from an external tool (such as a Lua patch generated by HD2CharacterLibrary) is overwritten; when off, the operation stops and reports the conflict instead.</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>Close the import card after completion</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>Close after all mods import successfully. Keep results open on failure or cancellation.</value></data>
+  <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>Auto-unpack Lua mods</value></data>
+  <data name="Settings.Library.LuaAutoExtractHelp" xml:space="preserve"><value>Off by default. When enabled, Lua scripts inside mods are automatically extracted to a dedicated LuaExtracted folder in each mod folder for review; existing mods in the library are unpacked right away, and already-processed mods are not extracted again.</value></data>
+  <data name="Settings.Library.LuaExtractTitle" xml:space="preserve"><value>Auto-unpack Lua</value></data>
+  <data name="Settings.Library.LuaExtractedSummary" xml:space="preserve"><value>Extracted Lua for {0} mods: {1} source scripts, {2} bytecode files. Check the LuaExtracted folder in each mod folder.</value></data>
+  <data name="Settings.Library.LuaExtractFailed" xml:space="preserve"><value>Auto Lua extraction failed: {0}</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>These components will be imported as one mod. You can enable each component in profile options.</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>Import together</value></data>
   <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS components</value></data>
@@ -4003,6 +3913,7 @@ Last checked: {7}</value>
   <data name="IAS.Browse" xml:space="preserve"><value>Select package</value></data>
   <data name="IAS.GamePath" xml:space="preserve"><value>Game directory (from Settings)</value></data>
   <data name="IAS.Route" xml:space="preserve"><value>Route to inspect</value></data>
+  <data name="IAS.InstallActions" xml:space="preserve"><value>Install actions</value></data>
   <data name="IAS.Inspect" xml:space="preserve"><value>Inspect package and installation</value></data>
   <data name="IAS.Working" xml:space="preserve"><value>Checking package files and game fingerprints…</value></data>
   <data name="IAS.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
@@ -4018,7 +3929,7 @@ Last checked: {7}</value>
   <data name="IAS.NoGame" xml:space="preserve"><value>Game compatibility has not been checked.</value></data>
   <data name="IAS.Compatible" xml:space="preserve"><value>Game fingerprints match the selected runtime.</value></data>
   <data name="IAS.Incompatible" xml:space="preserve"><value>Game fingerprints are missing or do not match. Automatic deployment is unavailable.</value></data>
-  <data name="IAS.DataNotVerified" xml:space="preserve"><value>Manage data as a normal mod: add it to profiles, enable or disable it, and adjust its order. Runtime installation does not deploy data. Keep one compatible MDL or BSL loader in the profile.</value></data>
+  <data name="IAS.DataNotVerified" xml:space="preserve"><value>Manage data as a normal mod: add it to profiles, enable or disable it, and adjust its order. Runtime installation does not deploy data. Keep one compatible MDL, BSL or Boot Mod Loader in the profile.</value></data>
   <data name="IAS.GameChecks" xml:space="preserve"><value>Game compatibility fingerprints</value></data>
   <data name="IAS.RuntimeChecks" xml:space="preserve"><value>Runtime files (selected route)</value></data>
   <data name="IAS.FoundationChecks" xml:space="preserve"><value>Foundation files</value></data>
@@ -4029,6 +3940,28 @@ Last checked: {7}</value>
   <data name="IAS.FileMatch" xml:space="preserve"><value>Matches</value></data>
   <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>Recognized older hash</value></data>
   <data name="IAS.FileUnknown" xml:space="preserve"><value>Unknown / mismatch</value></data>
+  <data name="IAS.LegacyTag" xml:space="preserve"><value>Legacy (pre-EAC) · Deprecated</value></data>
+  <data name="IasSystem.Title" xml:space="preserve"><value>HD2IAS system deployment</value></data>
+  <data name="IasSystem.NavItem" xml:space="preserve"><value>HD2IAS system</value></data>
+  <data name="IasSystem.Description" xml:space="preserve"><value>Regenerate the HD2IAS armor companion from currently deployed IAS mods with the upstream generator. Requires the HD2IAS system (HD2IntegratedArmorSystem) install location.</value></data>
+  <data name="IasSystem.Location" xml:space="preserve"><value>HD2IAS system install location</value></data>
+  <data name="IasSystem.LocationPlaceholder" xml:space="preserve"><value>e.g. D:\Games\HD2IntegratedArmorSystem</value></data>
+  <data name="IasSystem.Browse" xml:space="preserve"><value>Browse…</value></data>
+  <data name="IasSystem.RuntimeId" xml:space="preserve"><value>Runtime folder</value></data>
+  <data name="IasSystem.NoRuntime" xml:space="preserve"><value>Runtime folder not found. Make sure the HD2IAS system is installed.</value></data>
+  <data name="IasSystem.Models" xml:space="preserve"><value>HD2IAS model components</value></data>
+  <data name="IasSystem.NoModels" xml:space="preserve"><value>No deployable HD2IAS model components in the mod library.</value></data>
+  <data name="IasSystem.FileCount" xml:space="preserve"><value>{0} files</value></data>
+  <data name="IasSystem.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="IasSystem.OperationLog" xml:space="preserve"><value>Operation log</value></data>
+  <data name="IasSystem.ReadingLocation" xml:space="preserve"><value>Reading the HD2IAS system location…</value></data>
+  <data name="IasSystem.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="IasSystem.Generate" xml:space="preserve"><value>Generate mod companion</value></data>
+  <data name="IasSystem.Generating" xml:space="preserve"><value>Generating the armor companion…</value></data>
+  <data name="IasSystem.Generated" xml:space="preserve"><value>Companion generated: {0} files written, {1} removed, {2} kept unchanged.</value></data>
+  <data name="IasSystem.SystemReady" xml:space="preserve"><value>Upstream armor component detected. The companion can be generated directly.</value></data>
+  <data name="IasSystem.SystemMissing" xml:space="preserve"><value>Upstream armor component not detected. Complete the system installation in the HD2IAS app first.</value></data>
+  <data name="IasSystem.SelectLocation" xml:space="preserve"><value>Fill in the HD2IAS system install location first.</value></data>
   <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua route</value></data>
   <data name="IAS.NativeRoute" xml:space="preserve"><value>Native route</value></data>
   <data name="IAS.Generate" xml:space="preserve"><value>Generate system data ZIP</value></data>
@@ -4038,6 +3971,7 @@ Last checked: {7}</value>
   <data name="IAS.UpdateSource" xml:space="preserve"><value>Official GitHub update history · Native is selected by default.</value></data>
   <data name="IAS.RefreshVersions" xml:space="preserve"><value>Check versions</value></data>
   <data name="IAS.DownloadUpdate" xml:space="preserve"><value>Download and inspect</value></data>
+  <data name="IAS.CheckReport" xml:space="preserve"><value>Check report</value></data>
   <data name="IAS.CheckingUpdates" xml:space="preserve"><value>Reading the official update history…</value></data>
   <data name="IAS.Downloading" xml:space="preserve"><value>Downloading and verifying the update package…</value></data>
   <data name="IAS.VersionsReady" xml:space="preserve"><value>Found {0} versions. The highest version is selected; download it or choose another version.</value></data>
@@ -4061,6 +3995,7 @@ Last checked: {7}</value>
   <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>Recognized older file · update needed</value></data>
   <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>Recognized retired file · removal needed</value></data>
   <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>Unknown or invalid · automatic replacement blocked</value></data>
+  <data name="IAS.InstalledStatus" xml:space="preserve"><value>Installed build status</value></data>
   <data name="IAS.Install" xml:space="preserve"><value>Install runtime and update data mod</value></data>
   <data name="IAS.Installing" xml:space="preserve"><value>Installing runtime and updating the data mod in the library…</value></data>
   <data name="IAS.Installed" xml:space="preserve"><value>Runtime installed; data saved to the mod library: {0}. Deploy it through a profile.</value></data>
@@ -4078,6 +4013,7 @@ Last checked: {7}</value>
   <data name="Compatibility.Open" xml:space="preserve"><value>Open compatibility check</value></data>
   <data name="Compatibility.LibraryScope" xml:space="preserve"><value>All library mods</value></data>
   <data name="Compatibility.SelectionScope" xml:space="preserve"><value>Selected mods</value></data>
+  <data name="Compatibility.ImportScope" xml:space="preserve"><value>Imported mods</value></data>
   <data name="Compatibility.ProfileScope" xml:space="preserve"><value>Profile: {0}</value></data>
   <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} mods · {1} model checks passed · {2} need attention · {3} unconfirmed · {4} check failures · {5} need no model check</value></data>
   <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} patches · {3} Units · {4:yyyy-MM-dd HH:mm:ss}</value></data>
@@ -4133,8 +4069,10 @@ Last checked: {7}</value>
   <data name="Compatibility.Unknown" xml:space="preserve"><value>Unconfirmed</value></data>
   <data name="Compatibility.Error" xml:space="preserve"><value>Check failed</value></data>
   <data name="Compatibility.NotApplicable" xml:space="preserve"><value>No model check needed</value></data>
+  <data name="Compatibility.Corrupted" xml:space="preserve"><value>Patch corrupted or required companion file missing</value></data>
   <data name="Compatibility.Scope" xml:space="preserve"><value>Check scope</value></data>
   <data name="Compatibility.NoModels" xml:space="preserve"><value>No model Units found. Lua, skeletons, animations and audio are outside this check and will not receive model repairs.</value></data>
+  <data name="Compatibility.NothingToRepair" xml:space="preserve"><value>No applicable repair actions.</value></data>
   <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>Unconfirmed: {0}</value></data>
   <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>game directory is not configured</value></data>
   <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>current game references could not be read</value></data>
@@ -4175,6 +4113,8 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Title" xml:space="preserve"><value>Compatibility</value></data>
   <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>Check mod compatibility on startup</value></data>
   <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>Off by default. After saving, the next startup checks the library in the background. Open results from the notification. No automatic repairs.</value></data>
+  <data name="Settings.Compatibility.AutoCheckImport" xml:space="preserve"><value>Check newly imported mods automatically</value></data>
+  <data name="Settings.Compatibility.AutoCheckImportHelp" xml:space="preserve"><value>Off by default. When enabled, mods from each import batch are checked together in the background once the batch finishes. Open results from the notification. No automatic repairs.</value></data>
   <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>Allow batch repair</value></data>
   <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>Off by default. Shows the batch repair button in repair previews. Execution still requires confirmation.</value></data>
   <data name="Settings.Compatibility.Help" xml:space="preserve"><value>Changes apply after saving. Individual checks, previews and repairs remain available in the library, profiles and mod details.</value></data>
@@ -4262,4 +4202,105 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Downloads.AyakaTask" xml:space="preserve">
     <value>Ayaka Mods download: {0}</value>
   </data>
+  <data name="ModelPreview.Title" xml:space="preserve"><value>Model preview</value></data>
+  <data name="ModelPreview.Loading" xml:space="preserve"><value>Loading model and textures…</value></data>
+  <data name="ModelPreview.Empty" xml:space="preserve"><value>No previewable models in the current selection.</value></data>
+  <data name="ModelPreview.Summary" xml:space="preserve"><value>{0} meshes · {1:N0} triangles · {2} textures · {3} skipped streams</value></data>
+  <data name="ModelPreview.Options" xml:space="preserve"><value>Mod options</value></data>
+  <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>Click Update preview after changing options. Preview changes never modify profiles or deployed files.</value></data>
+  <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>Texture preview resolution</value></data>
+  <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>Original</value></data>
+  <data name="ModelPreview.Apply" xml:space="preserve"><value>Update preview</value></data>
+  <data name="ModelPreview.Meshes" xml:space="preserve"><value>Meshes</value></data>
+  <data name="ModelPreview.ShowFiltered" xml:space="preserve"><value>Show filtered helper meshes</value></data>
+  <data name="ModelPreview.Isolate" xml:space="preserve"><value>Isolate selected mesh</value></data>
+  <data name="ModelPreview.Textures" xml:space="preserve"><value>Textures</value></data>
+  <data name="ModelPreview.Wireframe" xml:space="preserve"><value>Wireframe</value></data>
+  <data name="ModelPreview.Alpha" xml:space="preserve"><value>Use texture alpha</value></data>
+  <data name="ModelPreview.Grid" xml:space="preserve"><value>Ground grid</value></data>
+  <data name="ModelPreview.Stocky" xml:space="preserve"><value>Stocky body</value></data>
+  <data name="ModelPreview.ResetCamera" xml:space="preserve"><value>Reset camera</value></data>
+  <data name="ModelPreview.Controls" xml:space="preserve"><value>Left drag to orbit · Right/middle drag to pan · Scroll to zoom · Double-click to reset</value></data>
+  <data name="ModelPreview.Limits" xml:space="preserve"><value>Previews the selected mod options; missing textures appear gray. Game-specific materials may differ from in-game rendering.</value></data>
+  <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} textures unavailable (gray fallback)</value></data>
+  <data name="AudioPreview.Title" xml:space="preserve"><value>Audio preview</value></data>
+  <data name="AudioPreview.Loading" xml:space="preserve"><value>Loading audio entries…</value></data>
+  <data name="AudioPreview.Empty" xml:space="preserve"><value>No previewable audio in the current selection.</value></data>
+  <data name="AudioPreview.LoadFailed" xml:space="preserve"><value>Audio load failed: {0}</value></data>
+  <data name="AudioPreview.PlaybackFailed" xml:space="preserve"><value>Playback failed: {0}</value></data>
+  <data name="AudioPreview.Summary" xml:space="preserve"><value>{0:N0} entries · {1:N0} banks · {2:N0} patches</value></data>
+  <data name="AudioPreview.ModifiedCount" xml:space="preserve"><value>{0:N0} of {1:N0} replaced</value></data>
+  <data name="AudioPreview.Modified" xml:space="preserve"><value>Replaced</value></data>
+  <data name="AudioPreview.Original" xml:space="preserve"><value>Original</value></data>
+  <data name="AudioPreview.OnlyShowModified" xml:space="preserve"><value>Only replaced</value></data>
+  <data name="AudioPreview.UncomparedHint" xml:space="preserve"><value>{0:N0} entries not compared (comparison budget reached)</value></data>
+  <data name="AudioPreview.NoComparison" xml:space="preserve"><value>Game directory not configured; original comparison unavailable.</value></data>
+  <data name="AudioPreview.IssueNotRiff" xml:space="preserve"><value>Not a WEM file</value></data>
+  <data name="AudioPreview.IssueNotVorbis" xml:space="preserve"><value>Unsupported codec</value></data>
+  <data name="AudioPreview.IssueTruncated" xml:space="preserve"><value>Incomplete media</value></data>
+  <data name="AudioPreview.IssueReadFailed" xml:space="preserve"><value>Read failed</value></data>
+  <data name="AudioPreview.LooseStreamsGroup" xml:space="preserve"><value>Standalone audio streams</value></data>
+  <data name="AudioPreview.Play" xml:space="preserve"><value>Play</value></data>
+  <data name="AudioPreview.Pause" xml:space="preserve"><value>Pause</value></data>
+  <data name="AudioPreview.Stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="UI.ChangeImage" xml:space="preserve"><value>Change image</value></data>
+  <data name="UI.RestoreModImage" xml:space="preserve"><value>Restore mod image</value></data>
+  <data name="UI.EditModInfo" xml:space="preserve"><value>Edit mod info</value></data>
+  <data name="UI.AddToSpecifiedGroup" xml:space="preserve"><value>Add to specified group</value></data>
+  <data name="UI.AddToSpecifiedGroupEllipsis" xml:space="preserve"><value>Add to specified group…</value></data>
+  <data name="UI.SelectASingleProfileToChooseAGroup" xml:space="preserve"><value>Select exactly one profile to choose a target group.</value></data>
+  <data name="UI.ThisProfileHasNoGroups" xml:space="preserve"><value>This profile has no groups yet.</value></data>
+  <data name="UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges" xml:space="preserve"><value>Selected mods move to the end of the group; deployment order changes.</value></data>
+  <data name="UI.ChooseAGroupForTheImportedMods" xml:space="preserve"><value>Imported mods were added to the active profile. Choose a group to move them into, or close to keep them appended at the end.</value></data>
+  <data name="UI.ApplyGroup" xml:space="preserve"><value>Apply group</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>Allow choosing a group when adding mods</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>Shows a group picker in the library "Add to profiles" dialog (single profile only) and after importing with auto-add enabled. Off keeps appending to the end.</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>Stick the current expanded group header while scrolling</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>Display only: while scrolling, the current expanded user group header sticks to the top of the mod list. Scrolling into the next group replaces it, and other headers keep their normal position. Mod order never changes. Drop mods onto the sticky header to add them to that group.</value></data>
+  <data name="UI.AiTranslateOptions" xml:space="preserve"><value>AI Translate Options</value></data>
+  <data name="UI.AiTranslationCacheLoaded" xml:space="preserve"><value>Loaded {0} cached translations.</value></data>
+  <data name="UI.AiTranslationNoText" xml:space="preserve"><value>There is no option text to translate.</value></data>
+  <data name="UI.AiTranslationRunning" xml:space="preserve"><value>Translating options...</value></data>
+  <data name="UI.AiTranslationProgress" xml:space="preserve"><value>Translated {0}/{1}</value></data>
+  <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>Loaded {0} cached translations without calling the API.</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>Translation complete: {0} from cache, {1} from API, {2}% input cache hit.</value></data>
+  <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>Translation canceled.</value></data>
+  <data name="UI.AiTranslationFailed" xml:space="preserve"><value>Translation failed: {0}</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI Service Settings</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI Service</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>Configure an AI service (built-in OpenAI, Claude, DeepSeek, local models, or a custom compatible endpoint). Supports mod option translation, model discovery, DeepSeek balance display, and a thinking-mode toggle. The API key is encrypted with Windows DPAPI.</value></data>
+  <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>Provider type</value></data>
+  <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API endpoint</value></data>
+  <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>Model</value></data>
+  <data name="Settings.AiTranslation.ApiKey" xml:space="preserve"><value>API key</value></data>
+  <data name="Settings.AiTranslation.ApiKeyHint" xml:space="preserve"><value>Not saved yet.</value></data>
+  <data name="Settings.AiTranslation.ApiKeySaved" xml:space="preserve"><value>A key is already saved; leave blank to keep it.</value></data>
+  <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>Target language</value></data>
+  <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>Save and test</value></data>
+  <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>Use Save at the bottom of the page to store these settings.</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI service settings saved.</value></data>
+  <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>The API endpoint must be a valid HTTP or HTTPS URL.</value></data>
+  <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>Model is required.</value></data>
+  <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>API key is required for this provider.</value></data>
+  <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>Connection succeeded.</value></data>
+  <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>Connection test failed.</value></data>
+  <data name="Settings.AiTranslation.FetchModels" xml:space="preserve"><value>Fetch models</value></data>
+  <data name="Settings.AiTranslation.AvailableModels" xml:space="preserve"><value>Available models</value></data>
+  <data name="Settings.AiTranslation.ModelsFetched" xml:space="preserve"><value>{0} model(s) loaded.</value></data>
+  <data name="Settings.AiTranslation.ModelsEmpty" xml:space="preserve"><value>The service returned no models.</value></data>
+  <data name="Settings.AiTranslation.FetchModelsFailed" xml:space="preserve"><value>Failed to fetch models: {0}</value></data>
+  <data name="Settings.AiTranslation.Thinking" xml:space="preserve"><value>Thinking mode</value></data>
+  <data name="Settings.AiTranslation.ThinkingHelp" xml:space="preserve"><value>Enable deliberate reasoning for models that support it. Responses are slower and some models ignore the temperature setting.</value></data>
+  <data name="Settings.AiTranslation.Balance" xml:space="preserve"><value>Account balance</value></data>
+  <data name="Settings.AiTranslation.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Settings.AiTranslation.BalanceLine" xml:space="preserve"><value>{0} {1} (granted: {2}, topped up: {3})</value></data>
+  <data name="Settings.AiTranslation.BalanceEmpty" xml:space="preserve"><value>No balance information returned</value></data>
+  <data name="Settings.AiTranslation.BalanceInsufficient" xml:space="preserve"><value>Insufficient balance</value></data>
+  <data name="Settings.AiTranslation.BalanceFailed" xml:space="preserve"><value>Failed to query balance: {0}</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort" xml:space="preserve"><value>Thinking effort</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffortHelp" xml:space="preserve"><value>Controls how much the model reasons. Available levels depend on the provider; higher effort is slower and usually produces more output tokens.</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Low" xml:space="preserve"><value>Low</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>Medium</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>High</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>Max</value></data>
 </root>

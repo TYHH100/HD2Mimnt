@@ -13,12 +13,15 @@ namespace HD2Mimnt.UI.Views;
 
 public partial class LibraryView : UserControl
 {
+    private LibraryViewModel? _pluginCommandSource;
+
     public LibraryView()
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnModListKeyDown, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerReleasedEvent, OnModListContextReleased, RoutingStrategies.Bubble, handledEventsToo: true);
+        DataContextChanged += OnLibraryDataContextChanged;
         DetachedFromVisualTree += (_, _) =>
         {
             if (DataContext is LibraryViewModel vm)
@@ -27,14 +30,48 @@ public partial class LibraryView : UserControl
                 if (vm.ModOnline is { } online)
                     SafeAsync.FireAndForget(online.CloseCommand.ExecuteAsync(null), "关闭在线详情");
             }
+
+            AttachPluginCommandResultSource(null);
         };
+    }
+
+    private void OnLibraryDataContextChanged(object? sender, EventArgs e)
+        => AttachPluginCommandResultSource(DataContext as LibraryViewModel);
+
+    private void AttachPluginCommandResultSource(LibraryViewModel? viewModel)
+    {
+        if (_pluginCommandSource is { } previous)
+        {
+            previous.PluginCommandResultReady -= OnPluginCommandResultReady;
+            previous.PluginDialogReady -= OnPluginDialogReady;
+        }
+
+        _pluginCommandSource = viewModel;
+
+        if (viewModel is not null)
+        {
+            viewModel.PluginCommandResultReady += OnPluginCommandResultReady;
+            viewModel.PluginDialogReady += OnPluginDialogReady;
+        }
+    }
+
+    private async void OnPluginCommandResultReady(object? sender, PluginCommandResultEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        await PluginCommandResultDialog.ShowAsync(owner, e);
+    }
+
+    private async void OnPluginDialogReady(object? sender, PluginUiSurfaceViewModel surface)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        await PluginUiDialog.ShowAsync(owner, surface);
     }
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not LibraryViewModel vm) return;
 
-        if (vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+        if (vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var isTextInput = e.Source is Visual source &&
             (source is TextBox || source.GetVisualAncestors().Any(ancestor => ancestor is TextBox));
         var controlPressed = e.KeyModifiers.HasFlag(KeyModifiers.Control);
@@ -155,7 +192,7 @@ public partial class LibraryView : UserControl
         if (e.Source is not Visual eventSource ||
             !eventSource.GetVisualAncestors().Prepend(eventSource).Contains(ModList)) return;
         if (DataContext is not LibraryViewModel vm || vm.FilteredMods.Count == 0 ||
-            vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+            vm.ModelPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.IsAddToProfileDialogOpen || vm.IsDetailPanelOpen || vm.Import.IsOpen || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         if (e.Source is Visual source && source.GetVisualAncestors().Prepend(source).Any(visual => visual is Button or TextBox)) return;
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -187,7 +224,7 @@ public partial class LibraryView : UserControl
     /// <summary>
     /// 点击背景关闭"加入配置文件"弹窗
     /// </summary>
-    private void ModCard_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    private async void ModCard_ContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is not Control card
             || card.DataContext is not ModItemViewModel mod
@@ -196,30 +233,36 @@ public partial class LibraryView : UserControl
             return;
         }
 
-        ShowModContextMenu(card, mod, vm);
+        await ShowModContextMenuAsync(card, mod, vm);
         e.Handled = true;
     }
 
-    private void OnModListContextReleased(object? sender, PointerReleasedEventArgs e)
+    private async void OnModListContextReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Right || e.Source is not Visual source ||
             DataContext is not LibraryViewModel vm || vm.ModLink?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
         var card = source.GetVisualAncestors().Prepend(source).OfType<Border>()
             .FirstOrDefault(b => b.Classes.Contains("mod-card") && b.DataContext is ModItemViewModel);
         if (card?.DataContext is not ModItemViewModel mod) return;
-        ShowModContextMenu(card, mod, vm);
+        await ShowModContextMenuAsync(card, mod, vm);
         e.Handled = true;
     }
 
-    private static void ShowModContextMenu(Control card, ModItemViewModel mod, LibraryViewModel vm)
+    private static async Task ShowModContextMenuAsync(Control card, ModItemViewModel mod, LibraryViewModel vm)
     {
-        if (vm.Compatibility?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+        if (vm.ModelPreview?.IsOpen == true || vm.AudioPreview?.IsOpen == true || vm.Compatibility?.IsOpen == true || vm.ModOnline?.IsOpen == true) return;
+
+        // 每次弹出前刷新一次，安装/启用插件后无需重启即可看到新入口
+        await vm.RefreshPluginCommandsAsync();
+
         var entries = new List<object>
         {
             new ContextMenuItem("查看详情", vm.ShowModDetailCommand, "Info") { CommandParameter = mod },
             new ContextMenuItem("模组链接…", vm.OpenModLinkCommand, "Globe") { CommandParameter = mod },
         };
 
+        if (vm.ModelPreview != null) entries.Add(new ContextMenuItem("模型预览", vm.PreviewModelCommand, "Package") { CommandParameter = mod });
+        if (vm.AudioPreview != null) entries.Add(new ContextMenuItem("音频预览", vm.PreviewAudioCommand, "Package") { CommandParameter = mod });
         if (vm.Compatibility != null) entries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         if (mod.HasPlatformLink)
             entries.Add(new ContextMenuItem("打开来源网页", mod.OpenSourcePageCommand, "Globe"));
@@ -246,6 +289,26 @@ public partial class LibraryView : UserControl
             {
                 CommandParameter = mod,
             });
+        }
+
+        // 插件贡献的模组级动作（如 AI 摘要）。未授权的命令禁用展示，提示去插件设置授权。
+        var pluginCommands = vm.GetModPluginCommands();
+        if (pluginCommands.Count > 0)
+        {
+            entries.Add(AppContextMenu.Separator);
+            var needsPermission = UiLocalization.Current["UI.PluginCommandNeedsPermission"];
+            foreach (var command in pluginCommands)
+            {
+                var header = command.IsPermissionGranted
+                    ? command.DisplayName
+                    : $"{command.DisplayName}（{needsPermission}）";
+
+                entries.Add(new ContextMenuItem(header, vm.RunModPluginCommandCommand, "Plugin")
+                {
+                    CommandParameter = new ModPluginInvocation(mod, command),
+                    IsEnabled = command.IsPermissionGranted
+                });
+            }
         }
 
         if (mod.OpenFolderCommand is { } openFolder)

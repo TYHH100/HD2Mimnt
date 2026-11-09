@@ -41,7 +41,7 @@ public class SearchService
 
         lock (_indexLock)
         {
-            _logger?.LogInformation("Building search index...");
+            _logger?.LogDebug("开始构建搜索索引");
             var startTime = DateTime.UtcNow;
 
             // 清空现有索引
@@ -85,7 +85,7 @@ public class SearchService
 
             _indexBuilt = true;
             var duration = DateTime.UtcNow - startTime;
-            _logger?.LogInformation($"Search index built in {duration.TotalMilliseconds}ms. Total mods: {_allMods.Count}");
+            _logger?.LogDebug("搜索索引构建完成，耗时 {ElapsedMs:0.00} ms，条目数 {ModCount}", duration.TotalMilliseconds, _allMods.Count);
         }
     }
 

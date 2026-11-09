@@ -102,6 +102,22 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(0, events);
     }
 
+    [Fact]
+    public async Task LibraryCategory_LuaAutoExtract_ShouldDefaultOffAndSaveReload()
+    {
+        // 默认关闭：未写入任何设置时加载结果必须为 false。
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        Assert.False(vm.LuaAutoExtract);
+        vm.SelectedCategory = "模组库";
+        vm.LuaAutoExtract = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.True(_settingsService.GetSetting(SettingKeys.LuaAutoExtract, false));
+        using var reloaded = CreateViewModel("invalid-game-path");
+        await reloaded.LoadAsync();
+        Assert.True(reloaded.LuaAutoExtract);
+    }
+
     [Theory]
     [InlineData("配置文件", "Deployment.DefaultMethod", "Profiles.LockLoaders")]
     [InlineData("模组库", "Search.Fuzzy", "Library.ImportAutoClose")]
@@ -152,7 +168,7 @@ public sealed class SettingsViewModelTests : IDisposable
     public async Task MergedCategories_ShouldKeepSectionVisibilityAndLegacyEntryIds()
     {
         using var vm = CreateViewModel("invalid-game-path");
-        Assert.Equal(10, vm.SettingsCategories.Count());
+        Assert.Equal(11, vm.SettingsCategories.Count());
         foreach (var (previous, current) in new[] { ("部署", "配置文件"), ("搜索", "模组库"), ("缓存", "存储位置") })
         {
             Assert.DoesNotContain(previous, vm.SettingsCategories);
@@ -225,15 +241,19 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync(); vm.SelectedCategory = "兼容性";
         Assert.Contains("兼容性", vm.SettingsCategories); Assert.True(vm.IsCompatibilityCategoryVisible);
         Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
-        vm.CompatibilityCheckOnStartup = true; vm.CompatibilityEnableBatchRepair = true;
+        Assert.False(vm.CompatibilityAutoCheckImport);
+        vm.CompatibilityCheckOnStartup = true; vm.CompatibilityEnableBatchRepair = true; vm.CompatibilityAutoCheckImport = true;
         await vm.SaveCommand.ExecuteAsync(null);
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(reopened.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false));
         Assert.True(reopened.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false));
+        Assert.True(reopened.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false));
         using var reloaded = new SettingsViewModel(reopened, _gameDetectionService, new NotificationService(), _imageCache.Object);
         await reloaded.LoadAsync(); Assert.True(reloaded.CompatibilityCheckOnStartup); Assert.True(reloaded.CompatibilityEnableBatchRepair);
+        Assert.True(reloaded.CompatibilityAutoCheckImport);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.CompatibilityCheckOnStartup); Assert.False(vm.CompatibilityEnableBatchRepair);
+        Assert.False(vm.CompatibilityAutoCheckImport);
         Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
     }
 
@@ -270,8 +290,14 @@ public sealed class SettingsViewModelTests : IDisposable
         await vm.LoadAsync();
         Assert.False(vm.AutoCheckConflicts);
         Assert.True(vm.LockLoaders);
+        Assert.False(vm.FreeLoaderOrder);
         Assert.False(vm.AutoAddImportedMods);
+        Assert.False(vm.ChooseGroupWhenAdding);
+        Assert.False(vm.PinExpandedGroups);
         vm.AutoAddImportedMods = true;
+        vm.ChooseGroupWhenAdding = true;
+        vm.PinExpandedGroups = true;
+        vm.FreeLoaderOrder = true;
         vm.GamePath = "invalid-game-path";
         vm.SelectedCategory = "配置文件";
         vm.AutoCheckConflicts = true;
@@ -284,14 +310,40 @@ public sealed class SettingsViewModelTests : IDisposable
         var reopened = new SettingsService(_rootDirectory);
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false));
         Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false));
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false));
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false));
         Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true));
+        Assert.False(await reopened.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, true));
         await vm.LoadAsync();
         Assert.True(vm.AutoCheckConflicts);
+        Assert.False(vm.FreeLoaderOrder);
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.False(vm.AutoCheckConflicts);
         Assert.False(applied);
         Assert.False(vm.AutoAddImportedMods);
+        Assert.False(vm.ChooseGroupWhenAdding);
+        Assert.False(vm.PinExpandedGroups);
+        Assert.False(vm.FreeLoaderOrder);
         Assert.True(vm.LockLoaders);
+    }
+
+    [Fact]
+    public async Task FreeLoaderOrder_ShouldPersistWhileLockedAndResetWhenLockingOff()
+    {
+        using var vm = CreateViewModel("invalid-game-path");
+        await vm.LoadAsync();
+        vm.SelectedCategory = "配置文件";
+        vm.LockLoaders = true;
+        vm.FreeLoaderOrder = true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        var reopened = new SettingsService(_rootDirectory);
+        Assert.True(await reopened.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false));
+
+        vm.LockLoaders = false;
+        Assert.False(vm.FreeLoaderOrder);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.False(await new SettingsService(_rootDirectory)
+            .GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, true));
     }
 
     [Fact]
@@ -440,8 +492,24 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal("Light", await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark"));
     }
 
+    [Fact]
+    public async Task DownloadCategory_Above_64_Connections_Should_Save_With_Warning()
+    {
+        var notifications = new NotificationService();
+        var viewModel = CreateViewModel("", notifications);
+        viewModel.SelectedCategory = "下载";
+        viewModel.DownloadParallelSegments = 128;
+        await viewModel.SaveCommand.ExecuteAsync(null);
+        Assert.Contains("并发连接数超过 64", viewModel.StatusMessage);
+        var notification = Assert.Single(notifications.GetRecentNotifications());
+        Assert.Equal(NotificationLevel.Warning, notification.Level);
+        var options = await new DownloadSettingsService(new SettingsService(_rootDirectory)).GetOptionsAsync();
+        Assert.Equal(128, options.MaxParallelSegments);
+    }
+
     [Theory]
     [InlineData(0, 4, 2, 500)]
+    [InlineData(257, 4, 2, 500)]
     [InlineData(4, 0, 2, 500)]
     [InlineData(4, 257, 2, 500)]
     [InlineData(4, 4, 11, 500)]
@@ -480,12 +548,12 @@ public sealed class SettingsViewModelTests : IDisposable
         return root;
     }
 
-    private SettingsViewModel CreateViewModel(string gamePath)
+    private SettingsViewModel CreateViewModel(string gamePath, NotificationService? notificationService = null)
     {
         var viewModel = new SettingsViewModel(
             _settingsService,
             _gameDetectionService,
-            new NotificationService(),
+            notificationService ?? new NotificationService(),
             _imageCache.Object)
         {
             GamePath = gamePath

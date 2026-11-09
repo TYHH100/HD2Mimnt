@@ -15,11 +15,12 @@
 | HTTP 分段下载、重试与断点续传 | [MULTITHREADED_DOWNLOADS.md](features/MULTITHREADED_DOWNLOADS.md) |
 | 外部管理器双向迁移、工具入口与原生格式限制 | [EXTERNAL_MANAGER_MIGRATION.md](features/EXTERNAL_MANAGER_MIGRATION.md) |
 | 离线模组库、配置与实际部署接口及旧版本保底 | [OFFLINE_MOD_INTERFACE.md](features/OFFLINE_MOD_INTERFACE.md) |
-| 图形化清单编辑、密码库与完整模组 7z／ZIP 导出 | [MOD_CREATION.md](features/MOD_CREATION.md) |
+| 插件 manifest、DLL / Lua / 混合编写、命令贡献、AI 代理与密钥安全边界 | [PLUGIN_DEVELOPMENT.md](features/PLUGIN_DEVELOPMENT.md) |
+| 图形化清单编辑与完整模组 7z／ZIP 导出（密码库界面已下线待重写） | [MOD_CREATION.md](features/MOD_CREATION.md) |
 | HD2IR 嵌套角色包、组件选项与部署接入 | [HD2IR_INTEGRATION.md](features/HD2IR_INTEGRATION.md) |
 | 散装文件夹 / 包裹压缩包的多模组合集与两级选项 | [MOD_COLLECTION_IMPORT.md](features/MOD_COLLECTION_IMPORT.md) |
-| HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
-| 游戏崩溃转储、部署时间线与模组变化排查 | [CRASH_DIAGNOSTICS.md](features/CRASH_DIAGNOSTICS.md) |
+| Lua 加载器识别配置的字段说明与手动新增步骤 | 随应用分发：`src/HD2Mimnt.Infrastructure/Config/LoaderCatalog.md` |
+| （暂时停用）HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
 | Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
 | 总体设计与路线 | [v2 总体开发计划](plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)；计划不等于已实现功能 |
 | 自动冲突检查与性能测量边界 | [性能评估](reports/automatic-conflict-check-performance.md) |

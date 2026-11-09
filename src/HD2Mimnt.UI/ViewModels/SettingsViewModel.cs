@@ -53,6 +53,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private DeploymentMethod _defaultDeploymentMethod = DeploymentMethod.Copy;
     [ObservableProperty] private bool _deployBottomToTop;
     [ObservableProperty] private bool _checkBeforeDeploy = true;
+    [ObservableProperty] private bool _overwriteDeploymentConflicts = true;
     [ObservableProperty] private bool _showThumbnails = true;
     [ObservableProperty] private bool _searchFuzzy;
     [ObservableProperty] private bool _searchPinyin;
@@ -66,12 +67,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private bool _autoCheckConflicts;
     [ObservableProperty] private bool _lockLoaders = true;
+    [ObservableProperty] private bool _freeLoaderOrder;
     [ObservableProperty] private bool _autoAddImportedMods;
+    [ObservableProperty] private bool _chooseGroupWhenAdding;
+    [ObservableProperty] private bool _pinExpandedGroups;
     [ObservableProperty] private bool _importAutoClose;
     [ObservableProperty] private bool _keepModVersions;
     [ObservableProperty] private bool _allowDuplicateImports;
+    [ObservableProperty] private bool _luaAutoExtract;
     [ObservableProperty] private bool _compatibilityCheckOnStartup;
     [ObservableProperty] private bool _compatibilityEnableBatchRepair;
+    [ObservableProperty] private bool _compatibilityAutoCheckImport;
     [ObservableProperty] private bool _forceManifestV1 = true;
     [ObservableProperty] private string _selectedCategory = "游戏";
     [ObservableProperty] private bool _isLoading;
@@ -91,7 +97,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _storageSettings.Current.AppDataPath, _storageSettings.Current.ModsPath, _storageSettings.Current.CachePath);
 
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
-    public IEnumerable<string> ThemeOptions { get; } = new[] { "Dark", "Light", "System" };
+    public IEnumerable<string> ThemeOptions { get; } = new[]
+        { AppThemeService.Dark, AppThemeService.Light, AppThemeService.System, AppThemeService.Ore, AppThemeService.Helldivers };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
     public NexusModsAccountViewModel? NexusAccount { get; }
     public AyakaModsAccountViewModel? AyakaAccount { get; }
@@ -111,12 +118,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsDownloadCategoryVisible => IsSectionVisible("下载");
     public bool IsStorageCategoryVisible => IsSectionVisible("存储位置");
     public bool IsAccountCategoryVisible => IsSectionVisible("账号");
+    public bool IsAiCategoryVisible => IsSectionVisible("AI 服务");
+    public AiTranslationSettingsViewModel? AiTranslation { get; }
 
     public SettingsViewModel(SettingsService settingsService, GameDetectionService gameDetectionService, NotificationService notificationService, IImageCacheService imageCacheService,
         DownloadSettingsService? downloadSettings = null, UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
-        IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null)
+        IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null,
+        AiTranslationSettingsViewModel? aiTranslation = null)
     {
+        AiTranslation = aiTranslation;
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -227,12 +238,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsDownloadCategoryVisible));
         OnPropertyChanged(nameof(IsStorageCategoryVisible));
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
+        OnPropertyChanged(nameof(IsAiCategoryVisible));
         OnPropertyChanged(nameof(IsEntriesCategoryVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
 
     partial void OnListDensityChanged(string value) => ListDensityChanged?.Invoke(this, value);
+
+    /// <summary>关闭锁定时不再保留“自由排序（保留分组）”，避免重新开启锁定时意外恢复自由顺序。</summary>
+    partial void OnLockLoadersChanged(bool value)
+    {
+        if (!value) FreeLoaderOrder = false;
+    }
 
 
     [RelayCommand]
@@ -251,11 +269,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
+            FreeLoaderOrder = await _settingsService.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false);
             LockLoaders = await _settingsService.GetSettingAsync(SettingKeys.ProfilesLockLoaders, true);
             AutoAddImportedMods = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, false);
+            ChooseGroupWhenAdding = await _settingsService.GetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, false);
+            PinExpandedGroups = await _settingsService.GetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
             ImportAutoClose = await _settingsService.GetSettingAsync(SettingKeys.ImportAutoClose, false);
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
+            LuaAutoExtract = await _settingsService.GetSettingAsync(SettingKeys.LuaAutoExtract, false);
             ForceManifestV1 = await _settingsService.GetSettingAsync(SettingKeys.ForceManifestV1, true);
             LoadCompatibilitySettings();
             AutoCheckConflictsChanged?.Invoke(this, AutoCheckConflicts);
@@ -264,6 +286,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DeployBottomToTop = await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString())
                 == DeploymentOrder.BottomToTop.ToString();
             CheckBeforeDeploy = await _settingsService.GetSettingAsync(SettingKeys.DeploymentCheckBeforeDeploy, true);
+            OverwriteDeploymentConflicts = await _settingsService.GetSettingAsync(SettingKeys.DeploymentOverwriteConflicts, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
             SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
             SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
@@ -280,6 +303,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadMaxRetries = downloads.MaxRetries;
             DownloadRetryDelayMs = (int)downloads.RetryDelay.TotalMilliseconds;
             DownloadEnableResume = downloads.EnableResume;
+            if (AiTranslation != null) await AiTranslation.LoadAsync();
             RefreshCacheStatus();
             StatusMessage = "设置已加载";
         }
@@ -299,6 +323,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
             if (category == "账号") return;
+            if (category == "AI 服务")
+            {
+                if (AiTranslation == null)
+                {
+                    StatusMessage = "AI 设置未初始化";
+                    return;
+                }
+
+                if (!await AiTranslation.SaveAsync())
+                {
+                    StatusMessage = AiTranslation.StatusMessage;
+                    _notificationService.ShowError(StatusMessage, "设置");
+                    return;
+                }
+
+                StatusMessage = AiTranslation.StatusMessage;
+                _notificationService.ShowSuccess(StatusMessage, "设置");
+                return;
+            }
             if (category == "入口自定义")
             {
                 await SaveEntryVisibilityAsync();
@@ -324,6 +367,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     EnableResume = DownloadEnableResume
                 };
                 await _downloadSettingsService.SaveAsync(downloads);
+                if (DownloadParallelSegments > DownloadOptions.ParallelSegmentsWarningThreshold)
+                {
+                    StatusMessage = (_localization ?? UiLocalization.Current)["Settings.Download.HighConcurrencyWarning"];
+                    _notificationService.ShowWarning(StatusMessage, "设置");
+                    return;
+                }
                 StatusMessage = "下载设置已保存，下次下载生效";
             }
             else if (category == "游戏")
@@ -346,7 +395,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     "兼容性" => new Dictionary<string, object>
                     {
                         [SettingKeys.CompatibilityCheckOnStartup] = CompatibilityCheckOnStartup,
-                        [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair
+                        [SettingKeys.CompatibilityEnableBatchRepair] = CompatibilityEnableBatchRepair,
+                        [SettingKeys.CompatibilityAutoCheckImport] = CompatibilityAutoCheckImport
                     },
                     _ => throw new InvalidOperationException("请选择有效的设置分类。")
                 };
@@ -374,7 +424,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private Dictionary<string, object> GetProfilePreferences() => new()
     {
         [SettingKeys.ProfilesAutoAddImportedMods] = AutoAddImportedMods,
+        [SettingKeys.ProfilesChooseGroupWhenAdding] = ChooseGroupWhenAdding,
+        [SettingKeys.ProfilesPinExpandedGroups] = PinExpandedGroups,
         [SettingKeys.ProfilesLockLoaders] = LockLoaders,
+        [SettingKeys.ProfilesFreeLoaderOrder] = FreeLoaderOrder,
         [SettingKeys.ProfilesAutoSwitchOnSelect] = AutoSwitchProfileOnSelect,
         [SettingKeys.ProfilesAutoCheckConflicts] = AutoCheckConflicts
     };
@@ -383,7 +436,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         [SettingKeys.DefaultDeploymentMethod] = DefaultDeploymentMethod.ToString(),
         [SettingKeys.DefaultDeploymentOrder] = (DeployBottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString(),
-        [SettingKeys.DeploymentCheckBeforeDeploy] = CheckBeforeDeploy
+        [SettingKeys.DeploymentCheckBeforeDeploy] = CheckBeforeDeploy,
+        [SettingKeys.DeploymentOverwriteConflicts] = OverwriteDeploymentConflicts
     };
 
     private Dictionary<string, object> GetLibraryPreferences() => new()
@@ -391,7 +445,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.ShowModThumbnails] = ShowThumbnails,
         [SettingKeys.ImportAutoClose] = ImportAutoClose,
         [SettingKeys.KeepModVersions] = KeepModVersions,
-        [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports
+        [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports,
+        [SettingKeys.LuaAutoExtract] = LuaAutoExtract
     };
 
     private Dictionary<string, object> GetSearchPreferences() => new()
@@ -417,7 +472,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         // 切换控件会先切换自身状态；等待确认期间立即恢复已确认的值。
         OnPropertyChanged(nameof(KeepModVersions));
         if (!KeepModVersions && (_confirmationService == null || !await _confirmationService.ConfirmAsync(
-                "保留模组历史版本", "开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项并重新部署。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？")))
+                "保留模组历史版本", "开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项；若该模组当前已部署，会自动增量更新游戏文件。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？")))
         {
             OnPropertyChanged(nameof(KeepModVersions));
             return;
@@ -472,6 +527,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var category = SelectedCategory;
         if (category == "账号") return;
+        if (category == "AI 服务")
+        {
+            if (AiTranslation != null)
+            {
+                await AiTranslation.ResetAsync();
+                StatusMessage = AiTranslation.StatusMessage;
+            }
+            return;
+        }
         if (category == "入口自定义")
         {
             await _settingsService.SetSettingAsync(SettingKeys.HiddenEntries, Array.Empty<string>());
@@ -587,6 +651,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         CompatibilityCheckOnStartup = _settingsService.GetSetting(SettingKeys.CompatibilityCheckOnStartup, false);
         CompatibilityEnableBatchRepair = _settingsService.GetSetting(SettingKeys.CompatibilityEnableBatchRepair, false);
+        CompatibilityAutoCheckImport = _settingsService.GetSetting(SettingKeys.CompatibilityAutoCheckImport, false);
     }
 
     partial void OnForceManifestV1Changed(bool value)

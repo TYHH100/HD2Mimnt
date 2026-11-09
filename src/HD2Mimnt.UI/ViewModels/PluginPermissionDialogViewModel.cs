@@ -45,6 +45,10 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
 
     public PluginPermissionDialogResult Result { get; private set; } = PluginPermissionDialogResult.Deny;
 
+    /// <summary>用户在对话框中勾选的权限集合，安装时按此结果授权。</summary>
+    public IReadOnlyList<string> SelectedPermissions =>
+        RequestedPermissions.Where(p => p.IsGranted).Select(p => p.Permission).ToList();
+
     public PluginPermissionDialogViewModel()
     {
     }
@@ -63,13 +67,20 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
         RequestedPermissions.Clear();
         foreach (var permission in requestedPermissions)
         {
+            // 安装时也允许逐项勾选：沙箱模式下默认勾选非敏感权限，
+            // 敏感能力（AI 代理）始终默认不勾，必须用户主动选择。
+            var editable = !IsFullAccess;
+            var selected = editable && !IsSensitivePermission(permission);
+
             RequestedPermissions.Add(new PermissionItemViewModel
             {
                 Permission = permission,
                 DisplayName = GetPermissionDisplayName(permission),
                 Description = GetPermissionDescription(permission),
                 Icon = GetPermissionIcon(permission),
-                IsHighRisk = IsHighRiskPermission(permission)
+                IsHighRisk = IsHighRiskPermission(permission),
+                IsGranted = selected,
+                CanEdit = editable
             });
         }
 
@@ -178,6 +189,8 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "storage.write" => "写入插件存储",
             "config.write" => "写入配置",
             "network" => "网络访问",
+            "ai.use" or "UseAI" => "使用 AI（代理）",
+            "ui.theme" => "更换界面主题",
             _ => permission
         };
     }
@@ -200,6 +213,8 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "storage.write" => "写入插件专用存储",
             "config.write" => "修改插件配置",
             "network" => "向外部服务发起网络请求",
+            "ai.use" or "UseAI" => "通过主程序代理调用 AI。插件只能提交提示词并获得文本结果，无法读取 API Key；若试图获取或外传密钥，插件会被立即终止并停用。",
+            "ui.theme" => "用设计令牌覆盖配色、圆角与字号。插件不能写入样式代码，也不影响任何功能逻辑，可随时一键恢复默认主题。",
             _ => "自定义权限"
         };
     }
@@ -216,9 +231,17 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "WriteConfiguration" or "config.write" => "Wrench",
             "FileSystemAccess" or "storage.read" or "storage.write" => "Folder",
             "RegistryAccess" => "Settings",
+            "ai.use" or "UseAI" => "Code",
+            "ui.theme" => "Sliders",
             _ => "Lock"
         };
     }
+
+    /// <summary>
+    /// 敏感权限：即使沙箱安装也不默认勾选，必须用户主动选择。
+    /// </summary>
+    private static bool IsSensitivePermission(string permission)
+        => permission is "ai.use" or "UseAI";
 
     private static bool IsHighRiskPermission(string permission)
     {
@@ -230,6 +253,8 @@ public partial class PluginPermissionDialogViewModel : ObservableObject
             "RegistryAccess" => true,
             "mods.write" => true,
             "storage.write" => true,
+            "ai.use" => true,
+            "UseAI" => true,
             _ => false
         };
     }

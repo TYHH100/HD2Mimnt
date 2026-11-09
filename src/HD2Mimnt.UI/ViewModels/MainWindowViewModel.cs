@@ -1,15 +1,19 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.PluginSDK;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Views;
 using System.Collections.ObjectModel;
 using System.IO;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
-using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -19,6 +23,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModCompatibilityViewModel? Compatibility { get; }
     public Task StartupCompatibilityTask { get; private set; } = Task.CompletedTask;
     private bool _startupCompatibilityStarted;
+    private bool _startupUpdateCheckStarted;
     private bool _closingCompatibility;
     private readonly LibraryViewModel _libraryViewModel;
     private readonly ProfileViewModel _profileViewModel;
@@ -38,11 +43,25 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
+    private readonly IPluginService? _pluginService;
+    private string? _pluginUiSignature;
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
     private string? _tutorialOriginToolsCategory;
-    private string? _iasMissingNotifiedPath;
-    private string? _iasDataMissingNotifiedPath;
+
+    /// <summary>
+    /// 固定页（配置 / 模组库 / 冲突 / 工具 / 设置 / 浏览 / 创作）在 <see cref="SelectedTabIndex"/> 中占用的槽位数，
+    /// 插件页面从这里开始顺延。主窗口构建导航项时复用同一个常量。
+    /// </summary>
+    public const int PluginPageOffset = 7;
+
+    /// <summary>插件贡献的独立页面，安装/启用后作为导航项出现。</summary>
+    public ObservableCollection<PluginUiSurfaceViewModel> PluginPages { get; } = new();
+
+    /// <summary>插件贡献到导航栏“插件”菜单的入口。</summary>
+    public ObservableCollection<PluginMenuEntry> PluginMenus { get; } = new();
+
+    public string AppVersion => AppInfo.Version;
 
     [ObservableProperty]
     private string _title = "HD2Mimnt - Helldivers 2 Mod Manager";
@@ -69,13 +88,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     // 当前配置文件
     [ObservableProperty]
     private string _currentProfileName = "No Profile";
-
-    // 部署状态
-    [ObservableProperty]
-    private string _deploymentStatus = "Not Deployed";
-
-    [ObservableProperty]
-    private bool _isDeployed = false;
 
     // 任务状态
     [ObservableProperty]
@@ -120,14 +132,17 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public MoreViewModel MoreViewModel { get; } = new();
     public ConflictsViewModel ConflictsViewModel => _conflictsViewModel;
     public ImagePreviewService ImagePreview => _imagePreview;
+    public ModelPreviewViewModel? ModelPreview => _libraryViewModel.ModelPreview;
+    public AudioPreviewViewModel? AudioPreview => _libraryViewModel.AudioPreview;
     public BrowseModsViewModel? BrowseModsViewModel { get; }
-    public CrashDiagnosticsViewModel? CrashDiagnosticsViewModel { get; }
     public DirectDownloadViewModel? DirectDownloadViewModel { get; }
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
+    public IasSystemViewModel? IasSystemViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
+    public AppUpdateViewModel? AppUpdateViewModel { get; }
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -151,12 +166,15 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NexusModsTestService nexusModsTestService,
         ManagerMigrationViewModel? managerMigrationViewModel = null,
         BrowseModsViewModel? browseModsViewModel = null,
-        CrashDiagnosticsViewModel? crashDiagnosticsViewModel = null,
         DirectDownloadViewModel? directDownloadViewModel = null,
         ModCreationViewModel? modCreationViewModel = null,
         Hd2IASManagementViewModel? hd2IASManagementViewModel = null, ModCompatibilityViewModel? compatibility = null,
-        SoundFixViewModel? soundFixViewModel = null)
+        SoundFixViewModel? soundFixViewModel = null,
+        IasSystemViewModel? iasSystemViewModel = null,
+        AppUpdateViewModel? appUpdateViewModel = null,
+        IPluginService? pluginService = null)
     {
+        _pluginService = pluginService;
         Compatibility = compatibility;
         if (Compatibility != null)
         {
@@ -184,6 +202,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         }
         _libraryViewModel = libraryViewModel;
         _profileViewModel = profileViewModel;
+        if (ModelPreview is { } preview) preview.PropertyChanged += OnModelPreviewChanged;
+        if (AudioPreview is { } audioPreview) audioPreview.PropertyChanged += OnAudioPreviewChanged;
         _conflictsViewModel = conflictsViewModel;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -195,6 +215,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskCenterViewModel = taskCenterViewModel;
         _externalToolsViewModel = externalToolsViewModel;
         _pluginManagementViewModel = pluginManagementViewModel;
+        _pluginManagementViewModel.ContributionsChanged += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => SafeAsync.FireAndForget(
+                RefreshPluginUiAsync(),
+                "刷新插件界面贡献"));
         _backupViewModel = backupViewModel;
         _logViewModel = logViewModel;
         NotificationPanelViewModel = notificationPanelViewModel;
@@ -203,24 +227,42 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
         BrowseModsViewModel = browseModsViewModel;
-        CrashDiagnosticsViewModel = crashDiagnosticsViewModel;
         DirectDownloadViewModel = directDownloadViewModel;
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
-        if (Hd2IASManagementViewModel != null)
-            Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
+        IasSystemViewModel = iasSystemViewModel;
+        AppUpdateViewModel = appUpdateViewModel;
+        if (AppUpdateViewModel != null)
+        {
+            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"关于"分类处理。
+            AppUpdateViewModel.UpdateAvailableDetected += () =>
+            {
+                var version = AppUpdateViewModel.LatestVersion ?? string.Empty;
+                _notificationService.ShowWithAction(NotificationLevel.Info,
+                    UiLocalization.Current.Format("Updates.NotificationBody", version),
+                    UiLocalization.Current["Updates.NotificationAction"],
+                    () => Dispatcher.UIThread.Post(() => MoreViewModel.SelectedCategory = "关于"),
+                    UiLocalization.Current["Updates.NotificationTitle"]);
+            };
+            // 安装脚本已启动，立即退出应用让脚本完成文件替换并重启。
+            AppUpdateViewModel.InstallLaunched += () =>
+                (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+        }
+        // 旧版 HD2IAS 的运行时缺失自动提醒暂时停用（上游内测期）；页面与手动刷新保留。
+        // if (Hd2IASManagementViewModel != null)
+        //     Hd2IASManagementViewModel.InstallationRequirementChanged += OnHd2IASRequirementChanged;
         MoreViewModel.PropertyChanged += (_, args) =>
         {
-            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsCrashDiagnosticsVisible
-                && CrashDiagnosticsViewModel is { IsBusy: false } diagnostics)
-                _ = diagnostics.RefreshCommand.ExecuteAsync(null);
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2IASVisible
                 && Hd2IASManagementViewModel is { } ias)
             {
                 ias.Invalidate();
                 if (!ias.IsBusy) _ = ias.RefreshInstallationCommand.ExecuteAsync(null);
             }
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsIasSystemVisible
+                && IasSystemViewModel is { IsBusy: false } system)
+                _ = system.InitializeAsync();
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {
@@ -320,9 +362,179 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _profileViewModel.DeploymentDirectionChanged += (_, _) => _conflictsViewModel.InvalidateResults();
     }
 
-    private void NavigateForTutorialStep()
+    /// <summary>
+    /// 重新读取所有已启用插件的声明式界面贡献。
+    /// 插件安装 / 启停 / 授权后由设置页事件触发，无需重启管理器。
+    /// </summary>
+    public async Task RefreshPluginUiAsync()
     {
-        if (Tutorial.CurrentStep.PageIndex == 3)
+        if (_pluginService is null) return;
+
+        try
+        {
+            var bundles = await _pluginService.GetUiContributionsAsync();
+            if (bundles is null) return;
+
+            // 设置页每次加载都会触发刷新；贡献没变时不重建页面，避免丢失用户输入
+            var signature = string.Join("\n", bundles.Select(b =>
+                $"{b.PluginId}|{b.PluginName}|{string.Join(",", b.GrantedPermissions.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))}|" +
+                string.Join(",", b.Ui.Pages.Select(p => $"{p.Id}:{p.Title}:{p.Blocks.Count}")) + "|" +
+                string.Join(",", b.Ui.Menus.Select(m => $"{m.Id}:{m.Label}:{m.Command}:{m.Dialog}"))));
+
+            if (string.Equals(signature, _pluginUiSignature, StringComparison.Ordinal)) return;
+            _pluginUiSignature = signature;
+
+            // 重建会换掉全部视图模型实例，先按「插件 + 页面 id」记住用户当前所在页，
+            // 序号在页面增删后会变化，用 id 才能稳定还原，否则插件停用时会跳到别的页面。
+            string? previousPluginId = null;
+            string? previousSurfaceId = null;
+            var previousIndex = SelectedTabIndex - PluginPageOffset;
+            if (previousIndex >= 0 && previousIndex < PluginPages.Count)
+            {
+                previousPluginId = PluginPages[previousIndex].PluginId;
+                previousSurfaceId = PluginPages[previousIndex].SurfaceId;
+            }
+
+            PluginPages.Clear();
+            PluginMenus.Clear();
+
+            foreach (var bundle in bundles)
+            {
+                foreach (var page in bundle.Ui.Pages)
+                {
+                    if (string.IsNullOrWhiteSpace(page.Id)) continue;
+                    PluginPages.Add(new PluginUiSurfaceViewModel(
+                        bundle,
+                        page.Id,
+                        page.Title,
+                        page.Description,
+                        page.Icon,
+                        page.Blocks,
+                        isPage: true,
+                        _pluginService));
+                }
+
+                foreach (var menu in bundle.Ui.Menus)
+                {
+                    if (!PluginCommandPlacements.IsMainMenu(menu.Placement)) continue;
+                    if (string.IsNullOrWhiteSpace(menu.Command) && string.IsNullOrWhiteSpace(menu.Dialog)) continue;
+
+                    PluginMenus.Add(new PluginMenuEntry
+                    {
+                        PluginId = bundle.PluginId,
+                        PluginName = bundle.PluginName,
+                        Label = string.IsNullOrWhiteSpace(menu.Label) ? menu.Id : menu.Label,
+                        Icon = menu.Icon,
+                        Command = menu.Command,
+                        Arguments = menu.Arguments,
+                        Dialog = menu.Dialog,
+                        RequiredPermission = menu.RequiredPermission,
+                        IsPermissionGranted = bundle.HasPermission(menu.RequiredPermission),
+                        Bundle = bundle
+                    });
+                }
+            }
+
+            // 还原用户原来停留的插件页。仍存在就按新序号重新指向（重建换了实例），
+            // 已被移除（停用 / 卸载）则退回设置页，避免停在空标签或别人的页面上。
+            if (previousIndex >= 0)
+            {
+                var restored = -1;
+                if (previousPluginId is not null && previousSurfaceId is not null)
+                {
+                    for (var i = 0; i < PluginPages.Count; i++)
+                    {
+                        if (string.Equals(PluginPages[i].PluginId, previousPluginId, StringComparison.Ordinal)
+                            && string.Equals(PluginPages[i].SurfaceId, previousSurfaceId, StringComparison.Ordinal))
+                        {
+                            restored = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (restored >= 0)
+                {
+                    SelectedTabIndex = PluginPageOffset + restored;
+                    CurrentView = PluginPages[restored];
+                    StatusBarText = PluginPages[restored].Title;
+                }
+                else
+                {
+                    SelectedTabIndex = 4;
+                    CurrentView = _settingsViewModel;
+                    StatusBarText = "插件设置";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"读取插件界面贡献失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>导航到第 index 个插件页面（Tab 索引位于固定页之后）。</summary>
+    public void NavigateToPluginPage(int index)
+    {
+        if (index < 0 || index >= PluginPages.Count) return;
+        SelectedTabIndex = PluginPageOffset + index;
+        CurrentView = PluginPages[index];
+        StatusBarText = PluginPages[index].Title;
+    }
+
+    /// <summary>为功能菜单项创建浮窗界面；该菜单项没有浮窗时返回 null。</summary>
+    public PluginUiSurfaceViewModel? CreatePluginDialog(PluginMenuEntry entry)
+        => string.IsNullOrWhiteSpace(entry.Dialog)
+            ? null
+            : PluginUiSurfaceViewModel.CreateDialogSurface(entry.Bundle, entry.Dialog, _pluginService);
+
+    /// <summary>
+    /// 执行功能菜单里的插件命令。返回 null 表示没有可展示的结果（例如返回了界面更新）。
+    /// </summary>
+    public async Task<PluginCommandResultEventArgs?> RunPluginMenuAsync(PluginMenuEntry entry)
+    {
+        if (!entry.IsPermissionGranted)
+        {
+            return new PluginCommandResultEventArgs
+            {
+                Title = entry.Label,
+                PluginName = entry.PluginName,
+                Content = $"该功能需要权限 **{entry.RequiredPermission}**。\n\n请在「设置 → 插件」中为「{entry.PluginName}」授权后重试。"
+            };
+        }
+
+        if (_pluginService is null || string.IsNullOrWhiteSpace(entry.Command))
+        {
+            return null;
+        }
+
+        var result = await _pluginService.ExecutePluginCommandAsync(entry.PluginId, entry.Command, entry.Arguments);
+
+        if (!result.Success)
+        {
+            return new PluginCommandResultEventArgs
+            {
+                Title = entry.Label,
+                PluginName = entry.PluginName,
+                Content = $"命令执行失败：{result.Error ?? result.Message ?? "未知错误"}"
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(result.Message))
+        {
+            return null;
+        }
+
+        return new PluginCommandResultEventArgs
+        {
+            Title = entry.Label,
+            PluginName = entry.PluginName,
+            Content = result.Message
+        };
+    }
+
+    private void NavigateForTutorialStep()
+    {        if (Tutorial.CurrentStep.PageIndex == 3)
             MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
         if (Tutorial.CurrentStep.PageIndex == 4)
             SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
@@ -330,8 +542,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     }
 
     private void NavigateToPage(int pageIndex)
-    {
-        switch (pageIndex)
+    {        switch (pageIndex)
         {
             case 0: NavigateToProfiles(); break;
             case 1: NavigateToLibrary(); break;
@@ -370,25 +581,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         });
     }
 
-    private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
-    {
-        if (Hd2IASManagementViewModel is not { } ias) return;
-        var localizer = Localization.UiLocalization.Current;
-        NotifyRequirement(ias.NeedsRuntimeInstallation, ref _iasMissingNotifiedPath, ias.RuntimeRequiredMessage, "IAS.GoInstall");
-        NotifyRequirement(ias.NeedsDataGeneration, ref _iasDataMissingNotifiedPath, ias.DataRequiredMessage, "IAS.GoRepairData");
-
-        void NotifyRequirement(bool required, ref string? notifiedPath, string message, string actionKey)
-        {
-            if (!required) { notifiedPath = null; return; }
-            if (string.Equals(notifiedPath, ias.GamePath, StringComparison.OrdinalIgnoreCase)) return;
-            notifiedPath = ias.GamePath;
-            _notificationService.ShowWithAction(NotificationLevel.Warning, message, localizer[actionKey], () =>
-            {
-                MoreViewModel.SelectedCategory = "HD2IAS 管理";
-                NavigateToTools();
-            }, localizer["IAS.Title"]);
-        }
-    }
+    // 旧版 HD2IAS 运行时缺失自动提醒暂时停用；恢复订阅 OnHd2IASRequirementChanged 时一并恢复。
+    // private void OnHd2IASRequirementChanged(object? sender, EventArgs e)
+    // {
+    //     ... 原实现见 git 历史（依赖 _iasMissingNotifiedPath/_iasDataMissingNotifiedPath 字段）。
+    // }
 
     private void OnNotificationAdded(object? sender, Notification e)
     {
@@ -429,6 +626,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
         _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
         _backupViewModel.RefreshAfterRestoreAsync = null;
+        if (ModelPreview is { } preview)
+        {
+            preview.PropertyChanged -= OnModelPreviewChanged;
+            await preview.StopAsync();
+        }
+        if (AudioPreview is { } audioPreview)
+        {
+            audioPreview.PropertyChanged -= OnAudioPreviewChanged;
+            await audioPreview.StopAsync();
+        }
         await WaitForRefreshesAsync();
     }
 
@@ -445,7 +652,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnTaskCompleted(object? sender, TaskCompletedEventArgs e)
     {
-        QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
+        // 导入/部署/清理由发起浮层提示结果，这里只刷新运行状态，避免重复通知。
+        if (e.NotifyUser) QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
+        else QueueUiRefresh(UpdateRunningTasksAsync);
     }
 
     private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);
@@ -552,7 +761,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _profileViewModel.LoadProfilesAsync();
         SyncConflictProfile();
         await _settingsViewModel.LoadAsync();
-        ApplyTheme(_settingsViewModel.Theme);
+        AppThemeService.Apply(_settingsViewModel.Theme);
         ApplyTransparencyBrushes();
         _libraryViewModel.ApplyListDensity(_settingsViewModel.ListDensity);
         await ApplyAppearanceAsync();
@@ -579,7 +788,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         // 显示欢迎通知
         if (Hd2IASManagementViewModel != null)
             await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
-        _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
+        // _notificationService.ShowInfo("HD2Mimnt started successfully", "Welcome");
 
         await WaitForRefreshesAsync();
         StatusBarText = "Application initialized";
@@ -588,11 +797,21 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _startupCompatibilityStarted = true;
             StartupCompatibilityTask = RunStartupCompatibilityAsync();
         }
+
+        // 应用自更新：默认关闭，开启设置后启动静默检查，仅发现新版本时弹通知。
+        if (!_startupUpdateCheckStarted && AppUpdateViewModel != null)
+        {
+            _startupUpdateCheckStarted = true;
+            _ = AppUpdateViewModel.CheckOnStartupAsync();
+        }
     }
 
     private async Task RunStartupCompatibilityAsync()
     {
         await _settingsViewModel.UpdateStaleCompatibilityDataAsync();
+        if (_closingCompatibility) return;
+        // 无论是否开启启动扫描，都先从持久化摘要恢复上次检查的角标。
+        await _libraryViewModel.RestoreCompatibilityBadgesAsync();
         if (!_closingCompatibility) await _libraryViewModel.CheckCompatibilityOnStartupAsync();
     }
 
@@ -612,7 +831,25 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         CurrentProfileName = activeProfile?.Name ?? "No Profile";
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true;
+    private void OnModelPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(ModelPreviewViewModel.IsOpen)) return;
+        NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+        NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+        NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+        NavigateToModCreationCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnAudioPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(AudioPreviewViewModel.IsOpen)) return;
+        NavigateToProfilesCommand.NotifyCanExecuteChanged(); NavigateToLibraryCommand.NotifyCanExecuteChanged();
+        NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
+        NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
+        NavigateToModCreationCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -738,6 +975,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private void CloseOverlays()
     {
+        if (ModelPreview?.IsOpen == true) { ModelPreview.CloseCommand.Execute(null); return; }
+        if (AudioPreview?.IsOpen == true) { AudioPreview.CloseCommand.Execute(null); return; }
         if (Compatibility?.IsOpen == true) { Compatibility.CloseCommand.Execute(null); return; }
         if (_libraryViewModel.ModOnline?.IsOpen == true)
         {
@@ -787,6 +1026,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 _profileViewModel.CloseConflictPickerCommand.Execute(null);
             else if (_profileViewModel.IsMoveToPositionDialogOpen)
                 _profileViewModel.CancelMoveToPositionCommand.Execute(null);
+            else if (_profileViewModel.IsAddToGroupDialogOpen)
+                _profileViewModel.CancelAddToGroupCommand.Execute(null);
             else if (_profileViewModel.IsModOptionsDialogOpen)
                 _profileViewModel.CloseModOptionsCommand.Execute(null);
             else if (_profileViewModel.IsAddModOpen)
@@ -851,6 +1092,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public async Task<bool> CanCloseAsync()
     {
         _closingCompatibility = true;
+        if (ModelPreview != null) await ModelPreview.StopAsync();
+        if (AudioPreview != null) await AudioPreview.StopAsync();
         await _settingsViewModel.StopCompatibilityDataAsync();
         if (Compatibility != null) await Compatibility.StopAsync();
         await StartupCompatibilityTask;
@@ -865,9 +1108,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _libraryViewModel.LocalVersions.StopAsync();
         await _settingsViewModel.StopAccountsAsync();
         if (DirectDownloadViewModel != null) await DirectDownloadViewModel.CancelAndWaitAsync();
-        if (CrashDiagnosticsViewModel != null) await CrashDiagnosticsViewModel.CancelAndWaitAsync();
         if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
+        if (IasSystemViewModel != null) await IasSystemViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.LeavePageAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {
@@ -918,7 +1161,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnThemeChanged(object? sender, string theme)
     {
-        ApplyTheme(theme);
+        AppThemeService.Apply(theme);
         ApplyTransparencyBrushes();
     }
 
@@ -970,17 +1213,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);
 
-
-    private static void ApplyTheme(string theme)
-    {
-        if (global::Avalonia.Application.Current == null) return;
-        global::Avalonia.Application.Current.RequestedThemeVariant = theme switch
-        {
-            "Light" => ThemeVariant.Light,
-            "System" => ThemeVariant.Default,
-            _ => ThemeVariant.Dark
-        };
-    }
 
     [RelayCommand]
     private async Task RefreshGameStatusAsync()

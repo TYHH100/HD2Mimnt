@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using HD2Mimnt.Core.IPC;
 using HD2Mimnt.Core.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -14,7 +15,9 @@ namespace HD2Mimnt.Application.Services;
 public abstract class PluginHostMessage
 {
     public string Type { get; set; } = string.Empty;
-    public Guid PluginId { get; set; }
+
+    /// <summary>插件标识，取自 manifest.Id（与 PluginHost 侧协议保持一致）。</summary>
+    public string PluginId { get; set; } = string.Empty;
 }
 
 public class LoadPluginCommand : PluginHostMessage
@@ -34,6 +37,10 @@ public class PluginCompletedResponse : PluginHostMessage
 {
     public bool Success { get; set; }
     public string? ResultJson { get; set; }
+
+    /// <summary>声明式界面更新 JSON（与宿主进程侧字段名保持一致，靠 JSON 隐式匹配）。</summary>
+    public string? UiJson { get; set; }
+
     public List<string>? Errors { get; set; }
 }
 
@@ -43,12 +50,40 @@ public class PluginErrorResponse : PluginHostMessage
     public string? StackTrace { get; set; }
 }
 
+public class PluginLogMessage : PluginHostMessage
+{
+    public string Level { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string? Exception { get; set; }
+}
+
+public class PluginAiRequest : PluginHostMessage
+{
+    public string RequestId { get; set; } = string.Empty;
+    public string Prompt { get; set; } = string.Empty;
+    public string? SystemPrompt { get; set; }
+    public int? MaxOutputTokens { get; set; }
+}
+
+public class PluginAiResponse : PluginHostMessage
+{
+    public string RequestId { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public string? Error { get; set; }
+    public int TokensUsed { get; set; }
+}
+
 /// <summary>
 /// Named pipe server for plugin host IPC
 /// </summary>
 internal class PluginHostPipeServer : IDisposable
 {
     private readonly NamedPipeServerStream _pipeServer;
+
+    // 帧为“长度 + 载荷”两次写入：UI 线程发命令、监听线程回 AI 响应可能并发，
+    // 必须串行化，否则会交错破坏协议。
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
 
     public PluginHostPipeServer(string pipeName)
     {
@@ -65,8 +100,18 @@ internal class PluginHostPipeServer : IDisposable
         await _pipeServer.WaitForConnectionAsync(cancellationToken);
     }
 
-    public Task SendMessageAsync<T>(T message, CancellationToken cancellationToken = default) where T : PluginHostMessage
-        => PipeFrame.SendAsync(_pipeServer, JsonSerializer.Serialize(message), cancellationToken);
+    public async Task SendMessageAsync<T>(T message, CancellationToken cancellationToken = default) where T : PluginHostMessage
+    {
+        await _sendGate.WaitAsync(cancellationToken);
+        try
+        {
+            await PipeFrame.SendAsync(_pipeServer, JsonSerializer.Serialize(message), cancellationToken);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
+    }
 
     /// <summary>读取一帧原始 JSON；返回 null 表示对端关闭。</summary>
     public Task<string?> ReceiveRawAsync(CancellationToken cancellationToken = default)
@@ -123,6 +168,13 @@ internal class PluginHostProcess
         _currentCommand.TrySetResult(new PluginOperationResult { Success = false, Error = "Plugin host process crashed" });
     }
 
+    /// <summary>安全违规：给出明确原因，避免上层只看到“进程崩溃”。</summary>
+    public void SetSecurityViolation(string reason)
+    {
+        IsRunning = false;
+        _currentCommand.TrySetResult(new PluginOperationResult { Success = false, Error = reason });
+    }
+
     public Task<PluginOperationResult> WaitForResultAsync() => _currentCommand.Task;
 
     public void StartNewCommand()
@@ -139,15 +191,37 @@ internal class PluginHostProcess
 public class PluginHostManager : IPluginHostManager
 {
     private readonly StorageSettingsService? _storage;
-    public PluginHostManager(StorageSettingsService? storage = null) => _storage = storage;
+    private readonly ILogger<PluginHostManager>? _logger;
+    private readonly ILoggerFactory? _loggerFactory;
+    private readonly ConcurrentDictionary<string, ILogger> _pluginLoggers = new(StringComparer.Ordinal);
+    private readonly IPluginAiBroker? _aiBroker;
+    private readonly IPluginSecurityReporter? _securityReporter;
+    private readonly IPluginSecretGuard _secretGuard;
+
+    public PluginHostManager(
+        StorageSettingsService? storage = null,
+        ILogger<PluginHostManager>? logger = null,
+        IPluginAiBroker? aiBroker = null,
+        IPluginSecurityReporter? securityReporter = null,
+        IPluginSecretGuard? secretGuard = null,
+        ILoggerFactory? loggerFactory = null)
+    {
+        _storage = storage;
+        _logger = logger;
+        _loggerFactory = loggerFactory;
+        _aiBroker = aiBroker;
+        _securityReporter = securityReporter;
+        _secretGuard = secretGuard ?? new PluginSecretGuard();
+    }
+
     private readonly ConcurrentDictionary<string, PluginHostProcess> _runningHosts = new();
 
     public async Task<PluginOperationResult> StartPluginAsync(string pluginId, string assemblyPath, string manifestPath, CancellationToken cancellationToken = default)
     {
-        // Guid 校验前置：进程启动后才校验只会留下无法清理的孤儿
-        if (!Guid.TryParse(pluginId, out var pluginGuid))
+        // 标识校验前置：进程启动后才校验只会留下无法清理的孤儿
+        if (string.IsNullOrWhiteSpace(pluginId))
         {
-            return PluginOperationResult.ErrorResult("Invalid plugin id format", pluginId);
+            return PluginOperationResult.ErrorResult("Invalid plugin id", pluginId);
         }
         if (_runningHosts.ContainsKey(pluginId))
         {
@@ -169,7 +243,7 @@ public class PluginHostManager : IPluginHostManager
             CreateNoWindow = true
         };
         processStartInfo.ArgumentList.Add("--plugin-id");
-        processStartInfo.ArgumentList.Add(pluginGuid.ToString());
+        processStartInfo.ArgumentList.Add(pluginId);
         processStartInfo.ArgumentList.Add("--pipe-name");
         processStartInfo.ArgumentList.Add(pipeName);
 
@@ -206,7 +280,7 @@ public class PluginHostManager : IPluginHostManager
             var loadCommand = new LoadPluginCommand
             {
                 Type = nameof(LoadPluginCommand),
-                PluginId = pluginGuid,
+                PluginId = pluginId,
                 PluginPath = assemblyPath,
                 ManifestPath = manifestPath
             };
@@ -288,7 +362,7 @@ public class PluginHostManager : IPluginHostManager
         var command = new ExecutePluginCommand
         {
             Type = nameof(ExecutePluginCommand),
-            PluginId = Guid.Parse(hostProcess.PluginId),
+            PluginId = hostProcess.PluginId,
             MethodName = methodName,
             ArgumentsJson = argumentsJson
         };
@@ -339,25 +413,120 @@ public class PluginHostManager : IPluginHostManager
                 switch (ParseMessage(json))
                 {
                     case PluginCompletedResponse completed:
-                        var result = new PluginOperationResult
+                    {
+                        var (message, messageViolation) = Sanitize(completed.ResultJson);
+                        if (messageViolation is not null)
                         {
-                            Success = completed.Success,
-                            Message = completed.ResultJson
-                        };
-
-                        if (completed.Errors != null)
-                        {
-                            result.Error = string.Join("; ", completed.Errors);
+                            await HandleViolationAsync(hostProcess, $"命令结果包含真实密钥：{messageViolation}", cancellationToken);
+                            return;
                         }
 
-                        hostProcess.SetCompleted(result);
+                        var (errors, errorsViolation) = Sanitize(completed.Errors is null
+                            ? null
+                            : string.Join("; ", completed.Errors));
+                        if (errorsViolation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"命令错误信息包含真实密钥：{errorsViolation}", cancellationToken);
+                            return;
+                        }
+
+                        // 声明式界面同属插件输出，同样要过密钥扫描：一旦回传内容含真实密钥立即终止
+                        var (uiJson, uiViolation) = Sanitize(completed.UiJson);
+                        if (uiViolation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"界面内容包含真实密钥：{uiViolation}", cancellationToken);
+                            return;
+                        }
+
+                        hostProcess.SetCompleted(new PluginOperationResult
+                        {
+                            Success = completed.Success,
+                            Message = message,
+                            Error = string.IsNullOrEmpty(errors) ? null : errors,
+                            UiJson = uiJson
+                        });
                         break;
+                    }
 
                     case PluginErrorResponse error:
-                        hostProcess.SetError($"{error.ErrorMessage}\n{error.StackTrace}");
-                        break;
+                    {
+                        var (text, violation) = Sanitize($"{error.ErrorMessage}\n{error.StackTrace}");
+                        if (violation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"错误信息包含真实密钥：{violation}", cancellationToken);
+                            return;
+                        }
 
-                    // PluginLogMessage 与未知类型暂无消费方，忽略
+                        hostProcess.SetError(text ?? "插件执行失败");
+                        break;
+                    }
+
+                    case PluginLogMessage log:
+                    {
+                        var (message, violation) = Sanitize(log.Message);
+                        if (violation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"日志包含真实密钥：{violation}", cancellationToken);
+                            return;
+                        }
+
+                        var (exception, exceptionViolation) = Sanitize(log.Exception);
+                        if (exceptionViolation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"异常信息包含真实密钥：{exceptionViolation}", cancellationToken);
+                            return;
+                        }
+
+                        // 级别只由 LogLevel 表达，正文不再重复 [Info]，避免与行首级别列打架；
+                        // 插件身份改由 ILogger 类别承担（Plugin.<id>），从而可以按插件过滤。
+                        var pluginLogger = ResolvePluginLogger(hostProcess.PluginId);
+                        var pluginLevel = ParseLogLevel(log.Level);
+                        if (pluginLogger is null || !pluginLogger.IsEnabled(pluginLevel)) break;
+
+                        var pluginText = string.IsNullOrEmpty(exception)
+                            ? message ?? string.Empty
+                            : $"{message}{Environment.NewLine}{exception}";
+                        pluginLogger.Log(pluginLevel, "{Message}", pluginText);
+                        break;
+                    }
+
+                    case PluginAiRequest aiRequest:
+                    {
+                        if (_aiBroker is null)
+                        {
+                            await hostProcess.PipeServer.SendMessageAsync(new PluginAiResponse
+                            {
+                                Type = nameof(PluginAiResponse),
+                                PluginId = hostProcess.PluginId,
+                                RequestId = aiRequest.RequestId,
+                                Success = false,
+                                Error = "AI 能力未启用"
+                            }, cancellationToken);
+                            break;
+                        }
+
+                        var outcome = await _aiBroker.HandleAsync(aiRequest, hostProcess.PluginId, cancellationToken);
+                        if (outcome.Fatal)
+                        {
+                            await HandleViolationAsync(
+                                hostProcess,
+                                outcome.FatalReason ?? "插件 AI 请求触发安全策略",
+                                cancellationToken);
+                            return;
+                        }
+
+                        await hostProcess.PipeServer.SendMessageAsync(new PluginAiResponse
+                        {
+                            Type = nameof(PluginAiResponse),
+                            PluginId = hostProcess.PluginId,
+                            RequestId = aiRequest.RequestId,
+                            Success = outcome.Success,
+                            Content = outcome.Content,
+                            Error = outcome.Error,
+                            TokensUsed = outcome.TokensUsed
+                        }, cancellationToken);
+                        break;
+                    }
                 }
             }
         }
@@ -380,8 +549,88 @@ public class PluginHostManager : IPluginHostManager
         }
     }
 
+    /// <summary>
+    /// 每个插件一个 ILogger 类别（Plugin.&lt;id&gt;）：日志里显示为 plugin:hello，
+    /// 同时为“按插件单独配置/过滤级别”留下入口。未注入工厂时退回宿主 logger。
+    /// </summary>
+    private ILogger? ResolvePluginLogger(string pluginId) =>
+        _loggerFactory is null
+            ? _logger
+            : _pluginLoggers.GetOrAdd(pluginId, id => _loggerFactory.CreateLogger($"Plugin.{id}"));
+
+    /// <summary>
+    /// 插件自报级别 → 宿主 LogLevel。显式覆盖所有已知写法，
+    /// 避免以后新增级别（Fatal/Critical/Trace）落进 default 被静默降级。
+    /// </summary>
+    private static LogLevel ParseLogLevel(string level) => level?.Trim().ToLowerInvariant() switch
+    {
+        "trace" => LogLevel.Trace,
+        "debug" => LogLevel.Debug,
+        "info" or "information" => LogLevel.Information,
+        "warn" or "warning" => LogLevel.Warning,
+        "error" => LogLevel.Error,
+        "fatal" or "critical" => LogLevel.Critical,
+        _ => LogLevel.Information,
+    };
+
+    /// <summary>
+    /// 插件可控文本的统一出口：命中真实密钥返回违规原因（调用方负责终止），
+    /// 命中凭据格式则脱敏后继续，避免把可疑内容原样落库或写日志。
+    /// </summary>
+    private (string? Text, string? Violation) Sanitize(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return (text, null);
+        }
+
+        var scan = _secretGuard.Scan(text);
+        if (scan.IsFatal)
+        {
+            return (null, scan.Reason);
+        }
+
+        if (scan.IsViolation)
+        {
+            _logger?.LogWarning("插件输出包含疑似凭据，已脱敏：{Reason}", scan.Reason);
+        }
+
+        return (_secretGuard.Redact(text), null);
+    }
+
+    /// <summary>
+    /// 立即掐断：给出明确结果 → 停用插件并记录安全事件 → 强杀宿主进程。
+    /// 顺序不可颠倒，否则停用过程中的重试可能重新拉起宿主。
+    /// </summary>
+    private async Task HandleViolationAsync(
+        PluginHostProcess hostProcess,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        _logger?.LogCritical(
+            "插件 {PluginId} 触发密钥安全策略，立即终止：{Reason}",
+            hostProcess.PluginId,
+            reason);
+
+        hostProcess.SetSecurityViolation(reason);
+
+        if (_securityReporter is not null)
+        {
+            try
+            {
+                await _securityReporter.ReportViolationAsync(hostProcess.PluginId, reason, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "记录插件 {PluginId} 安全事件失败", hostProcess.PluginId);
+            }
+        }
+
+        ForceTerminate(hostProcess.PluginId);
+    }
+
     /// <summary>协议以 Type 字符串区分消息类型；抽象基类无法直接反序列化。</summary>
-    private static PluginHostMessage? ParseMessage(string json)
+    private PluginHostMessage? ParseMessage(string json)
     {
         try
         {
@@ -393,6 +642,8 @@ public class PluginHostManager : IPluginHostManager
                 {
                     nameof(PluginCompletedResponse) => JsonSerializer.Deserialize<PluginCompletedResponse>(json),
                     nameof(PluginErrorResponse) => JsonSerializer.Deserialize<PluginErrorResponse>(json),
+                    nameof(PluginLogMessage) => JsonSerializer.Deserialize<PluginLogMessage>(json),
+                    nameof(PluginAiRequest) => JsonSerializer.Deserialize<PluginAiRequest>(json),
                     _ => null,
                 };
             }

@@ -1,13 +1,18 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IPC;
+using TaskStatus = HD2Mimnt.Core.Entities.TaskStatus;
 
 namespace HD2Mimnt.UI.ViewModels;
 
-public partial class ModImportViewModel(ModService modService, SettingsService? settingsService = null) : ObservableObject
+public partial class ModImportViewModel(ModService modService, SettingsService? settingsService = null,
+    TaskService? taskService = null) : ObservableObject
 {
     public ArchivePasswordsViewModel Passwords { get; } = new(settingsService);
     private TaskCompletionSource<string>? _passwordRequest;
@@ -103,6 +108,40 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     private int _failedCount;
 
     public ObservableCollection<string> Errors { get; } = new();
+
+    /// <summary>整批导入后（自动加入当前配置时）的可选分组；不指定则保持追加到末尾。</summary>
+    public ObservableCollection<ProfileGroupChoiceViewModel> ImportGroupChoices { get; } = new();
+
+    [ObservableProperty]
+    private bool _isImportGroupSelectionVisible;
+
+    [ObservableProperty]
+    private ProfileGroupChoiceViewModel? _selectedImportGroup;
+
+    public Guid ImportGroupProfileId { get; private set; }
+
+    public void ShowImportGroupSelection(Guid profileId, IEnumerable<ProfileSeparator> separators)
+    {
+        ImportGroupProfileId = profileId;
+        ImportGroupChoices.Clear();
+        foreach (var separator in separators.OrderBy(item => item.Order))
+            ImportGroupChoices.Add(new ProfileGroupChoiceViewModel(separator.Id, separator.Name));
+        SelectedImportGroup = ImportGroupChoices.FirstOrDefault();
+        IsImportGroupSelectionVisible = false;
+    }
+
+    public void DismissImportGroupSelection()
+    {
+        IsImportGroupSelectionVisible = false;
+        ImportGroupChoices.Clear();
+        SelectedImportGroup = null;
+        ImportGroupProfileId = Guid.Empty;
+    }
+
+    private readonly List<Guid> _importedIds = [];
+    private string _lastWorkerFile = string.Empty;
+    /// <summary>本批次成功落库的模组 ID；新批次开始时清空。</summary>
+    public IReadOnlyList<Guid> ImportedIds => _importedIds;
     public bool CanSelect => !IsImporting;
     public bool CanClose => !IsImporting;
     public bool CanCancel => IsImporting && !IsCancelling;
@@ -121,6 +160,8 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     {
         HasResult = false;
         Errors.Clear();
+        DismissImportGroupSelection();
+        _importedIds.Clear();
         TotalCount = ProcessedCount = SuccessCount = FailedCount = 0;
         FileProgress = OverallProgress = 0;
         CurrentFile = string.Empty;
@@ -141,7 +182,8 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         _cancellation?.Cancel();
     }
 
-    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null)
+    public Task ImportAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default, ModPlatformLink? sourceLink = null,
+        Func<Task>? prepareGroupSelection = null)
     {
         if (IsImporting) return Task.CompletedTask;
         var sources = paths.Where(path => !string.IsNullOrWhiteSpace(path))
@@ -151,16 +193,29 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         TotalCount = sources.Count;
         IsOpen = IsImporting = true;
         _cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Completion = RunAsync(sources, _cancellation.Token, sourceLink);
+        Completion = RunAsync(sources, _cancellation.Token, sourceLink, prepareGroupSelection);
         return Completion;
     }
 
-    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink)
+    private async Task RunAsync(IReadOnlyList<string> sources, CancellationToken token, ModPlatformLink? sourceLink,
+        Func<Task>? prepareGroupSelection)
     {
-        using var passwordScope = PasswordAwareArchiveExtractor.BeginRequest(RequestPasswordAsync);
+        if (prepareGroupSelection != null)
+        {
+            try { await prepareGroupSelection(); }
+            catch { /* 分组选择失败时保持原追加逻辑 */ }
+        }
         var cancelled = false;
         try
         {
+            if (taskService != null)
+            {
+                cancelled = await RunInWorkerAsync(sources, token, sourceLink);
+                return;
+            }
+
+            // 无任务服务（测试宿主）时保持进程内导入。
+            using var passwordScope = PasswordAwareArchiveExtractor.BeginRequest(RequestPasswordAsync);
             foreach (var source in sources)
             {
                 token.ThrowIfCancellationRequested();
@@ -187,7 +242,8 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
                 });
                 try
                 {
-                    await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
+                    var modId = await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
+                    _importedIds.Add(modId);
                     SuccessCount++;
                     FileProgress = 100;
                 }
@@ -212,12 +268,103 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
             Step = cancelled ? "添加已取消" : FailedCount > 0 ? "添加结束，部分模组失败" : "添加完成";
             Detail = cancelled ? $"还有 {RemainingCount} 个未完成；已添加的模组会保留。" : "可关闭浮窗查看模组库，或继续添加。";
             IsImporting = IsCancelling = false;
+            IsImportGroupSelectionVisible = ImportGroupChoices.Count > 0;
             _cancellation?.Dispose();
             _cancellation = null;
             if (!cancelled && !token.IsCancellationRequested && FailedCount == 0 && Errors.Count == 0
+                && !IsImportGroupSelectionVisible
                 && settingsService?.GetSetting(SettingKeys.ImportAutoClose, false) == true)
                 IsOpen = false;
         }
+    }
+
+    /// <summary>
+    /// 导入在 HD2Mimnt.Worker 里执行；密码与 HD2IR 确认经 IPC 回到本浮窗，
+    /// 进度百分比为整批进度，按 CurrentItem 变化统计已完成文件数。
+    /// </summary>
+    private async Task<bool> RunInWorkerAsync(IReadOnlyList<string> sources, CancellationToken token,
+        ModPlatformLink? sourceLink)
+    {
+        var arguments = new Dictionary<string, string> { ["Paths"] = JsonSerializer.Serialize(sources) };
+        if (sourceLink != null) arguments["SourceLink"] = JsonSerializer.Serialize(sourceLink);
+
+        // Worker 冷启动要加载运行时并初始化服务，先显示不确定进度，避免浮层停在 0% 像卡死。
+        Step = "准备添加";
+        Detail = "正在启动后台导入进程...";
+        IsIndeterminate = true;
+        FileProgress = OverallProgress = 0;
+        _lastWorkerFile = string.Empty;
+        var progress = new Progress<TaskProgress>(p =>
+        {
+            if (!IsImporting || IsCancelling) return;
+            if (!string.IsNullOrWhiteSpace(p.CurrentItem) &&
+                !string.Equals(p.CurrentItem, _lastWorkerFile, StringComparison.Ordinal))
+            {
+                _lastWorkerFile = p.CurrentItem;
+                CurrentFile = p.CurrentItem;
+            }
+            // Worker 每导入完一个文件才报“导入完成”，按它统计已处理数量。
+            if (p.Stage == "导入完成")
+                ProcessedCount = Math.Min(TotalCount, ProcessedCount + 1);
+            if (!string.IsNullOrWhiteSpace(p.Stage)) Step = p.Stage;
+            if (!string.IsNullOrWhiteSpace(p.Message)) Detail = p.Message;
+            IsIndeterminate = false;
+            FileProgress = Math.Clamp(p.Progress, 0, 100);
+            OverallProgress = FileProgress;
+        });
+
+        var outcome = await taskService!.RunProcessTaskAsync("导入模组", "Import", arguments, progress,
+            HandleWorkerPromptAsync, token);
+        var imported = ParseImportedIds(outcome.Data);
+        _importedIds.AddRange(imported);
+        SuccessCount = imported.Count;
+        foreach (var error in outcome.Task?.Errors ?? []) Errors.Add(error);
+
+        var status = outcome.Task?.Status;
+        if (status is TaskStatus.Cancelled or TaskStatus.ForceTerminated) return true;
+
+        if (status is TaskStatus.Completed or TaskStatus.PartiallyFailed)
+        {
+            ProcessedCount = TotalCount;
+            FileProgress = OverallProgress = 100;
+            FailedCount = Math.Max(0, TotalCount - SuccessCount);
+        }
+        else
+        {
+            FailedCount = Math.Max(1, outcome.Task?.Errors.Count ?? 1);
+            ProcessedCount = Math.Min(TotalCount, SuccessCount + FailedCount);
+        }
+        return false;
+    }
+
+    private async Task<WorkerPromptResponse> HandleWorkerPromptAsync(WorkerPromptRequest request,
+        CancellationToken cancellationToken)
+    {
+        var token = _cancellation?.Token ?? cancellationToken;
+        try
+        {
+            if (request.Kind == "Hd2IrConfirm")
+            {
+                var preview = string.IsNullOrWhiteSpace(request.Payload)
+                    ? null : JsonSerializer.Deserialize<Hd2IrImportPreview>(request.Payload);
+                if (preview != null) await ConfirmHd2IrAsync(preview, token);
+                return new WorkerPromptResponse { RequestId = request.RequestId, Accepted = true };
+            }
+
+            var password = await RequestPasswordAsync(request.Title ?? string.Empty, token);
+            return new WorkerPromptResponse { RequestId = request.RequestId, Accepted = true, Value = password };
+        }
+        catch (OperationCanceledException)
+        {
+            return new WorkerPromptResponse { RequestId = request.RequestId, Accepted = false };
+        }
+    }
+
+    private static IReadOnlyList<Guid> ParseImportedIds(string? data)
+    {
+        if (string.IsNullOrWhiteSpace(data)) return [];
+        try { return JsonSerializer.Deserialize<List<Guid>>(data) ?? []; }
+        catch (JsonException) { return []; }
     }
 
     private sealed class ImportProgress(Action<ModImportProgress> report) : IProgress<ModImportProgress>

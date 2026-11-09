@@ -214,9 +214,17 @@ public sealed partial class Hd2IASIntegrationTests
         Assert.Equal(3, (await _iasMods.GetAllModsAsync()).Count());
         var preserved = (await _iasProfiles.GetByIdAsync(profile.Id))!.Mods.Single(item => item.ModId == dataId);
         Assert.False(preserved.Enabled); Assert.Equal(0, preserved.Order);
-        Assert.Empty(await _iasDeployment.GetModDeploymentHistoryAsync(dataId));
-        Assert.NotEqual(systemBytes, await File.ReadAllBytesAsync(Path.Combine(updated.Path, "data", StingrayArchiveWriter.PatchName)));
-        Assert.Single(Directory.GetFiles(Path.Combine(game, "data"), "*.patch_*")); // 仅剩 loader，不会自动部署新 data。
+        // 更新不删除部署记录；模组在配置中已停用，自动部署跳过，游戏里的旧 data 保留到下次手动部署。
+        var preservedDeployment = Assert.Single(await _iasDeployment.GetModDeploymentHistoryAsync(dataId));
+        Assert.Equal(systemBytes, await File.ReadAllBytesAsync(
+            Path.Combine(game, "data", StingrayArchiveWriter.PatchName)));
+        Assert.NotEmpty(preservedDeployment.Files);
+        var updatedBytes = await File.ReadAllBytesAsync(Path.Combine(updated.Path, "data", StingrayArchiveWriter.PatchName));
+        Assert.NotEqual(systemBytes, updatedBytes);
+        var gamePatches = Directory.GetFiles(Path.Combine(game, "data"), "*.patch_*");
+        Assert.Equal(systemBytes, await File.ReadAllBytesAsync(
+            Path.Combine(game, "data", StingrayArchiveWriter.PatchName)));
+        Assert.DoesNotContain(gamePatches, path => File.ReadAllBytes(path).SequenceEqual(updatedBytes));
     }
 
     [Fact]

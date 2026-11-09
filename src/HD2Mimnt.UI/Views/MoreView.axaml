@@ -27,9 +27,9 @@
         </StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsMigrationVisible}"><views:ManagerMigrationView DataContext="{Binding ManagerMigrationViewModel}"/></StackPanel>
-        <StackPanel IsVisible="{Binding MoreViewModel.IsCrashDiagnosticsVisible}"><views:CrashDiagnosticsView DataContext="{Binding CrashDiagnosticsViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsDirectDownloadVisible}"><views:DirectDownloadView DataContext="{Binding DirectDownloadViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsHd2IASVisible}"><views:Hd2IASManagementView DataContext="{Binding Hd2IASManagementViewModel}"/></StackPanel>
+        <StackPanel IsVisible="{Binding MoreViewModel.IsIasSystemVisible}"><views:IasSystemView DataContext="{Binding IasSystemViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsSoundFixVisible}"><views:SoundFixView DataContext="{Binding SoundFixViewModel}"/></StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsExternalToolsVisible}" Classes="section" Spacing="12">
@@ -64,8 +64,31 @@
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsAboutVisible}" Classes="section" Spacing="8">
           <TextBlock Text="{loc:Loc UI.AboutHDMimnt}" Classes="section-title" />
-          <TextBlock Text="{loc:Loc UI.HelldiversModManagerVersionAlpha}" Classes="muted" />
+          <TextBlock Text="{loc:LocalizedBinding AppVersion, FormatKey=UI.HelldiversModManagerVersionAlpha}" Classes="muted" />
           <TextBlock Text="{loc:Loc UI.ProjectHttpsGithubComTYHHHDMimnt}" Classes="muted" TextWrapping="Wrap" />
+
+          <!-- 应用更新：手动检查始终可用，启动自动检查默认关闭 -->
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding AppUpdateViewModel.HasUpdate, Converter={StaticResource InverseBoolConverter}}">
+            <Button Content="{loc:Loc Updates.CheckNow}" Classes="accent" Command="{Binding AppUpdateViewModel.CheckCommand}" IsEnabled="{Binding !AppUpdateViewModel.IsBusy}" />
+            <CheckBox Content="{loc:Loc Updates.AutoCheckOnStartup}" IsChecked="{Binding AppUpdateViewModel.AutoCheckOnStartup, Mode=TwoWay}" VerticalAlignment="Center" Margin="8,0,0,0" />
+          </StackPanel>
+          <TextBlock IsVisible="{Binding AppUpdateViewModel.IsChecking}" Text="{loc:Loc Updates.Checking}" Classes="muted" />
+          <TextBlock IsVisible="{Binding AppUpdateViewModel.IsUpToDate}" Text="{loc:Loc Updates.UpToDate}" Classes="muted" />
+          <TextBlock IsVisible="{Binding AppUpdateViewModel.HasError}" Text="{loc:Loc Updates.CheckFailed}" Classes="muted" TextWrapping="Wrap" />
+          <TextBlock IsVisible="{Binding AppUpdateViewModel.HasError}" Text="{Binding AppUpdateViewModel.ErrorDetail}" Classes="muted" TextWrapping="Wrap" />
+
+          <StackPanel IsVisible="{Binding AppUpdateViewModel.HasUpdate}" Spacing="8">
+            <TextBlock Text="{loc:LocalizedBinding AppUpdateViewModel.LatestVersion, FormatKey=Updates.NewVersionAvailable}" Classes="muted" FontWeight="SemiBold" />
+            <TextBlock IsVisible="{Binding AppUpdateViewModel.Changelog, Converter={StaticResource NotNullConverter}}" Text="{Binding AppUpdateViewModel.Changelog}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="{loc:Loc Updates.DownloadAndInstall}" Classes="accent" Command="{Binding AppUpdateViewModel.DownloadAndInstallCommand}" IsEnabled="{Binding !AppUpdateViewModel.IsBusy}" />
+              <Button Content="{loc:Loc Updates.OpenReleasePage}" Command="{Binding AppUpdateViewModel.OpenReleasePageCommand}" />
+              <Button Content="{loc:Loc Common.Cancel}" Command="{Binding AppUpdateViewModel.CancelCommand}" IsVisible="{Binding AppUpdateViewModel.IsDownloading}" />
+            </StackPanel>
+            <ProgressBar IsVisible="{Binding AppUpdateViewModel.IsDownloading}" Value="{Binding AppUpdateViewModel.DownloadPercentage}" Maximum="100" Minimum="0" />
+            <TextBlock IsVisible="{Binding AppUpdateViewModel.IsDownloading}" Text="{loc:Loc Updates.Downloading}" Classes="muted" />
+            <TextBlock IsVisible="{Binding AppUpdateViewModel.HasDirectAsset, Converter={StaticResource InverseBoolConverter}}" Text="{loc:Loc Updates.ManualDownloadHint}" Classes="muted" TextWrapping="Wrap" />
+          </StackPanel>
         </StackPanel>
 
       </StackPanel>

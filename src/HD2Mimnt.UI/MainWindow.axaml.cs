@@ -1,7 +1,10 @@
 ﻿using Avalonia.Controls;
 using FluentAvalonia.UI.Controls;
+using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.ViewModels;
+using HD2Mimnt.UI.Views;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Input;
@@ -12,14 +15,28 @@ namespace HD2Mimnt.UI;
 
 public partial class MainWindow : Window
 {
+    private const int JellyClickThreshold = 7;
+    private static readonly TimeSpan JellyClickWindow = TimeSpan.FromSeconds(3);
+
+    /// <summary>内置页面数量；插件页面从该索引开始追加到 TabControl。</summary>
+    private const int FixedPageCount = MainWindowViewModel.PluginPageOffset;
+
+    /// <summary>导航项 Tag 起点，避免与内置页面的 0-6 冲突。</summary>
+    private const int PluginNavTagBase = 100;
+
+    private readonly PageJellyAnimator _pageJelly;
     private bool _closeConfirmed;
     private bool _closingInFlight;
     private MainWindowViewModel? _viewModel;
     private bool _importingDrop;
+    private int _versionClickCount;
+    private DateTime _versionClickWindowStartUtc;
+    private bool _pluginSyncScheduled;
 
     public MainWindow()
     {
         InitializeComponent();
+        _pageJelly = new PageJellyAnimator(ApplicationSurface, StatusBar);
         DragDrop.SetAllowDrop(this, true);
         // DragDrop 使用冒泡路由；即使子控件标记已处理，窗口仍统一接收外部文件。
         AddHandler(DragDrop.DragOverEvent, OnFileDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -30,7 +47,13 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             ImportDragHint.IsVisible = false;
-            if (_viewModel != null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _pageJelly.Stop();
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                _viewModel.PluginPages.CollectionChanged -= OnPluginContributionsChanged;
+                _viewModel.PluginMenus.CollectionChanged -= OnPluginContributionsChanged;
+            }
         };
         NavigationView.SelectedItem = NavigationView.MenuItems[0];
     }
@@ -38,10 +61,139 @@ public partial class MainWindow : Window
     private void AttachNavigation()
     {
         ImportDragHint.IsVisible = false;
-        if (_viewModel != null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.PluginPages.CollectionChanged -= OnPluginContributionsChanged;
+            _viewModel.PluginMenus.CollectionChanged -= OnPluginContributionsChanged;
+        }
+
         _viewModel = DataContext as MainWindowViewModel;
-        if (_viewModel != null) _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.PluginPages.CollectionChanged += OnPluginContributionsChanged;
+            _viewModel.PluginMenus.CollectionChanged += OnPluginContributionsChanged;
+        }
+
+        SyncPluginNavigation();
+        SyncPluginMenu();
         UpdateNavigationSelection();
+
+        if (_viewModel != null)
+        {
+            SafeAsync.FireAndForget(_viewModel.RefreshPluginUiAsync(), "加载插件界面贡献");
+        }
+    }
+
+    /// <summary>
+    /// 插件页面与菜单可能在任意时刻刷新（安装 / 启停 / 授权），
+    /// 合并同一帧内的多次集合变更，避免反复重建导航项。
+    /// </summary>
+    private void OnPluginContributionsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_pluginSyncScheduled) return;
+        _pluginSyncScheduled = true;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _pluginSyncScheduled = false;
+            SyncPluginNavigation();
+            SyncPluginMenu();
+            UpdateNavigationSelection();
+        });
+    }
+
+    /// <summary>按当前插件页面重建导航项与页面容器。</summary>
+    private void SyncPluginNavigation()
+    {
+        for (var i = NavigationView.MenuItems.Count - 1; i >= 0; i--)
+        {
+            if (NavigationView.MenuItems[i] is FANavigationViewItem item
+                && int.TryParse(item.Tag?.ToString(), out var tag)
+                && tag >= PluginNavTagBase)
+            {
+                NavigationView.MenuItems.RemoveAt(i);
+            }
+        }
+
+        while (PageHost.Items.Count > FixedPageCount)
+        {
+            PageHost.Items.RemoveAt(PageHost.Items.Count - 1);
+        }
+
+        if (_viewModel is null) return;
+
+        for (var i = 0; i < _viewModel.PluginPages.Count; i++)
+        {
+            var page = _viewModel.PluginPages[i];
+            var navItem = new FANavigationViewItem
+            {
+                Content = page.Title,
+                Tag = PluginNavTagBase + i,
+                IconSource = new FASymbolIconSource { Symbol = new UtilityIcon { Kind = page.Icon ?? "Plugin" }.Symbol }
+            };
+
+            NavigationView.MenuItems.Add(navItem);
+            PageHost.Items.Add(new TabItem
+            {
+                IsVisible = false,
+                Content = new PluginPageView { DataContext = page }
+            });
+        }
+    }
+
+    /// <summary>把插件贡献的功能菜单项挂到导航栏底部按钮上。</summary>
+    private void SyncPluginMenu()
+    {
+        var entries = _viewModel?.PluginMenus;
+        PluginMenuButton.IsVisible = entries is { Count: > 0 };
+
+        var flyout = new FAMenuFlyout();
+        if (entries != null)
+        {
+            foreach (var entry in entries)
+            {
+                var item = new FAMenuFlyoutItem
+                {
+                    Text = entry.IsPermissionGranted ? entry.Label : $"{entry.Label}（需要授权）",
+                    Tag = entry,
+                    IsEnabled = entry.IsPermissionGranted
+                };
+
+                if (!string.IsNullOrWhiteSpace(entry.Icon))
+                {
+                    item.IconSource = new FASymbolIconSource { Symbol = new UtilityIcon { Kind = entry.Icon }.Symbol };
+                }
+
+                item.Click += OnPluginMenuEntryClick;
+                flyout.Items.Add(item);
+            }
+        }
+
+        PluginMenuButton.Flyout = flyout;
+    }
+
+    private async void OnPluginMenuEntryClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not FAMenuFlyoutItem { Tag: PluginMenuEntry entry } || _viewModel is null) return;
+
+        try
+        {
+            if (_viewModel.CreatePluginDialog(entry) is { } dialogSurface)
+            {
+                await PluginUiDialog.ShowAsync(this, dialogSurface);
+                return;
+            }
+
+            if (await _viewModel.RunPluginMenuAsync(entry) is { } result)
+            {
+                await PluginCommandResultDialog.ShowAsync(this, result);
+            }
+        }
+        catch (Exception ex)
+        {
+            CrashGuard.Report(ex, $"执行插件功能 {entry.Label}");
+        }
     }
 
     private static List<string> GetDroppedPaths(DragEventArgs e) => e.DataTransfer.TryGetFiles()
@@ -51,7 +203,7 @@ public partial class MainWindow : Window
 
     private void OnFileDragOver(object? sender, DragEventArgs e)
     {
-        if (_viewModel?.Compatibility?.IsOpen == true || _viewModel?.Tutorial.IsOpen == true)
+        if (_viewModel?.ModelPreview?.IsOpen == true || _viewModel?.Compatibility?.IsOpen == true || _viewModel?.Tutorial.IsOpen == true)
         {
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
@@ -82,7 +234,7 @@ public partial class MainWindow : Window
         var paths = GetDroppedPaths(e);
         if (paths.Count == 0) return;
         e.Handled = true;
-        if (_viewModel == null || _viewModel.Tutorial.IsOpen || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
+        if (_viewModel == null || _viewModel.Tutorial.IsOpen || _viewModel.ModelPreview?.IsOpen == true || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
         {
             e.DragEffects = DragDropEffects.None;
             return;
@@ -116,8 +268,30 @@ public partial class MainWindow : Window
     private void UpdateNavigationSelection()
     {
         var index = _viewModel?.SelectedTabIndex ?? 0;
+        var targetTag = index >= FixedPageCount
+            ? PluginNavTagBase + (index - FixedPageCount)
+            : index;
+
         NavigationView.SelectedItem = NavigationView.MenuItems.OfType<FANavigationViewItem>()
-            .FirstOrDefault(item => item.Tag?.ToString() == index.ToString());
+            .FirstOrDefault(item => item.Tag?.ToString() == targetTag.ToString());
+    }
+
+    private void OnVersionBadgePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(VersionBadge).Properties.IsLeftButtonPressed) return;
+
+        var now = DateTime.UtcNow;
+        if (_versionClickCount == 0 || now - _versionClickWindowStartUtc > JellyClickWindow)
+        {
+            _versionClickCount = 0;
+            _versionClickWindowStartUtc = now;
+        }
+        _versionClickCount++;
+        if (_versionClickCount < JellyClickThreshold) return;
+
+        _versionClickCount = 0;
+        _pageJelly.Toggle();
+        e.Handled = true;
     }
 
     private void OnNavigationSelectionChanged(object? sender, FANavigationViewSelectionChangedEventArgs e)
@@ -125,6 +299,13 @@ public partial class MainWindow : Window
         if (_viewModel == null) return;
         if (e.SelectedItem is not FANavigationViewItem item || !int.TryParse(item.Tag?.ToString(), out var index)) return;
         if (index == _viewModel.SelectedTabIndex) return;
+
+        if (index >= PluginNavTagBase)
+        {
+            _viewModel.NavigateToPluginPage(index - PluginNavTagBase);
+            return;
+        }
+
         switch (index)
         {
             case 0: _viewModel.NavigateToProfilesCommand.Execute(null); break;

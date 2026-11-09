@@ -1,13 +1,20 @@
+using HD2Mimnt.Core.IPC;
+
 namespace HD2Mimnt.Core.Interfaces;
+
+/// <summary>主程序处理 Worker 交互请求（密码、确认等）的委托。</summary>
+public delegate Task<WorkerPromptResponse> WorkerPromptHandler(
+    WorkerPromptRequest request, CancellationToken cancellationToken);
 
 /// <summary>
 /// Progress information for worker tasks
 /// </summary>
 public class WorkerTaskProgress
 {
-    public int CurrentStep { get; set; }
-    public int TotalSteps { get; set; }
-    public string? Message { get; set; }
+    public double Progress { get; set; }
+    public string Stage { get; set; } = string.Empty;
+    public string CurrentItem { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -16,7 +23,10 @@ public class WorkerTaskProgress
 public class WorkerResult
 {
     public bool Success { get; set; }
+    public bool PartiallyFailed { get; set; }
+    public bool Cancelled { get; set; }
     public string? Result { get; set; }
+    public string? Data { get; set; }
     public List<string> Errors { get; set; } = new();
     public bool Crashed { get; set; }
 }
@@ -27,13 +37,16 @@ public class WorkerResult
 public interface IWorkerHostManager
 {
     /// <summary>
-    /// Start a worker in a separate process
+    /// Start a worker in a separate process; taskId 省略时生成新 Id，
+    /// 传入时沿用任务中心已创建的任务 Id。返回实际使用的 TaskId。
     /// </summary>
     Task<Guid> StartWorkerAsync(
         string workerType,
         Dictionary<string, string> arguments,
         IProgress<WorkerTaskProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? taskId = null,
+        WorkerPromptHandler? promptHandler = null);
 
     /// <summary>
     /// Check if a worker is currently running
@@ -41,7 +54,7 @@ public interface IWorkerHostManager
     Task<bool> IsWorkerRunningAsync(Guid taskId);
 
     /// <summary>
-    /// Cancel a running worker (graceful shutdown)
+    /// Cancel a running worker：先发送 Cancel 消息等待优雅退出，超时后 Kill 兜底。
     /// </summary>
     Task CancelWorkerAsync(Guid taskId);
 

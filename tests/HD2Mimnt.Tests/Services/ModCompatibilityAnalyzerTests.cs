@@ -190,6 +190,84 @@ public sealed class ModCompatibilityAnalyzerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_WarningOnlyDiagnostics_DoNotFlagStructure()
+    {
+        var path = CompatibilityFixture.WritePatch(_root,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit())]);
+        var bytes = File.ReadAllBytes(path);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(104 + 76), 7);
+        File.WriteAllBytes(path, bytes);
+        var report = await new ModCompatibilityAnalyzer().AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        var patch = Assert.Single(report.Patches);
+        Assert.False(patch.EntryIndicesValid);
+        Assert.Equal(ModCompatibilityStatus.Compatible, report.Status);
+        Assert.False(report.HasBlockingStructureIssues);
+        Assert.True(report.HasBlockingIssues);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_MissingRequiredCompanion_FlagsStructureWhileVersionStaysCompatible()
+    {
+        CompatibilityFixture.WritePatch(_root, "3333333333333333.patch_0", companions: false,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(), Stream: new byte[8])]);
+        var report = await new ModCompatibilityAnalyzer().AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        var patch = Assert.Single(report.Patches);
+        Assert.True(patch.RequiresStream);
+        Assert.False(patch.HasStream);
+        Assert.Equal(ModCompatibilityStatus.Compatible, report.Status);
+        Assert.True(report.HasBlockingStructureIssues);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_CachedReportIsClonedAndInvalidatedWithCompanions()
+    {
+        var path = CompatibilityFixture.WritePatch(_root,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(), Stream: new byte[8])]);
+        var analyzer = new ModCompatibilityAnalyzer();
+        var first = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.True(Assert.Single(first.Patches).HasStream);
+        first.Units[0].ResourceName = "mutated";
+        first.Patches[0].ArchiveName = "mutated-archive";
+
+        // 缓存命中返回深拷贝，对上一份报告的修改不会串到新报告。
+        var second = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.NotSame(first.Units[0], second.Units[0]);
+        Assert.Null(second.Units[0].ResourceName);
+        Assert.Null(second.Patches[0].ArchiveName);
+
+        // 缓存键包含伴随文件指纹：删除伴随文件后重新分析必须反映变化。
+        File.Delete(path + ".stream");
+        var third = await analyzer.AnalyzeAsync(_root, CompatibilityFixture.CurrentVersion);
+        Assert.False(Assert.Single(third.Patches).HasStream);
+        Assert.True(third.HasBlockingStructureIssues);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_IdenticalSizeAndTimestampPatches_DoNotShareCache()
+    {
+        var first = CompatibilityFixture.WritePatch(Path.Combine(_root, "a"), "1111111111111111.patch_0", companions: false,
+            resources: [new(1, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(123))]);
+        var second = CompatibilityFixture.WritePatch(Path.Combine(_root, "b"), "2222222222222222.patch_0", companions: false,
+            resources: [new(2, CompatibilityFixture.UnitType, CompatibilityFixture.Unit(456))]);
+        // 同长度且固定同一 mtime：键缺路径时两个模组会共享缓存串包。
+        var stamp = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(first, stamp);
+        File.SetLastWriteTimeUtc(second, stamp);
+        var analyzer = new ModCompatibilityAnalyzer();
+
+        var firstReport = await analyzer.AnalyzeAsync(Path.Combine(_root, "a"), 123);
+        var secondReport = await analyzer.AnalyzeAsync(Path.Combine(_root, "b"), 456);
+        var firstUnit = Assert.Single(firstReport.Units);
+        var secondUnit = Assert.Single(secondReport.Units);
+        Assert.Equal(123u, firstUnit.Version);
+        Assert.Equal(1UL, firstUnit.ResourceId);
+        Assert.Equal(456u, secondUnit.Version);
+        Assert.Equal(2UL, secondUnit.ResourceId);
+        Assert.Equal(ModCompatibilityStatus.Compatible, firstReport.Status);
+        Assert.Equal(ModCompatibilityStatus.Compatible, secondReport.Status);
+    }
+
+    [Fact]
     public async Task RestoreBackupAsync_BackupOutsideMod_IsRejected()
     {
         var analyzer = new ModCompatibilityAnalyzer();

@@ -22,6 +22,69 @@ public sealed partial class FluentAvaloniaUiTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task FreeLoaderOrder_ShouldKeepLuaGroupAndAllowLoaderReordering(bool bottomToTop)
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder,
+            (bottomToTop ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom).ToString());
+        await settings.SetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, true);
+        var id = await profiles.CreateProfileAsync("自由排序保留分组");
+        await profiles.SetActiveProfileAsync(id);
+        foreach (var role in new[] { BslModRole.None, BslModRole.Dependency, BslModRole.Loader, BslModRole.SmoothBoot })
+        {
+            var mod = new Mod { Id = Guid.NewGuid(), Name = $"HD2Mimnt Test Free {role}", Path = scope.Root,
+                BslRole = role, BslDetectionVersion = BslModDetector.DetectionVersion };
+            await repository.AddAsync(mod);
+            await profiles.AddModToProfileAsync(id, mod.Id);
+        }
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        var preferences = main.SettingsViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1200, Height = 950 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+                using var frame = window.CaptureRenderedFrame();
+            }
+            main.NavigateToSettingsCommand.Execute(null);
+            preferences.SelectedCategory = "配置文件";
+            Layout();
+            var freeOrderToggle = window.GetVisualDescendants().OfType<SettingsView>().Single()
+                .FindControl<ToggleSwitch>("FreeLoaderOrderToggle")!;
+            Assert.True(freeOrderToggle.IsChecked);
+            Assert.True(freeOrderToggle.IsEnabled);
+            main.NavigateToProfilesCommand.Execute(null);
+            for (var attempt = 0; attempt < 250 && (vm.IsProfileModsLoading || vm.ProfileMods.Count != 4
+                || vm.ProfileMods.Any(mod => mod.LoaderLockEnabled)); attempt++) await Task.Delay(20);
+            Layout();
+            Assert.Equal(4, vm.ProfileMods.Count);
+            var loader = vm.ProfileMods.Single(mod => mod.IsBslLoader);
+            Assert.True(loader.CanDrag);
+            Assert.True(loader.IsLuaGroupMember);
+            Assert.Contains(vm.ProfileRows, row => row.IsSeparator && !row.IsUserSeparator);
+
+            await vm.MoveModsAsync(new[] { loader.ModId }, vm.ProfileMods.First().ModId);
+            Assert.Equal(loader.ModId, (await profiles.GetProfileByIdAsync(id))!.Mods.OrderBy(mod => mod.Order).First().ModId);
+
+            var luaSeparator = vm.ProfileRows.Single(row => row.IsSeparator && !row.IsUserSeparator);
+            await vm.ToggleSeparatorCommand.ExecuteAsync(luaSeparator);
+            Assert.DoesNotContain(vm.ProfileRows, row => row.IsLuaGroupMember);
+            await vm.ToggleSeparatorCommand.ExecuteAsync(luaSeparator);
+            Assert.Contains(vm.ProfileRows, row => row.IsLuaGroupMember);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task LoaderLock_ShouldDefaultOnUnlockActualDragAndNumericMoveThenRelock(bool bottomToTop)
     {
         await using var scope = await UiScope.CreateAsync();

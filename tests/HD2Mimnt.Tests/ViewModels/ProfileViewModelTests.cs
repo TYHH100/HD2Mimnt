@@ -143,6 +143,7 @@ public sealed class ProfileViewModelTests : IDisposable
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Loader },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.MdlLoader },
+            new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.BmlLoader },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.SmoothBoot },
             new ProfileModViewModel { IsSeparator = true },
             new ProfileModViewModel { BslRole = HD2Mimnt.Core.Enums.BslModRole.Dependency }
@@ -728,7 +729,107 @@ public sealed class ProfileViewModelTests : IDisposable
                 copied.Separators.Select(separator => separator.MemberCount));
     }
 
-    private ProfileViewModel CreateViewModel()
+    [Fact]
+    public async Task PinExpandedGroups_ShouldStickOnlyCurrentExpandedGroupHeader()
+    {
+        var mods = new List<Mod>();
+        for (var index = 0; index < 4; index++) mods.Add(await AddModAsync($"Pin {index}"));
+        var profileId = await _profileService.CreateProfileAsync("吸顶分组标题");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var first = await _profileService.AddSeparatorAsync(profileId, "第一组", 1);
+        var second = await _profileService.AddSeparatorAsync(profileId, "第二组", 3);
+        var settings = new SettingsService(_storageDirectory);
+        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        var vm = CreateViewModel(settings);
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        // 数据顺序保持原样，标题仍在列表中，只根据视口顶部行决定当前吸顶标题。
+        Assert.Equal(new[] { mods[0].Id, first.Id, mods[1].Id, mods[2].Id, second.Id, mods[3].Id },
+            vm.ProfileRows.Select(row => row.ModId));
+        var firstRow = vm.ProfileSeparators.Single(row => row.ModId == first.Id);
+        var secondRow = vm.ProfileSeparators.Single(row => row.ModId == second.Id);
+        var firstMember = vm.ProfileRows.First(row => row.ModId == mods[1].Id);
+        var secondMember = vm.ProfileRows.First(row => row.ModId == mods[3].Id);
+
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(firstMember));
+        Assert.Same(firstRow, vm.StickyGroupHeader);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondMember));
+        Assert.Same(secondRow, vm.StickyGroupHeader);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondRow));
+        Assert.Null(vm.StickyGroupHeader);
+
+        await vm.ToggleSeparatorCommand.ExecuteAsync(firstRow);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(secondMember));
+        Assert.Same(secondRow, vm.StickyGroupHeader);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(secondRow);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(firstRow));
+        Assert.Null(vm.StickyGroupHeader);
+        await vm.ToggleSeparatorCommand.ExecuteAsync(firstRow);
+        var restoredMember = vm.ProfileRows.First(row => row.ModId == mods[1].Id);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.IndexOf(restoredMember));
+        Assert.Same(firstRow, vm.StickyGroupHeader);
+
+        var added = await AddModAsync("Pin new");
+        await _profileService.SetModsEnabledAsync(profileId, new[] { added.Id }, true);
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+        Assert.Equal(mods.Append(added).Select(mod => mod.Id), vm.ProfileMods.Select(mod => mod.ModId));
+
+        await settings.SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, false);
+        vm.UpdateStickyGroupHeader(vm.ProfileRows.Count - 1);
+        Assert.Null(vm.StickyGroupHeader);
+        Assert.Equal(mods.Append(added).Select(mod => mod.Id), vm.ProfileMods.Select(mod => mod.ModId));
+    }
+
+    [Fact]
+    public async Task AddToGroupCommand_ShouldMoveRightClickedModToSelectedGroup()
+    {
+        var mods = new List<Mod>();
+        for (var index = 0; index < 4; index++) mods.Add(await AddModAsync($"Group move {index}"));
+        var profileId = await _profileService.CreateProfileAsync("加入分组");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var group = await _profileService.AddSeparatorAsync(profileId, "武器", 2);
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        vm.OpenAddToGroupCommand.Execute(vm.ProfileMods.Single(row => row.ModId == mods[0].Id));
+        Assert.True(vm.IsAddToGroupDialogOpen);
+        Assert.Equal(group.Id, Assert.Single(vm.AddToGroupChoices).Id);
+        await vm.ConfirmAddToGroupCommand.ExecuteAsync(null);
+
+        Assert.False(vm.IsAddToGroupDialogOpen);
+        Assert.Equal(new[] { mods[1].Id, mods[2].Id, mods[3].Id, mods[0].Id },
+            vm.ProfileMods.Select(row => row.ModId));
+        var row = vm.ProfileSeparators.Single(item => item.ModId == group.Id);
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id, mods[0].Id },
+            vm.GetSeparatorMembers(row).Select(item => item.ModId));
+        Assert.Equal(1, row.Order);
+    }
+
+    [Fact]
+    public async Task DropModsIntoGroup_ShouldMoveDraggedOrdinaryModsIntoGroup()
+    {
+        var mods = new List<Mod>();
+        for (var index = 0; index < 4; index++) mods.Add(await AddModAsync($"Drop group {index}"));
+        var profileId = await _profileService.CreateProfileAsync("拖放加入分组");
+        await _profileService.SetActiveProfileAsync(profileId);
+        foreach (var mod in mods) await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        var group = await _profileService.AddSeparatorAsync(profileId, "武器", 2);
+        var vm = CreateViewModel();
+        await vm.LoadProfilesCommand.ExecuteAsync(null);
+
+        await vm.DropModsIntoGroupAsync(vm.ProfileSeparators.Single(), new[] { mods[0].Id, mods[1].Id });
+
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id, mods[0].Id, mods[1].Id },
+            vm.ProfileMods.Select(row => row.ModId));
+        var row = vm.ProfileSeparators.Single(item => item.ModId == group.Id);
+        Assert.Equal(0, row.Order);
+        Assert.Equal(new[] { mods[2].Id, mods[3].Id, mods[0].Id, mods[1].Id },
+            vm.GetSeparatorMembers(row).Select(item => item.ModId));
+    }
+
+    private ProfileViewModel CreateViewModel(SettingsService? settings = null)
     {
         var confirmation = new Mock<IConfirmationService>();
         confirmation.Setup(service => service.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
@@ -738,7 +839,7 @@ public sealed class ProfileViewModelTests : IDisposable
             _modService,
             new NotificationService(),
             confirmation.Object,
-            new SettingsService(_storageDirectory));
+            settings ?? new SettingsService(_storageDirectory));
     }
 
     private async Task<Mod> AddModAsync(string name)

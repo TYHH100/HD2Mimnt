@@ -33,5 +33,12 @@ public enum PluginPermission
     /// <summary>
     /// Write plugin configuration
     /// </summary>
-    WriteConfiguration
+    WriteConfiguration,
+
+    /// <summary>
+    /// 通过主程序代理调用 AI。插件只能提交提示词并获取文本结果，
+    /// 永远无法读取 API Key；提示词中出现密钥将被判定为违规并终止插件。
+    /// manifest 中对应权限标识为 "ai.use"，且不会随安装自动授予。
+    /// </summary>
+    UseAI
 }

@@ -68,6 +68,28 @@
 
 - 任务完成事件必须在最终状态写入数据库并从运行任务集合移除后发布；UI 通知处理器只负责呈现结果和刷新视图，不能在事件回调中重新执行任务状态持久化。
 
+- 进程 Worker（`HD2Mimnt.Worker`）必须与主程序读同一份数据目录：子进程通过继承的 `HD2MIMNT_DATA_PATH`/`storage-locations.json` 定位数据库，不能回落到默认 `%LOCALAPPDATA%`，否则隔离测试或存储搬迁后 Worker 会操作另一份库。新增 Worker 服务时在 `Program.ConfigureServices` 注册，不要在子进程里复制主程序的完整 DI。
+
+- 取消进程 Worker 必须立即转发：桥接（`TaskService.ProcessWorker`）要用令牌与完成回执竞速，先调用 `CancelWorkerAsync`（发送 Cancel 消息、等待宽限期、超时 Kill），再等待 Worker 清理并返回 `Cancelled`；只在 Worker 自然结束后检查令牌会让任务中心一直卡在“运行中”。来源：[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)
+
+- Worker 管道关闭但没有任何终态回执时必须判为崩溃（等待进程退出并读取退出码后 `SetCrashed`），否则 `WaitForCompletionAsync` 永久等待；同理，连接阶段失败、启动异常和 Worker 回传 Error 要分别映射为超时/失败，不能混成一个状态。管道帧读写统一用 `HD2Mimnt.Core.IPC.PipeFrame`，子进程侧的客户端也要用它（手写读取会短读截断）。来源：https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeclientstream.connectasync
+
+- 命名管道服务端不要用 `PipeTransmissionMode.Message`：对端卡死、不读管道时服务端 `WriteAsync` 会永久阻塞，取消消息根本发不出去（.NET 10 实测）。`PipeFrame` 已自带长度前缀分帧，主程序与 Worker 之间的管道统一用字节模式，并且发送取消消息本身也要有超时，超时直接进入 Kill 分支。来源：[NamedPipeServerStream](https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeserverstream.-ctor)
+
+- Worker 的“结果回执”与“进程清理”是两件事：监听循环先 `SetResult`，随后才在 finally 里杀进程、移出运行表。取消接口必须在回执后继续等待 `CleanupCompleted`，否则调用方（含任务中心）拿到 Cancelled 时进程仍在运行，`IsWorkerRunningAsync` 仍为 true。
+
+- Worker 端批量作业单项失败不中断整体：逐项上报进度，结束时汇总 `PartiallyFailed` 与错误列表；主程序桥接先判 `PartiallyFailed` 再判 `Success=false`，否则部分失败会被误标为 `Failed`。
+
+- 真实 Worker 进程的集成测试通过 `HD2MIMNT_DATA_PATH` 指向临时目录并在用例内初始化数据库；该变量是进程级状态，相关测试集合必须 `DisableParallelization`，并在结束时恢复原值、删除临时目录。宿主可执行文件路径、连接超时与取消宽限期在 `WorkerHostManager` 构造中可注入，便于用快速失败的程序验证连接超时。崩溃/挂起/优雅取消用 `tests/HD2Mimnt.WorkerStub` 替身进程验证（行为由 Command 的 `Arguments["Behavior"]` 指定），不要为测试往生产 Worker 里加休眠开关。来源：[xUnit v2 collection](https://xunit.net/docs/running-tests-in-parallel)
+
+- 预览会话（`PreviewWorkerSession`）单独验证：真实 Worker 端到端用例用 `AppContext.BaseDirectory/HD2Mimnt.Worker.exe`（UI 引用 Worker 后会自动复制）加 `HD2MIMNT_DATA_PATH` 临时库，覆盖模型包、贴图解码与音频清单，并在关闭后断言 `IsRunning == false`；协议层用 WorkerStub 的 Preview 会话回显请求/事件。UI 测试默认注入本地 reader/播放器，避免每个预览用例都冷启动子进程；专门验证进程生命周期的用例才不注入。预览大块结果经临时文件传输，测试结束必须删除文件，Worker 退出时也会清理自己的会话目录。
+- UI 测试里的 `HD2MIMNT_DATA_PATH` 必须覆盖整个 scope 生命周期，而不是构建完服务容器就恢复：子进程 Worker 是测试动作发生时才启动的，提前恢复会让它打开真实用户数据目录。需要注入阻塞式部署方法的 UI 测试改用回环 `IWorkerHostManager`（在本进程执行 `DeploymentWorkerTask`/`CleanupWorkerTask`），只有管道传输被替换，TaskService→Worker 任务的链路仍然真实。
+- Worker 任务要用完整服务图：导入/部署/清理依赖 `SettingsService`、`ProfileService`、`DeploymentStateMigrationService`、`IDeploymentMethod`×3、IAS/MDL3 伴生与 `LoaderRegistry.Initialize`，与 `HD2Mimnt.Cli/HeadlessHost` 保持一致；启动时先完成部署状态迁移和配置初始化，纯校验任务可跳过这些写入。Worker 里不要用 `Progress<T>`（无同步上下文，顺序不可控），进度统一走 `WorkerProgressReporter`（同步发送 + 100ms 节流，首条必须送达，否则长任务首帧阻塞时 UI 一直停在不确定态）。
+- Worker 不能弹窗：压缩包密码与 HD2IR 组件确认必须走 `Prompt`/`PromptResponse` 双向消息（`WorkerHost.PromptAsync` ↔ `WorkerHostManager` 的 `WorkerPromptHandler`）。主程序监听循环收到 Prompt 后要异步处理、不能 await 卡住循环（否则进度和取消都收不到），并发写管道要有发送闸门。没有 Handler 的 Worker 直接拒绝请求，业务按失败/取消处理。
+- `DeployProfileAsync`/`ReconcileAfterModUpdateAsync` 不抛异常，失败与取消通过 `DeploymentResult.Status` 返回：Worker 任务必须按状态映射 Completed/PartiallyFailed/Cancelled/Failed，只看异常会把失败部署报成成功。
+- 子进程写库不会触发主进程的 `ModsChanged`/`DeploymentsChanged` 事件；`TaskCompleted` 后要对 Import/Deployment/Cleanup 调用 `OfflineInteropService.RequestRefresh()`，否则离线快照停留在旧状态。来源：https://learn.microsoft.com/dotnet/standard/events/observer-design-pattern
+- 发起方自己会提示结果的任务（`RunProcessTaskAsync`：导入/部署/清理浮层）用 `TaskCompletedEventArgs.NotifyUser=false` 抑制通用“后台任务已完成”通知；只有任务中心单独发起的任务保留通用通知，否则用户会同时收到两条重复提示。
+
 - 强制终止任务必须与后台执行体的最终写入使用同一任务级闸门；先标记并持久化 `ForceTerminated`，后台取消回调不能覆盖终止状态，也不能重复发布完成事件。
 
 - Avalonia 12 的 `Avalonia.Headless.XUnit` 依赖 xUnit v3，与现有 xUnit v2 单元测试分项目运行；UI 测试放在 `HD2Mimnt.UITests`，通过 `AvaloniaTestApplication` 复用宿主 UI 线程，不能给旧测试程序集引入第二套 xUnit。来源：https://www.nuget.org/packages/Avalonia.Headless.XUnit/12.0.3
@@ -80,8 +102,14 @@
 
 - "路径必须位于根内"与长度前缀管道帧是共享设施：新代码一律使用 `HD2Mimnt.Core.IO.PathGuard.IsInsideRoot/ResolveInsideRoot` 和 `HD2Mimnt.Core.IPC.PipeFrame`（含 ReadExactly 短读循环与 8MB 帧上限），不要手写 `GetFullPath + StartsWith` 前缀比较或第二份帧读取器。`LruCache` 构造可传驱逐回调释放原生资源（如 Bitmap），回调在锁外执行；`ImageLoaderService.CancelPendingLoads` 是代际令牌，Cancel 后新加载仍可用。
 
+- 管道探测超时易错点：`NamedPipeClientStream.ConnectAsync` 连接**不存在**的管道不会立即失败，而是等满超时才抛 `OperationCanceledException`（.NET 10 实测行为）。管理器未运行时这是每条 CLI 命令的固定开销——CLI 管道探测取 300ms×3 次约 1.3 秒封顶（`HD2Mimnt.Cli/Program.cs` 的 `TryConnectAsync`），勿调回秒级超时；管理器监听实例重建是毫秒级窗口，靠 3 次短重试覆盖而非单次长等。来源：https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeclientstream.connectasync
+
 - 包版本只在仓库根 `Directory.Packages.props`（CPM）声明，项目引用不带 Version；公共属性（net10.0/Nullable/ImplicitUsings）在 `Directory.Build.props`。升版本先确认目标版本已被缓存（新版本需联网）。`System.Drawing.Common` 有意保留 9.0.0。来源：https://learn.microsoft.com/nuget/consume-packages/Central-Package-Management
 
 - 平台兼容警告（CA1416）由 `Directory.Build.props` 统一注入的程序集级 `SupportedOSPlatform("windows")` 治理——本应用仅面向 Windows，新的跨平台边界才需要单独处理；警告基线为 0，提交前保持 `dotnet build` 0 警告。
 
 - UITests 合并运行的 "Cannot get KeyValueStorage on the idle test context" 级联：机制是测试遗留延迟工作（window.Close 级联、未到期定时器）在 xUnit v3 idle 上下文执行并毒化 headless 宿主，且 xUnit 把上一测试的清理失败记到下一测试头上；`UiScope.DisposeAsync` 的 RunJobs 排空可消除确定性触发，但未到期任务仍偶发，新增 UI 测试应在断言完成后排空 dispatcher 并确保后台服务可释放。根治需 Avalonia.Headless.XUnit/xunit.v3 上游修复。来源：https://github.com/AvaloniaUI/Avalonia/blob/12.0.3/src/Headless/Avalonia.Headless.XUnit/AvaloniaTestRunner.cs
+
+- 单文件发布只作用于当前项目：被引用的 `PluginHost`/`Worker` 独立进程拿到的是 apphost，其托管依赖已被打进主程序单文件包，子进程看不到，发布版会以 `FileNotFoundException` 启动失败。正确做法是让每个子进程项目各自按“框架依赖单文件”发布，只把生成的 exe 作为 `ExcludeFromSingleFile` 项复制到发布目录；原生库与内容目录由主项目发布目录提供。不要只复制 `$(OutDir)` 里的 `子项目.*`。子进程的发布属性（含 `EnableCompressionInSingleFile`）须在 UI 工程 `PublishChildProcessHosts` 的 MSBuild `Properties` 里逐个显式传递，MSBuild 任务不会把父项目属性自动流入子发布。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
+- 发布体积易错点：`Infrastructure` 的 `Avalonia` 引用带 `ExcludeAssets="runtime"`（仅提供 `ImageLoaderService`/`ImageCacheService` 的编译期 `Avalonia.Base` 类型），勿改为无排除的完整引用——否则 Worker/Cli 的单文件包会被迫捆绑整套 Avalonia，体积放大约 4MB/个；同时也勿在 Worker/Cli 路径新增对图像服务的调用（运行时缺少 Avalonia.Base 会 `TypeLoadException`，图像服务实际消费方只有 UI）。另注意 `EnableCompressionInSingleFile` 仅自包含发布可用，框架依赖单文件发布报 NETSDK1176——想给框架依赖单文件包"压缩瘦身"是走不通的。来源：https://learn.microsoft.com/dotnet/core/deploying/single-file/overview
+- 给发布流程挂钩子时不要依赖 `GenerateSingleFileBundle`：产物已最新时该目标会整体跳过，挂在其上的 `BeforeTargets` 不会执行。需要修改 `ResolvedFileToPublish` 时挂到每次发布都会运行、且排在待发布列表计算之后的 `GeneratePublishDependencyFile`，并按 `RelativePath` 而不是 `Filename` 匹配项目引用产生的 apphost。来源：https://learn.microsoft.com/visualstudio/msbuild/target-build-order

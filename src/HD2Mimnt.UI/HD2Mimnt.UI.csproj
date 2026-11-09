@@ -8,41 +8,75 @@
     <Platforms>AnyCPU;x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
     <ProductName>HD2Mimnt</ProductName>
-    <ProductVersion>0.1.0</ProductVersion>
-    <AssemblyVersion>0.1.0</AssemblyVersion>
-    <FileVersion>0.1.0</FileVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
-    <!-- 进程隔离宿主：运行时按应用目录下的 exe 拉起，必须随主程序输出 -->
     <ProjectReference Include="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Fonts\Monocraft.ttf" />
+    <Content Include="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\Fonts\Monocraft.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Tools\minidump-stackwalk\minidump-stackwalk.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Tools\minidump-stackwalk\LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="Tools\minidump-stackwalk\NOTICE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <!-- 单文件发布只打包被引用 exe 的托管程序集，不会复制其 apphost/deps/runtimeconfig；
-       应用运行时按应用目录拉起这两个子进程，发布时从本项目输出目录补齐它们的完整输出。
-       先收集到临时项再转换 RelativePath，避免同一 ItemGroup 内多段 Include 的元数据批处理串值 -->
-  <Target Name="PublishChildProcessHosts" AfterTargets="ComputeFilesToPublish">
+  <!-- 子进程宿主是独立进程，无法读取 UI 单文件包里内存加载的托管程序集。
+       只复制 $(OutDir) 里的 apphost 会漏掉 Core/PluginSDK 等依赖，发布版启动即 FileNotFoundException。
+       这里把两个子项目各自按“框架依赖单文件”重新发布，每个子进程只随应用带一个 exe；
+       它们需要的原生库已由 UI 发布目录提供，与子进程同目录可直接探测到。 -->
+  <!-- GenerateSingleFileBundle 在产物已是最新时会整体跳过，挂在它上面的 BeforeTargets 不会执行；
+       GeneratePublishDependencyFile 每次发布都会运行，且排在待发布列表计算之后。 -->
+  <Target Name="PublishChildProcessHosts" BeforeTargets="GeneratePublishDependencyFile">
+    <PropertyGroup>
+      <_ChildHostsDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\child-hosts\</_ChildHostsDir>
+    </PropertyGroup>
+    <MSBuild Projects="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj"
+             Targets="Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)PluginHost\;Version=$(Version)" />
+    <MSBuild Projects="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj"
+             Targets="Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Worker\;Version=$(Version)" />
+    <!-- CLI 也按框架依赖单文件发布到发布根目录，与主程序同目录，launch 才能按同目录规则找到 UI。 -->
+    <MSBuild Projects="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj"
+             Targets="Publish"
+             BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Cli\;Version=$(Version)" />
     <ItemGroup>
-      <_ChildProcessHostFile Include="$(OutDir)HD2Mimnt.PluginHost.*" />
-      <_ChildProcessHostFile Include="$(OutDir)HD2Mimnt.Worker.*" />
-    </ItemGroup>
-    <ItemGroup>
-      <ResolvedFileToPublish Include="@(_ChildProcessHostFile)"
-                             RelativePath="%(Filename)%(Extension)"
+      <!-- 项目引用已把子项目的 apphost/dll/deps/runtimeconfig 放进待发布项；单文件子进程只需要 exe，
+           先移除这些原始项，避免旧 apphost 覆盖单文件 exe。 -->
+      <_ChildHostPublishFile Include="@(ResolvedFileToPublish)"
+                             Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.PluginHost')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Worker')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Cli'))" />
+      <ResolvedFileToPublish Remove="@(_ChildHostPublishFile)" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.exe"
+                             RelativePath="HD2Mimnt.PluginHost.exe"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Worker\HD2Mimnt.Worker.exe"
+                             RelativePath="HD2Mimnt.Worker.exe"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.exe"
+                             RelativePath="HD2Mimnt.Cli.exe"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <!-- 符号随发布目录提供给 CI 的 symbols 包，子进程崩溃转储仍可解析。 -->
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.pdb"
+                             RelativePath="HD2Mimnt.PluginHost.pdb"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Worker\HD2Mimnt.Worker.pdb"
+                             RelativePath="HD2Mimnt.Worker.pdb"
+                             CopyToPublishDirectory="PreserveNewest"
+                             ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.pdb"
+                             RelativePath="HD2Mimnt.Cli.pdb"
                              CopyToPublishDirectory="PreserveNewest"
                              ExcludeFromSingleFile="true" />
     </ItemGroup>

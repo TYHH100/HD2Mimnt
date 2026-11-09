@@ -63,19 +63,19 @@ public sealed partial class FluentAvaloniaUiTests
                 vm.Passwords.UsePassword = true;
                 Layout();
                 var packaging = view.FindControl<ScrollViewer>("CreationPackagingScroll")!;
-                var library = packaging.GetVisualDescendants().OfType<Expander>().Single();
-                library.IsExpanded = true;
-                Layout();
                 var password = view.FindControl<TextBox>("ExportArchivePassword")!;
                 Assert.True(password.IsEffectivelyVisible);
                 Assert.True(packaging.Extent.Width <= packaging.Viewport.Width + 1);
                 Assert.True(tabs.Bounds.Height >= size.Height * 0.45);
                 Assert.True(view.FindControl<Button>("ExportModArchiveButton")!.IsEffectivelyVisible);
-                packaging.Offset = new Vector(0, packaging.Extent.Height);
-                Layout();
-                Assert.True(packaging.Offset.Y > 0);
-                packaging.Offset = default;
-                library.IsExpanded = false;
+                // 密码库面板下线后打包页内容变短，只有在超出视口时才要求滚动到底。
+                if (packaging.Extent.Height > packaging.Viewport.Height + 1)
+                {
+                    packaging.Offset = new Vector(0, packaging.Extent.Height);
+                    Layout();
+                    Assert.True(packaging.Offset.Y > 0);
+                    packaging.Offset = default;
+                }
                 Layout();
                 Capture(window, theme.ToString(), $"creation-layout-packaging-{language}-{size.Width}");
             }

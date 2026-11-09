@@ -189,7 +189,7 @@ When writing tests:
 
 ## Current Status
 
-Version: 0.1.0-alpha
+Version: 以 `Directory.Build.props` 的 `<Version>` 为准
 Recent phases completed: Phase 22 (Release preparation), Phase 21 (Stability testing), Phase 20 (Performance testing), Phase 19 (AI Integration), Phase 18 (External platforms), Phase 17 (Plugin system)
 
 All core systems are functional. The application is in early alpha with ongoing UI and feature development.

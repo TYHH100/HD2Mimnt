@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lua 插件运行时：只在插件宿主进程里被引用。
+       主程序不引用本项目，脚本解释器与插件脚本都不进入 UI 进程。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MoonSharp" />
+  </ItemGroup>
+
+</Project>

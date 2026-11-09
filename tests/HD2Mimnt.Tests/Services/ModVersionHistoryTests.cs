@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
@@ -227,40 +228,52 @@ public sealed class ModVersionHistoryTests : IDisposable
         Assert.True(File.Exists(first.ThumbnailPath)); Assert.False(File.Exists(second.ThumbnailPath));
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task SwitchingDeployedVersion_CleansTrackedFilesOrPreservesCurrentStateOnFailure(bool succeeds)
+    [Fact]
+    public async Task SwitchingDeployedVersion_ShouldKeepRecordsAndAutoDeployIncrementally()
     {
         await _settings.SetSettingAsync(SettingKeys.KeepModVersions, true);
+        var gameRoot = Path.Combine(_root, "game");
+        Directory.CreateDirectory(gameRoot);
+        await _settings.SetSettingAsync(SettingKeys.GamePath, gameRoot);
         var id = await _mods.ImportModAsync(CreateArchive("1"));
         await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("2"));
         var saved = Assert.Single(await _mods.GetLocalVersionsAsync(id));
+        var current = (await _repository.GetByIdAsync(id))!;
         var profiles = new ProfileRepository(_db);
-        var profile = new Profile { Id = Guid.NewGuid(), Name = "Deployed" }; await profiles.AddAsync(profile);
+        var profile = new Profile { Id = Guid.NewGuid(), Name = "Deployed" };
+        profile.Mods.Add(new ProfileMod { ProfileId = profile.Id, ModId = id, Enabled = true, Order = 0 });
+        await profiles.AddAsync(profile);
         var deployments = new DeploymentRepository(_db);
-        var target = Path.Combine(_root, "game", Patch); Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        var target = Path.Combine(gameRoot, "data", Patch);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         await File.WriteAllTextAsync(target, "deployment");
-        var record = new DeploymentRecord { Id = Guid.NewGuid(), ModId = id, ProfileId = profile.Id, SessionId = Guid.NewGuid(), DeploymentMethod = "Copy", StartTime = DateTime.UtcNow, Status = "Success" };
-        record.Files.Add(new() { Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = id, SourcePath = "unused", TargetPath = target, Method = "Copy" });
+        var record = new DeploymentRecord
+        {
+            Id = Guid.NewGuid(), ModId = id, ProfileId = profile.Id, SessionId = Guid.NewGuid(),
+            DeploymentMethod = "Copy", StartTime = DateTime.UtcNow, Status = "Completed",
+            GamePath = gameRoot, DeploymentOrder = "TopToBottom", DeploymentOrderIndex = 0
+        };
+        record.Files.Add(new()
+        {
+            Id = Guid.NewGuid(), DeploymentId = record.Id, ModId = id,
+            SourcePath = Path.Combine(current.Path, Patch), TargetPath = target, Method = "Copy",
+            GamePath = gameRoot
+        });
         await deployments.AddAsync(record);
-        var failing = new Mock<IDeploymentMethod>(); failing.SetupGet(m => m.Name).Returns("Copy");
-        failing.Setup(m => m.CleanupFileAsync(target, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        var deployment = new DeploymentService(profiles, _repository, deployments, new[] { succeeds ? (IDeploymentMethod)new CopyDeploymentMethod() : failing.Object });
+        var deployment = new DeploymentService(profiles, _repository, deployments,
+            new[] { (IDeploymentMethod)new CopyDeploymentMethod() }, settingsService: _settings);
         var service = new ModService(_repository, Library, deploymentService: deployment, settingsService: _settings);
-        if (succeeds)
-        {
-            Assert.True((await service.SwitchLocalVersionAsync(id, saved.Id)).DeploymentWasCleaned);
-            Assert.False(File.Exists(target)); Assert.Empty(await deployments.GetByModIdAsync(id));
-            Assert.Equal("1", (await _repository.GetByIdAsync(id))!.Version);
-        }
-        else
-        {
-            await Assert.ThrowsAsync<IOException>(() => service.SwitchLocalVersionAsync(id, saved.Id));
-            Assert.True(File.Exists(target)); Assert.Single(await deployments.GetByModIdAsync(id));
-            Assert.Equal("2", (await _repository.GetByIdAsync(id))!.Version);
-            Assert.Equal(saved.Id, Assert.Single(await service.GetLocalVersionsAsync(id)).Id);
-        }
+
+        var result = await service.SwitchLocalVersionAsync(id, saved.Id);
+
+        Assert.True(result.WasDeployed);
+        Assert.NotNull(result.Deployment);
+        Assert.Equal(DeploymentStatus.Completed, result.Deployment!.Status);
+        Assert.Equal("1", (await _repository.GetByIdAsync(id))!.Version);
+        Assert.Equal("content-1", await File.ReadAllTextAsync(target));
+        var savedRecord = Assert.Single(await deployments.GetByModIdAsync(id));
+        Assert.Equal(target, Assert.Single(savedRecord.Files).TargetPath, ignoreCase: true);
+        Assert.True(File.Exists(Assert.Single(savedRecord.Files).SourcePath));
     }
 
     [Fact]

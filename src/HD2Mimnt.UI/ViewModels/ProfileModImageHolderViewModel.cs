@@ -93,9 +93,39 @@ public partial class ProfileModOptionCardViewModel : ProfileModImageHolderViewMo
     private string _description = string.Empty;
 
     [ObservableProperty]
+    private string? _translatedName;
+
+    [ObservableProperty]
+    private string? _translatedDescription;
+
+    [ObservableProperty]
     private bool _isEnabled;
 
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+    public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
+    public string DisplayDescription => string.IsNullOrWhiteSpace(TranslatedDescription) ? Description : TranslatedDescription!;
+    public bool HasTranslation => !string.IsNullOrWhiteSpace(TranslatedName) || !string.IsNullOrWhiteSpace(TranslatedDescription);
+    public bool HasDescription => !string.IsNullOrWhiteSpace(DisplayDescription);
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnDescriptionChanged(string value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+    partial void OnTranslatedNameChanged(string? value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnTranslatedDescriptionChanged(string? value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasTranslation));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+
+    public void SetTranslation(string? name, string? description)
+    {
+        TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
+        TranslatedDescription = string.IsNullOrWhiteSpace(description) ? null : description;
+        OnPropertyChanged(nameof(HasTranslation));
+    }
 
     public IReadOnlyList<ProfileModSubOptionChoiceViewModel> SubOptions { get; init; } =
         Array.Empty<ProfileModSubOptionChoiceViewModel>();
@@ -125,9 +155,39 @@ public partial class ProfileModOptionGroupViewModel : ProfileModImageHolderViewM
     private string _description = string.Empty;
 
     [ObservableProperty]
+    private string? _translatedName;
+
+    [ObservableProperty]
+    private string? _translatedDescription;
+
+    [ObservableProperty]
     private bool _isEnabled;
 
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+    public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
+    public string DisplayDescription => string.IsNullOrWhiteSpace(TranslatedDescription) ? Description : TranslatedDescription!;
+    public bool HasTranslation => !string.IsNullOrWhiteSpace(TranslatedName) || !string.IsNullOrWhiteSpace(TranslatedDescription);
+    public bool HasDescription => !string.IsNullOrWhiteSpace(DisplayDescription);
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnDescriptionChanged(string value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+    partial void OnTranslatedNameChanged(string? value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnTranslatedDescriptionChanged(string? value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasTranslation));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+
+    public void SetTranslation(string? name, string? description)
+    {
+        TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
+        TranslatedDescription = string.IsNullOrWhiteSpace(description) ? null : description;
+        OnPropertyChanged(nameof(HasTranslation));
+    }
 
     public IReadOnlyList<ProfileModOptionCardViewModel> Options { get; init; } =
         Array.Empty<ProfileModOptionCardViewModel>();
@@ -148,9 +208,39 @@ public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderV
     private string _description = string.Empty;
 
     [ObservableProperty]
+    private string? _translatedName;
+
+    [ObservableProperty]
+    private string? _translatedDescription;
+
+    [ObservableProperty]
     private bool _isSelected;
 
-    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+    public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
+    public string DisplayDescription => string.IsNullOrWhiteSpace(TranslatedDescription) ? Description : TranslatedDescription!;
+    public bool HasTranslation => !string.IsNullOrWhiteSpace(TranslatedName) || !string.IsNullOrWhiteSpace(TranslatedDescription);
+    public bool HasDescription => !string.IsNullOrWhiteSpace(DisplayDescription);
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnDescriptionChanged(string value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+    partial void OnTranslatedNameChanged(string? value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnTranslatedDescriptionChanged(string? value)
+    {
+        OnPropertyChanged(nameof(DisplayDescription));
+        OnPropertyChanged(nameof(HasTranslation));
+        OnPropertyChanged(nameof(HasDescription));
+    }
+
+    public void SetTranslation(string? name, string? description)
+    {
+        TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
+        TranslatedDescription = string.IsNullOrWhiteSpace(description) ? null : description;
+        OnPropertyChanged(nameof(HasTranslation));
+    }
 }
 
 /// <summary>v0 模组的互斥选项（单选列表项）。</summary>

@@ -55,7 +55,7 @@ public class PluginManagementViewModelTests
     public async Task InstallPluginAsync_Success_RefreshesPlugins()
     {
         _mockPluginService
-            .Setup(s => s.InstallPluginAsync("manifest.json", It.IsAny<CancellationToken>()))
+            .Setup(s => s.InstallPluginAsync("manifest.json", It.IsAny<PluginInstallConsent?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PluginOperationResult.SuccessResult("Installed"));
         _mockPluginService
             .Setup(s => s.GetAllPluginsAsync(default))
@@ -299,5 +299,47 @@ public class PluginManagementViewModelTests
 
         // Assert
         _mockPluginService.Verify(s => s.DisablePluginAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task LoadPluginsAsync_WithDeclaredCommands_PopulatesCommandButtons()
+    {
+        var plugins = new List<Plugin>
+        {
+            new Plugin { Id = "plugin1", Name = "Plugin 1", Version = "1.0.0", Enabled = true }
+        };
+        _mockPluginService.Setup(s => s.GetAllPluginsAsync(default)).ReturnsAsync(plugins);
+        _mockPluginService.Setup(s => s.GetPluginPermissionsAsync(It.IsAny<string>(), default))
+            .ReturnsAsync(new List<PluginPermission>());
+        _mockPluginService.Setup(s => s.GetPluginCommandsAsync("plugin1", default))
+            .ReturnsAsync(new List<PluginCommandInfo>
+            {
+                new() { Name = "scan", DisplayName = "扫描模组" }
+            });
+
+        await _viewModel.InitializeAsync();
+
+        var item = Assert.Single(_viewModel.InstalledPlugins);
+        var command = Assert.Single(item.Commands);
+        Assert.Equal("扫描模组", command.DisplayName);
+        Assert.Equal("scan", command.Name);
+    }
+
+    [Fact]
+    public async Task RunCommandAsync_Success_ReportsResultInStatus()
+    {
+        _mockPluginService.Setup(s => s.ExecutePluginCommandAsync("plugin1", "scan", null, default))
+            .ReturnsAsync(PluginOperationResult.SuccessResult("完成"));
+
+        var item = new PluginItemViewModel(
+            new Plugin { Id = "plugin1", Name = "Plugin 1" },
+            new List<PluginPermission>(),
+            new List<PluginCommandInfo> { new() { Name = "scan", DisplayName = "扫描" } },
+            _viewModel.RunCommandAsync);
+
+        await _viewModel.RunCommandAsync(item.Commands[0]);
+
+        Assert.Contains("已执行", _viewModel.StatusMessage);
+        Assert.Contains("完成", _viewModel.StatusMessage);
     }
 }

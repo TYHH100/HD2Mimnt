@@ -32,6 +32,15 @@ public interface IDeploymentMethod
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 判断目标是否已经是该方法期望的状态：Copy 比较内容，HardLink 比较文件身份，
+    /// SymbolicLink 比较链接目标。目标缺失或无法读取时返回 false。
+    /// </summary>
+    Task<bool> IsUpToDateAsync(
+        string sourcePath,
+        string targetPath,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 清理已部署的文件
     /// </summary>
     Task<bool> CleanupFileAsync(

@@ -49,7 +49,9 @@ public sealed class Hd2IASIntegrationService(IHd2IASPackageReader packages, IHd2
         if (deployments != null)
         {
             var targets = inspection.FilePlan.Select(file => Path.GetFullPath(file.Path, gamePath)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var conflicts = (await deployments.GetLatestDeploymentsAsync(cancellationToken)).SelectMany(record => record.Files)
+            var normalizedGamePath = DeploymentPlanBuilder.NormalizeGamePath(gamePath);
+            var conflicts = (await deployments.GetCurrentDeploymentsAsync(normalizedGamePath, cancellationToken))
+                .SelectMany(record => record.Files)
                 .Where(file => targets.Contains(Path.GetFullPath(file.TargetPath))).ToArray();
             if (conflicts.Length > 0) throw new IOException("目标仍由普通模组部署记录管理，请先清理原部署，再安装 HD2IAS。");
         }

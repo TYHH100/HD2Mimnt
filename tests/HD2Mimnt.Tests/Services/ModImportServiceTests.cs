@@ -1,7 +1,10 @@
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Archive;
 using HD2Mimnt.Infrastructure.Data;
+using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Application.Services;
 using System.IO.Compression;
@@ -104,7 +107,7 @@ public sealed class ModImportServiceTests : IDisposable
 
         using (var targetStream = File.Create(tarGzPath))
         using (var gzipStream = new GZipStream(targetStream, CompressionMode.Compress))
-        using (var writer = WriterFactory.OpenWriter(gzipStream, ArchiveType.Tar, new WriterOptions(CompressionType.None)))
+        using (var writer = WriterFactory.OpenWriter(gzipStream, SharpCompress.Common.ArchiveType.Tar, new WriterOptions(CompressionType.None)))
         {
             writer.WriteAll(contentRoot, "*", SearchOption.AllDirectories);
         }
@@ -127,7 +130,7 @@ public sealed class ModImportServiceTests : IDisposable
         File.WriteAllText(Path.Combine(sourceRoot, "armor.patch"), "sevenzip content");
         var archivePath = Path.Combine(_tempDirectory, "mod" + extension);
         using (var output = File.Create(archivePath))
-        using (var writer = WriterFactory.OpenWriter(output, ArchiveType.SevenZip, new WriterOptions(CompressionType.LZMA)))
+        using (var writer = WriterFactory.OpenWriter(output, SharpCompress.Common.ArchiveType.SevenZip, new WriterOptions(CompressionType.LZMA)))
             writer.WriteAll(sourceRoot, "*", SearchOption.AllDirectories);
 
         var importedId = await CreateService().ImportModAsync(archivePath);
@@ -215,6 +218,192 @@ public sealed class ModImportServiceTests : IDisposable
         Assert.Equal(new List<string> { "VariantA", "VariantB" }, mod.Manifest.LegacyOptions);
     }
 
+    [Fact]
+    public async Task ImportModAsync_WithoutManifest_ShouldGenerateManifestFileInModFolder()
+    {
+        // 导入没有档案的模组后，库内模组文件夹应自动生成档案，内容与数据库清单一致
+        var source = Path.Combine(_tempDirectory, "generated-manifest");
+        Directory.CreateDirectory(Path.Combine(source, "VariantA"));
+        Directory.CreateDirectory(Path.Combine(source, "VariantB"));
+        File.WriteAllText(Path.Combine(source, "VariantA", "a.patch"), "a");
+        File.WriteAllText(Path.Combine(source, "VariantB", "b.patch"), "b");
+
+        var importedId = await CreateService().ImportModAsync(source);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+
+        var manifestPath = Path.Combine(mod.Path, "manifest.json");
+        Assert.True(File.Exists(manifestPath));
+        Assert.True(ManifestPackage.IsGeneratedManifest(mod.Path));
+        var generated = await new ManifestParser().ParseFromFileAsync(manifestPath);
+        Assert.NotNull(generated);
+        Assert.Equal(ManifestVersion.V1, generated.ManifestVersion);
+        Assert.Equal(mod.Name, generated.Name);
+        Assert.Equal(mod.Manifest!.Options!.Select(option => option.Name), generated.Options!.Select(option => option.Name));
+        // 推断选项默认启用，避免选项弹窗打开即全部未勾选
+        Assert.All(mod.Manifest.Options!, option => Assert.True(option.DefaultEnabled));
+        Assert.All(generated.Options!, option => Assert.True(option.DefaultEnabled));
+        // 每个推断选项映射自己的子目录，部署才能收集到子目录里的补丁
+        Assert.All(mod.Manifest.Options!, option => Assert.Equal(new[] { option.Name }, option.Include));
+    }
+
+    [Fact]
+    public async Task GetAllModsAsync_ShouldGenerateArchiveAndEnableInferredOptionsForExistingMods()
+    {
+        // 已在库中的旧条目：没有档案时自动生成；未编辑的推断选项恢复默认启用
+        var parser = new ManifestParser();
+        Mod CreateExistingMod(ModManifest manifest, bool writeGeneratedFile, out string modDirectory)
+        {
+            modDirectory = Path.Combine(_storageDirectory, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(modDirectory, "data"));
+            File.WriteAllText(Path.Combine(modDirectory, "data", "a.patch"), "a");
+            if (writeGeneratedFile) parser.SaveGeneratedToFile(manifest, Path.Combine(modDirectory, "manifest.json"));
+            return new Mod
+            {
+                Id = Guid.NewGuid(), Name = manifest.Name, Path = modDirectory, Manifest = manifest,
+                Hash = "content-hash", ResourceTypeIds = []
+            };
+        }
+        static ModManifest Inferred(Guid guid) => new()
+        {
+            Guid = guid,
+            Name = "推断模组",
+            Description = "A locally imported mod.",
+            Version = "1.0.0",
+            Author = "Unknown",
+            ManifestVersion = ManifestVersion.V1,
+            Options = [new() { Name = "data", Description = "Option for data", DefaultEnabled = false, SubOptions = [] }]
+        };
+
+        var legacy = CreateExistingMod(Inferred(Guid.Empty), writeGeneratedFile: false, out var legacyDirectory);
+        var generated = CreateExistingMod(Inferred(Guid.NewGuid()), writeGeneratedFile: true, out var generatedDirectory);
+        // 有作者信息的清单保持原样，不按推断结果改写或补写根档案
+        var authoredManifest = new ModManifest
+        {
+            Guid = Guid.NewGuid(), Name = "作者模组", Description = "作者清单", Version = "2.0.0", Author = "作者",
+            ManifestVersion = ManifestVersion.V1,
+            Options = [new() { Name = "data", Description = "作者选项", Include = ["data"], DefaultEnabled = false }]
+        };
+        var authored = CreateExistingMod(authoredManifest, writeGeneratedFile: false, out var authoredDirectory);
+        // 数据库里也没有清单的旧条目：本次回填推断后立即生成档案
+        var missingDirectory = Path.Combine(_storageDirectory, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(missingDirectory, "data"));
+        File.WriteAllText(Path.Combine(missingDirectory, "data", "a.patch"), "a");
+        var missing = new Mod
+        {
+            Id = Guid.NewGuid(), Name = "无清单模组", Path = missingDirectory, Manifest = null,
+            Hash = "content-hash", ResourceTypeIds = []
+        };
+        foreach (var mod in new[] { legacy, generated, authored, missing }) await _modRepository.AddAsync(mod);
+
+        await new ModService(_modRepository, _storageDirectory).GetAllModsAsync();
+
+        Assert.True((await _modRepository.GetByIdAsync(legacy.Id))!.Manifest!.Options![0].DefaultEnabled);
+        Assert.True((await _modRepository.GetByIdAsync(generated.Id))!.Manifest!.Options![0].DefaultEnabled);
+        Assert.False((await _modRepository.GetByIdAsync(authored.Id))!.Manifest!.Options![0].DefaultEnabled);
+        // 早期 V1 推断选项缺少 Include：回填时按选项名补齐子目录映射
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(legacy.Id))!.Manifest!.Options![0].Include);
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(generated.Id))!.Manifest!.Options![0].Include);
+        // 作者清单的显式映射保持原样
+        Assert.Equal(new[] { "data" }, (await _modRepository.GetByIdAsync(authored.Id))!.Manifest!.Options![0].Include);
+
+        // 旧条目补齐生成档案（旧推断的空 Guid 同步替换），已有生成档案同步默认值
+        var legacyFile = await parser.ParseFromFileAsync(Path.Combine(legacyDirectory, "manifest.json"));
+        Assert.True(ManifestPackage.IsGeneratedManifest(legacyDirectory));
+        Assert.NotEqual(Guid.Empty, legacyFile!.Guid);
+        Assert.True(legacyFile.Options![0].DefaultEnabled);
+        var generatedFile = await parser.ParseFromFileAsync(Path.Combine(generatedDirectory, "manifest.json"));
+        Assert.True(generatedFile!.Options![0].DefaultEnabled);
+        Assert.Equal(new[] { "data" }, generatedFile.Options[0].Include);
+        // 作者清单不补写根档案
+        Assert.False(File.Exists(Path.Combine(authoredDirectory, "manifest.json")));
+        // 数据库无清单的旧条目推断后同样生成档案
+        Assert.NotNull((await _modRepository.GetByIdAsync(missing.Id))!.Manifest);
+        Assert.True(ManifestPackage.IsGeneratedManifest(missingDirectory));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_WithoutManifest_RenamedArchiveWithSameContent_IsRejected()
+    {
+        // 生成档案的内容随来源名称变化，但不能因此绕过重复导入检查
+        var source = Path.Combine(_tempDirectory, "duplicate-source");
+        Directory.CreateDirectory(Path.Combine(source, "VariantA"));
+        Directory.CreateDirectory(Path.Combine(source, "VariantB"));
+        File.WriteAllText(Path.Combine(source, "VariantA", "a.patch"), "a");
+        File.WriteAllText(Path.Combine(source, "VariantB", "b.patch"), "b");
+        await CreateService().ImportModAsync(source);
+
+        var zip = await CreateZipAsync(root =>
+        {
+            Directory.CreateDirectory(Path.Combine(root, "VariantA"));
+            Directory.CreateDirectory(Path.Combine(root, "VariantB"));
+            File.WriteAllText(Path.Combine(root, "VariantA", "a.patch"), "a");
+            File.WriteAllText(Path.Combine(root, "VariantB", "b.patch"), "b");
+        });
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().ImportModAsync(zip));
+        Assert.Contains("模组库中已存在相同内容", error.Message);
+        Assert.Single(await _modRepository.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task ImportModAsync_SingleRootFolderNoManifest_ShouldFlattenAndDeploy()
+    {
+        // 旧管理器同款简装包：唯一根文件夹套着补丁、没有清单。不拍平时会推断出无 Include 的
+        // V1 选项，部署回退全量目录只扫模组根直属文件，整个模组被跳过（“没有可部署的补丁”）。
+        var zipPath = await CreateZipAsync(zipRoot =>
+        {
+            var modDir = Path.Combine(zipRoot, "尖峰t58拖拉机");
+            Directory.CreateDirectory(modDir);
+            File.WriteAllText(Path.Combine(modDir, "a193a00ce4bbd529.patch_0"), "patch-content");
+        });
+
+        var importedId = await CreateService().ImportModAsync(zipPath);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+
+        // 拍平后补丁位于模组根目录，没有子目录可推断选项：仍生成基础档案，部署走全量根扫描
+        Assert.NotNull(mod.Manifest);
+        Assert.Null(mod.Manifest!.Options);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "manifest.json")));
+        Assert.True(File.Exists(Path.Combine(mod.Path, "a193a00ce4bbd529.patch_0")));
+        Assert.False(Directory.Exists(Path.Combine(mod.Path, "尖峰t58拖拉机")));
+
+        // 端到端：加入配置并部署，补丁应出现在游戏 data 目录
+        var gameDir = Path.Combine(_tempDirectory, "game");
+        Directory.CreateDirectory(gameDir);
+        var profileRepository = new ProfileRepository(_dbContext);
+        var profileService = new ProfileService(profileRepository, _modRepository);
+        var profileId = await profileService.CreateProfileAsync("简装包");
+        await profileService.AddModToProfileAsync(profileId, importedId);
+        IDeploymentRepository deploymentRepository = new DeploymentRepository(_dbContext);
+        var deploymentService = new DeploymentService(profileRepository, _modRepository, deploymentRepository,
+            new IDeploymentMethod[] { new CopyDeploymentMethod() });
+        var result = await deploymentService.DeployProfileAsync(profileId, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, gameDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("patch-content",
+            await File.ReadAllTextAsync(Path.Combine(gameDir, "data", "a193a00ce4bbd529.patch_0")));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_SingleRootFolderWithManifest_ShouldNotFlatten()
+    {
+        // 带清单的包不拍平：结构交给嵌套清单查找，模组内容与清单声明保持一致
+        var zipPath = await CreateZipAsync(zipRoot =>
+        {
+            var modDir = Path.Combine(zipRoot, "Wrapped Mod");
+            Directory.CreateDirectory(modDir);
+            File.WriteAllText(Path.Combine(modDir, "manifest.json"),
+                """{"name":"包裹模组","version":"1.0.0"}""", Encoding.UTF8);
+            File.WriteAllText(Path.Combine(modDir, "body.patch"), "content");
+        });
+
+        var importedId = await CreateService().ImportModAsync(zipPath);
+        var mod = (await _modRepository.GetByIdAsync(importedId))!;
+        Assert.Equal("包裹模组", mod.Name);
+        Assert.True(File.Exists(Path.Combine(mod.Path, "body.patch")));
+    }
+
     private ModImportService CreateService(SettingsService? settingsService = null)
         => new(_modRepository, _storageDirectory, settingsService: settingsService);
 
@@ -242,7 +431,7 @@ public sealed class ModImportServiceTests : IDisposable
         var reports = new List<ModImportProgress>();
         var id = await CreateService().ImportModAsync(zip, progress: new InlineProgress(reports.Add));
         var mod = (await _modRepository.GetByIdAsync(id))!;
-        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IAS 组件", "读取模组清单", "分析模组文件", "复制模组文件", "识别资源类型", "计算哈希", "保存模组", "模组已保存" },
+        Assert.Equal(new[] { "检查源文件", "解压模组", "识别 HD2IAS 组件", "读取模组清单", "分析模组文件", "计算哈希", "复制模组文件", "识别资源类型", "保存模组", "模组已保存" },
             reports.Select(p => p.Step).Distinct());
         Assert.Equal(reports.Select(p => p.Percentage).Order(), reports.Select(p => p.Percentage));
         Assert.Contains(reports, p => p.Step == "解压模组" && p.IsIndeterminate);
@@ -266,6 +455,93 @@ public sealed class ModImportServiceTests : IDisposable
         var archiveMod = (await _modRepository.GetByIdAsync(archiveId))!;
         var folderMod = (await _modRepository.GetByIdAsync(folderId))!;
         Assert.Equal(archiveMod.Hash, folderMod.Hash);
+        // 自动生成的档案不参与内容哈希：来源名称不同也保持同哈希
+        Assert.True(ManifestPackage.IsGeneratedManifest(archiveMod.Path));
+        Assert.True(ManifestPackage.IsGeneratedManifest(folderMod.Path));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_ShouldPersistAuthorContentFingerprint()
+    {
+        var zip = await CreateZipAsync(root => File.WriteAllText(Path.Combine(root, "body.patch"), "content"));
+        var id = await CreateService().ImportModAsync(zip);
+        var mod = (await _modRepository.GetByIdAsync(id))!;
+
+        // 一次遍历同时得到的判重指纹必须与单独按作者内容计算的结果一致。
+        Assert.Equal(await ModDirectoryHash.CalculateAsync(mod.Path, includeFile: ModHashService.AuthorContentFilter(mod.Path)),
+            mod.ContentFingerprint);
+        Assert.Matches("^[0-9a-f]{64}$", mod.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateCheck_ShouldUsePersistedFingerprint()
+    {
+        // 相同作者清单、不同内容：判重只比较持久化指纹，不再重扫已有模组内容。
+        const string manifest = """{"Name":"DupProbe","Version":"1.0"}""";
+        var first = Path.Combine(_tempDirectory, "dup-first");
+        Directory.CreateDirectory(first);
+        File.WriteAllText(Path.Combine(first, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(first, "body.patch"), "first");
+        var second = Path.Combine(_tempDirectory, "dup-second");
+        Directory.CreateDirectory(second);
+        File.WriteAllText(Path.Combine(second, "manifest.json"), manifest);
+        File.WriteAllText(Path.Combine(second, "body.patch"), "other");
+
+        var firstId = await CreateService().ImportModAsync(first);
+        var reports = new List<ModImportProgress>();
+        var secondId = await CreateService().ImportModAsync(second, progress: new InlineProgress(reports.Add));
+
+        Assert.DoesNotContain(reports, p => p.Step == "判重比对");
+        Assert.NotEqual(firstId, secondId);
+        Assert.NotEqual((await _modRepository.GetByIdAsync(firstId))!.ContentFingerprint,
+            (await _modRepository.GetByIdAsync(secondId))!.ContentFingerprint);
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateFolder_ShouldRejectBeforeCopyingIntoLibrary()
+    {
+        var first = Path.Combine(_tempDirectory, "preflight-first");
+        Directory.CreateDirectory(first);
+        File.WriteAllText(Path.Combine(first, "body.patch"), "content");
+        var firstId = await CreateService().ImportModAsync(first);
+        var libraryEntries = Directory.EnumerateFileSystemEntries(_storageDirectory).ToList();
+
+        var copy = Path.Combine(_tempDirectory, "preflight-copy");
+        Directory.CreateDirectory(copy);
+        File.WriteAllText(Path.Combine(copy, "body.patch"), "content");
+        var reports = new List<ModImportProgress>();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateService().ImportModAsync(copy, progress: new InlineProgress(reports.Add)));
+
+        Assert.Contains("模组库中已存在相同内容", error.Message);
+        // 判重已前移：重复包在暂存树上算完身份就被拒绝，不再先拷一份进库再丢弃。
+        Assert.Contains(reports, p => p.Step == "计算哈希");
+        Assert.DoesNotContain(reports, p => p.Step == "复制模组文件");
+        Assert.Equal(libraryEntries, Directory.EnumerateFileSystemEntries(_storageDirectory).ToList());
+        Assert.Equal(new[] { firstId }, (await _modRepository.GetAllAsync()).Select(m => m.Id));
+    }
+
+    [Fact]
+    public async Task ImportModAsync_DuplicateCheck_ShouldBackfillLegacyFingerprint()
+    {
+        // 旧库条目没有持久化指纹：判重时补算并落库，重复内容仍被拒绝。
+        var folder = Path.Combine(_tempDirectory, "legacy-dup");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "body.patch"), "content");
+        var id = await CreateService().ImportModAsync(folder);
+        var legacy = (await _modRepository.GetByIdAsync(id))!;
+        legacy.ContentFingerprint = string.Empty;
+        await _modRepository.UpdateAsync(legacy);
+
+        var copy = Path.Combine(_tempDirectory, "legacy-dup-copy");
+        Directory.CreateDirectory(copy);
+        File.WriteAllText(Path.Combine(copy, "body.patch"), "content");
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateService().ImportModAsync(copy));
+
+        Assert.Contains("模组库中已存在相同内容", error.Message);
+        var reloaded = (await _modRepository.GetByIdAsync(id))!;
+        Assert.Equal(await ModDirectoryHash.CalculateAsync(reloaded.Path, includeFile: ModHashService.AuthorContentFilter(reloaded.Path)),
+            reloaded.ContentFingerprint);
     }
 
     [Fact]

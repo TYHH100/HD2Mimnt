@@ -1,21 +1,19 @@
 using System.IO.Pipes;
-using System.Text;
 using System.Text.Json;
 using HD2Mimnt.Core.IPC;
 
 namespace HD2Mimnt.Worker.IPC;
 
 /// <summary>
-/// Named pipe client for worker process to communicate with main app
+/// Worker 进程侧管道客户端；帧读写复用 Core 的 PipeFrame（短读续读 + 8MB 上限）。
 /// </summary>
 public class NamedPipeClient : IDisposable
 {
     private readonly NamedPipeClientStream _pipeClient;
-    private readonly string _pipeName;
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
 
     public NamedPipeClient(string pipeName)
     {
-        _pipeName = pipeName;
         _pipeClient = new NamedPipeClientStream(
             ".",
             pipeName,
@@ -28,37 +26,28 @@ public class NamedPipeClient : IDisposable
         await _pipeClient.ConnectAsync(timeoutMilliseconds, cancellationToken);
     }
 
+    /// <summary>命令接收循环与业务进度上报会并发写同一管道，发送必须串行。</summary>
     public async Task SendMessageAsync(WorkerMessage message, CancellationToken cancellationToken = default)
     {
-        var json = JsonSerializer.Serialize(message);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var length = BitConverter.GetBytes(bytes.Length);
-
-        await _pipeClient.WriteAsync(length, cancellationToken);
-        await _pipeClient.WriteAsync(bytes, cancellationToken);
-        await _pipeClient.FlushAsync(cancellationToken);
+        await _sendGate.WaitAsync(cancellationToken);
+        try
+        {
+            await PipeFrame.SendAsync(_pipeClient, JsonSerializer.Serialize(message), cancellationToken);
+        }
+        finally { _sendGate.Release(); }
     }
 
     public async Task<WorkerMessage?> ReceiveMessageAsync(CancellationToken cancellationToken = default)
     {
-        var lengthBuffer = new byte[4];
-        var bytesRead = await _pipeClient.ReadAsync(lengthBuffer, cancellationToken);
-        if (bytesRead == 0) return null;
-
-        var length = BitConverter.ToInt32(lengthBuffer, 0);
-        var buffer = new byte[length];
-        bytesRead = await _pipeClient.ReadAsync(buffer, cancellationToken);
-
-        if (bytesRead == 0) return null;
-
-        var json = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        return JsonSerializer.Deserialize<WorkerMessage>(json);
+        var json = await PipeFrame.ReceiveAsync(_pipeClient, cancellationToken);
+        return json is null ? null : JsonSerializer.Deserialize<WorkerMessage>(json);
     }
 
     public bool IsConnected => _pipeClient.IsConnected;
 
     public void Dispose()
     {
-        _pipeClient?.Dispose();
+        _pipeClient.Dispose();
+        _sendGate.Dispose();
     }
 }

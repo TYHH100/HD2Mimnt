@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.smd
+*.report.json
+*_diagnosis.json
+*_validation.json
+*.glb
+*_hd2_inventory.json

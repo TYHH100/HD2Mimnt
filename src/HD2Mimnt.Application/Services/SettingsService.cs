@@ -54,6 +54,18 @@ public class SettingsService
             ? mode
             : GameInstallationMode.Official;
 
+    /// <summary>
+    /// 加载器是否仍按固定分组与优先级排序；开启“自由排序（保留分组）”后按保存顺序部署。
+    /// “锁定加载器”关闭时分组本身不再保留，同样按保存顺序处理。
+    /// </summary>
+    public bool IsLoaderOrderLocked()
+    {
+        // 两个键必须取自同一份已发布的只读快照，避免切换设置时读到混合状态。
+        var settings = Volatile.Read(ref _settings);
+        return ReadSetting(settings, SettingKeys.ProfilesLockLoaders, true)
+            && !ReadSetting(settings, SettingKeys.ProfilesFreeLoaderOrder, false);
+    }
+
     /// <summary>业务服务统一读取的游戏目录；HellForge 模式解析为安装根下的 game 副本。</summary>
     public string GetEffectiveGamePath()
         => GetGameInstallationMode() == GameInstallationMode.HellForge
@@ -300,17 +312,26 @@ public static class SettingKeys
     public const string GameMode = "Game.Mode";
     public const string HellForgePath = "Game.HellForgePath";
 
+    // IAS 系统（HD2IntegratedArmorSystem）相关
+    public const string IasInstallLocation = "IAS.InstallLocation";
+    public const string IasActiveRuntimeId = "IAS.ActiveRuntimeId";
+
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
     public const string ProfilesLockLoaders = "Profiles.LockLoaders";
+    public const string ProfilesFreeLoaderOrder = "Profiles.FreeLoaderOrder";
     public const string ProfilesAutoAddImportedMods = "Profiles.AutoAddImportedMods";
+    public const string ProfilesChooseGroupWhenAdding = "Profiles.ChooseGroupWhenAdding";
+    public const string ProfilesPinExpandedGroups = "Profiles.PinExpandedGroups";
 
     // 部署相关
     public const string DefaultDeploymentMethod = "Deployment.DefaultMethod";
     public const string DefaultDeploymentOrder = "Deployment.DefaultOrder";
     public const string DeploymentCheckBeforeDeploy = "Deployment.CheckBefore";
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
+    // 部署/重编号目标被未追踪外部文件（如 HD2CharacterLibrary 生成的 Lua 补丁）占用时是否强制覆盖。
+    public const string DeploymentOverwriteConflicts = "Deployment.OverwriteConflicts";
 
     // 搜索相关
     public const string SearchFuzzy = "Search.Fuzzy";
@@ -323,9 +344,17 @@ public static class SettingKeys
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
 
+    // Lua 审查：导入与存量模组的自动拆包默认关闭，需要用户明确开启。
+    // 键前缀为 Library，随“模组库”分类一起保存与恢复默认。
+    public const string LuaAutoExtract = "Library.LuaAutoExtract";
+
     // 兼容性：耗时的启动检查需要用户明确开启。
     public const string CompatibilityCheckOnStartup = "Compatibility.CheckOnStartup";
     public const string CompatibilityEnableBatchRepair = "Compatibility.EnableBatchRepair";
+    public const string CompatibilityAutoCheckImport = "Compatibility.AutoCheckImport";
+
+    // 应用更新：启动自动检查默认关闭，手动检查更新按钮始终可用。
+    public const string UpdatesCheckOnStartup = "Updates.CheckOnStartup";
 
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";
@@ -357,6 +386,9 @@ public static class SettingKeys
     public const string EnableLogging = "Advanced.EnableLogging";
     public const string LogLevel = "Advanced.LogLevel";
     public const string ConcurrentImports = "Advanced.ConcurrentImports";
+
+    // AI 翻译
+    public const string AiTranslationTargetLanguage = "AI.TranslationTargetLanguage";
 
     // 清单相关
     public const string ForceManifestV1 = "Manifest.ForceV1";

@@ -620,6 +620,151 @@ public class ProfileModOptionsTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_gameDirRoot, "data", "readme.txt")));
     }
 
+    [Fact]
+    public async Task DeployProfileAsync_InferredOptionWithoutInclude_PatchUnderDataDirectory_ShouldDeploy()
+    {
+        // 新格式 data 包：补丁在 data/ 下，清单推断出的选项没有 Include 映射。
+        // 全量目录回退只扫根目录会误判为“没有可部署的补丁”并自动跳过。
+        var modDir = Path.Combine(_modDirRoot, "raw_data_pack");
+        Directory.CreateDirectory(Path.Combine(modDir, "data"));
+        await File.WriteAllTextAsync(Path.Combine(modDir, "data", "9ba626afa44a3aa3.patch_0"), "patch");
+
+        var mod = await CreateModAsync("raw_data_pack", new ModManifest
+        {
+            ManifestVersion = ManifestVersion.V1,
+            Options = [new ModOption
+            {
+                Name = "data", Description = "Option for data", DefaultEnabled = true, SubOptions = []
+            }]
+        });
+        mod.Path = modDir;
+        await _modRepository.UpdateAsync(mod);
+
+        var profileId = await _profileService.CreateProfileAsync("DeployRawData");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "9ba626afa44a3aa3.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_BackfilledInferredV1Options_ShouldDeployAllSubDirectories()
+    {
+        // 历史 V1 推断清单（选项无 Include，默认启用）：启动回填补齐子目录映射后，
+        // 多选全部启用，所有选项子目录里的补丁都应部署。
+        var modDir = Path.Combine(_modDirRoot, "inferred_v1_mod");
+        Directory.CreateDirectory(Path.Combine(modDir, "01.Alpha"));
+        Directory.CreateDirectory(Path.Combine(modDir, "02.Beta"));
+        await File.WriteAllTextAsync(Path.Combine(modDir, "01.Alpha", "aaaaaaaaaaaaaaaa.patch_0"), "a");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "02.Beta", "bbbbbbbbbbbbbbbb.patch_0"), "b");
+
+        var mod = await CreateModAsync("inferred_v1_mod", new ModManifest
+        {
+            Guid = Guid.NewGuid(),
+            Name = "inferred_v1_mod",
+            Description = "A locally imported mod.",
+            Version = "1.0.0",
+            Author = "Unknown",
+            ManifestVersion = ManifestVersion.V1,
+            Options =
+            [
+                new() { Name = "01.Alpha", Description = "Option for 01.Alpha", DefaultEnabled = true, SubOptions = [] },
+                new() { Name = "02.Beta", Description = "Option for 02.Beta", DefaultEnabled = true, SubOptions = [] }
+            ]
+        });
+
+        // 模拟应用列表刷新：库中旧条目回填 Include
+        var modService = new ModService(_modRepository, _modDirRoot,
+            settingsService: TestHelpers.SeededSettingsService.Create(forceManifestV1: true));
+        var restored = (await modService.GetModsByIdsAsync(new[] { mod.Id })).Single();
+        Assert.All(restored.Manifest!.Options!, option => Assert.Equal(new[] { option.Name }, option.Include));
+
+        var profileId = await _profileService.CreateProfileAsync("DeployInferredV1");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "aaaaaaaaaaaaaaaa.patch_0")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "bbbbbbbbbbbbbbbb.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_InferredShapeWithoutBackfill_ShouldStillDeployOptionSubDirectories()
+    {
+        // 兜底：清单是“选项无 Include”的推断形态且没有回填时，部署仍按选项名进入子目录，
+        // 防止未来新的清单写入端漏写映射时整包被静默跳过。
+        var modDir = Path.Combine(_modDirRoot, "inferred_shape_mod");
+        Directory.CreateDirectory(Path.Combine(modDir, "01.Alpha"));
+        Directory.CreateDirectory(Path.Combine(modDir, "02.Beta"));
+        await File.WriteAllTextAsync(Path.Combine(modDir, "01.Alpha", "cccccccccccccccc.patch_0"), "c");
+        await File.WriteAllTextAsync(Path.Combine(modDir, "02.Beta", "dddddddddddddddd.patch_0"), "d");
+
+        var mod = await CreateModAsync("inferred_shape_mod", new ModManifest
+        {
+            Guid = Guid.NewGuid(),
+            Name = "inferred_shape_mod",
+            Description = "A locally imported mod.",
+            Version = "1.0.0",
+            Author = "Unknown",
+            ManifestVersion = ManifestVersion.V1,
+            Options =
+            [
+                new() { Name = "01.Alpha", Description = "Option for 01.Alpha", DefaultEnabled = true, SubOptions = [] },
+                new() { Name = "02.Beta", Description = "Option for 02.Beta", DefaultEnabled = true, SubOptions = [] }
+            ]
+        });
+
+        var profileId = await _profileService.CreateProfileAsync("DeployInferredShape");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "cccccccccccccccc.patch_0")));
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "dddddddddddddddd.patch_0")));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_ExplicitNonExistentInclude_ShouldDisableOnlyThatOption()
+    {
+        // 作者常用“指向不存在的子目录”来关闭某个选项：显式 Include 必须优先于部署兜底，
+        // 目录不存在时只跳过该选项，不能因此回退全量扫描或把整个模组算作跳过。
+        var modDir = Path.Combine(_modDirRoot, "disabled_by_missing_include");
+        Directory.CreateDirectory(Path.Combine(modDir, "01.Enabled"));
+        await File.WriteAllTextAsync(Path.Combine(modDir, "01.Enabled", "eeeeeeeeeeeeeeee.patch_0"), "e");
+
+        var mod = await CreateModAsync("disabled_by_missing_include", new ModManifest
+        {
+            Guid = Guid.NewGuid(),
+            Name = "disabled_by_missing_include",
+            Description = "Author manifest",
+            Version = "1.0.0",
+            Author = "Author",
+            ManifestVersion = ManifestVersion.V1,
+            Options =
+            [
+                new() { Name = "01.Enabled", Description = "Enabled", Include = ["01.Enabled"], DefaultEnabled = true },
+                new() { Name = "02.Disabled", Description = "Disabled", Include = ["__missing__"], DefaultEnabled = true }
+            ]
+        });
+
+        var profileId = await _profileService.CreateProfileAsync("DeployMissingInclude");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(Path.Combine(_gameDirRoot, "data", "eeeeeeeeeeeeeeee.patch_0")));
+        Assert.Single(Directory.GetFiles(Path.Combine(_gameDirRoot, "data")));
+    }
+
     private DeploymentService CreateDeploymentService()
     {
         IDeploymentRepository deploymentRepository = new DeploymentRepository(_dbContext);

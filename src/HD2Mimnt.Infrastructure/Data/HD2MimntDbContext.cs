@@ -86,6 +86,7 @@ public class HD2MimntDbContext : IDisposable
                 ModifiedAt TEXT NOT NULL,
                 Size INTEGER,
                 Hash TEXT,
+                ContentFingerprint TEXT,
                 ThumbnailPath TEXT,
                 Source INTEGER NOT NULL DEFAULT 0,
                 Status INTEGER NOT NULL DEFAULT 0,
@@ -171,13 +172,6 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_tasks_status ON Tasks(Status);
             CREATE INDEX IF NOT EXISTS idx_tasks_starttime ON Tasks(StartTime DESC);
 
-            CREATE TABLE IF NOT EXISTS CrashDeploymentSnapshots (
-                SessionId TEXT PRIMARY KEY,
-                StartedUtc TEXT NOT NULL,
-                KnownGood INTEGER NOT NULL DEFAULT 0,
-                SnapshotJson TEXT NOT NULL
-            );
-
             CREATE TABLE IF NOT EXISTS DeploymentRecords (
                 Id TEXT PRIMARY KEY,
                 SessionId TEXT NOT NULL,
@@ -191,6 +185,9 @@ public class HD2MimntDbContext : IDisposable
                 OptionsSnapshotJson TEXT,
                 DeploymentOrderIndex INTEGER,
                 ModVersion TEXT,
+                GamePath TEXT,
+                DeploymentOrder TEXT,
+                AppliedAt TEXT,
                 FOREIGN KEY (ProfileId) REFERENCES Profiles(Id),
                 FOREIGN KEY (ModId) REFERENCES Mods(Id)
             );
@@ -205,6 +202,9 @@ public class HD2MimntDbContext : IDisposable
                 SourcePath TEXT NOT NULL,
                 TargetPath TEXT NOT NULL,
                 Method TEXT,
+                GamePath TEXT,
+                SourceKey TEXT,
+                SourceRelativePath TEXT,
                 FOREIGN KEY (DeploymentId) REFERENCES DeploymentRecords(Id) ON DELETE CASCADE,
                 FOREIGN KEY (ModId) REFERENCES Mods(Id) ON DELETE CASCADE
             );
@@ -312,6 +312,8 @@ public class HD2MimntDbContext : IDisposable
                 IsEnabled INTEGER NOT NULL DEFAULT 0,
                 MaxTokens INTEGER NOT NULL DEFAULT 4000,
                 Temperature REAL NOT NULL DEFAULT 0.7,
+                EnableThinking INTEGER NOT NULL DEFAULT 0,
+                ThinkingEffort TEXT NOT NULL DEFAULT 'medium',
                 CreatedAt TEXT NOT NULL,
                 ModifiedAt TEXT
             );
@@ -491,6 +493,31 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_transactions_logicalmodid ON DeploymentTransactions(LogicalModId);
             CREATE INDEX IF NOT EXISTS idx_transactions_modid ON DeploymentTransactions(ModId);
             CREATE INDEX IF NOT EXISTS idx_transactions_starttime ON DeploymentTransactions(StartTime DESC);
+
+            -- 兼容性检查结果摘要：跨会话回填角标；ContentStamp 变化即视为模组内容已变更。
+            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            CREATE TABLE IF NOT EXISTS CompatibilityResults (
+                ModId TEXT PRIMARY KEY,
+                Status INTEGER NOT NULL,
+                Reason INTEGER NOT NULL,
+                UnitCount INTEGER NOT NULL,
+                ComparedUnitCount INTEGER NOT NULL,
+                HasBlockingIssues INTEGER NOT NULL,
+                ReferenceSource TEXT,
+                IssuesJson TEXT NOT NULL DEFAULT '[]',
+                CheckedAtUtc TEXT NOT NULL,
+                ContentStamp TEXT NOT NULL
+            );
+
+            -- 自动拆包 Lua 处理记录：功能关闭再开启时跳过已处理模组；ContentStamp 变化即重拆。
+            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            CREATE TABLE IF NOT EXISTS LuaExtractionResults (
+                ModId TEXT PRIMARY KEY,
+                ExtractedAtUtc TEXT NOT NULL,
+                SourceCount INTEGER NOT NULL,
+                BytecodeCount INTEGER NOT NULL,
+                ContentStamp TEXT NOT NULL
+            );
         ";
 
         using var command = connection.CreateCommand();
@@ -538,8 +565,12 @@ public class HD2MimntDbContext : IDisposable
             }
         }
 
+        // 轻量列迁移：老库补列后才能读写新字段（判重指纹、平台信息等）。
         foreach (var (table, column, type) in new[]
         {
+            // 极旧库的 Mods 表连 Hash 都没有：插入模组和判重索引都依赖该列，必须先补再建索引。
+            ("Mods", "Hash", "TEXT"),
+            ("Mods", "ContentFingerprint", "TEXT"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
@@ -548,7 +579,15 @@ public class HD2MimntDbContext : IDisposable
             ("Profiles", "DefaultMigrationStateJson", "TEXT NOT NULL DEFAULT '{}'"),
             ("DeploymentRecords", "OptionsSnapshotJson", "TEXT"),
             ("DeploymentRecords", "DeploymentOrderIndex", "INTEGER"),
-            ("DeploymentRecords", "ModVersion", "TEXT")
+            ("DeploymentRecords", "ModVersion", "TEXT"),
+            ("DeploymentRecords", "GamePath", "TEXT"),
+            ("DeploymentRecords", "DeploymentOrder", "TEXT"),
+            ("DeploymentRecords", "AppliedAt", "TEXT"),
+            ("DeploymentFiles", "GamePath", "TEXT"),
+            ("DeploymentFiles", "SourceKey", "TEXT"),
+            ("DeploymentFiles", "SourceRelativePath", "TEXT"),
+            ("AIProviderConfigs", "EnableThinking", "INTEGER NOT NULL DEFAULT 0"),
+            ("AIProviderConfigs", "ThinkingEffort", "TEXT NOT NULL DEFAULT 'medium'")
         })
         {
             using var check = connection.CreateCommand();
@@ -560,6 +599,27 @@ public class HD2MimntDbContext : IDisposable
                 alter.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {type}";
                 await alter.ExecuteNonQueryAsync(cancellationToken);
             }
+        }
+
+        // 判重按内容身份取候选行，避免每次导入扫整张 Mods 表并逐行读盘；依赖上面补的 Hash/ContentFingerprint 列。
+        using (var contentIndexes = connection.CreateCommand())
+        {
+            contentIndexes.CommandText = """
+                CREATE INDEX IF NOT EXISTS idx_mods_hash ON Mods(Hash);
+                CREATE INDEX IF NOT EXISTS idx_mods_content_fingerprint ON Mods(ContentFingerprint);
+                """;
+            await contentIndexes.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        // 这些索引依赖本次新增的列；必须在旧库补列之后创建，不能放进上方初始 SQL。
+        using (var deploymentIndexes = connection.CreateCommand())
+        {
+            deploymentIndexes.CommandText = """
+                CREATE INDEX IF NOT EXISTS idx_deployment_gamepath_mod ON DeploymentRecords(GamePath, ModId);
+                CREATE INDEX IF NOT EXISTS idx_deploymentfiles_gamepath_target ON DeploymentFiles(GamePath, TargetPath);
+                CREATE INDEX IF NOT EXISTS idx_deploymentfiles_sourcekey ON DeploymentFiles(DeploymentId, SourceKey);
+                """;
+            await deploymentIndexes.ExecuteNonQueryAsync(cancellationToken);
         }
 
         using (var checkDefault = connection.CreateCommand())

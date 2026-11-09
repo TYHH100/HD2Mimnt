@@ -19,6 +19,12 @@ public class DeploymentRecord
     public string? OptionsSnapshotJson { get; set; }
     public int? DeploymentOrderIndex { get; set; }
     public string? ModVersion { get; set; }
+    /// <summary>当前状态所属游戏安装根目录；null 表示旧记录尚未归属到某个安装。</summary>
+    public string? GamePath { get; set; }
+    /// <summary>最近一次对账使用的部署方向。</summary>
+    public string? DeploymentOrder { get; set; }
+    /// <summary>最近一次实际写入或确认保留的时间。</summary>
+    public DateTime? AppliedAt { get; set; }
     public List<DeploymentFile> Files { get; set; } = new();
 }
 
@@ -34,4 +40,10 @@ public class DeploymentFile
     public string SourcePath { get; set; } = string.Empty;
     public string TargetPath { get; set; } = string.Empty;
     public string Method { get; set; } = string.Empty;
+    /// <summary>当前状态所属游戏安装根目录。</summary>
+    public string? GamePath { get; set; }
+    /// <summary>稳定文件身份：patch:&lt;源相对路径&gt; 或 native:&lt;游戏根相对目标&gt;；旧记录可为 null。</summary>
+    public string? SourceKey { get; set; }
+    /// <summary>相对模组根目录的源路径；旧记录可为 null。</summary>
+    public string? SourceRelativePath { get; set; }
 }

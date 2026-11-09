@@ -6,21 +6,22 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Application.Localization;
-using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
-using HD2Mimnt.Infrastructure.Diagnostics;
 using HD2Mimnt.Infrastructure.Analysis;
 using HD2Mimnt.Infrastructure.Downloads;
 using HD2Mimnt.Infrastructure.Localization;
 using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.Infrastructure.Storage;
 using HD2Mimnt.Infrastructure.Migration;
+using HD2Mimnt.Infrastructure.NativeCompanion;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.Controls;
@@ -30,7 +31,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +42,6 @@ public partial class App : Avalonia.Application
     public static IServiceProvider? ServiceProvider { get; private set; }
     private RuntimeMetricsWriter? _runtimeMetricsWriter;
     private static WindowIcon? _appIcon;
-    private static int _splashClosed;
     private StorageSettingsService? _startupStorage;
 
     public override void Initialize()
@@ -112,37 +111,60 @@ public partial class App : Avalonia.Application
             Program.SetAppHost(host);
             CrashGuard.AttachLogging(host.Services);
 
+            // 每次启动写一条会话横幅：日志里能明确切分本次运行与上次运行，
+            // 版本/级别/系统走作用域字段，不占用正文。
+            var startupLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App");
+            using (startupLogger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["version"] = HD2Mimnt.Core.AppInfo.Version,
+                       ["level"] = host.Services.GetRequiredService<DiagnosticLogSettings>().MinimumLevel,
+                       ["os"] = Environment.OSVersion.Version.ToString()
+                   }))
+            {
+                startupLogger.LogInformation("===== 会话开始 =====");
+            }
+
+            desktop.ShutdownRequested += (_, _) =>
+                host.Services.GetService<ILoggerFactory>()?.CreateLogger("App")
+                    .LogInformation("===== 会话结束 =====");
+
+            // 保留天数变更后立刻清理，不必等下一次启动或跨天切换。
+            host.Services.GetRequiredService<SettingsService>().SettingChanged += (_, e) =>
+            {
+                if (e.Key != DiagnosticLogSettings.RetentionKey) return;
+                host.Services.GetService<IFileLogService>()?.TrimExpired();
+            };
+
             // 在 ViewModel/窗口构造前应用保存的语言，自动模式持续跟随系统。
             var localization = ServiceProvider.GetRequiredService<LocalizationService>();
             ServiceProvider.GetRequiredService<UiLocalization>();
             localization.StartMonitoring();
             desktop.Exit += (_, _) => localization.Dispose();
 
-            // 开屏窗口：纯展示，关闭由 Opened 事件与兜底计时器异步触发，
-            // 不参与启动流程、没有任何等待关系，结构上不可能与启动互相死锁
-            SplashWindow? splash = null;
-            long splashShownAt = Stopwatch.GetTimestamp();
-            try
-            {
-                splash = new SplashWindow();
-                splash.Show();
-                desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Splash screen failed to show: {ex}");
-            }
-
             // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
 
+            // 旧会话式部署记录先收养为当前安装状态，再做离线快照/UI 读取。
+            try
+            {
+                await ServiceProvider.GetRequiredService<DeploymentStateMigrationService>().EnsureMigratedAsync(
+                    ServiceProvider.GetRequiredService<SettingsService>().GetEffectiveGamePath(), cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<DeploymentStateMigrationService>>()
+                    ?.LogWarning(ex, "部署状态迁移失败，继续使用原记录");
+            }
+
             var taskService = ServiceProvider.GetRequiredService<TaskService>();
-            var workers = ServiceProvider.GetServices<IWorker>();
-            foreach (var worker in workers)
+            foreach (var worker in ServiceProvider.GetServices<IWorker>())
             {
                 taskService.RegisterWorker(worker);
             }
+
+            // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
+            Program.CliPipeHost = new CliCommandPipeHost(host.Services);
 
             // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
@@ -156,16 +178,7 @@ public partial class App : Avalonia.Application
             desktop.MainWindow = mainWindow;
             running = false;
             startup?.Close();
-            if (splash == null) desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
-
-            if (splash != null)
-            {
-                // 主窗口展示后关闭开屏（最短展示 1.5s）；另有 6s 兜底强制关闭，
-                // 两条路径都只是"往队列里塞一个关窗动作"，先到者生效、互不等待
-                mainWindow.Opened += (_, _) =>
-                    _ = CloseSplashAsync(desktop, splash, splashShownAt, minDisplay: true);
-                _ = CloseSplashAsync(desktop, splash, splashShownAt, forcedDelay: TimeSpan.FromSeconds(6));
-            }
+            desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
             mainWindow.Show();
 
             // 初始化 ViewModel - 使用异步启动避免死锁
@@ -196,6 +209,11 @@ public partial class App : Avalonia.Application
             await main.InitializeAsync();
             var interop = ServiceProvider!.GetRequiredService<OfflineInteropService>();
             await interop.StartAsync();
+            // 导入/部署/清理在子进程写入数据库，主进程的服务事件不会触发，任务结束后主动刷新离线快照。
+            ServiceProvider!.GetRequiredService<TaskService>().TaskCompleted += (_, args) =>
+            {
+                if (args.Task.Type is "Import" or "Deployment" or "Cleanup") interop.RequestRefresh();
+            };
             if (interop.LastError is { } interopError)
                 ServiceProvider!.GetRequiredService<NotificationService>().ShowWarning(interopError, UiLocalization.Current["Interop.Title"]);
             if (ServiceProvider?.GetRequiredService<StorageSettingsService>().StartupMessage is { } storageMessage)
@@ -215,43 +233,6 @@ public partial class App : Avalonia.Application
         {
             CrashGuard.Report(ex, "主窗口初始化失败");
         }
-    }
-
-    /// <summary>关闭开屏；两个触发路径（Opened / 兜底计时器）先到者生效，保证幂等。</summary>
-    private static async Task CloseSplashAsync(
-        IClassicDesktopStyleApplicationLifetime desktop, SplashWindow splash,
-        long splashShownAt, bool minDisplay = false, TimeSpan forcedDelay = default)
-    {
-        if (minDisplay)
-        {
-            // 最短展示 1.5s，数据库初始化太快时避免一闪而过看不到 logo
-            var elapsed = Stopwatch.GetElapsedTime(splashShownAt);
-            var minimum = TimeSpan.FromMilliseconds(1500);
-            if (elapsed < minimum)
-            {
-                await Task.Delay(minimum - elapsed);
-            }
-        }
-        else if (forcedDelay > TimeSpan.Zero)
-        {
-            await Task.Delay(forcedDelay);
-        }
-
-        if (Interlocked.Exchange(ref _splashClosed, 1) != 0)
-        {
-            return;
-        }
-
-        // Background 优先级晚于首帧渲染，无黑闪；即使启动期 UI 繁忙也只会延后、不会丢失
-        await Dispatcher.UIThread.InvokeAsync(
-            () =>
-            {
-                splash.Close();
-                // 调试器启动的进程拿不到前台激活权限，显式把主窗口提到最前
-                desktop.MainWindow?.Activate();
-                desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
-            },
-            DispatcherPriority.Background);
     }
 
     internal static WindowIcon? TryGetAppIcon()
@@ -279,6 +260,8 @@ public partial class App : Avalonia.Application
         var storageLocations = storageSettings.Current;
         var appDataPath = storageLocations.AppDataPath;
         Directory.CreateDirectory(appDataPath);
+        // 加载器识别配置：应用目录 Config/LoaderCatalog.json 默认 + <AppData>/loaders.json 覆盖，规则变化由 ruleVersion 驱动重扫。
+        HD2Mimnt.Infrastructure.Analysis.LoaderRegistry.Initialize(appDataPath);
 
         var dbPath = storageLocations.DatabasePath;
         var modsStoragePath = storageLocations.ModsPath;
@@ -295,7 +278,9 @@ public partial class App : Avalonia.Application
         services.AddLogging(builder =>
         {
             builder.AddConsole();
-            builder.AddProvider(new FileLogProvider(Path.Combine(appDataPath, "Logs", "application.log")));
+            // 按天分片 + 保留天数由 DiagnosticLogSettings 快照提供，避免写日志时读设置库。
+            builder.AddProvider(new FileLogProvider(
+                Path.Combine(appDataPath, "Logs"), "application", () => diagnosticLogSettings.RetentionDays));
             builder.AddFilter((_, level) => diagnosticLogSettings.IsEnabled(level));
         });
 
@@ -310,7 +295,17 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginPermissionRepository, PluginPermissionRepository>();
         services.AddSingleton<IPluginExecutionRepository, PluginExecutionRepository>();
         services.AddSingleton<IPlatformCredentialStore, PlatformCredentialStore>();
+        services.AddSingleton<IAIProviderConfigRepository, AIProviderConfigRepository>();
+        services.AddSingleton<IAIService, AIService>();
+
+        // 插件安全边界：密钥守卫、AI 中介、违规上报
+        services.AddSingleton<IPluginSecretGuard, PluginSecretGuard>();
+        services.AddSingleton<IPluginAiBroker, PluginAiBroker>();
+        // 会话级授权：安装时选“仅本次允许”的权限只留在内存，重启失效
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginGrantSession, HD2Mimnt.Core.Interfaces.PluginGrantSession>();
+        services.AddSingleton<IPluginSecurityReporter, PluginSecurityReporter>();
         services.AddSingleton<IPluginHostManager, PluginHostManager>();
+        services.AddSingleton<OptionTranslationService>();
 
         // 图片服务
         services.AddSingleton<IImageCacheService>(sp =>
@@ -424,6 +419,7 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton<ConflictDetectionService>();
         services.AddSingleton<IModCompatibilityAnalyzer, ModCompatibilityAnalyzer>();
+        services.AddSingleton<ICompatibilityResultStore, CompatibilityResultRepository>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("compatibility-names", (_, _) => new System.Net.Http.HttpClient
             { Timeout = TimeSpan.FromSeconds(15) });
         services.AddSingleton<ICompatibilityResourceNames>(sp => new CompatibilityResourceNameProvider(
@@ -436,6 +432,8 @@ public partial class App : Avalonia.Application
             Path.Combine(storageLocations.AppDataPath, "SoundFixBackups")));
         services.AddTransient<SoundFixViewModel>();
         services.AddSingleton<ModCompatibilityService>();
+        services.AddSingleton<ILuaExtractionStore, LuaExtractionRepository>();
+        services.AddSingleton<LuaExtractionService>();
 
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
@@ -447,27 +445,37 @@ public partial class App : Avalonia.Application
             sp.GetService<ILogger<SearchService>>()));
 
         // Task Center
-        services.AddSingleton<TaskService>();
+        services.AddSingleton<IWorkerHostManager>(sp => new WorkerHostManager(
+            sp.GetService<ILogger<WorkerHostManager>>()));
+        services.AddSingleton(sp =>
+        {
+            var taskService = new TaskService(
+                sp.GetRequiredService<ITaskRepository>(),
+                sp,
+                sp.GetRequiredService<IWorkerHostManager>());
+            // 重 IO 任务在 HD2Mimnt.Worker 独立进程执行，崩溃/卡死不影响主 UI。
+            // 注册放在 DI 工厂里，UI 测试只构建服务容器也能拿到完整任务图。
+            taskService.RegisterProcessWorker("Validation");
+            taskService.RegisterProcessWorker("Deployment");
+            taskService.RegisterProcessWorker("Cleanup");
+            taskService.RegisterProcessWorker("Import");
+            return taskService;
+        });
         services.AddSingleton<PlatformDownloadTaskRunner>();
-
-        // Workers
-        services.AddSingleton<IWorker, ImportWorker>();
-        services.AddSingleton<IWorker, ScanWorker>();
-        services.AddSingleton<IWorker, ValidationWorker>();
 
         // 部署相关（补充缺失的注册）
         services.AddSingleton<IDeploymentRepository, DeploymentRepository>();
-        services.AddSingleton<ICrashHistoryRepository>(_ => new CrashHistoryRepository(dbPath));
-        services.AddSingleton<CrashDeploymentHistoryService>();
-        services.AddSingleton<IMinidumpAnalyzer>(sp => new MinidumpStackwalkAnalyzer(
-            Path.Combine(AppContext.BaseDirectory, "Tools", "minidump-stackwalk", "minidump-stackwalk.exe"),
-            storageSettings.Current.TempPath, sp.GetService<ILogger<MinidumpStackwalkAnalyzer>>()));
-        services.AddSingleton<CrashDiagnosticsService>();
+        services.AddSingleton<DeploymentStateMigrationService>();
 
         // 注册三种部署方法
         services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, HardLinkDeploymentMethod>();
+
+        // MDL3 原生伴生组件安装（签名校验 + %LOCALAPPDATA%\MDL3 落位）。
+        services.AddSingleton(sp => new Mdl3CompanionService(
+            sp.GetService<IAuthenticodeVerifier>() ?? new AuthenticodeVerifier(),
+            sp.GetService<ILogger<Mdl3CompanionService>>()));
 
         services.AddSingleton(sp => new DeploymentService(
             sp.GetRequiredService<IProfileRepository>(),
@@ -475,8 +483,11 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IDeploymentRepository>(),
             sp.GetServices<IDeploymentMethod>(),
             sp.GetService<ILogger<DeploymentService>>(),
-            sp.GetRequiredService<CrashDeploymentHistoryService>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<DeploymentStateMigrationService>(),
+            // IAS armor 配套生成在部署成功后触发；延迟解析避免 ModService↔DeploymentService 构造环。
+            () => sp.GetService<HD2Mimnt.Core.Interfaces.IIasCompanionService>(),
+            sp.GetRequiredService<Mdl3CompanionService>()));
 
         // 新增核心服务
         services.AddSingleton(sp =>
@@ -508,7 +519,8 @@ public partial class App : Avalonia.Application
             new HD2Mimnt.Infrastructure.Interop.OfflineInteropSnapshotReader(dbPath));
         services.AddSingleton(_ => new HD2Mimnt.Infrastructure.Interop.OfflineInteropPublisher(storageSettings.BootstrapPath));
         services.AddSingleton<OfflineInteropService>();
-        services.AddSingleton<IFileLogService>(new FileLogService(appDataPath));
+        services.AddSingleton<IFileLogService>(new FileLogService(
+            Path.Combine(appDataPath, "Logs"), () => diagnosticLogSettings.RetentionDays));
 
         services.AddSingleton(sp => new GameDetectionService(
             sp.GetRequiredService<SettingsService>(),
@@ -520,6 +532,22 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
+        // 预览解析/解码/音频播放都放到独立 Worker 进程：关闭预览即终止进程，内存立即归还。
+        services.AddSingleton<PreviewWorkerSession>();
+        services.AddSingleton<IPreviewWorkerSession>(sp =>
+            sp.GetRequiredService<PreviewWorkerSession>());
+        services.AddSingleton<IModelPreviewReader>(sp =>
+            new RemoteModelPreviewReader(sp.GetRequiredService<PreviewWorkerSession>()));
+        services.AddSingleton<ModelPreviewService>();
+        services.AddSingleton<ModelPreviewViewModel>();
+
+        services.AddSingleton<IAudioPreviewReader>(sp =>
+            new RemoteAudioPreviewReader(sp.GetRequiredService<PreviewWorkerSession>()));
+        services.AddSingleton<IAudioPlaybackEngine>(sp =>
+            new RemoteAudioPlaybackEngine(sp.GetRequiredService<PreviewWorkerSession>()));
+        services.AddSingleton<HD2Mimnt.Infrastructure.AudioPreview.GameAudioBaselineProvider>();
+        services.AddSingleton<AudioPreviewService>();
+        services.AddSingleton<AudioPreviewViewModel>();
 
         // UI 层 ViewModels
         services.AddTransient(sp => new LibraryViewModel(
@@ -537,7 +565,9 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IWebsiteDownloadLauncher>(),
             sp.GetRequiredService<BrowserDownloadHandoffService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(),
-            sp.GetRequiredService<PlatformDownloadTaskRunner>()));
+            sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
+            sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
+            sp.GetRequiredService<TaskService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -547,7 +577,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
+            sp.GetRequiredService<OptionTranslationService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -563,22 +594,27 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<UiLocalization>(),
             sp.GetRequiredService<StorageSettingsService>(),
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
-            sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>()));
+            sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>(),
+            sp.GetRequiredService<AiTranslationSettingsViewModel>()));
         services.AddTransient(sp => new TaskCenterViewModel(
-            sp.GetRequiredService<TaskService>()));
+            sp.GetRequiredService<TaskService>(),
+            sp.GetRequiredService<IConfirmationService>()));
         services.AddTransient(sp => new ExternalToolsViewModel(
             sp.GetRequiredService<IExternalToolService>(),
             sp.GetRequiredService<ConfirmationService>()));
         services.AddTransient(sp => new PluginManagementViewModel(
             sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<ConfirmationService>()));
+        services.AddTransient(sp => new AiTranslationSettingsViewModel(
+            sp.GetRequiredService<IAIService>(),
+            sp.GetRequiredService<IAIProviderConfigRepository>(),
+            sp.GetRequiredService<SettingsService>()));
         services.AddTransient(sp => new BackupViewModel(
             sp.GetRequiredService<BackupService>(),
             sp.GetRequiredService<ConfirmationService>(),
             sp.GetRequiredService<NotificationService>()));
         services.AddTransient(sp => new LogViewModel(
             sp.GetRequiredService<IFileLogService>(), sp.GetRequiredService<SettingsService>()));
-        services.AddTransient<CrashDiagnosticsViewModel>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASPackageReader, HD2Mimnt.Infrastructure.Hd2IAS.PackageManifestReader>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASRuntimeInspector, HD2Mimnt.Infrastructure.Hd2IAS.RuntimeCompatibilityChecker>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2IASLuaCompiler, HD2Mimnt.Infrastructure.Hd2IAS.LuaCompilerValidator>();
@@ -599,8 +635,34 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDeploymentStore>(),
             sp.GetRequiredService<IDeploymentRepository>(), sp.GetRequiredService<ModService>()));
         services.AddTransient<Hd2IASManagementViewModel>();
+        // 新版 IAS 系统（HD2IntegratedArmorSystem）：位置/Runtime 发现 + armor 配套生成。
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IIasSystemService>(sp =>
+            new IasSystemService(sp.GetRequiredService<ModService>(), sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IIasCompanionService>(sp =>
+            new IasCompanionService(
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IIasSystemService>(),
+                sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IDeploymentRepository>(),
+                sp.GetRequiredService<SettingsService>(),
+                Path.Combine(appDataPath, "IAS-Transactions"),
+                Path.Combine(appDataPath, "Cache", "IAS-Generator"),
+                Path.Combine(appDataPath, "IAS-System", "deployment.json")));
+        services.AddTransient<IasSystemViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
+
+        // 应用自更新：检查/下载/安装编排 + "关于"页视图模型
+        services.AddKeyedSingleton<System.Net.Http.HttpClient>("app-update", (_, _) => new System.Net.Http.HttpClient());
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(sp =>
+            new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
+                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")));
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateService>(sp =>
+            new HD2Mimnt.Application.Services.AppUpdateService(
+                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(),
+                sp.GetRequiredService<IHttpDownloadService>(),
+                sp.GetRequiredService<StorageSettingsService>(),
+                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>()));
+        services.AddSingleton<AppUpdateViewModel>();
 
         services.AddTransient(sp => new MainWindowViewModel(
             sp.GetRequiredService<LibraryViewModel>(),
@@ -624,10 +686,13 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NexusModsTestService>(),
             sp.GetRequiredService<ManagerMigrationViewModel>(),
             sp.GetRequiredService<BrowseModsViewModel>(),
-            sp.GetRequiredService<CrashDiagnosticsViewModel>(),
             sp.GetRequiredService<DirectDownloadViewModel>(),
             sp.GetRequiredService<ModCreationViewModel>(),
+            // HD2IAS 管理：上游仍在内测，旧管理页重新开放入口，页内各区块默认折叠。
             sp.GetRequiredService<Hd2IASManagementViewModel>(),
-            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>()));
+            sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
+            sp.GetRequiredService<IasSystemViewModel>(),
+            sp.GetRequiredService<AppUpdateViewModel>(),
+            sp.GetRequiredService<IPluginService>()));
     }
 }

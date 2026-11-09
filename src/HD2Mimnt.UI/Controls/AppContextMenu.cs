@@ -33,6 +33,9 @@ public sealed class ContextMenuItem
 
     /// <summary>危险操作（删除等）用错误色显示。</summary>
     public bool IsDanger { get; init; }
+
+    /// <summary>禁用项（例如插件命令缺少授权）仍展示，但不可点击。</summary>
+    public bool IsEnabled { get; init; } = true;
 }
 
 /// <summary>
@@ -65,6 +68,10 @@ public static class AppContextMenu
 
             var menuItem = new FAMenuFlyoutItem { Text = definition.Header, Command = definition.Command, CommandParameter = definition.CommandParameter };
             menuItem.Bind(FAMenuFlyoutItem.TextProperty, UiLocalization.Current.TextBinding(definition.Header));
+            if (!definition.IsEnabled)
+            {
+                menuItem.IsEnabled = false;
+            }
             if (definition.IconKind is { } iconKind)
             {
                 menuItem.IconSource = new FASymbolIconSource { Symbol = new UtilityIcon { Kind = iconKind }.Symbol };

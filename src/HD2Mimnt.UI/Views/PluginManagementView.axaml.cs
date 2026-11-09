@@ -63,7 +63,7 @@ public partial class PluginManagementView : UserControl
         {
             var manifest = await vm.GetManifestPreviewAsync(path);
             if (manifest == null) return;
-            var permissionResult = await PluginPermissionDialog.ShowAsync(
+            var dialogViewModel = await PluginPermissionDialog.ShowAsync(
                 owner,
                 manifest.Name,
                 manifest.Version,
@@ -71,9 +71,18 @@ public partial class PluginManagementView : UserControl
                 manifest.Description,
                 manifest.PermissionMode.ToString(),
                 manifest.RequestedPermissions);
-            if (permissionResult == PluginPermissionDialogResult.Deny) return;
 
-            await vm.InstallPluginAsync(path);
+            if (dialogViewModel.Result == PluginPermissionDialogResult.Deny) return;
+
+            // 用户勾选的权限集合直接决定安装后的授权：
+            // 始终允许写入数据库；“仅本次允许”只在本进程有效。
+            var consent = new HD2Mimnt.Core.Interfaces.PluginInstallConsent
+            {
+                PersistGrants = dialogViewModel.Result == PluginPermissionDialogResult.AllowAlways,
+                GrantedPermissions = dialogViewModel.SelectedPermissions
+            };
+
+            await vm.InstallPluginAsync(path, consent);
         }
     }
 }

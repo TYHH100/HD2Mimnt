@@ -43,6 +43,8 @@
                   <ListBox x:Name="CompatibilityDetailsList" Grid.Row="1" ItemsSource="{Binding Details}"/>
                   <WrapPanel Grid.Row="2" IsEnabled="{Binding IsIdle}">
                     <Button x:Name="RecheckCompatibilityButton" Content="{loc:Loc Compatibility.Check}" Command="{Binding CheckCommand}" Margin="0,0,8,4"/>
+                    <Button x:Name="QuickRepairSelectedButton" Classes="accent" Content="{loc:Loc Compatibility.RepairSelected}" Command="{Binding RepairSelectedCommand}" IsEnabled="{Binding CanQuickRepairSelected}" Margin="0,0,8,4"/>
+                    <Button x:Name="QuickRepairScopeButton" Content="{loc:Loc Compatibility.RepairScope}" Command="{Binding RepairScopeCommand}" IsVisible="{Binding EnableBatchRepair}" IsEnabled="{Binding CanQuickRepairScope}" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc Compatibility.RefreshNames}" Command="{Binding RefreshNamesCommand}" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc Compatibility.CopyReport}" Click="CopyReport" Margin="0,0,0,4"/>
                   </WrapPanel>

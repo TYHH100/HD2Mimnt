@@ -25,7 +25,7 @@ public sealed partial class FluentAvaloniaUiTests
             window.Show();
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var categories = view.FindControl<ListBox>("SettingsCategoryList")!;
-            Assert.Equal(10, categories.ItemCount);
+            Assert.Equal(11, categories.ItemCount);
             foreach (var (category, first, second) in new[]
             {
                 ("配置文件", "ProfileSettings", "DeploymentSettings"),

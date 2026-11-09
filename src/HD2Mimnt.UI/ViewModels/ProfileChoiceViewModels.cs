@@ -8,7 +8,18 @@ public partial class ProfileModLegacyChoiceViewModel : ObservableObject
     private string _name = string.Empty;
 
     [ObservableProperty]
+    private string? _translatedName;
+
+    [ObservableProperty]
     private bool _isSelected;
+
+    public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
+
+    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+    partial void OnTranslatedNameChanged(string? value) => OnPropertyChanged(nameof(DisplayName));
+
+    public void SetTranslation(string? name) =>
+        TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
 }
 
 public partial class LibraryModChoiceViewModel : ObservableObject
@@ -18,6 +29,9 @@ public partial class LibraryModChoiceViewModel : ObservableObject
     [ObservableProperty] private string _version = string.Empty;
     [ObservableProperty] private string _author = string.Empty;
 }
+
+/// <summary>配置页与弹窗共用的用户分组选择项；Id 为分隔符 ID。</summary>
+public sealed record ProfileGroupChoiceViewModel(Guid Id, string Name);
 
 public enum ProfileCompareStatus
 {

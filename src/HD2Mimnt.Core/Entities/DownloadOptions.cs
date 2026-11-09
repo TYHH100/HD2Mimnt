@@ -3,6 +3,9 @@ namespace HD2Mimnt.Core.Entities;
 /// <summary>Options for one HTTP download. Parallelism is bounded per file.</summary>
 public sealed class DownloadOptions
 {
+    public const int MaxAllowedParallelSegments = 256;
+    public const int ParallelSegmentsWarningThreshold = 64;
+
     public int MaxParallelSegments { get; init; } = 4;
     public long MinimumSegmentSize { get; init; } = 4 * 1024 * 1024;
     /// <summary>Additional attempts for transient failures of a range request.</summary>
@@ -26,7 +29,7 @@ public sealed class DownloadOptions
     public void Validate()
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(MaxParallelSegments, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(MaxParallelSegments, 16);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(MaxParallelSegments, MaxAllowedParallelSegments);
         ArgumentOutOfRangeException.ThrowIfLessThan(MinimumSegmentSize, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(MaxRetries, 0);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(MaxRetries, 10);

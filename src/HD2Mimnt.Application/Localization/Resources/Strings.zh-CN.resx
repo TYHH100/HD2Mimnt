@@ -544,10 +544,49 @@
     <value>关于 HD2Mimnt</value>
   </data>
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
-    <value>Helldivers 2 模组管理器 · 版本 0.1.0-alpha</value>
+    <value>Helldivers 2 模组管理器 · 版本 {0}</value>
   </data>
   <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
     <value>项目地址：https://github.com/TYHH100/HD2Mimnt</value>
+  </data>
+  <data name="Updates.CheckNow" xml:space="preserve">
+    <value>检查应用更新</value>
+  </data>
+  <data name="Updates.Checking" xml:space="preserve">
+    <value>正在检查更新…</value>
+  </data>
+  <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
+    <value>启动时检查更新</value>
+  </data>
+  <data name="Updates.UpToDate" xml:space="preserve">
+    <value>已是最新版本。</value>
+  </data>
+  <data name="Updates.CheckFailed" xml:space="preserve">
+    <value>检查更新失败。</value>
+  </data>
+  <data name="Updates.NewVersionAvailable" xml:space="preserve">
+    <value>发现新版本 {0}</value>
+  </data>
+  <data name="Updates.DownloadAndInstall" xml:space="preserve">
+    <value>下载并安装</value>
+  </data>
+  <data name="Updates.OpenReleasePage" xml:space="preserve">
+    <value>打开发布页</value>
+  </data>
+  <data name="Updates.Downloading" xml:space="preserve">
+    <value>正在下载更新，完成后将自动重启安装…</value>
+  </data>
+  <data name="Updates.ManualDownloadHint" xml:space="preserve">
+    <value>该版本未找到自动安装包，请前往发布页手动下载。</value>
+  </data>
+  <data name="Updates.NotificationTitle" xml:space="preserve">
+    <value>HD2Mimnt 更新</value>
+  </data>
+  <data name="Updates.NotificationBody" xml:space="preserve">
+    <value>发现新版本 {0}。</value>
+  </data>
+  <data name="Updates.NotificationAction" xml:space="preserve">
+    <value>前往更新</value>
   </data>
   <data name="UI.PluginManagement" xml:space="preserve">
     <value>插件管理</value>
@@ -596,6 +635,24 @@
   </data>
   <data name="UI.PluginPermissionRequest" xml:space="preserve">
     <value>插件权限请求</value>
+  </data>
+  <data name="UI.PluginCommandResult" xml:space="preserve">
+    <value>插件命令结果</value>
+  </data>
+  <data name="UI.PluginCommandNeedsPermission" xml:space="preserve">
+    <value>需要授权</value>
+  </data>
+  <data name="UI.MarkdownSource" xml:space="preserve">
+    <value>原文</value>
+  </data>
+  <data name="UI.MarkdownRendered" xml:space="preserve">
+    <value>渲染视图</value>
+  </data>
+  <data name="UI.PluginThemeReset" xml:space="preserve">
+    <value>恢复默认主题</value>
+  </data>
+  <data name="UI.PluginThemeActive" xml:space="preserve">
+    <value>当前主题：{0}</value>
   </data>
   <data name="UI.ThisPluginRequestsAccessToSystemResources" xml:space="preserve">
     <value>此插件请求访问系统资源的权限。</value>
@@ -855,7 +912,7 @@
     <value>从下到上部署</value>
   </data>
   <data name="UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie" xml:space="preserve">
-    <value>关闭时从上到下部署。Lua 分组随方向置顶或置底：依赖 → BSL / MDL → SmoothBoot，SmoothBoot 优先级最高。</value>
+    <value>关闭时从上到下部署。Lua 分组随方向置顶或置底：依赖 → BSL / MDL / Boot Mod Loader → SmoothBoot，SmoothBoot 优先级最高。</value>
   </data>
   <data name="UI.ShowModThumbnails" xml:space="preserve">
     <value>显示模组缩略图</value>
@@ -870,7 +927,10 @@
     <value>每个文件的并发连接数</value>
   </data>
   <data name="UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles" xml:space="preserve">
-    <value>服务器支持分段时使用；文件较小时自动减少连接。</value>
+    <value>服务器支持分段时使用；范围 1–256，超过 64 时会提示。文件较小时自动减少连接。</value>
+  </data>
+  <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
+    <value>下载设置已保存；并发连接数超过 64，可能被服务器限速或拒绝，建议保持在 64 以内。</value>
   </data>
   <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
     <value>最小分段大小（MiB）</value>
@@ -964,6 +1024,21 @@
   </data>
   <data name="UI.FailedToLoadTaskCenter" xml:space="preserve">
     <value>任务中心加载失败</value>
+  </data>
+  <data name="UI.ClearCompletedTasks" xml:space="preserve">
+    <value>清空已完成任务</value>
+  </data>
+  <data name="UI.ClearCompletedTasksHint" xml:space="preserve">
+    <value>只删除已结束的任务记录，运行中的任务不受影响</value>
+  </data>
+  <data name="UI.ConfirmClearCompletedTasks" xml:space="preserve">
+    <value>将永久删除所有已结束的任务记录，运行中的任务不受影响。确定继续吗？</value>
+  </data>
+  <data name="UI.DeleteTaskRecord" xml:space="preserve">
+    <value>删除任务记录</value>
+  </data>
+  <data name="UI.FailedToDeleteTask" xml:space="preserve">
+    <value>删除任务失败：{0}</value>
   </data>
   <data name="UI.NexusModsLinkHandler" xml:space="preserve">
     <value>N 网链接接收</value>
@@ -1913,10 +1988,7 @@
     <value>批量移除模组失败: {0}</value>
   </data>
   <data name="UI.LoaderDependenciesAndBSLMDL" xml:space="preserve">
-    <value>依赖加载器的模组与 BSL / MDL</value>
-  </data>
-  <data name="UI.DependenciesBSLMDLChooseOneSmoothBootHighestPriorityFollowsDeploymentD" xml:space="preserve">
-    <value>依赖加载器的模组 → BSL / MDL（二选一）→ SmoothBoot（最高优先级）· 按部署方向排列</value>
+    <value>依赖加载器的模组与 Lua 加载器</value>
   </data>
   <data name="UI.All" xml:space="preserve">
     <value>全部</value>
@@ -2083,15 +2155,6 @@
     <value>
 
 详细信息请查看“冲突”页。</value>
-  </data>
-  <data name="UI.SmoothBootHighestPriority" xml:space="preserve">
-    <value>SmoothBoot · 最高优先级</value>
-  </data>
-  <data name="UI.BSLMDLFixedAfterDependencies" xml:space="preserve">
-    <value>BSL / MDL · 固定在依赖之后</value>
-  </data>
-  <data name="UI.LoaderDependency" xml:space="preserve">
-    <value>依赖加载器</value>
   </data>
   <data name="UI.CacheInformationNotLoaded" xml:space="preserve">
     <value>缓存信息未加载</value>
@@ -2307,7 +2370,7 @@
     <value>{0} 等 {1} 个模组</value>
   </data>
   <data name="UI.ReleaseToPlaceBeforeTheBSLSeparator" xml:space="preserve">
-    <value>松开放到 BSL 分隔符之前</value>
+    <value>松开放到 Lua 分组之前</value>
   </data>
   <data name="UI.ChooseBackgroundImage" xml:space="preserve">
     <value>选择背景图片</value>
@@ -2329,6 +2392,12 @@
   </data>
   <data name="Options.System" xml:space="preserve">
     <value>跟随系统</value>
+  </data>
+  <data name="Options.Ore" xml:space="preserve">
+    <value>矿石风</value>
+  </data>
+  <data name="Options.Helldivers" xml:space="preserve">
+    <value>绝地潜兵风</value>
   </data>
   <data name="Options.Comfortable" xml:space="preserve">
     <value>舒适</value>
@@ -2375,6 +2444,9 @@
   <data name="Shell.NotDeployed" xml:space="preserve">
     <value>未部署</value>
   </data>
+  <data name="Shell.PartiallyDeployed" xml:space="preserve">
+    <value>部分部署</value>
+  </data>
   <data name="Shell.Idle" xml:space="preserve">
     <value>空闲</value>
   </data>
@@ -2404,6 +2476,21 @@
   </data>
   <data name="Task.ForceTerminated" xml:space="preserve">
     <value>已强制终止</value>
+  </data>
+  <data name="Task.ValidateLibrary" xml:space="preserve">
+    <value>校验模组库</value>
+  </data>
+  <data name="Task.ValidateLibraryHint" xml:space="preserve">
+    <value>在独立后台进程中校验模组库中的全部模组</value>
+  </data>
+  <data name="Task.ForceTerminate" xml:space="preserve">
+    <value>强制终止</value>
+  </data>
+  <data name="Task.ForceTerminateHint" xml:space="preserve">
+    <value>任务无响应时直接终止其工作进程</value>
+  </data>
+  <data name="Task.ForceTerminateConfirm" xml:space="preserve">
+    <value>确定强制终止该任务吗？将立即结束其工作进程，未完成的操作可能留下部分结果。</value>
   </data>
   <data name="Plugin.FullAccess" xml:space="preserve">
     <value>完全访问</value>
@@ -3105,195 +3192,6 @@
   <data name="Browse.InvalidLink" xml:space="preserve">
     <value>请输入 Helldivers 2 模组页面链接，例如 https://www.nexusmods.com/helldivers2/mods/16633。</value>
   </data>
-  <data name="Crash.Title" xml:space="preserve">
-    <value>游戏崩溃排查</value>
-  </data>
-  <data name="Crash.Description" xml:space="preserve">
-    <value>离线分析本地崩溃转储，比较崩溃前的部署变化。线索用于决定优先测试哪些模组，不能直接证明崩溃原因。</value>
-  </data>
-  <data name="Crash.ToolMissing" xml:space="preserve">
-    <value>内置分析工具缺失，请恢复安装包中的 Tools/minidump-stackwalk。</value>
-  </data>
-  <data name="Crash.Path" xml:space="preserve">
-    <value>崩溃转储文件路径（.dmp / .mdmp）</value>
-  </data>
-  <data name="Crash.Browse" xml:space="preserve">
-    <value>选择转储</value>
-  </data>
-  <data name="Crash.RecentDumps" xml:space="preserve">
-    <value>最近的游戏转储</value>
-  </data>
-  <data name="Crash.Refresh" xml:space="preserve">
-    <value>刷新转储与部署历史</value>
-  </data>
-  <data name="Crash.Analyze" xml:space="preserve">
-    <value>分析崩溃</value>
-  </data>
-  <data name="Crash.Export" xml:space="preserve">
-    <value>导出 JSON 报告</value>
-  </data>
-  <data name="Crash.History" xml:space="preserve">
-    <value>最近部署与正常基准</value>
-  </data>
-  <data name="Crash.HistoryHelp" xml:space="preserve">
-    <value>从现在开始记录部署快照，清理部署后仍保留。确认某次部署在游戏中正常运行后，选中并标记为正常。请先在设置中配置游戏路径。</value>
-  </data>
-  <data name="Crash.KnownGood" xml:space="preserve">
-    <value>已由你确认正常</value>
-  </data>
-  <data name="Crash.MarkGood" xml:space="preserve">
-    <value>将选中部署标记为正常</value>
-  </data>
-  <data name="Crash.Found" xml:space="preserve">
-    <value>找到 {0} 份转储、{1} 次部署快照。</value>
-  </data>
-  <data name="Crash.Complete" xml:space="preserve">
-    <value>分析完成。</value>
-  </data>
-  <data name="Crash.MarkedGood" xml:space="preserve">
-    <value>已保存正常基准，请重新分析转储以更新对比。</value>
-  </data>
-  <data name="Crash.Exported" xml:space="preserve">
-    <value>已导出报告：{0}</value>
-  </data>
-  <data name="Crash.Working" xml:space="preserve">
-    <value>正在处理…</value>
-  </data>
-  <data name="Crash.Cancelled" xml:space="preserve">
-    <value>已取消，分析进程已停止。</value>
-  </data>
-  <data name="Crash.Failed" xml:space="preserve">
-    <value>操作失败：{0}</value>
-  </data>
-  <data name="Crash.Unknown" xml:space="preserve">
-    <value>未知</value>
-  </data>
-  <data name="Crash.NotGame" xml:space="preserve">
-    <value>未确认主模块是 helldivers2.exe，不进行游戏模组归因。</value>
-  </data>
-  <data name="Crash.ModClues" xml:space="preserve">
-    <value>发现模组相关模块线索，需要复现确认。</value>
-  </data>
-  <data name="Crash.Inconclusive" xml:space="preserve">
-    <value>证据不足，无法确定是否由模组导致。</value>
-  </data>
-  <data name="Crash.Details" xml:space="preserve">
-    <value>异常：{0}
-地址：{1}
-主模块：{2}
-转储时间：{3}</value>
-  </data>
-  <data name="Crash.ManagedModuleInStack" xml:space="preserve">
-    <value>{0} 出现在崩溃线程，并与当前部署文件名匹配：{1}。文件名匹配只是线索，未验证二进制身份。</value>
-  </data>
-  <data name="Crash.ManagedModuleLoaded" xml:space="preserve">
-    <value>{0} 已加载，与部署文件名匹配：{1}。仅已加载不能证明致因。</value>
-  </data>
-  <data name="Crash.PossibleHookLoaded" xml:space="preserve">
-    <value>{0} 使用常见代理／注入 DLL 名称，也可能是系统 DLL，归属未知。</value>
-  </data>
-  <data name="Crash.Ambiguous" xml:space="preserve">
-    <value>存在同名模块，无法确定归属。</value>
-  </data>
-  <data name="Crash.ScanFrame" xml:space="preserve">
-    <value>包含扫描推测栈帧，可靠性较低。</value>
-  </data>
-  <data name="Crash.MissingSymbols" xml:space="preserve">
-    <value>缺少函数符号或栈帧。资源模组和 Lua 脚本通常无法仅凭 DLL 名称定位。</value>
-  </data>
-  <data name="Crash.LaterDeployment" xml:space="preserve">
-    <value>当前部署晚于转储，已排除其 DLL 归属判断。</value>
-  </data>
-  <data name="Crash.NoTimestamp" xml:space="preserve">
-    <value>转储时间缺失，无法可靠匹配部署历史。</value>
-  </data>
-  <data name="Crash.ContextFailed" xml:space="preserve">
-    <value>部署上下文读取不完整：{0}</value>
-  </data>
-  <data name="Crash.Deployment" xml:space="preserve">
-    <value>崩溃前部署：{0}（{1}）</value>
-  </data>
-  <data name="Crash.GoodBaseline" xml:space="preserve">
-    <value>对比已确认正常部署：{0}</value>
-  </data>
-  <data name="Crash.PreviousBaseline" xml:space="preserve">
-    <value>对比上一次完成部署：{0}</value>
-  </data>
-  <data name="Crash.UnverifiedBaseline" xml:space="preserve">
-    <value>上一次部署尚未确认正常，差异仅用于安排排查优先级。</value>
-  </data>
-  <data name="Crash.NoBaseline" xml:space="preserve">
-    <value>没有更早的对比基准，请在游戏验证后标记正常部署。</value>
-  </data>
-  <data name="Crash.IncompleteDeployment" xml:space="preserve">
-    <value>该次部署未完成或在崩溃时仍在进行，先检查部署错误。</value>
-  </data>
-  <data name="Crash.NoHistory" xml:space="preserve">
-    <value>此转储之前没有匹配的部署快照，不能用当前配置补造过去的状态。</value>
-  </data>
-  <data name="Crash.Change" xml:space="preserve">
-    <value>{0}：{1}</value>
-  </data>
-  <data name="Crash.ChangeAdded" xml:space="preserve">
-    <value>新增／启用</value>
-  </data>
-  <data name="Crash.ChangeUpdated" xml:space="preserve">
-    <value>版本、哈希或文件元数据改变</value>
-  </data>
-  <data name="Crash.ChangeOptionsChanged" xml:space="preserve">
-    <value>选项改变</value>
-  </data>
-  <data name="Crash.ChangeOrderChanged" xml:space="preserve">
-    <value>相对顺序改变</value>
-  </data>
-  <data name="Crash.ChangeRemoved" xml:space="preserve">
-    <value>移除／停用（可能影响依赖）</value>
-  </data>
-  <data name="Crash.ChangesTitle" xml:space="preserve">
-    <value>优先排查的部署变化</value>
-  </data>
-  <data name="Crash.NoChanges" xml:space="preserve">
-    <value>没有可列出的变化，可能缺少基准或部署相同，不能据此排除模组。</value>
-  </data>
-  <data name="Crash.CluesTitle" xml:space="preserve">
-    <value>模块线索</value>
-  </data>
-  <data name="Crash.NoClues" xml:space="preserve">
-    <value>没有可关联的模块线索，资源模组仍可能相关。</value>
-  </data>
-  <data name="Crash.NextSteps" xml:space="preserve">
-    <value>建议复现步骤</value>
-  </data>
-  <data name="Crash.Steps" xml:space="preserve">
-    <value>1. 用已确认正常的部署或干净游戏基准复现相同场景。
-2. 优先测试新增或改动的模组，每次停用一半候选并重新部署；加载器与必需依赖保持成组。
-3. 多次复现，记录哪组组合消除崩溃、重新启用后是否恢复崩溃。
-DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他工具的部署和之后手动修改不在此时间线内。</value>
-  </data>
-  <data name="Crash.Stack" xml:space="preserve">
-    <value>崩溃线程（最多 128 帧）</value>
-  </data>
-  <data name="Crash.Modules" xml:space="preserve">
-    <value>已加载模块</value>
-  </data>
-  <data name="Crash.StatusCompleted" xml:space="preserve">
-    <value>已完成</value>
-  </data>
-  <data name="Crash.StatusDeploying" xml:space="preserve">
-    <value>部署中</value>
-  </data>
-  <data name="Crash.StatusPartiallyFailed" xml:space="preserve">
-    <value>部分失败</value>
-  </data>
-  <data name="Crash.StatusFailed" xml:space="preserve">
-    <value>失败</value>
-  </data>
-  <data name="Crash.StatusCancelled" xml:space="preserve">
-    <value>已取消</value>
-  </data>
-  <data name="Crash.StatusInProgressAtCrash" xml:space="preserve">
-    <value>崩溃时尚未完成</value>
-  </data>
   <data name="Interop.Title" xml:space="preserve">
     <value>离线模组接口</value>
   </data>
@@ -3627,7 +3525,9 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Settings.Entries.Saved" xml:space="preserve"><value>入口显示设置已保存并生效</value></data>
   <data name="Settings.Entries.Reset" xml:space="preserve"><value>已恢复显示全部入口</value></data>
   <data name="Settings.Profiles.LockLoaders" xml:space="preserve"><value>锁定加载器</value></data>
-  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>默认开启：固定 Lua 依赖、BSL/MDL 和 SmoothBoot 分组及位置。关闭后可像普通模组一样选择和排序，部署遵循保存的顺序；BSL 与 MDL 仍为二选一。</value></data>
+  <data name="Settings.Profiles.LockLoadersHelp" xml:space="preserve"><value>默认开启：固定 Lua 依赖、BSL/MDL/Boot Mod Loader、Chef Shared Loader 和 SmoothBoot 的分组及位置。关闭后可像普通模组一样选择和排序，部署遵循保存的顺序，也不再强制 Lua 依赖或 SmoothBoot 必须搭配宿主加载器；BSL、MDL 与 Boot Mod Loader 仍为三选一，Chef Shared Loader 和 MDL3 可与 Boot Mod Loader 同时启用并固定在其之前。</value></data>
+  <data name="Settings.Profiles.FreeLoaderOrder" xml:space="preserve"><value>自由排序（保留分组）</value></data>
+  <data name="Settings.Profiles.FreeLoaderOrderHelp" xml:space="preserve"><value>仅在“锁定加载器”开启时可用：Lua 依赖和加载器分组仍会显示并自动归类，但所有模组（包括加载器）都可拖到任意位置；部署按保存后的顺序执行，也不再强制 Lua 依赖或 SmoothBoot 必须搭配宿主加载器。</value></data>
   <data name="Browse.ModNotPublished" xml:space="preserve"><value>此模组尚未发布。请稍后重试，或在 N 网查看发布状态。</value></data>
   <data name="Browse.ModUnavailable" xml:space="preserve"><value>N 网返回此模组目前不可用。请在 N 网查看状态并稍后重试；API 未说明具体原因。</value></data>
   <data name="Logs.Help" xml:space="preserve"><value>选择日志查看完整内容；筛选只影响显示。记录级别在“设置 → 日志”中配置。</value></data>
@@ -3641,6 +3541,9 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Logs.CopySelected" xml:space="preserve"><value>复制当前日志</value></data>
   <data name="Logs.Recording" xml:space="preserve"><value>日志记录</value></data>
   <data name="Logs.RecordingHelp" xml:space="preserve"><value>默认记录警告及以上级别。保存后立即生效并在重启后保留；排查 API 返回时可临时选择调试（Debug）。</value></data>
+  <data name="Logs.Retention" xml:space="preserve"><value>日志保留</value></data>
+  <data name="Logs.RetentionHelp" xml:space="preserve"><value>每天生成一个日志文件，超过保留天数的旧日志会被自动清理；修改后立即生效。</value></data>
+  <data name="Logs.RetentionUnit" xml:space="preserve"><value>天</value></data>
   <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API 响应在写入日志前脱敏。更详细的级别会增加日志量；完成排查后建议恢复警告。</value></data>
   <data name="Logs.Saved" xml:space="preserve"><value>日志设置已保存并生效</value></data>
   <data name="Logs.SaveFailed" xml:space="preserve"><value>保存日志设置失败：{0}</value></data>
@@ -3958,8 +3861,15 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Creator.ExportScreenshot" xml:space="preserve"><value>导出长截图（展开全部）</value></data>
   <data name="Settings.Profiles.AutoAddImportedMods" xml:space="preserve"><value>新增模组自动加入当前启用的配置文件</value></data>
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>导入后自动加入并启用模组；没有启用的配置文件时，仅保留在模组库。</value></data>
+  <data name="Settings.Deployment.OverwriteConflicts" xml:space="preserve"><value>强制覆盖冲突的补丁文件</value></data>
+  <data name="Settings.Deployment.OverwriteConflictsHelp" xml:space="preserve"><value>默认开启。部署或重排编号时，若目标编号已被外部工具（如 HD2CharacterLibrary 生成的 Lua 补丁）占用，直接覆盖该文件；关闭后遇到占用将中止操作并提示。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>导入完成后自动关闭悬浮卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
+  <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>自动拆包 Lua 模组</value></data>
+  <data name="Settings.Library.LuaAutoExtractHelp" xml:space="preserve"><value>默认关闭。开启后自动把模组内的 Lua 脚本拆包提取到该模组文件夹下的 LuaExtracted 专用文件夹，方便之后审查；模组库中已有模组会立即补拆，已处理过的模组不会重复提取。</value></data>
+  <data name="Settings.Library.LuaExtractTitle" xml:space="preserve"><value>自动拆包 Lua</value></data>
+  <data name="Settings.Library.LuaExtractedSummary" xml:space="preserve"><value>已为 {0} 个模组提取 Lua：源码 {1} 个、字节码 {2} 个，可在各模组文件夹的 LuaExtracted 中查看。</value></data>
+  <data name="Settings.Library.LuaExtractFailed" xml:space="preserve"><value>自动拆包 Lua 失败：{0}</value></data>
   <data name="Hd2Ir.MergeDescription" xml:space="preserve"><value>这些组件将作为一个模组导入，可在配置选项中分别启停。</value></data>
   <data name="Hd2Ir.ConfirmImport" xml:space="preserve"><value>合并添加</value></data>
   <data name="Hd2Ir.Components" xml:space="preserve"><value>HD2IAS 组件</value></data>
@@ -4003,6 +3913,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.Browse" xml:space="preserve"><value>选择运行包</value></data>
   <data name="IAS.GamePath" xml:space="preserve"><value>游戏目录（来自设置）</value></data>
   <data name="IAS.Route" xml:space="preserve"><value>检查的路线</value></data>
+  <data name="IAS.InstallActions" xml:space="preserve"><value>安装操作</value></data>
   <data name="IAS.Inspect" xml:space="preserve"><value>检查运行包与安装状态</value></data>
   <data name="IAS.Working" xml:space="preserve"><value>正在校验运行包文件与游戏指纹…</value></data>
   <data name="IAS.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
@@ -4018,7 +3929,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.NoGame" xml:space="preserve"><value>尚未检查游戏兼容性。</value></data>
   <data name="IAS.Compatible" xml:space="preserve"><value>游戏指纹与所选运行包匹配。</value></data>
   <data name="IAS.Incompatible" xml:space="preserve"><value>游戏指纹缺失或不匹配，不能自动部署。</value></data>
-  <data name="IAS.DataNotVerified" xml:space="preserve"><value>data 按普通模组管理，可加入配置、启用或停用并排序。安装运行包不会直接部署 data；请在配置中保留一份兼容的 MDL 或 BSL 加载器。</value></data>
+  <data name="IAS.DataNotVerified" xml:space="preserve"><value>data 按普通模组管理，可加入配置、启用或停用并排序。安装运行包不会直接部署 data；请在配置中保留一份兼容的 MDL、BSL 或 Boot Mod Loader 加载器。</value></data>
   <data name="IAS.GameChecks" xml:space="preserve"><value>游戏兼容性指纹</value></data>
   <data name="IAS.RuntimeChecks" xml:space="preserve"><value>运行时文件（所选路线）</value></data>
   <data name="IAS.FoundationChecks" xml:space="preserve"><value>Foundation 文件</value></data>
@@ -4029,6 +3940,28 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.FileMatch" xml:space="preserve"><value>匹配</value></data>
   <data name="IAS.FileRecognizedPrevious" xml:space="preserve"><value>认可的旧哈希</value></data>
   <data name="IAS.FileUnknown" xml:space="preserve"><value>未知／不匹配</value></data>
+  <data name="IAS.LegacyTag" xml:space="preserve"><value>EAC 之前旧版 · 已废弃</value></data>
+  <data name="IasSystem.Title" xml:space="preserve"><value>HD2IAS 系统部署</value></data>
+  <data name="IasSystem.NavItem" xml:space="preserve"><value>HD2IAS 系统</value></data>
+  <data name="IasSystem.Description" xml:space="preserve"><value>调用上游生成器，把当前部署的 IAS 模组重新生成为 HD2IAS armor 配套。需要先填写 HD2IAS 系统（HD2IntegratedArmorSystem）安装位置。</value></data>
+  <data name="IasSystem.Location" xml:space="preserve"><value>HD2IAS 系统安装位置</value></data>
+  <data name="IasSystem.LocationPlaceholder" xml:space="preserve"><value>例如 D:\Games\HD2IntegratedArmorSystem</value></data>
+  <data name="IasSystem.Browse" xml:space="preserve"><value>浏览…</value></data>
+  <data name="IasSystem.RuntimeId" xml:space="preserve"><value>运行时目录（Runtime）</value></data>
+  <data name="IasSystem.NoRuntime" xml:space="preserve"><value>未找到 Runtime 目录，请确认 HD2IAS 系统已安装。</value></data>
+  <data name="IasSystem.Models" xml:space="preserve"><value>HD2IAS 模型组件</value></data>
+  <data name="IasSystem.NoModels" xml:space="preserve"><value>模组库中没有可部署的 HD2IAS 模型组件。</value></data>
+  <data name="IasSystem.FileCount" xml:space="preserve"><value>{0} 个文件</value></data>
+  <data name="IasSystem.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="IasSystem.OperationLog" xml:space="preserve"><value>操作日志</value></data>
+  <data name="IasSystem.ReadingLocation" xml:space="preserve"><value>正在读取 HD2IAS 系统位置…</value></data>
+  <data name="IasSystem.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="IasSystem.Generate" xml:space="preserve"><value>生成 Mod 配套</value></data>
+  <data name="IasSystem.Generating" xml:space="preserve"><value>正在生成 armor 配套…</value></data>
+  <data name="IasSystem.Generated" xml:space="preserve"><value>配套已生成：写入 {0} 个文件，删除 {1} 个，保留 {2} 个未变。</value></data>
+  <data name="IasSystem.SystemReady" xml:space="preserve"><value>已检测到上游 armor 组件，可直接生成配套。</value></data>
+  <data name="IasSystem.SystemMissing" xml:space="preserve"><value>未检测到上游 armor 组件；请先在 HD2IAS 应用内完成系统安装。</value></data>
+  <data name="IasSystem.SelectLocation" xml:space="preserve"><value>请先填写 HD2IAS 系统安装位置。</value></data>
   <data name="IAS.LuaRoute" xml:space="preserve"><value>Lua 路线</value></data>
   <data name="IAS.NativeRoute" xml:space="preserve"><value>Native 路线</value></data>
   <data name="IAS.Generate" xml:space="preserve"><value>生成系统 data ZIP</value></data>
@@ -4038,6 +3971,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.UpdateSource" xml:space="preserve"><value>官方 GitHub 更新记录 · 默认选择 Native 路线。</value></data>
   <data name="IAS.RefreshVersions" xml:space="preserve"><value>检查版本</value></data>
   <data name="IAS.DownloadUpdate" xml:space="preserve"><value>下载并检查</value></data>
+  <data name="IAS.CheckReport" xml:space="preserve"><value>检查报告</value></data>
   <data name="IAS.CheckingUpdates" xml:space="preserve"><value>正在读取官方更新记录…</value></data>
   <data name="IAS.Downloading" xml:space="preserve"><value>正在下载并校验更新包…</value></data>
   <data name="IAS.VersionsReady" xml:space="preserve"><value>找到 {0} 个版本，已选择最高版本；可下载或选择其他版本。</value></data>
@@ -4061,6 +3995,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="IAS.ActionReplaceRecognized" xml:space="preserve"><value>认可的旧文件 · 需要更新</value></data>
   <data name="IAS.ActionRemoveRecognized" xml:space="preserve"><value>认可的退役文件 · 需要清理</value></data>
   <data name="IAS.ActionBlockUnknown" xml:space="preserve"><value>来源未知或校验失败 · 阻止自动替换</value></data>
+  <data name="IAS.InstalledStatus" xml:space="preserve"><value>本机安装状态</value></data>
   <data name="IAS.Install" xml:space="preserve"><value>安装运行包并更新 data 模组</value></data>
   <data name="IAS.Installing" xml:space="preserve"><value>正在安装运行包并更新模组库中的 data…</value></data>
   <data name="IAS.Installed" xml:space="preserve"><value>运行包已安装，data 已保存到模组库：{0}。请通过配置文件部署。</value></data>
@@ -4078,6 +4013,7 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Compatibility.Open" xml:space="preserve"><value>打开兼容性检查</value></data>
   <data name="Compatibility.LibraryScope" xml:space="preserve"><value>模组库全部模组</value></data>
   <data name="Compatibility.SelectionScope" xml:space="preserve"><value>所选模组</value></data>
+  <data name="Compatibility.ImportScope" xml:space="preserve"><value>本次导入的模组</value></data>
   <data name="Compatibility.ProfileScope" xml:space="preserve"><value>配置：{0}</value></data>
   <data name="Compatibility.ScopeSummary" xml:space="preserve"><value>{0} 个模组 · {1} 模型通过 · {2} 需处理 · {3} 未确认 · {4} 检测失败 · {5} 无需模型检测</value></data>
   <data name="Compatibility.ModSummary" xml:space="preserve"><value>{0} · {1} · {2} 个补丁 · {3} 个 Unit · {4:yyyy-MM-dd HH:mm:ss}</value></data>
@@ -4133,8 +4069,10 @@ DLL 已加载、资源冲突或最近变更都不能单独证明原因。其他�
   <data name="Compatibility.Unknown" xml:space="preserve"><value>未确认</value></data>
   <data name="Compatibility.Error" xml:space="preserve"><value>检测失败</value></data>
   <data name="Compatibility.NotApplicable" xml:space="preserve"><value>无需模型检测</value></data>
+  <data name="Compatibility.Corrupted" xml:space="preserve"><value>补丁损坏或缺少必需的伴随文件</value></data>
   <data name="Compatibility.Scope" xml:space="preserve"><value>检测范围</value></data>
   <data name="Compatibility.NoModels" xml:space="preserve"><value>未包含模型 Unit。Lua、骨骼、动画和音效不属于此项检测范围，不执行模型修复。</value></data>
+  <data name="Compatibility.NothingToRepair" xml:space="preserve"><value>没有可执行的修复动作。</value></data>
   <data name="Compatibility.UnconfirmedReason" xml:space="preserve"><value>未确认：{0}</value></data>
   <data name="Compatibility.Reason.GamePathNotConfigured" xml:space="preserve"><value>未配置游戏目录</value></data>
   <data name="Compatibility.Reason.ReferenceUnavailable" xml:space="preserve"><value>无法读取当前游戏参考</value></data>
@@ -4175,6 +4113,8 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Title" xml:space="preserve"><value>兼容性</value></data>
   <data name="Settings.Compatibility.Startup" xml:space="preserve"><value>启动时检查模组兼容性</value></data>
   <data name="Settings.Compatibility.StartupHelp" xml:space="preserve"><value>默认关闭。保存后下次启动在后台检查全库，完成后可从通知查看结果，不会自动修复。</value></data>
+  <data name="Settings.Compatibility.AutoCheckImport" xml:space="preserve"><value>自动检查新导入的模组</value></data>
+  <data name="Settings.Compatibility.AutoCheckImportHelp" xml:space="preserve"><value>默认关闭。开启后每次导入批次完成时，在后台统一检查本次导入的模组，完成后可从通知查看结果，不会自动修复。</value></data>
   <data name="Settings.Compatibility.Batch" xml:space="preserve"><value>允许批量修复</value></data>
   <data name="Settings.Compatibility.BatchHelp" xml:space="preserve"><value>默认关闭。开启后在修复预览显示批量修复按钮，执行前仍需确认。</value></data>
   <data name="Settings.Compatibility.Help" xml:space="preserve"><value>保存后生效。单个模组检查、预览和修复始终可用，入口位于模组库、配置页和模组详情。</value></data>
@@ -4262,4 +4202,105 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Downloads.AyakaTask" xml:space="preserve">
     <value>A 网下载：{0}</value>
   </data>
+  <data name="ModelPreview.Title" xml:space="preserve"><value>模型预览</value></data>
+  <data name="ModelPreview.Loading" xml:space="preserve"><value>正在读取模型与贴图…</value></data>
+  <data name="ModelPreview.Empty" xml:space="preserve"><value>当前选项没有可预览的模型。</value></data>
+  <data name="ModelPreview.Summary" xml:space="preserve"><value>{0} 个网格 · {1:N0} 个三角形 · {2} 张贴图 · {3} 个流未加载</value></data>
+  <data name="ModelPreview.Options" xml:space="preserve"><value>模组选项</value></data>
+  <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>修改后点击“更新预览”。这里只调整预览，不会修改配置或部署文件。</value></data>
+  <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>贴图预览分辨率</value></data>
+  <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>原始分辨率</value></data>
+  <data name="ModelPreview.Apply" xml:space="preserve"><value>更新预览</value></data>
+  <data name="ModelPreview.Meshes" xml:space="preserve"><value>网格</value></data>
+  <data name="ModelPreview.ShowFiltered" xml:space="preserve"><value>显示过滤的辅助网格</value></data>
+  <data name="ModelPreview.Isolate" xml:space="preserve"><value>仅显示选中网格</value></data>
+  <data name="ModelPreview.Textures" xml:space="preserve"><value>贴图</value></data>
+  <data name="ModelPreview.Wireframe" xml:space="preserve"><value>线框</value></data>
+  <data name="ModelPreview.Alpha" xml:space="preserve"><value>使用贴图透明度</value></data>
+  <data name="ModelPreview.Grid" xml:space="preserve"><value>地面网格</value></data>
+  <data name="ModelPreview.Stocky" xml:space="preserve"><value>壮硕体型</value></data>
+  <data name="ModelPreview.ResetCamera" xml:space="preserve"><value>重置视角</value></data>
+  <data name="ModelPreview.Controls" xml:space="preserve"><value>左键拖动旋转 · 右键或中键拖动平移 · 滚轮缩放 · 双击重置</value></data>
+  <data name="ModelPreview.Limits" xml:space="preserve"><value>按当前模组选项组合预览；缺失贴图显示灰模。游戏专用材质效果不等同于游戏内画面。</value></data>
+  <data name="ModelPreview.MissingTextures" xml:space="preserve"><value>{0} 张贴图不可用（显示灰模）</value></data>
+  <data name="AudioPreview.Title" xml:space="preserve"><value>音频预览</value></data>
+  <data name="AudioPreview.Loading" xml:space="preserve"><value>正在读取音频条目…</value></data>
+  <data name="AudioPreview.Empty" xml:space="preserve"><value>当前选项没有可预览的音频。</value></data>
+  <data name="AudioPreview.LoadFailed" xml:space="preserve"><value>音频读取失败：{0}</value></data>
+  <data name="AudioPreview.PlaybackFailed" xml:space="preserve"><value>播放失败：{0}</value></data>
+  <data name="AudioPreview.Summary" xml:space="preserve"><value>{0:N0} 条音频 · {1:N0} 个音频库 · {2:N0} 个补丁</value></data>
+  <data name="AudioPreview.ModifiedCount" xml:space="preserve"><value>已替换 {0:N0} / {1:N0}</value></data>
+  <data name="AudioPreview.Modified" xml:space="preserve"><value>已替换</value></data>
+  <data name="AudioPreview.Original" xml:space="preserve"><value>原版</value></data>
+  <data name="AudioPreview.OnlyShowModified" xml:space="preserve"><value>只看已替换</value></data>
+  <data name="AudioPreview.UncomparedHint" xml:space="preserve"><value>{0:N0} 条未比对（已达比对预算）</value></data>
+  <data name="AudioPreview.NoComparison" xml:space="preserve"><value>未配置游戏目录，无法比对原版。</value></data>
+  <data name="AudioPreview.IssueNotRiff" xml:space="preserve"><value>不是 WEM 文件</value></data>
+  <data name="AudioPreview.IssueNotVorbis" xml:space="preserve"><value>不支持的编码</value></data>
+  <data name="AudioPreview.IssueTruncated" xml:space="preserve"><value>媒体不完整</value></data>
+  <data name="AudioPreview.IssueReadFailed" xml:space="preserve"><value>读取失败</value></data>
+  <data name="AudioPreview.LooseStreamsGroup" xml:space="preserve"><value>独立音频流</value></data>
+  <data name="AudioPreview.Play" xml:space="preserve"><value>播放</value></data>
+  <data name="AudioPreview.Pause" xml:space="preserve"><value>暂停</value></data>
+  <data name="AudioPreview.Stop" xml:space="preserve"><value>停止</value></data>
+  <data name="UI.ChangeImage" xml:space="preserve"><value>更换图片</value></data>
+  <data name="UI.RestoreModImage" xml:space="preserve"><value>恢复默认图片</value></data>
+  <data name="UI.EditModInfo" xml:space="preserve"><value>编辑模组信息</value></data>
+  <data name="UI.AddToSpecifiedGroup" xml:space="preserve"><value>添加到指定分组</value></data>
+  <data name="UI.AddToSpecifiedGroupEllipsis" xml:space="preserve"><value>加入指定分组…</value></data>
+  <data name="UI.SelectASingleProfileToChooseAGroup" xml:space="preserve"><value>指定分组时只能选择一个配置文件。</value></data>
+  <data name="UI.ThisProfileHasNoGroups" xml:space="preserve"><value>该配置文件还没有分组。</value></data>
+  <data name="UI.SelectedModsMoveToTheEndOfTheGroupTheDeploymentOrderChanges" xml:space="preserve"><value>选中的模组会移动到分组末尾，部署顺序将随之改变。</value></data>
+  <data name="UI.ChooseAGroupForTheImportedMods" xml:space="preserve"><value>本次导入的模组已加入当前配置，可直接选择分组；不选择则保持追加到末尾。</value></data>
+  <data name="UI.ApplyGroup" xml:space="preserve"><value>应用分组</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAdding" xml:space="preserve"><value>添加模组时可指定分组</value></data>
+  <data name="Settings.Profiles.ChooseGroupWhenAddingHelp" xml:space="preserve"><value>在模组库“加入配置文件”弹窗（仅单选配置文件）和开启导入自动添加后的完成页提供分组选择；关闭时保持追加到末尾。</value></data>
+  <data name="Settings.Profiles.PinExpandedGroups" xml:space="preserve"><value>展开的分组标题滚动时吸附在顶部</value></data>
+  <data name="Settings.Profiles.PinExpandedGroupsHelp" xml:space="preserve"><value>仅影响显示：滚动时当前展开的用户分组标题吸附在模组列表顶部，继续滚动到下一个分组时自动替换；其它标题保持原位置，模组顺序不变。可将模组拖到吸顶标题上直接加入该分组。</value></data>
+  <data name="UI.AiTranslateOptions" xml:space="preserve"><value>AI 翻译选项</value></data>
+  <data name="UI.AiTranslationCacheLoaded" xml:space="preserve"><value>已加载 {0} 条本地缓存译文。</value></data>
+  <data name="UI.AiTranslationNoText" xml:space="preserve"><value>当前选项没有可翻译的文字。</value></data>
+  <data name="UI.AiTranslationRunning" xml:space="preserve"><value>正在翻译选项...</value></data>
+  <data name="UI.AiTranslationProgress" xml:space="preserve"><value>已翻译 {0}/{1}</value></data>
+  <data name="UI.AiTranslationFromCache" xml:space="preserve"><value>已从本地缓存加载 {0} 条译文，未调用 API。</value></data>
+  <data name="UI.AiTranslationCompleted" xml:space="preserve"><value>翻译完成：本地缓存 {0} 条，API {1} 条，输入缓存命中 {2}%。</value></data>
+  <data name="UI.AiTranslationCanceled" xml:space="preserve"><value>翻译已取消。</value></data>
+  <data name="UI.AiTranslationFailed" xml:space="preserve"><value>翻译失败：{0}</value></data>
+  <data name="Settings.AiTranslation.Title" xml:space="preserve"><value>AI 服务设置</value></data>
+  <data name="Settings.AiTranslation.NavItem" xml:space="preserve"><value>AI 服务</value></data>
+  <data name="Settings.AiTranslation.Help" xml:space="preserve"><value>配置 AI 服务（内置 OpenAI、Claude、DeepSeek、本地模型或自定义兼容接口）。支持翻译模组选项、自动获取模型列表、查询 DeepSeek 余额，并可开启模型的思考模式。API Key 使用 Windows DPAPI 加密保存。</value></data>
+  <data name="Settings.AiTranslation.Provider" xml:space="preserve"><value>服务类型</value></data>
+  <data name="Settings.AiTranslation.Endpoint" xml:space="preserve"><value>API 端点</value></data>
+  <data name="Settings.AiTranslation.Model" xml:space="preserve"><value>模型</value></data>
+  <data name="Settings.AiTranslation.ApiKey" xml:space="preserve"><value>API Key</value></data>
+  <data name="Settings.AiTranslation.ApiKeyHint" xml:space="preserve"><value>尚未保存。</value></data>
+  <data name="Settings.AiTranslation.ApiKeySaved" xml:space="preserve"><value>已保存密钥；留空表示不修改。</value></data>
+  <data name="Settings.AiTranslation.TargetLanguage" xml:space="preserve"><value>目标语言</value></data>
+  <data name="Settings.AiTranslation.Test" xml:space="preserve"><value>保存并测试</value></data>
+  <data name="Settings.AiTranslation.SaveHelp" xml:space="preserve"><value>配置修改后请点击页面底部的“保存”。</value></data>
+  <data name="Settings.AiTranslation.Saved" xml:space="preserve"><value>AI 服务设置已保存。</value></data>
+  <data name="Settings.AiTranslation.InvalidEndpoint" xml:space="preserve"><value>API 端点必须是有效的 HTTP 或 HTTPS 地址。</value></data>
+  <data name="Settings.AiTranslation.InvalidModel" xml:space="preserve"><value>请填写模型名称。</value></data>
+  <data name="Settings.AiTranslation.MissingApiKey" xml:space="preserve"><value>该服务类型需要填写 API Key。</value></data>
+  <data name="Settings.AiTranslation.TestSucceeded" xml:space="preserve"><value>连接测试成功。</value></data>
+  <data name="Settings.AiTranslation.TestFailed" xml:space="preserve"><value>连接测试失败。</value></data>
+  <data name="Settings.AiTranslation.FetchModels" xml:space="preserve"><value>获取模型</value></data>
+  <data name="Settings.AiTranslation.AvailableModels" xml:space="preserve"><value>可用模型</value></data>
+  <data name="Settings.AiTranslation.ModelsFetched" xml:space="preserve"><value>已获取 {0} 个模型。</value></data>
+  <data name="Settings.AiTranslation.ModelsEmpty" xml:space="preserve"><value>服务未返回可用模型。</value></data>
+  <data name="Settings.AiTranslation.FetchModelsFailed" xml:space="preserve"><value>获取模型失败：{0}</value></data>
+  <data name="Settings.AiTranslation.Thinking" xml:space="preserve"><value>思考模式</value></data>
+  <data name="Settings.AiTranslation.ThinkingHelp" xml:space="preserve"><value>为支持思考或推理的模型开启深度思考；开启后响应更慢，部分模型会忽略温度设置。</value></data>
+  <data name="Settings.AiTranslation.Balance" xml:space="preserve"><value>账户余额</value></data>
+  <data name="Settings.AiTranslation.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="Settings.AiTranslation.BalanceLine" xml:space="preserve"><value>{0} {1}（赠金：{2}，充值：{3}）</value></data>
+  <data name="Settings.AiTranslation.BalanceEmpty" xml:space="preserve"><value>未返回余额信息</value></data>
+  <data name="Settings.AiTranslation.BalanceInsufficient" xml:space="preserve"><value>余额不足</value></data>
+  <data name="Settings.AiTranslation.BalanceFailed" xml:space="preserve"><value>查询余额失败：{0}</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort" xml:space="preserve"><value>思考强度</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffortHelp" xml:space="preserve"><value>控制模型推理的强度。不同服务支持的档位不同；强度越高通常越慢、输出 token 越多。</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Low" xml:space="preserve"><value>低</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>中</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>高</value></data>
+  <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>最高</value></data>
 </root>

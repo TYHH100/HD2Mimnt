@@ -26,6 +26,11 @@ public enum AIProviderType
     LocalLLM = 3,
 
     /// <summary>
+    /// DeepSeek (OpenAI-compatible Chat Completions)
+    /// </summary>
+    DeepSeek = 4,
+
+    /// <summary>
     /// Custom API endpoint
     /// </summary>
     Custom = 99
@@ -40,6 +45,11 @@ public enum AIContextType
     /// Translation task
     /// </summary>
     Translation,
+
+    /// <summary>
+    /// Batch translation task (multiple short texts in one request)
+    /// </summary>
+    BatchTranslation,
 
     /// <summary>
     /// Mod analysis and explanation
@@ -64,5 +74,10 @@ public enum AIContextType
     /// <summary>
     /// Security check
     /// </summary>
-    SecurityCheck
+    SecurityCheck,
+
+    /// <summary>
+    /// 插件发起的通用文本请求；由主程序代发，提示词需经安全扫描。
+    /// </summary>
+    PluginRequest
 }

@@ -182,6 +182,28 @@ public class SymbolicLinkDeploymentMethod : IDeploymentMethod
     }
 
     /// <summary>
+    /// 判断目标是否仍是指向源文件的符号链接。
+    /// </summary>
+    public Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            if (!File.Exists(sourcePath) || string.IsNullOrWhiteSpace(targetPath)) return Task.FromResult(false);
+            var linkTarget = new FileInfo(targetPath).LinkTarget;
+            if (linkTarget == null) return Task.FromResult(false);
+            var expected = Path.GetFullPath(sourcePath);
+            var actual = Path.GetFullPath(linkTarget, Path.GetDirectoryName(targetPath) ?? Directory.GetCurrentDirectory());
+            return Task.FromResult(actual.Equals(expected, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(false);
+        }
+    }
+
+    /// <summary>
     /// 清理已部署的符号链接
     /// </summary>
     /// <param name="targetPath">目标文件路径</param>

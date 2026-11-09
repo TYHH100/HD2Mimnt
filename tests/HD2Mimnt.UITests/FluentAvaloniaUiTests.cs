@@ -1251,6 +1251,226 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ProfileRightClick_ShouldMoveModIntoSpecifiedGroupThroughDialog()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "武器", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var mods = vm.ProfileMods.ToArray();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            Border Card(ProfileModViewModel mod) => view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, mod));
+            var card = Card(mods[0]);
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == mods[0].ModName);
+            var point = title.TranslatePoint(new Point(15, 8), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Dispatcher.UIThread.RunJobs();
+            var menu = Assert.IsType<FAMenuFlyout>(card.ContextFlyout);
+            Assert.True(menu.IsOpen);
+            await Task.Delay(50);
+            Dispatcher.UIThread.RunJobs();
+            var item = Assert.Single(menu.Items.OfType<FAMenuFlyoutItem>(), entry => entry.Text == "加入指定分组…");
+            var popup = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(item));
+            popup.UpdateLayout();
+            var itemPoint = item.TranslatePoint(new Point(20, 12), popup)!.Value;
+            popup.MouseMove(itemPoint);
+            popup.MouseDown(itemPoint, MouseButton.Left);
+            popup.MouseUp(itemPoint, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(vm.IsAddToGroupDialogOpen);
+            var surface = view.FindControl<Border>("AddToGroupDialogSurface")!;
+            Assert.True(surface.IsEffectivelyVisible);
+            Assert.Equal(separator.Id, Assert.Single(vm.AddToGroupChoices).Id);
+            Assert.NotNull(surface.GetVisualDescendants().OfType<ComboBox>().Single().SelectedItem);
+            var addButton = surface.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "加入"));
+            window.UpdateLayout();
+            var addPoint = addButton.TranslatePoint(new Point(20, 12), window)!.Value;
+            window.MouseMove(addPoint);
+            window.MouseDown(addPoint, MouseButton.Left);
+            window.MouseUp(addPoint, MouseButton.Left);
+            for (var attempt = 0; attempt < 100 && vm.IsAddToGroupDialogOpen; attempt++) await Task.Delay(20);
+
+            Assert.False(vm.IsAddToGroupDialogOpen);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                vm.ProfileMods.Select(mod => mod.ModId));
+            Assert.Contains(mods[0], vm.ProfileMods);
+            var group = vm.ProfileSeparators.Single(row => row.ModId == separator.Id);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                vm.GetSeparatorMembers(group).Select(row => row.ModId));
+            var persisted = await profiles.GetProfileByIdAsync(profileId);
+            Assert.Equal(new[] { mods[1].ModId, mods[2].ModId, mods[0].ModId },
+                persisted!.Mods.OrderBy(mod => mod.Order).Select(mod => mod.ModId));
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task StickyGroupHeader_ShouldFollowScrollAndSwitchAtNextGroup()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        await data.ImportGeneratedModsAsync(Enumerable.Range(1, 9).Select(index => new Mod
+        {
+            Name = $"HD2Mimnt Test Sticky {index:00}", Author = "Helldivers", Version = "1.0.0",
+            Path = Path.Combine(scope.Root, "sticky", index.ToString())
+        }));
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var existingIds = (await profiles.GetProfileByIdAsync(profileId))!.Mods.Select(row => row.ModId).ToHashSet();
+        foreach (var mod in (await data.GetAllModsAsync()).Where(mod => !existingIds.Contains(mod.Id)))
+            await profiles.AddModToProfileAsync(profileId, mod.Id);
+        await scope.Services.GetRequiredService<SettingsService>()
+            .SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        await profiles.AddSeparatorAsync(profileId, "第一组", 1);
+        await profiles.AddSeparatorAsync(profileId, "第二组", 6);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 600 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var scroll = view.FindControl<ScrollViewer>("ModScrollViewer")!;
+            var host = view.FindControl<Control>("StickyGroupHeaderHost")!;
+            var firstRow = vm.ProfileSeparators.Single(row => row.ModName == "第一组");
+            var secondRow = vm.ProfileSeparators.Single(row => row.ModName == "第二组");
+
+            Assert.False(host.IsEffectivelyVisible);
+            scroll.Offset = new Vector(0, 160);
+            Layout();
+            Assert.Same(firstRow, vm.StickyGroupHeader);
+            Assert.True(host.IsEffectivelyVisible);
+            var firstHeaderText = host.GetVisualDescendants().OfType<TextBlock>()
+                .First(text => text.Text == firstRow.ModName);
+            Assert.True(firstHeaderText.IsEffectivelyVisible);
+
+            for (var offset = 200d; offset <= scroll.Extent.Height; offset += 40)
+            {
+                scroll.Offset = new Vector(0, offset);
+                Layout();
+                if (ReferenceEquals(vm.StickyGroupHeader, secondRow)) break;
+            }
+            Assert.Same(secondRow, vm.StickyGroupHeader);
+            Assert.Contains(host.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == secondRow.ModName);
+
+            scroll.Offset = new Vector(0, 0);
+            Layout();
+            Assert.Null(vm.StickyGroupHeader);
+            Assert.False(host.IsEffectivelyVisible);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task StickyGroupHeader_ShouldAcceptDraggedModOnDrop()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var data = scope.Services.GetRequiredService<TestDataService>();
+        await data.ImportGeneratedModsAsync(Enumerable.Range(1, 9).Select(index => new Mod
+        {
+            Name = $"HD2Mimnt Test Sticky Drop {index:00}", Author = "Helldivers", Version = "1.0.0",
+            Path = Path.Combine(scope.Root, "sticky-drop", index.ToString())
+        }));
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var existingIds = (await profiles.GetProfileByIdAsync(profileId))!.Mods.Select(row => row.ModId).ToHashSet();
+        foreach (var mod in (await data.GetAllModsAsync()).Where(mod => !existingIds.Contains(mod.Id)))
+            await profiles.AddModToProfileAsync(profileId, mod.Id);
+        await scope.Services.GetRequiredService<SettingsService>()
+            .SetSettingAsync(SettingKeys.ProfilesPinExpandedGroups, true);
+        var separator = await profiles.AddSeparatorAsync(profileId, "拖放目标", 1);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.ProfileViewModel.LoadProfilesCommand.ExecuteAsync(null);
+        main.SelectedTabIndex = 0;
+        var vm = main.ProfileViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 600 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+            }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var scroll = view.FindControl<ScrollViewer>("ModScrollViewer")!;
+            var list = view.FindControl<ItemsControl>("ModItemsControl")!;
+            var host = view.FindControl<Control>("StickyGroupHeaderHost")!;
+            scroll.Offset = new Vector(0, 160);
+            Layout();
+            var groupRow = vm.ProfileSeparators.Single(row => row.ModId == separator.Id);
+            Assert.Same(groupRow, vm.StickyGroupHeader);
+            Assert.True(host.IsEffectivelyVisible);
+            var members = vm.GetSeparatorMembers(groupRow);
+            var memberSet = members.ToHashSet();
+            var lastMember = members[^1];
+            var hostBottom = host.TranslatePoint(new Point(0, host.Bounds.Height), window)!.Value.Y;
+            Control? source = null;
+            ProfileModViewModel? moving = null;
+            foreach (var container in list.GetRealizedContainers())
+            {
+                if (container.DataContext is not ProfileModViewModel row || !memberSet.Contains(row)
+                    || ReferenceEquals(row, lastMember)) continue;
+                if (container.TranslatePoint(new Point(container.Bounds.Width / 2, container.Bounds.Height / 2), window) is not { } point
+                    || point.Y <= hostBottom + 8 || point.Y >= window.Bounds.Height - 20) continue;
+                source = container;
+                moving = row;
+                break;
+            }
+            Assert.NotNull(source);
+            Assert.NotNull(moving);
+            var sourcePoint = source.TranslatePoint(new Point(source.Bounds.Width / 2, source.Bounds.Height / 2), window)!.Value;
+            var hostPoint = host.TranslatePoint(new Point(host.Bounds.Width / 2, host.Bounds.Height / 2), window)!.Value;
+
+            window.MouseDown(sourcePoint, MouseButton.Left);
+            window.MouseMove(sourcePoint + new Vector(0, 12), RawInputModifiers.LeftMouseButton);
+            window.MouseMove(hostPoint, RawInputModifiers.LeftMouseButton);
+            Layout();
+
+            Assert.True(groupRow.IsGroupDropTarget);
+            Assert.True(view.FindControl<Border>("SortDragGhost")!.IsVisible);
+
+            window.MouseUp(hostPoint, MouseButton.Left);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (!ReferenceEquals(vm.ProfileMods.LastOrDefault(), moving))
+                await Task.Delay(10, timeout.Token);
+            Layout();
+            Assert.Same(moving, vm.ProfileMods.Last());
+            Assert.Equal(moving.ModId, vm.GetSeparatorMembers(vm.ProfileSeparators.Single()).Last().ModId);
+            var saved = (await profiles.GetProfileByIdAsync(profileId))!;
+            Assert.Equal(moving.ModId, saved.Mods.OrderBy(row => row.Order).Last().ModId);
+            Assert.False(view.FindControl<Border>("SortDragGhost")!.IsVisible);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task ProfileCards_ShouldMarkLuaResourcesAndKeepOrdinaryModsUnmarked()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);
@@ -1285,7 +1505,8 @@ public sealed partial class FluentAvaloniaUiTests
                 Capture(window, theme.ToString(), "profile-lua-mods");
             }
             foreach (var role in new[] { HD2Mimnt.Core.Enums.BslModRole.Dependency, HD2Mimnt.Core.Enums.BslModRole.Loader,
-                         HD2Mimnt.Core.Enums.BslModRole.MdlLoader, HD2Mimnt.Core.Enums.BslModRole.SmoothBoot })
+                         HD2Mimnt.Core.Enums.BslModRole.MdlLoader, HD2Mimnt.Core.Enums.BslModRole.BmlLoader,
+                         HD2Mimnt.Core.Enums.BslModRole.SmoothBoot })
                 Assert.True(new ProfileModViewModel { BslRole = role }.IsLuaMod);
             Assert.False(new ProfileModViewModel { IsSeparator = true }.IsLuaMod);
         }
@@ -1624,10 +1845,15 @@ public sealed partial class FluentAvaloniaUiTests
                 var before = File.ReadAllText(target);
                 File.AppendAllText(sourcePatch, " changed");
                 Assert.Equal(method == HD2Mimnt.Core.Enums.DeploymentMethod.HardLink ? before + " changed" : before, File.ReadAllText(target));
-                Assert.Equal(6, Directory.GetFiles(Path.Combine(game, "data")).Length);
+                Assert.Equal(2, Directory.GetFiles(Path.Combine(game, "data")).Length);
                 Assert.Empty(Directory.GetFiles(game));
                 Assert.Equal(activeId, (await profiles.GetActiveProfileAsync())!.Id);
             }
+
+            // 部署结果由发起浮层提示，后台任务不再重复弹通用完成通知。
+            await main.WaitForRefreshesAsync();
+            Assert.DoesNotContain(services.GetRequiredService<NotificationService>().GetRecentNotifications(),
+                notification => notification.Title == "后台任务");
         }
         finally
         {
@@ -1727,6 +1953,52 @@ public sealed partial class FluentAvaloniaUiTests
             app.Resources["CardSurfaceOpacity"] = originalOpacity;
             app.RequestedThemeVariant = originalTheme;
         }
+    }
+
+    [AvaloniaFact]
+    public async Task AddToProfileDialog_ShouldOfferGroupSelectionWhenEnabledAndApplyIt()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = (await profiles.GetActiveProfileAsync())!.Id;
+        var separator = await profiles.AddSeparatorAsync(profileId, "武器", 1);
+        var firstId = (await profiles.GetProfileByIdAsync(profileId))!.Mods.OrderBy(item => item.Order).First().ModId;
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.LibraryViewModel.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var vm = main.LibraryViewModel;
+            var target = vm.FilteredMods.Single(mod => mod.Id == firstId);
+            await vm.OpenAddToProfileDialogCommand.ExecuteAsync(target);
+            window.UpdateLayout();
+            Assert.True(vm.ShowAddToProfileGroupPicker);
+            var overlay = window.GetVisualDescendants().OfType<LibraryView>().Single()
+                .GetVisualDescendants().OfType<HD2Mimnt.UI.Controls.AddToProfileOverlay>().Single();
+            var toggle = overlay.FindControl<CheckBox>("AddToProfileGroupToggle")!;
+            Assert.True(toggle.IsEffectivelyVisible);
+            Assert.False(vm.ChooseAddToProfileGroup);
+
+            vm.ChooseAddToProfileGroup = true;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var groupBox = overlay.FindControl<ComboBox>("AddToProfileGroupBox")!;
+            Assert.True(groupBox.IsEffectivelyVisible);
+            Assert.Equal(separator.Id, Assert.Single(vm.AddToProfileGroups).Id);
+            await vm.ConfirmAddToProfileCommand.ExecuteAsync(null);
+
+            var saved = await profiles.GetProfileByIdAsync(profileId);
+            Assert.Equal(target.Id, saved!.Mods.OrderBy(item => item.Order).Last().ModId);
+            Assert.Equal(firstId, saved.Mods.OrderBy(item => item.Order).Last().ModId);
+            Assert.Contains(saved.Mods.Where(item => item.Order >= saved.Separators.Single().Order),
+                item => item.ModId == target.Id);
+        }
+        finally { window.DataContext = null; window.Close(); }
     }
 
     [AvaloniaFact]
@@ -3549,13 +3821,13 @@ public sealed partial class FluentAvaloniaUiTests
     private sealed class UiScope : IAsyncDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), $"HD2Mimnt-FluentUi-{Guid.NewGuid():N}");
+        private string? _originalDataPath;
         public string Root => _root;
         public RecordingWebsiteLauncher WebsiteLauncher { get; } = new();
         public ServiceProvider Services { get; private set; } = null!;
 
         public static async Task<UiScope> CreateAsync(bool seedMods = false, IConfirmationService? confirmation = null,
             HttpMessageHandler? nexusHandler = null, HD2Mimnt.Core.Interfaces.ISystemLanguageProvider? systemLanguage = null,
-            HD2Mimnt.Core.Interfaces.IMinidumpAnalyzer? minidumpAnalyzer = null,
             HD2Mimnt.Core.Interfaces.IDirectDownloadClientFactory? directDownloads = null,
             NexusModsOAuthOptions? nexusOAuthOptions = null,
             HD2Mimnt.Core.Interfaces.INexusModsOAuthClient? nexusOAuthClient = null, HttpMessageHandler? ayakaHandler = null,
@@ -3567,10 +3839,16 @@ public sealed partial class FluentAvaloniaUiTests
             HD2Mimnt.Core.Interfaces.IDeploymentMethod? deploymentMethod = null,
             HD2Mimnt.Core.Interfaces.ICompatibilityResourceNames? compatibilityNames = null,
             HD2Mimnt.Core.Interfaces.IModCompatibilityAnalyzer? compatibilityAnalyzer = null,
-            HD2Mimnt.Core.Interfaces.IGameSoundBankReader? soundBanks = null)
+            HD2Mimnt.Core.Interfaces.IGameSoundBankReader? soundBanks = null,
+            HD2Mimnt.Core.Interfaces.IModelPreviewReader? modelPreviewReader = null,
+            HD2Mimnt.Core.AudioPreview.IAudioPreviewReader? audioPreviewReader = null,
+            HD2Mimnt.Core.AudioPreview.IAudioPlaybackEngine? audioPlayback = null,
+            Func<IServiceProvider, HD2Mimnt.Core.Interfaces.IWorkerHostManager>? workerHostManagerFactory = null)
         {
             var scope = new UiScope();
-            var originalPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
+            // 子进程 Worker 在测试运行时才启动，环境变量必须覆盖整个 scope 生命周期，
+            // 否则 Worker 会打开真实用户数据目录。
+            scope._originalDataPath = Environment.GetEnvironmentVariable("HD2MIMNT_DATA_PATH");
             try
             {
                 Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", scope._root);
@@ -3581,7 +3859,6 @@ public sealed partial class FluentAvaloniaUiTests
                 services.AddSingleton<IBrowserLauncher>(scope.WebsiteLauncher);
                 services.AddSingleton(new BrowserDownloadHandoffService(Path.Combine(scope._root, "BrowserDownloads"), TimeSpan.FromMilliseconds(20)));
                 if (systemLanguage != null) services.AddSingleton(systemLanguage);
-                if (minidumpAnalyzer != null) services.AddSingleton(minidumpAnalyzer);
                 if (directDownloads != null) services.AddSingleton(directDownloads);
                 if (nexusOAuthOptions != null) services.AddSingleton(nexusOAuthOptions);
                 if (nexusOAuthClient != null) services.AddSingleton(nexusOAuthClient);
@@ -3592,6 +3869,11 @@ public sealed partial class FluentAvaloniaUiTests
                 if (compatibilityNames != null) services.AddSingleton(compatibilityNames);
                 if (compatibilityAnalyzer != null) services.AddSingleton(compatibilityAnalyzer);
                 if (soundBanks != null) services.AddSingleton(soundBanks);
+                if (modelPreviewReader != null) services.AddSingleton(modelPreviewReader);
+                if (audioPreviewReader != null) services.AddSingleton(audioPreviewReader);
+                if (audioPlayback != null) services.AddSingleton(audioPlayback);
+                if (workerHostManagerFactory != null)
+                    services.AddSingleton<HD2Mimnt.Core.Interfaces.IWorkerHostManager>(workerHostManagerFactory);
                 if (iasPackages != null) services.AddSingleton(iasPackages);
                 if (iasCompiler != null) services.AddSingleton(iasCompiler);
                 if (iasUpdates != null) services.AddSingleton(iasUpdates);
@@ -3610,7 +3892,11 @@ public sealed partial class FluentAvaloniaUiTests
                         downloadTransport: ayakaDownloadHandler));
                 scope.Services = services.BuildServiceProvider();
             }
-            finally { Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", originalPath); }
+            catch
+            {
+                Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", scope._originalDataPath);
+                throw;
+            }
 
             try
             {
@@ -3643,7 +3929,19 @@ public sealed partial class FluentAvaloniaUiTests
             Dispatcher.UIThread.RunJobs();
             await Services.DisposeAsync();
             Dispatcher.UIThread.RunJobs();
-            if (Directory.Exists(_root)) Directory.Delete(_root, true);
+            Environment.SetEnvironmentVariable("HD2MIMNT_DATA_PATH", _originalDataPath);
+            // 服务释放后连接会回到 SQLite 连接池并继续持有 hd2mimnt.db，删临时目录前必须清池；
+            // 杀软/索引器也可能瞬时持锁，带退避重试删除。
+            for (var attempt = 0; Directory.Exists(_root); attempt++)
+            {
+                try { Directory.Delete(_root, true); break; }
+                catch (Exception ex) when (attempt < 5 && ex is IOException or UnauthorizedAccessException)
+                {
+                    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                    GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                    await Task.Delay(200 * (attempt + 1));
+                }
+            }
         }
     }
 }

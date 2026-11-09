@@ -1,17 +1,26 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/HD2Mimnt.Application/HD2Mimnt.Application.csproj" />
+    <Project Path="src/HD2Mimnt.Cli/HD2Mimnt.Cli.csproj" />
     <Project Path="src/HD2Mimnt.Core/HD2Mimnt.Core.csproj" />
     <Project Path="src/HD2Mimnt.Infrastructure/HD2Mimnt.Infrastructure.csproj" />
     <Project Path="src/HD2Mimnt.PluginHost/HD2Mimnt.PluginHost.csproj" />
+    <Project Path="src/HD2Mimnt.PluginLua/HD2Mimnt.PluginLua.csproj" />
     <Project Path="src/HD2Mimnt.PluginSDK/HD2Mimnt.PluginSDK.csproj" />
     <Project Path="src/HD2Mimnt.UI/HD2Mimnt.UI.csproj" />
     <Project Path="src/HD2Mimnt.Worker/HD2Mimnt.Worker.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/plugins/AiSummarizer/AiSummarizer.csproj" />
+    <Project Path="samples/plugins/HelloWorld/HelloWorld.csproj" />
+    <Project Path="samples/plugins/LuaHybrid/HybridTools.csproj" />
+    <Project Path="samples/plugins/ThemeShowcase/ThemeShowcase.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj" />
     <Project Path="tests/HD2Mimnt.PerformanceTests/HD2Mimnt.PerformanceTests.csproj" />
     <Project Path="tests/HD2Mimnt.StabilityTests/HD2Mimnt.StabilityTests.csproj" />
     <Project Path="tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj" />
+    <Project Path="tests/HD2Mimnt.WorkerStub/HD2Mimnt.WorkerStub.csproj" />
   </Folder>
 </Solution>

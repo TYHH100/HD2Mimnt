@@ -10,6 +10,7 @@
 
 ## 版本号规范
 
+- 代码中的版本号唯一来源是根目录 `Directory.Build.props` 的 `<Version>`。程序集元数据、状态栏版本徽章与关于页文案都由该值派生，发版时只改这一处并打对应标签；CI 会用标签通过 `-p:Version` 覆盖构建版本。
 - 标签格式：`V<主>.<次>.<补>-<阶段>`，阶段关键词如 `alpha`、`beta`、`rc`；正式版去掉后缀，如 `V1.0.0`。
 - 压缩合并产生的提交信息与标签使用同一版本号文本（不带 `V` 前缀），如 `0.1.0-alpha`。
 - 示例：`V0.1.0-alpha` → `V0.2.0-beta` → `V1.0.0`。
@@ -37,8 +38,8 @@
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。
 - 步骤：发布 UI 主程序（自带还原与依赖构建）→ 主包与符号包分离打包 → 创建 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
-- 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`，配合 `minidump-stackwalk` 排查崩溃转储。
-- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 与 `minidump-stackwalk` 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。
+- 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
+- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。框架依赖单文件不支持 `EnableCompressionInSingleFile`（NETSDK1176，仅自包含发布可用），不要给发布命令添加该属性。
 - 产物为框架依赖发布，运行需安装 [.NET Desktop Runtime 10.0 x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ## 注意事项

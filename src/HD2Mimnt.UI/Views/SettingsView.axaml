@@ -19,6 +19,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Startup}" Description="{loc:Loc Settings.Compatibility.StartupHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityStartupToggle" IsChecked="{Binding CompatibilityCheckOnStartup, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.AutoCheckImport}" Description="{loc:Loc Settings.Compatibility.AutoCheckImportHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityAutoImportToggle" IsChecked="{Binding CompatibilityAutoCheckImport, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Compatibility.Batch}" Description="{loc:Loc Settings.Compatibility.BatchHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="CompatibilityBatchToggle" IsChecked="{Binding CompatibilityEnableBatchRepair, Mode=TwoWay}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -49,6 +52,14 @@
               </ComboBox>
               <TextBlock Text="{loc:Loc Logs.PrivacyHelp}" Classes="muted" TextWrapping="Wrap"/>
             </StackPanel>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Logs.Retention}" Description="{loc:Loc Logs.RetentionHelp}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <ComboBox x:Name="LogRetentionDaysInput" ItemsSource="{Binding LogRetentionOptions}" SelectedItem="{Binding LogRetentionDays, Mode=TwoWay}" MinWidth="120"/>
+                <TextBlock Text="{loc:Loc Logs.RetentionUnit}" VerticalAlignment="Center" Classes="muted"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <StackPanel IsVisible="{Binding IsEntriesCategoryVisible}" Spacing="12">
@@ -167,8 +178,17 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AutoAddImportedModsToggle" IsChecked="{Binding AutoAddImportedMods}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.ChooseGroupWhenAdding}" Description="{loc:Loc Settings.Profiles.ChooseGroupWhenAddingHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ChooseGroupWhenAddingToggle" IsChecked="{Binding ChooseGroupWhenAdding}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.PinExpandedGroups}" Description="{loc:Loc Settings.Profiles.PinExpandedGroupsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="PinExpandedGroupsToggle" IsChecked="{Binding PinExpandedGroups}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.LockLoaders}" Description="{loc:Loc Settings.Profiles.LockLoadersHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LockLoadersToggle" IsChecked="{Binding LockLoaders}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.FreeLoaderOrder}" Description="{loc:Loc Settings.Profiles.FreeLoaderOrderHelp}" IsEnabled="{Binding LockLoaders}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="FreeLoaderOrderToggle" IsChecked="{Binding FreeLoaderOrder}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ApplyProfileWhenSelected}" Description="{loc:Loc UI.WhenOffRightClickAProfileAndChooseSetAsCurrent}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoSwitchProfileOnSelect}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
@@ -187,6 +207,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.DeployFromBottomToTop}" Description="{loc:Loc UI.WhenOffDeployFromTopToBottomTheLuaGroupMovesToTheStartOrEndDependencie}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding DeployBottomToTop}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Deployment.OverwriteConflicts}" Description="{loc:Loc Settings.Deployment.OverwriteConflictsHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="OverwriteDeploymentConflictsToggle" IsChecked="{Binding OverwriteDeploymentConflicts}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander x:Name="LibrarySettings" Header="{loc:Loc UI.Library}" IconSource="Library" IsExpanded="True" IsVisible="{Binding IsLibraryCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.KeepVersions}" Description="{loc:Loc Settings.Library.KeepVersionsHelp}">
@@ -197,6 +220,9 @@
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.LuaAutoExtract}" Description="{loc:Loc Settings.Library.LuaAutoExtractHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="LuaAutoExtractToggle" IsChecked="{Binding LuaAutoExtract}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
@@ -213,9 +239,65 @@
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="SearchPinyinToggle" IsChecked="{Binding SearchPinyin}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="AiTranslationSettings" Header="{loc:Loc Settings.AiTranslation.Title}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAiCategoryVisible}" Description="{loc:Loc Settings.AiTranslation.Help}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Provider}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox Width="200" ItemsSource="{Binding AiTranslation.ProviderTypes}" SelectedItem="{Binding AiTranslation.ProviderType}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Endpoint}">
+            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" Text="{Binding AiTranslation.Endpoint, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Model}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox Width="300" Text="{Binding AiTranslation.Model, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button Content="{loc:Loc Settings.AiTranslation.FetchModels}" Command="{Binding AiTranslation.FetchModelsCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.AvailableModels}" IsVisible="{Binding AiTranslation.HasAvailableModels}">
+            <fa:FASettingsExpanderItem.Footer><ComboBox Width="380" ItemsSource="{Binding AiTranslation.AvailableModels}" SelectedItem="{Binding AiTranslation.Model}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.ApiKey}" Description="{Binding AiTranslation.ApiKeyHint}">
+            <fa:FASettingsExpanderItem.Footer><TextBox Width="380" PasswordChar="●" Text="{Binding AiTranslation.ApiKey, UpdateSourceTrigger=PropertyChanged}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Thinking}" Description="{loc:Loc Settings.AiTranslation.ThinkingHelp}" IsVisible="{Binding AiTranslation.ShowThinking}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AiTranslation.EnableThinking}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.ThinkingEffort}" Description="{loc:Loc Settings.AiTranslation.ThinkingEffortHelp}" IsVisible="{Binding AiTranslation.ShowThinkingEffort}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox Width="200" ItemsSource="{Binding AiTranslation.ThinkingEfforts}" SelectedValue="{Binding AiTranslation.ThinkingEffort, Mode=TwoWay}" SelectedValueBinding="{Binding Value}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AiThinkingEffortChoice"><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.Balance}" IsVisible="{Binding AiTranslation.ShowBalance}">
+            <fa:FASettingsExpanderItem.Footer>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding AiTranslation.BalanceText}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="340"/>
+                <Button Content="{loc:Loc Settings.AiTranslation.Refresh}" Command="{Binding AiTranslation.RefreshBalanceCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+              </StackPanel>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.AiTranslation.TargetLanguage}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox Width="200" ItemsSource="{Binding AiTranslation.TargetLanguages}" SelectedItem="{Binding AiTranslation.SelectedTargetLanguage}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AiTargetLanguageChoice"><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{loc:Loc Settings.AiTranslation.Test}" Command="{Binding AiTranslation.TestCommand}" IsEnabled="{Binding !AiTranslation.IsBusy}"/>
+                <TextBlock Text="{Binding AiTranslation.StatusMessage}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock Text="{loc:Loc Settings.AiTranslation.SaveHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
         <fa:FASettingsExpander Header="{loc:Loc UI.Downloads}" IconSource="Download" IsExpanded="True" IsVisible="{Binding IsDownloadCategoryVisible}" Description="{loc:Loc UI.SavedChangesApplyToNewOrRetriedDownloads}">
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
-            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="16" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.MinimumSegmentSizeMiB}" Description="{loc:Loc UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadSegmentInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadSegmentSizeMiB}" Width="160"/></fa:FASettingsExpanderItem.Footer>

@@ -255,6 +255,53 @@ public sealed class BslMechanismTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task UnlockedLoaderOrder_ShouldSkipHostLoaderValidation(bool lockLoaders, bool freeLoaderOrder)
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.ProfilesLockLoaders] = lockLoaders,
+            [SettingKeys.ProfilesFreeLoaderOrder] = freeLoaderOrder
+        });
+        var service = new ProfileService(_profiles, _mods, settings);
+        var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),
+            new[] { new CopyDeploymentMethod() }, settingsService: settings);
+        var dependency = await AddModAsync("独立依赖", BslModRole.Dependency);
+        await File.WriteAllTextAsync(Path.Combine(dependency.Path, "9ba626afa44a3aa3.patch_0"), dependency.Name);
+        var id = await service.CreateProfileAsync("自由排序部署");
+        await service.SetModsEnabledAsync(id, new[] { dependency.Id }, true);
+        var game = Path.Combine(_root, "free-order-game");
+        Directory.CreateDirectory(game);
+
+        var result = await deployment.DeployProfileAsync(id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(dependency.Name, await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+    }
+
+    [Fact]
+    public async Task LockedLoaders_ShouldStillRejectDependencyWithoutHostLoader()
+    {
+        var settings = new SettingsService(_root);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var deployment = new DeploymentService(_profiles, _mods, new DeploymentRepository(_db),
+            new[] { new CopyDeploymentMethod() }, settingsService: settings);
+        var dependency = await AddModAsync("缺少宿主", BslModRole.Dependency);
+        await File.WriteAllTextAsync(Path.Combine(dependency.Path, "9ba626afa44a3aa3.patch_0"), dependency.Name);
+        var id = await service.CreateProfileAsync("锁定校验");
+        await service.SetModsEnabledAsync(id, new[] { dependency.Id }, true);
+        var game = Path.Combine(_root, "locked-game");
+        Directory.CreateDirectory(game);
+
+        var result = await deployment.DeployProfileAsync(id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+
+        Assert.Equal(DeploymentStatus.Failed, result.Status);
+        Assert.Contains("请先添加并启用", result.ErrorMessage);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task RelockingLoaders_ShouldPreserveOrdinarySeparatorMembers(bool collapsed)
@@ -343,9 +390,143 @@ public sealed class BslMechanismTests : IDisposable
         await _service.SetModEnabledAsync(profileId, loader.Id, false);
         result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, direction, game);
         Assert.NotEqual(DeploymentStatus.Completed, result.Status);
-        Assert.Contains("Bingus Shared Loader", result.ErrorMessage);
+        Assert.Contains("BSL", result.ErrorMessage);
         // 缺失依赖的预检不能先清理掉之前成功部署的文件。
         Assert.Equal("Loader", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_3")));
+    }
+
+    [Theory]
+    [InlineData(true, DeploymentOrder.TopToBottom)]
+    [InlineData(true, DeploymentOrder.BottomToTop)]
+    [InlineData(false, DeploymentOrder.TopToBottom)]
+    [InlineData(false, DeploymentOrder.BottomToTop)]
+    public async Task BootModLoaderAndChefSharedLoader_ShouldCoexistWithChefDeployedFirst(bool chefFirst, DeploymentOrder direction)
+    {
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var normal = await AddModAsync("普通");
+        foreach (var mod in new[] { bml, csl, normal })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("双加载器");
+        await _service.AddModToProfileAsync(profileId, chefFirst ? csl.Id : bml.Id);
+        await _service.AddModToProfileAsync(profileId, chefFirst ? bml.Id : csl.Id);
+        await _service.AddModToProfileAsync(profileId, normal.Id);
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
+        Assert.All(profile.Mods, item => Assert.True(item.Enabled));
+        // BML 托管 CSL：CSL 固定在 BML 之前，BML 的补丁号更高，游戏才会运行 BML 的 boot。
+        Assert.Equal(new[] { normal.Id, csl.Id, bml.Id }, profile.Mods.Select(item => item.ModId));
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, direction, game);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("普通", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_1")));
+        Assert.Equal("BML", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_2")));
+    }
+
+    [Fact]
+    public async Task BootModLoaderMdl3AndChefSharedLoader_ShouldCoexistWithBmlDeployedLast()
+    {
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var mdl3 = await AddModAsync("MDL3", BslModRole.Mdl3Loader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var normal = await AddModAsync("普通");
+        foreach (var mod in new[] { bml, mdl3, csl, normal })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("三加载器");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        await _service.AddModToProfileAsync(profileId, mdl3.Id);
+        await _service.AddModToProfileAsync(profileId, normal.Id);
+        var profile = (await _service.NormalizeProfileAsync(profileId))!;
+        Assert.All(profile.Mods, item => Assert.True(item.Enabled));
+        // BML 是 boot 生效者：CSL 与 MDL3 固定在它之前，BML 补丁号最高；从属段内保持配置页顺序。
+        Assert.Equal(new[] { normal.Id, csl.Id, mdl3.Id, bml.Id }, profile.Mods.Select(item => item.ModId));
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal("普通", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_1")));
+        Assert.Equal("MDL3", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_2")));
+        Assert.Equal("BML", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_3")));
+    }
+
+    [Fact]
+    public async Task Mdl3Selection_ShouldFollowBootModLoaderAndRejectOtherPrimaries()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var mdl = await AddModAsync("MDL", BslModRole.MdlLoader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var mdl3 = await AddModAsync("MDL3", BslModRole.Mdl3Loader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, mdl3.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+        // MDL3 只能与 BML 搭配：与 BSL/MDL 批量启用必须拒绝。
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bsl.Id, mdl3.Id }, true));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { mdl.Id, mdl3.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+        // 切到 BSL 会替换整套加载器组合（BML 与 MDL3 一起停用）。
+        await _service.SetModEnabledAsync(profileId, bsl.Id, true);
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == mdl3.Id).Enabled);
+    }
+
+    [Fact]
+    public async Task ChefSharedLoaderSelection_ShouldFollowBootModLoaderAndRejectBslBatch()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, bml.Id);
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.True(profile.Mods.Single(item => item.ModId == csl.Id).Enabled);
+        // BSL 无法托管 CSL，批量启用两种加载器必须拒绝。
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bsl.Id, csl.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        // 切到 BSL 会替换整套加载器组合。
+        await _service.SetModEnabledAsync(profileId, bsl.Id, true);
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == csl.Id).Enabled);
+    }
+
+    [Fact]
+    public async Task UnhostedChefSharedLoaderDeployment_ShouldFailBeforeCleanup()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var csl = await AddModAsync("CSL", BslModRole.CslLoader);
+        foreach (var mod in new[] { bsl, csl })
+            await File.WriteAllTextAsync(Path.Combine(mod.Path, "9ba626afa44a3aa3.patch_0"), mod.Name);
+        var profileId = await _service.CreateProfileAsync("配置");
+        await _service.AddModToProfileAsync(profileId, csl.Id);
+        var game = Path.Combine(_root, "game");
+        Directory.CreateDirectory(game);
+        var first = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.Equal(DeploymentStatus.Completed, first.Status);
+        // 绕过服务写入的旧配置也必须拒绝 BSL 与 CSL 同时部署。
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        profile.Mods.Add(new ProfileMod { ProfileId = profileId, ModId = bsl.Id, Enabled = true, Order = -1 });
+        await _profiles.UpdateAsync(profile);
+        var result = await _deployment.DeployProfileAsync(profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, game);
+        Assert.NotEqual(DeploymentStatus.Completed, result.Status);
+        Assert.Contains("Chef Shared Loader", result.ErrorMessage);
+        Assert.Equal("CSL", await File.ReadAllTextAsync(Path.Combine(game, "data/9ba626afa44a3aa3.patch_0")));
     }
 
     private async Task<Mod> AddModAsync(string name, BslModRole? role = null)
@@ -357,6 +538,9 @@ public sealed class BslMechanismTests : IDisposable
             {
                 BslModRole.Loader => new ModManifest { Guid = BslModDetector.LoaderGuid },
                 BslModRole.MdlLoader => new ModManifest { Guid = BslModDetector.MdlGuid },
+                BslModRole.Mdl3Loader => new ModManifest { Guid = BslModDetector.Mdl3Guid },
+                BslModRole.BmlLoader => new ModManifest { Guid = BslModDetector.BootModLoaderGuid },
+                BslModRole.CslLoader => new ModManifest { Guid = BslModDetector.CslGuid },
                 BslModRole.SmoothBoot => new ModManifest { Guid = BslModDetector.SmoothBootGuid },
                 _ => null
             } };
@@ -375,11 +559,33 @@ public sealed class BslMechanismTests : IDisposable
         sb.BslRole = BslModRole.Dependency;
         sb.Manifest!.Description = "Requires Bingus Shared Loader v15 or newer / API 1.";
         await _mods.UpdateAsync(sb);
+        var bml = await AddModAsync("已改名", BslModRole.BmlLoader);
+        bml.BslRole = BslModRole.None;
+        await _mods.UpdateAsync(bml);
         await BslProfilePolicy.EnsureDetectedAsync(mdl, _mods, default);
         await BslProfilePolicy.EnsureDetectedAsync(sb, _mods, default);
+        await BslProfilePolicy.EnsureDetectedAsync(bml, _mods, default);
         Assert.Equal(BslModRole.MdlLoader, (await _mods.GetByIdAsync(mdl.Id))!.BslRole);
         Assert.Equal(BslModRole.SmoothBoot, (await _mods.GetByIdAsync(sb.Id))!.BslRole);
+        Assert.Equal(BslModRole.BmlLoader, (await _mods.GetByIdAsync(bml.Id))!.BslRole);
         Assert.Equal(BslModRole.SmoothBoot, await BslModDetector.DetectAsync(sb));
+    }
+
+    [Fact]
+    public async Task KnownBootModLoaderGuid_ShouldBeRecognizedWithoutReadingPackage()
+    {
+        var mod = await AddModAsync("任意名称", BslModRole.BmlLoader);
+        Directory.Delete(mod.Path, true);
+        Assert.Equal(BslModRole.BmlLoader, await BslModDetector.DetectAsync(mod));
+    }
+
+    [Fact]
+    public async Task Mdl3PackageGuid_ShouldBeRecognizedAsMdl3LoaderWithoutReadingPackage()
+    {
+        var mod = await AddModAsync("MDL3 预览版", BslModRole.Mdl3Loader);
+        // MDL3 原生桥包的 manifest GUID 与 MDL 2.x 不同，识别锚点在 LoaderCatalog 的 mdl3 条目。
+        mod.Manifest = new ModManifest { Guid = BslModDetector.Mdl3Guid };
+        Assert.Equal(BslModRole.Mdl3Loader, await BslModDetector.DetectAsync(mod));
     }
 
     [Theory]
@@ -387,6 +593,11 @@ public sealed class BslMechanismTests : IDisposable
     [InlineData("mods/codex/smoothboot", "-- HD2-Addon: mods/codex/smoothboot\nreturn true", BslModRole.SmoothBoot)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.Loader)]
     [InlineData("core/wwise/lua/wwise_flow_callbacks", "CowboyBingusModLoader MDL.log", BslModRole.None)]
+    [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader boot_mod_loader.log", BslModRole.BmlLoader)]
+    [InlineData("boot", "-- MDL3 3.0.0-dev.21 game boot (PUC Lua 5.1). Signed native host mdl_native_bridge.dll", BslModRole.Mdl3Loader)]
+    [InlineData("boot", "-- MDL3 game boot via FFI", BslModRole.None)]
+    [InlineData("boot", "boot-mod-loader-0.7.0 __boot_mod_loader", BslModRole.None)]
+    [InlineData("boot", "another boot replacement", BslModRole.None)]
     [InlineData("mods/test/unrelated", "CowboyBingusModLoader BingusSharedLoader.log mods/cowboybingus/vanilla_plus_megapack", BslModRole.None)]
     public async Task ChangedOrMissingGuid_ShouldUseResourceContractAndRefreshOldCache(string resource, string content, BslModRole expected)
     {
@@ -431,11 +642,32 @@ public sealed class BslMechanismTests : IDisposable
         Assert.Single((await _profiles.GetByIdAsync(profileId))!.Mods, item => item.Enabled);
     }
 
+    [Fact]
+    public async Task SelectingBootModLoader_ShouldReplaceOtherLoaderKinds()
+    {
+        var bsl = await AddModAsync("BSL", BslModRole.Loader);
+        var mdl = await AddModAsync("MDL", BslModRole.MdlLoader);
+        var bml = await AddModAsync("BML", BslModRole.BmlLoader);
+        var profileId = await _service.CreateProfileAsync("配置");
+        foreach (var mod in new[] { bsl, mdl, bml })
+            await _service.AddModToProfileAsync(profileId, mod.Id);
+        var profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == bsl.Id).Enabled);
+        Assert.False(profile.Mods.Single(item => item.ModId == mdl.Id).Enabled);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SetModsEnabledAsync(profileId, new[] { bml.Id, bsl.Id }, true));
+        profile = (await _profiles.GetByIdAsync(profileId))!;
+        Assert.True(profile.Mods.Single(item => item.ModId == bml.Id).Enabled);
+    }
+
     [Theory]
     [InlineData(DeploymentOrder.TopToBottom, BslModRole.Loader)]
     [InlineData(DeploymentOrder.BottomToTop, BslModRole.Loader)]
     [InlineData(DeploymentOrder.TopToBottom, BslModRole.MdlLoader)]
     [InlineData(DeploymentOrder.BottomToTop, BslModRole.MdlLoader)]
+    [InlineData(DeploymentOrder.TopToBottom, BslModRole.BmlLoader)]
+    [InlineData(DeploymentOrder.BottomToTop, BslModRole.BmlLoader)]
     public async Task SmoothBoot_ShouldFollowEitherLoaderAndHaveHighestPatchPriority(DeploymentOrder direction, BslModRole loaderRole)
     {
         var normal = await AddModAsync("普通");

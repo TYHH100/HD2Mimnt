@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        xmlns:controls="using:HD2Mimnt.UI.Controls"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="560"
+        x:Class="HD2Mimnt.UI.Views.PluginCommandResultDialog"
+        x:DataType="vm:PluginCommandResultEventArgs"
+        Title="{loc:Loc UI.PluginCommandResult}"
+        Width="720" Height="560"
+        MinWidth="460" MinHeight="340"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface1Brush}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,16">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="18" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding PluginName}"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+                <Button x:Name="ToggleSourceButton" Grid.Column="1" Classes="secondary"
+                        Click="OnToggleSourceClick" VerticalAlignment="Center" MinWidth="88"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <ScrollViewer x:Name="RenderedHost" Padding="24,16" VerticalScrollBarVisibility="Auto">
+                <controls:MarkdownView x:Name="MarkdownContent" BaseFontSize="13"/>
+            </ScrollViewer>
+            <ScrollViewer x:Name="RawHost" Padding="24,16" VerticalScrollBarVisibility="Auto" IsVisible="False">
+                <SelectableTextBlock x:Name="RawText"
+                                     FontSize="13"
+                                     LineHeight="22"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Grid>
+
+        <Border Grid.Row="2" Padding="24,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                <Button Content="{loc:Loc UI.Copy}" Click="OnCopyClick" Classes="secondary" MinWidth="100"/>
+                <Button Content="{loc:Loc Common.Close}" Click="OnCloseClick" Classes="accent" MinWidth="100"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -6,6 +6,7 @@ using System.Text.Json;
 using Xunit;
 using PluginManifest = HD2Mimnt.PluginSDK.PluginManifest;
 using PluginPermissionMode = HD2Mimnt.PluginSDK.PluginPermissionMode;
+using PluginCommandDescriptor = HD2Mimnt.PluginSDK.PluginCommandDescriptor;
 
 namespace HD2Mimnt.Tests.Services;
 
@@ -521,11 +522,26 @@ public class PluginServiceTests
         // Arrange
         var pluginId = "test.plugin";
         var command = "DoSomething";
+        var manifest = new PluginManifest
+        {
+            Id = pluginId,
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Assembly = "TestPlugin.dll",
+            EntryType = "TestPlugin.Entry",
+            Commands = new List<PluginCommandDescriptor>
+            {
+                new() { Name = command, DisplayName = "Do something" }
+            }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+
         var plugin = new Plugin
         {
             Id = pluginId,
             Name = "Test Plugin",
-            Enabled = true
+            Enabled = true,
+            ManifestPath = _tempManifestPath
         };
 
         var hostResult = PluginOperationResult.SuccessResult("Command executed", null);
@@ -533,6 +549,10 @@ public class PluginServiceTests
         _mockPluginRepo.Setup(r => r.GetByIdAsync(pluginId, default)).ReturnsAsync(plugin);
         _mockExecutionRepo.Setup(r => r.AddAsync(It.IsAny<PluginExecutionHistory>(), default)).Returns(Task.CompletedTask);
         _mockExecutionRepo.Setup(r => r.UpdateAsync(It.IsAny<PluginExecutionHistory>(), default)).Returns(Task.CompletedTask);
+        _mockHostManager.Setup(h => h.GetRunningPlugins()).Returns(new List<PluginHostInfo>
+        {
+            new() { PluginId = pluginId, IsRunning = true }
+        });
         _mockHostManager.Setup(h => h.ExecutePluginCommandAsync(pluginId, command, null, default)).ReturnsAsync(hostResult);
 
         // Act
@@ -542,6 +562,125 @@ public class PluginServiceTests
         Assert.True(result.Success);
         _mockExecutionRepo.Verify(r => r.AddAsync(It.IsAny<PluginExecutionHistory>(), default), Times.Once);
         _mockExecutionRepo.Verify(r => r.UpdateAsync(It.IsAny<PluginExecutionHistory>(), default), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePluginCommandAsync_CommandNotDeclared_IsRejected()
+    {
+        var pluginId = "undeclared.plugin";
+        var manifest = new PluginManifest
+        {
+            Id = pluginId,
+            Name = "Undeclared",
+            Version = "1.0.0",
+            Assembly = "Undeclared.dll",
+            EntryType = "Undeclared.Entry"
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+
+        var plugin = new Plugin
+        {
+            Id = pluginId,
+            Name = "Undeclared",
+            Enabled = true,
+            ManifestPath = _tempManifestPath
+        };
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(pluginId, default)).ReturnsAsync(plugin);
+
+        var result = await _service.ExecutePluginCommandAsync(pluginId, "Unlisted");
+
+        Assert.False(result.Success);
+        Assert.Contains("未声明", result.Error);
+        _mockExecutionRepo.Verify(r => r.AddAsync(It.IsAny<PluginExecutionHistory>(), default), Times.Never);
+        _mockHostManager.Verify(h => h.ExecutePluginCommandAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecutePluginCommandAsync_MissingRequiredPermission_IsRejected()
+    {
+        var pluginId = "restricted.plugin";
+        var command = "Restricted";
+        var manifest = new PluginManifest
+        {
+            Id = pluginId,
+            Name = "Restricted",
+            Version = "1.0.0",
+            Assembly = "Restricted.dll",
+            EntryType = "Restricted.Entry",
+            Commands = new List<PluginCommandDescriptor>
+            {
+                new() { Name = command, RequiredPermission = "mods.read" }
+            }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+
+        var plugin = new Plugin
+        {
+            Id = pluginId,
+            Name = "Restricted",
+            Enabled = true,
+            ManifestPath = _tempManifestPath
+        };
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(pluginId, default)).ReturnsAsync(plugin);
+        _mockPermissionRepo.Setup(r => r.GetByPluginIdAsync(pluginId, default))
+            .ReturnsAsync(new List<PluginPermission>());
+
+        var result = await _service.ExecutePluginCommandAsync(pluginId, command);
+
+        Assert.False(result.Success);
+        Assert.Contains("缺少权限", result.Error);
+        _mockHostManager.Verify(h => h.ExecutePluginCommandAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecutePluginCommandAsync_PluginNotRunning_StartsHostFirst()
+    {
+        var pluginId = "autostart.plugin";
+        var command = "Run";
+        var manifest = new PluginManifest
+        {
+            Id = pluginId,
+            Name = "AutoStart",
+            Version = "1.0.0",
+            Assembly = "AutoStart.dll",
+            EntryType = "AutoStart.Entry",
+            Commands = new List<PluginCommandDescriptor>
+            {
+                new() { Name = command }
+            }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+
+        var assemblyPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "AutoStart.dll");
+        await File.WriteAllTextAsync(assemblyPath, "assembly-bytes");
+
+        var plugin = new Plugin
+        {
+            Id = pluginId,
+            Name = "AutoStart",
+            Enabled = true,
+            ManifestPath = _tempManifestPath,
+            AssemblyPath = assemblyPath
+        };
+
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(pluginId, default)).ReturnsAsync(plugin);
+        _mockPluginRepo.Setup(r => r.UpdateAsync(It.IsAny<Plugin>(), default)).Returns(Task.CompletedTask);
+        _mockExecutionRepo.Setup(r => r.AddAsync(It.IsAny<PluginExecutionHistory>(), default)).Returns(Task.CompletedTask);
+        _mockExecutionRepo.Setup(r => r.UpdateAsync(It.IsAny<PluginExecutionHistory>(), default)).Returns(Task.CompletedTask);
+        _mockHostManager.Setup(h => h.GetRunningPlugins()).Returns(new List<PluginHostInfo>());
+        _mockHostManager.Setup(h => h.StartPluginAsync(pluginId, assemblyPath, _tempManifestPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PluginOperationResult.SuccessResult("started"));
+        _mockHostManager.Setup(h => h.ExecutePluginCommandAsync(pluginId, command, null, default))
+            .ReturnsAsync(PluginOperationResult.SuccessResult("ok"));
+
+        var result = await _service.ExecutePluginCommandAsync(pluginId, command);
+
+        Assert.True(result.Success);
+        _mockHostManager.Verify(
+            h => h.StartPluginAsync(pluginId, assemblyPath, _tempManifestPath, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -605,6 +744,156 @@ public class PluginServiceTests
         // Assert
         Assert.Single(result);
         Assert.True(result[0].Enabled);
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_AiPermission_IsNotAutoGranted()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "ai.plugin", Name = "AI", Version = "1.0.0", Assembly = "Ai.dll",
+            EntryType = "Ai.Entry", PermissionMode = PluginPermissionMode.Sandbox,
+            RequestedPermissions = new List<string> { "ai.use" }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+        await File.WriteAllTextAsync(
+            Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Ai.dll"), "assembly");
+
+        _mockPluginRepo.Setup(r => r.ExistsAsync(manifest.Id, default)).ReturnsAsync(false);
+        PluginPermission? saved = null;
+        _mockPermissionRepo
+            .Setup(r => r.AddAsync(It.IsAny<PluginPermission>(), default))
+            .Callback<PluginPermission, CancellationToken>((p, _) => saved = p)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.InstallPluginAsync(_tempManifestPath);
+
+        Assert.True(result.Success);
+        Assert.NotNull(saved);
+        Assert.False(saved!.Granted);
+        Assert.Null(saved.GrantedAt);
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_IncompatibleApiVersion_IsRejected()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "future.plugin", Name = "Future", Version = "1.0.0", Assembly = "Future.dll",
+            EntryType = "Future.Entry", ApiVersion = "2.0.0",
+            PermissionMode = PluginPermissionMode.Sandbox
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+        await File.WriteAllTextAsync(
+            Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Future.dll"), "assembly");
+
+        var result = await _service.InstallPluginAsync(_tempManifestPath);
+
+        Assert.False(result.Success);
+        Assert.Contains("SDK", result.Error ?? result.Message);
+        _mockPluginRepo.Verify(r => r.AddAsync(It.IsAny<Plugin>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_WithConsent_GrantsOnlySelectedPermissions()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "consent.plugin", Name = "Consent", Version = "1.0.0", Assembly = "Consent.dll",
+            EntryType = "Consent.Entry", PermissionMode = PluginPermissionMode.Sandbox,
+            RequestedPermissions = new List<string> { "mods.read", "ai.use" }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+        await File.WriteAllTextAsync(
+            Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Consent.dll"), "assembly");
+
+        _mockPluginRepo.Setup(r => r.ExistsAsync(manifest.Id, default)).ReturnsAsync(false);
+        var saved = new List<PluginPermission>();
+        _mockPermissionRepo
+            .Setup(r => r.AddAsync(It.IsAny<PluginPermission>(), default))
+            .Callback<PluginPermission, CancellationToken>((p, _) => saved.Add(p))
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.InstallPluginAsync(_tempManifestPath, new PluginInstallConsent
+        {
+            PersistGrants = true,
+            GrantedPermissions = new[] { "ai.use" }
+        });
+
+        Assert.True(result.Success);
+        Assert.Equal(2, saved.Count);
+        Assert.True(saved.Single(p => p.Permission == "ai.use").Granted);
+        Assert.False(saved.Single(p => p.Permission == "mods.read").Granted);
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_SessionConsent_KeepsGrantOutOfDatabase()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "session.plugin", Name = "Session", Version = "1.0.0", Assembly = "Session.dll",
+            EntryType = "Session.Entry", PermissionMode = PluginPermissionMode.Sandbox,
+            RequestedPermissions = new List<string> { "ai.use" }
+        };
+        await File.WriteAllTextAsync(_tempManifestPath, JsonSerializer.Serialize(manifest));
+        await File.WriteAllTextAsync(
+            Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Session.dll"), "assembly");
+
+        _mockPluginRepo.Setup(r => r.ExistsAsync(manifest.Id, default)).ReturnsAsync(false);
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(manifest.Id, default))
+            .ReturnsAsync(new Plugin { Id = manifest.Id, Name = "Session", Enabled = true, PermissionMode = "Sandbox" });
+        PluginPermission? saved = null;
+        _mockPermissionRepo
+            .Setup(r => r.AddAsync(It.IsAny<PluginPermission>(), default))
+            .Callback<PluginPermission, CancellationToken>((p, _) => saved = p)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.InstallPluginAsync(_tempManifestPath, new PluginInstallConsent
+        {
+            PersistGrants = false,
+            GrantedPermissions = new[] { "ai.use" }
+        });
+
+        Assert.True(result.Success);
+        Assert.NotNull(saved);
+        Assert.False(saved!.Granted);
+        // “仅本次允许”只在本进程内生效
+        Assert.True(await _service.CheckPermissionAsync(manifest.Id, "ai.use"));
+    }
+
+    [Fact]
+    public async Task GetContributedCommandsAsync_ReturnsOnlyRequestedPlacement()
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "menu.plugin", Name = "Menu", Version = "1.0.0", Assembly = "Menu.dll",
+            EntryType = "Menu.Entry", PermissionMode = PluginPermissionMode.Sandbox,
+            Commands = new List<HD2Mimnt.PluginSDK.PluginCommandDescriptor>
+            {
+                new() { Name = "summarize", DisplayName = "AI 摘要", Placement = "mod", RequiredPermission = "ai.use" },
+                new() { Name = "ping", DisplayName = "Ping" }
+            }
+        };
+
+        var manifestPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "menu.json");
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest));
+
+        _mockPluginRepo.Setup(r => r.GetEnabledAsync(default))
+            .ReturnsAsync(new List<Plugin>
+            {
+                new() { Id = manifest.Id, Name = "Menu", Enabled = true, ManifestPath = manifestPath }
+            });
+        _mockPluginRepo.Setup(r => r.GetByIdAsync(manifest.Id, default))
+            .ReturnsAsync(new Plugin { Id = manifest.Id, Name = "Menu", Enabled = true, PermissionMode = "Sandbox" });
+        _mockPermissionRepo.Setup(r => r.GetByPluginIdAsync(manifest.Id, default))
+            .ReturnsAsync(new List<PluginPermission>());
+
+        var contributions = await _service.GetContributedCommandsAsync(HD2Mimnt.PluginSDK.PluginCommandPlacements.ModContextMenu);
+
+        var command = Assert.Single(contributions);
+        Assert.Equal("summarize", command.Name);
+        Assert.False(command.IsPermissionGranted);
+        Assert.Equal("Menu", command.PluginName);
     }
 
     public void Dispose()

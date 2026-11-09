@@ -3,6 +3,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Migration;
+using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -35,13 +36,15 @@ public partial class ModService
             var mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已不存在");
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
-            var hash = await Task.Run(() => ModHashService.CalculateAsync(mod.Path, cancellationToken), cancellationToken);
+            var (hash, fingerprint) = await Task.Run(
+                () => ModHashService.CalculateWithFingerprintAsync(mod.Path, cancellationToken), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // 计算期间可能更新了其它模组信息，重新读取避免旧快照覆盖变更。
             mod = await _modRepository.GetByIdAsync(id, cancellationToken)
                 ?? throw new KeyNotFoundException("模组已不存在");
             if (!string.IsNullOrWhiteSpace(mod.Hash)) return mod.Hash;
             mod.Hash = hash;
+            mod.ContentFingerprint = fingerprint;
             await _modRepository.UpdateAsync(mod, cancellationToken);
             // 仅回填派生缓存，未改变模组内容；调用方直接更新详情，不能触发全库重载。
             return hash;
@@ -110,19 +113,24 @@ public partial class ModService
     /// <summary>新内容在独立目录准备；数据库提交成功后才删除旧内容，保留原 ID 和配置关联。</summary>
     public Task<ModReplacementResult> ReplaceFromArchiveAsync(Guid id, string archivePath,
         ModPlatformLink expectedLink, PlatformModFile file, CancellationToken cancellationToken = default,
-        IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null)
+        IProgress<ModImportProgress>? progress = null, string? installedWebsiteFileId = null,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(file.Version);
-        return ReplaceArchiveCoreAsync(id, archivePath, expectedLink, file, cancellationToken, progress, installedWebsiteFileId);
+        return ReplaceArchiveCoreAsync(id, archivePath, expectedLink, file, cancellationToken, progress,
+            installedWebsiteFileId, deploymentProgress: deploymentProgress);
     }
 
     public Task<ModReplacementResult> UpdateFromLocalArchiveAsync(Guid id, string archivePath,
-        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null)
-        => ReplaceArchiveCoreAsync(id, archivePath, null, null, cancellationToken, progress, null);
+        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
+        => ReplaceArchiveCoreAsync(id, archivePath, null, null, cancellationToken, progress, null,
+            deploymentProgress: deploymentProgress);
 
     private async Task<ModReplacementResult> ReplaceArchiveCoreAsync(Guid id, string archivePath,
         ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
-        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false)
+        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false,
+        IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
         var committed = false;
@@ -148,7 +156,7 @@ public partial class ModService
                     throw new InvalidOperationException("模组链接已变更，请重新检查更新。");
                 // 修复缺失的 HD2IAS data 时，数据库中的旧哈希不能证明库文件仍然存在。
                 if (!forceReplacement && prepared.Hash == original.Hash && prepared.Version == original.Version && file == null)
-                    return new(original, false, null);
+                    return new(original, false, null, null);
 
                 var history = new ModVersionStore(_storageDirectory);
                 var previousVersions = await history.ReadAsync(id, cancellationToken);
@@ -161,10 +169,6 @@ public partial class ModService
                 prepared.Id = id;
                 var bslRole = await HD2Mimnt.Infrastructure.Analysis.BslModDetector.DetectAsync(prepared, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
-                progress?.Report(new(97, "清理旧部署", original.Name, true));
-                if (_deploymentService != null)
-                    await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
 
                 original.Path = prepared.Path;
                 original.Version = file?.Version ?? prepared.Version;
@@ -173,6 +177,7 @@ public partial class ModService
                 original.LogicalMod = prepared.LogicalMod;
                 original.Size = prepared.Size;
                 original.Hash = prepared.Hash;
+                original.ContentFingerprint = prepared.ContentFingerprint;
                 original.Category = prepared.Category;
                 original.ResourceTypeIds = prepared.ResourceTypeIds;
                 original.ContainsScripts = prepared.ContainsScripts;
@@ -216,8 +221,10 @@ public partial class ModService
                     cleanupWarning = "旧文件清理失败，请查看日志。";
                     _logger?.LogWarning(ex, "模组更新已提交，但旧副本未完全清理: {ModId}", id);
                 }
+                var (deployment, deploymentWarning) = await ReconcileDeploymentAfterUpdateAsync(
+                    id, wasDeployed, deploymentProgress, cancellationToken);
                 RaiseModsChanged();
-                return new(original, wasDeployed, cleanupWarning);
+                return new(original, wasDeployed, deployment, JoinWarnings(cleanupWarning, deploymentWarning));
             }
             finally { _mutationGate.Release(); }
         }
@@ -230,6 +237,33 @@ public partial class ModService
             }
         }
     }
+
+    /// <summary>更新提交后自动对账已部署文件；失败只作为警告返回，不回滚已提交更新。</summary>
+    private async Task<(DeploymentResult? Deployment, string? Warning)> ReconcileDeploymentAfterUpdateAsync(
+        Guid id, bool wasDeployed, IProgress<DeploymentProgress>? deploymentProgress, CancellationToken token)
+    {
+        if (!wasDeployed || _deploymentService == null) return (null, null);
+        try
+        {
+            var deployment = await _deploymentService.ReconcileAfterModUpdateAsync(
+                id, gamePath: null, deploymentProgress, token);
+            return (deployment, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return (null, "自动部署已取消，可稍后重试部署。");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "模组更新后的自动部署失败: {ModId}", id);
+            return (null, "自动部署失败：" + ex.Message);
+        }
+    }
+
+    private static string? JoinWarnings(string? first, string? second)
+        => string.IsNullOrWhiteSpace(first) ? second
+            : string.IsNullOrWhiteSpace(second) ? first
+            : first + second;
 
     private bool IsManagedModDirectory(string path) => PathGuard.IsInsideRoot(_storageDirectory, path);
 
@@ -310,6 +344,7 @@ public partial class ModService
         try
         {
             var changed = false;
+            var writeGeneratedManifest = false;
             // 生成的分组/选项树只来自管理器自有 JSON；作者 manifest.json 保持原样。
             // HD2IAS 组件包与散装文件夹合集都靠该文件恢复生成选项，不能只按 WorkflowType 判断。
             var options = await Hd2IrIntegrationService.ReadOptionsAsync(mod, cancellationToken);
@@ -343,6 +378,42 @@ public partial class ModService
                 if (options.Options is { Count: > 0 }) mod.Manifest.Options = options.Options;
                 changed = true;
             }
+            else if (mod.Manifest is { } inferred
+                && ModImportService.IsUntouchedInferredOptions(inferred)
+                && (inferred.Guid == Guid.Empty || ManifestPackage.IsGeneratedManifest(mod.Path))
+                && ModImportService.IsUntouchedInferredOptions(inferred, mod.Path))
+            {
+                // 旧导入把推断选项写成默认关闭，选项弹窗会全部未勾选；未编辑的推断清单恢复默认启用。
+                foreach (var option in inferred.Options!) option.DefaultEnabled = true;
+                changed = true;
+                writeGeneratedManifest = ManifestPackage.IsGeneratedManifest(mod.Path);
+            }
+
+            // 旧库条目大多在导入时没有档案：管理器推断出的清单在库内补齐 manifest.json（合集/HD2IAS 有自己的选项文件，不写根清单）。
+            if (options == null
+                && mod.WorkflowType != Hd2IrIntegrationService.Workflow
+                && mod.Manifest is { OptionGroups: not { Count: > 0 } } inferredManifest
+                && ModImportService.IsManagerInferredManifest(inferredManifest, mod.Path)
+                && !File.Exists(Path.Combine(mod.Path, "manifest.json")))
+            {
+                if (inferredManifest.Guid == Guid.Empty)
+                {
+                    inferredManifest.Guid = Guid.NewGuid();
+                    changed = true;
+                }
+                writeGeneratedManifest = true;
+            }
+
+            // 早期 V1 推断的选项没有 Include：部署会退回只扫根目录的全量模式，选项子目录里的补丁被整体跳过。
+            // 只补未编辑过的推断清单，作者或用户声明的映射保持原样；须在档案生成判断之后执行。
+            if (mod.Manifest is { ManifestVersion: ManifestVersion.V1, Options: { Count: > 0 } inferredOptions }
+                && inferredOptions.All(option => option.Include == null)
+                && ModImportService.IsManagerInferredManifest(mod.Manifest, mod.Path))
+            {
+                foreach (var option in inferredOptions) option.Include = [option.Name];
+                changed = true;
+                if (ManifestPackage.IsGeneratedManifest(mod.Path)) writeGeneratedManifest = true;
+            }
 
             if (!File.Exists(mod.ThumbnailPath)
                 && ModImportService.ResolveManifestIconPath(mod.Path, mod.Manifest?.IconPath) is { } image)
@@ -355,6 +426,7 @@ public partial class ModService
                 await _modRepository.UpdateAsync(mod, cancellationToken);
                 _logger?.LogInformation("已回填历史遗漏的清单或预览图: {ModName}", mod.Name);
             }
+            if (writeGeneratedManifest) _importService.WriteGeneratedManifest(mod);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -574,7 +646,7 @@ public partial class ModService
 
     #region Metadata Operations
 
-    public async Task UpdateModMetadataAsync(
+    public async Task<Mod> UpdateModMetadataAsync(
         Guid id,
         string? name = null,
         string? description = null,
@@ -583,21 +655,27 @@ public partial class ModService
         ModCategory? category = null,
         CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
+            if (mod == null)
+            {
+                throw new InvalidOperationException($"Mod not found: {id}");
+            }
+
+            if (name != null) mod.Name = name;
+            if (description != null) mod.Description = description;
+            if (author != null) mod.Author = author;
+            if (version != null) mod.Version = version;
+            if (category.HasValue) mod.Category = category.Value;
+
+            mod.ModifiedAt = DateTime.UtcNow;
+            await _modRepository.UpdateAsync(mod, cancellationToken);
+            RaiseModsChanged();
+            return mod;
         }
-
-        if (name != null) mod.Name = name;
-        if (description != null) mod.Description = description;
-        if (author != null) mod.Author = author;
-        if (version != null) mod.Version = version;
-        if (category.HasValue) mod.Category = category.Value;
-
-        mod.ModifiedAt = DateTime.UtcNow;
-        await _modRepository.UpdateAsync(mod, cancellationToken);
-        RaiseModsChanged();
+        finally { _mutationGate.Release(); }
     }
 
     #endregion
@@ -651,40 +729,50 @@ public partial class ModService
 
     public async Task<string?> GenerateThumbnailAsync(Guid modId, CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            return null;
-        }
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+            if (mod == null)
+            {
+                return null;
+            }
 
-        var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
-        if (thumbnailPath != null)
-        {
-            mod.ThumbnailPath = thumbnailPath;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
-            RaiseModsChanged();
-        }
+            var thumbnailPath = await _thumbnailService.GenerateThumbnailAsync(modId, mod.Path, cancellationToken, mod.Manifest?.IconPath);
+            if (thumbnailPath != null)
+            {
+                mod.ThumbnailPath = thumbnailPath;
+                await _modRepository.UpdateAsync(mod, cancellationToken);
+                RaiseModsChanged();
+            }
 
-        return thumbnailPath;
+            return thumbnailPath;
+        }
+        finally { _mutationGate.Release(); }
     }
 
     public async Task<string?> SetCustomThumbnailAsync(Guid modId, string imagePath, CancellationToken cancellationToken = default)
     {
-        var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
-        if (mod == null)
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
         {
-            return null;
-        }
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken);
+            if (mod == null)
+            {
+                return null;
+            }
 
-        var thumbnailPath = await _thumbnailService.CreateThumbnailFromImageAsync(modId, imagePath, cancellationToken);
-        if (thumbnailPath != null)
-        {
-            mod.ThumbnailPath = thumbnailPath;
-            await _modRepository.UpdateAsync(mod, cancellationToken);
-            RaiseModsChanged();
-        }
+            var thumbnailPath = await _thumbnailService.CreateThumbnailFromImageAsync(modId, imagePath, cancellationToken);
+            if (thumbnailPath != null)
+            {
+                mod.ThumbnailPath = thumbnailPath;
+                await _modRepository.UpdateAsync(mod, cancellationToken);
+                RaiseModsChanged();
+            }
 
-        return thumbnailPath;
+            return thumbnailPath;
+        }
+        finally { _mutationGate.Release(); }
     }
 
     /// <summary>读取卡片所对应的原始图片，放大预览不读取生成的缩略图。</summary>

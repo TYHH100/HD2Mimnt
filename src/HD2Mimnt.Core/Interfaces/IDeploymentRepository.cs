@@ -33,6 +33,18 @@ public interface IDeploymentRepository
     /// </summary>
     Task<IEnumerable<DeploymentRecord>> GetLatestDeploymentsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>获取指定游戏安装的当前部署状态（每模组一行）。</summary>
+    Task<IReadOnlyList<DeploymentRecord>> GetCurrentDeploymentsAsync(string gamePath, CancellationToken cancellationToken = default);
+
+    /// <summary>获取指定游戏安装中某个模组的当前部署状态。</summary>
+    Task<DeploymentRecord?> GetCurrentDeploymentAsync(string gamePath, Guid modId, CancellationToken cancellationToken = default);
+
+    /// <summary>获取指定游戏安装的全部当前部署文件。</summary>
+    Task<IReadOnlyList<DeploymentFile>> GetFilesForGameAsync(string gamePath, CancellationToken cancellationToken = default);
+
+    /// <summary>获取某个模组在所有游戏安装中的部署文件。</summary>
+    Task<IReadOnlyList<DeploymentFile>> GetFilesByModIdAsync(Guid modId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// 添加部署记录
     /// </summary>
@@ -42,6 +54,20 @@ public interface IDeploymentRepository
     /// 更新部署记录
     /// </summary>
     Task UpdateAsync(DeploymentRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>按 (GamePath, ModId) 原地更新或插入当前状态记录，返回实际记录 ID。</summary>
+    Task<Guid> UpsertAsync(DeploymentRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>在单个事务内替换某个部署记录的全部文件行。</summary>
+    Task ReplaceDeploymentFilesAsync(Guid deploymentId, IReadOnlyList<DeploymentFile> files,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 单事务提交一次对账结果：upsert 当前记录及文件、删除不再存在的记录。
+    /// 不依赖 SQLite 外键级联。
+    /// </summary>
+    Task SaveReconciledStateAsync(string gamePath, IReadOnlyList<DeploymentRecord> records,
+        IReadOnlyCollection<Guid> removedDeploymentIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 删除部署记录

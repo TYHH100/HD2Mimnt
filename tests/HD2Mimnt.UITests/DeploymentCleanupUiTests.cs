@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -8,9 +9,11 @@ using Avalonia.VisualTree;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IPC;
 using HD2Mimnt.UI;
 using HD2Mimnt.UI.ViewModels;
 using HD2Mimnt.UI.Views;
+using HD2Mimnt.Worker;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HD2Mimnt.UITests;
@@ -24,7 +27,8 @@ public sealed partial class FluentAvaloniaUiTests
     {
         using var method = new PausedCleanupMethod();
         await using var scope = await UiScope.CreateAsync(seedMods: true,
-            confirmation: new RecordingConfirmation(), deploymentMethod: method);
+            confirmation: new RecordingConfirmation(), deploymentMethod: method,
+            workerHostManagerFactory: services => new LoopbackWorkerHost(services));
         var main = scope.Services.GetRequiredService<MainWindowViewModel>();
         await main.InitializeAsync();
         var mod = (await scope.Services.GetRequiredService<ModService>().GetAllModsAsync()).First();
@@ -67,6 +71,12 @@ public sealed partial class FluentAvaloniaUiTests
             Layout();
             Click(window.GetVisualDescendants().OfType<ProfileView>().Single().FindControl<Button>("CleanupDeploymentButton")!);
             await method.FirstFile.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            // 进度经 TaskService 的观察者异步回传，等首条文件进度到达 UI 再断言。
+            for (var attempt = 0; attempt < 200 && main.LibraryViewModel.IsDeploymentIndeterminate; attempt++)
+            {
+                Layout();
+                await Task.Delay(10);
+            }
             Layout();
             Assert.False(method.RanOnUiThread);
             var surface = window.FindControl<Border>("DeploymentOperationSurface")!;
@@ -145,6 +155,8 @@ public sealed partial class FluentAvaloniaUiTests
             string targetDirectory, CancellationToken cancellationToken = default) => Task.FromResult((true, (string?)null));
         public Task<bool> DeployFileAsync(string sourcePath, string targetPath, IProgress<string>? progress = null,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<bool> IsUpToDateAsync(string sourcePath, string targetPath,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<bool> CleanupFileAsync(string targetPath, CancellationToken cancellationToken = default)
         {
             RanOnUiThread |= Dispatcher.UIThread.CheckAccess();
@@ -164,5 +176,129 @@ public sealed partial class FluentAvaloniaUiTests
             return Task.FromResult(true);
         }
         public void Dispose() { ContinueFirst.Dispose(); ContinueSecond.Dispose(); }
+    }
+
+    /// <summary>
+    /// 回环宿主：不起子进程，在本进程直接执行 Worker 任务实现。
+    /// 让 UI 测试能注入阻塞式部署方法来验证浮层与取消，同时仍经过
+    /// TaskService → Worker 任务 → DeploymentService 的真实链路（只有管道传输被替换）。
+    /// </summary>
+    private sealed class LoopbackWorkerHost(IServiceProvider services) : IWorkerHostManager
+    {
+        private sealed record Run(CancellationTokenSource Cancellation, Task<WorkerResult> Completion);
+
+        private readonly ConcurrentDictionary<Guid, Run> _runs = new();
+
+        public Task<Guid> StartWorkerAsync(string workerType, Dictionary<string, string> arguments,
+            IProgress<WorkerTaskProgress>? progress = null, CancellationToken cancellationToken = default,
+            Guid? taskId = null, WorkerPromptHandler? promptHandler = null)
+        {
+            var id = taskId ?? Guid.NewGuid();
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var host = new LoopbackTaskHost(id, cts, progress);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    IWorkerTask task = workerType switch
+                    {
+                        "Deployment" => new DeploymentWorkerTask(services.GetRequiredService<DeploymentService>()),
+                        "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
+                        _ => throw new NotSupportedException(workerType)
+                    };
+                    await task.ExecuteAsync(host,
+                        new ExecuteWorkerCommand { WorkerType = workerType, Arguments = arguments }, cts.Token);
+                }
+                catch (OperationCanceledException) { host.MarkCancelled(); }
+                catch (Exception ex) { host.MarkError(ex); }
+            }, CancellationToken.None);
+            _runs[id] = new Run(cts, host.Completion);
+            return Task.FromResult(id);
+        }
+
+        public Task<bool> IsWorkerRunningAsync(Guid taskId)
+            => Task.FromResult(_runs.TryGetValue(taskId, out var run) && !run.Completion.IsCompleted);
+
+        public async Task CancelWorkerAsync(Guid taskId)
+        {
+            if (!_runs.TryGetValue(taskId, out var run)) return;
+            run.Cancellation.Cancel();
+            try { await run.Completion.WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (TimeoutException) { }
+        }
+
+        public Task ForceTerminateWorkerAsync(Guid taskId)
+        {
+            if (_runs.TryGetValue(taskId, out var run)) run.Cancellation.Cancel();
+            return Task.CompletedTask;
+        }
+
+        public async Task<WorkerResult> WaitForCompletionAsync(Guid taskId, CancellationToken cancellationToken = default)
+            => _runs.TryGetValue(taskId, out var run)
+                ? await run.Completion.WaitAsync(cancellationToken)
+                : throw new InvalidOperationException($"Worker {taskId} not found");
+    }
+
+    private sealed class LoopbackTaskHost(Guid taskId, CancellationTokenSource cancellation,
+        IProgress<WorkerTaskProgress>? progress) : IWorkerTaskHost
+    {
+        private readonly TaskCompletionSource<WorkerResult> _completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<WorkerResult> Completion => _completion.Task;
+        public Guid TaskId { get; } = taskId;
+        public CancellationToken CancellationRequested => cancellation.Token;
+
+        public Task SendProgressAsync(double progressValue, string stage, string? currentItem = null,
+            string? message = null, CancellationToken cancellationToken = default)
+        {
+            progress?.Report(new WorkerTaskProgress
+            {
+                Progress = progressValue,
+                Stage = stage,
+                CurrentItem = currentItem ?? string.Empty,
+                Message = message ?? string.Empty
+            });
+            return Task.CompletedTask;
+        }
+
+        public Task SendCompletedAsync(bool success, string? result = null, List<string>? errors = null,
+            bool partiallyFailed = false, CancellationToken cancellationToken = default, string? data = null)
+        {
+            _completion.TrySetResult(new WorkerResult
+            {
+                Success = success,
+                PartiallyFailed = partiallyFailed,
+                Result = result,
+                Data = data,
+                Errors = errors ?? new List<string>()
+            });
+            return Task.CompletedTask;
+        }
+
+        public Task SendCancelledAsync(CancellationToken cancellationToken = default)
+        {
+            _completion.TrySetResult(new WorkerResult { Cancelled = true });
+            return Task.CompletedTask;
+        }
+
+        public Task SendErrorAsync(Exception exception, CancellationToken cancellationToken = default)
+        {
+            _completion.TrySetResult(new WorkerResult { Errors = new List<string> { exception.Message } });
+            return Task.CompletedTask;
+        }
+
+        public Task<WorkerPromptResponse> PromptAsync(string kind, string? title = null, string? payload = null,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new WorkerPromptResponse
+            {
+                RequestId = Guid.NewGuid().ToString("N"),
+                Accepted = false
+            });
+
+        public void MarkCancelled() => _completion.TrySetResult(new WorkerResult { Cancelled = true });
+
+        public void MarkError(Exception exception)
+            => _completion.TrySetResult(new WorkerResult { Errors = new List<string> { exception.Message } });
     }
 }

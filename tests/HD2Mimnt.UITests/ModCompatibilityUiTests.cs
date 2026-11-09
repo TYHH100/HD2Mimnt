@@ -341,4 +341,194 @@ public sealed partial class FluentAvaloniaUiTests
         await closing; await opening;
         Assert.True(analyzer.Cleaned); Assert.False(vm.IsBusy); Assert.False(vm.IsOpen); Assert.Empty(vm.Mods);
     }
+
+    private static async Task<Guid> ImportUnitVersionMod(UiScope scope, string name, uint version)
+    {
+        var source = Path.Combine(scope.Root, "compat-source-" + Guid.NewGuid().ToString("N"));
+        WritePatch(source, resources: [new(1, UnitType, Unit(version))]);
+        File.WriteAllText(Path.Combine(source, "manifest.json"), "{\"Version\":1,\"Name\":\"" + name + "\"}");
+        return await scope.Services.GetRequiredService<ModService>().ImportModAsync(source);
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_BadgesRestoreFromPersistenceWithoutStartupScan()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.GamePath, game);
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test persisted badge", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == id)], "persisted");
+            await vm.StopAsync();
+            var badge = library.FilteredMods.Single(m => m.Id == id).CompatibilityBadge!;
+            Assert.True(badge.HasWarning);
+
+            // 模拟重启：清空内存结果后走启动恢复路径，角标从持久化摘要回填。
+            badge.ApplyReport(null);
+            Assert.False(badge.HasWarning);
+            await vm.RestoreBadgesAsync();
+            Assert.True(badge.HasWarning);
+            Assert.Contains("模型版本不匹配", badge.Tooltip);
+
+            var db = scope.Services.GetRequiredService<HD2Mimnt.Infrastructure.Data.HD2MimntDbContext>();
+            using var connection = await db.OpenConnectionAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM CompatibilityResults";
+            Assert.Equal(1, Convert.ToInt64(await command.ExecuteScalarAsync()));
+        }
+        finally { await vm.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_InvalidateRestoresUnchangedModsFromPersistence()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.GamePath, game);
+        var mods = scope.Services.GetRequiredService<IModRepository>();
+        var first = await ImportUnitVersionMod(scope, "HD2Mimnt Test invalidate first", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == first)], "invalidate");
+            await vm.StopAsync();
+            var firstBadge = library.FilteredMods.Single(m => m.Id == first).CompatibilityBadge!;
+            Assert.True(firstBadge.HasWarning);
+
+            // 新增模组触发内容失效：已有结果的模组从持久化恢复，新模组保持未检查。
+            var second = await ImportUnitVersionMod(scope, "HD2Mimnt Test invalidate second", CurrentVersion + 1);
+            await library.InitializeAsync();
+            vm.Invalidate();
+            await vm.Completion;
+            Assert.True(firstBadge.HasWarning);
+            Assert.False(library.FilteredMods.Single(m => m.Id == second).CompatibilityBadge!.HasWarning);
+
+            // 内容变化的模组内容戳失效，不再恢复。
+            var entity = await mods.GetByIdAsync(first);
+            await File.AppendAllTextAsync(Path.Combine(entity!.Path, "extra.txt"), "x");
+            vm.Invalidate();
+            await vm.Completion;
+            Assert.False(firstBadge.HasWarning);
+        }
+        finally { await vm.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_CorruptedBadgeShowsWhileWarningsStayOff()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test corrupted badge", CurrentVersion);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            var badge = library.FilteredMods.Single(m => m.Id == id).CompatibilityBadge!;
+            badge.ApplyReport(new ModCompatibilityReport { ModId = id, Status = ModCompatibilityStatus.Compatible });
+            Assert.False(badge.HasWarning);
+
+            // 诊断性警告（entry_index 不连续）不上角标。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Compatible,
+                Patches = [new CompatibilityPatchReport { Health = CompatibilityPatchHealth.Warning, EntryIndicesValid = false, ContainsUnitResources = true }]
+            });
+            Assert.False(badge.HasWarning);
+
+            // 确定损坏：版本匹配也亮角标并显示损坏文案。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Compatible,
+                Patches = [new CompatibilityPatchReport { Health = CompatibilityPatchHealth.Corrupted, ContainsUnitResources = true }]
+            });
+            Assert.True(badge.HasWarning);
+            Assert.Contains("补丁损坏", badge.Tooltip);
+
+            // 必需伴随缺失同样亮角标。
+            badge.ApplyReport(new ModCompatibilityReport
+            {
+                ModId = id,
+                Status = ModCompatibilityStatus.Unknown,
+                Patches = [new CompatibilityPatchReport { RequiresStream = true, HasStream = false, ContainsUnitResources = true }]
+            });
+            Assert.True(badge.HasWarning);
+            Assert.Contains("补丁损坏", badge.Tooltip);
+
+            // 持久化恢复的轻量报告直接携带损坏标志。
+            badge.ApplyReport(new ModCompatibilityReport { ModId = id, Status = ModCompatibilityStatus.Compatible, HasBlockingStructureIssues = true });
+            Assert.True(badge.HasWarning);
+        }
+        finally { await vm.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_StartupCheckOnlyRescansChangedMods()
+    {
+        await using var scope = await UiScope.CreateAsync(compatibilityNames: new OfflineCompatibilityNames());
+        var game = Path.Combine(scope.Root, "game");
+        WriteGame(game, new Resource(1, UnitType, Unit()));
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.GamePath, game);
+        await settings.SetSettingAsync(SettingKeys.CompatibilityCheckOnStartup, true);
+        var mods = scope.Services.GetRequiredService<IModRepository>();
+        var id = await ImportUnitVersionMod(scope, "HD2Mimnt Test incremental", CurrentVersion + 1);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            // 首次启动检查：全量检查并落库。
+            await library.CheckCompatibilityOnStartupAsync();
+            var firstCheckedAt = vm.Mods.Single().Report!.CheckedAtUtc;
+            Assert.Equal(ModCompatibilityStatus.Incompatible, vm.Mods.Single().Report!.Status);
+
+            // 第二次启动检查：内容未变，直接回填持久化结果（CheckedAtUtc 不变）。
+            await vm.StopAsync();
+            await library.CheckCompatibilityOnStartupAsync();
+            Assert.Equal(firstCheckedAt, vm.Mods.Single().Report!.CheckedAtUtc);
+
+            // 模组内容变化后重扫该模组。
+            await vm.StopAsync();
+            var entity = await mods.GetByIdAsync(id);
+            await File.AppendAllTextAsync(Path.Combine(entity!.Path, "extra.txt"), "x");
+            await library.CheckCompatibilityOnStartupAsync();
+            Assert.True(vm.Mods.Single().Report!.CheckedAtUtc > firstCheckedAt);
+        }
+        finally { await vm.StopAsync(); }
+    }
+
+    [AvaloniaFact]
+    public async Task Compatibility_QuickRepairBuildsPlanAndRepairsWithoutPreview()
+    {
+        var confirmation = new RecordingConfirmation();
+        await using var scope = await UiScope.CreateAsync(confirmation: confirmation, compatibilityNames: new OfflineCompatibilityNames());
+        var id = await ImportCompatibilityMod(scope, "HD2Mimnt Test quick repair", brokenIndex: true);
+        var library = scope.Services.GetRequiredService<LibraryViewModel>(); await library.InitializeAsync();
+        var vm = library.Compatibility!;
+        try
+        {
+            await vm.OpenAsync([library.FilteredMods.Single(m => m.Id == id)], "quick");
+            // 检查后没有计划：修复 Tab 的按钮仍要求先预览，一键按钮按报告可用；批量一键受设置门控。
+            Assert.False(vm.CanRepairSelected);
+            Assert.True(vm.CanQuickRepairSelected);
+            Assert.False(vm.CanQuickRepairScope);
+            vm.RepairUnits = false; vm.MigrateMaterials = false;
+
+            await vm.RepairSelectedCommand.ExecuteAsync(null);
+
+            var mod = (await scope.Services.GetRequiredService<ModService>().GetAllModsAsync()).Single(m => m.Id == id);
+            var repaired = File.ReadAllBytes(Directory.GetFiles(mod.Path, "*.patch_0", SearchOption.AllDirectories).Single());
+            Assert.Equal(1u, System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(repaired.AsSpan(180)));
+            Assert.Contains("重新部署", confirmation.Message);
+            Assert.NotEmpty(Directory.GetFiles(mod.Path, "*.hd2mimnt-backup", SearchOption.AllDirectories));
+            Assert.False(vm.CanRepairSelected);
+        }
+        finally { await vm.StopAsync(); }
+    }
 }

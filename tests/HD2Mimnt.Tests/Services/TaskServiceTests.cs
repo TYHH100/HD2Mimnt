@@ -1,5 +1,4 @@
 using HD2Mimnt.Application.Services;
-using HD2Mimnt.Application.Workers;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
@@ -33,10 +32,10 @@ public class TaskServiceTests : IDisposable
 
         _taskService = new TaskService(_taskRepository, serviceProvider);
 
-        // 注册测试 Workers
-        _taskService.RegisterWorker(new ImportWorker(_modRepository));
-        _taskService.RegisterWorker(new ScanWorker(_modRepository));
-        _taskService.RegisterWorker(new ValidationWorker(_modRepository));
+        // 注册测试 Workers（进程 Worker 由 WorkerProcessIntegrationTests 覆盖）
+        _taskService.RegisterWorker(new QuickWorker("Import"));
+        _taskService.RegisterWorker(new SteppedWorker());
+        _taskService.RegisterWorker(new PartialWorker());
         _taskService.RegisterWorker(new BlockingWorker());
     }
 
@@ -264,43 +263,18 @@ public class TaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidationWorker_ShouldReportErrors()
+    public async Task WorkerSettingPartiallyFailed_ShouldPreserveStatus()
     {
-        // Arrange - 先添加一些 Mod
-        for (int i = 0; i < 10; i++)
-        {
-            var mod = new Mod
-            {
-                Id = Guid.NewGuid(),
-                Name = $"Test Mod {i}",
-                Author = "Test Author",
-                Version = "1.0.0",
-                Description = "Test",
-                Path = $"/path/to/mod{i}",
-                Category = ModCategory.Gameplay,
-                Tags = new List<string>(),
-                CreatedAt = DateTime.UtcNow,
-                ModifiedAt = DateTime.UtcNow,
-                ImportedAt = DateTime.UtcNow
-            };
-            await _modRepository.AddAsync(mod);
-        }
+        var taskId = await _taskService.CreateTaskAsync("Partial Task", "Partial");
 
-        var taskId = await _taskService.CreateTaskAsync("Validation Task", "Validation");
-
-        // Act
         await _taskService.StartTaskAsync(taskId);
         await _taskService.WaitForTaskAsync(taskId);
 
-        // Assert
         var task = await _taskService.GetTaskAsync(taskId);
         Assert.NotNull(task);
-        Assert.True(task.Status == Core.Entities.TaskStatus.Completed || task.Status == Core.Entities.TaskStatus.PartiallyFailed);
-
-        if (task.Errors.Any())
-        {
-            Assert.Equal(Core.Entities.TaskStatus.PartiallyFailed, task.Status);
-        }
+        Assert.Equal(Core.Entities.TaskStatus.PartiallyFailed, task.Status);
+        Assert.Equal("Partial done", task.Result);
+        Assert.NotEmpty(task.Errors);
     }
 
     public void Dispose()
@@ -321,6 +295,48 @@ public class TaskServiceTests : IDisposable
         {
             progress.Report(new TaskProgress { Progress = 10, Stage = "Running", Message = "Waiting" });
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+    }
+
+    private sealed class QuickWorker(string type) : IWorker
+    {
+        public string Type => type;
+
+        public async Task ExecuteAsync(ModTask task, IProgress<TaskProgress> progress, CancellationToken cancellationToken)
+        {
+            progress.Report(new TaskProgress { Progress = 50, Stage = "Working", Message = "Working" });
+            // 保留可观测的运行窗口，供“运行中任务”断言；整体仍在 1 秒内完成。
+            await Task.Delay(800, cancellationToken);
+            progress.Report(new TaskProgress { Progress = 100, Stage = "Completed", Message = "Done" });
+            task.Result = "ok";
+        }
+    }
+
+    private sealed class PartialWorker : IWorker
+    {
+        public string Type => "Partial";
+
+        public Task ExecuteAsync(ModTask task, IProgress<TaskProgress> progress, CancellationToken cancellationToken)
+        {
+            progress.Report(new TaskProgress { Progress = 60, Stage = "Validating", Message = "Some items failed" });
+            task.Errors.Add("item 1 failed");
+            task.Result = "Partial done";
+            task.Status = Core.Entities.TaskStatus.PartiallyFailed;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class SteppedWorker : IWorker
+    {
+        public string Type => "Scan";
+
+        public async Task ExecuteAsync(ModTask task, IProgress<TaskProgress> progress, CancellationToken cancellationToken)
+        {
+            for (var step = 1; step <= 5; step++)
+            {
+                progress.Report(new TaskProgress { Progress = step * 20, Stage = "Scanning", Message = $"Step {step}" });
+                await Task.Delay(200, cancellationToken);
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
-             xmlns:models="using:HD2Mimnt.Application.Services" xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:controls="using:HD2Mimnt.UI.Controls"
              x:Class="HD2Mimnt.UI.Views.ModCreationView" x:DataType="vm:ModCreationViewModel">
   <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="12">
     <StackPanel Spacing="10">
@@ -194,15 +194,8 @@
                   <CheckBox Name="EncryptModArchive" Content="{loc:Loc ArchivePasswords.EncryptExport}" IsChecked="{Binding Passwords.UsePassword}"/>
                   <TextBox Name="ExportArchivePassword" Text="{Binding Passwords.Password}" PasswordChar="●"
                            PlaceholderText="{loc:Loc ArchivePasswords.Password}" IsVisible="{Binding Passwords.UsePassword}"/>
-                  <ComboBox Name="ExportSavedArchivePassword" ItemsSource="{Binding Passwords.Entries}" SelectedItem="{Binding Passwords.Selected}"
-                            IsVisible="{Binding Passwords.UsePassword}" PlaceholderText="{loc:Loc ArchivePasswords.Select}" MinWidth="240">
-                    <ComboBox.ItemTemplate><DataTemplate x:DataType="models:ArchivePasswordEntry"><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate>
-                  </ComboBox>
                 </StackPanel>
               </StackPanel>
-            </Border>
-            <Border Classes="card" Padding="20" HorizontalAlignment="Stretch">
-              <controls:ArchivePasswordsControl DataContext="{Binding Passwords}"/>
             </Border>
           </StackPanel>
         </ScrollViewer>

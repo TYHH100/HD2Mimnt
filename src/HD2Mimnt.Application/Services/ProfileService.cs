@@ -17,7 +17,7 @@ public class ProfileService
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
     private readonly SettingsService? _settingsService;
-    private bool LoaderLockEnabled => _settingsService?.GetSetting(SettingKeys.ProfilesLockLoaders, true) ?? true;
+    private bool LoaderOrderLocked => _settingsService?.IsLoaderOrderLocked() ?? true;
 
     /// <summary>同一配置的成员、选项、排序、元数据和规范化共用读改写闸门。</summary>
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
@@ -98,9 +98,9 @@ public class ProfileService
         var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToList();
         foreach (var mod in mods) await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
         var byId = mods.ToDictionary(mod => mod.Id);
-        var changed = LoaderLockEnabled && AdjustSeparatorsForLockedLoaders(profile, byId);
+        var changed = LoaderOrderLocked && AdjustSeparatorsForLockedLoaders(profile, byId);
         changed |= enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
-        return BslProfilePolicy.Normalize(profile, byId, LoaderLockEnabled) || changed;
+        return BslProfilePolicy.Normalize(profile, byId, LoaderOrderLocked) || changed;
     }
 
     private static bool AdjustSeparatorsForLockedLoaders(Profile profile, IReadOnlyDictionary<Guid, Mod> mods)
@@ -197,8 +197,8 @@ public class ProfileService
                 item.OptionsJson = ProfileModOptionResolver.ResolveEffective(mod.Manifest, item.OptionsJson).ToJson();
             }
             BslProfilePolicy.SelectLoader(profile, mods, profile.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
-            BslProfilePolicy.Normalize(profile, mods, LoaderLockEnabled);
-            var normalCount = profile.Mods.Count(item => !LoaderLockEnabled || BslProfilePolicy.Role(mods[item.ModId]) == HD2Mimnt.Core.Enums.BslModRole.None);
+            BslProfilePolicy.Normalize(profile, mods, LoaderOrderLocked);
+            var normalCount = profile.Mods.Count(item => !LoaderOrderLocked || BslProfilePolicy.Role(mods[item.ModId]) == HD2Mimnt.Core.Enums.BslModRole.None);
             foreach (var separator in profile.Separators)
             {
                 separator.ProfileId = profile.Id;
@@ -238,7 +238,7 @@ public class ProfileService
         foreach (var mod in await _modRepository.GetByIdsAsync(target.Mods.Select(item => item.ModId), cancellationToken))
             mods.TryAdd(mod.Id, mod);
         bool IsNormal(ProfileMod item) => !mods.TryGetValue(item.ModId, out var mod)
-            || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+            || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
 
         var oldNormal = target.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
         var retained = target.Mods.OrderBy(item => item.Order).Where(item => !importedIds.Contains(item.ModId)).ToList();
@@ -269,7 +269,7 @@ public class ProfileService
             target.Mods[index].Order = index;
         }
         BslProfilePolicy.SelectLoader(target, mods, incoming.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToList());
-        BslProfilePolicy.Normalize(target, mods, LoaderLockEnabled);
+        BslProfilePolicy.Normalize(target, mods, LoaderOrderLocked);
         if (incoming.Mods.Any(item => !IsNormal(item)) || incoming.IsLuaGroupCollapsed || incoming.LuaSeparatorColor.Length > 0)
         {
             target.IsLuaGroupCollapsed = incoming.IsLuaGroupCollapsed;
@@ -464,7 +464,7 @@ public class ProfileService
                 var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                     .ToDictionary(mod => mod.Id);
                 var normal = profile.Mods.OrderBy(item => item.Order).Where(item => !mods.TryGetValue(item.ModId, out var mod)
-                    || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
+                    || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
                 foreach (var separator in profile.Separators)
                 {
                     if (separator.MemberCount != null || separator.IsCollapsed)
@@ -490,6 +490,176 @@ public class ProfileService
     public async Task SetModEnabledAsync(Guid profileId, Guid modId, bool enabled, CancellationToken cancellationToken = default)
     {
         await SetModsEnabledAsync(profileId, new[] { modId }, enabled, cancellationToken);
+    }
+
+    /// <summary>把现有普通模组移动到用户分组末尾；只调整分组归属与顺序，不改启用状态。返回实际移动数量。</summary>
+    public async Task<int> MoveModsToGroupAsync(Guid profileId, Guid separatorId, IReadOnlyCollection<Guid> modIds,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null) throw new InvalidOperationException($"Profile {profileId} not found");
+            var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            var moved = MoveModsToGroupCore(profile, mods, separatorId, modIds);
+            if (moved == 0) return 0;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+            return moved;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    /// <summary>把模组补齐到配置（已存在则启用），并在同一事务内放入指定用户分组末尾。返回实际移动数量。</summary>
+    public async Task<int> AddModsToProfileGroupAsync(Guid profileId, IReadOnlyCollection<Guid> modIds, Guid separatorId,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken);
+            if (profile == null) throw new InvalidOperationException($"Profile {profileId} not found");
+            if (profile.Separators.All(item => item.Id != separatorId))
+                throw new InvalidOperationException("目标分组不存在");
+
+            var distinctModIds = modIds.Distinct().ToArray();
+            var existingModIds = (await _modRepository.GetByIdsAsync(distinctModIds, cancellationToken))
+                .Select(mod => mod.Id).ToHashSet();
+            var missingModId = distinctModIds.FirstOrDefault(modId => !existingModIds.Contains(modId));
+            if (missingModId != Guid.Empty) throw new InvalidOperationException($"Mod {missingModId} not found");
+
+            var nextOrder = profile.Mods.Any() ? profile.Mods.Max(item => item.Order) + 1 : 0;
+            var changed = false;
+            foreach (var modId in distinctModIds)
+            {
+                var profileMod = profile.Mods.FirstOrDefault(item => item.ModId == modId);
+                if (profileMod == null)
+                {
+                    profile.Mods.Add(new ProfileMod
+                    {
+                        ProfileId = profileId, ModId = modId, Enabled = true, Order = nextOrder++
+                    });
+                    changed = true;
+                }
+                else if (!profileMod.Enabled)
+                {
+                    profileMod.Enabled = true;
+                    changed = true;
+                }
+            }
+
+            changed |= await NormalizeBslAsync(profile, cancellationToken, distinctModIds);
+            var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            var moved = MoveModsToGroupCore(profile, mods, separatorId, distinctModIds);
+            changed |= moved > 0;
+            if (!changed) return 0;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+            return moved;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    /// <summary>
+    /// 按显示行把普通模组拆成“未分组段 + 分组块”，移动后按原块顺序重建；
+    /// 分隔符位置按普通模组计数重算，显式 MemberCount 同步为新块成员数，null 保持延伸到下一分隔符。
+    /// 固定区域模组不参与用户分组，直接忽略。
+    /// </summary>
+    private int MoveModsToGroupCore(Profile profile, IReadOnlyDictionary<Guid, Mod> mods, Guid separatorId,
+        IReadOnlyCollection<Guid> modIds)
+    {
+        var separators = profile.Separators.OrderBy(item => item.Order).ToList();
+        var separator = separators.FirstOrDefault(item => item.Id == separatorId)
+            ?? throw new InvalidOperationException("目标分组不存在");
+        bool IsNormal(ProfileMod item) => !mods.TryGetValue(item.ModId, out var mod)
+            || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+        var normal = profile.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
+        var movingIds = modIds.Distinct().ToHashSet();
+        var moving = normal.Where(item => movingIds.Contains(item.ModId)).ToList();
+        if (moving.Count == 0) return 0;
+
+        var blocks = new List<(ProfileSeparator? Separator, List<ProfileMod> Members)>();
+        var ungrouped = new List<ProfileMod>();
+        void FlushUngrouped()
+        {
+            if (ungrouped.Count == 0) return;
+            blocks.Add((null, new List<ProfileMod>(ungrouped)));
+            ungrouped.Clear();
+        }
+
+        ProfileSeparator? current = null;
+        var remaining = 0;
+        foreach (var row in BuildOrdinaryRows(normal, separators))
+        {
+            if (row is ProfileSeparator next)
+            {
+                FlushUngrouped();
+                current = next;
+                remaining = next.MemberCount ?? int.MaxValue;
+                blocks.Add((next, new List<ProfileMod>()));
+            }
+            else if (row is ProfileMod profileMod)
+            {
+                if (current != null && remaining > 0)
+                {
+                    blocks[^1].Members.Add(profileMod);
+                    if (remaining != int.MaxValue) remaining--;
+                }
+                else ungrouped.Add(profileMod);
+            }
+        }
+        FlushUngrouped();
+
+        var targetIndex = blocks.FindIndex(block => ReferenceEquals(block.Separator, separator));
+        if (targetIndex < 0) throw new InvalidOperationException("目标分组不存在");
+        foreach (var block in blocks) block.Members.RemoveAll(item => movingIds.Contains(item.ModId));
+        blocks[targetIndex].Members.AddRange(moving);
+
+        var newNormal = new List<ProfileMod>(normal.Count);
+        var separatorOrders = new Dictionary<Guid, int>();
+        foreach (var block in blocks)
+        {
+            if (block.Separator == null)
+            {
+                newNormal.AddRange(block.Members);
+                continue;
+            }
+            separatorOrders[block.Separator.Id] = newNormal.Count;
+            if (block.Separator.MemberCount != null)
+                block.Separator.MemberCount = block.Members.Count;
+            newNormal.AddRange(block.Members);
+        }
+
+        var normalIds = normal.Select(item => item.ModId).ToHashSet();
+        var rebuilt = newNormal.Concat(profile.Mods.OrderBy(item => item.Order)
+            .Where(item => !normalIds.Contains(item.ModId))).ToList();
+        for (var index = 0; index < rebuilt.Count; index++)
+            rebuilt[index].Order = index;
+        profile.Mods = rebuilt;
+        foreach (var item in separators)
+        {
+            if (separatorOrders.TryGetValue(item.Id, out var order)) item.Order = order;
+        }
+        return moving.Count;
+    }
+
+    private static List<object> BuildOrdinaryRows(IReadOnlyList<ProfileMod> normal,
+        IReadOnlyList<ProfileSeparator> separators)
+    {
+        var rows = new List<object>(normal.Count + separators.Count);
+        var next = 0;
+        for (var index = 0; index <= normal.Count; index++)
+        {
+            while (next < separators.Count && Math.Clamp(separators[next].Order, 0, normal.Count) <= index)
+                rows.Add(separators[next++]);
+            if (index < normal.Count) rows.Add(normal[index]);
+        }
+        return rows;
     }
 
     public async Task SetModsEnabledAsync(
@@ -650,7 +820,7 @@ public class ProfileService
             var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
             var normalIds = profile.Mods.Where(item => !mods.TryGetValue(item.ModId, out var mod)
-                || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).Select(item => item.ModId).ToHashSet();
+                || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).Select(item => item.ModId).ToHashSet();
             var separatorMap = profile.Separators.ToDictionary(item => item.Id);
             if (modIds.Count != profile.Mods.Count || modIds.Distinct().Count() != modIds.Count
                 || !modIds.ToHashSet().SetEquals(profile.Mods.Select(item => item.ModId))
@@ -663,7 +833,7 @@ public class ProfileService
 
             var modMap = profile.Mods.ToDictionary(item => item.ModId);
             for (var i = 0; i < modIds.Count; i++) modMap[modIds[i]].Order = i;
-            BslProfilePolicy.Normalize(profile, mods, LoaderLockEnabled);
+            BslProfilePolicy.Normalize(profile, mods, LoaderOrderLocked);
             if (!profile.Mods.Select(item => item.ModId).SequenceEqual(modIds))
                 throw new InvalidOperationException("该顺序会破坏 Lua 模组或加载器的固定顺序。");
 
@@ -706,7 +876,7 @@ public class ProfileService
             var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
             var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
-                || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+                || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
             var separator = new ProfileSeparator
             {
                 Id = Guid.NewGuid(), ProfileId = profileId, Name = name.Trim(),
@@ -779,7 +949,7 @@ public class ProfileService
                     var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
                         .ToDictionary(mod => mod.Id);
                     var normalCount = profile.Mods.Count(item => !mods.TryGetValue(item.ModId, out var mod)
-                        || !LoaderLockEnabled || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
+                        || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None);
                     separator.MemberCount = GetSeparatorMemberCount(profile, separator, normalCount);
                 }
                 separator.IsCollapsed = collapsed;

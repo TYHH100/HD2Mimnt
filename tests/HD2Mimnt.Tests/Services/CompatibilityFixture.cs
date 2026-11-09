@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using HD2Mimnt.Core.ModelPreview;
 using K4os.Compression.LZ4;
 
 namespace HD2Mimnt.Tests.Services;
@@ -140,6 +141,9 @@ internal static class CompatibilityFixture
     }
 
     internal static void WriteGame(string root, params Resource[] resources)
+        => WriteGame(root, null, resources);
+
+    internal static void WriteGame(string root, Func<int, string>? packageName, params Resource[] resources)
     {
         var directory = Path.Combine(root, "data");
         Directory.CreateDirectory(directory);
@@ -149,7 +153,7 @@ internal static class CompatibilityFixture
         {
             var patch = PatchData(resources[i]);
             var offset = (uint)(0x1000 + i * 0x100000);
-            var name = $"base_{i}";
+            var name = packageName?.Invoke(i) ?? $"base_{i}";
             packages.Add((name, offset));
             chunks.Add((offset, patch.Main));
             if (patch.Gpu.Length > 0) { packages.Add((name + ".gpu_resources", offset + 0x40000)); chunks.Add((offset + 0x40000, patch.Gpu)); }
@@ -173,6 +177,53 @@ internal static class CompatibilityFixture
         }
         WriteDsar(Path.Combine(directory, "bundles.nxa"), [(0, index)]);
         WriteDsar(Path.Combine(directory, "bundles.00.nxa"), chunks.OrderBy(c => c.Offset).ToArray());
+    }
+
+    /// <summary>写出最小可用的 patch + .gpu_resources：main 数据在 0xC0 处放 DDS 头，
+    /// 像素负载走 gpu_resources，格式 RGBA8。</summary>
+    internal static TextureInspectionItem WriteRgba8Texture(DirectoryInfo root, byte alpha,
+        ulong textureId = 0x72, string name = "color")
+    {
+        const int headerSize = 148;
+        var main = new byte[0xC0 + headerSize];
+        "DDS "u8.CopyTo(main.AsSpan(0xC0));
+        BitConverter.GetBytes(32).CopyTo(main, 0xC0 + 12);   // height
+        BitConverter.GetBytes(32).CopyTo(main, 0xC0 + 16);   // width
+        BitConverter.GetBytes(1).CopyTo(main, 0xC0 + 28);    // mip count
+        BitConverter.GetBytes(28).CopyTo(main, 0xC0 + 128);  // DXGI_FORMAT_R8G8B8A8_UNORM
+
+        var payload = new byte[32 * 32 * 4];
+        for (var i = 0; i < payload.Length / 4; i++)
+        {
+            payload[i * 4] = (byte)(i % 256);
+            payload[i * 4 + 1] = (byte)(i * 7 % 256);
+            payload[i * 4 + 2] = (byte)(i * 13 % 256);
+            payload[i * 4 + 3] = alpha;
+        }
+
+        var patch = Path.Combine(root.FullName, $"probe-{name}.patch_0");
+        File.WriteAllBytes(patch, main);
+        File.WriteAllBytes(patch + ".gpu_resources", payload);
+        return new TextureInspectionItem
+        {
+            PatchFile = Path.GetFileName(patch),
+            PatchPath = Path.GetFileName(patch),
+            PatchOrder = 0,
+            TocEntryIndex = 0,
+            TextureId = textureId,
+            MainOffset = 0,
+            MainSize = (uint)main.Length,
+            GpuOffset = 0,
+            GpuSize = (uint)payload.Length,
+            StreamOffset = 0,
+            StreamSize = 0,
+            Width = 32,
+            Height = 32,
+            MipCount = 1,
+            DxgiFormat = 28,
+            PayloadKind = "DDS",
+            PayloadSource = "gpu_resources"
+        };
     }
 
     private static void WriteDsar(string path, IReadOnlyList<(ulong Offset, byte[] Data)> chunks)

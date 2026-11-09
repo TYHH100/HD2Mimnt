@@ -47,7 +47,7 @@ HD2Mimnt 自动提供本机 UTF-8 JSON 文件，供模组及工具读取模组�
 | `deploymentOrder` | 当前部署方向 `TopToBottom` / `BottomToTop` |
 | `library` | **全部受管理模组**，包括未加入配置、未启用、未部署的模组 |
 | `profiles` | 全部配置的成员、启用状态、顺序和当前选项 |
-| `deployments` | 所有仍受管理器追踪的部署记录，包括失败/取消后的残留 |
+| `deployments` | **当前生效游戏安装**的当前部署状态（每模组一条）；其它安装和未归属旧会话不导出 |
 
 ### 模组库 `library[]`
 
@@ -67,10 +67,12 @@ HD2Mimnt 自动提供本机 UTF-8 JSON 文件，供模组及工具读取模组�
 
 `id`, `sessionId`, `profileId`, `modId`, `status`, `method`, `startedUtc`, `endedUtc`, `order`, `modVersion`, `options`, `isComplete`, `files`, `missingTargets`。
 
-- 新部署记录保存当时的模组版本、归一化选项与部署顺序，后续改配置不会改写这些值。旧记录没有相关快照时 `order`, `modVersion`, `options` 为 null，**不使用当前库或配置补造过去状态**。
+- 部署记录表示当前安装状态，按当前 `SettingsService.GetEffectiveGamePath()` 过滤；`GamePath` 本身不进入 v1 JSON。同一模组在官方安装与 HellForge 可能各有一条当前状态，切换来源后重新发布快照，不能把两个安装的文件混在一起。
+- 记录保存最近一次对账时的模组版本、归一化选项与部署顺序；之后修改配置不会改写这些值，直到再次部署或模组更新触发自动增量部署。旧记录没有相关快照时 `order`, `modVersion`, `options` 为 null，**不使用当前库或配置补造过去状态**。
 - `files[]` 只含发布时实际存在的受追踪目标：`sourcePath`, `targetPath`, `method`, `isPlaceholder`。文件名重编号后以 `targetPath` 为准；占位文件 `sourcePath: null`, `isPlaceholder: true`。2026-10-25 起部署不再生成 0 字节占位（游戏加载占位会崩溃），新记录中 `isPlaceholder` 恒为 false；旧记录中的占位条目按原样保留投影。
 - 预登记但未写入、已被外部删除或清理的目标放入 `missingTargets`，不冒充已部署文件。
-- `isComplete` 仅表示记录状态为 `Completed` 且受追踪目标全部存在，不证明补丁内容完整、游戏兼容或游戏已载入。部分写入、失败、取消记录保持原状态。
+- 旧版未归属记录（没有 `GamePath`）在启动迁移时按目标路径归属并合并；无法归属的记录不进入离线快照。迁移只改数据库归属，不删除磁盘文件。
+- `isComplete` 仅表示记录状态为 `Completed` 且受追踪目标全部存在，不证明补丁内容完整、游戏兼容或游戏已载入。旧失败/取消残留记录在迁移归属后仍按原状态投影；当前对账失败不会伪造完成记录。
 - 库中启用状态、当前配置选项与实际部署是不同事实。不要按 `enabled` 判断游戏正在使用该模组。导出也无法判断运行中的游戏是否重启加载了新部署。
 
 ## 更新、读取与边界

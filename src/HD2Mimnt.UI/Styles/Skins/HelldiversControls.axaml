@@ -1,0 +1,250 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- 军械库风控件皮肤：深色半透明底、1px 灰描边、聚焦/悬停时黄色描边，颜色全部走语义画刷。 -->
+  <SolidColorBrush x:Key="HdButtonBackground" Color="#33262626"/>
+  <SolidColorBrush x:Key="HdButtonBackgroundPointerOver" Color="#4D262626"/>
+  <SolidColorBrush x:Key="HdButtonBackgroundPressed" Color="#26121212"/>
+  <SolidColorBrush x:Key="HdButtonBackgroundDisabled" Color="#1A1A1A"/>
+  <SolidColorBrush x:Key="HdButtonForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="HdButtonForegroundDisabled" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="HdButtonBorderBrush" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="HdButtonBorderBrushPointerOver" Color="#F2E33B"/>
+  <SolidColorBrush x:Key="HdButtonBorderBrushDisabled" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="HdAccentButtonBackground" Color="#1A6FCC4E"/>
+  <SolidColorBrush x:Key="HdAccentButtonBackgroundPointerOver" Color="#2E6FCC4E"/>
+  <SolidColorBrush x:Key="HdAccentButtonBackgroundPressed" Color="#0F6FCC4E"/>
+  <SolidColorBrush x:Key="HdAccentButtonBackgroundDisabled" Color="#143A3A2A"/>
+  <SolidColorBrush x:Key="HdAccentButtonForeground" Color="#6FCC4E"/>
+  <SolidColorBrush x:Key="HdAccentButtonForegroundDisabled" Color="#5A6E52"/>
+  <SolidColorBrush x:Key="HdAccentButtonBorderBrush" Color="#6FCC4E"/>
+  <SolidColorBrush x:Key="HdAccentButtonBorderBrushPointerOver" Color="#8ADF6E"/>
+
+  <!-- 输入框与下拉框保持深色半透明底、白字，聚焦时黄色 2px 描边。 -->
+  <SolidColorBrush x:Key="TextControlBackground" Color="#B3212121"/>
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#CC262626"/>
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#CC2D2D2D"/>
+  <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="#661A1A1A"/>
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="#737373"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#F2E33B"/>
+  <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="TextControlForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TextControlForegroundDisabled" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundDisabled" Color="#5A5A5A"/>
+  <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+  <Thickness x:Key="TextControlBorderThemeThicknessFocused">2</Thickness>
+
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="#B3212121"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#CC262626"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#B3191919"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="#CC2D2D2D"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="#661A1A1A"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#737373"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="#4A4A4A"/>
+  <SolidColorBrush x:Key="ComboBoxBackgroundBorderBrushFocused" Color="#F2E33B"/>
+  <Thickness x:Key="ComboBoxBackgroundBorderThicknessFocused">2</Thickness>
+  <Thickness x:Key="ComboBoxBorderThemeThickness">1</Thickness>
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundPressed" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundFocused" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxForegroundDisabled" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#F01A1A1A"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownGlyphForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxDropDownGlyphForegroundFocused" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="#1AFFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundPressed" Color="#26FFFFFF"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="#2EF2E33B"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="#3DF2E33B"/>
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPressed" Color="#52F2E33B"/>
+  <SolidColorBrush x:Key="ComboBoxItemForeground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="#FFFFFF"/>
+  <CornerRadius x:Key="ComboBoxHiglightBorderCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ComboBoxDropDownButtonBackgroundCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ComboBoxItemCornerRadius">0</CornerRadius>
+
+  <!-- 顶部导航项按军械库页签处理：半透明深色块，选中时白字加黄色斜纹下划线指示器。 -->
+  <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundDisabled" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackground" Color="#991A1A1A"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#B3262626"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#99141414"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#99303030"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#993A3A3A"/>
+  <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#99262626"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPointerOver" Color="#B3262626"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundPressed" Color="#99141414"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundSelected" Color="#99303030"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundSelectedPointerOver" Color="#993A3A3A"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemBackgroundSelectedPressed" Color="#99262626"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForeground" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundPressed" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundDisabled" Color="#6E6E6E"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelected" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelectedPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="TopNavigationViewItemForegroundSelectedPressed" Color="#FFFFFF"/>
+  <!-- 选中指示器：黄色斜纹条，对应军械库页签下的斑纹下划线；按 32x3 尺寸用相对坐标换算斜纹周期。 -->
+  <LinearGradientBrush x:Key="NavigationViewSelectionIndicatorForeground" StartPoint="0,0" EndPoint="0.1875,1" SpreadMethod="Repeat">
+    <GradientStop Offset="0" Color="#F2E33B"/>
+    <GradientStop Offset="0.5" Color="#F2E33B"/>
+    <GradientStop Offset="0.5" Color="#00F2E33B"/>
+    <GradientStop Offset="1" Color="#00F2E33B"/>
+  </LinearGradientBrush>
+  <x:Double x:Key="NavigationViewSelectionIndicatorHeight">3</x:Double>
+  <x:Double x:Key="NavigationViewSelectionIndicatorWidth">32</x:Double>
+
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUnchecked" Color="#26FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPointerOver" Color="#33FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedPressed" Color="#1AFFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillUncheckedDisabled" Color="#14FFFFFF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUnchecked" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPointerOver" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedPressed" Color="#9E9E9E"/>
+  <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeUncheckedDisabled" Color="#4A4A4A"/>
+
+  <CornerRadius x:Key="ScrollBarCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="ScrollBarCornerRadius2x">0</CornerRadius>
+  <SolidColorBrush x:Key="ScrollBarBackground" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarBackgroundPointerOver" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarThumbBackground" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="#B0B0B0"/>
+  <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="#CFCFCF"/>
+  <SolidColorBrush x:Key="ScrollBarThumbBorderBrush" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarPanningThumbBackground" Color="#8A8A8A"/>
+  <SolidColorBrush x:Key="ScrollBarTrackFill" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackStroke" Color="Transparent"/>
+  <SolidColorBrush x:Key="ScrollBarTrackStrokePointerOver" Color="Transparent"/>
+
+  <!-- 滑块按显示设置处理：深色轨道、白色已填充段与方形白色滑块。 -->
+  <CornerRadius x:Key="SliderTrackCornerRadius">0</CornerRadius>
+  <CornerRadius x:Key="SliderThumbCornerRadius">0</CornerRadius>
+  <x:Double x:Key="SliderInnerThumbWidth">0</x:Double>
+  <x:Double x:Key="SliderInnerThumbHeight">0</x:Double>
+  <x:Double x:Key="SliderHorizontalThumbWidth">12</x:Double>
+  <x:Double x:Key="SliderHorizontalThumbHeight">12</x:Double>
+  <x:Double x:Key="SliderTrackThemeHeight">4</x:Double>
+  <SolidColorBrush x:Key="SliderTrackFill" Color="#4D4D4D"/>
+  <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#5A5A5A"/>
+  <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#4D4D4D"/>
+  <SolidColorBrush x:Key="SliderTrackValueFill" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="SliderThumbBackground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#D9D9D9"/>
+  <SolidColorBrush x:Key="SliderOuterThumbBackground" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="SliderThumbBorderBrush" Color="Transparent"/>
+
+  <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="#F01A1A1A"/>
+  <SolidColorBrush x:Key="ToolTipForegroundBrush" Color="#F5F5F5"/>
+  <SolidColorBrush x:Key="ToolTipBorderBrush" Color="#737373"/>
+
+  <ControlTheme x:Key="HdButtonTheme" TargetType="Button">
+    <Setter Property="Background" Value="{DynamicResource HdButtonBackground}"/>
+    <Setter Property="Foreground" Value="{DynamicResource HdButtonForeground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HdButtonBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="14,6"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}">
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            RecognizesAccessKey="True"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover">
+      <Setter Property="Background" Value="{DynamicResource HdButtonBackgroundPointerOver}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HdButtonBorderBrushPointerOver}"/>
+    </Style>
+    <Style Selector="^:focus">
+      <Setter Property="BorderBrush" Value="#F2E33B"/>
+      <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+    <Style Selector="^:pressed">
+      <Setter Property="Background" Value="{DynamicResource HdButtonBackgroundPressed}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HdButtonBorderBrush}"/>
+    </Style>
+    <Style Selector="^:disabled">
+      <Setter Property="Background" Value="{DynamicResource HdButtonBackgroundDisabled}"/>
+      <Setter Property="Foreground" Value="{DynamicResource HdButtonForegroundDisabled}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HdButtonBorderBrushDisabled}"/>
+    </Style>
+    <Style Selector="^.accent">
+      <Setter Property="Background" Value="{DynamicResource HdAccentButtonBackground}"/>
+      <Setter Property="Foreground" Value="{DynamicResource HdAccentButtonForeground}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HdAccentButtonBorderBrush}"/>
+      <Style Selector="^:pointerover">
+        <Setter Property="Background" Value="{DynamicResource HdAccentButtonBackgroundPointerOver}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HdAccentButtonBorderBrushPointerOver}"/>
+      </Style>
+      <Style Selector="^:pressed">
+        <Setter Property="Background" Value="{DynamicResource HdAccentButtonBackgroundPressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HdAccentButtonBorderBrush}"/>
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Background" Value="{DynamicResource HdAccentButtonBackgroundDisabled}"/>
+        <Setter Property="Foreground" Value="{DynamicResource HdAccentButtonForegroundDisabled}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HdButtonBorderBrushDisabled}"/>
+      </Style>
+    </Style>
+  </ControlTheme>
+
+  <!-- 侧栏、图标和工具条按钮保持无边框，只提供悬停/按下反馈。 -->
+  <ControlTheme x:Key="TransparentButton" TargetType="Button">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" CornerRadius="0">
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            RecognizesAccessKey="True"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover"><Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/></Style>
+    <Style Selector="^:pressed"><Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/></Style>
+    <Style Selector="^:disabled"><Setter Property="Foreground" Value="{DynamicResource DisabledBrush}"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

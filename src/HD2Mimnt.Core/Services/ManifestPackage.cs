@@ -7,6 +7,9 @@ namespace HD2Mimnt.Core.Services;
 public static class ManifestPackage
 {
     public const string MetadataFileName = "hd2mimnt.json";
+
+    /// <summary>扩展元数据中标记“档案由导入生成”的字段；内容哈希与判重据此排除该档案。</summary>
+    public const string GeneratedManifestExtension = "GeneratedManifest";
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -151,6 +154,24 @@ public static class ManifestPackage
         try { return Merge(manifest, Parse(await File.ReadAllTextAsync(metadataPath, token))); }
         catch (Exception error) when (metadataError != null && error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         { metadataError(error); return manifest; }
+    }
+
+    /// <summary>目录中的档案是否由导入时自动生成（标记写入扩展元数据，作者清单不会带该标记）。</summary>
+    public static bool IsGeneratedManifest(string modRoot)
+    {
+        var metadataPath = Path.Combine(modRoot, MetadataFileName);
+        if (!File.Exists(metadataPath)) return false;
+        try
+        {
+            var metadata = Parse(File.ReadAllText(metadataPath));
+            return Get(metadata, "Extensions") is JsonObject extensions
+                && Get(extensions, GeneratedManifestExtension) is JsonValue value
+                && value.TryGetValue<bool>(out var generated) && generated;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return false;
+        }
     }
 
     public static void Save(string path, JsonObject combined)

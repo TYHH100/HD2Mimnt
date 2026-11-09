@@ -72,22 +72,29 @@ public partial class ProfileModViewModel : ObservableObject
     private IBrush? _groupTintBrush;
     public bool HasCustomGroupTint => GroupTintBrush != null;
 
-    /// <summary>色板的首/尾成员，决定连贯底色的圆角方向。</summary>
+    /// <summary>分组色板的首/尾成员，决定连贯底色的圆角方向。</summary>
     [ObservableProperty]
     private bool _isSlabStart;
 
     [ObservableProperty]
     private bool _isSlabEnd;
+
+    /// <summary>拖动模组经过冻结分组标题时高亮，松手直接加入该分组。</summary>
+    [ObservableProperty]
+    private bool _isGroupDropTarget;
     public BslModRole BslRole { get; init; }
     public bool IsBslMember => BslRole != BslModRole.None;
+    /// <summary>加载器是否被固定在首/尾区域；关闭后按保存顺序自由排序。</summary>
     public bool LoaderLockEnabled { get; init; } = true;
+    /// <summary>是否仍显示 Lua/加载器分组；自由排序但保留分组时开启。</summary>
+    public bool KeepLoaderGroups { get; init; } = true;
     public bool IsFixedGroupMember => LoaderLockEnabled && IsBslMember;
+    public bool IsLuaGroupMember => KeepLoaderGroups && IsBslMember;
     public bool IsBslLoader => BslProfilePolicy.IsLoader(BslRole);
     public bool IsSmoothBoot => BslRole == BslModRole.SmoothBoot;
     public bool IsLuaDependency => BslRole == BslModRole.Dependency;
     public bool HasLuaResources { get; init; }
     public bool IsLuaMod => HasLuaResources || IsBslMember;
-    public string PriorityLabel => IsSmoothBoot ? "SmoothBoot · 最高优先级" : IsBslLoader ? "BSL / MDL · 固定在依赖之后" : "依赖加载器";
     public bool CanSelect => !IsSeparator && (!LoaderLockEnabled || !IsBslLoader && !IsSmoothBoot);
     public bool CanDrag => CanSelect || IsUserSeparator;
 
@@ -167,6 +174,22 @@ public partial class ProfileModViewModel : ObservableObject
         ManifestRef = manifest;
         StoredOptions = state;
         HasOptions = ProfileModOptionResolver.HasOptions(manifest);
+    }
+
+    /// <summary>图片文件已替换但路径不变，丢弃当前位图并按新的修改时间重新解码。</summary>
+    public async Task ReloadIconAsync(CancellationToken cancellationToken = default)
+    {
+        Icon = null;
+        if (string.IsNullOrEmpty(ThumbnailPath)) return;
+        try
+        {
+            Icon = await ModImageCache.DecodeAsync(ThumbnailPath, 256, cancellationToken);
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            // 图标加载失败，保持为 null
+        }
     }
 
     /// <summary>与库页共享缩略图解码缓存；失败保持 null 以显示序号占位。</summary>

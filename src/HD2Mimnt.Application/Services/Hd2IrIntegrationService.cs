@@ -397,7 +397,8 @@ internal sealed class Hd2IrIntegrationService(IArchiveExtractor extractor)
             // 目标必须仍符合导入时的显式映射。
             var target = file.TargetPath.Replace('\\', '/');
             ResolveWithin(Path.Combine(mod.Path, "bin", "HD2IndependentRig"), target["bin/HD2IndependentRig/".Length..]);
-            files.Add(new(source, target, true));
+            files.Add(new(source, target, true, SourceRelativePath: target,
+                SourceKey: PatchDeploymentPlanner.MakeNativeSourceKey(target)));
         }
         return files;
     }
