@@ -39,6 +39,8 @@ public class LogSearchTests
 
         public Task ExportAsync(string destinationPath, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public void TrimExpired() { }
     }
 
     private sealed class MemorySettingsRepository : ISettingsRepository

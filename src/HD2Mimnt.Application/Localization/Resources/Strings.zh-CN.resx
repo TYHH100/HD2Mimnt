@@ -3526,6 +3526,9 @@
   <data name="Logs.CopySelected" xml:space="preserve"><value>复制当前日志</value></data>
   <data name="Logs.Recording" xml:space="preserve"><value>日志记录</value></data>
   <data name="Logs.RecordingHelp" xml:space="preserve"><value>默认记录警告及以上级别。保存后立即生效并在重启后保留；排查 API 返回时可临时选择调试（Debug）。</value></data>
+  <data name="Logs.Retention" xml:space="preserve"><value>日志保留</value></data>
+  <data name="Logs.RetentionHelp" xml:space="preserve"><value>每天生成一个日志文件，超过保留天数的旧日志会被自动清理；修改后立即生效。</value></data>
+  <data name="Logs.RetentionUnit" xml:space="preserve"><value>天</value></data>
   <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API 响应在写入日志前脱敏。更详细的级别会增加日志量；完成排查后建议恢复警告。</value></data>
   <data name="Logs.Saved" xml:space="preserve"><value>日志设置已保存并生效</value></data>
   <data name="Logs.SaveFailed" xml:space="preserve"><value>保存日志设置失败：{0}</value></data>

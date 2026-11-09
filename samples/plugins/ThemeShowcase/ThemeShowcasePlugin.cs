@@ -15,7 +15,7 @@ public sealed class ThemeShowcasePlugin : IPlugin
 
     public Task InitializeAsync(IPluginContext context, CancellationToken cancellationToken = default)
     {
-        context.Logger.Info("主题示例已初始化（应用方式：设置 → 插件 → 主题按钮）");
+        context.Logger.Info("主题示例：首次调用命令，宿主已按需启动并完成初始化（应用主题：设置 → 插件 → 主题按钮）");
         return Task.CompletedTask;
     }
 

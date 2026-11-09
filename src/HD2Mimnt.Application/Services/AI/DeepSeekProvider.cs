@@ -110,6 +110,7 @@ public class DeepSeekProvider : IAIProvider, IAIProviderProbe, IAIProviderBalanc
             }
 
             request.Content = CreateJsonContent(payload);
+            var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
             using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -134,9 +135,14 @@ public class DeepSeekProvider : IAIProvider, IAIProviderProbe, IAIProviderBalanc
             }
 
             var usage = AIUsageParser.ParseOpenAiCompatible(responseJson);
-            _logger.LogDebug(
-                "DeepSeek token usage: input {Input}, cached {Cached}, total {Total}",
-                usage.InputTokens, usage.CachedInputTokens, usage.TotalTokens);
+            // 统一口径：model/in/cached/out/total/elapsed 走作用域字段，
+            // 正文只留一句人读摘要，避免一行里堆两种表达。
+            var elapsedMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            using (_logger.BeginScope(AIUsageParser.LogFields(Model, usage.InputTokens, usage.CachedInputTokens,
+                       Math.Max(0, usage.TotalTokens - usage.InputTokens), usage.TotalTokens, elapsedMs)))
+            {
+                _logger.LogDebug("AI 请求完成");
+            }
 
             return new AIResponse
             {

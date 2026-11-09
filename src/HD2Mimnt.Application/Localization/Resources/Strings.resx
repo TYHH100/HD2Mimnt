@@ -3526,6 +3526,9 @@ Cache: {2}</value>
   <data name="Logs.CopySelected" xml:space="preserve"><value>Copy selected entry</value></data>
   <data name="Logs.Recording" xml:space="preserve"><value>Log recording</value></data>
   <data name="Logs.RecordingHelp" xml:space="preserve"><value>Defaults to Warning and above. Save to apply immediately and retain after restart. Temporarily select Debug to inspect API responses.</value></data>
+  <data name="Logs.Retention" xml:space="preserve"><value>Log retention</value></data>
+  <data name="Logs.RetentionHelp" xml:space="preserve"><value>One log file per day; files older than the retention period are removed automatically. Changes take effect immediately.</value></data>
+  <data name="Logs.RetentionUnit" xml:space="preserve"><value>days</value></data>
   <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API responses are redacted before logging. Detailed levels produce more logs; restore Warning after diagnosis.</value></data>
   <data name="Logs.Saved" xml:space="preserve"><value>Log settings saved and applied</value></data>
   <data name="Logs.SaveFailed" xml:space="preserve"><value>Failed to save log settings: {0}</value></data>

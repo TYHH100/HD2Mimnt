@@ -14,8 +14,13 @@ public partial class LogViewModel : ObservableObject
 {
     private readonly IFileLogService _logService;
     private readonly SettingsService? _settingsService;
+    // 新格式：[时间] [INF] plugin:hello       消息 | k=v
     private static readonly Regex LogLineRegex = new(
-        @"^(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[.\d]*\s*[+-]\d{2}:\d{2})\s+\[(?<level>[^\]]+)\]\s+(?<logger>[^:]+):\s?(?<message>.*)$",
+        @"^\[(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[.\d]*\s*[+-]\d{2}:\d{2})\]\s+\[(?<level>[A-Za-z]{3,})\]\s+(?<logger>\S+)\s*(?<message>.*)$",
+        RegexOptions.Compiled | RegexOptions.Singleline);
+    // 旧格式：2026-11-06 14:19:51.225 +08:00 [Warning] HD2Mimnt.X.Y: 消息（历史日志仍要能读）
+    private static readonly Regex LegacyLogLineRegex = new(
+        @"^\[?(?<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[.\d]*\s*[+-]\d{2}:\d{2})\]?\s+\[(?<level>[^\]]+)\]\s+(?<logger>[^:]+):\s?(?<message>.*)$",
         RegexOptions.Compiled | RegexOptions.Singleline);
     [ObservableProperty] private ObservableCollection<LogEntryViewModel> _entryItems = new();
     [ObservableProperty] private ObservableCollection<string> _entries = new();
@@ -55,7 +60,7 @@ public partial class LogViewModel : ObservableObject
             var records = new List<string>();
             foreach (var line in lines)
             {
-                if (LogLineRegex.IsMatch(line) || records.Count == 0) records.Add(line);
+                if (IsRecordStart(line) || records.Count == 0) records.Add(line);
                 else records[^1] += Environment.NewLine + line;
             }
             _allEntries = records.TakeLast(Math.Clamp(RecentLimit, 100, 2000)).Select(ParseEntry).Reverse().ToArray();
@@ -99,9 +104,13 @@ public partial class LogViewModel : ObservableObject
         else global::Avalonia.Threading.Dispatcher.UIThread.Post(ApplyFilter);
     }
 
+    private static bool IsRecordStart(string line) =>
+        LogLineRegex.IsMatch(line) || LegacyLogLineRegex.IsMatch(line);
+
     private static LogEntryViewModel ParseEntry(string line)
     {
         var match = LogLineRegex.Match(line);
+        if (!match.Success) match = LegacyLogLineRegex.Match(line);
         if (!match.Success) return new() { Message = line, Raw = line };
         return new()
         {
@@ -120,7 +129,7 @@ public sealed class LogEntryViewModel
 {
     public string TimestampText { get; init; } = string.Empty;
     public string LevelText { get; init; } = string.Empty;
-    public LogLevel Level => Enum.TryParse<LogLevel>(LevelText, true, out var level) ? level : LogLevel.Information;
+    public LogLevel Level => LogLineFormat.ParseLevel(LevelText);
     public bool IsWarning => Level == LogLevel.Warning;
     public bool IsError => Level is LogLevel.Error or LogLevel.Critical;
     public bool IsInformation => Level == LogLevel.Information;

@@ -3526,6 +3526,9 @@
   <data name="Logs.CopySelected" xml:space="preserve"><value>複製目前日誌</value></data>
   <data name="Logs.Recording" xml:space="preserve"><value>日誌記錄</value></data>
   <data name="Logs.RecordingHelp" xml:space="preserve"><value>預設記錄警告及以上層級。儲存後立即生效並在重新啟動後保留；排查 API 回應時可暫時選擇偵錯（Debug）。</value></data>
+  <data name="Logs.Retention" xml:space="preserve"><value>日誌保留</value></data>
+  <data name="Logs.RetentionHelp" xml:space="preserve"><value>每天產生一個日誌檔案，超過保留天數的舊日誌會被自動清理；修改後立即生效。</value></data>
+  <data name="Logs.RetentionUnit" xml:space="preserve"><value>天</value></data>
   <data name="Logs.PrivacyHelp" xml:space="preserve"><value>Nexus API 回應在寫入日誌前去識別化。較詳細的層級會增加日誌量；完成排查後建議恢復警告。</value></data>
   <data name="Logs.Saved" xml:space="preserve"><value>日誌設定已儲存並生效</value></data>
   <data name="Logs.SaveFailed" xml:space="preserve"><value>儲存日誌設定失敗：{0}</value></data>

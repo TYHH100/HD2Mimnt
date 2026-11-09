@@ -43,9 +43,23 @@ internal static class AIUsageParser
         return new AIUsage(total, input, cached);
     }
 
+    /// <summary>
+    /// 三个提供者共用的日志作用域字段：字段名统一后，不同提供商的用量才能横向比较。
+    /// 输出形如 model=deepseek-chat in=244 cached=0 out=207 total=451 elapsed=1932ms。
+    /// </summary>
+    public static Dictionary<string, object?> LogFields(
+        string? model, int inputTokens, int cachedInputTokens, int outputTokens, int totalTokens, long elapsedMs) => new()
+    {
+        ["model"] = model,
+        ["in"] = inputTokens,
+        ["cached"] = cachedInputTokens,
+        ["out"] = outputTokens,
+        ["total"] = totalTokens,
+        ["elapsed"] = $"{elapsedMs}ms",
+    };
+
     private static int ReadInt32(JsonElement element, string propertyName)
         => ReadOptionalInt32(element, propertyName) ?? 0;
-
     private static int? ReadOptionalInt32(JsonElement element, string propertyName)
         => element.TryGetProperty(propertyName, out var property)
            && property.ValueKind == JsonValueKind.Number

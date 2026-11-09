@@ -192,6 +192,8 @@ public class PluginHostManager : IPluginHostManager
 {
     private readonly StorageSettingsService? _storage;
     private readonly ILogger<PluginHostManager>? _logger;
+    private readonly ILoggerFactory? _loggerFactory;
+    private readonly ConcurrentDictionary<string, ILogger> _pluginLoggers = new(StringComparer.Ordinal);
     private readonly IPluginAiBroker? _aiBroker;
     private readonly IPluginSecurityReporter? _securityReporter;
     private readonly IPluginSecretGuard _secretGuard;
@@ -201,10 +203,12 @@ public class PluginHostManager : IPluginHostManager
         ILogger<PluginHostManager>? logger = null,
         IPluginAiBroker? aiBroker = null,
         IPluginSecurityReporter? securityReporter = null,
-        IPluginSecretGuard? secretGuard = null)
+        IPluginSecretGuard? secretGuard = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _storage = storage;
         _logger = logger;
+        _loggerFactory = loggerFactory;
         _aiBroker = aiBroker;
         _securityReporter = securityReporter;
         _secretGuard = secretGuard ?? new PluginSecretGuard();
@@ -473,13 +477,16 @@ public class PluginHostManager : IPluginHostManager
                             return;
                         }
 
-                        _logger?.Log(
-                            ParseLogLevel(log.Level),
-                            "插件 {PluginId} [{Level}] {Message}{Exception}",
-                            hostProcess.PluginId,
-                            log.Level,
-                            message,
-                            string.IsNullOrEmpty(exception) ? string.Empty : Environment.NewLine + exception);
+                        // 级别只由 LogLevel 表达，正文不再重复 [Info]，避免与行首级别列打架；
+                        // 插件身份改由 ILogger 类别承担（Plugin.<id>），从而可以按插件过滤。
+                        var pluginLogger = ResolvePluginLogger(hostProcess.PluginId);
+                        var pluginLevel = ParseLogLevel(log.Level);
+                        if (pluginLogger is null || !pluginLogger.IsEnabled(pluginLevel)) break;
+
+                        var pluginText = string.IsNullOrEmpty(exception)
+                            ? message ?? string.Empty
+                            : $"{message}{Environment.NewLine}{exception}";
+                        pluginLogger.Log(pluginLevel, "{Message}", pluginText);
                         break;
                     }
 
@@ -542,11 +549,27 @@ public class PluginHostManager : IPluginHostManager
         }
     }
 
-    private static LogLevel ParseLogLevel(string level) => level switch
+    /// <summary>
+    /// 每个插件一个 ILogger 类别（Plugin.&lt;id&gt;）：日志里显示为 plugin:hello，
+    /// 同时为“按插件单独配置/过滤级别”留下入口。未注入工厂时退回宿主 logger。
+    /// </summary>
+    private ILogger? ResolvePluginLogger(string pluginId) =>
+        _loggerFactory is null
+            ? _logger
+            : _pluginLoggers.GetOrAdd(pluginId, id => _loggerFactory.CreateLogger($"Plugin.{id}"));
+
+    /// <summary>
+    /// 插件自报级别 → 宿主 LogLevel。显式覆盖所有已知写法，
+    /// 避免以后新增级别（Fatal/Critical/Trace）落进 default 被静默降级。
+    /// </summary>
+    private static LogLevel ParseLogLevel(string level) => level?.Trim().ToLowerInvariant() switch
     {
-        "Debug" => LogLevel.Debug,
-        "Warning" => LogLevel.Warning,
-        "Error" => LogLevel.Error,
+        "trace" => LogLevel.Trace,
+        "debug" => LogLevel.Debug,
+        "info" or "information" => LogLevel.Information,
+        "warn" or "warning" => LogLevel.Warning,
+        "error" => LogLevel.Error,
+        "fatal" or "critical" => LogLevel.Critical,
         _ => LogLevel.Information,
     };
 

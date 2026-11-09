@@ -104,6 +104,7 @@ public class ClaudeProvider : IAIProvider
                 "application/json"
             );
 
+            var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
             using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -148,9 +149,12 @@ public class ClaudeProvider : IAIProvider
                 outputTokens = ReadInt32(usage, "output_tokens");
             }
 
-            _logger.LogDebug(
-                "Claude token usage: input {Input}, cached {Cached}, output {Output}",
-                inputTotal, cachedInput, outputTokens);
+            var elapsedMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            using (_logger.BeginScope(AIUsageParser.LogFields(_config.Model ?? "claude-3-sonnet-20240229", inputTotal,
+                       cachedInput, outputTokens, inputTotal + outputTokens, elapsedMs)))
+            {
+                _logger.LogDebug("AI 请求完成");
+            }
 
             return new AIResponse
             {

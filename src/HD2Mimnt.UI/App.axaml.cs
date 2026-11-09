@@ -112,6 +112,30 @@ public partial class App : Avalonia.Application
             Program.SetAppHost(host);
             CrashGuard.AttachLogging(host.Services);
 
+            // 每次启动写一条会话横幅：日志里能明确切分本次运行与上次运行，
+            // 版本/级别/系统走作用域字段，不占用正文。
+            var startupLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App");
+            using (startupLogger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["version"] = HD2Mimnt.Core.AppInfo.Version,
+                       ["level"] = host.Services.GetRequiredService<DiagnosticLogSettings>().MinimumLevel,
+                       ["os"] = Environment.OSVersion.Version.ToString()
+                   }))
+            {
+                startupLogger.LogInformation("===== 会话开始 =====");
+            }
+
+            desktop.ShutdownRequested += (_, _) =>
+                host.Services.GetService<ILoggerFactory>()?.CreateLogger("App")
+                    .LogInformation("===== 会话结束 =====");
+
+            // 保留天数变更后立刻清理，不必等下一次启动或跨天切换。
+            host.Services.GetRequiredService<SettingsService>().SettingChanged += (_, e) =>
+            {
+                if (e.Key != DiagnosticLogSettings.RetentionKey) return;
+                host.Services.GetService<IFileLogService>()?.TrimExpired();
+            };
+
             // 在 ViewModel/窗口构造前应用保存的语言，自动模式持续跟随系统。
             var localization = ServiceProvider.GetRequiredService<LocalizationService>();
             ServiceProvider.GetRequiredService<UiLocalization>();
@@ -251,7 +275,9 @@ public partial class App : Avalonia.Application
         services.AddLogging(builder =>
         {
             builder.AddConsole();
-            builder.AddProvider(new FileLogProvider(Path.Combine(appDataPath, "Logs", "application.log")));
+            // 按天分片 + 保留天数由 DiagnosticLogSettings 快照提供，避免写日志时读设置库。
+            builder.AddProvider(new FileLogProvider(
+                Path.Combine(appDataPath, "Logs"), "application", () => diagnosticLogSettings.RetentionDays));
             builder.AddFilter((_, level) => diagnosticLogSettings.IsEnabled(level));
         });
 
@@ -480,7 +506,8 @@ public partial class App : Avalonia.Application
             new HD2Mimnt.Infrastructure.Interop.OfflineInteropSnapshotReader(dbPath));
         services.AddSingleton(_ => new HD2Mimnt.Infrastructure.Interop.OfflineInteropPublisher(storageSettings.BootstrapPath));
         services.AddSingleton<OfflineInteropService>();
-        services.AddSingleton<IFileLogService>(new FileLogService(appDataPath));
+        services.AddSingleton<IFileLogService>(new FileLogService(
+            Path.Combine(appDataPath, "Logs"), () => diagnosticLogSettings.RetentionDays));
 
         services.AddSingleton(sp => new GameDetectionService(
             sp.GetRequiredService<SettingsService>(),

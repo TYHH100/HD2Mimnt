@@ -176,6 +176,7 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
                 "application/json"
             );
 
+            var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
             using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -202,9 +203,13 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
             var content = contentProperty.GetString() ?? string.Empty;
             // 兼容部分不返回 usage 的 OpenAI 兼容网关。
             var usage = AIUsageParser.ParseOpenAiCompatible(responseJson);
-            _logger.LogDebug(
-                "OpenAI token usage: input {Input}, cached {Cached}, total {Total}",
-                usage.InputTokens, usage.CachedInputTokens, usage.TotalTokens);
+            var elapsedMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            using (_logger.BeginScope(AIUsageParser.LogFields(_config.Model ?? "gpt-3.5-turbo", usage.InputTokens,
+                       usage.CachedInputTokens, Math.Max(0, usage.TotalTokens - usage.InputTokens),
+                       usage.TotalTokens, elapsedMs)))
+            {
+                _logger.LogDebug("AI 请求完成");
+            }
 
             return new AIResponse
             {

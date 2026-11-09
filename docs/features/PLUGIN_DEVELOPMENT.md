@@ -6,7 +6,7 @@
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
-| 生命周期 | 可用 | `IPlugin.InitializeAsync` / `ShutdownAsync` |
+| 生命周期 | 可用 | `IPlugin.InitializeAsync` / `ShutdownAsync`，宿主**首次执行命令时按需拉起**，见第 2 节说明 |
 | 命令贡献（管理页） | 可用 | `IPluginCommand`，`placement` 缺省时在插件管理页生成按钮 |
 | 命令贡献（模组右键菜单） | 可用 | `placement: "modContextMenu"`，右键模组卡片出现该命令，调用时附带模组元数据 |
 | 私有存储 | 可用 | `IPluginStorage`，限制在插件数据目录内，防路径穿越 |
@@ -56,6 +56,8 @@ public sealed class HelloCommand : IPluginCommand
 ```
 
 命令通过 `Descriptor.Name` 分发；宿主启动时扫描程序集内所有实现，manifest 只是**声明**，两者必须一致（声明有、实现无会被记录为警告）。
+
+> **宿主启动时机（懒加载）**：应用启动、安装、启用插件都**不会**拉起插件进程，只有第一次执行该插件的命令（且所需权限已授予）时才启动宿主并调用 `InitializeAsync`。因此界面贡献（页面/菜单/浮窗）在安装后立即出现——它们直接来自 manifest 的静态解析，不依赖插件运行；而 `InitializeAsync` 里的日志要到首次使用才会出现，这是设计行为。不要在 `InitializeAsync` 里假设"应用刚启动"，也不要用它做必须开机执行的工作。
 
 ## 3. 用 Lua 写插件（无需编译）
 

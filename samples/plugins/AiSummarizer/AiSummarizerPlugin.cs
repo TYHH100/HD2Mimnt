@@ -21,7 +21,7 @@ public sealed class AiSummarizerPlugin : IPlugin
     public Task InitializeAsync(IPluginContext context, CancellationToken cancellationToken = default)
     {
         _context = context;
-        context.Logger.Info("AI 摘要示例已初始化");
+        context.Logger.Info("AI 摘要示例：首次调用命令，宿主已按需启动并完成初始化");
         return Task.CompletedTask;
     }
 

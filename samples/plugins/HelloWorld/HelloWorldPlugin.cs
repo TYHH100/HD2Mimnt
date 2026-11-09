@@ -37,7 +37,7 @@ public sealed class HelloWorldPlugin : IPlugin
     public Task InitializeAsync(IPluginContext context, CancellationToken cancellationToken = default)
     {
         _context = context;
-        context.Logger.Info("Hello World 已初始化");
+        context.Logger.Info("Hello World：首次调用命令，宿主已按需启动并完成初始化");
         return Task.CompletedTask;
     }
 
