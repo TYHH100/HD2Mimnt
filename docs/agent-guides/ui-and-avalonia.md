@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- 多列 `Grid` 的每个子元素必须显式写 `Grid.Column`：漏写的子元素全部落在第 0 列互相重叠（插件管理页统计行「插件 / 总数 / 已启用」曾实测叠在一起）。列数与子元素列号逐一核对；布局回归断言相邻文本 `Bounds` 不相交，见 `PluginManagementLayoutTests`。来源：https://docs.avaloniaui.net/docs/reference/controls/grid
+
 - 模组库、配置页及详情面板点击卡片图片放大时，通过 Application 的 `ModService.ReadOriginalPreviewAsync` 读取清单指定图片或根目录图片，再完整解码；不能把卡片的 `IconBitmap` / `Icon` 或生成的 256px 缩略图直接交给放大层。原图由共享预览持有，关闭时释放；加载期间关闭或打开其它图片后，旧加载结果不能重新打开覆盖层。回归同时断言缩略图为 256px、放大图保持原始尺寸。来源：[Avalonia Bitmap](https://docs.avaloniaui.net/docs/reference/graphics/bitmaps)。
 
 - 配置页本地启停、选项和排序操作的 `ProfilesChanged` 经过异步刷新队列时，必须在事件发布时捕获 `IsApplyingLocalChange`，队列执行时按捕获值跳过当前页重复重载；不能读取已在服务返回后复原的抑制标记。自动冲突检查在最后一次变更后等待 1500 ms 合并，过期任务取消并串行清理；后台范围包含配置读取、加载器识别和资源扫描准备，不能仅把最终资源解析放进 `Task.Run`。回归检查连续开关、选项保存、排序后卡片实例保留与只完成一次扫描。来源：[异步场景与 Task.Run](https://learn.microsoft.com/dotnet/csharp/asynchronous-programming/async-scenarios)。
