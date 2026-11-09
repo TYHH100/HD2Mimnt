@@ -1,8 +1,11 @@
 ﻿using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Analysis;
+using HD2Mimnt.Infrastructure.AudioPreview;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Deployment;
+using HD2Mimnt.Infrastructure.ModelPreview;
 using HD2Mimnt.Infrastructure.NativeCompanion;
 using HD2Mimnt.Infrastructure.Repositories;
 using HD2Mimnt.Infrastructure.Storage;
@@ -54,6 +57,14 @@ internal static class Program
             ConfigureServices(services);
             await using var serviceProvider = services.BuildServiceProvider();
             await serviceProvider.GetRequiredService<HD2MimntDbContext>().InitializeDatabaseAsync();
+
+            // 预览是长连接会话：由 PreviewWorkerTask 独占读取后续消息，不能再启动取消监听。
+            if (command.WorkerType == "Preview")
+            {
+                await new PreviewWorkerTask(serviceProvider).ExecuteAsync(host, host.CancellationRequested);
+                return 0;
+            }
+
             await PrepareStorageStateAsync(command.WorkerType, serviceProvider);
 
             var watch = host.WatchForCancellationAsync();
@@ -183,5 +194,15 @@ internal static class Program
             registry.RegisterWorkflow(new IntegratedArmorWorkflow());
             return registry;
         });
+
+        // 预览会话所需的读取器/播放引擎只在 Worker 进程里实例化；UI 通过 IPC 使用它们，
+        // 关闭预览时整个进程被终止，解析缓冲、解码像素和音频缓存随之释放。
+        services.AddSingleton<IGameUnitReferenceReader>(_ => new GameUnitReferenceReader(locations.CachePath));
+        services.AddSingleton<IGameSoundBankReader>(sp =>
+            (GameUnitReferenceReader)sp.GetRequiredService<IGameUnitReferenceReader>());
+        services.AddSingleton<IModelPreviewReader, PatchResourceInspectionService>();
+        services.AddSingleton<GameAudioBaselineProvider>();
+        services.AddSingleton<IAudioPreviewReader, AudioBankInspectionService>();
+        services.AddSingleton<IAudioPlaybackEngine, AudioPlaybackEngine>();
     }
 }

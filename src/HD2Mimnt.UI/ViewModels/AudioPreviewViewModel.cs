@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.UI.Localization;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -31,6 +32,7 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
     private int _playbackGeneration;
     private bool _disposed;
     private AudioInventoryResult? _lastResult;
+    private bool _sessionEntered;
 
     public AudioPreviewViewModel(AudioPreviewService service)
     {
@@ -152,6 +154,7 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
     public Task OpenAsync(Guid modId, Guid? profileId = null)
     {
         IsOpen = true;
+        EnterPreviewSession();
         _modId = modId;
         _profileId = profileId;
         ClearContent();
@@ -280,9 +283,11 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
                 return;
             if (success)
             {
-                SetCurrentEntry(row);
-                IsAudioPlaying = true;
-                row.SetPlaying(true);
+                // 响应与结束事件可能乱序：极短音频已经播完时不要再把界面切回播放中。
+                var playing = _service.Playback.State == AudioPlaybackState.Playing;
+                if (playing) SetCurrentEntry(row);
+                IsAudioPlaying = playing;
+                row.SetPlaying(playing);
                 _suppressPositionUpdates = true;
                 try
                 {
@@ -293,7 +298,7 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
                 {
                     _suppressPositionUpdates = false;
                 }
-                _positionTimer.Start();
+                if (playing) _positionTimer.Start();
             }
             else if (error is not null)
             {
@@ -447,6 +452,24 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
         ClearContent();
         await _operation;
         if (generation == _generation) IsBusy = false;
+        _service.ClearCache();
+        await ExitPreviewSessionAsync();
+        PreviewMemoryReclaimer.Schedule();
+    }
+
+    /// <summary>打开预览时进入共享的预览 Worker 会话；关闭后退出并在最后一个使用者离开时终止进程。</summary>
+    private void EnterPreviewSession()
+    {
+        if (_sessionEntered || _service.PreviewSession is not { } session) return;
+        session.Enter();
+        _sessionEntered = true;
+    }
+
+    private async Task ExitPreviewSessionAsync()
+    {
+        if (!_sessionEntered) return;
+        _sessionEntered = false;
+        if (_service.PreviewSession is { } session) await session.ExitAsync();
     }
 
     private void ClearContent()
@@ -474,15 +497,16 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(Summary));
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (_disposed) return ValueTask.CompletedTask;
+        if (_disposed) return;
         _disposed = true;
         UiLocalization.Current.PropertyChanged -= OnLanguageChanged;
         _service.Playback.PlaybackEnded -= OnPlaybackEnded;
         _positionTimer.Stop();
         StopAudioPlayback(clearCurrent: true);
-        return ValueTask.CompletedTask;
+        _service.ClearCache();
+        await ExitPreviewSessionAsync();
     }
 }
 

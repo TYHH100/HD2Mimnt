@@ -100,6 +100,45 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ModelPreview_RemoteWorkerSessionStopsOnClose()
+    {
+        // 不注入本地 reader：走真实 DI 的远程读取器与预览 Worker 会话。
+        await using var scope = await UiScope.CreateAsync();
+        var id = await ImportModelPreviewMod(scope, "HD2Mimnt Test remote preview");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var mod = library.FilteredMods.Single(item => item.Id == id);
+        var preview = Assert.IsType<ModelPreviewViewModel>(main.ModelPreview);
+        var session = scope.Services.GetRequiredService<PreviewWorkerSession>();
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 780 };
+        try
+        {
+            window.Show();
+            RenderModelPreviewWindow(window);
+            var libraryView = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            ClickModelPreviewMenu(window, libraryView, mod, library.PreviewModelCommand);
+            await library.PreviewModelCommand.ExecutionTask!;
+            Assert.True(preview.IsOpen);
+            Assert.True(session.IsRunning);
+
+            var overlay = window.FindControl<ModelPreviewOverlay>("ModelPreviewOverlay")!;
+            ClickVersionControl(window, overlay.FindControl<Button>("CloseModelPreviewButton")!);
+            await preview.CloseCommand.ExecutionTask!;
+            RenderModelPreviewWindow(window);
+            Assert.False(preview.IsOpen);
+            Assert.False(session.IsRunning);
+        }
+        finally
+        {
+            await preview.StopAsync();
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ModelPreview_ProfileOptionsStaySaved()
     {
         var reader = new ControlledModelPreviewReader();

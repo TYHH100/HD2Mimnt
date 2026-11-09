@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace HD2Mimnt.Application.Services;
 
 public sealed class ModelPreviewService(IModRepository mods, IProfileRepository profiles, IModelPreviewReader reader,
-    ILogger<ModelPreviewService>? logger = null)
+    ILogger<ModelPreviewService>? logger = null, IPreviewWorkerSession? previewSession = null)
 {
     public const int OriginalTextureResolution = 0;
     private const int TextureBudgetBytes = 64 * 1024 * 1024;
@@ -15,6 +15,9 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
     // 把后排贴图整体丢弃（实测袜子等部位变成无材质）。超过硬上限时不再丢图，改为把
     // 剩余预算均摊给剩余贴图均匀降档；渲染端另有 GPU 最大尺寸保护。
     private const long MaxTextureBudgetBytes = 2L * 1024 * 1024 * 1024;
+
+    /// <summary>预览 Worker 会话；打开预览时进入、关闭时退出并终止进程。</summary>
+    public IPreviewWorkerSession? PreviewSession => previewSession;
 
     public async Task<ModelPreviewSource> GetSourceAsync(Guid modId, Guid? profileId = null, CancellationToken cancellationToken = default)
     {

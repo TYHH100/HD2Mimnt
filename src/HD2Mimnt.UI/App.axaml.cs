@@ -532,12 +532,19 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
-        services.AddSingleton<IModelPreviewReader, HD2Mimnt.Infrastructure.ModelPreview.PatchResourceInspectionService>();
+        // 预览解析/解码/音频播放都放到独立 Worker 进程：关闭预览即终止进程，内存立即归还。
+        services.AddSingleton<PreviewWorkerSession>();
+        services.AddSingleton<IPreviewWorkerSession>(sp =>
+            sp.GetRequiredService<PreviewWorkerSession>());
+        services.AddSingleton<IModelPreviewReader>(sp =>
+            new RemoteModelPreviewReader(sp.GetRequiredService<PreviewWorkerSession>()));
         services.AddSingleton<ModelPreviewService>();
         services.AddSingleton<ModelPreviewViewModel>();
 
-        services.AddSingleton<IAudioPreviewReader, HD2Mimnt.Infrastructure.AudioPreview.AudioBankInspectionService>();
-        services.AddSingleton<IAudioPlaybackEngine, HD2Mimnt.Infrastructure.AudioPreview.AudioPlaybackEngine>();
+        services.AddSingleton<IAudioPreviewReader>(sp =>
+            new RemoteAudioPreviewReader(sp.GetRequiredService<PreviewWorkerSession>()));
+        services.AddSingleton<IAudioPlaybackEngine>(sp =>
+            new RemoteAudioPlaybackEngine(sp.GetRequiredService<PreviewWorkerSession>()));
         services.AddSingleton<HD2Mimnt.Infrastructure.AudioPreview.GameAudioBaselineProvider>();
         services.AddSingleton<AudioPreviewService>();
         services.AddSingleton<AudioPreviewViewModel>();

@@ -42,6 +42,14 @@ public class WorkerHost : IWorkerTaskHost, IDisposable
         return JsonSerializer.Deserialize<ExecuteWorkerCommand>(message.Payload ?? "{}");
     }
 
+    /// <summary>预览会话等长连接 Worker 自行读取后续消息；一次性任务不要调用。</summary>
+    public Task<WorkerMessage?> ReceiveMessageAsync(CancellationToken cancellationToken = default)
+        => _pipeClient.ReceiveMessageAsync(cancellationToken);
+
+    /// <summary>发送任意会话消息（预览响应/事件）；与进度回执共用同一发送闸门。</summary>
+    public Task SendMessageAsync(WorkerMessage message, CancellationToken cancellationToken = default)
+        => _pipeClient.SendMessageAsync(message, cancellationToken);
+
     /// <summary>
     /// 后台监听主程序的后续消息：收到 Cancel 触发取消令牌；对端关闭即结束。
     /// 与业务执行同生命周期，由 Dispose 停止。

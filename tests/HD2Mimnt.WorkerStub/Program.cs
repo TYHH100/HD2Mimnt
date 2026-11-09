@@ -37,6 +37,11 @@ internal static class Program
 
         Trace("connected");
         var command = await ReceiveCommandAsync(pipe);
+        if (command?.WorkerType == "Preview")
+        {
+            await RunPreviewSessionAsync(pipe, Trace);
+            return 0;
+        }
         var behavior = command?.Arguments.GetValueOrDefault("Behavior") ?? "complete";
         Trace($"command:{behavior}");
 
@@ -72,6 +77,43 @@ internal static class Program
                     Success = true, Result = "stub done"
                 }));
                 return 0;
+        }
+    }
+
+    private static async Task RunPreviewSessionAsync(Stream stream, Action<string> trace)
+    {
+        trace("preview session");
+        while (true)
+        {
+            var json = await PipeFrame.ReceiveAsync(stream, CancellationToken.None);
+            if (json is null) return;
+            var message = JsonSerializer.Deserialize<WorkerMessage>(json);
+            if (message is null) continue;
+            switch (message.MessageType)
+            {
+                case PreviewMessageTypes.Shutdown:
+                    await SendAsync(stream, "Completed",
+                        JsonSerializer.Serialize(new WorkerCompletedResponse { Success = true }));
+                    return;
+                case PreviewMessageTypes.Cancel:
+                    continue;
+                case PreviewMessageTypes.Request:
+                    var request = JsonSerializer.Deserialize<PreviewRequestPayload>(message.Payload ?? "{}");
+                    if (request is null) continue;
+                    await SendAsync(stream, PreviewMessageTypes.Response, JsonSerializer.Serialize(
+                        new PreviewResponsePayload
+                        {
+                            RequestId = request.RequestId,
+                            Success = true,
+                            Payload = request.Payload
+                        }));
+                    if (request.Method == "EmitEvent")
+                    {
+                        await SendAsync(stream, PreviewMessageTypes.Event, JsonSerializer.Serialize(
+                            new PreviewEventPayload { EventType = "Test", Payload = "\"evt\"" }));
+                    }
+                    break;
+            }
         }
     }
 

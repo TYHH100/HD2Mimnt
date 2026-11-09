@@ -471,9 +471,23 @@ public sealed class TexturePreviewData
 {
     public required int Width { get; init; }
     public required int Height { get; init; }
-    public byte[]? BgraPixels { get; init; }
-    public byte[]? EncodedImageBytes { get; init; }
+    private byte[]? _bgraPixels;
+    private byte[]? _encodedImageBytes;
+    public byte[]? BgraPixels { get => _bgraPixels; init => _bgraPixels = value; }
+    public byte[]? EncodedImageBytes { get => _encodedImageBytes; init => _encodedImageBytes = value; }
     public required string Description { get; init; }
+
+    /// <summary>
+    /// 贴图已经上传 GPU 后释放 CPU 像素，避免原版分辨率下主进程长期持有整份 BGRA。
+    /// 返回 false 表示已经没有可释放的数据。
+    /// </summary>
+    public bool ReleasePixelData()
+    {
+        var released = _bgraPixels is not null || _encodedImageBytes is not null;
+        _bgraPixels = null;
+        _encodedImageBytes = null;
+        return released;
+    }
 }
 
 public sealed class PatchTocInspectionItem

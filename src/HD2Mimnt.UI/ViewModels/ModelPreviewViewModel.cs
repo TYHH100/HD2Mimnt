@@ -10,6 +10,7 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.ModelPreview;
 using HD2Mimnt.UI.Localization;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -30,6 +31,7 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     private bool _updatingRows;
     private Matrix4x4 _presentationTransform = Matrix4x4.Identity;
     private int _missingTextureCount;
+    private bool _sessionEntered;
 
     public ModelPreviewViewModel(ModelPreviewService service)
     {
@@ -88,6 +90,7 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     public Task OpenAsync(Guid modId, Guid? profileId = null)
     {
         IsOpen = true;
+        EnterPreviewSession();
         ClearContent();
         return RunAsync(async token =>
         {
@@ -136,7 +139,16 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             : new ProfileModOptionsState { OptionToggles = Options.Select(option => option.IsEnabled).ToList(),
                 OptionSelections = Options.Select(option => option.SelectedIndex).ToList() };
         var resolution = TextureResolution;
+        // 重新预览会同时持有上一代和新一代贴图；旧场景断开引用后先压实大对象堆，
+        // 避免 1024 → 原版这类切换在 UI 进程里叠加两份大缓冲区。
+        var replacingContent = _result is not null;
         ClearResult();
+        if (replacingContent)
+        {
+            token.ThrowIfCancellationRequested();
+            await PreviewMemoryReclaimer.CompactLargeObjectHeapAsync();
+            token.ThrowIfCancellationRequested();
+        }
         var result = await _service.LoadAsync(source.ModId, state.ToJson(), token);
         token.ThrowIfCancellationRequested();
         var (selection, rotation) = await Task.Run(() => (ModelPreviewMeshSelector.Select(result.Meshes),
@@ -293,6 +305,23 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         ClearContent();
         await _operation;
         if (generation == _generation) IsBusy = false;
+        await ExitPreviewSessionAsync();
+        PreviewMemoryReclaimer.Schedule();
+    }
+
+    /// <summary>打开预览时进入共享的预览 Worker 会话；关闭后退出并在最后一个使用者离开时终止进程。</summary>
+    private void EnterPreviewSession()
+    {
+        if (_sessionEntered || _service.PreviewSession is not { } session) return;
+        session.Enter();
+        _sessionEntered = true;
+    }
+
+    private async Task ExitPreviewSessionAsync()
+    {
+        if (!_sessionEntered) return;
+        _sessionEntered = false;
+        if (_service.PreviewSession is { } session) await session.ExitAsync();
     }
 
     private void ClearContent()
@@ -313,6 +342,23 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     }
 
     public void ReportRenderFailure(string message) => Error = message;
+
+    /// <summary>贴图已全部上传 GPU：释放 CPU BGRA/编码像素，原版分辨率下不再长期双份占用。</summary>
+    public void ReleaseTexturePixels(IReadOnlyDictionary<ulong, TexturePreviewData> uploadedTextures)
+    {
+        // 上传事件可能晚于一次重载到达；只有当前场景的贴图字典才允许释放。
+        if (!ReferenceEquals(uploadedTextures, _textures)) return;
+        var released = false;
+        foreach (var texture in _textures.Values) released |= texture.ReleasePixelData();
+        if (released) PreviewMemoryReclaimer.Schedule();
+    }
+
+    /// <summary>GL 上下文重建导致 GPU 贴图丢失且 CPU 像素已释放时，重新加载当前预览。</summary>
+    public void RequestTextureReload()
+    {
+        if (!IsOpen) return;
+        ReloadCommand.Execute(null);
+    }
 }
 
 public partial class ModelPreviewOptionRow : ObservableObject

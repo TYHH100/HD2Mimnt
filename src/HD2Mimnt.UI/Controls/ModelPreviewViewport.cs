@@ -70,6 +70,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     private IPointer? _dragPointer;
     private Point _lastPointerPosition;
     private bool _panning;
+    private bool _pixelsReleased;
+    private bool _reloadRequested;
 
     public ModelPreviewScene? Scene { get => GetValue(SceneProperty); set => SetValue(SceneProperty, value); }
     public bool Wireframe { get => GetValue(WireframeProperty); set => SetValue(WireframeProperty, value); }
@@ -78,6 +80,12 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     public bool ShowGrid { get => GetValue(ShowGridProperty); set => SetValue(ShowGridProperty, value); }
 
     public event Action<string>? RenderFailed;
+
+    /// <summary>贴图全部上传 GPU 后触发；ViewModel 随即释放 CPU 像素，原版分辨率不再长期双份占用。</summary>
+    public event Action<IReadOnlyDictionary<ulong, TexturePreviewData>>? TexturesUploaded;
+
+    /// <summary>GL 上下文重建后 CPU 像素已被释放，需要重新加载贴图。</summary>
+    public event Action? TextureReloadRequired;
 
     public override void Render(Avalonia.Media.DrawingContext context)
     {
@@ -113,7 +121,12 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             _sceneDirty = true;
             _failed = false;
             if (Scene is null)
+            {
                 _cameraFitted = false;
+                // 立即断开 CPU 像素字典引用，重新预览前就能回收上一代贴图；
+                // GPU 纹理仍由下一次渲染的 DeleteGpuResources 释放。
+                _uploadedTextures = null;
+            }
             RequestNextFrameRendering();
         }
         else if (change.Property == WireframeProperty || change.Property == UseTexturesProperty ||
@@ -461,6 +474,12 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             FitCamera();
         _cameraFitted = true;
         _resetPending = false;
+        if (scene.Textures.Count > 0)
+        {
+            _pixelsReleased = true;
+            _reloadRequested = false;
+            TexturesUploaded?.Invoke(scene.Textures);
+        }
     }
 
     private static float[] PrepareVertices(ModelPreviewMesh mesh, out bool hasUv)
@@ -580,8 +599,18 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
     /// <summary>按 ID 解析并上传场景贴图，超限或缺失时返回 null（跳过比整场失败更安全）。</summary>
     private GpuTexture? ResolveTexture(GlInterface gl, GlApi api, ModelPreviewScene scene, ulong textureId, int maxTextureSize)
     {
-        if (!scene.Textures.TryGetValue(textureId, out var texture) || texture.BgraPixels is null)
+        // 先查已上传的 GPU 贴图：CPU 像素在上传后已释放，隐藏网格重新显示时仍要能命中缓存。
+        if (_textures.TryGetValue(textureId, out var cachedTexture))
+            return cachedTexture;
+        if (!scene.Textures.TryGetValue(textureId, out var texture))
             return null;
+        // 一次性捕获像素引用：UI 线程可能在上传期间释放 CPU 像素，捕获后数组仍保持存活。
+        var bgra = texture.BgraPixels;
+        if (bgra is null)
+        {
+            RequestTextureReloadOnce();
+            return null;
+        }
         // 原始分辨率可能超过 GPU 上限，跳过该贴图比让整场渲染失败更安全。
         if (texture.Width > maxTextureSize || texture.Height > maxTextureSize)
         {
@@ -589,31 +618,40 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
                 textureId, texture.Width, texture.Height, maxTextureSize);
             return null;
         }
-        if (!_textures.TryGetValue(textureId, out var gpuTexture))
-        {
-            gpuTexture = UploadTexture(gl, api, texture, maxTextureSize);
-            _textures.Add(textureId, gpuTexture);
-        }
+        var gpuTexture = UploadTexture(gl, api, texture, bgra, maxTextureSize);
+        _textures.Add(textureId, gpuTexture);
         return gpuTexture;
     }
 
-    private static GpuTexture UploadTexture(GlInterface gl, GlApi api, TexturePreviewData texture, int maxSize)
+    private void RequestTextureReloadOnce()
+    {
+        if (_reloadRequested) return;
+        _reloadRequested = true;
+        try
+        {
+            Dispatcher.UIThread.Post(() => TextureReloadRequired?.Invoke());
+        }
+        catch (InvalidOperationException)
+        {
+            // 应用正在关闭，不再需要重新加载
+        }
+    }
+
+    private static GpuTexture UploadTexture(GlInterface gl, GlApi api, TexturePreviewData texture,
+        byte[] bgra, int maxSize)
     {
         if (texture.Width <= 0 || texture.Height <= 0 || texture.Width > maxSize || texture.Height > maxSize)
             throw new InvalidDataException(nameof(texture.Width));
-        var length = checked(texture.Width * texture.Height * 4);
-        var bgra = texture.BgraPixels!;
+        var rowBytes = checked(texture.Width * 4);
+        var length = checked(rowBytes * texture.Height);
         if (bgra.Length < length)
             throw new InvalidDataException(nameof(texture.BgraPixels));
-        var rgba = new byte[length];
         var hasAlpha = false;
-        for (var i = 0; i < length; i += 4)
+        for (var i = 3; i < length; i += 4)
         {
-            rgba[i] = bgra[i + 2];
-            rgba[i + 1] = bgra[i + 1];
-            rgba[i + 2] = bgra[i];
-            rgba[i + 3] = bgra[i + 3];
-            hasAlpha |= bgra[i + 3] != byte.MaxValue;
+            if (bgra[i] == byte.MaxValue) continue;
+            hasAlpha = true;
+            break;
         }
         var id = gl.GenTexture();
         if (id == 0)
@@ -631,8 +669,46 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             gl.TexParameteri(Gl.Texture2D, Gl.TextureMagFilter, Gl.Linear);
             gl.TexParameteri(Gl.Texture2D, Gl.TextureWrapS, Gl.Repeat);
             gl.TexParameteri(Gl.Texture2D, Gl.TextureWrapT, Gl.Repeat);
-            WithPinned(rgba, pointer => gl.TexImage2D(Gl.Texture2D, 0, Gl.Rgba8, texture.Width,
-                texture.Height, 0, Gl.Rgba, Gl.UnsignedByte, pointer));
+            // 先分配存储，再按 4MB 分块做 BGRA→RGBA 上传。原版分辨率的贴图动辄数百 MB，
+            // 整张复制一份 RGBA 会让 UI 进程瞬间多占一倍内存。
+            if (api.TexSubImage2D is { } texSubImage2D)
+            {
+                gl.TexImage2D(Gl.Texture2D, 0, Gl.Rgba8, texture.Width, texture.Height, 0,
+                    Gl.Rgba, Gl.UnsignedByte, IntPtr.Zero);
+                const int ChunkBytes = 4 * 1024 * 1024;
+                var chunkRows = Math.Max(1, Math.Min(texture.Height, ChunkBytes / Math.Max(1, rowBytes)));
+                var scratch = new byte[rowBytes * chunkRows];
+                for (var row = 0; row < texture.Height; row += chunkRows)
+                {
+                    var rows = Math.Min(chunkRows, texture.Height - row);
+                    var rowOffset = row * rowBytes;
+                    var byteCount = rows * rowBytes;
+                    for (var i = 0; i < byteCount; i += 4)
+                    {
+                        var source = rowOffset + i;
+                        scratch[i] = bgra[source + 2];
+                        scratch[i + 1] = bgra[source + 1];
+                        scratch[i + 2] = bgra[source];
+                        scratch[i + 3] = bgra[source + 3];
+                    }
+                    WithPinned(scratch, pointer => texSubImage2D(Gl.Texture2D, 0, 0, row,
+                        texture.Width, rows, Gl.Rgba, Gl.UnsignedByte, pointer));
+                }
+            }
+            else
+            {
+                // 极少数不提供 glTexSubImage2D 的实现退回整张转换。
+                var rgba = new byte[length];
+                for (var i = 0; i < length; i += 4)
+                {
+                    rgba[i] = bgra[i + 2];
+                    rgba[i + 1] = bgra[i + 1];
+                    rgba[i + 2] = bgra[i];
+                    rgba[i + 3] = bgra[i + 3];
+                }
+                WithPinned(rgba, pointer => gl.TexImage2D(Gl.Texture2D, 0, Gl.Rgba8, texture.Width,
+                    texture.Height, 0, Gl.Rgba, Gl.UnsignedByte, pointer));
+            }
             // 预览会把 4096² 贴图缩到几百像素显示，只有 level 0 时高频细节（尤其是刚接入的
             // 法线与粗糙度）会严重走样闪烁；生成完整 mip 链后三线性过滤才读得出这些细节。
             api.GenerateMipmap(Gl.Texture2D);
@@ -974,6 +1050,9 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public delegate void ColorMaskDelegate(byte red, byte green, byte blue, byte alpha);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)]
         public delegate int GetErrorDelegate();
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+        public delegate void TexSubImage2DDelegate(int target, int level, int xoffset, int yoffset,
+            int width, int height, int format, int type, nint pixels);
 
         public readonly MatrixDelegate UniformMatrix4fv;
         public readonly Vector3Delegate Uniform3f;
@@ -985,6 +1064,8 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
         public readonly AttachmentDelegate GetFramebufferAttachmentParameteriv;
         public readonly IsEnabledDelegate IsEnabled;
         public readonly ColorMaskDelegate ColorMask;
+        /// <summary>桌面 GL/ANGLE 都提供；缺失时退回整张 RGBA 上传。</summary>
+        public readonly TexSubImage2DDelegate? TexSubImage2D;
         private readonly GetValuesDelegate _getIntegerv;
         private readonly GetValuesDelegate _getFloatv;
         private readonly GetErrorDelegate _getError;
@@ -1001,6 +1082,11 @@ public sealed class ModelPreviewViewport : OpenGlControlBase
             GetFramebufferAttachmentParameteriv = Load<AttachmentDelegate>(gl, "glGetFramebufferAttachmentParameteriv");
             IsEnabled = Load<IsEnabledDelegate>(gl, "glIsEnabled");
             ColorMask = Load<ColorMaskDelegate>(gl, "glColorMask");
+            var texSubImage2D = gl.GetProcAddress("glTexSubImage2D");
+            TexSubImage2D = texSubImage2D == 0 || texSubImage2D == 1 || texSubImage2D == 2 ||
+                            texSubImage2D == 3 || texSubImage2D == -1
+                ? null
+                : Marshal.GetDelegateForFunctionPointer<TexSubImage2DDelegate>(texSubImage2D);
             _getIntegerv = Load<GetValuesDelegate>(gl, "glGetIntegerv");
             _getFloatv = Load<GetValuesDelegate>(gl, "glGetFloatv");
             _getError = Load<GetErrorDelegate>(gl, "glGetError");

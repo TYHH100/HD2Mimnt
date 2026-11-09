@@ -106,6 +106,30 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task AudioPreview_RemoteWorkerSessionStopsOnClose()
+    {
+        // 不注入本地 reader/播放器：走真实 DI 的远程实现与预览 Worker 会话。
+        await using var scope = await UiScope.CreateAsync();
+        var id = await ImportAudioMod(scope, "HD2Mimnt Test remote audio");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.LibraryViewModel.InitializeAsync();
+        var mod = main.LibraryViewModel.FilteredMods.Single(item => item.Id == id);
+        var preview = Assert.IsType<AudioPreviewViewModel>(main.AudioPreview);
+        var session = scope.Services.GetRequiredService<PreviewWorkerSession>();
+
+        main.LibraryViewModel.PreviewAudioCommand.Execute(mod);
+        await main.LibraryViewModel.PreviewAudioCommand.ExecutionTask!;
+        await preview.Completion;
+        Assert.True(preview.IsOpen);
+        Assert.True(session.IsRunning);
+
+        preview.CloseCommand.Execute(null);
+        await preview.CloseCommand.ExecutionTask!;
+        Assert.False(preview.IsOpen);
+        Assert.False(session.IsRunning);
+    }
+
+    [AvaloniaFact]
     public async Task AudioPreview_EmptyModShowsNoComparisonFilter()
     {
         var reader = new StubAudioPreviewReader(empty: true);

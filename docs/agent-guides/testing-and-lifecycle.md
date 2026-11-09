@@ -81,6 +81,8 @@
 - Worker 端批量作业单项失败不中断整体：逐项上报进度，结束时汇总 `PartiallyFailed` 与错误列表；主程序桥接先判 `PartiallyFailed` 再判 `Success=false`，否则部分失败会被误标为 `Failed`。
 
 - 真实 Worker 进程的集成测试通过 `HD2MIMNT_DATA_PATH` 指向临时目录并在用例内初始化数据库；该变量是进程级状态，相关测试集合必须 `DisableParallelization`，并在结束时恢复原值、删除临时目录。宿主可执行文件路径、连接超时与取消宽限期在 `WorkerHostManager` 构造中可注入，便于用快速失败的程序验证连接超时。崩溃/挂起/优雅取消用 `tests/HD2Mimnt.WorkerStub` 替身进程验证（行为由 Command 的 `Arguments["Behavior"]` 指定），不要为测试往生产 Worker 里加休眠开关。来源：[xUnit v2 collection](https://xunit.net/docs/running-tests-in-parallel)
+
+- 预览会话（`PreviewWorkerSession`）单独验证：真实 Worker 端到端用例用 `AppContext.BaseDirectory/HD2Mimnt.Worker.exe`（UI 引用 Worker 后会自动复制）加 `HD2MIMNT_DATA_PATH` 临时库，覆盖模型包、贴图解码与音频清单，并在关闭后断言 `IsRunning == false`；协议层用 WorkerStub 的 Preview 会话回显请求/事件。UI 测试默认注入本地 reader/播放器，避免每个预览用例都冷启动子进程；专门验证进程生命周期的用例才不注入。预览大块结果经临时文件传输，测试结束必须删除文件，Worker 退出时也会清理自己的会话目录。
 - UI 测试里的 `HD2MIMNT_DATA_PATH` 必须覆盖整个 scope 生命周期，而不是构建完服务容器就恢复：子进程 Worker 是测试动作发生时才启动的，提前恢复会让它打开真实用户数据目录。需要注入阻塞式部署方法的 UI 测试改用回环 `IWorkerHostManager`（在本进程执行 `DeploymentWorkerTask`/`CleanupWorkerTask`），只有管道传输被替换，TaskService→Worker 任务的链路仍然真实。
 - Worker 任务要用完整服务图：导入/部署/清理依赖 `SettingsService`、`ProfileService`、`DeploymentStateMigrationService`、`IDeploymentMethod`×3、IAS/MDL3 伴生与 `LoaderRegistry.Initialize`，与 `HD2Mimnt.Cli/HeadlessHost` 保持一致；启动时先完成部署状态迁移和配置初始化，纯校验任务可跳过这些写入。Worker 里不要用 `Progress<T>`（无同步上下文，顺序不可控），进度统一走 `WorkerProgressReporter`（同步发送 + 100ms 节流，首条必须送达，否则长任务首帧阻塞时 UI 一直停在不确定态）。
 - Worker 不能弹窗：压缩包密码与 HD2IR 组件确认必须走 `Prompt`/`PromptResponse` 双向消息（`WorkerHost.PromptAsync` ↔ `WorkerHostManager` 的 `WorkerPromptHandler`）。主程序监听循环收到 Prompt 后要异步处理、不能 await 卡住循环（否则进度和取消都收不到），并发写管道要有发送闸门。没有 Handler 的 Worker 直接拒绝请求，业务按失败/取消处理。

@@ -18,7 +18,8 @@ public sealed class AudioPreviewService(
     IAudioPreviewReader reader,
     IAudioPlaybackEngine playback,
     GameAudioBaselineProvider baselines,
-    SettingsService settings) : IDisposable
+    SettingsService settings,
+    IPreviewWorkerSession? previewSession = null) : IDisposable
 {
     private const int MaxCachedInventories = 2;
 
@@ -26,8 +27,22 @@ public sealed class AudioPreviewService(
     private readonly Dictionary<string, AudioInventoryResult> _inventoryCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<string> _inventoryOrder = [];
 
+    /// <summary>预览 Worker 会话；打开预览时进入、关闭时退出并终止进程。</summary>
+    public IPreviewWorkerSession? PreviewSession => previewSession;
+
     /// <summary>播放引擎（单实例；同一时间只播放一个条目）。</summary>
     public IAudioPlaybackEngine Playback => playback;
+
+    /// <summary>关闭预览后立即释放清单缓存与原版基线（基线持有文件句柄与哈希缓存）。</summary>
+    public void ClearCache()
+    {
+        lock (_cacheGate)
+        {
+            _inventoryCache.Clear();
+            _inventoryOrder.Clear();
+        }
+        baselines.Clear();
+    }
 
     /// <summary>解析模组与生效选项（与模型预览同款数据源语义）。</summary>
     public async Task<ModelPreviewSource> GetSourceAsync(Guid modId, Guid? profileId = null, CancellationToken cancellationToken = default)
@@ -130,13 +145,5 @@ public sealed class AudioPreviewService(
     private async Task<Mod> GetModAsync(Guid id, CancellationToken token) =>
         await mods.GetByIdAsync(id, token) ?? throw new KeyNotFoundException($"Mod {id} not found.");
 
-    public void Dispose()
-    {
-        lock (_cacheGate)
-        {
-            _inventoryCache.Clear();
-            _inventoryOrder.Clear();
-        }
-        baselines.Clear();
-    }
+    public void Dispose() => ClearCache();
 }
