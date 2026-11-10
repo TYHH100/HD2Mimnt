@@ -71,6 +71,13 @@ public partial class LibraryViewModel : ObservableObject
     /// <summary>插件命令执行完毕后由视图弹出结果窗口（AI 摘要等文本可能较长）。</summary>
     public event EventHandler<PluginCommandResultEventArgs>? PluginCommandResultReady;
 
+    /// <summary>
+    /// 导入批次结束后通知外部模组集合已变化。导入在 HD2Mimnt.Worker 独立进程内写库，
+    /// 不会触发主进程 <c>ModService.ModsChanged</c>，配置页等订阅方必须靠这里显式联动刷新；
+    /// 同时覆盖「导入后自动加入当前配置」在 Worker 内完成的情况。
+    /// </summary>
+    public event EventHandler? ImportedModsChanged;
+
     // 数据源
     private List<ModItemViewModel> _allMods = new();
     private bool _selectionSyncInProgress;
@@ -256,6 +263,12 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void OpenModLink(ModItemViewModel mod) => ModLink?.Open(mod);
     public Task ImportCompletion { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// 导入批次结束后的后台收尾（导入后兼容性检查、Lua 自动提取）。不并入 <see cref="ImportCompletion"/>，
+    /// 但保留可等待句柄：退出流程与测试收尾要确认它们不会在服务释放后继续访问存储。
+    /// </summary>
+    public Task ImportPostProcessing { get; private set; } = Task.CompletedTask;
 
     [RelayCommand]
     private void OpenImport() => Import.Open();
@@ -1478,9 +1491,11 @@ public partial class LibraryViewModel : ObservableObject
         {
             IsLoading = false;
         }
+        // Worker 进程写库不产生主进程事件，这里补发一次：成功、部分成功与取消（已导入的部分保留）都要联动刷新。
+        if (Import.ImportedIds.Count > 0) ImportedModsChanged?.Invoke(this, EventArgs.Empty);
         // 批次结束（含取消）后统一检查本次导入的模组；不并入 ImportCompletion，下载交接无需等待检查。
-        _ = CheckImportedCompatibilityAsync();
-        _ = ExtractImportedLuaAsync();
+        // 保留可等待句柄，退出流程与测试收尾需要确认这些后台工作不再触碰已释放的服务。
+        ImportPostProcessing = Task.WhenAll(CheckImportedCompatibilityAsync(), ExtractImportedLuaAsync());
     }
 
     /// <summary>导入前为自动加入当前配置准备可选分组；任一开关关闭或没有分组时保持原追加逻辑。</summary>

@@ -356,6 +356,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
         _modService.ModsChanged += OnModsChanged;
+        _libraryViewModel.ImportedModsChanged += OnImportedModsChanged;
         _modService.MetadataChanged += (_, _) => QueueUiRefresh(async () =>
             await _profileViewModel.RefreshAfterProfilesChangedAsync());
         _profileService.ProfilesChanged += OnProfilesChanged;
@@ -619,6 +620,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         if (_disposed) return;
         _disposed = true;
         _modService.ModsChanged -= OnModsChanged;
+        _libraryViewModel.ImportedModsChanged -= OnImportedModsChanged;
         _profileService.ProfilesChanged -= OnProfilesChanged;
         _profileViewModel.ActiveProfileChanged -= OnActiveProfileChanged;
         _taskService.TaskCompleted -= OnTaskCompleted;
@@ -722,6 +724,18 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         });
     }
+
+    /// <summary>
+    /// Worker 进程导入完成后的联动刷新：跨进程写库不会触发主进程 ModService.ModsChanged，
+    /// 这里补齐配置页卡片、归属状态与冲突结果，避免新模组要重启才可见。
+    /// </summary>
+    private void OnImportedModsChanged(object? sender, EventArgs e) => QueueUiRefresh(async () =>
+    {
+        _conflictsViewModel.InvalidateResults();
+        await _profileViewModel.RefreshAfterProfilesChangedAsync();
+        SyncConflictProfile();
+        UpdateCurrentProfile();
+    });
 
     private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
     {

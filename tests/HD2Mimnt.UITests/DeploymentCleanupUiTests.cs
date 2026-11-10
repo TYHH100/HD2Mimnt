@@ -182,8 +182,11 @@ public sealed partial class FluentAvaloniaUiTests
     /// 回环宿主：不起子进程，在本进程直接执行 Worker 任务实现。
     /// 让 UI 测试能注入阻塞式部署方法来验证浮层与取消，同时仍经过
     /// TaskService → Worker 任务 → DeploymentService 的真实链路（只有管道传输被替换）。
+    /// <paramref name="importModServiceFactory"/> 用于导入任务注入独立服务图，
+    /// 模拟子进程自己的 ModService/ProfileService：主进程收不到它们的内存事件。
     /// </summary>
-    private sealed class LoopbackWorkerHost(IServiceProvider services) : IWorkerHostManager
+    private sealed class LoopbackWorkerHost(IServiceProvider services,
+        Func<IServiceProvider, ModService>? importModServiceFactory = null) : IWorkerHostManager
     {
         private sealed record Run(CancellationTokenSource Cancellation, Task<WorkerResult> Completion);
 
@@ -204,6 +207,8 @@ public sealed partial class FluentAvaloniaUiTests
                     {
                         "Deployment" => new DeploymentWorkerTask(services.GetRequiredService<DeploymentService>()),
                         "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
+                        "Import" => new ImportWorkerTask(importModServiceFactory?.Invoke(services)
+                            ?? services.GetRequiredService<ModService>()),
                         _ => throw new NotSupportedException(workerType)
                     };
                     await task.ExecuteAsync(host,
