@@ -244,14 +244,19 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
         {
-            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"关于"分类处理。
+            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"工具"页的"关于"分类处理。
             AppUpdateViewModel.UpdateAvailableDetected += () =>
             {
                 var version = AppUpdateViewModel.LatestVersion ?? string.Empty;
                 _notificationService.ShowWithAction(NotificationLevel.Info,
                     UiLocalization.Current.Format("Updates.NotificationBody", version),
                     UiLocalization.Current["Updates.NotificationAction"],
-                    () => Dispatcher.UIThread.Post(() => MoreViewModel.SelectedCategory = "关于"),
+                    () => Dispatcher.UIThread.Post(() =>
+                    {
+                        // 先切换主页面再设置分类，仅改分类在非工具页时无可见效果。
+                        NavigateToToolsCommand.Execute(null);
+                        MoreViewModel.SelectedCategory = "关于";
+                    }),
                     UiLocalization.Current["Updates.NotificationTitle"]);
             };
             // 安装脚本已启动，立即退出应用让脚本完成文件替换并重启。
