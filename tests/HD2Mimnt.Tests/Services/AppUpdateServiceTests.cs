@@ -86,7 +86,7 @@ public sealed class AppUpdateServiceTests : IDisposable
 
         var staging = await service.PrepareAsync(CreateUpdate("99.0.0"));
 
-        var stagedExe = Path.Combine(_stagingRoot, "99.0.0", "staged", "HD2Mimnt.exe");
+        var stagedExe = Path.Combine(_stagingRoot, "99.0.0", "staged", "HD2Mimnt.UI.exe");
         Assert.True(File.Exists(stagedExe));
         Assert.Equal("payload", await File.ReadAllTextAsync(stagedExe));
         Assert.Equal(_installDirectory, staging.TargetDirectory);
@@ -97,7 +97,7 @@ public sealed class AppUpdateServiceTests : IDisposable
         Assert.Contains("4711", script);
         Assert.Contains(ScriptSingleQuoted(_installDirectory), script);
         Assert.Contains(ScriptSingleQuoted(staging.StagingDirectory), script);
-        Assert.Contains("'HD2Mimnt.exe'", script);
+        Assert.Contains("'HD2Mimnt.UI.exe'", script);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class AppUpdateServiceTests : IDisposable
     private AppUpdateService CreateService(AppUpdateRelease? release, byte[]? downloadBytes = null,
         int? pid = null, string? installDirectory = null)
     {
-        downloadBytes ??= CreateZipBytes(("HD2Mimnt.exe", "payload"), ("Assets/extra.dll", "extra"));
+        downloadBytes ??= CreateZipBytes(("HD2Mimnt.UI.exe", "payload"), ("Assets/extra.dll", "extra"));
         return new AppUpdateService(
             new FakeReleaseClient(release),
             new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes)),
