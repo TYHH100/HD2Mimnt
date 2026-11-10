@@ -188,6 +188,16 @@ public partial class App : Avalonia.Application
                 Icon = TryGetAppIcon()
             };
             mainViewModel.AttachOwner(mainWindow);
+            // 毛玻璃在窗口显示前应用：浅色主题不必先渲染一帧不透明背景再切换。
+            var appearanceSettings = ServiceProvider.GetRequiredService<SettingsService>();
+            GlassMaterialService.Apply(
+                mainWindow,
+                ActualThemeVariant,
+                appearanceSettings.GetSetting(SettingKeys.GlassIntensity, GlassMaterialService.DefaultIntensity),
+                appearanceSettings.GetSetting(SettingKeys.GlassBlur, LiveBackdropService.DefaultBlur),
+                !string.IsNullOrWhiteSpace(appearanceSettings.GetSetting(SettingKeys.BackgroundImagePath, string.Empty)),
+                appearanceSettings.GetSetting(SettingKeys.CardOpacity, 100d),
+                screenshotFriendly: !appearanceSettings.GetSetting(SettingKeys.GlassLiveBackdrop, false));
             desktop.MainWindow = mainWindow;
             running = false;
             startup?.Close();

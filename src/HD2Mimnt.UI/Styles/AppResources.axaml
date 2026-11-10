@@ -46,6 +46,10 @@
   <x:Double x:Key="CardSurfaceOpacity">1</x:Double>
   <x:Double x:Key="ChromeSurfaceOpacity">1</x:Double>
   <x:Double x:Key="ContentSurfaceOpacity">1</x:Double>
+  <!-- 主窗口根容器的着色层：浅色主题的毛玻璃只在这一层着色，平时保持透明，
+       让 Window 样式的主题底色（含皮肤）照常生效。 -->
+  <x:Double x:Key="ShellSurfaceOpacity">0</x:Double>
+  <SolidColorBrush x:Key="ShellFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ShellSurfaceOpacity}"/>
   <SolidColorBrush x:Key="CardFillBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ChromeFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ChromeSurfaceOpacity}"/>
   <SolidColorBrush x:Key="ContentFillBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" Opacity="{DynamicResource ContentSurfaceOpacity}"/>

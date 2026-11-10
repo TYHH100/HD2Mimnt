@@ -1,6 +1,7 @@
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Services;
+using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.ViewModels;
 using Moq;
 using Microsoft.Data.Sqlite;
@@ -64,14 +65,31 @@ public sealed class SettingsViewModelTests : IDisposable
         vm.DownloadParallelSegments = 0;
         vm.Theme = "Light";
         vm.CardOpacity = 70;
+        vm.GlassIntensity = 30;
+        vm.GlassBlur = 32;
+        // 可调模糊玻璃默认关闭：走系统玻璃，模糊半径由系统固定，滑块置灰。
+        Assert.False(vm.GlassLiveBackdrop);
+        Assert.False(vm.IsGlassBlurEnabled);
+        // 开启后才改用自绘玻璃，模糊滑块才有作用对象。
+        vm.GlassLiveBackdrop = true;
+        Assert.True(vm.IsGlassBlurEnabled);
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.Equal("设置已保存", vm.StatusMessage);
         Assert.Equal("Light", _settingsService.GetSetting(SettingKeys.Theme, "Dark"));
         Assert.Equal(70d, _settingsService.GetSetting(SettingKeys.CardOpacity, 100d));
+        Assert.Equal(30d, _settingsService.GetSetting(SettingKeys.GlassIntensity, 0d));
+        Assert.Equal(32d, _settingsService.GetSetting(SettingKeys.GlassBlur, 0d));
+        Assert.True(_settingsService.GetSetting(SettingKeys.GlassLiveBackdrop, false));
         Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.Equal("Dark", vm.Theme);
         Assert.Equal(100d, vm.CardOpacity);
+        Assert.Equal(GlassMaterialService.DefaultIntensity, vm.GlassIntensity);
+        Assert.Equal(GlassMaterialService.DefaultIntensity, _settingsService.GetSetting(SettingKeys.GlassIntensity, 0d));
+        Assert.Equal(LiveBackdropService.DefaultBlur, vm.GlassBlur);
+        Assert.Equal(LiveBackdropService.DefaultBlur, _settingsService.GetSetting(SettingKeys.GlassBlur, 0d));
+        Assert.False(vm.GlassLiveBackdrop);
+        Assert.False(_settingsService.GetSetting(SettingKeys.GlassLiveBackdrop, true));
         Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
         Assert.False(_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true));
         Assert.Equal(8, _settingsService.GetSetting(SettingKeys.DownloadParallelSegments, 4));

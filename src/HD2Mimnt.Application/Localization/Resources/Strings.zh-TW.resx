@@ -995,6 +995,24 @@
   <data name="UI.CardOpacity" xml:space="preserve">
     <value>卡片不透明度</value>
   </data>
+  <data name="UI.GlassIntensity" xml:space="preserve">
+    <value>毛玻璃強度</value>
+  </data>
+  <data name="UI.GlassIntensityHelp" xml:space="preserve">
+    <value>僅淺色主題：視窗底色、頂部導覽列與底部狀態列使用系統背景模糊（即時反映視窗背後的內容）。0 為關閉，數值越大越通透。儲存後生效；深色主題與自訂背景圖不受影響。</value>
+  </data>
+  <data name="UI.GlassBlur" xml:space="preserve">
+    <value>模糊強度</value>
+  </data>
+  <data name="UI.GlassBlurHelp" xml:space="preserve">
+    <value>視窗背後畫面的模糊程度（0-48）。0 為完全清晰，能看清玻璃背後的內容；數值越大越朦朧。僅淺色主題生效，需要毛玻璃強度大於 0，並且開啟「可調模糊玻璃」。</value>
+  </data>
+  <data name="UI.GlassLiveBackdrop" xml:space="preserve">
+    <value>可調模糊玻璃</value>
+  </data>
+  <data name="UI.GlassLiveBackdropHelp" xml:space="preserve">
+    <value>開啟後「模糊強度」才可調節，但視窗會在截圖和錄影裡變成一片空白：自繪玻璃必須把視窗排除在截屏之外，否則會把視窗自己拍進去，Windows 沒有別的辦法。預設關閉，改用系統玻璃——截圖/錄影能正常拍到視窗，模糊程度由系統固定。儲存後生效。</value>
+  </data>
   <data name="UI.Cache" xml:space="preserve">
     <value>快取</value>
   </data>

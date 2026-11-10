@@ -995,6 +995,24 @@ Deny: do not install this plugin</value>
   <data name="UI.CardOpacity" xml:space="preserve">
     <value>Card opacity</value>
   </data>
+  <data name="UI.GlassIntensity" xml:space="preserve">
+    <value>Glass intensity</value>
+  </data>
+  <data name="UI.GlassIntensityHelp" xml:space="preserve">
+    <value>Light theme only: fills the window background, navigation bar and status bar with the system backdrop blur (the live desktop behind the window). 0 turns it off, higher values are more translucent. Applies after saving; dark themes and custom background images are unaffected.</value>
+  </data>
+  <data name="UI.GlassBlur" xml:space="preserve">
+    <value>Glass blur</value>
+  </data>
+  <data name="UI.GlassBlurHelp" xml:space="preserve">
+    <value>How strong the blur behind the window is (0-48). 0 keeps the glass perfectly clear so the desktop behind shows through sharply; higher values smear it into frost. Light theme only, needs a glass strength above 0, and requires "Adjustable blur glass" to be on.</value>
+  </data>
+  <data name="UI.GlassLiveBackdrop" xml:space="preserve">
+    <value>Adjustable blur glass</value>
+  </data>
+  <data name="UI.GlassLiveBackdropHelp" xml:space="preserve">
+    <value>Only with this on does "Glass blur" become adjustable, but the window then comes out blank in screenshots and recordings: self-drawn glass has to keep the window out of screen capture, otherwise it captures itself, and Windows offers no other way. Off by default, which uses Windows' own glass - screenshots and recordings show the window normally, with a fixed amount of blur. Applies after saving.</value>
+  </data>
   <data name="UI.Cache" xml:space="preserve">
     <value>Cache</value>
   </data>
