@@ -11,6 +11,7 @@ namespace HD2Mimnt.UI.Services;
 public static class AppThemeService
 {
     public const string Dark = "Dark";
+    public const string DefaultTheme = Dark;
     public const string Light = "Light";
     public const string System = "System";
     public const string Ore = "Ore";
@@ -46,6 +47,10 @@ public static class AppThemeService
 
         if (ActiveSkins.TryGetValue(app, out var activeSkin))
         {
+            // 启动期设置加载与显式应用会对同一主题各调用一次；已生效时跳过，
+            // 避免已显示的窗口被卸载重装皮肤产生闪动。
+            if (string.Equals(activeSkin.Theme, theme, StringComparison.OrdinalIgnoreCase)) return;
+
             if (activeSkin.Styles != null) app.Styles.Remove(activeSkin.Styles);
             foreach (var dictionary in activeSkin.Dictionaries)
                 app.Resources.MergedDictionaries.Remove(dictionary);
@@ -59,28 +64,30 @@ public static class AppThemeService
             _ => ThemeVariant.Dark
         };
 
-        if (!Skins.TryGetValue(theme, out var skin)) return;
-
-        var applied = new AppliedSkin();
-        foreach (var uri in skin.Dictionaries)
+        var applied = new AppliedSkin { Theme = theme };
+        if (Skins.TryGetValue(theme, out var skin))
         {
-            if (AvaloniaXamlLoader.Load(uri) is not ResourceDictionary dictionary) continue;
-            DisplayFontService.ApplyTo(dictionary);
-            app.Resources.MergedDictionaries.Add(dictionary);
-            applied.Dictionaries.Add(dictionary);
+            foreach (var uri in skin.Dictionaries)
+            {
+                if (AvaloniaXamlLoader.Load(uri) is not ResourceDictionary dictionary) continue;
+                DisplayFontService.ApplyTo(dictionary);
+                app.Resources.MergedDictionaries.Add(dictionary);
+                applied.Dictionaries.Add(dictionary);
+            }
+
+            if (AvaloniaXamlLoader.Load(skin.Styles) is Styles styles)
+            {
+                app.Styles.Add(styles);
+                applied.Styles = styles;
+            }
         }
 
-        if (AvaloniaXamlLoader.Load(skin.Styles) is Styles styles)
-        {
-            app.Styles.Add(styles);
-            applied.Styles = styles;
-        }
-
-        if (applied.Dictionaries.Count > 0 || applied.Styles != null) ActiveSkins.Add(app, applied);
+        ActiveSkins.Add(app, applied);
     }
 
     private sealed class AppliedSkin
     {
+        public string Theme { get; init; } = string.Empty;
         public List<ResourceDictionary> Dictionaries { get; } = new();
         public Styles? Styles { get; set; }
     }

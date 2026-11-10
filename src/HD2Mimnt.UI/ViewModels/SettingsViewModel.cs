@@ -57,12 +57,28 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _showThumbnails = true;
     [ObservableProperty] private bool _searchFuzzy;
     [ObservableProperty] private bool _searchPinyin;
-    [ObservableProperty] private string _theme = "Dark";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGlassMaterialVisible))]
+    [NotifyPropertyChangedFor(nameof(IsGlassBlurEnabled))]
+    private string _theme = AppThemeService.DefaultTheme;
     [ObservableProperty] private string _listDensity = "Comfortable";
     [ObservableProperty] private string _backgroundImagePath = string.Empty;
     [ObservableProperty] private double _backgroundImageOpacity = 25;
     [ObservableProperty] private double _backgroundBlur = 0;
     [ObservableProperty] private double _cardOpacity = 100;
+    /// <summary>浅色主题的窗口毛玻璃强度；0 为关闭。仅浅色变体生效，深色与皮肤主题保持原观感。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGlassBlurEnabled))]
+    private double _glassIntensity = GlassMaterialService.DefaultIntensity;
+    /// <summary>实时玻璃的模糊半径（DIP）；0 为完全清晰（纯玻璃），越大越朦胧。</summary>
+    [ObservableProperty] private double _glassBlur = LiveBackdropService.DefaultBlur;
+    /// <summary>
+    /// 自绘实时玻璃，默认关闭：只有它能提供可调的模糊半径，但代价是必须把窗口排除在截屏之外——
+    /// 开启期间窗口在截图/录屏里是一片空白。关闭时走系统丙烯酸：窗口能被正常拍到，模糊程度由系统固定。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGlassBlurEnabled))]
+    private bool _glassLiveBackdrop;
     [ObservableProperty] private bool _enableAnimations = true;
     [ObservableProperty] private bool _autoSwitchProfileOnSelect = true;
     [ObservableProperty] private bool _autoCheckConflicts;
@@ -114,6 +130,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public bool IsSearchCategoryVisible => IsSectionVisible("搜索");
     public bool IsCompatibilityCategoryVisible => IsSectionVisible("兼容性");
     public bool IsAppearanceCategoryVisible => IsSectionVisible("外观");
+
+    /// <summary>
+    /// 毛玻璃只在浅色生效时展示：深色与皮肤主题不参与该材质，
+    /// 「跟随系统」时按系统实际变体判断。
+    /// </summary>
+    public bool IsGlassMaterialVisible => Theme switch
+    {
+        AppThemeService.Light => true,
+        AppThemeService.System => GlassMaterialService.IsLightThemeActive(),
+        _ => false
+    };
+
+    /// <summary>毛玻璃关闭（强度 0）时窗口不着色，模糊参数没有作用对象，滑块置灰。
+    /// 未开启自绘实时玻璃时走系统丙烯酸，半径由系统固定，模糊滑块同样没有作用对象。</summary>
+    public bool IsGlassBlurEnabled =>
+        IsGlassMaterialVisible && GlassIntensity > GlassMaterialService.MinIntensity && GlassLiveBackdrop;
     public bool IsCacheCategoryVisible => IsSectionVisible("缓存");
     public bool IsDownloadCategoryVisible => IsSectionVisible("下载");
     public bool IsStorageCategoryVisible => IsSectionVisible("存储位置");
@@ -147,6 +179,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         SynchronizeLanguage();
         LoadEntryVisibility();
         LoadLogSettings();
+        // 「跟随系统」时系统深浅色切换会改变毛玻璃滑块的可见性。
+        if (global::Avalonia.Application.Current is { } app) app.ActualThemeVariantChanged += OnActualThemeVariantChanged;
+    }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e)
+    {
+        if (Theme != AppThemeService.System) return;
+        OnPropertyChanged(nameof(IsGlassMaterialVisible));
+        OnPropertyChanged(nameof(IsGlassBlurEnabled));
     }
 
     partial void OnSelectedLanguageCodeChanged(string value)
@@ -201,6 +242,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _compatibilityDataOperation?.Cancel();
         if (_localization != null) _localization.PropertyChanged -= OnUiLanguageChanged;
+        if (global::Avalonia.Application.Current is { } app) app.ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         NexusAccount?.Dispose();
     }
 
@@ -290,12 +332,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
             SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
             SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
-            Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, "Dark");
+            Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, AppThemeService.DefaultTheme);
             ListDensity = await _settingsService.GetSettingAsync(SettingKeys.ListDensity, "Comfortable");
             BackgroundImagePath = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImagePath, string.Empty);
             BackgroundImageOpacity = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImageOpacity, 25.0);
             BackgroundBlur = await _settingsService.GetSettingAsync(SettingKeys.BackgroundBlur, 0.0);
             CardOpacity = await _settingsService.GetSettingAsync(SettingKeys.CardOpacity, 100.0);
+            GlassIntensity = await _settingsService.GetSettingAsync(SettingKeys.GlassIntensity, GlassMaterialService.DefaultIntensity);
+            GlassBlur = await _settingsService.GetSettingAsync(SettingKeys.GlassBlur, LiveBackdropService.DefaultBlur);
+            GlassLiveBackdrop = await _settingsService.GetSettingAsync(SettingKeys.GlassLiveBackdrop, false);
             EnableAnimations = await _settingsService.GetSettingAsync(SettingKeys.EnableAnimations, true);
             var downloads = await _downloadSettingsService.GetOptionsAsync();
             DownloadParallelSegments = downloads.MaxParallelSegments;
@@ -463,6 +508,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.BackgroundImageOpacity] = BackgroundImageOpacity,
         [SettingKeys.BackgroundBlur] = BackgroundBlur,
         [SettingKeys.CardOpacity] = CardOpacity,
+        [SettingKeys.GlassIntensity] = Math.Clamp(GlassIntensity, GlassMaterialService.MinIntensity, GlassMaterialService.MaxIntensity),
+        [SettingKeys.GlassBlur] = Math.Clamp(GlassBlur, LiveBackdropService.MinBlur, LiveBackdropService.MaxBlur),
+        [SettingKeys.GlassLiveBackdrop] = GlassLiveBackdrop,
         [SettingKeys.EnableAnimations] = EnableAnimations
     };
 
@@ -557,9 +605,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // UI 分类还包含语言与隐藏入口；外观重置不能清空 UI.HiddenEntries。
             var defaults = new Dictionary<string, object>
             {
-                [SettingKeys.Theme] = "Dark", [SettingKeys.ListDensity] = "Comfortable",
+                [SettingKeys.Theme] = AppThemeService.DefaultTheme, [SettingKeys.ListDensity] = "Comfortable",
                 [SettingKeys.BackgroundImagePath] = string.Empty, [SettingKeys.BackgroundImageOpacity] = 25d,
                 [SettingKeys.BackgroundBlur] = 0d, [SettingKeys.CardOpacity] = 100d,
+                [SettingKeys.GlassIntensity] = GlassMaterialService.DefaultIntensity,
+                [SettingKeys.GlassBlur] = LiveBackdropService.DefaultBlur,
+                [SettingKeys.GlassLiveBackdrop] = false,
                 [SettingKeys.EnableAnimations] = true, [SettingKeys.Language] = LanguageCodes.Automatic
             };
             await _settingsService.SetSettingsAsync(defaults);

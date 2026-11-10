@@ -995,6 +995,24 @@
   <data name="UI.CardOpacity" xml:space="preserve">
     <value>卡片不透明度</value>
   </data>
+  <data name="UI.GlassIntensity" xml:space="preserve">
+    <value>毛玻璃强度</value>
+  </data>
+  <data name="UI.GlassIntensityHelp" xml:space="preserve">
+    <value>仅浅色主题：窗口底色、顶部导航栏与底部状态栏使用系统背景模糊（实时反映窗口背后的内容）。0 为关闭，数值越大越通透。保存后生效；深色主题与自定义背景图不受影响。</value>
+  </data>
+  <data name="UI.GlassBlur" xml:space="preserve">
+    <value>模糊强度</value>
+  </data>
+  <data name="UI.GlassBlurHelp" xml:space="preserve">
+    <value>窗口背后画面的模糊程度（0-48）。0 为完全清晰，能看清玻璃背后的内容；数值越大越朦胧。仅浅色主题生效，需要毛玻璃强度大于 0，并且开启「可调模糊玻璃」。</value>
+  </data>
+  <data name="UI.GlassLiveBackdrop" xml:space="preserve">
+    <value>可调模糊玻璃</value>
+  </data>
+  <data name="UI.GlassLiveBackdropHelp" xml:space="preserve">
+    <value>开启后「模糊强度」才可调节，但窗口会在截图和录屏里变成一片空白：自绘玻璃必须把窗口排除在截屏之外，否则会把窗口自己拍进去，Windows 没有别的办法。默认关闭，改用系统玻璃——截图/录屏能正常拍到窗口，模糊程度由系统固定。保存后生效。</value>
+  </data>
   <data name="UI.Cache" xml:space="preserve">
     <value>缓存</value>
   </data>

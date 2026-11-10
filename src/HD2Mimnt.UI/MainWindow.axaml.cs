@@ -44,8 +44,12 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnFileDrop, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(KeyDownEvent, OnTutorialShortcut, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) => AttachNavigation();
+        // 实时玻璃每帧换一张位图，直接喂给图层，避免为每帧改动绑定。
+        GlassMaterialService.LiveFrameUpdated += OnGlassFrameUpdated;
         Closed += (_, _) =>
         {
+            GlassMaterialService.LiveFrameUpdated -= OnGlassFrameUpdated;
+            GlassBackdropImage.Source = null;
             ImportDragHint.IsVisible = false;
             _pageJelly.Stop();
             if (_viewModel != null)
@@ -56,6 +60,46 @@ public partial class MainWindow : Window
             }
         };
         NavigationView.SelectedItem = NavigationView.MenuItems[0];
+    }
+
+    /// <summary>
+    /// 标题栏拖动与双击最大化：扩展客户区后没有系统标题栏可拖，空白处就是这块命中区。
+    /// 右上角的最小化/最大化/关闭由主题自绘在更上层，不会被这里截走。
+    /// </summary>
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(this);
+        if (!point.Properties.IsLeftButtonPressed) return;
+
+        if (e.ClickCount == 2)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            return;
+        }
+
+        if (WindowState == WindowState.Maximized) return;
+        BeginMoveDrag(e);
+    }
+
+    /// <summary>
+    /// 把最新一帧铺到窗口下方：取屏范围比窗口四周各多一圈（<see cref="LiveBackdropService.BlurMargin"/>），
+    /// 因此图层要放大同样的尺寸并向外偏移，模糊边缘才不会在窗口边界取到空像素。
+    /// 尺寸与偏移必须无条件写入：Image 的 Width 初始是 NaN，任何「值变了才更新」的判断
+    /// （<c>NaN &gt; 0.5</c> 恒为 false）都会吞掉首次赋值，整块背景就偏移一整圈。
+    /// </summary>
+    private void OnGlassFrameUpdated(object? sender, EventArgs e)
+    {
+        if (GlassMaterialService.LiveFrame is not { } frame) return;
+
+        GlassBackdropImage.Source = frame;
+
+        // frame.Size 已经是 DIP（位图按窗口缩放比例建 DPI），与图层尺寸一一对应。
+        var headroom = GlassMaterialService.LiveHeadroomDips;
+        GlassBackdropImage.Width = frame.Size.Width;
+        GlassBackdropImage.Height = frame.Size.Height;
+        Canvas.SetLeft(GlassBackdropImage, -headroom);
+        Canvas.SetTop(GlassBackdropImage, -headroom);
+        GlassBackdropImage.InvalidateVisual();
     }
 
     private void AttachNavigation()

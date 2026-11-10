@@ -12,6 +12,28 @@
 - 默认 Fluent 观感的可覆盖 token 定义在 [AppResources.axaml](../../src/HD2Mimnt.UI/Styles/AppResources.axaml) / [AppStyles.axaml](../../src/HD2Mimnt.UI/Styles/AppStyles.axaml)：`DisplayFontFamily`、`CardShadow`、`CardBorderThickness`；未覆盖时保持 Fluent 默认。
 - 外观设置链路：`SettingsViewModel.ThemeOptions` → `UiLocalization.OptionKeys`（主题名映射三语 `Options.*` 文案）→ `MainWindowViewModel` 监听设置变更并调用 `AppThemeService.Apply`。
 
+## 窗口玻璃（浅色主题）
+
+玻璃有两套实现，由 `GlassMaterialService.Apply` 选择：
+
+1. **系统丙烯酸（默认）**：`TransparencyLevelHint = AcrylicBlur, Blur`，Win11 22H2+ 再补 `DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_TRANSIENTWINDOW`。背后是真实画面、实时，窗口能被截图/录屏正常拍到；半径由 DWM 固定，`UI.GlassBlur` 在此时不起作用。
+2. **自绘实时玻璃（可选，模糊可调）**：仅在用户开启「可调模糊玻璃」（`UI.GlassLiveBackdrop` = true）时启用。`LiveBackdropService` 每 60ms 用 GDI `StretchBlt` 取一次“窗口所在的屏幕区域”（比窗口四周各多取 56 DIP，供模糊采样），交给 `GlassBackdropImage` 用 `BlurEffect` 模糊，半径就是设置里的「模糊强度」（`UI.GlassBlur`，0–48，0 为完全清晰）。
+
+关键约束：
+
+- **取屏前必须先 `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)`**，否则取到的是自己，画面会无限递归（表现为“窗口里套窗口”）。该 API 失败就直接退回丙烯酸，不能“先试试再说”。
+- **「可调模糊玻璃」（`UI.GlassLiveBackdrop`）默认必须关闭，这是硬性要求**：排除自身的必然代价是启用期间本窗口对任何截屏/录屏不可见（截图里是一块“洞”），用户会当成“窗口消失了”的严重 bug。所以默认走系统丙烯酸，只有用户主动开启该开关才启动取屏（此时模糊滑块才有作用对象）。不要把默认值改成 true，也不要试图“只在别人截图时恢复可截屏”——系统没有任何“正在被截图”的通知。
+- **取屏区域每帧从 Win32 读**：用 `GetClientRect` + `ClientToScreen`（物理像素），不要用 `PointToScreen`/`ClientSize` 缓存值——拖动窗口时 Avalonia 的位置事件会晚一拍，背景就整体错位。窗口客户区原点与 Avalonia 视觉坐标 (0,0) 一致（实测 `PointToScreen(0,0) == ClientToScreen(0,0)`）。
+- **图层尺寸与偏移必须无条件写入**：`Image.Width` 初始是 `NaN`，任何“值变了才更新”的判断（`Math.Abs(NaN - w) > 0.5` 恒为 false）都会吞掉首次赋值，整块背景会偏移一整圈外扩边（56 DIP），表现为“背景完全错位”。正确写法见 `MainWindow.OnGlassFrameUpdated`：`Width/Height = frame.Size`，`Canvas.Left/Top = -LiveHeadroomDips`。
+- 取屏耗时实测约 17ms 且**与区域大小无关**（本质是一次 60Hz 合成等待），所以按 60ms 间隔取帧即可，不必为了省 CPU 去降分辨率。
+- 扩展客户区（`ExtendClientAreaToDecorationsHint=True` + `ExtendClientAreaTitleBarHeightHint=40`）：Avalonia 12 会把内容铺满整窗、在内容**之上**自绘标题栏（标题文字 + 置顶/最小化/最大化/关闭）。玻璃层因此能覆盖标题栏，整窗才是同一块玻璃，也不会再出现“边框一种颜色、主体另一种颜色”。
+- 扩展客户区后**没有系统标题栏可拖**：第 0 行必须放一个 `Background="Transparent"` 的命中区（`TitleBarDragArea`）并在 `PointerPressed` 里调用 `BeginMoveDrag`，双击切最大化也要自己处理。玻璃层与着色层都是 `IsHitTestVisible="False"`，点它们接不到输入，窗口就拖不动。
+- `ApplicationSurface` 自身背景必须是 `Transparent`，着色层改成独立 `Rectangle`（`ShellFillBrush`）并排在玻璃图片**之后**。若仍用 Grid 的背景，着色会被画在玻璃图片下面，玻璃就原样显示未着色的桌面。
+- 强度换算与卡片透明度规则不变：`ShellSurfaceOpacity` 只由一层承担（内容区/顶栏/底栏同时置 0，否则同一块玻璃会叠成深浅三段）；卡片取 `min(用户设置, 强度上限)`，强度只能增加通透度；着色下限 0.62，再低会让深色壁纸前的正文难以看清。
+- 只对浅色变体生效，且与“自定义背景图”互斥。`IsGlassMaterialVisible` 控制三个设置项的显隐；`IsGlassBlurEnabled` 在强度为 0 或未开启「可调模糊玻璃」时把模糊滑块置灰（此时没有作用对象）。
+- 历史结论：DWM 的丙烯酸/Mica 半径没有应用侧参数（`ACCENT_POLICY` 只有着色 alpha，`DWMWA_SYSTEMBACKDROP_TYPE` 只有材质类型），所以“半径可调”与“实时”只能靠自建取屏同时满足；早前试过的“自绘模糊壁纸”虽然半径可调，但壁纸是静态图、不反映身后窗口，已废弃。
+- 验收方式：自绘玻璃路径下 `WDA_EXCLUDEFROMCAPTURE` 会让窗口在截图里消失，无法用常规截屏验收（默认的丙烯酸路径不受影响，直接截屏即可）。要核对取屏对齐，先临时开启「可调模糊玻璃」让取屏真正跑起来，再临时在进程内把 `WDA_NONE` 设几十毫秒后立刻 `BitBlt` 整屏再恢复排除（时间短于一个取帧周期才不会被递归画面污染），或把取到的一帧与整屏做模板匹配：匹配偏移应为 0。核对版式时也可临时把模糊调 0。
+
 ## 添加一个新主题的步骤
 
 1. 在 `AppThemeService` 增加主题常量、皮肤字典 URI 与样式 URI；`Apply` 的挂载/卸载逻辑是通用的，无需修改。
@@ -22,6 +44,7 @@
 
 ## 注意事项（易错点）
 
+- **启动期主题必须在窗口创建前应用**：`App.axaml` 的 `RequestedThemeVariant="Dark"` 只是无设置时的默认外观；保存的主题由 `App.InitializeDesktopAsync` 在 `new MainWindow()` 之前用 `SettingsService.GetSetting(SettingKeys.Theme, AppThemeService.DefaultTheme)` 同步读取并 `Apply`（`SettingsService` 构造时已同步载入设置）。若只在 `MainWindowViewModel.InitializeAsync` 里应用，此时窗口已经 `Show()`，浅色/皮肤主题用户会先看到一帧深色再切换，对光敏感用户尤其明显。`Apply` 按 Application 记录当前主题，同一主题重复调用直接返回，所以设置加载触发的二次 `Apply` 不会卸载重装皮肤产生闪动。
 - **不要注册自定义 `ThemeVariant`**：FluentAvalonia 只按 Light/Dark 解析自身资源；皮肤必须以 Dark（或 Light）变体为基础叠加覆盖。
 - **皮肤不能常驻 `App.axaml`**：合并进 App.axaml 会污染无头 UI 测试和默认外观，只能在 `Apply` 时动态挂载。
 - **换肤卸载顺序**：先移除样式、再移除字典；皮肤已挂载内容由 `AppliedSkin` 记录，不要在皮肤之外手动增删字典或样式。

@@ -70,6 +70,8 @@
 
 - 进程 Worker（`HD2Mimnt.Worker`）必须与主程序读同一份数据目录：子进程通过继承的 `HD2MIMNT_DATA_PATH`/`storage-locations.json` 定位数据库，不能回落到默认 `%LOCALAPPDATA%`，否则隔离测试或存储搬迁后 Worker 会操作另一份库。新增 Worker 服务时在 `Program.ConfigureServices` 注册，不要在子进程里复制主程序的完整 DI。
 
+- **跨进程写库不会触发主进程事件**：UI 的刷新全靠 `ModService.ModsChanged`、`ProfileService.ProfilesChanged` 等进程内事件，任务搬到 Worker 后这些事件在子进程里发布，主程序收不到。写入侧必须在批次结束后显式补发通知（如 `LibraryViewModel.ImportedModsChanged`，由 `MainWindowViewModel` 联动刷新配置页卡片、归属状态与冲突结果），否则表现为“提示成功但列表不变，重启后才看到数据其实已经进库”。新增 Worker 写库任务时同步补通知，并优先用回环宿主 + 独立服务图（独立 `ModService`/`ProfileService` 实例共用同一数据库）写回归用例，不要为单个用例冷启动真实子进程。
+
 - 取消进程 Worker 必须立即转发：桥接（`TaskService.ProcessWorker`）要用令牌与完成回执竞速，先调用 `CancelWorkerAsync`（发送 Cancel 消息、等待宽限期、超时 Kill），再等待 Worker 清理并返回 `Cancelled`；只在 Worker 自然结束后检查令牌会让任务中心一直卡在“运行中”。来源：[任务取消](https://learn.microsoft.com/dotnet/standard/parallel-programming/task-cancellation)
 
 - Worker 管道关闭但没有任何终态回执时必须判为崩溃（等待进程退出并读取退出码后 `SetCrashed`），否则 `WaitForCompletionAsync` 永久等待；同理，连接阶段失败、启动异常和 Worker 回传 Error 要分别映射为超时/失败，不能混成一个状态。管道帧读写统一用 `HD2Mimnt.Core.IPC.PipeFrame`，子进程侧的客户端也要用它（手写读取会短读截断）。来源：https://learn.microsoft.com/dotnet/api/system.io.pipes.namedpipeclientstream.connectasync

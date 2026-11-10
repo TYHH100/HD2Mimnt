@@ -6,6 +6,7 @@
         xmlns:fa="using:FluentAvalonia.UI.Controls"
         x:Class="HD2Mimnt.UI.MainWindow" x:DataType="vm:MainWindowViewModel"
         Closing="OnClosing" Title="{loc:LocalizedBinding Title}"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="40"
         Width="1280" Height="800" MinWidth="960" MinHeight="600">
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+D1" Command="{Binding NavigateToProfilesCommand}"/>
@@ -18,12 +19,23 @@
     <KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
   </Window.KeyBindings>
   <Grid>
-  <Grid x:Name="ApplicationSurface" RowDefinitions="*,Auto" Background="Transparent" IsHitTestVisible="{Binding !Tutorial.IsOpen}">
-    <Image Grid.RowSpan="2" Source="{Binding BackgroundImage}" Stretch="UniformToFill"
+  <Grid x:Name="ApplicationSurface" RowDefinitions="40,*,Auto" Background="Transparent" IsHitTestVisible="{Binding !Tutorial.IsOpen}">
+    <!-- 实时玻璃：窗口背后的真实画面（取屏排除自身），模糊半径由「模糊强度」决定。 -->
+    <Canvas Grid.RowSpan="3" ClipToBounds="True" IsHitTestVisible="False">
+      <Image x:Name="GlassBackdropImage" Stretch="Fill" IsVisible="{Binding IsLiveGlassActive}">
+        <Image.Effect><BlurEffect Radius="{Binding GlassBlurRadius}"/></Image.Effect>
+      </Image>
+    </Canvas>
+    <!-- 着色层：玻璃模式承担整窗唯一的底色；其余模式透明度为 0，露出窗口底色。 -->
+    <Rectangle Grid.RowSpan="3" Fill="{DynamicResource ShellFillBrush}" IsHitTestVisible="False"/>
+    <!-- 标题栏拖拽区：扩展客户区后系统标题栏由主题自绘在内容之上，这一层只负责拖动与双击最大化。 -->
+    <Border x:Name="TitleBarDragArea" Grid.Row="0" Background="Transparent"
+            PointerPressed="OnTitleBarPointerPressed"/>
+    <Image Grid.RowSpan="3" Source="{Binding BackgroundImage}" Stretch="UniformToFill"
            Opacity="{Binding BackgroundImageOpacity}" IsHitTestVisible="False" IsVisible="{Binding HasBackgroundImage}">
       <Image.Effect><BlurEffect Radius="{Binding BackgroundBlurRadius}"/></Image.Effect>
     </Image>
-    <fa:FANavigationView x:Name="NavigationView" PaneDisplayMode="Top" PaneTitle="HD2Mimnt"
+    <fa:FANavigationView x:Name="NavigationView" Grid.Row="1" PaneDisplayMode="Top" PaneTitle=""
                          IsBackButtonVisible="False" IsPaneToggleButtonVisible="False"
                          IsSettingsVisible="False" AlwaysShowHeader="False"
                          Background="Transparent"
@@ -82,7 +94,7 @@
         </TabControl>
       </Border>
     </fa:FANavigationView>
-    <Border x:Name="StatusBar" Grid.Row="1" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
+    <Border x:Name="StatusBar" Grid.Row="2" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">
       <Grid Height="32" ColumnDefinitions="*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <TextBlock Text="{loc:LocalizedBinding StatusBarText}" Classes="caption-text"/>
@@ -96,17 +108,17 @@
         </Border>
       </Grid>
     </Border>
-    <controls:NotificationToastHost x:Name="ToastHost" DataContext="{Binding NotificationPanelViewModel}"
+    <controls:NotificationToastHost x:Name="ToastHost" Grid.Row="1" Grid.RowSpan="2" DataContext="{Binding NotificationPanelViewModel}"
                                     IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).IsNotificationPanelOpen}"
                                     Width="380" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,20,16" ZIndex="220"/>
-    <Panel IsVisible="{Binding IsNotificationPanelOpen}" ZIndex="210">
+    <Panel IsVisible="{Binding IsNotificationPanelOpen}" Grid.RowSpan="3" ZIndex="210">
       <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="{DynamicResource NotificationCornerRadius}" BoxShadow="0 6 22 0 #26000000" ClipToBounds="True"
               Width="400" MaxHeight="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,16,16">
         <controls:NotificationPanel DataContext="{Binding NotificationPanelViewModel}"/>
       </Border>
     </Panel>
-    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsTaskCenterOpen}" ZIndex="200">
+    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsTaskCenterOpen}" Grid.RowSpan="3" ZIndex="200">
       <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="{DynamicResource OverlayCornerRadius}"
               MaxWidth="680" MaxHeight="560" Margin="24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="16">
@@ -116,8 +128,8 @@
         </Grid>
       </Border>
     </Border>
-    <controls:ImagePreviewOverlay Grid.RowSpan="2" DataContext="{Binding ImagePreview}" ZIndex="300"/>
-    <Border Grid.RowSpan="2" IsVisible="{Binding LibraryViewModel.IsDeploymentProgressOpen}"
+    <controls:ImagePreviewOverlay Grid.RowSpan="3" DataContext="{Binding ImagePreview}" ZIndex="300"/>
+    <Border Grid.RowSpan="3" IsVisible="{Binding LibraryViewModel.IsDeploymentProgressOpen}"
             Background="{DynamicResource OverlayScrimBrush}" ZIndex="340">
       <Border x:Name="DeploymentOperationSurface" Background="{DynamicResource Surface2Brush}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -152,11 +164,11 @@
         </Grid>
       </Border>
     </Border>
-    <controls:ModelPreviewOverlay x:Name="ModelPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding ModelPreview}" ZIndex="370"/>
-    <controls:AudioPreviewOverlay x:Name="AudioPreviewOverlay" Grid.RowSpan="2" DataContext="{Binding AudioPreview}" ZIndex="375"/>
-    <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="2" DataContext="{Binding Compatibility}" ZIndex="360"/>
-    <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="2" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
-    <Border x:Name="ImportDragHint" Grid.RowSpan="2" Background="{DynamicResource OverlayScrimBrush}"
+    <controls:ModelPreviewOverlay x:Name="ModelPreviewOverlay" Grid.RowSpan="3" DataContext="{Binding ModelPreview}" ZIndex="370"/>
+    <controls:AudioPreviewOverlay x:Name="AudioPreviewOverlay" Grid.RowSpan="3" DataContext="{Binding AudioPreview}" ZIndex="375"/>
+    <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="3" DataContext="{Binding Compatibility}" ZIndex="360"/>
+    <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="3" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
+    <Border x:Name="ImportDragHint" Grid.RowSpan="3" Background="{DynamicResource OverlayScrimBrush}"
             IsHitTestVisible="False" IsVisible="False" ZIndex="400">
       <Border Classes="card" Padding="32,24" HorizontalAlignment="Center" VerticalAlignment="Center"
               BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2">

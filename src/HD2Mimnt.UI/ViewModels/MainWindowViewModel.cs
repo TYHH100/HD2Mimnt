@@ -48,6 +48,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
     private string? _tutorialOriginToolsCategory;
+    private Avalonia.Controls.Window? _ownerWindow;
 
     /// <summary>
     /// 固定页（配置 / 模组库 / 冲突 / 工具 / 设置 / 浏览 / 创作）在 <see cref="SelectedTabIndex"/> 中占用的槽位数，
@@ -118,6 +119,14 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private double _backgroundBlurRadius;
+
+    /// <summary>实时玻璃的模糊半径（DIP）：0 为纯玻璃，数值越大越朦胧。</summary>
+    [ObservableProperty]
+    private double _glassBlurRadius = LiveBackdropService.DefaultBlur;
+
+    /// <summary>实时玻璃是否真的生效（取屏不可用时为 false，退回系统丙烯酸）。</summary>
+    [ObservableProperty]
+    private bool _isLiveGlassActive;
 
     // Expose ViewModels for binding
     public LibraryViewModel LibraryViewModel => _libraryViewModel;
@@ -356,6 +365,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NotificationPanelViewModel.NavigationRequested += OnNotificationNavigationRequested;
         NotificationPanelViewModel.CloseRequested += (_, _) => CloseNotifications();
         _modService.ModsChanged += OnModsChanged;
+        _libraryViewModel.ImportedModsChanged += OnImportedModsChanged;
         _modService.MetadataChanged += (_, _) => QueueUiRefresh(async () =>
             await _profileViewModel.RefreshAfterProfilesChangedAsync());
         _profileService.ProfilesChanged += OnProfilesChanged;
@@ -619,6 +629,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         if (_disposed) return;
         _disposed = true;
         _modService.ModsChanged -= OnModsChanged;
+        _libraryViewModel.ImportedModsChanged -= OnImportedModsChanged;
         _profileService.ProfilesChanged -= OnProfilesChanged;
         _profileViewModel.ActiveProfileChanged -= OnActiveProfileChanged;
         _taskService.TaskCompleted -= OnTaskCompleted;
@@ -722,6 +733,18 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
         });
     }
+
+    /// <summary>
+    /// Worker 进程导入完成后的联动刷新：跨进程写库不会触发主进程 ModService.ModsChanged，
+    /// 这里补齐配置页卡片、归属状态与冲突结果，避免新模组要重启才可见。
+    /// </summary>
+    private void OnImportedModsChanged(object? sender, EventArgs e) => QueueUiRefresh(async () =>
+    {
+        _conflictsViewModel.InvalidateResults();
+        await _profileViewModel.RefreshAfterProfilesChangedAsync();
+        SyncConflictProfile();
+        UpdateCurrentProfile();
+    });
 
     private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
     {
@@ -1052,7 +1075,19 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskCenterViewModel.StopAutoRefresh();
     }
 
-    public void AttachOwner(Avalonia.Controls.Window owner) => _confirmationService.SetOwner(owner);
+    public void AttachOwner(Avalonia.Controls.Window owner)
+    {
+        _ownerWindow = owner;
+        _confirmationService.SetOwner(owner);
+        // 实时玻璃的取屏要求窗口已显示（排除自身截图的 API 需要可见窗口），显示后再应用一次。
+        owner.Opened += (_, _) => ApplyTransparencyBrushes();
+        // 取屏是异步启动的：第一帧到达才知道图层可以显示，不能只看 Apply 那一刻有没有帧。
+        GlassMaterialService.LiveFrameUpdated += OnLiveFrameUpdated;
+        owner.Closed += (_, _) => GlassMaterialService.LiveFrameUpdated -= OnLiveFrameUpdated;
+    }
+
+    private void OnLiveFrameUpdated(object? sender, EventArgs e) =>
+        IsLiveGlassActive = GlassMaterialService.LiveFrame is not null;
 
     public void ReceiveBrowserProtocolLink(string value)
     {
@@ -1198,17 +1233,28 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ApplyTransparencyBrushes();
     }
 
-    /// <summary>只更新表面透明度，颜色由 FluentAvalonia 动态资源随主题更新。卡片半透明透出背景图；
-    /// 有背景图时顶栏/底栏跟随卡片透明度、内容区全透明露出背景图；无背景图时全部恢复不透明（默认观感）。</summary>
+    /// <summary>只更新表面透明度，颜色由 FluentAvalonia 动态资源随主题更新。
+    /// 浅色主题下毛玻璃强度大于 0 时由 <see cref="GlassMaterialService"/> 统一发布窗口着色层，
+    /// 否则维持原有观感：有背景图时顶栏/底栏跟随卡片透明度、内容区全透明露出背景图；无背景图时全部不透明。</summary>
     private void ApplyTransparencyBrushes()
     {
         var app = global::Avalonia.Application.Current;
         if (app == null) return;
 
-        var percent = Math.Clamp(_settingsViewModel.CardOpacity, 5, 100);
-        app.Resources["CardSurfaceOpacity"] = percent / 100.0;
-        app.Resources["ChromeSurfaceOpacity"] = HasBackgroundImage ? percent / 100.0 : 1.0;
-        app.Resources["ContentSurfaceOpacity"] = HasBackgroundImage ? 0.0 : 1.0;
+        GlassBlurRadius = Math.Clamp(_settingsViewModel.GlassBlur, LiveBackdropService.MinBlur, LiveBackdropService.MaxBlur);
+
+        var active = GlassMaterialService.Apply(
+            _ownerWindow,
+            app.ActualThemeVariant,
+            _settingsViewModel.GlassIntensity,
+            GlassBlurRadius,
+            HasBackgroundImage,
+            _settingsViewModel.CardOpacity,
+            // 只有用户主动开启自绘实时玻璃时才牺牲“窗口能被截图”，默认走系统丙烯酸。
+            screenshotFriendly: !_settingsViewModel.GlassLiveBackdrop);
+
+        // 实时玻璃的图层是否可见只看取屏是否真的在跑：丙烯酸兜底时该层保持隐藏。
+        IsLiveGlassActive = active && GlassMaterialService.LiveFrame is not null;
     }
 
     private void OnListDensityChanged(object? sender, string density) => _libraryViewModel.ApplyListDensity(density);

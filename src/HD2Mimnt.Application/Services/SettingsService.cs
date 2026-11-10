@@ -373,6 +373,12 @@ public static class SettingKeys
     public const string BackgroundImageOpacity = "UI.BackgroundOpacity";
     public const string BackgroundBlur = "UI.BackgroundBlur";
     public const string CardOpacity = "UI.CardOpacity";
+    // 浅色主题的窗口毛玻璃强度；0 为关闭，仅对浅色变体生效。
+    public const string GlassIntensity = "UI.GlassIntensity";
+    // 浅色主题实时玻璃的模糊半径（DIP）；0 为完全不模糊，即“纯玻璃”。
+    public const string GlassBlur = "UI.GlassBlur";
+    // 自绘实时玻璃（模糊半径可调），默认关闭：开启后窗口在截图/录屏里会变成空白。关闭时走系统丙烯酸。
+    public const string GlassLiveBackdrop = "UI.GlassLiveBackdrop";
     public const string WindowWidth = "UI.WindowWidth";
     public const string WindowHeight = "UI.WindowHeight";
     public const string WindowMaximized = "UI.WindowMaximized";
