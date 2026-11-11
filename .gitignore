@@ -152,3 +152,10 @@ tests/HD2Mimnt.PerformanceTests/TestData/
 .claude/
 .layout-validation/
 .tmp-platform-download-*/
+.mimosa/*
+.qoder/*
+.workbuddy/*
+.zcode/*
+tools/SourceModelReader/*
+src/HD2Mimnt.Application/Localization/Resources/.mimosa/*
+tools/golden/__pycache__/*
