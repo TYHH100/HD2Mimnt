@@ -106,6 +106,12 @@ public sealed partial class FluentAvaloniaUiTests
             var panel = detail.GetVisualDescendants().OfType<ModVersionsPanel>().Single();
             Assert.Same(library.LocalVersions, panel.DataContext);
             Assert.Single(library.LocalVersions.Versions);
+            ClickVersionControl(window, panel.FindControl<Button>("CompareLocalVersionButton")!);
+            await library.LocalVersions.CompareCommand.ExecutionTask!;
+            Assert.True(library.LocalVersions.HasCompareResult);
+            Assert.Contains(library.LocalVersions.Changes,
+                change => change.Path == "0123456789abcdef.patch_0"
+                    && change.Status == HD2Mimnt.UI.Localization.UiLocalization.Current["Versions.Change.Modified"]);
             ClickVersionControl(window, panel.FindControl<Button>("SwitchLocalVersionButton")!);
             await library.LocalVersions.SwitchCommand.ExecutionTask!;
             Assert.Equal("1", (await mods.GetModByIdAsync(id))!.Version);

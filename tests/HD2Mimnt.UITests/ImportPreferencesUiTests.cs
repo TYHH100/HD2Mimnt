@@ -15,6 +15,35 @@ namespace HD2Mimnt.UITests;
 public sealed partial class FluentAvaloniaUiTests
 {
     [AvaloniaFact]
+    public async Task SameGuidPreference_ShouldBeOnByDefaultAndPersistThroughSettingsView()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var vm = scope.Services.GetRequiredService<SettingsViewModel>();
+        await vm.LoadAsync();
+        Assert.True(vm.UpdateSameGuidOnImport);
+
+        var view = new SettingsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1100, Height = 800 };
+        try
+        {
+            window.Show();
+            vm.SelectedCategory = "模组库";
+            window.UpdateLayout();
+            view.FindControl<ToggleSwitch>("UpdateSameGuidOnImportToggle")!.IsChecked = false;
+            await vm.SaveCommand.ExecuteAsync(null);
+            await vm.LoadAsync();
+            Assert.False(vm.UpdateSameGuidOnImport);
+            var reopened = new SettingsService(scope.Root);
+            Assert.False(reopened.GetSetting(SettingKeys.UpdateSameGuidOnImport, true));
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task SavedAutoAddPreference_WindowDrop_ShouldRetainMembershipAfterProfileRefresh()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);

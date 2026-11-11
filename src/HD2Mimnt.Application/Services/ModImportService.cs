@@ -25,6 +25,13 @@ public class ModImportService
     private readonly SettingsService? _settingsService;
     private readonly SemaphoreSlim _importGate = new(1, 1);
 
+    /// <summary>
+    /// 导入内容与库内模组的清单 GUID 相同时，把已复制入库的副本交给 ModService 走现有更新流程。
+    /// 未设置（独立构造的导入服务）时保持只新增的行为。
+    /// </summary>
+    internal Func<Guid, Mod, ModPlatformLink?, IProgress<ModImportProgress>?, CancellationToken, Task<Guid>>?
+        PreparedImportUpdateSink { get; set; }
+
     // 进度区间：30 分析源内容 → 32-37 暂存树哈希 → 38 复制前判重 → 40-80 复制入库
     // → 80 资源类型 → 84-89 库内身份重算与复检 → 90 保存
     private const double PreflightFingerprintStart = 38;
@@ -55,9 +62,29 @@ public class ModImportService
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
         IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
         Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
+        => (await ImportModCoreAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir)).Id;
+
+    /// <summary>导入并返回是否更新了同 GUID 的已有模组，供调用方区分新增与更新。</summary>
+    internal async Task<(Guid Id, bool Updated)> ImportModCoreAsync(string sourcePath,
+        CancellationToken cancellationToken = default, IProgress<ModImportProgress>? progress = null,
+        ModPlatformLink? sourceLink = null, Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
         var rejectDuplicates = _settingsService?.GetSetting(SettingKeys.AllowDuplicateImports, false) != true;
         var staged = await StageModSourceAsync(sourcePath, cancellationToken, progress, null, confirmHd2Ir);
+        // 同 GUID 视为同一模组：先更新，避免重复内容先被判重拦下。
+        var updateSameGuid = _settingsService?.GetSetting(SettingKeys.UpdateSameGuidOnImport, true) ?? true;
+        if (updateSameGuid && PreparedImportUpdateSink != null && staged.Manifest is { } incoming
+            && incoming.Guid != Guid.Empty && incoming.Guid != HD2Mimnt.Infrastructure.Hd2IAS.Hd2IASDataDirectoryWriter.ManifestGuid)
+        {
+            // 用户曾允许重复导入时库里可能有多个同 GUID 条目；按导入时间取最早的一份，结果稳定。
+            var target = (await _modRepository.FindByManifestGuidAsync(incoming.Guid, cancellationToken)).FirstOrDefault();
+            if (target != null)
+            {
+                progress?.Report(new(88, "更新已有模组", target.Name, true));
+                var prepared = await StoreStagedModAsync(staged, cancellationToken, progress);
+                return (await PreparedImportUpdateSink(target.Id, prepared, sourceLink, progress, cancellationToken), true);
+            }
+        }
         if (rejectDuplicates)
         {
             // 预检只为省掉一次完整复制：内容身份已在暂存树上算出，重复包不必先拷进库再丢弃。
@@ -96,7 +123,7 @@ public class ModImportService
             await _modRepository.AddAsync(mod, cancellationToken);
             saved = true;
             progress?.Report(new(95, "模组已保存", mod.Name));
-            return mod.Id;
+            return (mod.Id, false);
         }
         finally
         {

@@ -343,6 +343,8 @@ public static class SettingKeys
     public const string ImportAutoClose = "Library.ImportAutoClose";
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
+    // 导入的清单 GUID 与库内已有模组相同时直接更新该模组，默认开启。
+    public const string UpdateSameGuidOnImport = "Library.UpdateSameGuidOnImport";
 
     // Lua 审查：导入与存量模组的自动拆包默认关闭，需要用户明确开启。
     // 键前缀为 Library，随“模组库”分类一起保存与恢复默认。

@@ -3906,6 +3906,8 @@ Last checked: {7}</value>
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>Keep complete previous versions when updating. Uses additional disk space. Save to apply.</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>Allow duplicate imports</value></data>
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>Off by default: reject identical content already in the library or version history. Enable to import separate copies. Existing duplicates are kept.</value></data>
+  <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>Update mods with the same GUID</value></data>
+  <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>On by default: when an imported manifest GUID matches a mod already in the library, update that mod in place (keeping profile references, version history and deployment records) instead of adding a copy. When off, the duplicate import setting applies.</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>When importing mods without manifests, automatically generate V1 format instead of legacy format. When enabled, mods without manifests in the library can also be auto-upgraded to V1.</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>
@@ -3913,6 +3915,12 @@ Last checked: {7}</value>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>Update from archive…</value></data>
   <data name="Versions.Switch" xml:space="preserve"><value>Switch to selected version</value></data>
   <data name="Versions.Delete" xml:space="preserve"><value>Delete selected history</value></data>
+  <data name="Versions.Compare" xml:space="preserve"><value>Show file changes</value></data>
+  <data name="Versions.Compare.Summary" xml:space="preserve"><value>Compared with the current version: {0} added, {1} modified, {2} removed.</value></data>
+  <data name="Versions.Compare.Same" xml:space="preserve"><value>The selected version has the same files as the current version.</value></data>
+  <data name="Versions.Change.Added" xml:space="preserve"><value>Added</value></data>
+  <data name="Versions.Change.Modified" xml:space="preserve"><value>Modified</value></data>
+  <data name="Versions.Change.Removed" xml:space="preserve"><value>Removed</value></data>
   <data name="Versions.EnableTitle" xml:space="preserve"><value>Keep mod version history</value></data>
   <data name="Versions.EnableWarning" xml:space="preserve"><value>When enabled, archive and online updates keep the complete previous files so you can switch local versions in mod details. Every version uses additional disk space, which grows with updates and is not cleaned automatically. After switching, review options and redeploy. Disabling only stops saving new versions; existing versions can still be switched or deleted manually. Enable this feature?</value></data>
   <data name="Versions.SwitchTitle" xml:space="preserve"><value>Switch local version</value></data>

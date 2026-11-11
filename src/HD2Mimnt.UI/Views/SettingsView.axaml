@@ -218,6 +218,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.AllowDuplicates}" Description="{loc:Loc Settings.Library.AllowDuplicatesHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="AllowDuplicateImportsToggle" IsChecked="{Binding AllowDuplicateImports}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.UpdateSameGuid}" Description="{loc:Loc Settings.Library.UpdateSameGuidHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="UpdateSameGuidOnImportToggle" IsChecked="{Binding UpdateSameGuidOnImport}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

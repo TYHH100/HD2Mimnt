@@ -122,6 +122,29 @@ public class ModRepository : IModRepository
         return mods;
     }
 
+    /// <summary>清单 GUID 直接存在 ManifestJson 列，交给 SQLite JSON 函数过滤，避免逐行反序列化清单。</summary>
+    public async Task<IEnumerable<Mod>> FindByManifestGuidAsync(Guid manifestGuid, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT * FROM Mods
+            WHERE ManifestJson IS NOT NULL AND ManifestJson <> '' AND json_valid(ManifestJson)
+              AND json_extract(ManifestJson, '$.Guid') = @Guid COLLATE NOCASE
+            ORDER BY ImportedAt";
+        command.Parameters.AddWithValue("@Guid", manifestGuid.ToString());
+
+        var mods = new List<Mod>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            mods.Add(MapToMod(reader));
+        }
+
+        return mods;
+    }
+
     public async Task<IEnumerable<Mod>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);

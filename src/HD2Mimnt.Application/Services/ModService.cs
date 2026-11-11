@@ -72,6 +72,7 @@ public partial class ModService
         // 初始化子服务
         var thumbnailsPath = Path.Combine(storageDirectory, "thumbnails");
         _importService = new ModImportService(_modRepository, storageDirectory, tempDirectory: tempDirectory, settingsService: settingsService);
+        _importService.PreparedImportUpdateSink = UpdateFromPreparedImportAsync;
         _thumbnailService = new ThumbnailService(thumbnailsPath, null);
 
     // 确保存储目录存在
@@ -133,11 +134,46 @@ public partial class ModService
         IProgress<DeploymentProgress>? deploymentProgress = null)
     {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
+        return await CommitPreparedReplacementAsync(id, prepared, expectedLink, file, cancellationToken, progress,
+            installedWebsiteFileId, forceReplacement, deploymentProgress);
+    }
+
+    /// <summary>导入命中同 GUID 时提交更新：保留原 ID、配置引用、版本历史和部署对账。</summary>
+    private async Task<Guid> UpdateFromPreparedImportAsync(Guid id, Mod prepared, ModPlatformLink? sourceLink,
+        IProgress<ModImportProgress>? progress, CancellationToken cancellationToken)
+    {
+        // 先归入目标 ID，缩略图直接写到当前模组的文件名上，避免留下本次临时编号的孤儿缩略图。
+        prepared.Id = id;
+        await CommitPreparedReplacementAsync(id, prepared, null, null, cancellationToken, progress, null,
+            forceReplacement: false, deploymentProgress: null, requirePatch: false);
+        if (sourceLink != null)
+        {
+            var linked = await SetPlatformLinkAsync(id, sourceLink, cancellationToken);
+            var source = sourceLink.PlatformId switch
+            {
+                "nexusmods" => ModSource.NexusMods,
+                "ayakamods" => ModSource.AyakaMods,
+                _ => linked.Source
+            };
+            if (linked.Source != source)
+            {
+                linked.Source = source;
+                await _modRepository.UpdateAsync(linked, CancellationToken.None);
+            }
+        }
+        return id;
+    }
+
+    private async Task<ModReplacementResult> CommitPreparedReplacementAsync(Guid id, Mod prepared,
+        ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
+        IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement,
+        IProgress<DeploymentProgress>? deploymentProgress, bool requirePatch = true)
+    {
         var committed = false;
         string? newThumbnail = null;
         try
         {
-            if ((expectedLink != null || prepared.WorkflowType != Hd2IrIntegrationService.Workflow)
+            if (requirePatch && (expectedLink != null || prepared.WorkflowType != Hd2IrIntegrationService.Workflow)
                 && !Directory.EnumerateFiles(prepared.Path, "*", SearchOption.AllDirectories).Any(path =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -537,7 +573,7 @@ public partial class ModService
         IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
         Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
-        var modId = await _importService.ImportModAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir);
+        var (modId, updated) = await _importService.ImportModCoreAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir);
 
         // 已落库即视为导入成功；缩略图失败或此时取消不能把成功项统计为失败。
         progress?.Report(new(95, "生成缩略图", "准备模组预览", true));
@@ -557,7 +593,8 @@ public partial class ModService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex) { _logger?.LogWarning(ex, "模组已导入，但缩略图生成失败: {ModId}", modId); }
 
-        await AddImportedModsToActiveProfileAsync(new[] { modId });
+        // 更新已有模组不改变配置成员关系，不能按“新导入”自动加入当前配置文件。
+        if (!updated) await AddImportedModsToActiveProfileAsync(new[] { modId });
         progress?.Report(new(100, "添加完成", Path.GetFileName(sourcePath)));
         RaiseModsChanged();
         return modId;
@@ -568,13 +605,17 @@ public partial class ModService
     /// </summary>
     public async Task<IEnumerable<Guid>> ImportModsAsync(IEnumerable<string> sourcePaths, CancellationToken cancellationToken = default)
     {
-        var importedIds = (await _importService.ImportModsAsync(sourcePaths, cancellationToken)).ToArray();
-        await AddImportedModsToActiveProfileAsync(importedIds);
-        if (importedIds.Any())
+        var importedIds = new List<Guid>();
+        foreach (var path in sourcePaths)
         {
-            RaiseModsChanged();
+            cancellationToken.ThrowIfCancellationRequested();
+            try { importedIds.Add(await ImportModAsync(path, cancellationToken)); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogError(ex, "导入 Mod 失败: {Path}", path);
+            }
         }
-
+        if (importedIds.Any()) RaiseModsChanged();
         return importedIds;
     }
 

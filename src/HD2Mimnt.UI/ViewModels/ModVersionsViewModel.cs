@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -19,6 +20,12 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
     private IReadOnlyList<LocalModVersionChoice> _versions = Array.Empty<LocalModVersionChoice>();
     [ObservableProperty] private LocalModVersionChoice? _selectedVersion;
     public bool HasVersions => Versions.Count > 0;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasChanges))]
+    private IReadOnlyList<VersionFileChangeItem> _changes = Array.Empty<VersionFileChangeItem>();
+    [ObservableProperty] private string _changeSummary = "";
+    [ObservableProperty] private bool _hasCompareResult;
+    public bool HasChanges => Changes.Count > 0;
 
     public void Open(ModItemViewModel target)
     {
@@ -27,14 +34,29 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
         Versions = Array.Empty<LocalModVersionChoice>();
         SelectedVersion = null;
         Message = "";
+        ResetCompare();
         Start(LoadAsync);
     }
 
     private async Task LoadAsync(CancellationToken token)
     {
-        Versions = (await service.GetLocalVersionsAsync(_target!.Id, token)).OrderByDescending(v => v.SavedAt)
+        Versions = (await service.GetLocalVersionsAsync(_target!.Id, token))
+            .OrderByDescending(version => VersionDate(version))
+            .ThenByDescending(version => version.SavedAt)
             .Select(v => new LocalModVersionChoice(v)).ToArray();
         SelectedVersion = Versions.FirstOrDefault();
+    }
+
+    partial void OnSelectedVersionChanged(LocalModVersionChoice? value) => ResetCompare();
+
+    private static DateTime VersionDate(LocalModVersion version)
+        => version.Content.ModifiedAt == default ? version.SavedAt : version.Content.ModifiedAt;
+
+    private void ResetCompare()
+    {
+        Changes = Array.Empty<VersionFileChangeItem>();
+        ChangeSummary = "";
+        HasCompareResult = false;
     }
 
     public Task UpdateFromArchiveAsync(string path) => Start(async token =>
@@ -54,6 +76,19 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
         var result = await Task.Run(() => service.SwitchLocalVersionAsync(
             _target!.Id, version.Version.Id, token, deploymentProgress), token);
         await ApplyAsync(result, token);
+    });
+
+    [RelayCommand]
+    private Task CompareAsync() => Start(async token =>
+    {
+        if (SelectedVersion is not { } version) return;
+        var diff = await service.CompareLocalVersionAsync(_target!.Id, version.Version.Id, token);
+        Changes = diff.Changes.Select(change => new VersionFileChangeItem(change)).ToArray();
+        ChangeSummary = diff.Changes.Count == 0
+            ? UiLocalization.Current["Versions.Compare.Same"]
+            : UiLocalization.Current.Format("Versions.Compare.Summary",
+                diff.AddedCount, diff.ModifiedCount, diff.RemovedCount);
+        HasCompareResult = true;
     });
 
     [RelayCommand]
@@ -110,5 +145,31 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
 
 public sealed record LocalModVersionChoice(LocalModVersion Version)
 {
-    public string Label => $"{Version.Content.Version} · {Version.SavedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} · {Version.Content.Size / 1048576d:0.##} MB · {Version.Id.ToString("N")[..6]}";
+    /// <summary>显示该版本内容自身的安装时间；切换版本会重新快照当前内容，SavedAt 只是归档时间。</summary>
+    private DateTime DisplayDate => Version.Content.ModifiedAt == default ? Version.SavedAt : Version.Content.ModifiedAt;
+    public string Label => $"{Version.Content.Version} · {DisplayDate.ToLocalTime():yyyy-MM-dd HH:mm:ss} · {Version.Content.Size / 1048576d:0.##} MB · {Version.Id.ToString("N")[..6]}";
+}
+
+public sealed record VersionFileChangeItem(LocalVersionFileChange Change)
+{
+    public string Status => UiLocalization.Current[Change.Kind switch
+    {
+        LocalVersionChangeKind.Added => "Versions.Change.Added",
+        LocalVersionChangeKind.Removed => "Versions.Change.Removed",
+        _ => "Versions.Change.Modified"
+    }];
+    public string Path => Change.Path;
+    public string SizeText => Change.Kind switch
+    {
+        LocalVersionChangeKind.Added => FormatSize(Change.VersionSize),
+        LocalVersionChangeKind.Removed => FormatSize(Change.CurrentSize),
+        _ => $"{FormatSize(Change.CurrentSize)} → {FormatSize(Change.VersionSize)}"
+    };
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024d:0.#} KB",
+        _ => $"{bytes / 1048576d:0.##} MB"
+    };
 }

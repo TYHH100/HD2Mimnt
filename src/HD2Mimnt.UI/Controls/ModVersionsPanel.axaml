@@ -14,6 +14,27 @@
         <Button x:Name="SwitchLocalVersionButton" Content="{loc:Loc Versions.Switch}" Command="{Binding SwitchCommand}" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc Versions.Delete}" Command="{Binding DeleteCommand}" Margin="0,0,0,4"/>
       </WrapPanel>
+      <Button x:Name="CompareLocalVersionButton" Content="{loc:Loc Versions.Compare}" Command="{Binding CompareCommand}"
+              HorizontalAlignment="Stretch" IsVisible="{Binding HasVersions}"/>
+      <StackPanel Spacing="6" IsVisible="{Binding HasCompareResult}">
+        <TextBlock Text="{Binding ChangeSummary}" TextWrapping="Wrap" Classes="caption-text"/>
+        <Border Background="{DynamicResource HoverSurfaceBrush}" CornerRadius="4" Padding="8" MaxHeight="220"
+                IsVisible="{Binding HasChanges}">
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Changes}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:VersionFileChangeItem">
+                  <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1">
+                    <TextBlock Text="{Binding Status}" Classes="caption-text" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding SizeText}" Classes="caption-text" Margin="8,0,0,0"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+      </StackPanel>
     </StackPanel>
     <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
     <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
