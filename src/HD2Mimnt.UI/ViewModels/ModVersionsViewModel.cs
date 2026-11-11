@@ -52,6 +52,16 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
     private static DateTime VersionDate(LocalModVersion version)
         => version.Content.ModifiedAt == default ? version.SavedAt : version.Content.ModifiedAt;
 
+    /// <summary>用已算出的文件变化打开详细对比窗口；不重复扫描目录。</summary>
+    public VersionDiffViewModel? CreateDetailedDiff()
+    {
+        if (SelectedVersion is not { } version || _target is not { } target || !HasCompareResult || Changes.Count == 0)
+            return null;
+        return new VersionDiffViewModel(service, target.Id, version.Version.Id, target.Name,
+            UiLocalization.Current.Format("Versions.Diff.Direction", target.Version, version.Version.Content.Version),
+            ChangeSummary, Changes);
+    }
+
     private void ResetCompare()
     {
         Changes = Array.Empty<VersionFileChangeItem>();
@@ -152,6 +162,8 @@ public sealed record LocalModVersionChoice(LocalModVersion Version)
 
 public sealed record VersionFileChangeItem(LocalVersionFileChange Change)
 {
+    public bool IsAdded => Change.Kind == LocalVersionChangeKind.Added;
+    public bool IsRemoved => Change.Kind == LocalVersionChangeKind.Removed;
     public string Status => UiLocalization.Current[Change.Kind switch
     {
         LocalVersionChangeKind.Added => "Versions.Change.Added",
@@ -166,7 +178,7 @@ public sealed record VersionFileChangeItem(LocalVersionFileChange Change)
         _ => $"{FormatSize(Change.CurrentSize)} → {FormatSize(Change.VersionSize)}"
     };
 
-    private static string FormatSize(long bytes) => bytes switch
+    public static string FormatSize(long bytes) => bytes switch
     {
         < 1024 => $"{bytes} B",
         < 1024 * 1024 => $"{bytes / 1024d:0.#} KB",

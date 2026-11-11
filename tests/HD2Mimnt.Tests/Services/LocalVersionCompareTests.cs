@@ -73,14 +73,92 @@ public sealed class LocalVersionCompareTests : IDisposable
         Assert.DoesNotContain("2026-01-02", choice.Label);
     }
 
+    [Fact]
+    public async Task ReadLocalVersionFile_ReturnsTextAndBinarySummary()
+    {
+        await _settings.SetSettingAsync(SettingKeys.KeepModVersions, true);
+        var id = await _mods.ImportModAsync(CreateArchiveBytes("1",
+            ("0123456789abcdef.patch_0", System.Text.Encoding.UTF8.GetBytes("one")),
+            ("notes.txt", System.Text.Encoding.UTF8.GetBytes("hello\nworld")),
+            ("data.bin", new byte[] { 1, 2, 0, 4, 5 })));
+        await _mods.UpdateFromLocalArchiveAsync(id, CreateArchiveBytes("2",
+            ("0123456789abcdef.patch_0", System.Text.Encoding.UTF8.GetBytes("two")),
+            ("notes.txt", System.Text.Encoding.UTF8.GetBytes("hello\nthere")),
+            ("data.bin", new byte[] { 1, 2, 0, 4, 9 })));
+        var saved = Assert.Single(await _mods.GetLocalVersionsAsync(id));
+
+        var text = await _mods.ReadLocalVersionFileAsync(id, saved.Id, "notes.txt");
+        Assert.True(text.IsText);
+        Assert.Equal("hello\nthere", text.CurrentText);
+        Assert.Equal("hello\nworld", text.SelectedText);
+
+        var binary = await _mods.ReadLocalVersionFileAsync(id, saved.Id, "data.bin");
+        Assert.False(binary.IsText);
+        Assert.Equal(1L, binary.DifferingByteCount);
+        Assert.Equal(4L, binary.FirstDifferenceOffset);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => _mods.ReadLocalVersionFileAsync(id, saved.Id, "../escape.txt"));
+    }
+
+    [Fact]
+    public async Task VersionDiffViewModel_LoadsTextDiffForSelectedFile()
+    {
+        await _settings.SetSettingAsync(SettingKeys.KeepModVersions, true);
+        var id = await _mods.ImportModAsync(CreateArchive("1", ("0123456789abcdef.patch_0", "one")));
+        await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("2", ("0123456789abcdef.patch_0", "two")));
+        var saved = Assert.Single(await _mods.GetLocalVersionsAsync(id));
+        var diff = await _mods.CompareLocalVersionAsync(id, saved.Id);
+        var items = diff.Changes.Select(change => new VersionFileChangeItem(change)).ToArray();
+
+        var vm = new VersionDiffViewModel(_mods, id, saved.Id, "Compare mod", "2 → 1", "summary", items);
+        vm.SelectedFile = items.First(item => item.Change.Path == "0123456789abcdef.patch_0");
+        await vm.LoadTask;
+
+        Assert.True(vm.HasContent);
+        Assert.Contains(vm.Lines, line => line is
+            { LeftText: "two", RightText: "one", LeftChanged: true, RightChanged: true });
+    }
+
+    [Fact]
+    public void DiffBuilder_PairsModifiedLinesSideBySide()
+    {
+        var diff = VersionDiffBuilder.Build("a\nb\nc", "a\nx\ny\nc");
+
+        Assert.False(diff.Truncated);
+        Assert.Equal(4, diff.Lines.Count);
+        Assert.Equal(("a", "a"), (diff.Lines[0].LeftText, diff.Lines[0].RightText));
+        Assert.True(diff.Lines[1] is { LeftChanged: true, RightChanged: true, LeftText: "b", RightText: "x" });
+        Assert.True(diff.Lines[2] is { LeftChanged: false, RightChanged: true, LeftNumber: null, RightText: "y" });
+        Assert.Equal(("c", "c"), (diff.Lines[3].LeftText, diff.Lines[3].RightText));
+    }
+
+    [Fact]
+    public void DiffBuilder_TruncatesLongDiff()
+    {
+        var left = string.Join("\n", Enumerable.Range(0, 900).Select(index => "left-" + index));
+        var right = string.Join("\n", Enumerable.Range(0, 900).Select(index => "right-" + index));
+
+        var diff = VersionDiffBuilder.Build(left, right);
+
+        Assert.True(diff.Truncated);
+        Assert.Equal(VersionDiffBuilder.MaxRows, diff.Lines.Count);
+    }
+
     private string CreateArchive(string version, params (string Path, string Content)[] files)
+        => CreateArchiveBytes(version, files.Select(file =>
+            (file.Path, System.Text.Encoding.UTF8.GetBytes(file.Content))).ToArray());
+
+    private string CreateArchiveBytes(string version, params (string Path, byte[] Content)[] files)
     {
         var path = Path.Combine(_root, "compare-" + version + "-" + Guid.NewGuid().ToString("N") + ".zip");
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
         using (var writer = new StreamWriter(zip.CreateEntry("manifest.json").Open()))
             writer.Write("{\"Name\":\"Compare mod\",\"Version\":\"" + version + "\",\"Author\":\"Author\"}");
         foreach (var (name, content) in files)
-            using (var writer = new StreamWriter(zip.CreateEntry(name).Open())) writer.Write(content);
+        {
+            using var stream = zip.CreateEntry(name).Open();
+            stream.Write(content);
+        }
         return path;
     }
 

@@ -18,6 +18,8 @@
               HorizontalAlignment="Stretch" IsVisible="{Binding HasVersions}"/>
       <StackPanel Spacing="6" IsVisible="{Binding HasCompareResult}">
         <TextBlock Text="{Binding ChangeSummary}" TextWrapping="Wrap" Classes="caption-text"/>
+        <Button x:Name="DetailedDiffButton" Content="{loc:Loc Versions.Diff.Open}" Click="OpenDetailedDiff"
+                HorizontalAlignment="Stretch" IsVisible="{Binding HasChanges}"/>
         <Border Background="{DynamicResource HoverSurfaceBrush}" CornerRadius="4" Padding="8" MaxHeight="220"
                 IsVisible="{Binding HasChanges}">
           <ScrollViewer>

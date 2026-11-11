@@ -18,6 +18,14 @@ public sealed record LocalVersionDiff(IReadOnlyList<LocalVersionFileChange> Chan
     public int RemovedCount => Changes.Count(change => change.Kind == LocalVersionChangeKind.Removed);
 }
 
+/// <summary>
+/// 单个文件在两个版本中的内容。文本按 UTF-8 严格解码；任一侧不是文本时只提供字节差异摘要，
+/// 超过大小上限的文件不读取内容（<see cref="TooLarge"/>）。
+/// </summary>
+public sealed record LocalVersionFileContent(
+    string Path, bool IsText, bool TooLarge, string? CurrentText, string? SelectedText,
+    long CurrentSize, long SelectedSize, long FirstDifferenceOffset, long DifferingByteCount);
+
 public partial class ModService
 {
     public async Task<IReadOnlyList<LocalModVersion>> GetLocalVersionsAsync(Guid id, CancellationToken token = default)
@@ -36,6 +44,77 @@ public partial class ModService
         if (!Directory.Exists(mod.Path)) throw new DirectoryNotFoundException("当前版本文件已缺失。");
         if (!Directory.Exists(selected.Content.Path)) throw new DirectoryNotFoundException("所选版本文件已缺失。");
         return await Task.Run(() => DiffVersionDirectories(mod.Path, selected.Content.Path, token), token);
+    }
+
+    /// <summary>读取单个文件在两个版本中的内容，供对比窗口展示；只读，不加载其它文件。</summary>
+    public async Task<LocalVersionFileContent> ReadLocalVersionFileAsync(Guid id, Guid versionId, string relativePath,
+        CancellationToken token = default)
+    {
+        const long maxContentBytes = 4 * 1024 * 1024;
+        var mod = await _modRepository.GetByIdAsync(id, token) ?? throw new KeyNotFoundException("模组已删除。");
+        var versions = await new ModVersionStore(_storageDirectory).ReadAsync(id, token);
+        var selected = versions.SingleOrDefault(v => v.Id == versionId) ?? throw new KeyNotFoundException("本地版本已不存在。");
+        if (!Directory.Exists(mod.Path)) throw new DirectoryNotFoundException("当前版本文件已缺失。");
+        if (!Directory.Exists(selected.Content.Path)) throw new DirectoryNotFoundException("所选版本文件已缺失。");
+
+        var relative = relativePath.Replace('/', Path.DirectorySeparatorChar);
+        var currentPath = HD2Mimnt.Core.IO.PathGuard.ResolveInsideRoot(mod.Path,
+            Path.Combine(mod.Path, relative), "对比文件不在当前版本目录中。");
+        var selectedPath = HD2Mimnt.Core.IO.PathGuard.ResolveInsideRoot(selected.Content.Path,
+            Path.Combine(selected.Content.Path, relative), "对比文件不在所选版本目录中。");
+        var (currentBytes, currentTooLarge) = await ReadCappedAsync(currentPath, maxContentBytes, token);
+        var (selectedBytes, selectedTooLarge) = await ReadCappedAsync(selectedPath, maxContentBytes, token);
+        var (offset, differing) = CompareBytes(currentBytes, selectedBytes);
+        var result = new LocalVersionFileContent(relativePath, false, currentTooLarge || selectedTooLarge,
+            null, null, currentBytes?.LongLength ?? 0, selectedBytes?.LongLength ?? 0, offset, differing);
+        if (result.TooLarge) return result;
+
+        var currentIsText = TryDecodeText(currentBytes, out var currentText);
+        var selectedIsText = TryDecodeText(selectedBytes, out var selectedText);
+        return result with
+        {
+            IsText = currentIsText && selectedIsText,
+            CurrentText = currentIsText ? currentText : null,
+            SelectedText = selectedIsText ? selectedText : null
+        };
+    }
+
+    private static async Task<(byte[]? Bytes, bool TooLarge)> ReadCappedAsync(string path, long limit, CancellationToken token)
+    {
+        if (!File.Exists(path)) return (null, false);
+        if (new FileInfo(path).Length > limit) return (null, true);
+        return (await File.ReadAllBytesAsync(path, token), false);
+    }
+
+    /// <summary>任一侧含 NUL 字节或不是合法 UTF-8 时按二进制处理。</summary>
+    private static bool TryDecodeText(byte[]? bytes, out string? text)
+    {
+        text = null;
+        if (bytes == null) return true;
+        if (bytes.AsSpan().IndexOf((byte)0) >= 0) return false;
+        try
+        {
+            text = new System.Text.UTF8Encoding(false, true).GetString(bytes);
+            if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
+            return true;
+        }
+        catch (System.Text.DecoderFallbackException) { return false; }
+    }
+
+    private static (long FirstDifferenceOffset, long DifferingByteCount) CompareBytes(byte[]? left, byte[]? right)
+    {
+        var first = left ?? Array.Empty<byte>();
+        var second = right ?? Array.Empty<byte>();
+        var common = Math.Min(first.Length, second.Length);
+        long firstDifference = -1, differing = Math.Abs(first.Length - second.Length);
+        for (var index = 0; index < common; index++)
+        {
+            if (first[index] == second[index]) continue;
+            if (firstDifference < 0) firstDifference = index;
+            differing++;
+        }
+        if (firstDifference < 0 && differing > 0) firstDifference = common;
+        return (firstDifference, differing);
     }
 
     private static LocalVersionDiff DiffVersionDirectories(string currentRoot, string versionRoot, CancellationToken token)
