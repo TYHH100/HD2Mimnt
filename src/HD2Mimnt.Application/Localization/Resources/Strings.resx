@@ -2423,6 +2423,15 @@ See the Conflicts page for details.</value>
   <data name="Options.Compact" xml:space="preserve">
     <value>Compact</value>
   </data>
+  <data name="Options.NoticeBadge" xml:space="preserve">
+    <value>Badge</value>
+  </data>
+  <data name="Options.NoticeOutline" xml:space="preserve">
+    <value>Outline</value>
+  </data>
+  <data name="Options.NoticeBadgeBlink" xml:space="preserve">
+    <value>Badge + blinking</value>
+  </data>
   <data name="Options.Copy" xml:space="preserve">
     <value>Copy files</value>
   </data>
@@ -3908,6 +3917,10 @@ Last checked: {7}</value>
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>Off by default: reject identical content already in the library or version history. Enable to import separate copies. Existing duplicates are kept.</value></data>
   <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>Update mods with the same GUID</value></data>
   <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>On by default: when an imported manifest GUID matches a mod already in the library, update that mod in place (keeping profile references, version history and deployment records) instead of adding a copy. When off, the duplicate import setting applies.</value></data>
+  <data name="Settings.Library.NoticeStyle" xml:space="preserve"><value>New/updated mod marker</value></data>
+  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>Shown on mod cards after a new import or an update. Clicking the card clears it. Choose a badge, a pulsing outline, or a badge that blinks.</value></data>
+  <data name="Library.Notice.New" xml:space="preserve"><value>New</value></data>
+  <data name="Library.Notice.Updated" xml:space="preserve"><value>Updated</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>When importing mods without manifests, automatically generate V1 format instead of legacy format. When enabled, mods without manifests in the library can also be auto-upgraded to V1.</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>

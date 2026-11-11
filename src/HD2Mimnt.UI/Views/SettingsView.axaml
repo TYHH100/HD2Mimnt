@@ -221,6 +221,13 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.UpdateSameGuid}" Description="{loc:Loc Settings.Library.UpdateSameGuidHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="UpdateSameGuidOnImportToggle" IsChecked="{Binding UpdateSameGuidOnImport}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.NoticeStyle}" Description="{loc:Loc Settings.Library.NoticeStyleHelp}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox ItemsSource="{Binding NoticeStyleOptions}" SelectedItem="{Binding ModNoticeStyle}" Width="200">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

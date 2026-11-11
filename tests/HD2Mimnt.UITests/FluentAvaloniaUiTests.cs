@@ -15,6 +15,7 @@ using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Resources;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.UI;
@@ -3778,6 +3779,120 @@ public sealed partial class FluentAvaloniaUiTests
             }
         }
         finally { dialog.Close(); app.RequestedThemeVariant = originalTheme; }
+    }
+
+    [AvaloniaFact]
+    public async Task LibraryNotice_ShowsConfiguredStyleAndClearsOnCardClick()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ModNoticeStyle, "Badge");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            Border Card(ModItemViewModel mod) => view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, mod));
+
+            var target = library.FilteredMods[0];
+            Assert.True(target.HasNotice);
+            var card = Card(target);
+            var chip = Assert.Single(card.GetVisualDescendants().OfType<Border>()
+                .Where(border => border.Classes.Contains("notice-chip") && border.IsEffectivelyVisible));
+            Assert.Contains("notice-chip-text", chip.GetVisualDescendants().OfType<TextBlock>().Single().Classes);
+            Capture(window, "Dark", "notice-badge");
+
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == target.Name);
+            var point = title.TranslatePoint(new Point(20, 8), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Layout();
+            Assert.False(target.HasNotice);
+            Assert.False(chip.IsEffectivelyVisible);
+
+            var mods = scope.Services.GetRequiredService<ModService>();
+            for (var attempt = 0; attempt < 50
+                && (await mods.GetModByIdAsync(target.Id))!.Notice != ModNoticeKind.None; attempt++)
+                await Task.Delay(20);
+            Assert.Equal(ModNoticeKind.None, (await mods.GetModByIdAsync(target.Id))!.Notice);
+
+            var other = library.FilteredMods[1];
+            Assert.True(other.HasNotice);
+            await settings.SetSettingAsync(SettingKeys.ModNoticeStyle, "Outline");
+            Layout();
+            var otherCard = Card(other);
+            var outline = view.GetVisualDescendants().OfType<Border>().Single(border =>
+                border.Classes.Contains("notice-outline") && ReferenceEquals(border.DataContext, other));
+            Assert.True(outline.IsEffectivelyVisible);
+            Assert.DoesNotContain(otherCard.GetVisualDescendants().OfType<Border>(),
+                border => border.Classes.Contains("notice-chip") && border.IsEffectivelyVisible);
+            Capture(window, "Dark", "notice-outline");
+
+            await settings.SetSettingAsync(SettingKeys.ModNoticeStyle, "BadgeBlink");
+            Layout();
+            var blinking = otherCard.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("notice-chip") && border.IsEffectivelyVisible);
+            Assert.Contains("blinking", blinking.Classes);
+            Capture(window, "Dark", "notice-blink");
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ProfileNotice_ShowsConfiguredStyleAndClearsLibraryCardToo()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ModNoticeStyle, "Outline");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        main.SelectedTabIndex = 0;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<ProfileView>().Single();
+            var target = main.ProfileViewModel.ProfileMods
+                .First(mod => !mod.IsSeparator && mod.SourceInfo is { HasNotice: true });
+            var card = view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, target));
+            var outline = view.GetVisualDescendants().OfType<Border>().Single(border =>
+                border.Classes.Contains("notice-outline") && ReferenceEquals(border.DataContext, target));
+            Assert.True(outline.IsEffectivelyVisible);
+            Capture(window, "Dark", "profile-notice-outline");
+
+            await settings.SetSettingAsync(SettingKeys.ModNoticeStyle, "BadgeBlink");
+            Layout();
+            var chip = card.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("notice-chip") && border.IsEffectivelyVisible);
+            Assert.Contains("blinking", chip.Classes);
+            Capture(window, "Dark", "profile-notice-blink");
+
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == target.ModName);
+            var point = title.TranslatePoint(new Point(20, 8), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Layout();
+            Assert.False(target.SourceInfo!.HasNotice);
+            Assert.False(chip.IsEffectivelyVisible);
+            Assert.False(main.LibraryViewModel.FilteredMods.Single(mod => mod.Id == target.ModId).HasNotice);
+
+            var mods = scope.Services.GetRequiredService<ModService>();
+            for (var attempt = 0; attempt < 50
+                && (await mods.GetModByIdAsync(target.ModId))!.Notice != ModNoticeKind.None; attempt++)
+                await Task.Delay(20);
+            Assert.Equal(ModNoticeKind.None, (await mods.GetModByIdAsync(target.ModId))!.Notice);
+        }
+        finally { window.Close(); }
     }
 
     private static void CaptureSingleClickMarker(Window window, string name)

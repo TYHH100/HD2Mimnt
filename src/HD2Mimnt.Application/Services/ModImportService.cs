@@ -359,11 +359,12 @@ public class ModImportService
             {
                 Id = Guid.NewGuid(),
                 Name = !string.IsNullOrWhiteSpace(manifest?.Name) ? manifest.Name : fallbackName,
-                Version = manifest?.Version ?? "1.0.0",
+                Version = string.IsNullOrWhiteSpace(manifest?.Version) ? ModVersionNumber.Default : manifest.Version,
                 Author = manifest?.Author ?? "Unknown",
                 Description = manifest?.Description ?? "",
                 Category = DetermineCategory(manifest, modInfo),
                 Status = ModStatus.Ready,
+                Notice = ModNoticeKind.New,
                 Tags = manifest?.Tags ?? new List<string>(),
                 Size = modInfo.TotalSize,
                 Source = isArchiveFile ? ModSource.LocalZip : ModSource.LocalFolder,

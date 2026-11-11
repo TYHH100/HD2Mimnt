@@ -343,6 +343,8 @@ public static class SettingKeys
     public const string ImportAutoClose = "Library.ImportAutoClose";
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
+    /// <summary>新导入/已更新模组的卡片提示方式：Badge、Outline、BadgeBlink。</summary>
+    public const string ModNoticeStyle = "Library.ModNoticeStyle";
     // 导入的清单 GUID 与库内已有模组相同时直接更新该模组，默认开启。
     public const string UpdateSameGuidOnImport = "Library.UpdateSameGuidOnImport";
 

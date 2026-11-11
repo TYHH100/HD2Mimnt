@@ -130,6 +130,7 @@
                     <DataTemplate x:DataType="vm:ModItemViewModel">
                         <!-- 与配置页共用原生选择容器；ItemsControl 不接管 ViewModel 的选中状态。 -->
                         <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}">
+                        <Panel>
                         <Border Classes="mod-card"
                                 Classes.compact="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).IsCompactList}"
                                 ContextRequested="ModCard_ContextRequested">
@@ -165,6 +166,12 @@
                                 <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Classes="notice-chip" Classes.blinking="{Binding ShowNoticeBlink}" IsVisible="{Binding ShowNewNoticeBadge}">
+                                            <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.New}"/>
+                                        </Border>
+                                        <Border Classes="notice-chip" Classes.blinking="{Binding ShowNoticeBlink}" IsVisible="{Binding ShowUpdatedNoticeBadge}">
+                                            <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.Updated}"/>
+                                        </Border>
                                         <Border Classes="chip" IsVisible="{Binding IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
                                         <Button Classes="chip" Command="{Binding OpenSourcePageCommand}"
                                                 IsVisible="{Binding HasPlatformLink}" ToolTip.Tip="{loc:LocalizedBinding PlatformLink}">
@@ -190,6 +197,9 @@
                                 </Button>
                             </Grid>
                         </Border>
+                        <!-- 独立描边层：只让描边淡入淡出，不改变卡片内容的不透明度。 -->
+                        <Border Classes="notice-outline" IsVisible="{Binding ShowNoticeOutline}"/>
+                        </Panel>
                         </ListBoxItem>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

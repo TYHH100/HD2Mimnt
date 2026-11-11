@@ -90,6 +90,7 @@ public class HD2MimntDbContext : IDisposable
                 ThumbnailPath TEXT,
                 Source INTEGER NOT NULL DEFAULT 0,
                 Status INTEGER NOT NULL DEFAULT 0,
+                Notice INTEGER NOT NULL DEFAULT 0,
                 ManifestJson TEXT,
                 ContainsScripts INTEGER NOT NULL DEFAULT 0,
                 NexusModId INTEGER
@@ -571,6 +572,7 @@ public class HD2MimntDbContext : IDisposable
             // 极旧库的 Mods 表连 Hash 都没有：插入模组和判重索引都依赖该列，必须先补再建索引。
             ("Mods", "Hash", "TEXT"),
             ("Mods", "ContentFingerprint", "TEXT"),
+            ("Mods", "Notice", "INTEGER NOT NULL DEFAULT 0"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),

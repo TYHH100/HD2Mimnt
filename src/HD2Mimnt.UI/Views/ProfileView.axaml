@@ -192,6 +192,7 @@
                   <Border Classes="group-member-host" Classes.is-group="{Binding IsInsideGroup}">
                     <!-- 使用 FluentAvalonia 原生 ListBoxItem 选中模板，保持与模组库单选效果一致。 -->
                     <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}" Classes="profile-mod-item">
+                  <Panel>
                   <Border x:Name="ProfileTutorialCard" Classes="mod-card" Classes.conflict-location="{Binding IsConflictLocation}"
                           PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved"
                           ContextRequested="ModCard_ContextRequested">
@@ -242,6 +243,12 @@
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="{Binding ModName}"/>
                     <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <Border Classes="notice-chip" Classes.blinking="{Binding SourceInfo.ShowNoticeBlink}" IsVisible="{Binding SourceInfo.ShowNewNoticeBadge}">
+                        <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.New}"/>
+                      </Border>
+                      <Border Classes="notice-chip" Classes.blinking="{Binding SourceInfo.ShowNoticeBlink}" IsVisible="{Binding SourceInfo.ShowUpdatedNoticeBadge}">
+                        <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.Updated}"/>
+                      </Border>
                       <Border Classes="chip">
                         <TextBlock Text="{Binding PositionText}" FontSize="12" Classes="muted"/>
                       </Border>
@@ -281,6 +288,9 @@
 
                     </Grid>
                   </Border>
+                  <!-- 独立描边层：只让描边淡入淡出，不改变卡片内容的不透明度。 -->
+                  <Border Classes="notice-outline" IsVisible="{Binding SourceInfo.ShowNoticeOutline}"/>
+                  </Panel>
                     </ListBoxItem>
                   </Border>
                 </Grid>

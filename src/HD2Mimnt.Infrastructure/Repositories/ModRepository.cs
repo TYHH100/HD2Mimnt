@@ -251,11 +251,11 @@ public class ModRepository : IModRepository
         using var command = connection.CreateCommand();
         command.CommandText = @"
             INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags,
-                            WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ContentFingerprint, ThumbnailPath, Source, Status,
+                            WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ContentFingerprint, ThumbnailPath, Source, Status, Notice,
                             ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion,
                             PlatformId, PlatformModId, PlatformVersion, LastUpdateCheck, PlatformLinkJson)
             VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags,
-                    @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ContentFingerprint, @ThumbnailPath, @Source, @Status,
+                    @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ContentFingerprint, @ThumbnailPath, @Source, @Status, @Notice,
                     @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion,
                     @PlatformId, @PlatformModId, @PlatformVersion, @LastUpdateCheck, @PlatformLinkJson)";
 
@@ -273,7 +273,7 @@ public class ModRepository : IModRepository
             SET Name = @Name, Version = @Version, Author = @Author, Description = @Description,
                 Path = @Path, Category = @Category, Tags = @Tags, WorkflowType = @WorkflowType,
                 ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ContentFingerprint = @ContentFingerprint, ThumbnailPath = @ThumbnailPath,
-                Source = @Source, Status = @Status, ManifestJson = @ManifestJson,
+                Source = @Source, Status = @Status, Notice = @Notice, ManifestJson = @ManifestJson,
                 ContainsScripts = @ContainsScripts, NexusModId = @NexusModId, ResourceTypeIds = @ResourceTypeIds,
                 BslRole = @BslRole, BslDetectionVersion = @BslDetectionVersion,
                 PlatformId = @PlatformId, PlatformModId = @PlatformModId, PlatformVersion = @PlatformVersion,
@@ -281,6 +281,16 @@ public class ModRepository : IModRepository
             WHERE Id = @Id";
 
         AddModParameters(command, mod);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task SetNoticeAsync(Guid id, ModNoticeKind notice, CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Mods SET Notice = @Notice WHERE Id = @Id";
+        command.Parameters.AddWithValue("@Notice", (int)notice);
+        command.Parameters.AddWithValue("@Id", id.ToString());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -355,6 +365,7 @@ public class ModRepository : IModRepository
             ThumbnailPath = reader.IsDBNull(reader.GetOrdinal("ThumbnailPath")) ? string.Empty : reader.GetString(reader.GetOrdinal("ThumbnailPath")),
             Source = (ModSource)reader.GetInt32(reader.GetOrdinal("Source")),
             Status = (ModStatus)reader.GetInt32(reader.GetOrdinal("Status")),
+            Notice = (ModNoticeKind)reader.GetInt32(reader.GetOrdinal("Notice")),
             Manifest = manifest,
             ContainsScripts = reader.GetInt32(reader.GetOrdinal("ContainsScripts")) == 1,
             NexusModId = reader.IsDBNull(reader.GetOrdinal("NexusModId")) ? null : reader.GetInt32(reader.GetOrdinal("NexusModId")),
@@ -401,6 +412,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@ThumbnailPath", mod.ThumbnailPath);
         command.Parameters.AddWithValue("@Source", (int)mod.Source);
         command.Parameters.AddWithValue("@Status", (int)mod.Status);
+        command.Parameters.AddWithValue("@Notice", (int)mod.Notice);
         command.Parameters.AddWithValue("@ManifestJson", mod.Manifest != null ? JsonSerializer.Serialize(mod.Manifest) : DBNull.Value);
         command.Parameters.AddWithValue("@ContainsScripts", mod.ContainsScripts ? 1 : 0);
         command.Parameters.AddWithValue("@NexusModId", mod.NexusModId.HasValue ? mod.NexusModId.Value : DBNull.Value);

@@ -144,6 +144,9 @@ public partial class LibraryView : UserControl
 
         if (IsActionSource(source, container)) return;
 
+        if (mod.HasNotice)
+            SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
+
         ModList.Focus();
 
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);

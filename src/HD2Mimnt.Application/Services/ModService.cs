@@ -82,6 +82,8 @@ public partial class ModService
     /// <summary>模组库发生增删后触发，供 UI 层联动刷新各页面。</summary>
     public event EventHandler? ModsChanged;
     public event EventHandler? MetadataChanged;
+    /// <summary>某个模组的未读提示被清除；库页与配置页的同一模组卡片需要同步隐藏。</summary>
+    public event EventHandler<Guid>? NoticeDismissed;
 
     private void RaiseModsChanged() => ModsChanged?.Invoke(this, EventArgs.Empty);
 
@@ -207,7 +209,10 @@ public partial class ModService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 original.Path = prepared.Path;
-                original.Version = file?.Version ?? prepared.Version;
+                // 本地模组的版本由管理器维护；平台下载更新仍使用网站文件版本。
+                original.Version = file?.Version ?? (original.PlatformLink == null
+                    ? ModVersionNumber.BumpMinor(original.Version)
+                    : prepared.Version);
                 original.Manifest = prepared.Manifest;
                 original.WorkflowType = prepared.WorkflowType;
                 original.LogicalMod = prepared.LogicalMod;
@@ -231,6 +236,7 @@ public partial class ModService
                     InstalledVersion = original.Version
                 };
                 original.Status = ModStatus.Ready;
+                original.Notice = ModNoticeKind.Updated;
                 progress?.Report(new(99, "保存更新", original.Name, true));
                 // 提交阶段不接受半途取消；此处失败时旧目录仍然完整。
                 cancellationToken.ThrowIfCancellationRequested();
@@ -684,6 +690,15 @@ public partial class ModService
     }
 
     #endregion
+
+    /// <summary>用户查看模组卡片后清除新导入/已更新提示；只更新提示列，不触发全库刷新。</summary>
+    public async Task DismissModNoticeAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try { await _modRepository.SetNoticeAsync(id, ModNoticeKind.None, cancellationToken); }
+        finally { _mutationGate.Release(); }
+        NoticeDismissed?.Invoke(this, id);
+    }
 
     #region Metadata Operations
 

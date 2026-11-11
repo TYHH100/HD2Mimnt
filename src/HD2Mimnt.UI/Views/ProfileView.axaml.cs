@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using HD2Mimnt.UI.Controls;
+using HD2Mimnt.UI.Services;
 using HD2Mimnt.UI.ViewModels;
 using System.Collections.ObjectModel;
 
@@ -282,6 +283,8 @@ public partial class ProfileView : UserControl
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         // 命中开关/按钮等交互控件时不进入选择与拖拽逻辑
         if (IsInteractiveSource(e.Source as Visual, card)) return;
+        if (mod.SourceInfo is { HasNotice: true })
+            SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
         if (!mod.IsSeparator && e.ClickCount >= 2
             && !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {

@@ -52,7 +52,7 @@ public sealed class ModVersionHistoryTests : IDisposable
         await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("2"));
         Assert.False(Directory.Exists(original.Path));
         Assert.Empty(await _mods.GetLocalVersionsAsync(id));
-        Assert.Equal("2", (await _mods.GetModByIdAsync(id))!.Version);
+        Assert.Equal("1.1.0", (await _mods.GetModByIdAsync(id))!.Version);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class ModVersionHistoryTests : IDisposable
         await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("3"));
         var version = Assert.Single(await _mods.GetLocalVersionsAsync(id));
         await _mods.SwitchLocalVersionAsync(id, version.Id);
-        Assert.Equal("3", Assert.Single(await _mods.GetLocalVersionsAsync(id)).Content.Version);
+        Assert.Equal("1.2.0", Assert.Single(await _mods.GetLocalVersionsAsync(id)).Content.Version);
     }
 
     [Theory]
@@ -144,7 +144,7 @@ public sealed class ModVersionHistoryTests : IDisposable
         var old = Assert.Single(await _mods.GetLocalVersionsAsync(id));
         await _mods.DeleteLocalVersionAsync(id, old.Id);
         Assert.False(Directory.Exists(old.Content.Path));
-        Assert.Equal("2", (await _mods.GetModByIdAsync(id))!.Version);
+        Assert.Equal("1.1.0", (await _mods.GetModByIdAsync(id))!.Version);
         await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("3"));
         await _mods.DeleteModAsync(id);
         Assert.Empty(await _repository.GetAllAsync());

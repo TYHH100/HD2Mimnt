@@ -257,6 +257,14 @@ public partial class ProfileViewModel : ObservableObject
         if (_modSelection.Toggle(mod)) FocusedMod = mod;
     }
 
+    /// <summary>点击配置页模组卡片后清除提示；库页的同一模组通过 NoticeDismissed 同步。</summary>
+    public async Task DismissModNoticeAsync(ProfileModViewModel mod)
+    {
+        if (mod.SourceInfo is not { HasNotice: true } info) return;
+        info.DismissNotice();
+        await _modService.DismissModNoticeAsync(info.Id);
+    }
+
     public void SelectAllVisibleMods() => _modSelection.SelectAll(FocusedMod);
 
     public void SelectModRange(ProfileModViewModel mod, bool additive = false)
@@ -425,6 +433,7 @@ public partial class ProfileViewModel : ObservableObject
         });
         _profileService = profileService;
         _modService = modService;
+        _modService.NoticeDismissed += OnModNoticeDismissed;
         _notificationService = notificationService;
         _confirmationService = confirmationService;
         _settingsService = settingsService;
@@ -434,6 +443,17 @@ public partial class ProfileViewModel : ObservableObject
             ApplyModSelection, (mod, focused) => mod.IsFocused = focused, mod => mod.CanSelect);
         _profileMods.CollectionChanged += OnProfileModsCollectionChanged;
         _settingsService.SettingChanged += OnDeploymentDirectionChanged;
+    }
+
+    private void OnModNoticeDismissed(object? sender, Guid id)
+    {
+        void Apply()
+        {
+            foreach (var mod in ProfileMods)
+                if (mod.SourceInfo?.Id == id) mod.SourceInfo.DismissNotice();
+        }
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
     }
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
@@ -458,6 +478,14 @@ public partial class ProfileViewModel : ObservableObject
             }
             if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Reload();
             else Dispatcher.UIThread.Post(Reload);
+            return;
+        }
+        if (e.Key == SettingKeys.ModNoticeStyle)
+        {
+            var style = e.NewValue as string;
+            void ApplyNoticeStyle() { foreach (var mod in ProfileMods) mod.SourceInfo?.ApplyNoticeStyle(style); }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) ApplyNoticeStyle();
+            else Dispatcher.UIThread.Post(ApplyNoticeStyle);
             return;
         }
         if (e.Key == SettingKeys.ProfilesPinExpandedGroups)
@@ -1052,18 +1080,21 @@ public partial class ProfileViewModel : ObservableObject
                         && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
                     .Select(record => record.ModId).ToHashSet();
             _deployedModIds = deployedModIds;
+            var noticeStyle = _settingsService.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
                 if (modsById.TryGetValue(profileMod.ModId, out var mod))
                 {
+                    var sourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) };
+                    sourceInfo.ApplyNoticeStyle(noticeStyle);
                     var cardVm = new ProfileModViewModel
                     {
                         ProfileId = profileMod.ProfileId,
                         ModId = profileMod.ModId,
                         ModName = mod.Name,
                         ModVersion = mod.PlatformLink?.InstalledVersion ?? mod.Version,
-                        SourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) },
+                        SourceInfo = sourceInfo,
                         Enabled = profileMod.Enabled,
                         IsDeployed = deployedModIds.Contains(mod.Id),
                         Order = profileMod.Order,

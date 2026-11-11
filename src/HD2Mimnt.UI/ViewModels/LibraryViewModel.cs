@@ -340,6 +340,7 @@ public partial class LibraryViewModel : ObservableObject
         Compatibility = compatibility;
         _luaExtraction = luaExtraction;
         _modService = modService;
+        _modService.NoticeDismissed += OnModNoticeDismissed;
         LocalVersions = new(modService, confirmationService, async () =>
         {
             await LoadModsAsync();
@@ -646,7 +647,13 @@ public partial class LibraryViewModel : ObservableObject
             // 创建 ViewModels
             ClearSelection();
             DetachModSelectionHandlers();
-            _allMods = await Task.Run(() => modsList.Select(m => new ModItemViewModel(m)).ToList());
+            var noticeStyle = _settingsService?.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
+            _allMods = await Task.Run(() => modsList.Select(m =>
+            {
+                var item = new ModItemViewModel(m);
+                item.ApplyNoticeStyle(noticeStyle);
+                return item;
+            }).ToList());
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
@@ -813,9 +820,24 @@ public partial class LibraryViewModel : ObservableObject
         _searchDebounceTimer.Start();
     }
 
+    private void OnModNoticeDismissed(object? sender, Guid id)
+    {
+        void Apply() { _allMods.FirstOrDefault(mod => mod.Id == id)?.DismissNotice(); }
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
+    }
+
     /// <summary>设置页保存模组库/搜索选项后的运行时响应：搜索规则立即刷新，Lua 自动拆包开关驱动补拆或取消。</summary>
     private void OnLibrarySettingsChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key == SettingKeys.ModNoticeStyle)
+        {
+            var style = e.NewValue as string;
+            void ApplyStyle() { foreach (var mod in _allMods) mod.ApplyNoticeStyle(style); }
+            if (Dispatcher.UIThread.CheckAccess()) ApplyStyle();
+            else Dispatcher.UIThread.Post(ApplyStyle);
+            return;
+        }
         if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
         {
             if (string.IsNullOrWhiteSpace(SearchText)) return;
@@ -1064,6 +1086,14 @@ public partial class LibraryViewModel : ObservableObject
     public void FocusMod(ModItemViewModel mod)
     {
         if (_modSelection.Focus(mod)) FocusedMod = mod;
+    }
+
+    /// <summary>点击卡片后清除新导入/已更新提示；先更新界面，再持久化清除结果。</summary>
+    public async Task DismissModNoticeAsync(ModItemViewModel mod)
+    {
+        if (!mod.HasNotice) return;
+        mod.DismissNotice();
+        await _modService.DismissModNoticeAsync(mod.Id);
     }
 
     /// <summary>Ctrl+点击切换多选，并把本次点击作为新的范围锚点。</summary>

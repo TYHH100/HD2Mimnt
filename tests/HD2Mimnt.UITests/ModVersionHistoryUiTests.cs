@@ -127,9 +127,9 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Same(profile.LocalVersions, panel.DataContext);
             ClickVersionControl(window, panel.FindControl<Button>("SwitchLocalVersionButton")!);
             await profile.LocalVersions.SwitchCommand.ExecutionTask!;
-            Assert.Equal("2", (await mods.GetModByIdAsync(id))!.Version);
-            Assert.Equal("2", Assert.Single(library.FilteredMods).Version);
-            Assert.Equal("2", Assert.Single(profile.ProfileMods).ModVersion);
+            Assert.Equal("1.1.0", (await mods.GetModByIdAsync(id))!.Version);
+            Assert.Equal("1.1.0", Assert.Single(library.FilteredMods).Version);
+            Assert.Equal("1.1.0", Assert.Single(profile.ProfileMods).ModVersion);
         }
         finally { await main.CanCloseAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
     }

@@ -131,6 +131,7 @@ public sealed class UiLocalization : INotifyPropertyChanged, IDisposable
         ["lua"] = "IAS.LuaRoute", ["native"] = "IAS.NativeRoute",
         ["Dark"] = "Options.Dark", ["Light"] = "Options.Light", ["System"] = "Options.System", ["Ore"] = "Options.Ore", ["Helldivers"] = "Options.Helldivers",
         ["Comfortable"] = "Options.Comfortable", ["Compact"] = "Options.Compact",
+        ["Badge"] = "Options.NoticeBadge", ["Outline"] = "Options.NoticeOutline", ["BadgeBlink"] = "Options.NoticeBadgeBlink",
         ["Copy"] = "Options.Copy", ["HardLink"] = "Options.HardLink", ["SymbolicLink"] = "Options.SymbolicLink",
         ["Found"] = "Game.Found", ["NotFound"] = "Game.NotFound", ["Invalid"] = "Game.Invalid",
         ["Detecting"] = "Game.Detecting", ["Running"] = "Task.Running", ["Pending"] = "Task.Pending",

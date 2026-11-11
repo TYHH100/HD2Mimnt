@@ -17,6 +17,8 @@ public interface IModRepository
     Task<IEnumerable<Mod>> GetByStatusAsync(ModStatus status, CancellationToken cancellationToken = default);
     Task AddAsync(Mod mod, CancellationToken cancellationToken = default);
     Task UpdateAsync(Mod mod, CancellationToken cancellationToken = default);
+    /// <summary>只更新卡片提示状态，不覆盖同一行的其它字段。</summary>
+    Task SetNoticeAsync(Guid id, ModNoticeKind notice, CancellationToken cancellationToken = default);
     /// <summary>只回填判重指纹派生缓存，不覆盖同一行的其它字段。</summary>
     Task SetContentFingerprintAsync(Guid id, string fingerprint, CancellationToken cancellationToken = default);
     /// <summary>判重候选：内容身份（哈希或指纹）命中的行，加上尚未持久化身份、需要补算指纹的旧行。</summary>

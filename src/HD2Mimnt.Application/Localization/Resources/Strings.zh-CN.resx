@@ -2423,6 +2423,15 @@
   <data name="Options.Compact" xml:space="preserve">
     <value>紧凑</value>
   </data>
+  <data name="Options.NoticeBadge" xml:space="preserve">
+    <value>仅标志</value>
+  </data>
+  <data name="Options.NoticeOutline" xml:space="preserve">
+    <value>仅描边</value>
+  </data>
+  <data name="Options.NoticeBadgeBlink" xml:space="preserve">
+    <value>标志 + 闪烁</value>
+  </data>
   <data name="Options.Copy" xml:space="preserve">
     <value>复制文件</value>
   </data>
@@ -3908,6 +3917,10 @@
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>默认关闭：阻止库内或历史版本中已有的相同内容重复入库。开启后允许独立副本；已有重复项不会自动删除。</value></data>
   <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>相同 GUID 自动更新</value></data>
   <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>默认开启：导入的模组清单 GUID 与库内已有模组相同时，直接更新该模组（保留配置引用、版本历史与部署记录），而不是新增副本；关闭后按“允许重复导入”设置处理。</value></data>
+  <data name="Settings.Library.NoticeStyle" xml:space="preserve"><value>新增/更新模组提示</value></data>
+  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>新导入或更新过的模组会在卡片上显示提示，点击卡片后消失。可选择标志、描边（淡入淡出）或标志 + 闪烁。</value></data>
+  <data name="Library.Notice.New" xml:space="preserve"><value>新增</value></data>
+  <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>导入无清单的模组时，自动生成 V1 清单格式而非旧版 Legacy 格式。启用后，库中没有清单的模组也可自动升级为 V1。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
