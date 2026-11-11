@@ -137,6 +137,10 @@
                 ToolTip.Tip="{loc:Loc UI.AddGroupSeparator}" IsVisible="False"/>
         <Button Content="{loc:Loc Darktide.Library.Import}" Command="{Binding ImportCommand}" Classes="accent"
                 IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Library.ImportFolder}" Command="{Binding ImportFolderCommand}" Classes="secondary"
+                IsEnabled="{Binding !IsBusy}"/>
+        <Button Content="{loc:Loc Darktide.Library.ImportFromGame}" Command="{Binding ImportFromGameCommand}" Classes="secondary"
+                IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{loc:Loc Darktide.Library.ImportFromGameHint}"/>
         <Button Content="{loc:Loc Darktide.Common.Refresh}" Command="{Binding RefreshCommand}" Classes="secondary"
                 IsEnabled="{Binding !IsBusy}"/>
         <Button Content="{loc:Loc Darktide.Common.Cancel}" Command="{Binding CancelOperationCommand}" Classes="tertiary"

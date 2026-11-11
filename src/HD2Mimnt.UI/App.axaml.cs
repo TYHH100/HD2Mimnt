@@ -249,6 +249,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<DarktideGameLocator>();
         services.AddSingleton<DarktideModMetadataReader>();
         services.AddSingleton<DarktideArchiveInspector>();
+        services.AddSingleton<DarktideFolderInspector>();
         services.AddSingleton<DarktideModInstaller>();
         services.AddSingleton<DarktideLoaderPackageInspector>();
         services.AddSingleton<DarktideLoaderInstaller>();
@@ -262,6 +263,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<DarktideGameLocator>(),
             sp.GetRequiredService<DarktideModMetadataReader>(),
             sp.GetRequiredService<DarktideArchiveInspector>(),
+            sp.GetRequiredService<DarktideFolderInspector>(),
             sp.GetRequiredService<DarktideModInstaller>(),
             sp.GetRequiredService<DarktideStoragePaths>(),
             sp.GetService<ILogger<DarktideManagerService>>()));

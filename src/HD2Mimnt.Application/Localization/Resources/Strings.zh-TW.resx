@@ -4289,12 +4289,19 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Darktide.Game.NotSet" xml:space="preserve"><value>未設定</value></data>
   <data name="Darktide.Game.ChooseFolderTitle" xml:space="preserve"><value>選擇暗潮遊戲目錄</value></data>
   <data name="Darktide.Game.Launch" xml:space="preserve"><value>啟動遊戲</value></data>
-  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>直接啟動 binaries/Darktide.exe；Steam 版請先確認 Steam 已執行。</value></data>
+  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>透過 Steam 啟動（appid 1361210）；需要已安裝 Steam。</value></data>
   <data name="Darktide.Game.LaunchFailed" xml:space="preserve"><value>無法啟動遊戲。</value></data>
   <data name="Darktide.Library.Title" xml:space="preserve"><value>模組庫</value></data>
   <data name="Darktide.Library.Subtitle" xml:space="preserve"><value>匯入、安裝、更新和卸載暗潮模組。</value></data>
   <data name="Darktide.Library.Summary" xml:space="preserve"><value>共 {0} 個 · 已安裝 {1} 個 · 已啟用 {2} 個</value></data>
   <data name="Darktide.Library.Import" xml:space="preserve"><value>匯入 ZIP</value></data>
+  <data name="Darktide.Library.ImportFolder" xml:space="preserve"><value>匯入資料夾</value></data>
+  <data name="Darktide.Library.ImportFromGame" xml:space="preserve"><value>從遊戲 mods 匯入</value></data>
+  <data name="Darktide.Library.ImportFromGameHint" xml:space="preserve"><value>識別遊戲 mods 目錄中已安裝但未入庫的模組，只加入模組庫，不改動遊戲檔案。</value></data>
+  <data name="Darktide.Library.SelectImportFolder" xml:space="preserve"><value>選擇要匯入的模組資料夾</value></data>
+  <data name="Darktide.Library.NoImportableGameMods" xml:space="preserve"><value>遊戲 mods 目錄中沒有可匯入的模組：已安裝模組都已入庫，或缺少與目錄同名的 .mod 檔案。</value></data>
+  <data name="Darktide.Library.ImportAllInstalled" xml:space="preserve"><value>全部匯入（{0} 個模組）</value></data>
+  <data name="Darktide.Library.ImportFromGameCompleted" xml:space="preserve"><value>已從遊戲 mods 匯入 {0} 個模組。</value></data>
   <data name="Darktide.Library.RegisterAfterImport" xml:space="preserve"><value>匯入後登記載入</value></data>
   <data name="Darktide.Library.Importing" xml:space="preserve"><value>正在匯入...</value></data>
   <data name="Darktide.Library.Installing" xml:space="preserve"><value>正在安裝...</value></data>

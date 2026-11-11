@@ -5,6 +5,8 @@ namespace HD2Mimnt.Core.Darktide;
 public static class DarktidePaths
 {
     public const string GameExecutableRelativePath = "binaries/Darktide.exe";
+    public const string SteamAppId = "1361210";
+    public const string SteamLaunchUri = "steam://rungameid/" + SteamAppId;
     public const string BundleDirectoryName = "bundle";
     public const string ModsDirectoryName = "mods";
     public const string LoadOrderRelativePath = "mods/mod_load_order.txt";

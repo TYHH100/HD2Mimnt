@@ -311,6 +311,129 @@ public sealed class DarktideManagerIntegrationTests
         Assert.Null(context.Manager.GetGameExecutablePath());
     }
 
+    [Fact]
+    public async Task ImportFolder_InstallsRegistersAndArchivesForReinstall()
+    {
+        using var env = new DarktideTestEnvironment();
+        env.CreateGame();
+        using var context = await Context.CreateAsync(env);
+        var folder = env.CreateModFolder("FolderMod");
+        var candidate = Assert.Single(context.Manager.InspectFolder(folder).Candidates);
+
+        var installed = await context.Manager.ImportFolderAsync(folder, candidate, allowReplace: false, register: true);
+
+        Assert.True(installed.Registered);
+        Assert.True(File.Exists(Path.Combine(env.GameRoot, "mods", "FolderMod", "FolderMod.mod")));
+        var entry = Assert.Single(await context.Repository.GetLibraryAsync());
+        Assert.Equal("FolderMod", entry.InternalName);
+        Assert.True(File.Exists(entry.ArchivePath));
+        Assert.DoesNotContain("FolderMod", (await context.Manager.GetGameModImportCandidatesAsync())
+            .Select(candidate => candidate.InternalName));
+
+        // 文件夹导入生成的归档必须能走普通 ZIP 重装流程。
+        await context.Manager.UninstallAsync("FolderMod", removeRegistration: true, deleteLibraryArchive: false);
+        Assert.False(Directory.Exists(Path.Combine(env.GameRoot, "mods", "FolderMod")));
+        var reinstalled = await context.Manager.ReinstallFromLibraryAsync("FolderMod", register: true);
+        Assert.True(reinstalled.Registered);
+        Assert.True(File.Exists(Path.Combine(env.GameRoot, "mods", "FolderMod", "FolderMod.mod")));
+    }
+
+    [Fact]
+    public async Task ImportFolderBundle_InstallsEveryModAndOrdersByDependencies()
+    {
+        using var env = new DarktideTestEnvironment();
+        env.CreateGame();
+        using var context = await Context.CreateAsync(env);
+        env.CreateModFolder("CustomAssets");
+        env.CreateModFolder("PlayerModelHub", required: new[] { "CustomAssets" });
+        var source = Path.Combine(env.Root, "sources");
+        var candidates = context.Manager.InspectFolder(source).Candidates;
+        Assert.Equal(2, candidates.Count);
+        var reversed = new[] { candidates[1], candidates[0] };
+
+        var results = await context.Manager.ImportFolderBundleAsync(source, reversed, allowReplace: false);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, result => Assert.True(result.Registered));
+        var order = DarktideLoadOrderDocument.Load(DarktidePaths.LoadOrderFile(env.GameRoot)).ActiveNames.ToList();
+        Assert.InRange(order.IndexOf("CustomAssets"), 0, order.IndexOf("PlayerModelHub") - 1);
+        Assert.Equal(2, (await context.Repository.GetLibraryAsync()).Count);
+    }
+
+    [Fact]
+    public async Task ImportFolder_RejectsFolderThatNeedsItsOwnInstaller()
+    {
+        using var env = new DarktideTestEnvironment();
+        env.CreateGame();
+        using var context = await Context.CreateAsync(env);
+        env.CreateModFolder("CustomAssets");
+        File.WriteAllText(Path.Combine(env.Root, "sources", "install.bat"), "@echo off\r\n");
+        var source = Path.Combine(env.Root, "sources");
+        var candidate = Assert.Single(context.Manager.InspectFolder(source).Candidates);
+        var before = await File.ReadAllBytesAsync(DarktidePaths.LoadOrderFile(env.GameRoot));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Manager.ImportFolderAsync(source, candidate, allowReplace: false, register: true));
+
+        Assert.Contains("作者自己的安装流程", error.Message);
+        Assert.False(Directory.Exists(Path.Combine(env.GameRoot, "mods", "CustomAssets")));
+        Assert.Equal(before, await File.ReadAllBytesAsync(DarktidePaths.LoadOrderFile(env.GameRoot)));
+        Assert.Empty(await context.Repository.GetLibraryAsync());
+    }
+
+    [Fact]
+    public async Task ImportInstalledMods_ArchivesWithoutTouchingGameFiles()
+    {
+        using var env = new DarktideTestEnvironment();
+        env.CreateGame();
+        env.AddMod("Alpha", register: false);
+        env.AddMod("Beta");
+        using var context = await Context.CreateAsync(env);
+        var alphaModBytes = await File.ReadAllBytesAsync(Path.Combine(env.GameRoot, "mods", "Alpha", "Alpha.mod"));
+
+        var candidates = await context.Manager.GetGameModImportCandidatesAsync();
+        Assert.Equal(new[] { "Alpha", "Beta" }, candidates.Select(candidate => candidate.InternalName));
+
+        var results = await context.Manager.ImportInstalledModsAsync(new[] { "Alpha", "Beta" }, register: true);
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, result => Assert.True(result.Registered));
+        Assert.False(results[0].ReplacedExisting);
+        var library = await context.Repository.GetLibraryAsync();
+        Assert.Equal(2, library.Count);
+        Assert.All(library, entry => Assert.True(File.Exists(entry.ArchivePath)));
+        Assert.Equal(alphaModBytes, await File.ReadAllBytesAsync(Path.Combine(env.GameRoot, "mods", "Alpha", "Alpha.mod")));
+        var document = DarktideLoadOrderDocument.Load(DarktidePaths.LoadOrderFile(env.GameRoot));
+        Assert.True(document.IsEnabled("Alpha"));
+        Assert.Equal(1, document.CountActive("Beta"));
+        Assert.Empty(await context.Manager.GetGameModImportCandidatesAsync());
+
+        // 收编后的归档同样支持卸载后重装。
+        await context.Manager.UninstallAsync("Alpha", removeRegistration: true, deleteLibraryArchive: false);
+        await context.Manager.ReinstallFromLibraryAsync("Alpha", register: true);
+        Assert.True(File.Exists(Path.Combine(env.GameRoot, "mods", "Alpha", "Alpha.mod")));
+    }
+
+    [Fact]
+    public async Task ImportInstalledMods_RejectsInvalidAndFrameworkFolders()
+    {
+        using var env = new DarktideTestEnvironment();
+        env.CreateGame();
+        using var context = await Context.CreateAsync(env);
+        var bad = Path.Combine(env.GameRoot, "mods", "Bad");
+        Directory.CreateDirectory(bad);
+        File.WriteAllText(Path.Combine(bad, "Other.mod"), "return {}");
+
+        var candidates = await context.Manager.GetGameModImportCandidatesAsync();
+        Assert.DoesNotContain(candidates, candidate => candidate.InternalName == "Bad");
+        Assert.DoesNotContain(candidates, candidate => candidate.InternalName == "dmf");
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            context.Manager.ImportInstalledModsAsync(new[] { "Bad" }, register: true));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            context.Manager.ImportInstalledModsAsync(new[] { "dmf" }, register: true));
+        Assert.Empty(await context.Repository.GetLibraryAsync());
+    }
+
     private sealed class Context : IDisposable
     {
         private HD2MimntDbContext _db = null!;
@@ -328,7 +451,7 @@ public sealed class DarktideManagerIntegrationTests
             context.Repository = new DarktideRepository(context._db);
             context.Manager = new DarktideManagerService(context.Settings, context.Repository,
                 new DarktideGameLocator(), new DarktideModMetadataReader(), new DarktideArchiveInspector(),
-                new DarktideModInstaller(), env.Storage);
+                new DarktideFolderInspector(), new DarktideModInstaller(), env.Storage);
             return context;
         }
 

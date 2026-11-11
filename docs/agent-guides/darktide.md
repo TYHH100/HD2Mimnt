@@ -13,7 +13,7 @@
 
 - **DMF/base 不是普通模组**：`base` 是 DML 核心，`dmf` 由 DML 自动插入；两者不应登记到加载顺序。管理器拒绝把 `base` 作为普通模组安装或启用；DMF 是独立框架，只能通过加载器页面的 DMF 导入入口安装到 `mods/dmf`，且不登记加载顺序。DMF 官方 GitHub 没有 Release，当前由 Nexus 分发，因此不自动下载。
 
-- **先分类再安装**：导入前必须判定压缩包属于 `StandardMod` / `ModBundle` / `CustomInstallRequired`。多模组但都在 `mods/` 下的包可以“全部安装”，并按 `info.json` 依赖顺序登记；一旦候选目录之外还有 `binaries/`、`bundle/`、`tools/`、其他 `mods/` 内容或 `.exe/.dll/.bat/.ps1`，属于作者自定义安装，必须整体拒绝并说明原因。只装一个模组目录而忽略插件 DLL 与补丁工具会留下“看起来成功、实际不能用”的半安装。
+- **先分类再安装**：导入前必须判定压缩包属于 `StandardMod` / `ModBundle` / `CustomInstallRequired`。文件夹导入复用同一 `DarktidePackageClassifier`，规则一致；文件夹内的符号链接/目录联接整体拒绝，不跟随复制。“从游戏 mods 导入”只生成归档与库记录，不移动、不重装游戏文件。多模组但都在 `mods/` 下的包可以“全部安装”，并按 `info.json` 依赖顺序登记；一旦候选目录之外还有 `binaries/`、`bundle/`、`tools/`、其他 `mods/` 内容或 `.exe/.dll/.bat/.ps1`，属于作者自定义安装，必须整体拒绝并说明原因。只装一个模组目录而忽略插件 DLL 与补丁工具会留下“看起来成功、实际不能用”的半安装。
 - **不代跑第三方安装器**：作者自带的 `.bat/.ps1` 和 `*-patcher.exe` 会改加载顺序、移动旧模组并打 bundle 补丁。管理器不得自动执行它们；只提示用户使用作者流程。加载顺序与游戏补丁只能由本管理器自己的、经用户确认的入口修改。DML/DMF 安装包不走普通模组导入，改用加载器页面。
 
 - **完整包和仅更新包按内容区分**：完整包含 `mods/mod_load_order.txt`，仅更新包不含。安装时永不覆盖已有加载顺序；安装后逐字节比较，变化就回滚。仅更新包要求已有 DML 核心与加载顺序。来源：https://github.com/Darktide-Mod-Framework/Darktide-Mod-Loader/releases/tag/26.06.24

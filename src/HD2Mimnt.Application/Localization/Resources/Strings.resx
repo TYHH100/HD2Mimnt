@@ -4289,12 +4289,19 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Darktide.Game.NotSet" xml:space="preserve"><value>Not set</value></data>
   <data name="Darktide.Game.ChooseFolderTitle" xml:space="preserve"><value>Select the Darktide game folder</value></data>
   <data name="Darktide.Game.Launch" xml:space="preserve"><value>Launch game</value></data>
-  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>Start binaries/Darktide.exe directly. For the Steam version, make sure Steam is running.</value></data>
+  <data name="Darktide.Game.LaunchHint" xml:space="preserve"><value>Launch via Steam (appid 1361210). Requires Steam to be installed.</value></data>
   <data name="Darktide.Game.LaunchFailed" xml:space="preserve"><value>Could not start the game.</value></data>
   <data name="Darktide.Library.Title" xml:space="preserve"><value>Mod Library</value></data>
   <data name="Darktide.Library.Subtitle" xml:space="preserve"><value>Import, install, update and remove Darktide mods.</value></data>
   <data name="Darktide.Library.Summary" xml:space="preserve"><value>{0} known · {1} installed · {2} enabled</value></data>
   <data name="Darktide.Library.Import" xml:space="preserve"><value>Import ZIP</value></data>
+  <data name="Darktide.Library.ImportFolder" xml:space="preserve"><value>Import Folder</value></data>
+  <data name="Darktide.Library.ImportFromGame" xml:space="preserve"><value>Import from Game Mods</value></data>
+  <data name="Darktide.Library.ImportFromGameHint" xml:space="preserve"><value>Recognize mods already installed in the game's mods folder and add them to the library without changing game files.</value></data>
+  <data name="Darktide.Library.SelectImportFolder" xml:space="preserve"><value>Select the mod folder to import</value></data>
+  <data name="Darktide.Library.NoImportableGameMods" xml:space="preserve"><value>No importable mods in the game's mods folder: installed mods are already in the library, or the .mod file matching the folder name is missing.</value></data>
+  <data name="Darktide.Library.ImportAllInstalled" xml:space="preserve"><value>Import all ({0} mods)</value></data>
+  <data name="Darktide.Library.ImportFromGameCompleted" xml:space="preserve"><value>Imported {0} mod(s) from the game mods folder.</value></data>
   <data name="Darktide.Library.RegisterAfterImport" xml:space="preserve"><value>Register after import</value></data>
   <data name="Darktide.Library.Importing" xml:space="preserve"><value>Importing...</value></data>
   <data name="Darktide.Library.Installing" xml:space="preserve"><value>Installing...</value></data>

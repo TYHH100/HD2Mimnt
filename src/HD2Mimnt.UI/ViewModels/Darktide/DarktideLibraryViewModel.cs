@@ -141,21 +141,29 @@ public partial class DarktideLibraryViewModel : DarktidePageViewModelBase
     private List<string> SequenceNames() => Mods.Select(item => item.InternalName).ToList();
 
     [RelayCommand]
-    private async Task ImportAsync()
+    private Task ImportAsync() => StartImportAsync(fromFolder: false);
+
+    [RelayCommand]
+    private Task ImportFolderAsync() => StartImportAsync(fromFolder: true);
+
+    private async Task StartImportAsync(bool fromFolder)
     {
         if (!LoaderReady)
         {
             Notifications.ShowWarning(UiLocalization.Current["Darktide.Library.NoGame"], UiLocalization.Current["Darktide.Title"]);
             return;
         }
-        await RunAsync(ImportCoreAsync, failTitleKey: "Darktide.Library.Title");
+        await RunAsync(cancellationToken => ImportCoreAsync(fromFolder, cancellationToken), failTitleKey: "Darktide.Library.Title");
     }
 
-    private async Task ImportCoreAsync(CancellationToken cancellationToken)
+    private async Task ImportCoreAsync(bool fromFolder, CancellationToken cancellationToken)
     {
-        var archive = await _dialogs.PickArchiveAsync();
-        if (archive == null) return;
-        var inspection = await Task.Run(() => _manager.InspectArchive(archive), cancellationToken);
+        var source = fromFolder
+            ? await _dialogs.PickFolderAsync("Darktide.Library.SelectImportFolder")
+            : await _dialogs.PickArchiveAsync();
+        if (source == null) return;
+        var inspection = await Task.Run(() => fromFolder ? _manager.InspectFolder(source) : _manager.InspectArchive(source),
+            cancellationToken);
         if (inspection.Error != null) throw new InvalidDataException(inspection.Error);
         if (inspection.Kind == DarktideArchivePackageKind.CustomInstallRequired)
         {
@@ -196,7 +204,7 @@ public partial class DarktideLibraryViewModel : DarktidePageViewModelBase
         IReadOnlyList<DarktideInstallResult> results;
         try
         {
-            results = await RunImportTaskAsync(archive, selected, allowReplace, cancellationToken);
+            results = await RunImportTaskAsync(source, fromFolder, selected, allowReplace, cancellationToken);
         }
         finally
         {
@@ -222,7 +230,7 @@ public partial class DarktideLibraryViewModel : DarktidePageViewModelBase
             Notifications.ShowWarning(warning, UiLocalization.Current["Darktide.Library.Title"]);
     }
 
-    private async Task<IReadOnlyList<DarktideInstallResult>> RunImportTaskAsync(string archive,
+    private async Task<IReadOnlyList<DarktideInstallResult>> RunImportTaskAsync(string source, bool fromFolder,
         IReadOnlyList<DarktideArchiveCandidate> selected, bool allowReplace, CancellationToken cancellationToken)
     {
         var names = string.Join(", ", selected.Select(candidate => candidate.InternalName));
@@ -243,10 +251,15 @@ public partial class DarktideLibraryViewModel : DarktidePageViewModelBase
             results = selected.Count == 1
                 ? new[]
                 {
-                    await _manager.ImportAsync(archive, selected[0], allowReplace, RegisterAfterImport,
-                        progress, token)
+                    fromFolder
+                        ? await _manager.ImportFolderAsync(source, selected[0], allowReplace, RegisterAfterImport,
+                            progress, token)
+                        : await _manager.ImportAsync(source, selected[0], allowReplace, RegisterAfterImport,
+                            progress, token)
                 }
-                : await _manager.ImportBundleAsync(archive, selected, allowReplace, progress, token);
+                : fromFolder
+                    ? await _manager.ImportFolderBundleAsync(source, selected, allowReplace, progress, token)
+                    : await _manager.ImportBundleAsync(source, selected, allowReplace, progress, token);
             taskProgress.Report(new TaskProgress
             {
                 Progress = 100, Stage = "Completed", CurrentItem = names,
@@ -254,6 +267,69 @@ public partial class DarktideLibraryViewModel : DarktidePageViewModelBase
             });
         }, cancellationToken);
         return results;
+    }
+
+    /// <summary>识别游戏 mods 目录中已安装但未入库的模组，只生成归档与库记录，不重装游戏文件。</summary>
+    [RelayCommand]
+    private async Task ImportFromGameAsync()
+    {
+        if (!LoaderReady)
+        {
+            Notifications.ShowWarning(UiLocalization.Current["Darktide.Library.NoGame"], UiLocalization.Current["Darktide.Title"]);
+            return;
+        }
+        await RunAsync(ImportFromGameCoreAsync, failTitleKey: "Darktide.Library.Title");
+    }
+
+    private async Task ImportFromGameCoreAsync(CancellationToken cancellationToken)
+    {
+        var candidates = await RunOffUiThreadAsync(token => _manager.GetGameModImportCandidatesAsync(token),
+            cancellationToken);
+        if (candidates.Count == 0)
+        {
+            Notifications.ShowInfo(UiLocalization.Current["Darktide.Library.NoImportableGameMods"],
+                UiLocalization.Current["Darktide.Library.Title"]);
+            return;
+        }
+        var selected = await _dialogs.PickCandidatesAsync(candidates, "Darktide.Library.ImportAllInstalled");
+        if (selected == null || selected.Count == 0) return;
+
+        var names = selected.Select(candidate => candidate.InternalName).ToList();
+        HasProgress = true;
+        ProgressPercent = 0;
+        ProgressText = UiLocalization.Current["Darktide.Library.Importing"];
+        IReadOnlyList<DarktideInstallResult> results = Array.Empty<DarktideInstallResult>();
+        try
+        {
+            await _tasks.RunTaskAsync($"从游戏 mods 导入暗潮模组（{names.Count} 个）", "DarktideImport",
+                async (taskProgress, token) =>
+                {
+                    taskProgress.Report(new TaskProgress
+                    {
+                        Progress = 0, Stage = "Import", CurrentItem = string.Join(", ", names),
+                        Message = UiLocalization.Current["Darktide.Library.Importing"]
+                    });
+                    var progress = CreateUiProgress(value =>
+                    {
+                        ProgressPercent = value;
+                        ProgressText = $"{UiLocalization.Current["Darktide.Library.Importing"]} {value:0}%";
+                    });
+                    results = await _manager.ImportInstalledModsAsync(names, RegisterAfterImport, progress, token);
+                    taskProgress.Report(new TaskProgress
+                    {
+                        Progress = 100, Stage = "Completed",
+                        Message = UiLocalization.Current["Darktide.Library.ImportCompleted"]
+                    });
+                }, cancellationToken);
+        }
+        finally
+        {
+            HasProgress = false;
+            ProgressText = "";
+        }
+        await LoadAsync(cancellationToken);
+        Notifications.ShowSuccess(UiLocalization.Current.Format("Darktide.Library.ImportFromGameCompleted", results.Count),
+            UiLocalization.Current["Darktide.Library.Title"]);
     }
 
     [RelayCommand]

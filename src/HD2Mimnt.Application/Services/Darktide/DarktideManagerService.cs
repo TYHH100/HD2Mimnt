@@ -17,6 +17,7 @@ public sealed class DarktideManagerService
     private readonly DarktideGameLocator _locator;
     private readonly DarktideModMetadataReader _metadataReader;
     private readonly DarktideArchiveInspector _archiveInspector;
+    private readonly DarktideFolderInspector _folderInspector;
     private readonly DarktideModInstaller _installer;
     private readonly DarktideStoragePaths _storage;
     private readonly ILogger<DarktideManagerService>? _logger;
@@ -24,7 +25,8 @@ public sealed class DarktideManagerService
 
     public DarktideManagerService(SettingsService settings, DarktideRepository repository,
         DarktideGameLocator locator, DarktideModMetadataReader metadataReader,
-        DarktideArchiveInspector archiveInspector, DarktideModInstaller installer,
+        DarktideArchiveInspector archiveInspector, DarktideFolderInspector folderInspector,
+        DarktideModInstaller installer,
         DarktideStoragePaths storage, ILogger<DarktideManagerService>? logger = null)
     {
         _settings = settings;
@@ -32,6 +34,7 @@ public sealed class DarktideManagerService
         _locator = locator;
         _metadataReader = metadataReader;
         _archiveInspector = archiveInspector;
+        _folderInspector = folderInspector;
         _installer = installer;
         _storage = storage;
         _logger = logger;
@@ -50,33 +53,29 @@ public sealed class DarktideManagerService
             : null;
     }
 
-    /// <summary>直接启动可执行文件；Steam 版需要 Steam 已在运行。</summary>
+    /// <summary>通过 Steam 协议启动（appid 1361210）；需要已安装 Steam 并关联 steam:// 协议。</summary>
     public DarktideGameLaunchResult LaunchGame()
     {
-        var executable = GetGameExecutablePath();
-        if (executable == null)
+        var game = GetGameState();
+        if (game.RootPath == null || game.Status == DarktideGameStatus.InvalidPath)
             return new DarktideGameLaunchResult(false, null, "请先在设置中选择有效的 Darktide 游戏目录。");
-        if (!File.Exists(executable))
-            return new DarktideGameLaunchResult(false, null, "未找到 binaries/Darktide.exe。");
 
         try
         {
             using var process = Process.Start(new ProcessStartInfo
             {
-                FileName = executable,
-                WorkingDirectory = Path.GetDirectoryName(executable)!,
+                FileName = DarktidePaths.SteamLaunchUri,
                 UseShellExecute = true
             });
-            if (process == null)
-                return new DarktideGameLaunchResult(false, null, "无法启动 Darktide.exe。");
-            _logger?.LogInformation("已启动 Darktide：{Path}（PID {ProcessId}）", executable, process.Id);
-            return new DarktideGameLaunchResult(true, process.Id, null);
+            _logger?.LogInformation("已通过 Steam 启动 Darktide：{Uri}", DarktidePaths.SteamLaunchUri);
+            return new DarktideGameLaunchResult(true, process?.Id, null);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException
                                        or IOException or UnauthorizedAccessException)
         {
-            _logger?.LogWarning(ex, "启动 Darktide 失败：{Path}", executable);
-            return new DarktideGameLaunchResult(false, null, ex.Message);
+            _logger?.LogWarning(ex, "通过 Steam 启动 Darktide 失败：{Uri}", DarktidePaths.SteamLaunchUri);
+            return new DarktideGameLaunchResult(false, null,
+                $"无法通过 Steam 启动游戏，请确认已安装 Steam：{ex.Message}");
         }
     }
 
@@ -102,18 +101,40 @@ public sealed class DarktideManagerService
 
     public DarktideArchiveInspection InspectArchive(string archivePath) => _archiveInspector.Inspect(archivePath);
 
+    public DarktideArchiveInspection InspectFolder(string folderPath) => _folderInspector.Inspect(folderPath);
+
     public async Task<DarktideInstallResult> ImportAsync(string archivePath, DarktideArchiveCandidate candidate,
         bool allowReplace, bool register, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
-        try { return await ImportCoreAsync(archivePath, candidate, allowReplace, register, progress, cancellationToken); }
+        try { return await ImportCoreAsync(archivePath, candidate, allowReplace, register, progress, cancellationToken, fromFolder: false); }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>从文件夹导入单个模组；分类与安全规则与 ZIP 导入一致。</summary>
+    public async Task<DarktideInstallResult> ImportFolderAsync(string folderPath, DarktideArchiveCandidate candidate,
+        bool allowReplace, bool register, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try { return await ImportCoreAsync(folderPath, candidate, allowReplace, register, progress, cancellationToken, fromFolder: true); }
         finally { _gate.Release(); }
     }
 
     /// <summary>一次安装压缩包内的多个模组，并按依赖顺序登记到 mod_load_order.txt。</summary>
-    public async Task<IReadOnlyList<DarktideInstallResult>> ImportBundleAsync(string archivePath,
+    public Task<IReadOnlyList<DarktideInstallResult>> ImportBundleAsync(string archivePath,
         IReadOnlyList<DarktideArchiveCandidate> candidates, bool allowReplace,
         IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+        => ImportBundleCoreAsync(archivePath, candidates, allowReplace, progress, cancellationToken, fromFolder: false);
+
+    /// <summary>一次安装文件夹内的多个模组，并按依赖顺序登记到 mod_load_order.txt。</summary>
+    public Task<IReadOnlyList<DarktideInstallResult>> ImportFolderBundleAsync(string folderPath,
+        IReadOnlyList<DarktideArchiveCandidate> candidates, bool allowReplace,
+        IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+        => ImportBundleCoreAsync(folderPath, candidates, allowReplace, progress, cancellationToken, fromFolder: true);
+
+    private async Task<IReadOnlyList<DarktideInstallResult>> ImportBundleCoreAsync(string sourcePath,
+        IReadOnlyList<DarktideArchiveCandidate> candidates, bool allowReplace,
+        IProgress<double>? progress, CancellationToken cancellationToken, bool fromFolder)
     {
         if (candidates.Count == 0) throw new InvalidOperationException("没有选择要安装的模组。");
         await _gate.WaitAsync(cancellationToken);
@@ -124,8 +145,8 @@ public sealed class DarktideManagerService
             for (var index = 0; index < candidates.Count; index++)
             {
                 var child = progress == null ? null : new ScaledProgress(index * span, span, progress);
-                results.Add(await ImportCoreAsync(archivePath, candidates[index], allowReplace,
-                    register: false, child, cancellationToken));
+                results.Add(await ImportCoreAsync(sourcePath, candidates[index], allowReplace,
+                    register: false, child, cancellationToken, fromFolder));
             }
 
             var game = RequireLoader();
@@ -142,18 +163,18 @@ public sealed class DarktideManagerService
         finally { _gate.Release(); }
     }
 
-    private async Task<DarktideInstallResult> ImportCoreAsync(string archivePath, DarktideArchiveCandidate candidate,
-        bool allowReplace, bool register, IProgress<double>? progress, CancellationToken cancellationToken)
+    private async Task<DarktideInstallResult> ImportCoreAsync(string sourcePath, DarktideArchiveCandidate candidate,
+        bool allowReplace, bool register, IProgress<double>? progress, CancellationToken cancellationToken, bool fromFolder)
     {
         var game = RequireLoader();
-        var inspection = _archiveInspector.Inspect(archivePath);
+        var inspection = fromFolder ? _folderInspector.Inspect(sourcePath) : _archiveInspector.Inspect(sourcePath);
         if (inspection.Error != null) throw new InvalidDataException(inspection.Error);
         if (inspection.Kind == DarktideArchivePackageKind.CustomInstallRequired)
         {
             var sample = inspection.ExtraFiles.FirstOrDefault() ?? "";
             throw new InvalidOperationException(
-                $"该压缩包还包含 {inspection.ExtraFiles.Count} 个模组目录之外的文件（例如 {sample}），" +
-                "需要作者自己的安装流程。管理器不会只安装其中一部分，请按压缩包内的说明或使用其自带安装脚本。");
+                $"该模组包还包含 {inspection.ExtraFiles.Count} 个模组目录之外的文件（例如 {sample}），" +
+                "需要作者自己的安装流程。管理器不会只安装其中一部分，请按包内的说明或使用其自带安装脚本。");
         }
         var selected = inspection.Candidates.FirstOrDefault(item =>
             string.Equals(item.RelativeRoot, candidate.RelativeRoot, StringComparison.OrdinalIgnoreCase)
@@ -184,16 +205,21 @@ public sealed class DarktideManagerService
         try
         {
             Directory.CreateDirectory(stagingRoot);
-            await _archiveInspector.ExtractCandidateAsync(archivePath, selected, stagedModRoot, cancellationToken, progress);
+            if (fromFolder)
+                await _folderInspector.CopyCandidateAsync(sourcePath, selected, stagedModRoot, cancellationToken, progress);
+            else
+                await _archiveInspector.ExtractCandidateAsync(sourcePath, selected, stagedModRoot, cancellationToken, progress);
             var (metadata, modFilePresent) = _metadataReader.ReadStagedMod(stagedModRoot, installName);
             if (!modFilePresent) throw new InvalidDataException($"模组缺少 {installName}.mod。");
 
             if (!isDmf)
             {
-                var managedArchive = await CopyArchiveToLibraryAsync(archivePath, cancellationToken);
+                var managedArchive = fromFolder
+                    ? await CreateArchiveFromFolderAsync(stagedModRoot, installName, cancellationToken)
+                    : await CopyArchiveToLibraryAsync(sourcePath, cancellationToken);
                 await _repository.UpsertLibraryAsync(new DarktideLibraryEntry(
                     installName, metadata.DisplayName, metadata.Version, metadata.Author,
-                    metadata.Description, managedArchive.Path, Path.GetFileName(archivePath), managedArchive.Sha256,
+                    metadata.Description, managedArchive.Path, Path.GetFileName(sourcePath), managedArchive.Sha256,
                     managedArchive.Size, metadata.RequiredDependencies,
                     existingLibrary?.ImportedAt ?? DateTime.UtcNow, DateTime.UtcNow), cancellationToken);
             }
@@ -284,6 +310,81 @@ public sealed class DarktideManagerService
                 return result with { Registered = registered };
             }
             finally { _installer.CleanupDirectory(stagingRoot); }
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>
+    /// 识别游戏 mods 目录中已安装但尚未入库的模组，供“从游戏 mods 导入”选择。
+    /// 只列出目录名与 .mod 文件名一致的有效模组；base/dmf 与暂存/备份目录不参与。
+    /// </summary>
+    public async Task<IReadOnlyList<DarktideArchiveCandidate>> GetGameModImportCandidatesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var game = GetGameState();
+        if (game.RootPath == null || !game.HasModsDirectory) return Array.Empty<DarktideArchiveCandidate>();
+        var library = await _repository.GetLibraryAsync(cancellationToken);
+        var inLibrary = library.Select(entry => entry.InternalName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return ScanInstalledMods(game).Mods
+            .Where(mod => !mod.IsFramework && mod.FolderNameMatchesModFile && mod.Metadata.HasModFile
+                          && !inLibrary.Contains(mod.InternalName))
+            .OrderBy(mod => mod.InternalName, StringComparer.OrdinalIgnoreCase)
+            .Select(mod => new DarktideArchiveCandidate(mod.InternalName, mod.InternalName,
+                mod.InternalName + ".mod", mod.Metadata.HasScripts, mod.Metadata.HasInfoJson, 0, 0))
+            .ToList();
+    }
+
+    /// <summary>
+    /// 把游戏 mods 目录中已安装的模组收编进模组库：只生成归档与库记录，不移动、不重装游戏文件。
+    /// </summary>
+    public async Task<IReadOnlyList<DarktideInstallResult>> ImportInstalledModsAsync(IReadOnlyList<string> internalNames,
+        bool register, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+    {
+        if (internalNames.Count == 0) throw new InvalidOperationException("没有选择要导入的模组。");
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var game = RequireLoader();
+            var library = await _repository.GetLibraryAsync(cancellationToken);
+            var document = register ? LoadOrderFor(game.RootPath!) : null;
+            var changed = false;
+            var results = new List<DarktideInstallResult>();
+            var span = 100d / internalNames.Count;
+            for (var index = 0; index < internalNames.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var name = internalNames[index];
+                if (!DarktidePaths.IsSafeModFolderName(name))
+                    throw new InvalidOperationException($"不安全的模组目录名：{name}");
+                var folder = DarktidePaths.ResolveModFolder(game.RootPath!, name);
+                if (!Directory.Exists(folder)) throw new DirectoryNotFoundException($"模组目录不存在：{name}");
+                if (DarktidePaths.IsReparsePoint(folder))
+                    throw new InvalidOperationException("模组目录是符号链接或目录联接，已停止导入。");
+                var mod = _metadataReader.ReadInstalledMod(folder);
+                if (mod == null || !mod.FolderNameMatchesModFile || !mod.Metadata.HasModFile)
+                    throw new InvalidDataException($"模组缺少有效的 {name}.mod。");
+
+                var child = progress == null ? null : new ScaledProgress(index * span, span, progress);
+                var archive = await CreateArchiveFromFolderAsync(folder, name, cancellationToken);
+                var existing = library.FirstOrDefault(entry =>
+                    string.Equals(entry.InternalName, name, StringComparison.OrdinalIgnoreCase));
+                await _repository.UpsertLibraryAsync(new DarktideLibraryEntry(
+                    name, mod.Metadata.DisplayName, mod.Metadata.Version, mod.Metadata.Author,
+                    mod.Metadata.Description, archive.Path, Path.GetFileName(folder), archive.Sha256,
+                    archive.Size, mod.Metadata.RequiredDependencies,
+                    existing?.ImportedAt ?? DateTime.UtcNow, DateTime.UtcNow), cancellationToken);
+                var registered = false;
+                if (document != null)
+                {
+                    changed |= document.Enable(name);
+                    registered = document.IsEnabled(name);
+                }
+                results.Add(new DarktideInstallResult(name, folder, false, registered, Array.Empty<string>()));
+                child?.Report(100);
+                _logger?.LogInformation("暗潮模组已从游戏 mods 入库: {Name}", name);
+            }
+            if (changed) document!.Save(_storage.LoadOrderBackups);
+            return results;
         }
         finally { _gate.Release(); }
     }
@@ -795,6 +896,34 @@ public sealed class DarktideManagerService
                          FileShare.None, bufferSize: 81920, useAsync: true))
             await source.CopyToAsync(destination, cancellationToken);
         return (managedPath, sha256, new FileInfo(managedPath).Length);
+    }
+
+    /// <summary>把模组目录打包成 ZIP 存入模组库归档，命名与哈希规则与 ZIP 导入一致。</summary>
+    private async Task<(string Path, string Sha256, long Size)> CreateArchiveFromFolderAsync(string sourceFolder,
+        string internalName, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(_storage.Archives);
+        Directory.CreateDirectory(_storage.Temp);
+        var tempPath = Path.Combine(_storage.Temp, $"darktide-folder-{Guid.NewGuid():N}.zip");
+        try
+        {
+            await _folderInspector.CreateArchiveAsync(sourceFolder, internalName, tempPath, cancellationToken);
+            string sha256;
+            await using (var stream = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                             bufferSize: 81920, useAsync: true))
+                sha256 = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken)).ToLowerInvariant();
+            var managedPath = Path.GetFullPath(Path.Combine(_storage.Archives,
+                $"{sha256[..12]}-{SanitizeFileName(internalName + ".zip")}"));
+            PathGuard.ResolveInsideRoot(_storage.Archives, managedPath, "模组库归档路径越界。");
+            if (File.Exists(managedPath)) return (managedPath, sha256, new FileInfo(managedPath).Length);
+            File.Move(tempPath, managedPath);
+            return (managedPath, sha256, new FileInfo(managedPath).Length);
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private async Task DeleteLibraryArchiveAsync(string internalName, CancellationToken cancellationToken)

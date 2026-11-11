@@ -51,6 +51,23 @@ internal sealed class DarktideTestEnvironment : IDisposable
         IReadOnlyList<string>? required = null, bool register = true)
     {
         var folder = Path.Combine(GameRoot, "mods", name);
+        WriteModContent(folder, name, version, author, required);
+        if (register) AppendLoadOrder(name);
+        return folder;
+    }
+
+    /// <summary>在游戏目录之外创建模组源文件夹，供文件夹导入测试使用。</summary>
+    public string CreateModFolder(string name, string version = "1.0.0", string author = "Tester",
+        IReadOnlyList<string>? required = null)
+    {
+        var folder = Path.Combine(Root, "sources", name);
+        WriteModContent(folder, name, version, author, required);
+        return folder;
+    }
+
+    private static void WriteModContent(string folder, string name, string version, string author,
+        IReadOnlyList<string>? required)
+    {
         Directory.CreateDirectory(Path.Combine(folder, "scripts", "mods", name));
         File.WriteAllText(Path.Combine(folder, name + ".mod"), "return { run = function() end }");
         File.WriteAllText(Path.Combine(folder, "scripts", "mods", name, name + ".lua"), "return {}");
@@ -59,8 +76,6 @@ internal sealed class DarktideTestEnvironment : IDisposable
             : "";
         File.WriteAllText(Path.Combine(folder, "info.json"),
             $"{{\"name\":\"{name} Display\",\"version\":\"{version}\",\"author\":\"{author}\",\"description\":\"{name} description\"{dependencies}}}");
-        if (register) AppendLoadOrder(name);
-        return folder;
     }
 
     public void AppendLoadOrder(string text)

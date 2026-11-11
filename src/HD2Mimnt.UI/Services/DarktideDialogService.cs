@@ -11,10 +11,11 @@ public interface IDarktideDialogService
 {
     void SetOwner(Window owner);
     Task<string?> PickArchiveAsync();
-    Task<string?> PickFolderAsync();
+    Task<string?> PickFolderAsync(string titleKey = "Darktide.Game.ChooseFolderTitle");
     Task<string?> PickImageAsync();
     Task<string?> PromptAsync(string titleKey, string labelKey, string initialValue = "");
-    Task<IReadOnlyList<DarktideArchiveCandidate>?> PickCandidatesAsync(IReadOnlyList<DarktideArchiveCandidate> candidates);
+    Task<IReadOnlyList<DarktideArchiveCandidate>?> PickCandidatesAsync(IReadOnlyList<DarktideArchiveCandidate> candidates,
+        string allLabelKey = "Darktide.Library.InstallAllCandidates");
     Task<bool> ConfirmAsync(string title, string message);
     void OpenFolder(string path);
     void OpenFile(string path);
@@ -53,12 +54,12 @@ public sealed class DarktideDialogService : IDarktideDialogService
         return files.Count == 1 ? files[0].TryGetLocalPath() : null;
     }
 
-    public async Task<string?> PickFolderAsync()
+    public async Task<string?> PickFolderAsync(string titleKey = "Darktide.Game.ChooseFolderTitle")
     {
         if (_owner == null) return null;
         var folders = await _owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = UiLocalization.Current["Darktide.Game.ChooseFolderTitle"], AllowMultiple = false
+            Title = UiLocalization.Current[titleKey], AllowMultiple = false
         });
         return folders.Count == 1 ? folders[0].TryGetLocalPath() : null;
     }
@@ -84,12 +85,12 @@ public sealed class DarktideDialogService : IDarktideDialogService
     }
 
     public async Task<IReadOnlyList<DarktideArchiveCandidate>?> PickCandidatesAsync(
-        IReadOnlyList<DarktideArchiveCandidate> candidates)
+        IReadOnlyList<DarktideArchiveCandidate> candidates, string allLabelKey = "Darktide.Library.InstallAllCandidates")
     {
         if (candidates.Count == 1) return new[] { candidates[0] };
         if (_owner == null) return null;
         var localizer = UiLocalization.Current;
-        var labels = new List<string> { localizer.Format("Darktide.Library.InstallAllCandidates", candidates.Count) };
+        var labels = new List<string> { localizer.Format(allLabelKey, candidates.Count) };
         labels.AddRange(candidates.Select(candidate => $"{candidate.DisplayPath}  —  {candidate.InternalName}"));
         var combo = new ComboBox { ItemsSource = labels, SelectedIndex = 0, MinWidth = 420 };
         var content = new StackPanel { Spacing = 8 };

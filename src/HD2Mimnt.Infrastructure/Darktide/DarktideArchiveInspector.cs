@@ -9,12 +9,6 @@ public sealed class DarktideArchiveInspector
     private const int MaxEntries = 100_000;
     private const long MaxTotalBytes = 16L * 1024 * 1024 * 1024;
 
-    private static readonly string[] ExecutableExtensions =
-    {
-        ".exe", ".dll", ".bat", ".cmd", ".ps1", ".psm1", ".vbs", ".js", ".jse", ".wsf",
-        ".scr", ".lnk", ".com", ".msi", ".sys", ".ocx", ".so", ".dylib"
-    };
-
     public DarktideArchiveInspection Inspect(string archivePath)
     {
         try
@@ -26,62 +20,15 @@ public sealed class DarktideArchiveInspector
             if (entries.Error != null)
                 return new DarktideArchiveInspection(archivePath, Array.Empty<DarktideArchiveCandidate>(), entries.Error);
 
-            var candidates = new List<DarktideArchiveCandidate>();
-            foreach (var (entry, path) in entries.Files.Where(file => file.Path.EndsWith(".mod", StringComparison.OrdinalIgnoreCase)))
-            {
-                var internalName = Path.GetFileNameWithoutExtension(path);
-                if (internalName.Length == 0) continue;
-                var root = path.Contains('/') ? path[..path.LastIndexOf('/')] : "";
-                if (root.Length == 0 && entries.Files.Count(file => file.Path.EndsWith(".mod", StringComparison.OrdinalIgnoreCase)) > 1)
-                    return new DarktideArchiveInspection(archivePath, Array.Empty<DarktideArchiveCandidate>(),
-                        "压缩包根目录存在多个 .mod 文件，无法确定模组边界。");
-                if (candidates.Any(candidate => string.Equals(candidate.RelativeRoot, root, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-                var underRoot = entries.Files.Where(file => IsUnderRoot(file.Path, root)).ToList();
-                var hasScripts = underRoot.Any(file => file.Path.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)
-                                                        && IsUnderRoot(file.Path[root.Length..].TrimStart('/'), "scripts"));
-                var hasInfo = underRoot.Any(file => string.Equals(
-                    root.Length == 0 ? file.Path : file.Path[(root.Length + 1)..], "info.json", StringComparison.OrdinalIgnoreCase));
-                candidates.Add(new DarktideArchiveCandidate(root, internalName, Path.GetFileName(path), hasScripts, hasInfo,
-                    underRoot.Count, underRoot.Sum(file => Math.Max(0, file.Entry.Length))));
-            }
-
-            candidates = candidates.OrderBy(candidate => candidate.RelativeRoot.Count(c => c == '/'))
-                .ThenBy(candidate => candidate.RelativeRoot, StringComparer.OrdinalIgnoreCase).ToList();
-            if (candidates.Count == 0)
-                return new DarktideArchiveInspection(archivePath, candidates,
-                    "压缩包中未找到“<名称>/<名称>.mod”结构；请确认下载的是 DMF 模组而不是加载器安装包。");
-
-            var roots = candidates.Select(candidate => candidate.RelativeRoot).ToList();
-            var outside = entries.Files
-                .Where(file => !roots.Any(root => IsUnderRoot(file.Path, root)))
-                .Select(file => file.Path)
-                .ToList();
-            var risky = outside.Where(IsRiskyExtra).ToList();
-            var kind = risky.Count > 0
-                ? DarktideArchivePackageKind.CustomInstallRequired
-                : candidates.Count > 1 ? DarktideArchivePackageKind.ModBundle : DarktideArchivePackageKind.StandardMod;
-            return new DarktideArchiveInspection(archivePath, candidates, null, kind, outside);
+            var (candidates, error, kind, extra) = DarktidePackageClassifier.Classify(
+                entries.Files.Select(file => (file.Path, file.Entry.Length)).ToList());
+            return new DarktideArchiveInspection(archivePath, candidates, error, kind, extra);
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException)
         {
             return new DarktideArchiveInspection(archivePath, Array.Empty<DarktideArchiveCandidate>(),
                 $"无法读取压缩包：{ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// 候选模组目录之外的文件是否会影响安装结果：游戏根目录文件、可执行/脚本文件，
-    /// 以及落在 mods 下但没有 .mod 的目录（作者安装流程会用到它们）。
-    /// </summary>
-    private static bool IsRiskyExtra(string path)
-    {
-        if (path.StartsWith("binaries/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("bundle/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("tools/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("mods/", StringComparison.OrdinalIgnoreCase))
-            return true;
-        return ExecutableExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task ExtractCandidateAsync(string archivePath, DarktideArchiveCandidate candidate,
