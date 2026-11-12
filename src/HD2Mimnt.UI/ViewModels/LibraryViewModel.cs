@@ -1612,6 +1612,20 @@ public partial class LibraryViewModel : ObservableObject
                 _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "部署模组");
                 return;
             }
+            if (IsHellForgeMode)
+            {
+                DeploymentTitle = "同步到 HellForge";
+                var hfOrder = await ReadDeploymentOrderAsync();
+                await RunHellForgeSyncTaskAsync("同步到 HellForge", "同步到 HellForge",
+                    $"配置：{profile.Name}\n启用模组：{profile.Mods.Count(mod => mod.Enabled)} 个\n将把启用的普通模组导入 HellForge 的 mods 目录（Lua 加载器与 HD2IAS 模组跳过），由 HellForge 会话负责暂存与清理，不写入游戏副本。是否继续？",
+                    new Dictionary<string, string>
+                    {
+                        ["Mode"] = "Sync",
+                        ["ProfileId"] = profile.Id.ToString(),
+                        ["Order"] = hfOrder.ToString()
+                    }, deploymentCts);
+                return;
+            }
             var gamePath = _gameDetectionService.CurrentGameInfo?.Path;
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -1675,6 +1689,39 @@ public partial class LibraryViewModel : ObservableObject
     private async Task CleanupAsync()
     {
         if (IsDeploying) return;
+        if (IsHellForgeMode)
+        {
+            IsDeploying = true;
+            ResetDeploymentProgress();
+            DeploymentTitle = "清理 HellForge 模组";
+            IsDeploymentProgressOpen = true;
+            _deploymentCts = new CancellationTokenSource();
+            var hfCts = _deploymentCts;
+            try
+            {
+                await RunHellForgeSyncTaskAsync("清理 HellForge 模组", "清理 HellForge 模组",
+                    "将从 HellForge 的 mods 目录移除本管理器同步的全部模组（不影响游戏副本与他人模组）。是否继续？",
+                    new Dictionary<string, string> { ["Mode"] = "Remove" }, hfCts);
+            }
+            catch (OperationCanceledException)
+            {
+                _notificationService.ShowWarning("同步清理已取消", "清理 HellForge 模组");
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowError($"同步清理失败: {ex.Message}", "清理 HellForge 模组");
+            }
+            finally
+            {
+                _deploymentCts = null;
+                hfCts.Dispose();
+                IsDeploying = false;
+                IsDeploymentProgressOpen = false;
+                DeploymentMessage = string.Empty;
+                ResetDeploymentProgress();
+            }
+            return;
+        }
         if (!await _confirmationService.ConfirmAsync(
                 "清理部署",
                 "将删除最近一次部署产生的目标文件和部署记录。是否继续？"))
@@ -1763,6 +1810,56 @@ public partial class LibraryViewModel : ObservableObject
                 break;
             default:
                 _notificationService.ShowError(task?.Message ?? "部署失败", "部署模组");
+                break;
+        }
+    }
+
+    private bool IsHellForgeMode =>
+        _settingsService?.GetGameInstallationMode() == GameInstallationMode.HellForge;
+
+    private async Task<DeploymentOrder> ReadDeploymentOrderAsync()
+    {
+        var savedOrder = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
+            : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
+        return savedOrder == DeploymentOrder.BottomToTop.ToString() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom;
+    }
+
+    /// <summary>HellForge 模式：部署=同步模组进 mods\，清理=移除本管理器同步的模组；经独立 Worker 进程执行。</summary>
+    private async Task RunHellForgeSyncTaskAsync(string taskTitle, string confirmTitle, string confirmMessage,
+        Dictionary<string, string> args, CancellationTokenSource cts)
+    {
+        DeploymentMessage = "等待确认...";
+        if (!await _confirmationService.ConfirmAsync(confirmTitle, confirmMessage)) return;
+        DeploymentMessage = "正在同步到 HellForge...";
+        var progress = new Progress<TaskProgress>(p =>
+        {
+            if (ReferenceEquals(_deploymentCts, cts) && !cts.IsCancellationRequested && !string.IsNullOrWhiteSpace(p.Message))
+                DeploymentMessage = p.Message;
+        });
+        var outcome = await RequireTaskService().RunProcessTaskAsync(taskTitle, "HellForgeSync", args, progress,
+            cancellationToken: cts.Token);
+        ShowHellForgeSyncOutcome(outcome.Task, taskTitle);
+        await LoadModsAsync();
+    }
+
+    private void ShowHellForgeSyncOutcome(ModTask? task, string title)
+    {
+        switch (task?.Status)
+        {
+            case TaskStatus.Completed:
+                _notificationService.ShowSuccess(string.IsNullOrWhiteSpace(task.Result) ? "同步完成" : task.Result, title);
+                break;
+            case TaskStatus.PartiallyFailed:
+                _notificationService.ShowWarning(task.Result ?? "同步未完全成功", title);
+                break;
+            case TaskStatus.Cancelled:
+                _notificationService.ShowWarning("同步已取消", title);
+                break;
+            case TaskStatus.ForceTerminated:
+                _notificationService.ShowWarning("同步已强制终止", title);
+                break;
+            default:
+                _notificationService.ShowError(task?.Message ?? "同步失败", title);
                 break;
         }
     }

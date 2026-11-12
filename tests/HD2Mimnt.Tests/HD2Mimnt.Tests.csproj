@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\HD2Mimnt.PluginLua\HD2Mimnt.PluginLua.csproj" />
     <ProjectReference Include="..\..\src\HD2Mimnt.UI\HD2Mimnt.UI.csproj" />
     <ProjectReference Include="..\HD2Mimnt.WorkerStub\HD2Mimnt.WorkerStub.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.HellForgeCliStub\HD2Mimnt.HellForgeCliStub.csproj" />
   </ItemGroup>
 
 </Project>

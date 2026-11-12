@@ -18,6 +18,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj" />
+    <Project Path="tests/HD2Mimnt.HellForgeCliStub/HD2Mimnt.HellForgeCliStub.csproj" />
     <Project Path="tests/HD2Mimnt.PerformanceTests/HD2Mimnt.PerformanceTests.csproj" />
     <Project Path="tests/HD2Mimnt.StabilityTests/HD2Mimnt.StabilityTests.csproj" />
     <Project Path="tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj" />

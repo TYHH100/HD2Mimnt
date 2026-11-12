@@ -481,6 +481,7 @@ public partial class App : Avalonia.Application
             taskService.RegisterProcessWorker("Validation");
             taskService.RegisterProcessWorker("Deployment");
             taskService.RegisterProcessWorker("Cleanup");
+            taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
             return taskService;
         });
@@ -547,7 +548,22 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton(sp => new GameDetectionService(
             sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetService<ILogger<GameDetectionService>>()));
+        services.AddSingleton(sp => new HellForgeService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetService<ILogger<HellForgeService>>()));
+        services.AddSingleton(sp => new HellForgeSessionService(
+            sp.GetRequiredService<HellForgeService>(),
+            sp.GetService<ILogger<HellForgeSessionService>>()));
+        services.AddSingleton(sp => new HellForgeModSyncService(
+            sp.GetRequiredService<HellForgeService>(),
+            sp.GetRequiredService<IProfileRepository>(),
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<SettingsService>(),
+            Path.Combine(storageLocations.CachePath, "HellForgeSync"),
+            Path.Combine(appDataPath, "hellforge-sync.json"),
+            sp.GetService<ILogger<HellForgeModSyncService>>()));
 
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();
@@ -671,6 +687,7 @@ public partial class App : Avalonia.Application
                 Path.Combine(appDataPath, "Cache", "IAS-Generator"),
                 Path.Combine(appDataPath, "IAS-System", "deployment.json")));
         services.AddTransient<IasSystemViewModel>();
+        services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -716,6 +733,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
             sp.GetRequiredService<IasSystemViewModel>(),
             sp.GetRequiredService<AppUpdateViewModel>(),
-            sp.GetRequiredService<IPluginService>()));
+            sp.GetRequiredService<IPluginService>(),
+            sp.GetRequiredService<HellForgeViewModel>(),
+            sp.GetRequiredService<HellForgeSessionService>()));
     }
 }

@@ -2864,7 +2864,8 @@ public sealed partial class FluentAvaloniaUiTests
             var pageHost = window.FindControl<TabControl>("PageHost")!;
             Assert.IsType<FluentAvaloniaTheme>(Avalonia.Application.Current!.Styles[0]);
 
-            foreach (var item in navigation.MenuItems.OfType<FANavigationViewItem>())
+            // 隐藏入口（如未启用 HellForge 源时的专页）用户点不到，不参与选择同步断言。
+            foreach (var item in navigation.MenuItems.OfType<FANavigationViewItem>().Where(item => item.IsVisible))
             {
                 var index = int.Parse(item.Tag!.ToString()!);
                 navigation.SelectedItem = item;

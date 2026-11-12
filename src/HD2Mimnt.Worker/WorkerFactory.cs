@@ -37,6 +37,7 @@ public static class WorkerFactory
                 services.GetRequiredService<IWorkflowRegistry>()),
             "Deployment" => new DeploymentWorkerTask(services.GetRequiredService<DeploymentService>()),
             "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
+            "HellForgeSync" => new HellForgeSyncWorkerTask(services.GetRequiredService<HellForgeModSyncService>()),
             "Import" => new ImportWorkerTask(services.GetRequiredService<ModService>()),
             _ => throw new ArgumentException($"Unknown worker type: {workerType}", nameof(workerType))
         };

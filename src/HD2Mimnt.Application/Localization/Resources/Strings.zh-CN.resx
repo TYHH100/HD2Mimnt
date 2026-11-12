@@ -4349,4 +4349,106 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>中</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>高</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>最高</value></data>
+  <data name="HellForge.Title" xml:space="preserve"><value>HellForge 档案</value></data>
+  <data name="HellForge.Description" xml:space="preserve"><value>查看 HellForge 安装状态并管理玩家档案（进度与库存）。切换档案对下一次会话生效。</value></data>
+  <data name="HellForge.StatusTitle" xml:space="preserve"><value>安装状态</value></data>
+  <data name="HellForge.Version" xml:space="preserve"><value>HellForge 版本</value></data>
+  <data name="HellForge.GameBuild" xml:space="preserve"><value>游戏版本</value></data>
+  <data name="HellForge.Engine" xml:space="preserve"><value>引擎</value></data>
+  <data name="HellForge.ModSdk" xml:space="preserve"><value>模组 SDK</value></data>
+  <data name="HellForge.GameCopy" xml:space="preserve"><value>游戏副本</value></data>
+  <data name="HellForge.Session" xml:space="preserve"><value>会话</value></data>
+  <data name="HellForge.CurrentProfile" xml:space="preserve"><value>当前档案</value></data>
+  <data name="HellForge.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>玩家档案</value></data>
+  <data name="HellForge.Create" xml:space="preserve"><value>新建档案</value></data>
+  <data name="HellForge.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="HellForge.InUse" xml:space="preserve"><value>使用中</value></data>
+  <data name="HellForge.Switch" xml:space="preserve"><value>切换</value></data>
+  <data name="HellForge.NoProfiles" xml:space="preserve"><value>暂无档案。</value></data>
+  <data name="HellForge.CreateTitle" xml:space="preserve"><value>新建档案</value></data>
+  <data name="HellForge.NameLabel" xml:space="preserve"><value>档案名称</value></data>
+  <data name="HellForge.NamePlaceholder" xml:space="preserve"><value>1-32 位小写字母、数字或连字符</value></data>
+  <data name="HellForge.TemplateLabel" xml:space="preserve"><value>模板</value></data>
+  <data name="HellForge.CreateConfirm" xml:space="preserve"><value>创建</value></data>
+  <data name="HellForge.Loading" xml:space="preserve"><value>正在读取 HellForge 状态…</value></data>
+  <data name="HellForge.Switching" xml:space="preserve"><value>正在切换档案…</value></data>
+  <data name="HellForge.Creating" xml:space="preserve"><value>正在创建档案…</value></data>
+  <data name="HellForge.Failed" xml:space="preserve"><value>HellForge 操作失败：{0}</value></data>
+  <data name="HellForge.NotConfigured" xml:space="preserve"><value>尚未配置有效的 HellForge 安装目录，请先在「设置 → 游戏」中选择。</value></data>
+  <data name="HellForge.Loaded" xml:space="preserve"><value>HellForge 状态已加载。</value></data>
+  <data name="HellForge.Ready" xml:space="preserve"><value>就绪</value></data>
+  <data name="HellForge.NotReady" xml:space="preserve"><value>未就绪</value></data>
+  <data name="HellForge.SessionRunning" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.SessionIdle" xml:space="preserve"><value>未运行</value></data>
+  <data name="HellForge.ProfileSwitched" xml:space="preserve"><value>已选择档案「{0}」，下一次会话生效。</value></data>
+  <data name="HellForge.ProfileCreated" xml:space="preserve"><value>已创建档案「{0}」。</value></data>
+  <data name="HellForge.NameInvalid" xml:space="preserve"><value>档案名须为 1-32 位小写字母、数字或连字符。</value></data>
+  <data name="HellForge.TemplateRequired" xml:space="preserve"><value>请为新档案选择一个模板。</value></data>
+  <data name="HellForge.SessionTitle" xml:space="preserve"><value>会话进度</value></data>
+  <data name="HellForge.StartSession" xml:space="preserve"><value>启动会话</value></data>
+  <data name="HellForge.StopSession" xml:space="preserve"><value>停止</value></data>
+  <data name="HellForge.Stopping" xml:space="preserve"><value>正在停止会话…</value></data>
+  <data name="HellForge.Step.BuildMods" xml:space="preserve"><value>构建模组</value></data>
+  <data name="HellForge.Step.VerifyFiles" xml:space="preserve"><value>校验文件</value></data>
+  <data name="HellForge.Step.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.Step.Launching" xml:space="preserve"><value>启动中</value></data>
+  <data name="HellForge.Step.Running" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.Phase.Idle" xml:space="preserve"><value>没有运行中的会话。</value></data>
+  <data name="HellForge.Phase.Preparing" xml:space="preserve"><value>正在构建模组并校验游戏副本…</value></data>
+  <data name="HellForge.Phase.AwaitingNetworkBlock" xml:space="preserve"><value>等待安装网络隔离（如出现 Windows 提示请确认）…</value></data>
+  <data name="HellForge.Phase.AwaitingSteamBroker" xml:space="preserve"><value>等待 Steam 代理连接（沙箱会话）…</value></data>
+  <data name="HellForge.Phase.Patching" xml:space="preserve"><value>正在启动游戏…</value></data>
+  <data name="HellForge.Phase.Running" xml:space="preserve"><value>游戏运行中。</value></data>
+  <data name="HellForge.Phase.Ended" xml:space="preserve"><value>会话已结束。</value></data>
+  <data name="HellForge.Phase.Failed" xml:space="preserve"><value>会话失败。</value></data>
+  <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
+  <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
+  <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
+  <data name="HellForge.Sync.None" xml:space="preserve"><value>尚未同步模组。</value></data>
+  <data name="HellForge.Sync.Source" xml:space="preserve"><value>来源配置：{0} · 上次同步：{1}</value></data>
+  <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>（未知配置）</value></data>
+  <data name="HellForge.Sync.Hint" xml:space="preserve"><value>在配置文件页点击“部署”同步启用的模组；“清理部署”会移除本管理器同步的模组。</value></data>
+  <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
+  <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
+  <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>
+  <data name="HellForge.War.Live" xml:space="preserve"><value>实时战争</value></data>
+  <data name="HellForge.War.Frozen" xml:space="preserve"><value>冻结战争</value></data>
+  <data name="HellForge.War.Open" xml:space="preserve"><value>全部星球开放</value></data>
+  <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>本地 PlayFab 后端</value></data>
+  <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>与 Steam 好友联机</value></data>
+  <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>收集游戏日志</value></data>
+  <data name="HellForge.Settings.CrashDump" xml:space="preserve"><value>崩溃时保存完整内存转储（体积大）</value></data>
+  <data name="HellForge.Settings.Sandbox" xml:space="preserve"><value>沙箱运行</value></data>
+  <data name="HellForge.Settings.SteamUdp" xml:space="preserve"><value>Steam 中继联机（Linux）</value></data>
+  <data name="HellForge.Settings.GameOptions" xml:space="preserve"><value>游戏启动参数</value></data>
+  <data name="HellForge.Settings.Advanced" xml:space="preserve"><value>高级</value></data>
+  <data name="HellForge.Settings.Strangers" xml:space="preserve"><value>与陌生人联机</value></data>
+  <data name="HellForge.Strangers.Default" xml:space="preserve"><value>跟随沙箱</value></data>
+  <data name="HellForge.Strangers.Yes" xml:space="preserve"><value>开启</value></data>
+  <data name="HellForge.Strangers.No" xml:space="preserve"><value>关闭</value></data>
+  <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>允许会话中更改模组（实验性）</value></data>
+  <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>战利品含 Forge Credits 的比例（%）</value></data>
+  <data name="HellForge.Settings.Save" xml:space="preserve"><value>保存设置</value></data>
+  <data name="HellForge.Settings.Saving" xml:space="preserve"><value>正在保存设置…</value></data>
+  <data name="HellForge.Settings.Saved" xml:space="preserve"><value>设置已保存，下次会话生效。</value></data>
+  <data name="HellForge.Logs.Title" xml:space="preserve"><value>会话日志</value></data>
+  <data name="HellForge.Logs.Hint" xml:space="preserve"><value>导出所选会话的日志或保存崩溃报告；不会上传任何内容。</value></data>
+  <data name="HellForge.Logs.None" xml:space="preserve"><value>还没有会话日志：先启动一次会话。</value></data>
+  <data name="HellForge.Logs.Export" xml:space="preserve"><value>保存日志…</value></data>
+  <data name="HellForge.Logs.CrashReport" xml:space="preserve"><value>保存崩溃报告…</value></data>
+  <data name="HellForge.Logs.IncludeDump" xml:space="preserve"><value>包含崩溃转储（体积大）</value></data>
+  <data name="HellForge.Logs.Exporting" xml:space="preserve"><value>正在保存会话日志…</value></data>
+  <data name="HellForge.Logs.Exported" xml:space="preserve"><value>已保存 {0} 个日志文件到 {1}</value></data>
+  <data name="HellForge.Logs.CrashSaved" xml:space="preserve"><value>崩溃报告已保存到 {0}</value></data>
+  <data name="HellForge.Logs.ExitCode" xml:space="preserve"><value>退出码 {0}</value></data>
+  <data name="HellForge.Logs.Crashed" xml:space="preserve"><value>崩溃</value></data>
+  <data name="HellForge.LogStatus.Completed" xml:space="preserve"><value>已完成</value></data>
+  <data name="HellForge.LogStatus.Failed" xml:space="preserve"><value>失败</value></data>
+  <data name="HellForge.LogStatus.CleanupFailed" xml:space="preserve"><value>清理失败</value></data>
+  <data name="HellForge.LogStatus.Observed" xml:space="preserve"><value>已结束</value></data>
+  <data name="HellForge.LogStatus.Running" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>崩溃</value></data>
+  <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip 压缩包</value></data>
 </root>

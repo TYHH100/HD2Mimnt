@@ -20,7 +20,8 @@ public sealed class SettingsViewModelTests : IDisposable
         _rootDirectory = Path.Combine(Path.GetTempPath(), $"hd2mimnt-settings-vm-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_rootDirectory);
         _settingsService = new SettingsService(_rootDirectory);
-        _gameDetectionService = new GameDetectionService(_settingsService);
+        _gameDetectionService = new GameDetectionService(_settingsService,
+            new HellForgeSessionService(new HellForgeService(_settingsService)));
         _imageCache.Setup(service => service.GetStats()).Returns(new ImageCacheStats());
     }
 

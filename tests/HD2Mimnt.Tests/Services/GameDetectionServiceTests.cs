@@ -15,6 +15,9 @@ public sealed class GameDetectionServiceTests : IDisposable
         _settingsService = new SettingsService(_rootDirectory);
     }
 
+    private GameDetectionService CreateService()
+        => new(_settingsService, new HellForgeSessionService(new HellForgeService(_settingsService)));
+
     [Fact]
     public async Task ApplyConfiguredPathAsync_WithValidPath_ShouldUseOnlyConfiguredPath()
     {
@@ -22,7 +25,7 @@ public sealed class GameDetectionServiceTests : IDisposable
         foreach (var name in new[] { "data", "tools", "bin" })
             Directory.CreateDirectory(Path.Combine(gameDirectory, name));
         await File.WriteAllTextAsync(Path.Combine(gameDirectory, "bin", "helldivers2.exe"), string.Empty);
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         var result = await service.ApplyConfiguredPathAsync(gameDirectory);
 
@@ -34,7 +37,7 @@ public sealed class GameDetectionServiceTests : IDisposable
     [Fact]
     public async Task ApplyConfiguredPathAsync_WithEmptyPath_ShouldNotScanAndSetNotFound()
     {
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         var result = await service.ApplyConfiguredPathAsync(string.Empty);
 
@@ -53,7 +56,7 @@ public sealed class GameDetectionServiceTests : IDisposable
             [SettingKeys.HellForgePath] = root,
             [SettingKeys.GamePath] = Path.Combine(_rootDirectory, "Helldivers 2")
         });
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         var result = await service.ApplyConfiguredGameAsync();
 
@@ -68,7 +71,7 @@ public sealed class GameDetectionServiceTests : IDisposable
     public async Task ValidateGameInstallationAsync_WithHellForgeMode_ShouldAcceptRootAndGameFolder()
     {
         var root = CreateHellForgeInstallation();
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         Assert.True(await service.ValidateGameInstallationAsync(GameInstallationMode.HellForge, root));
         Assert.True(await service.ValidateGameInstallationAsync(
@@ -81,7 +84,7 @@ public sealed class GameDetectionServiceTests : IDisposable
     public async Task SavePreferencesAsync_WithHellForgeMode_ShouldIgnoreInactiveOfficialPath()
     {
         var root = CreateHellForgeInstallation();
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         await service.SavePreferencesAsync(
             GameInstallationMode.HellForge, "invalid-official-path", root, autoDetect: true);
@@ -97,7 +100,7 @@ public sealed class GameDetectionServiceTests : IDisposable
     public async Task SavePreferencesAsync_WithHellForgeGameFolder_ShouldNormalizeToInstallationRoot()
     {
         var root = CreateHellForgeInstallation();
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         await service.SavePreferencesAsync(
             GameInstallationMode.HellForge, string.Empty, Path.Combine(root, "game"), autoDetect: false);
@@ -114,7 +117,7 @@ public sealed class GameDetectionServiceTests : IDisposable
         foreach (var name in new[] { "data", "tools", "bin" })
             Directory.CreateDirectory(Path.Combine(official, name));
         await File.WriteAllTextAsync(Path.Combine(official, "bin", "helldivers2.exe"), string.Empty);
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         await service.SavePreferencesAsync(
             GameInstallationMode.Official, official, "invalid-hellforge-path", autoDetect: false);
@@ -134,7 +137,7 @@ public sealed class GameDetectionServiceTests : IDisposable
             [SettingKeys.GameMode] = GameInstallationMode.Official.ToString(),
             [SettingKeys.GamePath] = "saved-official"
         });
-        var service = new GameDetectionService(_settingsService);
+        var service = CreateService();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SavePreferencesAsync(
             GameInstallationMode.HellForge, "saved-official", "missing", autoDetect: false));

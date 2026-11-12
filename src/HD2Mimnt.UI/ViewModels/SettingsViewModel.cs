@@ -125,6 +125,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public event EventHandler<string>? ListDensityChanged;
     public event EventHandler? AppearanceChanged;
     public event EventHandler<bool>? AutoCheckConflictsChanged;
+    /// <summary>游戏分类保存后游戏源实际变化（true = HellForge）；保存失败不发布。</summary>
+    public event EventHandler<bool>? GameSourceChanged;
+
+    /// <summary>HellForge 专页入口只在已保存的游戏源为 HellForge 时显示，不随未保存的草稿切换。</summary>
+    public bool ShowHellForgeEntry => _settingsService.GetGameInstallationMode() == GameInstallationMode.HellForge;
 
     public bool IsGameCategoryVisible => IsSectionVisible("游戏");
     public bool IsProfileCategoryVisible => IsSectionVisible("配置文件");
@@ -309,6 +314,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             LoadStoragePaths();
             LoadLogSettings();
             IsOfficialGameSource = _settingsService.GetGameInstallationMode() == GameInstallationMode.Official;
+            OnPropertyChanged(nameof(ShowHellForgeEntry));
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
@@ -428,9 +434,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             else if (category == "游戏")
             {
                 var mode = IsOfficialGameSource ? GameInstallationMode.Official : GameInstallationMode.HellForge;
+                var previousMode = _settingsService.GetGameInstallationMode();
                 await _gameDetectionService.SavePreferencesAsync(mode, GamePath, HellForgePath, AutoDetectGame);
                 GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
                 HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
+                OnPropertyChanged(nameof(ShowHellForgeEntry));
+                if (previousMode != mode) GameSourceChanged?.Invoke(this, mode == GameInstallationMode.HellForge);
                 StatusMessage = "设置已保存";
             }
             else

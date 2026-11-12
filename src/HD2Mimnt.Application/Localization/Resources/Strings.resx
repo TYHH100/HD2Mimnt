@@ -4349,4 +4349,106 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>Medium</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>High</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>Max</value></data>
+  <data name="HellForge.Title" xml:space="preserve"><value>HellForge Profiles</value></data>
+  <data name="HellForge.Description" xml:space="preserve"><value>View installation status and manage HellForge player profiles (progress and inventory). Profile changes apply to the next session.</value></data>
+  <data name="HellForge.StatusTitle" xml:space="preserve"><value>Installation status</value></data>
+  <data name="HellForge.Version" xml:space="preserve"><value>HellForge version</value></data>
+  <data name="HellForge.GameBuild" xml:space="preserve"><value>Game build</value></data>
+  <data name="HellForge.Engine" xml:space="preserve"><value>Engine</value></data>
+  <data name="HellForge.ModSdk" xml:space="preserve"><value>Mod SDK</value></data>
+  <data name="HellForge.GameCopy" xml:space="preserve"><value>Game copy</value></data>
+  <data name="HellForge.Session" xml:space="preserve"><value>Session</value></data>
+  <data name="HellForge.CurrentProfile" xml:space="preserve"><value>Selected profile</value></data>
+  <data name="HellForge.NetworkBlock" xml:space="preserve"><value>Network block</value></data>
+  <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>Player profiles</value></data>
+  <data name="HellForge.Create" xml:space="preserve"><value>New profile</value></data>
+  <data name="HellForge.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="HellForge.InUse" xml:space="preserve"><value>In use</value></data>
+  <data name="HellForge.Switch" xml:space="preserve"><value>Switch</value></data>
+  <data name="HellForge.NoProfiles" xml:space="preserve"><value>No profiles yet.</value></data>
+  <data name="HellForge.CreateTitle" xml:space="preserve"><value>New profile</value></data>
+  <data name="HellForge.NameLabel" xml:space="preserve"><value>Profile name</value></data>
+  <data name="HellForge.NamePlaceholder" xml:space="preserve"><value>1-32 lowercase letters, digits or hyphens</value></data>
+  <data name="HellForge.TemplateLabel" xml:space="preserve"><value>Template</value></data>
+  <data name="HellForge.CreateConfirm" xml:space="preserve"><value>Create</value></data>
+  <data name="HellForge.Loading" xml:space="preserve"><value>Reading HellForge status…</value></data>
+  <data name="HellForge.Switching" xml:space="preserve"><value>Switching profile…</value></data>
+  <data name="HellForge.Creating" xml:space="preserve"><value>Creating profile…</value></data>
+  <data name="HellForge.Failed" xml:space="preserve"><value>HellForge operation failed: {0}</value></data>
+  <data name="HellForge.NotConfigured" xml:space="preserve"><value>No valid HellForge installation configured. Choose its folder in Settings &gt; Game first.</value></data>
+  <data name="HellForge.Loaded" xml:space="preserve"><value>HellForge status loaded.</value></data>
+  <data name="HellForge.Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="HellForge.NotReady" xml:space="preserve"><value>Not ready</value></data>
+  <data name="HellForge.SessionRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="HellForge.SessionIdle" xml:space="preserve"><value>Not running</value></data>
+  <data name="HellForge.ProfileSwitched" xml:space="preserve"><value>Profile "{0}" selected for the next session.</value></data>
+  <data name="HellForge.ProfileCreated" xml:space="preserve"><value>Profile "{0}" created.</value></data>
+  <data name="HellForge.NameInvalid" xml:space="preserve"><value>Profile name must be 1-32 lowercase letters, digits or hyphens.</value></data>
+  <data name="HellForge.TemplateRequired" xml:space="preserve"><value>Pick a template for the new profile.</value></data>
+  <data name="HellForge.SessionTitle" xml:space="preserve"><value>Session progress</value></data>
+  <data name="HellForge.StartSession" xml:space="preserve"><value>Start session</value></data>
+  <data name="HellForge.StopSession" xml:space="preserve"><value>Stop</value></data>
+  <data name="HellForge.Stopping" xml:space="preserve"><value>Stopping session…</value></data>
+  <data name="HellForge.Step.BuildMods" xml:space="preserve"><value>Build mods</value></data>
+  <data name="HellForge.Step.VerifyFiles" xml:space="preserve"><value>Verify files</value></data>
+  <data name="HellForge.Step.NetworkBlock" xml:space="preserve"><value>Network block</value></data>
+  <data name="HellForge.Step.Launching" xml:space="preserve"><value>Launching</value></data>
+  <data name="HellForge.Step.Running" xml:space="preserve"><value>Running</value></data>
+  <data name="HellForge.Phase.Idle" xml:space="preserve"><value>No session running.</value></data>
+  <data name="HellForge.Phase.Preparing" xml:space="preserve"><value>Building mods and verifying the game copy…</value></data>
+  <data name="HellForge.Phase.AwaitingNetworkBlock" xml:space="preserve"><value>Waiting for the network block (approve the Windows prompt if it appears)…</value></data>
+  <data name="HellForge.Phase.AwaitingSteamBroker" xml:space="preserve"><value>Waiting for the Steam broker (sandboxed session)…</value></data>
+  <data name="HellForge.Phase.Patching" xml:space="preserve"><value>Launching the game…</value></data>
+  <data name="HellForge.Phase.Running" xml:space="preserve"><value>The game is running.</value></data>
+  <data name="HellForge.Phase.Ended" xml:space="preserve"><value>Session ended.</value></data>
+  <data name="HellForge.Phase.Failed" xml:space="preserve"><value>Session failed.</value></data>
+  <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>Mod problems:</value></data>
+  <data name="HellForge.SyncTitle" xml:space="preserve"><value>Mod sync</value></data>
+  <data name="HellForge.Sync.Synced" xml:space="preserve"><value>{0} mods synced to HellForge</value></data>
+  <data name="HellForge.Sync.None" xml:space="preserve"><value>No mods synced yet.</value></data>
+  <data name="HellForge.Sync.Source" xml:space="preserve"><value>Source profile: {0} · Last sync: {1}</value></data>
+  <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>(unknown profile)</value></data>
+  <data name="HellForge.Sync.Hint" xml:space="preserve"><value>Use Deploy on the Profiles page to sync enabled mods; Clean deployment removes the mods this manager synced.</value></data>
+  <data name="HellForge.Settings.Title" xml:space="preserve"><value>Launch settings</value></data>
+  <data name="HellForge.Settings.Hint" xml:space="preserve"><value>Saved settings apply to the next session; the CLI refuses changes while a session runs. Strangers and Forge Credits are saved in the mods settings.</value></data>
+  <data name="HellForge.Settings.War" xml:space="preserve"><value>Galactic war</value></data>
+  <data name="HellForge.War.Live" xml:space="preserve"><value>Live war</value></data>
+  <data name="HellForge.War.Frozen" xml:space="preserve"><value>Frozen war</value></data>
+  <data name="HellForge.War.Open" xml:space="preserve"><value>All planets open</value></data>
+  <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>Local PlayFab backend</value></data>
+  <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>Co-op with Steam friends</value></data>
+  <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>Collect the game's log</value></data>
+  <data name="HellForge.Settings.CrashDump" xml:space="preserve"><value>Full memory dump on crash (large)</value></data>
+  <data name="HellForge.Settings.Sandbox" xml:space="preserve"><value>Run sandboxed</value></data>
+  <data name="HellForge.Settings.SteamUdp" xml:space="preserve"><value>Steam relay co-op (Linux)</value></data>
+  <data name="HellForge.Settings.GameOptions" xml:space="preserve"><value>Game launch options</value></data>
+  <data name="HellForge.Settings.Advanced" xml:space="preserve"><value>Advanced</value></data>
+  <data name="HellForge.Settings.Strangers" xml:space="preserve"><value>Play with strangers</value></data>
+  <data name="HellForge.Strangers.Default" xml:space="preserve"><value>Follow the sandbox</value></data>
+  <data name="HellForge.Strangers.Yes" xml:space="preserve"><value>On</value></data>
+  <data name="HellForge.Strangers.No" xml:space="preserve"><value>Off</value></data>
+  <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>Allow changing mods during a session (experimental)</value></data>
+  <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>Loot caches with Forge Credits (%)</value></data>
+  <data name="HellForge.Settings.Save" xml:space="preserve"><value>Save settings</value></data>
+  <data name="HellForge.Settings.Saving" xml:space="preserve"><value>Saving settings…</value></data>
+  <data name="HellForge.Settings.Saved" xml:space="preserve"><value>Settings saved for the next session.</value></data>
+  <data name="HellForge.Logs.Title" xml:space="preserve"><value>Session logs</value></data>
+  <data name="HellForge.Logs.Hint" xml:space="preserve"><value>Export the selected session's logs, or save a crash report; nothing is uploaded.</value></data>
+  <data name="HellForge.Logs.None" xml:space="preserve"><value>No session logs yet: start a session first.</value></data>
+  <data name="HellForge.Logs.Export" xml:space="preserve"><value>Save logs…</value></data>
+  <data name="HellForge.Logs.CrashReport" xml:space="preserve"><value>Save crash report…</value></data>
+  <data name="HellForge.Logs.IncludeDump" xml:space="preserve"><value>Include the crash dump (large)</value></data>
+  <data name="HellForge.Logs.Exporting" xml:space="preserve"><value>Saving session logs…</value></data>
+  <data name="HellForge.Logs.Exported" xml:space="preserve"><value>Saved {0} log files to {1}</value></data>
+  <data name="HellForge.Logs.CrashSaved" xml:space="preserve"><value>Crash report saved to {0}</value></data>
+  <data name="HellForge.Logs.ExitCode" xml:space="preserve"><value>exit code {0}</value></data>
+  <data name="HellForge.Logs.Crashed" xml:space="preserve"><value>crashed</value></data>
+  <data name="HellForge.LogStatus.Completed" xml:space="preserve"><value>Completed</value></data>
+  <data name="HellForge.LogStatus.Failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="HellForge.LogStatus.CleanupFailed" xml:space="preserve"><value>Cleanup failed</value></data>
+  <data name="HellForge.LogStatus.Observed" xml:space="preserve"><value>Ended</value></data>
+  <data name="HellForge.LogStatus.Running" xml:space="preserve"><value>Running</value></data>
+  <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>Crashed</value></data>
+  <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip archive</value></data>
 </root>

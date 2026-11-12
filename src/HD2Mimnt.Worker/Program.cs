@@ -104,7 +104,7 @@ internal static class Program
     /// </summary>
     private static async Task PrepareStorageStateAsync(string workerType, IServiceProvider services)
     {
-        if (workerType is not ("Deployment" or "Cleanup" or "Import")) return;
+        if (workerType is not ("Deployment" or "Cleanup" or "Import" or "HellForgeSync")) return;
 
         // 只有部署/清理需要把旧会话记录迁移成当前安装状态；导入不读部署表，跳过整库迁移。
         if (workerType is "Deployment" or "Cleanup")
@@ -144,6 +144,17 @@ internal static class Program
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<SettingsService>()));
+        services.AddSingleton(sp => new HellForgeService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetService<ILogger<HellForgeService>>()));
+        services.AddSingleton(sp => new HellForgeModSyncService(
+            sp.GetRequiredService<HellForgeService>(),
+            sp.GetRequiredService<IProfileRepository>(),
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<SettingsService>(),
+            Path.Combine(locations.CachePath, "HellForgeSync"),
+            Path.Combine(locations.AppDataPath, "hellforge-sync.json"),
+            sp.GetService<ILogger<HellForgeModSyncService>>()));
         services.AddSingleton(sp => new DeploymentStateMigrationService(
             sp.GetRequiredService<HD2MimntDbContext>(), sp.GetService<ILogger<DeploymentStateMigrationService>>()));
 
