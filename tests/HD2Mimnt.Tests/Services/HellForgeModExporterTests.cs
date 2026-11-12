@@ -150,14 +150,81 @@ public sealed class HellForgeModExporterTests : IDisposable
 
         Assert.Equal(HellForgeModKind.Pack, export.Kind);
         Assert.Equal(Path.Combine(ExportDir(mod), "manifest.json"), export.ManifestPath);
-        Assert.Equal(await File.ReadAllTextAsync(Path.Combine(mod.Path, "manifest.json")),
-            await File.ReadAllTextAsync(export.ManifestPath));
+        // 清单不逐字复制，而是按 HD2Mimnt 清单合成：HellForge 只认 "Options"/"Guid" 精确键名。
+        using (var document = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)))
+        {
+            var root = document.RootElement;
+            Assert.Equal(manifest.Guid.ToString("D"), root.GetProperty("Guid").GetString());
+            Assert.Equal("Pack", root.GetProperty("Name").GetString());
+            var options = root.GetProperty("Options");
+            Assert.Equal(2, options.GetArrayLength());
+            Assert.Equal("A", options[0].GetProperty("Name").GetString());
+            Assert.Equal("A", options[0].GetProperty("Include")[0].GetString());
+            // 图片只在导出目录里存在时才写。
+            Assert.Equal(".jpgs/a.png", options[0].GetProperty("Image").GetString());
+            Assert.False(options[1].TryGetProperty("Image", out _));
+        }
         Assert.True(File.Exists(Path.Combine(ExportDir(mod), "A", $"{BundleX}.patch_0")));
         Assert.True(File.Exists(Path.Combine(ExportDir(mod), "B", $"{BundleX}.patch_1")));
         Assert.True(File.Exists(Path.Combine(ExportDir(mod), ".jpgs", "icon.png")));
         Assert.True(File.Exists(Path.Combine(ExportDir(mod), ".jpgs", "a.png")));
         Assert.False(Directory.Exists(Path.Combine(ExportDir(mod), "LuaExtracted")));
         Assert.False(File.Exists(Path.Combine(ExportDir(mod), $"{BundleX}.patch-backup_0.hd2mm-backup")));
+    }
+
+    [Fact]
+    public async Task ExportPack_ModFolderWithoutRootManifest_StillWritesReadableManifest()
+    {
+        // 复合包（多个子包合并）根目录没有 manifest.json，清单只存在于数据库/子目录：
+        // 只搬 Include 目录会让 HellForge 既看不到清单也看不到根补丁，静默忽略整个模组目录。
+        var mod = CreateMod(Guid.NewGuid(), V1Manifest(Option("A", "本体/本体"), Option("B", "本体/上衣")));
+        File.Delete(Path.Combine(mod.Path, "manifest.json"));
+        WritePatch(Path.Combine(mod.Path, "本体", "本体"), BundleX, 0, "a");
+        WritePatch(Path.Combine(mod.Path, "本体", "上衣"), BundleX, 1, "b");
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        Assert.Equal(HellForgeModKind.Pack, export.Kind);
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath));
+        var root = document.RootElement;
+        Assert.Equal(mod.Manifest!.Guid.ToString("D"), root.GetProperty("Guid").GetString());
+        Assert.Equal(2, root.GetProperty("Options").GetArrayLength());
+        Assert.Equal("本体/本体", root.GetProperty("Options")[0].GetProperty("Include")[0].GetString());
+        Assert.True(File.Exists(Path.Combine(ExportDir(mod), "本体", "本体", $"{BundleX}.patch_0")));
+    }
+
+    [Fact]
+    public async Task ExportPack_DuplicateOptionNames_GetUniqueNamesAndKeepIncludes()
+    {
+        // 复合包合并后各子包的选项平铺到同一层，重名很常见（“本体”来自 本体/本体 与 材质球/本体）。
+        // HellForge 用选项名做开关/变体集合的键：重名会互相覆盖，导出时必须改成唯一名字。
+        var mod = CreateMod(Guid.NewGuid(), V1Manifest(
+            Option("本体", "本体/本体"), Option("上衣", "本体/上衣"),
+            Option("本体", "材质球/本体"), Option("上衣", "材质球/上衣"),
+            new ModOption
+            {
+                Name = "材质", SubOptions = new List<ModSubOption>
+                {
+                    new() { Name = "白", Include = new List<string> { "材质/白" } },
+                    new() { Name = "白", Include = new List<string> { "材质/亮白" } }
+                }
+            }));
+        foreach (var directory in new[] { "本体/本体", "本体/上衣", "材质球/本体", "材质球/上衣", "材质/白", "材质/亮白" })
+            WritePatch(Path.Combine(mod.Path, directory.Replace('/', Path.DirectorySeparatorChar)), BundleX, 0, directory);
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath));
+        var options = document.RootElement.GetProperty("Options");
+        var names = options.EnumerateArray().Select(option => option.GetProperty("Name").GetString()).ToList();
+        Assert.Equal(new[] { "本体", "上衣", "本体 (2)", "上衣 (2)", "材质" }, names);
+        // Include 原样保留，改名只影响显示与 CLI 传参，不影响部署内容。
+        Assert.Equal("材质球/本体", options[2].GetProperty("Include")[0].GetString());
+        Assert.Equal("材质球/上衣", options[3].GetProperty("Include")[0].GetString());
+        var variants = options[4].GetProperty("SubOptions");
+        Assert.Equal("白", variants[0].GetProperty("Name").GetString());
+        Assert.Equal("白 (2)", variants[1].GetProperty("Name").GetString());
+        Assert.Equal("材质/亮白", variants[1].GetProperty("Include")[0].GetString());
     }
 
     [Fact]

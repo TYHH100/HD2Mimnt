@@ -152,9 +152,10 @@ internal static class Program
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<SettingsService>(),
-            Path.Combine(locations.CachePath, "HellForgeSync"),
+            sp.GetServices<IDeploymentMethod>(),
             Path.Combine(locations.AppDataPath, "hellforge-sync.json"),
-            sp.GetService<ILogger<HellForgeModSyncService>>()));
+            sp.GetService<ILogger<HellForgeModSyncService>>(),
+            Path.Combine(locations.CachePath, "HellForgeSync")));
         services.AddSingleton(sp => new DeploymentStateMigrationService(
             sp.GetRequiredService<HD2MimntDbContext>(), sp.GetService<ILogger<DeploymentStateMigrationService>>()));
 

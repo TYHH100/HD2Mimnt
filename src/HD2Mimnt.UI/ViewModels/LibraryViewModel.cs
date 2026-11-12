@@ -1616,8 +1616,19 @@ public partial class LibraryViewModel : ObservableObject
             {
                 DeploymentTitle = "同步到 HellForge";
                 var hfOrder = await ReadDeploymentOrderAsync();
+                // 同步按设置中的部署方式写入 mods\（不调 mod-add）：确认文案须让用户看到实际写入方式。
+                var hfMethod = _settingsService == null ? DeploymentMethod.Copy.ToString()
+                    : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
+                var hfMethodName = Enum.TryParse<DeploymentMethod>(hfMethod, true, out var parsedMethod)
+                    ? parsedMethod switch
+                    {
+                        DeploymentMethod.HardLink => "硬链接",
+                        DeploymentMethod.SymbolicLink => "符号链接",
+                        _ => "文件复制"
+                    }
+                    : "文件复制";
                 await RunHellForgeSyncTaskAsync("同步到 HellForge", "同步到 HellForge",
-                    $"配置：{profile.Name}\n启用模组：{profile.Mods.Count(mod => mod.Enabled)} 个\n将把启用的普通模组导入 HellForge 的 mods 目录（Lua 加载器与 HD2IAS 模组跳过），由 HellForge 会话负责暂存与清理，不写入游戏副本。是否继续？",
+                    $"配置：{profile.Name}\n启用模组：{profile.Mods.Count(mod => mod.Enabled)} 个\n写入方式：{hfMethodName}（按设置中的部署方式，不可用时自动回退为文件复制）\n将把启用的普通模组导入 HellForge 的 mods 目录（Lua 加载器与 HD2IAS 模组跳过），由 HellForge 会话负责暂存与清理，不写入游戏副本。是否继续？",
                     new Dictionary<string, string>
                     {
                         ["Mode"] = "Sync",

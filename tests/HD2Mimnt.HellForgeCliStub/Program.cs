@@ -283,8 +283,11 @@ internal static partial class StubMods
         SaveSettings(file, settings);
     }
 
+    // 与官方格式一致（docs/external-launchers.md）：小写 camelCase 的 disabled/order/packs。
+    private static readonly JsonSerializerOptions JsonOut = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     private static void SaveSettings(string file, Settings settings) =>
-        File.WriteAllText(file, JsonSerializer.Serialize(settings));
+        File.WriteAllText(file, JsonSerializer.Serialize(settings, JsonOut));
 
     private static void CopyFolder(string from, string to)
     {

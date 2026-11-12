@@ -561,9 +561,10 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<SettingsService>(),
-            Path.Combine(storageLocations.CachePath, "HellForgeSync"),
+            sp.GetServices<IDeploymentMethod>(),
             Path.Combine(appDataPath, "hellforge-sync.json"),
-            sp.GetService<ILogger<HellForgeModSyncService>>()));
+            sp.GetService<ILogger<HellForgeModSyncService>>(),
+            Path.Combine(storageLocations.CachePath, "HellForgeSync")));
 
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();

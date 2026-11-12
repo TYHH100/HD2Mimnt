@@ -46,23 +46,26 @@ public sealed partial class FluentAvaloniaUiTests
             await profiles.AddModToProfileAsync(profileId, mod.Id);
             await profiles.SetActiveProfileAsync(profileId);
 
-            // 配置页“部署”在 HF 模式改走同步：模组进 mods\，game\data 零写入。
+            // 配置页“部署”在 HF 模式改走同步：模组按部署方式直接进 mods\（不经 mod-add），game\data 零写入。
             await main.LibraryViewModel.DeployCommand.ExecuteAsync(profileId);
             Layout();
-            Assert.Contains("mod-add", fixture.ReadArgs());
+            Assert.DoesNotContain("mod-add", fixture.ReadArgs());
             var hellForge = scope.Services.GetRequiredService<HellForgeService>();
             var synced = (await hellForge.GetModsAsync()).Mods;
             var info = Assert.Single(synced);
             Assert.StartsWith("hd2mimnt.", info.Id);
             Assert.True(info.Enabled);
-            Assert.True(File.Exists(Path.Combine(fixture.Root, "mods", mod.Id.ToString("N"), "data", "9ba626afa44a3aa3.patch_0")));
+            var deployed = Path.Combine(fixture.Root, "mods", $"hd2mimnt.{mod.Id:N}", "data", "9ba626afa44a3aa3.patch_0");
+            Assert.True(File.Exists(deployed));
             Assert.Empty(Directory.GetFiles(Path.Combine(fixture.Root, "game", "data")));
             Assert.Contains(scope.Services.GetRequiredService<NotificationService>().GetRecentNotifications(),
                 n => n.Message.Contains("已同步 1 个模组到 HellForge"));
 
-            // 再次同步：内容未变化，跳过重新导出（mod-add 仍只一次）。
+            // 再次同步：内容未变化，跳过重新导出（落盘文件不被重写）。
+            var marker = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(deployed, marker);
             await main.LibraryViewModel.DeployCommand.ExecuteAsync(profileId);
-            Assert.Single(fixture.ReadArgs().Split('\n').Where(l => l.TrimStart().StartsWith("mod-add ")));
+            Assert.Equal(marker, File.GetLastWriteTimeUtc(deployed));
 
             // HF 专页同步状态卡：显示已同步模组数与来源配置名（只读，入口仍在配置页）。
             await main.NavigateToHellForgeCommand.ExecuteAsync(null);
@@ -79,7 +82,9 @@ public sealed partial class FluentAvaloniaUiTests
             main.NotificationPanelViewModel.DismissAllToasts();
             await main.LibraryViewModel.CleanupCommand.ExecuteAsync(null);
             Layout();
-            Assert.Contains("mod-remove", fixture.ReadArgs());
+            // 清理直接删目录 + 清 hellforge-mods.json，不再跑 mod-remove（每次都要重扫整个 mods\）。
+            Assert.DoesNotContain("mod-remove", fixture.ReadArgs());
+            Assert.False(Directory.Exists(Path.Combine(fixture.Root, "mods", $"hd2mimnt.{mod.Id:N}")));
             Assert.Empty((await hellForge.GetModsAsync()).Mods);
 
             // 清理后专页状态卡回到“尚未同步”。

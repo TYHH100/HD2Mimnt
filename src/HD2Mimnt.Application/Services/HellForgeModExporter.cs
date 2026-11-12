@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.IO;
 
@@ -17,7 +18,13 @@ internal enum HellForgeModKind
 internal sealed record HellForgeModExport(HellForgeModKind Kind, string ManifestPath, string Fingerprint);
 
 /// <summary>
-/// 把 HD2Mimnt 库模组导出成 HellForge 认可的形态（mods\ 导入前的缓存目录）。
+/// 把库文件放进导出目录的方式：默认文件复制，同步可传入按设置中的部署方式（硬链接/符号链接）写入的实现。
+/// 链接只能做文件级——HellForge 删除模组时会拒绝落在链接目录下的路径（LocalInstall.NoLinks）。
+/// </summary>
+internal delegate Task HellForgeFilePlace(string sourcePath, string destinationPath, CancellationToken cancellationToken);
+
+/// <summary>
+/// 把 HD2Mimnt 库模组导出成 HellForge 认可的形态（直接写入 mods\ 下的临时目录，成功后整体改名）。
 /// 干净 V1（完整 Include 映射、无根补丁、Include 目录齐全）透传为 cosmetic pack，保留作者 manifest 与选项；
 /// 其余（legacy、缺映射、根补丁、无选项）扁平化为 hellforge-mod.json + data/，用 HD2Mimnt 自己的选项解析与
 /// 按 bundle 从 0 重编号保证“HellForge 暂存的内容/顺序 == 官方部署”。HellForge 会话会再次按 bundle 接在
@@ -60,12 +67,24 @@ internal static class HellForgeModExporter
         return true;
     }
 
-    public static async Task<HellForgeModExport> ExportAsync(Mod mod, string? optionsJson,
+    public static Task<HellForgeModExport> ExportAsync(Mod mod, string? optionsJson,
         string exportDirectory, CancellationToken cancellationToken = default)
+        => ExportAsync(mod, optionsJson, exportDirectory, null, cancellationToken);
+
+    /// <summary>导出到 exportDirectory；place 为 null 时文件复制，否则按传入方式（硬链接/符号链接）落盘。</summary>
+    public static Task<HellForgeModExport> ExportAsync(Mod mod, string? optionsJson,
+        string exportDirectory, HellForgeFilePlace? place, CancellationToken cancellationToken = default)
+        => ExportAsync(mod, optionsJson, exportDirectory, place, null, cancellationToken);
+
+    /// <summary>同上，kind 用于强制导出形态（同 id 的外观包降级为扁平导出时由调用方指定）。</summary>
+    public static async Task<HellForgeModExport> ExportAsync(Mod mod, string? optionsJson,
+        string exportDirectory, HellForgeFilePlace? place, HellForgeModKind? kind,
+        CancellationToken cancellationToken = default)
     {
-        var kind = ResolveKind(mod);
+        kind ??= ResolveKind(mod);
         if (Directory.Exists(exportDirectory)) Directory.Delete(exportDirectory, true);
         Directory.CreateDirectory(exportDirectory);
+        place ??= CopyFileAsync;
 
         string manifestPath;
         if (kind == HellForgeModKind.Pack)
@@ -75,21 +94,27 @@ internal static class HellForgeModExporter
                 cancellationToken.ThrowIfCancellationRequested();
                 var destination = Path.Combine(exportDirectory, relative);
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                await CopyFileAsync(absolute, destination, cancellationToken);
+                await place(absolute, destination, cancellationToken);
             }
             manifestPath = Path.Combine(exportDirectory, "manifest.json");
+            // 总是按 HD2Mimnt 的清单合成 pack 清单：复合包（多个子包合并）根目录本来就没有 manifest.json，
+            // 只搬 Include 目录会让 HellForge 既看不到清单也看不到根补丁，静默忽略整个目录；
+            // 且 HellForge 只认 "Options"/"Guid" 这两个精确键名。先删再写，避免命中硬链接写穿库文件。
+            if (File.Exists(manifestPath)) File.Delete(manifestPath);
+            await File.WriteAllTextAsync(manifestPath, BuildPackManifest(mod, exportDirectory),
+                new UTF8Encoding(false), cancellationToken);
         }
         else
         {
-            manifestPath = await ExportFlatAsync(mod, optionsJson, exportDirectory, cancellationToken);
+            manifestPath = await ExportFlatAsync(mod, optionsJson, exportDirectory, place, cancellationToken);
         }
 
-        var fingerprint = ComputeFingerprint(mod, optionsJson, kind, cancellationToken);
-        return new HellForgeModExport(kind, manifestPath, fingerprint);
+        var fingerprint = ComputeFingerprint(mod, optionsJson, kind.Value, cancellationToken);
+        return new HellForgeModExport(kind.Value, manifestPath, fingerprint);
     }
 
     private static async Task<string> ExportFlatAsync(Mod mod, string? optionsJson,
-        string exportDirectory, CancellationToken cancellationToken)
+        string exportDirectory, HellForgeFilePlace place, CancellationToken cancellationToken)
     {
         var selected = PatchDeploymentPlanner.CollectSelectedFiles(mod, optionsJson, cancellationToken);
         if (selected.Count == 0)
@@ -103,10 +128,10 @@ internal static class HellForgeModExporter
         foreach (var entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await CopyFileAsync(entry.SourcePath!, Path.Combine(dataDirectory, entry.FileName), cancellationToken);
+            await place(entry.SourcePath!, Path.Combine(dataDirectory, entry.FileName), cancellationToken);
         }
 
-        var icon = TryStageIcon(mod, exportDirectory);
+        var icon = await TryStageIconAsync(mod, exportDirectory, place, cancellationToken);
         var manifest = new
         {
             format = 1,
@@ -125,7 +150,134 @@ internal static class HellForgeModExporter
     /// <summary>扁平化模组 id：hd2mimnt.&lt;modId N 格式&gt;（41 字符，自描述归属，合法 id）。</summary>
     public static string FlatModId(Mod mod) => "hd2mimnt." + mod.Id.ToString("N");
 
-    private static string? TryStageIcon(Mod mod, string exportDirectory)
+    /// <summary>
+    /// HellForge 会为这个模组算出的 id：扁平化为 hd2mimnt.&lt;modId N&gt;；透传 pack 为 pack.&lt;Guid&gt;，
+    /// 清单无 Guid 时 pack.&lt;名称 slug&gt;（与上游 CosmeticPacks.Parse 一致）。只用于挑目录名与目录去重，
+    /// 同步结束后仍以 <c>mods</c> 列表的实际 id 为准。
+    /// </summary>
+    public static string ResolveModId(Mod mod, HellForgeModKind kind)
+    {
+        if (kind == HellForgeModKind.Flat) return FlatModId(mod);
+        var guid = mod.Manifest?.Guid ?? Guid.Empty;
+        return guid != Guid.Empty ? "pack." + guid.ToString("D") : "pack." + PackSlug(mod.Name);
+    }
+
+    /// <summary>与上游一致的 pack 名称 slug：小写、[a-z0-9-] 之外的字符变 '-'，去首尾 '-'，空则 pack，最长 58。</summary>
+    private static string PackSlug(string? name)
+    {
+        var builder = new StringBuilder((name ?? string.Empty).Length);
+        foreach (var character in (name ?? string.Empty).ToLowerInvariant())
+            builder.Append(character is >= 'a' and <= 'z' or >= '0' and <= '9' or '-' ? character : '-');
+        var slug = builder.ToString().Trim('-');
+        if (slug.Length == 0) return "pack";
+        return slug.Length > 58 ? slug[..58].TrimEnd('-') : slug;
+    }
+
+    /// <summary>
+    /// 按 HD2Mimnt 清单合成 HellForge 认得的 pack 清单：键名与上游 CosmeticPacks.ReadManifest 完全一致
+    /// （"Options"/"Guid" 大小写敏感）。只写导出目录里真实存在的图片路径，避免 HellForge 指向不存在的文件。
+    /// </summary>
+    private static string BuildPackManifest(Mod mod, string exportDirectory)
+    {
+        var manifest = mod.Manifest!;
+        var root = new JsonObject
+        {
+            ["Version"] = 1,
+            ["Guid"] = manifest.Guid.ToString("D"),
+            ["Name"] = string.IsNullOrWhiteSpace(manifest.Name) ? mod.Name : manifest.Name,
+            ["Description"] = manifest.Description ?? string.Empty
+        };
+        if (ExistingRelative(exportDirectory, manifest.IconPath) is { } icon) root["IconPath"] = icon;
+
+        var source = manifest.Options ?? [];
+        var names = PackOptionNames(source);
+        var options = new JsonArray();
+        for (var i = 0; i < source.Count; i++) options.Add(OptionNode(source[i], names[i], exportDirectory));
+        root["Options"] = options;
+        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>
+    /// 导出清单里的选项名（与 <paramref name="options"/> 一一对应）。HellForge 用选项名做“关闭集合”与“变体选择”的键
+    /// （<c>CosmeticPacks.Choice.Off</c> 是 HashSet、<c>Sub</c> 是 Dictionary），重名会互相覆盖；复合包合并后
+    /// 各子包的选项平铺到同一层，重名很常见，所以重复出现的名字追加序号（“本体”“本体 (2)”）。
+    /// 空名也补一个占位名——HellForge 读到无名选项会直接判整个包无效。
+    /// </summary>
+    public static IReadOnlyList<string> PackOptionNames(IReadOnlyList<ModOption>? options)
+        => UniqueNames(options?.Select(option => option.Name) ?? [], "选项");
+
+    /// <summary>某个选项的变体名（与 <c>option.SubOptions</c> 一一对应），重名同样追加序号。</summary>
+    public static IReadOnlyList<string> PackSubOptionNames(ModOption option)
+        => UniqueNames(option.SubOptions?.Select(sub => sub.Name) ?? [], "变体");
+
+    private static List<string> UniqueNames(IEnumerable<string?> raw, string fallback)
+    {
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        var names = new List<string>();
+        foreach (var value in raw)
+        {
+            var baseName = string.IsNullOrWhiteSpace(value) ? $"{fallback} {names.Count + 1}" : value.Trim();
+            var name = baseName;
+            for (var n = 2; !used.Add(name); n++) name = $"{baseName} ({n})";
+            names.Add(name);
+        }
+        return names;
+    }
+
+    private static JsonObject OptionNode(ModOption option, string name, string exportDirectory)
+    {
+        var node = new JsonObject { ["Name"] = name };
+        if (!string.IsNullOrWhiteSpace(option.Description)) node["Description"] = option.Description;
+        if (ExistingRelative(exportDirectory, option.Image) is { } image) node["Image"] = image;
+        if (option.Include != null) node["Include"] = ToRelativeArray(option.Include);
+        if (option.SubOptions is { Count: > 0 })
+        {
+            var names = PackSubOptionNames(option);
+            var subs = new JsonArray();
+            for (var i = 0; i < option.SubOptions.Count; i++)
+                subs.Add(SubOptionNode(option.SubOptions[i], names[i], exportDirectory));
+            node["SubOptions"] = subs;
+        }
+        return node;
+    }
+
+    private static JsonObject SubOptionNode(ModSubOption option, string name, string exportDirectory)
+    {
+        var node = new JsonObject { ["Name"] = name };
+        if (!string.IsNullOrWhiteSpace(option.Description)) node["Description"] = option.Description;
+        if (ExistingRelative(exportDirectory, option.Image) is { } image) node["Image"] = image;
+        if (option.Include != null) node["Include"] = ToRelativeArray(option.Include);
+        if (option.SubOptions is { Count: > 0 })
+        {
+            var names = UniqueNames(option.SubOptions.Select(sub => sub.Name), "变体");
+            var subs = new JsonArray();
+            for (var i = 0; i < option.SubOptions.Count; i++)
+                subs.Add(SubOptionNode(option.SubOptions[i], names[i], exportDirectory));
+            node["SubOptions"] = subs;
+        }
+        return node;
+    }
+
+    private static JsonArray ToRelativeArray(IEnumerable<string> paths)
+    {
+        var array = new JsonArray();
+        foreach (var path in paths)
+            if (!string.IsNullOrWhiteSpace(path)) array.Add(path.Replace('\\', '/'));
+        return array;
+    }
+
+    /// <summary>导出目录里存在的相对路径（统一成 / 分隔），不在导出目录内或文件不存在时为 null。</summary>
+    private static string? ExistingRelative(string exportDirectory, string? relative)
+    {
+        if (string.IsNullOrWhiteSpace(relative)) return null;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(exportDirectory));
+        var absolute = Path.GetFullPath(Path.Combine(root, relative.Replace('\\', '/')));
+        if (!PathGuard.IsInsideRoot(root, absolute) || !File.Exists(absolute)) return null;
+        return Path.GetRelativePath(root, absolute).Replace('\\', '/');
+    }
+
+    private static async Task<string?> TryStageIconAsync(Mod mod, string exportDirectory,
+        HellForgeFilePlace place, CancellationToken cancellationToken)
     {
         var thumbnail = mod.ThumbnailPath;
         if (string.IsNullOrWhiteSpace(thumbnail) || !File.Exists(thumbnail)) return null;
@@ -134,9 +286,15 @@ internal static class HellForgeModExporter
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(mod.Path));
         if (!PathGuard.IsInsideRoot(root, Path.GetFullPath(thumbnail))) return null;
         var name = "icon" + extension;
-        File.Copy(thumbnail, Path.Combine(exportDirectory, name), true);
+        await place(thumbnail, Path.Combine(exportDirectory, name), cancellationToken);
         return name;
     }
+
+    /// <summary>
+    /// 导出布局版本：清单写法/文件组织一改就要 +1，否则已同步过的模组会因指纹未变被跳过，
+    /// 旧的（可能不完整的）导出目录会一直留着。旧版本号算出的指纹与新版不同，下次同步会自动重导一次。
+    /// </summary>
+    private const int ExportFormat = 2;
 
     /// <summary>内容指纹（stat 级，廉价）：pack 与选项无关（导出内容恒定），flat 含选项快照。
     /// 与 HellForge ModStaging.Same 一样用 长度+修改时间 判断变化。</summary>
@@ -144,6 +302,7 @@ internal static class HellForgeModExporter
         CancellationToken cancellationToken = default)
     {
         var builder = new StringBuilder();
+        builder.Append("fmt").Append(ExportFormat).Append('\n');
         builder.Append(mod.Id.ToString("N")).Append('\n');
         builder.Append(mod.Version).Append('\n');
         builder.Append(kind).Append('\n');
@@ -170,9 +329,8 @@ internal static class HellForgeModExporter
     {
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(mod.Path));
         var seen = new HashSet<string>(PathComparer);
-        var manifest = Path.Combine(root, "manifest.json");
-        if (File.Exists(manifest) && seen.Add("manifest.json"))
-            yield return ("manifest.json", manifest);
+        // 根目录的 manifest.json 不搬：导出总要按 HD2Mimnt 清单重写一份（见 ExportAsync），
+        // 搬过来也只会在被硬链接时写穿库文件。
 
         foreach (var relative in PackIncludeDirectories(mod))
         {
@@ -240,7 +398,7 @@ internal static class HellForgeModExporter
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..max];
 
-    private static async Task CopyFileAsync(string source, string destination, CancellationToken cancellationToken)
+    internal static async Task CopyFileAsync(string source, string destination, CancellationToken cancellationToken)
     {
         const int bufferSize = 1 << 20;
         await using var sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read,
