@@ -99,12 +99,19 @@ public class ModSubOption
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// 子选项被选中时参与部署的相对目录列表
+    /// 子选项被选中时参与部署的相对目录列表；null 且无嵌套子选项时
+    /// 表示清单未声明映射，部署需回退全量目录
     /// </summary>
     public List<string>? Include { get; set; }
 
     /// <summary>子选项预览图相对路径（仅展示用）</summary>
     public string? Image { get; set; }
+
+    /// <summary>
+    /// 嵌套子选项（第三层起）：父级只做分组/展示，文件映射在叶子 Include 声明。
+    /// 递归结构，当前已知模组最深 3 级（选项 → 子选项 → 颜色等叶子变体）。
+    /// </summary>
+    public List<ModSubOption>? SubOptions { get; set; }
 }
 
 /// <summary>

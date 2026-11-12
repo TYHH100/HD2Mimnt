@@ -106,16 +106,40 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                     var selectedIndex = i < state.OptionSelections?.Count
                         ? Math.Clamp(state.OptionSelections[i], 0, option.SubOptions.Count - 1)
                         : 0;
+                    // 嵌套（第三层）选择：SubOptionSelections[i][s] 是子选项 s 下选中的叶子索引，缺省 0
+                    var storedSubSelections = i < state.SubOptionSelections?.Count ? state.SubOptionSelections[i] : null;
                     for (var s = 0; s < option.SubOptions.Count; s++)
                     {
                         var sub = option.SubOptions[s];
-                        subChoices.Add(new ProfileModSubOptionChoiceViewModel
+                        var nestedChoices = new List<ProfileModSubOptionChoiceViewModel>();
+                        if (sub.SubOptions is { Count: > 0 })
+                        {
+                            var nestedSelected = s < storedSubSelections?.Count
+                                ? Math.Clamp(storedSubSelections[s], 0, sub.SubOptions.Count - 1)
+                                : 0;
+                            for (var n = 0; n < sub.SubOptions.Count; n++)
+                            {
+                                var nested = sub.SubOptions[n];
+                                nestedChoices.Add(new ProfileModSubOptionChoiceViewModel
+                                {
+                                    Name = nested.Name,
+                                    Description = nested.Description,
+                                    ImagePath = ResolveImagePath(modPath, nested.Image),
+                                    IsSelected = n == nestedSelected
+                                });
+                            }
+                        }
+
+                        var subChoice = new ProfileModSubOptionChoiceViewModel
                         {
                             Name = sub.Name,
                             Description = sub.Description,
                             ImagePath = ResolveImagePath(modPath, sub.Image),
-                            IsSelected = s == selectedIndex
-                        });
+                            IsSelected = s == selectedIndex,
+                            SubOptions = nestedChoices
+                        };
+                        foreach (var nested in nestedChoices) nested.Parent = subChoice;
+                        subChoices.Add(subChoice);
                     }
                 }
 
@@ -239,6 +263,19 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     public void SelectSubOption(ProfileModSubOptionChoiceViewModel? choice)
     {
         if (choice == null) return;
+
+        if (choice.Parent is { } parent)
+        {
+            // 嵌套（第三层）：在父级子选项的嵌套列表内互斥；一级子选项的选中态不动
+            foreach (var nested in parent.SubOptions)
+            {
+                nested.IsSelected = ReferenceEquals(nested, choice);
+            }
+
+            SaveState();
+            return;
+        }
+
         foreach (var card in OptionCards)
         {
             if (card.SubOptions.Contains(choice))
@@ -330,6 +367,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         => GroupCards.Cast<ProfileModImageHolderViewModel>()
             .Concat(OptionCards)
             .Concat(OptionCards.SelectMany(card => card.SubOptions))
+            .Concat(OptionCards.SelectMany(card => card.SubOptions.SelectMany(sub => sub.SubOptions)))
             .FirstOrDefault(holder => ReferenceEquals(holder.Image, image));
 
     /// <summary>释放覆盖层中的原图预览；覆盖层正显示它时先关闭覆盖层。</summary>
@@ -386,6 +424,26 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
 
                 return 0;
             }).ToList();
+            // 第三层：每个一级子选项一行，值为其嵌套列表中选中的叶子索引（无嵌套时 0），与清单子选项下标对齐
+            state.SubOptionSelections = OptionCards.Select(card =>
+            {
+                var row = new List<int>();
+                foreach (var sub in card.SubOptions)
+                {
+                    for (var n = 0; n < sub.SubOptions.Count; n++)
+                    {
+                        if (sub.SubOptions[n].IsSelected)
+                        {
+                            row.Add(n);
+                            break;
+                        }
+                    }
+
+                    row.Add(0);
+                }
+
+                return row;
+            }).ToList();
         }
 
         return state;
@@ -417,6 +475,10 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                 foreach (var sub in card.SubOptions)
                 {
                     await sub.LoadImageAsync(token);
+                    foreach (var nested in sub.SubOptions)
+                    {
+                        await nested.LoadImageAsync(token);
+                    }
                 }
             }
         }
@@ -522,6 +584,11 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
             {
                 yield return sub.Name;
                 yield return sub.Description;
+                foreach (var nested in sub.SubOptions)
+                {
+                    yield return nested.Name;
+                    yield return nested.Description;
+                }
             }
         }
 
@@ -548,6 +615,12 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                 translations.TryGetValue(sub.Name, out var subName);
                 translations.TryGetValue(sub.Description, out var subDescription);
                 sub.SetTranslation(subName, subDescription);
+                foreach (var nested in sub.SubOptions)
+                {
+                    translations.TryGetValue(nested.Name, out var nestedName);
+                    translations.TryGetValue(nested.Description, out var nestedDescription);
+                    nested.SetTranslation(nestedName, nestedDescription);
+                }
             }
         }
 
@@ -591,6 +664,17 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                         string.Equals(sub.Name, source, StringComparison.Ordinal) ? translation : sub.TranslatedName,
                         string.Equals(sub.Description, source, StringComparison.Ordinal) ? translation : sub.TranslatedDescription);
                 }
+
+                foreach (var nested in sub.SubOptions)
+                {
+                    if (string.Equals(nested.Name, source, StringComparison.Ordinal) ||
+                        string.Equals(nested.Description, source, StringComparison.Ordinal))
+                    {
+                        nested.SetTranslation(
+                            string.Equals(nested.Name, source, StringComparison.Ordinal) ? translation : nested.TranslatedName,
+                            string.Equals(nested.Description, source, StringComparison.Ordinal) ? translation : nested.TranslatedDescription);
+                    }
+                }
             }
         }
 
@@ -617,7 +701,11 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         {
             if (card.Image is { } image) images.Add(image);
             foreach (var sub in card.SubOptions)
+            {
                 if (sub.Image is { } subImage) images.Add(subImage);
+                foreach (var nested in sub.SubOptions)
+                    if (nested.Image is { } nestedImage) images.Add(nestedImage);
+            }
         }
         foreach (var group in GroupCards)
             if (group.Image is { } groupImage) images.Add(groupImage);
@@ -638,7 +726,8 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
     /// <summary>预览覆盖层当前展示的是否是本弹窗持有的位图。</summary>
     internal bool OwnsImage(Bitmap? image)
         => image != null && (OptionCards.Any(card => ReferenceEquals(card.Image, image)
-            || card.SubOptions.Any(sub => ReferenceEquals(sub.Image, image)))
+            || card.SubOptions.Any(sub => ReferenceEquals(sub.Image, image)
+                || sub.SubOptions.Any(nested => ReferenceEquals(nested.Image, image))))
             || GroupCards.Any(group => ReferenceEquals(group.Image, image)));
 
     /// <summary>把清单里的相对图片路径解析为模组目录内的绝对路径（越出模组目录或文件缺失返回 null）。</summary>

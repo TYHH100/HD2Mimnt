@@ -70,6 +70,13 @@
     <Setter Property="HorizontalAlignment" Value="Right"/>
     <Setter Property="Margin" Value="0,0,44,0"/>
   </Style>
+  <!-- 嵌套（第三层）展开箭头不需要为顶层勾选框预留 44px 槽位。 -->
+  <Style Selector="Expander.nested-sub-options /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+  <Style Selector="Expander.nested-sub-options /template/ ToggleButton#ExpanderHeader">
+    <Setter Property="Padding" Value="0,2"/>
+  </Style>
   <!-- 复用 FluentAvalonia 原生 ListBoxItem 模板，只调整内容布局，不覆盖选中态模板。 -->
   <Style Selector="ListBoxItem.option-choice-item">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -109,18 +116,51 @@
                               <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}" Classes="option-choice-item"
                                            Tapped="SubChoice_Tapped">
                                 <Border Classes="sub-choice">
-                                  <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
-                                    <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
-                                            Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
-                                      <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
-                                                 ToolTip.Tip="{Binding Name}"/>
-                                      <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
-                                                 TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
-                                    </StackPanel>
-                                  </Grid>
+                                  <StackPanel Spacing="0">
+                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                      <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
+                                              Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+                                        <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
+                                      </Border>
+                                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}"/>
+                                        <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
+                                                   TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
+                                      </StackPanel>
+                                    </Grid>
+                                    <!-- 第三层：嵌套变体（叶子 Include 才决定部署文件），默认折叠。 -->
+                                    <Expander Classes="mod-option nested-sub-options" Header="{Binding DisplayName}"
+                                              IsExpanded="False" IsVisible="{Binding HasSubOptions}"
+                                              Margin="0,4,0,4" Padding="0" Background="Transparent" BorderThickness="0">
+                                      <ItemsControl ItemsSource="{Binding SubOptions}" Margin="8,0,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                          <DataTemplate x:DataType="vm:ProfileModSubOptionChoiceViewModel">
+                                            <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}"
+                                                         Classes="option-choice-item nested-choice"
+                                                         Tapped="SubChoice_Tapped" Margin="0,2">
+                                              <Border Classes="sub-choice">
+                                                <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                                                  <Border Width="32" Height="32" CornerRadius="4"
+                                                          Background="{DynamicResource Surface3Brush}"
+                                                          Tapped="PreviewImage_Tapped" Cursor="Hand"
+                                                          ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+                                                    <Image Source="{Binding Image}" Width="32" Height="32" Stretch="Uniform"/>
+                                                  </Border>
+                                                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                    <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
+                                                               ToolTip.Tip="{Binding Name}"/>
+                                                    <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
+                                                               TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
+                                                  </StackPanel>
+                                                </Grid>
+                                              </Border>
+                                            </ListBoxItem>
+                                          </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                      </ItemsControl>
+                                    </Expander>
+                                  </StackPanel>
                                 </Border>
                               </ListBoxItem>
                             </DataTemplate>

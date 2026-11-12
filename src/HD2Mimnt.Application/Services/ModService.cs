@@ -431,6 +431,21 @@ public partial class ModService
                 writeGeneratedManifest = ManifestPackage.IsGeneratedManifest(mod.Path);
             }
 
+            // 旧版本导入只支持两级选项：第三层嵌套子选项入库时丢失，部署计划缺叶子 Include 映射会退回全目录模式。
+            // 盘上合并清单（manifest.json + hd2mimnt.json）仍含嵌套时重新解析自愈，落库后不再触发。
+            if (mod.Manifest is { } storedManifest
+                && storedManifest.Options is { } storedOptions
+                && storedOptions.Any(o => o.SubOptions is { Count: > 0 })
+                && !HasNestedSubOptions(storedManifest))
+            {
+                var freshManifest = await _importService.ReadManifestFromDirectoryAsync(mod.Path, cancellationToken);
+                if (freshManifest is { } && HasNestedSubOptions(freshManifest))
+                {
+                    mod.Manifest = freshManifest;
+                    changed = true;
+                }
+            }
+
             // 旧库条目大多在导入时没有档案：管理器推断出的清单在库内补齐 manifest.json（合集/HD2IAS 有自己的选项文件，不写根清单）。
             if (options == null
                 && mod.WorkflowType != Hd2IrIntegrationService.Workflow
@@ -475,6 +490,10 @@ public partial class ModService
             _logger?.LogWarning(ex, "回填 manifest 失败: {ModPath}", mod.Path);
         }
     }
+
+    /// <summary>判断选项树是否含第三层嵌套子选项（当前已知最深 3 级：选项 → 子选项 → 叶子）。</summary>
+    private static bool HasNestedSubOptions(ModManifest manifest)
+        => manifest.Options?.Any(option => option.SubOptions?.Any(sub => sub.SubOptions is { Count: > 0 }) == true) == true;
 
     public async Task<bool> DeleteModAsync(Guid id, CancellationToken cancellationToken = default)
     {

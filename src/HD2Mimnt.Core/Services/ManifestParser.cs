@@ -328,6 +328,16 @@ public class ManifestParser
             writer.WriteString("Image", subOption.Image);
         }
 
+        if (subOption.SubOptions?.Count > 0)
+        {
+            writer.WriteStartArray("SubOptions");
+            foreach (var nestedOption in subOption.SubOptions)
+            {
+                WriteModSubOption(writer, nestedOption);
+            }
+            writer.WriteEndArray();
+        }
+
         writer.WriteEndObject();
     }
 
@@ -459,7 +469,7 @@ public class ManifestParser
             Image = GetStringProperty(element, "Image")
         };
 
-        // 解析子选项
+        // 解析子选项（递归：支持选项 → 子选项 → 嵌套叶子变体的多层结构）
         if (TryGetPropertyIgnoreCase(element, "SubOptions", out var subOptionsProp) && subOptionsProp.ValueKind == JsonValueKind.Array)
         {
             var subOptions = new List<ModSubOption>();
@@ -467,19 +477,49 @@ public class ManifestParser
             {
                 if (subElement.ValueKind == JsonValueKind.Object)
                 {
-                    subOptions.Add(new ModSubOption
-                    {
-                        Name = GetStringProperty(subElement, "Name") ?? "Unnamed SubOption",
-                        Description = GetStringProperty(subElement, "Description") ?? string.Empty,
-                        Include = ParseInclude(subElement),
-                        Image = GetStringProperty(subElement, "Image")
-                    });
+                    subOptions.Add(ParseSubOption(subElement));
                 }
             }
             option.SubOptions = subOptions.Count > 0 ? subOptions : null;
         }
 
         return option;
+    }
+
+    /// <summary>
+    /// 递归解析子选项：每层读 Name/Description/Include/Image，嵌套 SubOptions 继续递归。
+    /// </summary>
+    private ModSubOption ParseSubOption(JsonElement element)
+    {
+        if (TryGetPropertyIgnoreCase(element, "SubOptions", out var nestedProp)
+            && nestedProp.ValueKind == JsonValueKind.Array)
+        {
+            var nested = new List<ModSubOption>();
+            foreach (var nestedElement in nestedProp.EnumerateArray())
+            {
+                if (nestedElement.ValueKind == JsonValueKind.Object)
+                {
+                    nested.Add(ParseSubOption(nestedElement));
+                }
+            }
+
+            return new ModSubOption
+            {
+                Name = GetStringProperty(element, "Name") ?? "Unnamed SubOption",
+                Description = GetStringProperty(element, "Description") ?? string.Empty,
+                Include = ParseInclude(element),
+                Image = GetStringProperty(element, "Image"),
+                SubOptions = nested.Count > 0 ? nested : null
+            };
+        }
+
+        return new ModSubOption
+        {
+            Name = GetStringProperty(element, "Name") ?? "Unnamed SubOption",
+            Description = GetStringProperty(element, "Description") ?? string.Empty,
+            Include = ParseInclude(element),
+            Image = GetStringProperty(element, "Image")
+        };
     }
 
     private static List<string>? ParseInclude(JsonElement element)

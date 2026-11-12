@@ -111,4 +111,104 @@ public class ManifestParserTests
         Assert.Equal(ManifestVersion.Legacy, manifest.ManifestVersion);
         Assert.Null(manifest.LegacyOptions);
     }
+
+    private const string ThreeLevelJson = """
+        {"Version":1,"Name":"MoeTest","Options":[
+          {"Name":"模型","Include":["Model"]},
+          {"Name":"材质","SubOptions":[
+            {"Name":"丝袜换色","SubOptions":[
+              {"Name":"黑丝","Include":["Material/Pantyhose/Black"]}]},
+            {"Name":"头发换色","SubOptions":[
+              {"Name":"黑","Include":["Material/Hair/Black"]},
+              {"Name":"白","Include":["Material/Hair/White"]}]},
+            {"Name":"衣服换色","SubOptions":[
+              {"Name":"红","Include":["Material/Clothes/Red"]}]}]}]}
+        """;
+
+    [Fact]
+    public void ParseFromJson_NestedSubOptions_PreservesThirdLevelInclude()
+    {
+        var manifest = new ManifestParser().ParseFromJson(ThreeLevelJson);
+
+        Assert.NotNull(manifest);
+        var material = manifest!.Options![1];
+        Assert.Null(material.Include);
+        Assert.Equal(3, material.SubOptions!.Count);
+        var hair = material.SubOptions[1];
+        Assert.Null(hair.Include);
+        var leaves = hair.SubOptions!;
+        Assert.Equal(2, leaves.Count);
+        Assert.Equal("Material/Hair/Black", leaves[0].Include![0]);
+        Assert.Equal("Material/Hair/White", leaves[1].Include![0]);
+        Assert.Null(material.SubOptions[0].SubOptions![0].SubOptions);
+    }
+
+    [Fact]
+    public void ResolveDeployPlan_NestedSubOptions_DefaultSelectionCollectsLeafDirectories()
+    {
+        var manifest = new ManifestParser().ParseFromJson(ThreeLevelJson)!;
+
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(manifest,
+            ProfileModOptionResolver.ResolveEffective(manifest, null));
+
+        Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
+        // 默认：选项全启用，一级子选项取 0，嵌套叶子取 0（黑丝）。
+        Assert.Equal(new[] { "Model", "Material/Pantyhose/Black" }, plan.Directories);
+    }
+
+    [Fact]
+    public void ResolveDeployPlan_NestedSubOptions_SelectedLeafChangesDirectory()
+    {
+        var manifest = new ManifestParser().ParseFromJson(ThreeLevelJson)!;
+        const string stored = """
+            {"OptionToggles":[true,true],"OptionSelections":[0,1],"SubOptionSelections":[[],[0,1]]}
+            """;
+
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(manifest,
+            ProfileModOptionResolver.ResolveEffective(manifest, stored));
+
+        Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
+        Assert.Equal(new[] { "Model", "Material/Hair/White" }, plan.Directories);
+    }
+
+    [Fact]
+    public void ResolveDeployPlan_NestedSubOptionWithoutLeafInclude_FallsBackToFullDirectory()
+    {
+        var manifest = new ManifestParser().ParseFromJson("""
+            {"Version":1,"Name":"BrokenLeaf","Options":[
+              {"Name":"材质","SubOptions":[
+                {"Name":"头发换色","SubOptions":[{"Name":"黑"},{"Name":"白"}]}]}]}
+            """)!;
+
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(manifest,
+            ProfileModOptionResolver.ResolveEffective(manifest, null));
+
+        Assert.Equal(OptionDeployScope.FullDirectory, plan.Scope);
+        Assert.Empty(plan.Directories);
+    }
+
+    [Fact]
+    public void SaveAndParse_NestedSubOptions_RoundTripsThroughPackageFiles()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hd2mimnt_nested_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var parser = new ManifestParser();
+            var manifest = parser.ParseFromJson(ThreeLevelJson)!;
+            var file = Path.Combine(dir, "manifest.json");
+            parser.SaveToFile(manifest, file);
+
+            var reloaded = parser.ParseFromFile(file)!;
+            var hair = reloaded.Options![1].SubOptions![1];
+            var leaves = hair.SubOptions!;
+            Assert.Equal(2, leaves.Count);
+            Assert.Equal("Material/Hair/Black", leaves[0].Include![0]);
+            Assert.Equal("Material/Hair/White", leaves[1].Include![0]);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
 }

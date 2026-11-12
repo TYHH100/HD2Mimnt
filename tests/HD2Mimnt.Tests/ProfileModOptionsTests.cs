@@ -7,6 +7,7 @@ using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
+using System.Text;
 
 namespace HD2Mimnt.Tests;
 
@@ -477,6 +478,101 @@ public class ProfileModOptionsTests : IDisposable
         Assert.False(File.Exists(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_0")));
     }
 
+    // ── 三层选项：选项 → 子选项 → 叶子，叶子携带 Include 映射 ──
+
+    private const string ThreeLevelManifestJson = """
+        {"Version":1,"Name":"MoeTwilightGlint","Options":[
+          {"Name":"模型","Include":["Model"]},
+          {"Name":"材质","SubOptions":[
+            {"Name":"丝袜换色","SubOptions":[
+              {"Name":"黑","Include":["Material/Pantyhose/Black"]}]},
+            {"Name":"头发换色","SubOptions":[
+              {"Name":"黑","Include":["Material/Hair/Black"]},
+              {"Name":"白","Include":["Material/Hair/White"]}]},
+            {"Name":"衣服换色","SubOptions":[
+              {"Name":"红","Include":["Material/Clothes/Red"]},
+              {"Name":"蓝","Include":["Material/Clothes/Blue"]}]}]}]}
+        """;
+
+    private static void WriteThreeLevelPatches(string modPath)
+    {
+        foreach (var (directory, content) in new[]
+        {
+            ("Model", "model"),
+            ("Material/Pantyhose/Black", "pantyhose"),
+            ("Material/Hair/Black", "hair_black"),
+            ("Material/Hair/White", "hair_white"),
+            ("Material/Clothes/Red", "clothes_red"),
+            ("Material/Clothes/Blue", "clothes_blue")
+        })
+        {
+            Directory.CreateDirectory(Path.Combine(modPath, directory));
+            var hex = Convert.ToHexString(Encoding.UTF8.GetBytes(content)).PadRight(16, '0')[..16];
+            File.WriteAllText(Path.Combine(modPath, directory, $"{hex}.patch_1"), content);
+        }
+    }
+
+    private static bool DataHasPatch(string gameDirRoot, string content)
+    {
+        // 部署重编号时资源前缀统一小写（PatchDeploymentPlanner.BuildFiles ToLowerInvariant）。
+        var hex = Convert.ToHexString(Encoding.UTF8.GetBytes(content)).ToLowerInvariant().PadRight(16, '0')[..16];
+        // EnumerateFiles 返回完整路径，须按文件名的 hex 前缀匹配（目标前缀小写）。
+        return Directory.EnumerateFiles(Path.Combine(gameDirRoot, "data"))
+            .Any(file => Path.GetFileName(file).StartsWith(hex, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_ThreeLevelOptions_DefaultSelectionDeploysFirstLeaves()
+    {
+        var mod = await CreateModAsync("moe_default", new ManifestParser().ParseFromJson(ThreeLevelManifestJson));
+        WriteThreeLevelPatches(mod.Path);
+        var profileId = await _profileService.CreateProfileAsync("MoeDefault");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        // 三层结构不再触发全目录回退，模组不被整体跳过；默认各级取 0：
+        // 材质选中第 0 个子选项（丝袜换色），其叶子取 0 → 只部署 Model + Material/Pantyhose/Black
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(1, result.CompletedMods);
+        Assert.Equal(0, result.SkippedMods);
+        Assert.True(DataHasPatch(_gameDirRoot, "model"));
+        Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
+        Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
+        Assert.False(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.False(DataHasPatch(_gameDirRoot, "hair_white"));
+        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_ThreeLevelOptions_SelectedLeavesDeployTheirDirectories()
+    {
+        var mod = await CreateModAsync("moe_selected", new ManifestParser().ParseFromJson(ThreeLevelManifestJson));
+        WriteThreeLevelPatches(mod.Path);
+        var profileId = await _profileService.CreateProfileAsync("MoeSelected");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        await _profileService.SetModOptionsAsync(profileId, mod.Id, new()
+        {
+            OptionToggles = [true, true],
+            OptionSelections = [0, 1],
+            SubOptionSelections = [[], [0, 1]]
+        });
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(0, result.SkippedMods);
+        // 材质选中第 1 个子选项（头发换色）+ 叶子取 1（白）→ 只部署 Model + Material/Hair/White
+        Assert.True(DataHasPatch(_gameDirRoot, "model"));
+        Assert.True(DataHasPatch(_gameDirRoot, "hair_white"));
+        Assert.False(DataHasPatch(_gameDirRoot, "pantyhose"));
+        Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
+        Assert.False(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+    }
+
     [Fact]
     public async Task DeployProfileAsync_LegacyOptions_ShouldDeployOnlySelectedSubDirectory()
     {
@@ -805,6 +901,55 @@ public class ProfileModOptionsTests : IDisposable
         var persisted = await _modRepository.GetByIdAsync(mod.Id);
         Assert.NotNull(persisted!.Manifest);
     }
+
+    [Fact]
+    public async Task GetModsByIdsAsync_StorageLostNestedSubOptions_ShouldSelfHealFromDisk()
+    {
+        // 旧版本导入只支持两级选项，第三层嵌套入库时丢失；库内 2 级 + 盘上 3 级时重新解析自愈
+        var modDir = Path.Combine(_modDirRoot, "nested_heal_mod");
+        Directory.CreateDirectory(modDir);
+        await File.WriteAllTextAsync(Path.Combine(modDir, "manifest.json"), ThreeLevelManifestJson);
+
+        var mod = new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "nested_heal_mod",
+            Version = "1",
+            Path = modDir,
+            ImportedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            Manifest = new()
+            {
+                Name = "nested_heal_mod",
+                ManifestVersion = ManifestVersion.V1,
+                Options =
+                [
+                    new() { Name = "模型", Include = ["Model"] },
+                    // 旧版本入库时第三层丢失：只剩 2 级（子选项直接声明 Include，无嵌套）
+                    new() { Name = "材质", SubOptions =
+                    [
+                        new() { Name = "头发换色", Include = ["Material/Hair"] }
+                    ] }
+                ]
+            }
+        };
+        await _modRepository.AddAsync(mod);
+
+        var modService = new ModService(_modRepository, _modDirRoot);
+        var loaded = (await modService.GetModsByIdsAsync(new[] { mod.Id })).Single();
+
+        // 自愈后 3 个子选项都在，且叶子 Include 保留
+        var material = loaded.Manifest!.Options!.Single(o => o.Name == "材质");
+        Assert.Equal(3, material.SubOptions!.Count);
+        Assert.Equal("Material/Clothes/Blue",
+            material.SubOptions.Single(o => o.Name == "衣服换色").SubOptions![1].Include![0]);
+
+        // 已落库：绕过服务直接读仓储也是 3 级
+        var persisted = await _modRepository.GetByIdAsync(mod.Id);
+        Assert.Equal(3, persisted!.Manifest!.Options!.Single(o => o.Name == "材质").SubOptions!.Count);
+    }
+
+
 
     // ── 旧版 manifest 格式兼容解析（导入路径依赖） ──
 
