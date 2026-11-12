@@ -43,6 +43,8 @@
 
 - 部署清理只有在所有目标文件成功清理后才能删除 DeploymentRecord；任一文件失败必须保留 DeploymentFiles 和记录供重试，不能用会话级删除覆盖失败状态。清理只处理当前生效 `GamePath` 的当前状态；没有当前记录时才允许回退清理未归属旧记录，绝不能按会话误删其它安装的部署。
 
+- 部署成功消息的所有分支（含“无需重新部署/无需更新”）都要追加“无可部署补丁：<名称>”：0 补丁模组进 `SkippedModNames` 且不参与对账，AlreadyCurrent 分支若不报告，用户会看到“不让部署”却无排查线索（2026-11-11 用户截图反馈）。回归见 `DeploymentServiceIntegrationTests.DeployProfile_AlreadyCurrent_MessageListsSkippedMods`。
+
 - 部署清理的最终进度消息要带 SessionId 或当前安装路径，便于任务中心把结果与失败恢复记录对应起来；测试断言应覆盖前缀和会话/安装标识。
 
 - 游戏来源分官方安装与 HellForge 离线服，两者互斥。`Game.Path` 只保存官方目录，`Game.Mode` 与 `Game.HellForgePath` 决定当前来源；所有业务服务必须通过 `SettingsService.GetEffectiveGamePath()` 读取，HellForge 解析为 `<安装根>\game`，不能直接读 `Game.Path` 或按目录名猜来源。设置页只校验当前来源，另一个目录仅保留供切回。HellForge 模式部署改走模组同步（见下条），不再写 `game\data`；启动优先执行 `app\cli\HellForge.Cli.exe play --install <安装根>`，旧版 CLI 没有 `play` 时必须探测帮助输出并回退到 `HellForge.exe`，不能按版本号硬编码。来源：[HellForge 外部启动器](https://github.com/SkyeShade/HellForge/blob/main/docs/external-launchers.md)、[安装目录](https://github.com/SkyeShade/HellForge/blob/main/docs/README.md#the-installations-folders)、[数据模组](https://github.com/SkyeShade/HellForge/blob/main/docs/modding/data.md)

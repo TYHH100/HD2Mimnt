@@ -854,15 +854,18 @@ public class DeploymentService
         ReconcileOutcome outcome, bool targeted)
     {
         var targetDirectory = plan.DataPath;
+        string message;
         if (outcome.AlreadyCurrent)
-            return targeted
+            message = targeted
                 ? $"该模组与当前部署一致，无需更新：{outcome.UnchangedFiles} 个文件保持原状。"
                 : $"配置“{profile.Name}”与当前安装状态一致，无需重新部署：{outcome.UnchangedFiles} 个文件保持原状。位置：{targetDirectory}";
-
-        var counts = $"新增 {outcome.AddedFiles}、更新 {outcome.UpdatedFiles}、移动 {outcome.MovedFiles}、删除 {outcome.RemovedFiles} 个文件";
-        var message = targeted
-            ? $"已自动增量部署：{counts}。"
-            : $"配置“{profile.Name}”：已部署 {plan.Mods.Count}/{plan.TotalMods} 个模组，{counts}。位置：{targetDirectory}";
+        else
+        {
+            var counts = $"新增 {outcome.AddedFiles}、更新 {outcome.UpdatedFiles}、移动 {outcome.MovedFiles}、删除 {outcome.RemovedFiles} 个文件";
+            message = targeted
+                ? $"已自动增量部署：{counts}。"
+                : $"配置“{profile.Name}”：已部署 {plan.Mods.Count}/{plan.TotalMods} 个模组，{counts}。位置：{targetDirectory}";
+        }
         if (plan.SkippedModNames.Count > 0)
             message += $"；无可部署补丁：{string.Join("、", plan.SkippedModNames)}";
         return message;

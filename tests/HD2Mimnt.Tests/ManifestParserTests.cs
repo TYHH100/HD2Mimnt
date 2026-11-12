@@ -67,4 +67,48 @@ public class ManifestParserTests
         Assert.Equal(missing ? OptionDeployScope.FullDirectory : OptionDeployScope.DirectoryList, plan.Scope);
         Assert.Empty(plan.Directories);
     }
+
+    [Fact]
+    public void ParseFromJson_ObjectOptionsWithoutVersion_TreatedAsV1()
+    {
+        var manifest = new ManifestParser().ParseFromJson("""
+            {"Name":"NoVersionMod","Options":[
+              {"Name":"模型","Include":["Model"]},
+              {"Name":"材质","Include":["Material"]}]}
+            """);
+
+        Assert.NotNull(manifest);
+        Assert.Equal(ManifestVersion.V1, manifest.ManifestVersion);
+        Assert.Equal(2, manifest.Options!.Count);
+        Assert.Equal("Model", manifest.Options[0].Include![0]);
+        var plan = ProfileModOptionResolver.ResolveDeployPlan(manifest,
+            ProfileModOptionResolver.ResolveEffective(manifest, null));
+        Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
+        Assert.Equal(new[] { "Model", "Material" }, plan.Directories);
+    }
+
+    [Fact]
+    public void ParseFromJson_StringOptionsWithoutVersion_StaysLegacy()
+    {
+        var manifest = new ManifestParser().ParseFromJson("""
+            {"Name":"LegacyMod","Options":["VariantA","VariantB"]}
+            """);
+
+        Assert.NotNull(manifest);
+        Assert.Equal(ManifestVersion.Legacy, manifest.ManifestVersion);
+        Assert.Equal(new[] { "VariantA", "VariantB" }, manifest.LegacyOptions);
+        Assert.Null(manifest.Options);
+    }
+
+    [Fact]
+    public void ParseFromJson_NoOptionsWithoutVersion_StaysLegacy()
+    {
+        var manifest = new ManifestParser().ParseFromJson("""
+            {"Name":"PlainMod"}
+            """);
+
+        Assert.NotNull(manifest);
+        Assert.Equal(ManifestVersion.Legacy, manifest.ManifestVersion);
+        Assert.Null(manifest.LegacyOptions);
+    }
 }

@@ -101,6 +101,11 @@ public class ManifestParser
 
             manifestVersion = ManifestVersion.V1;
         }
+        else if (HasObjectOptions(root))
+        {
+            // 对象形 Options 只存在于 V1（Legacy 是字符串数组），作者漏写 Version 时不能按 Legacy 丢弃映射。
+            manifestVersion = ManifestVersion.V1;
+        }
 
         var manifest = new ModManifest
         {
@@ -369,6 +374,24 @@ public class ManifestParser
             return prop.GetString();
         }
         return null;
+    }
+
+    private static bool HasObjectOptions(JsonElement root)
+    {
+        if (!TryGetPropertyIgnoreCase(root, "Options", out var optionsProp) || optionsProp.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var element in optionsProp.EnumerateArray())
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private List<string>? ParseLegacyOptions(JsonElement root)

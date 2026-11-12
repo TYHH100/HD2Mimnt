@@ -1,6 +1,7 @@
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Services;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Repositories;
@@ -1574,6 +1575,47 @@ public class DeploymentServiceIntegrationTests : IDisposable
 
         Assert.Null(result);
         Assert.Equal("disabled", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public async Task DeployProfile_AlreadyCurrent_MessageListsSkippedMods()
+    {
+        var deployed = await AddPatchModAsync("Deployed", "9ba626afa44a3aa3.patch_0");
+        var skipped = await AddPatchModAsync("Skipped", "manifest.json");
+        Directory.CreateDirectory(Path.Combine(skipped.Path, "Variant"));
+        File.WriteAllText(Path.Combine(skipped.Path, "Variant", "9ba626afa44a3aa3.patch_0"), "variant");
+        var profile = await AddPatchProfileAsync(deployed, skipped);
+
+        var first = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.PartiallyFailed, first.Status);
+
+        var second = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.PartiallyFailed, second.Status);
+        Assert.Contains("无需重新部署", second.Message);
+        Assert.Contains("无可部署补丁：Skipped", second.Message);
+    }
+
+    [Fact]
+    public async Task DeployProfile_ObjectOptionsWithoutVersion_DeploysIncludedDirectories()
+    {
+        var mod = await AddPatchModAsync("NoVersion", "manifest.json");
+        Directory.CreateDirectory(Path.Combine(mod.Path, "Model"));
+        File.WriteAllText(Path.Combine(mod.Path, "Model", "9ba626afa44a3aa3.patch_0"), "model");
+        mod.Manifest = new ManifestParser().ParseFromJson("""
+            {"Name":"NoVersion","Options":[{"Name":"模型","Include":["Model"]}]}
+            """);
+        await _modRepository.UpdateAsync(mod);
+        var profile = await AddPatchProfileAsync(mod);
+
+        var result = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Equal(1, result.CompletedMods);
+        Assert.Equal("model", File.ReadAllText(Path.Combine(_testTargetDir, "data", "9ba626afa44a3aa3.patch_0")));
     }
 
     private readonly List<string> _extraCleanupPaths = new();
