@@ -216,6 +216,10 @@ public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderV
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>嵌套（第三层）子选项是否展开；仅在有嵌套子选项的行上使用。</summary>
+    [ObservableProperty]
+    private bool _isExpanded;
+
     public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
     public string DisplayDescription => string.IsNullOrWhiteSpace(TranslatedDescription) ? Description : TranslatedDescription!;
     public bool HasTranslation => !string.IsNullOrWhiteSpace(TranslatedName) || !string.IsNullOrWhiteSpace(TranslatedDescription);
