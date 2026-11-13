@@ -3896,6 +3896,43 @@ public sealed partial class FluentAvaloniaUiTests
         finally { window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task LibraryNotice_HoverDismiss_ClearsWhenPointerEntersCard()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ModNoticeDismiss, "Hover");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); }
+            Layout();
+            var view = window.GetVisualDescendants().OfType<LibraryView>().Single();
+
+            var target = library.FilteredMods[0];
+            Assert.True(target.HasNotice);
+            var card = view.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Classes.Contains("mod-card") && ReferenceEquals(border.DataContext, target));
+            var title = card.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == target.Name);
+
+            window.MouseMove(title.TranslatePoint(new Point(20, 8), window)!.Value);
+            Layout();
+            Assert.False(target.HasNotice);
+
+            var mods = scope.Services.GetRequiredService<ModService>();
+            for (var attempt = 0; attempt < 50
+                && (await mods.GetModByIdAsync(target.Id))!.Notice != ModNoticeKind.None; attempt++)
+                await Task.Delay(20);
+            Assert.Equal(ModNoticeKind.None, (await mods.GetModByIdAsync(target.Id))!.Notice);
+        }
+        finally { window.Close(); }
+    }
+
     private static void CaptureSingleClickMarker(Window window, string name)
     {
         var app = Avalonia.Application.Current!;

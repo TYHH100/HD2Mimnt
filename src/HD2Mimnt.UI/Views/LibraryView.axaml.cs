@@ -126,12 +126,20 @@ public partial class LibraryView : UserControl
         }
     }
 
+    /// <summary>提示清除方式为“鼠标悬停”时，指针移入卡片即清除新增/更新提示。</summary>
+    private void OnModCardPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is not Border card || card.DataContext is not ModItemViewModel mod
+            || DataContext is not LibraryViewModel vm) return;
+        if (vm.DismissNoticeOnHover && mod.HasNotice)
+            SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
+    }
+
     /// <summary>
     /// 卡片点击：双击打开详情；Ctrl+点击切换多选；Shift+点击范围选择；
     /// 普通单击只聚焦并清空多选；在隧道路由中处理，避免原生列表再次改写选择。
     /// </summary>
-    private void OnModListPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
+    private void OnModListPointerPressed(object? sender, PointerPressedEventArgs e)    {
         if (e.Source is not Visual source
             || source.GetVisualAncestors().Prepend(source).OfType<ListBoxItem>().FirstOrDefault() is not { } container
             || container.DataContext is not ModItemViewModel mod
@@ -144,7 +152,7 @@ public partial class LibraryView : UserControl
 
         if (IsActionSource(source, container)) return;
 
-        if (mod.HasNotice)
+        if (mod.HasNotice && !vm.DismissNoticeOnHover)
             SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
 
         ModList.Focus();

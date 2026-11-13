@@ -56,6 +56,24 @@ public sealed class ModVersionHistoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Update_WithNewManifestName_ReplacesTitle()
+    {
+        var id = await _mods.ImportModAsync(CreateArchive("1"));
+        _ = await _mods.GetModByIdAsync(id);
+        await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("2", "MDL3 3.0.0-dev.52 预览版"));
+        Assert.Equal("MDL3 3.0.0-dev.52 预览版", (await _mods.GetModByIdAsync(id))!.Name);
+    }
+
+    [Fact]
+    public async Task Update_KeepsManuallyRenamedTitle()
+    {
+        var id = await _mods.ImportModAsync(CreateArchive("1"));
+        await _mods.UpdateModMetadataAsync(id, name: "我的自定义名称");
+        await _mods.UpdateFromLocalArchiveAsync(id, CreateArchive("2", "New manifest name"));
+        Assert.Equal("我的自定义名称", (await _mods.GetModByIdAsync(id))!.Name);
+    }
+
+    [Fact]
     public async Task RetainedVersions_SwitchBackAndForwardAfterReopening_PreservesProfileStateAndInstallationIds()
     {
         await _settings.SetSettingAsync(SettingKeys.KeepModVersions, true);
@@ -286,12 +304,12 @@ public sealed class ModVersionHistoryTests : IDisposable
         Assert.Single(await _repository.GetAllAsync());
     }
 
-    private string CreateArchive(string version)
+    private string CreateArchive(string version, string name = "Same mod")
     {
         var path = Path.Combine(_root, "version-" + version + ".zip");
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
         using (var writer = new StreamWriter(zip.CreateEntry("manifest.json").Open()))
-            writer.Write("{\"Name\":\"Same mod\",\"Version\":\"" + version + "\",\"Author\":\"Author\"}");
+            writer.Write("{\"Name\":\"" + name + "\",\"Version\":\"" + version + "\",\"Author\":\"Author\"}");
         using (var writer = new StreamWriter(zip.CreateEntry(Patch).Open())) writer.Write("content-" + version);
         return path;
     }

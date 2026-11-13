@@ -101,6 +101,32 @@ public class DeploymentService
         return await _deploymentRepository.GetLatestDeploymentsAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 当前安装中文件仍是模组现版本的已部署模组集合。更新替换模组内容后若没能自动增量部署，
+    /// 旧记录仍指向旧版本文件，此时按未部署处理，避免卡片显示与游戏目录实际内容不符。
+    /// </summary>
+    public async Task<IReadOnlySet<Guid>> GetDeployedModIdsAsync(CancellationToken cancellationToken = default)
+    {
+        var records = (await GetLatestDeploymentsAsync(cancellationToken))
+            .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
+                && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
+            .ToList();
+        if (records.Count == 0) return new HashSet<Guid>();
+
+        var modsById = (await _modRepository.GetByIdsAsync(
+                records.Select(record => record.ModId).Distinct(), cancellationToken))
+            .ToDictionary(mod => mod.Id);
+        return records
+            .Where(record => !modsById.TryGetValue(record.ModId, out var mod) || IsDeployedAtCurrentVersion(record, mod))
+            .Select(record => record.ModId)
+            .ToHashSet();
+    }
+
+    /// <summary>记录里的版本是部署当时写入的；旧记录没有版本时无法判断，按已部署保留。</summary>
+    private static bool IsDeployedAtCurrentVersion(DeploymentRecord record, Mod mod)
+        => string.IsNullOrWhiteSpace(record.ModVersion) || string.IsNullOrWhiteSpace(mod.Version)
+            || string.Equals(record.ModVersion, mod.Version, StringComparison.Ordinal);
+
     /// <summary>获取指定游戏安装的当前部署状态。</summary>
     public async Task<IReadOnlyList<DeploymentRecord>> GetDeploymentsForGameAsync(string gamePath,
         CancellationToken cancellationToken = default)

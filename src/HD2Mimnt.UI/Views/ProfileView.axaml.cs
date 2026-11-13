@@ -283,7 +283,7 @@ public partial class ProfileView : UserControl
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         // 命中开关/按钮等交互控件时不进入选择与拖拽逻辑
         if (IsInteractiveSource(e.Source as Visual, card)) return;
-        if (mod.SourceInfo is { HasNotice: true })
+        if (mod.SourceInfo is { HasNotice: true } && !vm.DismissNoticeOnHover)
             SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
         if (!mod.IsSeparator && e.ClickCount >= 2
             && !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
@@ -407,9 +407,17 @@ public partial class ProfileView : UserControl
     }
 
     /// <summary>模组卡片拖动启动：把拖动集（选中集或单卡）以 "id;id;…" 文本放入 DataTransfer。</summary>
-    private void ModCard_PointerMoved(object? sender, PointerEventArgs e)
+    /// <summary>提示清除方式为“鼠标悬停”时，指针移入卡片即清除新增/更新提示。</summary>
+    private void ModCard_PointerEntered(object? sender, PointerEventArgs e)
     {
-        if (_pressedMod == null || _modPressedArgs == null) return;
+        if (sender is not Border card || card.DataContext is not ProfileModViewModel mod
+            || DataContext is not ProfileViewModel vm) return;
+        if (vm.DismissNoticeOnHover && mod.SourceInfo is { HasNotice: true })
+            SafeAsync.FireAndForget(vm.DismissModNoticeAsync(mod), "清除模组提示");
+    }
+
+    private void ModCard_PointerMoved(object? sender, PointerEventArgs e)
+    {        if (_pressedMod == null || _modPressedArgs == null) return;
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {

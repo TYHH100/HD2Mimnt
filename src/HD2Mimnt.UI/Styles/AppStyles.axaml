@@ -1,7 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- 基础控件的模板、禁用/悬停/按下/焦点状态由 FluentAvalonia 提供。 -->
   <Style Selector="Window">
-    <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Microsoft YaHei UI"/>
+    <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
     <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
     <Setter Property="Background" Value="{DynamicResource Surface0Brush}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>

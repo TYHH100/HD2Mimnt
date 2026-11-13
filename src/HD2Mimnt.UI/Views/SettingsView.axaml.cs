@@ -33,6 +33,33 @@ public partial class SettingsView : UserControl
         if (!string.IsNullOrWhiteSpace(path)) await viewModel.SetBackgroundImagePathAsync(path);
     }
 
+    private async void OnPickFontFileClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel viewModel || TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = UiLocalization.Current["Settings.Appearance.ChooseFontFile"],
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType(UiLocalization.Current["Settings.Appearance.FontFiles"])
+                {
+                    Patterns = new[] { "*.ttf", "*.otf", "*.ttc" }
+                }
+            }
+        });
+
+        if (files.Count > 0) viewModel.SetFontFilePath(files[0].Path.LocalPath);
+    }
+
+    /// <summary>只在用户选中有效字体时回写；候选列表整体刷新导致的取消选择不清空已保存的字体名。</summary>
+    private void OnFontFamilySelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox { SelectedItem: string family } && DataContext is SettingsViewModel viewModel)
+            viewModel.FontFamilyName = family;
+    }
+
     private async Task PickFolderAsync(Action<string> apply)
     {
         if (DataContext is not SettingsViewModel || TopLevel.GetTopLevel(this) is not Window owner) return;

@@ -345,6 +345,8 @@ public static class SettingKeys
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
     /// <summary>新导入/已更新模组的卡片提示方式：Badge、Outline、BadgeBlink。</summary>
     public const string ModNoticeStyle = "Library.ModNoticeStyle";
+    /// <summary>新增/更新提示的清除方式：Click（默认单击卡片）或 Hover（鼠标移入即清除）。</summary>
+    public const string ModNoticeDismiss = "Library.ModNoticeDismiss";
     // 导入的清单 GUID 与库内已有模组相同时直接更新该模组，默认开启。
     public const string UpdateSameGuidOnImport = "Library.UpdateSameGuidOnImport";
 
@@ -386,6 +388,10 @@ public static class SettingKeys
     public const string WindowWidth = "UI.WindowWidth";
     public const string WindowHeight = "UI.WindowHeight";
     public const string WindowMaximized = "UI.WindowMaximized";
+    // 界面字体：FontDefault、FontInstalled（系统字体族名）或 FontFile（字体文件路径）。
+    public const string FontSource = "UI.FontSource";
+    public const string FontFamilyName = "UI.FontFamilyName";
+    public const string FontFilePath = "UI.FontFilePath";
 
     // 性能相关
     public const string ImageCacheSize = "Performance.ImageCacheSize";

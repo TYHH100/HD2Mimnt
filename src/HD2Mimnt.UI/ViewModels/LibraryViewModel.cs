@@ -678,11 +678,7 @@ public partial class LibraryViewModel : ObservableObject
                 }
             }
 
-            var deployedModIds = (await _deploymentService.GetLatestDeploymentsAsync())
-                .Where(d => Enum.TryParse<DeploymentStatus>(d.Status, out var status) &&
-                            (status == DeploymentStatus.Completed || status == DeploymentStatus.PartiallyFailed))
-                .Select(d => d.ModId)
-                .ToHashSet();
+            var deployedModIds = await _deploymentService.GetDeployedModIdsAsync();
             foreach (var modVm in _allMods)
             {
                 modVm.IsDeployed = deployedModIds.Contains(modVm.Id);
@@ -1095,6 +1091,9 @@ public partial class LibraryViewModel : ObservableObject
         mod.DismissNotice();
         await _modService.DismissModNoticeAsync(mod.Id);
     }
+
+    /// <summary>提示清除方式：Hover 时鼠标移入卡片即清除，默认单击清除。每次现读设置，保存后即时生效。</summary>
+    public bool DismissNoticeOnHover => _settingsService?.GetSetting(SettingKeys.ModNoticeDismiss, "Click") == "Hover";
 
     /// <summary>Ctrl+点击切换多选，并把本次点击作为新的范围锚点。</summary>
     public void ToggleSelected(ModItemViewModel mod)

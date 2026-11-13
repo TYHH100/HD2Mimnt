@@ -1618,6 +1618,34 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Equal("model", File.ReadAllText(Path.Combine(_testTargetDir, "data", "9ba626afa44a3aa3.patch_0")));
     }
 
+    [Fact]
+    public async Task GetDeployedModIds_ExcludesRecordsLeftAtPreviousModVersion()
+    {
+        var profile = await AddPatchProfileAsync();
+        var current = new Mod { Id = Guid.NewGuid(), Name = "Current", Version = "2.0", Path = _testSourceDir };
+        var stale = new Mod { Id = Guid.NewGuid(), Name = "Stale", Version = "2.0", Path = _testSourceDir };
+        var legacy = new Mod { Id = Guid.NewGuid(), Name = "Legacy", Version = "2.0", Path = _testSourceDir };
+        foreach (var mod in new[] { current, stale, legacy }) await _modRepository.AddAsync(mod);
+
+        var sessionId = Guid.NewGuid();
+        async Task AddCompletedRecord(Mod mod, string? deployedVersion) =>
+            await _deploymentRepository.AddAsync(new DeploymentRecord
+            {
+                Id = Guid.NewGuid(), SessionId = sessionId, ProfileId = profile.Id, ModId = mod.Id,
+                DeploymentMethod = "Copy", StartTime = DateTime.UtcNow, EndTime = DateTime.UtcNow,
+                Status = DeploymentStatus.Completed.ToString(), ModVersion = deployedVersion
+            });
+        await AddCompletedRecord(current, "2.0");
+        await AddCompletedRecord(stale, "1.0");
+        await AddCompletedRecord(legacy, null);
+
+        var deployed = await _deploymentService.GetDeployedModIdsAsync();
+
+        Assert.Contains(current.Id, deployed);
+        Assert.DoesNotContain(stale.Id, deployed);
+        Assert.Contains(legacy.Id, deployed);
+    }
+
     private readonly List<string> _extraCleanupPaths = new();
 
     /// <summary>构造带设置开关的部署服务；独立设置库避免与主 DbContext 抢占同一 SQLite 文件。</summary>

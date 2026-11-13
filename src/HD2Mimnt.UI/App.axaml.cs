@@ -179,6 +179,20 @@ public partial class App : Avalonia.Application
                 startupLogger.LogWarning(ex, "启动期应用保存的主题失败，使用默认深色");
             }
 
+            // 界面字体与主题一样必须在窗口创建前应用，避免先按默认字体渲染一帧。
+            try
+            {
+                var fontSettings = ServiceProvider.GetRequiredService<SettingsService>();
+                AppFontService.Apply(
+                    fontSettings.GetSetting(SettingKeys.FontSource, AppFontService.SourceDefault),
+                    fontSettings.GetSetting(SettingKeys.FontFamilyName, string.Empty),
+                    fontSettings.GetSetting(SettingKeys.FontFilePath, string.Empty));
+            }
+            catch (Exception ex)
+            {
+                startupLogger.LogWarning(ex, "启动期应用保存的界面字体失败，使用默认字体");
+            }
+
             // 创建并展示主窗口。
             var mainViewModel = ServiceProvider.GetRequiredService<MainWindowViewModel>();
             Program.MainWindowViewModel = mainViewModel;

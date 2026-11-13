@@ -1259,6 +1259,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
     public async Task ApplyAppearanceAsync()
     {
+        AppFontService.Apply(_settingsViewModel.FontSource, _settingsViewModel.FontFamilyName, _settingsViewModel.FontFilePath);
         BackgroundImageOpacity = Math.Clamp(_settingsViewModel.BackgroundImageOpacity, 0, 100) / 100.0;
         BackgroundBlurRadius = Math.Clamp(_settingsViewModel.BackgroundBlur, 0, 40);
 

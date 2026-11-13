@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
              x:Class="HD2Mimnt.UI.Controls.ModOptionsSelector" x:DataType="vm:IModOptionsSelection">
   <UserControl.Resources>
     <DataTemplate x:Key="ModOptionHeaderTemplate" x:DataType="vm:ProfileModOptionCardViewModel">
@@ -19,7 +19,10 @@
           <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text" TextWrapping="Wrap"
                      IsVisible="{Binding HasDescription}"/>
         </StackPanel>
-        <Border Grid.Column="2" Width="32" IsVisible="{Binding HasSubOptions}" IsHitTestVisible="False"/>
+        <ToggleButton Grid.Column="2" Classes="expand-chevron" Theme="{StaticResource ExpandChevronToggleTheme}"
+                      IsVisible="{Binding HasSubOptions}"
+                      IsChecked="{Binding $parent[Expander].IsExpanded, Mode=TwoWay}"
+                      ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}"/>
         <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
                   IsChecked="{Binding IsEnabled, Mode=OneWay}"
                   Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).ToggleOptionCommand}"
@@ -59,32 +62,14 @@
   </UserControl.Resources>
 
 <UserControl.Styles>
+  <!-- 原生箭头隐藏，二级与三级箭头统一由 ExpandChevronToggleTheme 渲染（见 AppResources.axaml）。 -->
   <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader">
     <Setter Property="Padding" Value="0"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
-  <!-- 原生箭头放在头部预留槽位，所有选项的勾选框保持最右侧对齐。 -->
   <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
-    <Setter Property="Grid.Column" Value="0"/>
-    <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="Margin" Value="0,0,44,0"/>
-  </Style>
-  <!-- 二级子选项行尾的展开箭头：无边框小按钮，只控制第三层嵌套变体的可见性，不参与分支选择。
-       覆盖默认 ToggleButton 模板：原生模板在 IsChecked（展开）态画蓝底选中框，盖住箭头内容；
-       裸模板只保留 chevron 内容（折叠右向 / 展开旋转 90°），两种状态外观一致。 -->
-  <Style Selector="ToggleButton.nested-expand-toggle">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Padding" Value="2,0"/>
-    <Setter Property="VerticalAlignment" Value="Center"/>
-    <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="Template">
-      <ControlTemplate>
-        <ContentPresenter Content="{TemplateBinding Content}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center" Focusable="False"/>
-      </ControlTemplate>
-    </Setter>
+    <Setter Property="IsVisible" Value="False"/>
   </Style>
   <!-- 复用 FluentAvalonia 原生 ListBoxItem 模板，只调整内容布局，不覆盖选中态模板。 -->
   <Style Selector="ListBoxItem.option-choice-item">
@@ -137,21 +122,12 @@
                                         <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
                                                    TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
                                       </StackPanel>
-                                      <!-- 行尾展开箭头：有嵌套变体时显示，只切换第三层可见性，不影响分支选择。 -->
-                                      <ToggleButton Grid.Column="2" Classes="nested-expand-toggle"
+                                      <!-- 行尾展开箭头：与二级箭头共用主题，只切换第三层可见性，不影响分支选择。 -->
+                                      <ToggleButton Grid.Column="2" Classes="expand-chevron"
+                                                    Theme="{StaticResource ExpandChevronToggleTheme}"
                                                     IsChecked="{Binding IsExpanded}" IsVisible="{Binding HasSubOptions}"
                                                     Tapped="NestedExpand_Tapped"
-                                                    ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}">
-                                        <Panel>
-                                          <controls:UtilityIcon Kind="Chevron" IsVisible="{Binding !IsExpanded}"/>
-                                          <controls:UtilityIcon Kind="Chevron" IsVisible="{Binding IsExpanded}"
-                                                                 RenderTransformOrigin="50%,50%">
-                                            <controls:UtilityIcon.RenderTransform>
-                                              <RotateTransform Angle="90"/>
-                                            </controls:UtilityIcon.RenderTransform>
-                                          </controls:UtilityIcon>
-                                        </Panel>
-                                      </ToggleButton>
+                                                    ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}"/>
                                     </Grid>
                                     <!-- 第三层：嵌套变体（叶子 Include 才决定部署文件），默认折叠，行尾箭头展开。 -->
                                     <ItemsControl ItemsSource="{Binding SubOptions}" IsVisible="{Binding IsExpanded}" Margin="8,4,0,4">

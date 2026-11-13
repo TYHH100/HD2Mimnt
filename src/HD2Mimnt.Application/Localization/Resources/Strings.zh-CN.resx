@@ -2432,6 +2432,21 @@
   <data name="Options.NoticeBadgeBlink" xml:space="preserve">
     <value>标志 + 闪烁</value>
   </data>
+  <data name="Options.NoticeDismissClick" xml:space="preserve">
+    <value>点击卡片清除</value>
+  </data>
+  <data name="Options.NoticeDismissHover" xml:space="preserve">
+    <value>鼠标悬停清除</value>
+  </data>
+  <data name="Options.FontDefault" xml:space="preserve">
+    <value>内置默认</value>
+  </data>
+  <data name="Options.FontInstalled" xml:space="preserve">
+    <value>系统字体</value>
+  </data>
+  <data name="Options.FontFile" xml:space="preserve">
+    <value>字体文件</value>
+  </data>
   <data name="Options.Copy" xml:space="preserve">
     <value>复制文件</value>
   </data>
@@ -3918,7 +3933,17 @@
   <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>相同 GUID 自动更新</value></data>
   <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>默认开启：导入的模组清单 GUID 与库内已有模组相同时，直接更新该模组（保留配置引用、版本历史与部署记录），而不是新增副本；关闭后按“允许重复导入”设置处理。</value></data>
   <data name="Settings.Library.NoticeStyle" xml:space="preserve"><value>新增/更新模组提示</value></data>
-  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>新导入或更新过的模组会在卡片上显示提示，点击卡片后消失。可选择标志、描边（淡入淡出）或标志 + 闪烁。</value></data>
+  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>新导入或更新过的模组会在卡片上显示提示，按下方“提示清除方式”清除。可选择标志、描边（淡入淡出）或标志 + 闪烁。</value></data>
+  <data name="Settings.Library.NoticeDismiss" xml:space="preserve"><value>提示清除方式</value></data>
+  <data name="Settings.Library.NoticeDismissHelp" xml:space="preserve"><value>默认单击卡片清除；选择“鼠标悬停清除”后，指针移入卡片即清除。保存后生效。</value></data>
+  <data name="Settings.Appearance.FontSource" xml:space="preserve"><value>界面字体</value></data>
+  <data name="Settings.Appearance.FontSourceHelp" xml:space="preserve"><value>整个界面的文字都使用该字体。可选内置默认、系统字体或字体文件（.ttf/.otf/.ttc）；默认跟随主题皮肤自带的字体。保存后生效。</value></data>
+  <data name="Settings.Appearance.FontFamilyWatermark" xml:space="preserve"><value>选择已安装字体</value></data>
+  <data name="Settings.Appearance.FontFamilyHelp" xml:space="preserve"><value>从列表中选择已安装字体，聚焦后可按名称首字母快速定位；字体未安装时请改用“字体文件”。</value></data>
+  <data name="Settings.Appearance.FontFilePathPlaceholder" xml:space="preserve"><value>字体文件路径（.ttf/.otf/.ttc）</value></data>
+  <data name="Settings.Appearance.ChooseFontFile" xml:space="preserve"><value>选择字体文件</value></data>
+  <data name="Settings.Appearance.FontFiles" xml:space="preserve"><value>字体文件</value></data>
+  <data name="Settings.Appearance.FontPreviewText" xml:space="preserve"><value>界面字体预览 AaBbCc 0123</value></data>
   <data name="Library.Notice.New" xml:space="preserve"><value>新增</value></data>
   <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>

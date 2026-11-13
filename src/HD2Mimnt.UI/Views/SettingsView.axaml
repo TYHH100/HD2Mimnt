@@ -228,6 +228,13 @@
               </ComboBox>
             </fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.NoticeDismiss}" Description="{loc:Loc Settings.Library.NoticeDismissHelp}">
+            <fa:FASettingsExpanderItem.Footer>
+              <ComboBox x:Name="NoticeDismissInput" ItemsSource="{Binding NoticeDismissOptions}" SelectedItem="{Binding ModNoticeDismiss}" Width="200">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+            </fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ImportAutoClose}" Description="{loc:Loc Settings.Library.ImportAutoCloseHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ImportAutoCloseToggle" IsChecked="{Binding ImportAutoClose}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
@@ -357,6 +364,32 @@
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.Theme}">
             <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding Theme}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Appearance.FontSource}" Description="{loc:Loc Settings.Appearance.FontSourceHelp}">
+            <StackPanel Spacing="8">
+              <ComboBox x:Name="FontSourceInput" ItemsSource="{Binding FontSourceOptions}" SelectedItem="{Binding FontSource}"
+                        Width="220" HorizontalAlignment="Left">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <ComboBox x:Name="FontFamilyInput" IsVisible="{Binding IsFontFamilySelectionVisible}"
+                        ItemsSource="{Binding SystemFontFamilies}" MaxDropDownHeight="320"
+                        IsTextSearchEnabled="True" SelectedItem="{Binding FontFamilyName, Mode=OneWay}"
+                        SelectionChanged="OnFontFamilySelectionChanged"
+                        PlaceholderText="{loc:Loc Settings.Appearance.FontFamilyWatermark}"
+                        Width="320" HorizontalAlignment="Left"/>
+              <TextBlock IsVisible="{Binding IsFontFamilySelectionVisible}" Classes="caption-text"
+                         Text="{loc:Loc Settings.Appearance.FontFamilyHelp}" TextWrapping="Wrap"/>
+              <Grid x:Name="FontFileRow" IsVisible="{Binding IsFontFileSelectionVisible}" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBox x:Name="FontFilePathInput" Text="{Binding FontFilePath, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="{loc:Loc Settings.Appearance.FontFilePathPlaceholder}"/>
+                <Button x:Name="BrowseFontFileButton" Grid.Column="1" Content="{loc:Loc Settings.Appearance.ChooseFontFile}" Click="OnPickFontFileClicked"/>
+                <Button Grid.Column="2" Content="{loc:Loc UI.Clear}" Command="{Binding ClearFontFileCommand}"/>
+              </Grid>
+              <Border Classes="card">
+                <TextBlock Text="{loc:Loc Settings.Appearance.FontPreviewText}" FontFamily="{Binding FontPreviewFamily}"
+                           FontSize="18" TextTrimming="CharacterEllipsis"/>
+              </Border>
+            </StackPanel>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.GlassIntensity}" Description="{loc:Loc UI.GlassIntensityHelp}" IsVisible="{Binding IsGlassMaterialVisible}">
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider x:Name="GlassIntensitySlider" Minimum="0" Maximum="100" Value="{Binding GlassIntensity}"/><TextBlock Grid.Column="1" Text="{Binding GlassIntensity, StringFormat='{}{0:0}'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>

@@ -133,7 +133,8 @@
                         <Panel>
                         <Border Classes="mod-card"
                                 Classes.compact="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).IsCompactList}"
-                                ContextRequested="ModCard_ContextRequested">
+                                ContextRequested="ModCard_ContextRequested"
+                                PointerEntered="OnModCardPointerEntered">
                                 <Grid ColumnDefinitions="52,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                                 <!-- 图标槽：无缩略图时显示 Package 图标 -->
                                 <Panel Grid.RowSpan="2" Width="52" Height="52">

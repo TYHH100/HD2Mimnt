@@ -66,6 +66,9 @@ public sealed class SettingsViewModelTests : IDisposable
         vm.DownloadParallelSegments = 0;
         vm.Theme = "Light";
         vm.CardOpacity = 70;
+        vm.FontSource = AppFontService.SourceFile;
+        vm.FontFamilyName = "Segoe UI";
+        vm.FontFilePath = @"C:\Fonts\demo.ttf";
         vm.GlassIntensity = 30;
         vm.GlassBlur = 32;
         // 可调模糊玻璃默认关闭：走系统玻璃，模糊半径由系统固定，滑块置灰。
@@ -81,6 +84,9 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(30d, _settingsService.GetSetting(SettingKeys.GlassIntensity, 0d));
         Assert.Equal(32d, _settingsService.GetSetting(SettingKeys.GlassBlur, 0d));
         Assert.True(_settingsService.GetSetting(SettingKeys.GlassLiveBackdrop, false));
+        Assert.Equal(AppFontService.SourceFile, _settingsService.GetSetting(SettingKeys.FontSource, ""));
+        Assert.Equal("Segoe UI", _settingsService.GetSetting(SettingKeys.FontFamilyName, ""));
+        Assert.Equal(@"C:\Fonts\demo.ttf", _settingsService.GetSetting(SettingKeys.FontFilePath, ""));
         Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.Equal("Dark", vm.Theme);
@@ -91,6 +97,9 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(LiveBackdropService.DefaultBlur, _settingsService.GetSetting(SettingKeys.GlassBlur, 0d));
         Assert.False(vm.GlassLiveBackdrop);
         Assert.False(_settingsService.GetSetting(SettingKeys.GlassLiveBackdrop, true));
+        Assert.Equal(AppFontService.SourceDefault, vm.FontSource);
+        Assert.Empty(vm.FontFilePath);
+        Assert.Equal(AppFontService.SourceDefault, _settingsService.GetSetting(SettingKeys.FontSource, ""));
         Assert.Equal("saved-game", _settingsService.GetSetting(SettingKeys.GamePath, ""));
         Assert.False(_settingsService.GetSetting(SettingKeys.ProfilesLockLoaders, true));
         Assert.Equal(8, _settingsService.GetSetting(SettingKeys.DownloadParallelSegments, 4));

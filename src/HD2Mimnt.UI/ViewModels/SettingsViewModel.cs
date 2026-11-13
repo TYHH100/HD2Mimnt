@@ -66,6 +66,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _backgroundImageOpacity = 25;
     [ObservableProperty] private double _backgroundBlur = 0;
     [ObservableProperty] private double _cardOpacity = 100;
+    /// <summary>界面字体来源：内置默认、系统字体族或字体文件。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFontFamilySelectionVisible))]
+    [NotifyPropertyChangedFor(nameof(IsFontFileSelectionVisible))]
+    [NotifyPropertyChangedFor(nameof(FontPreviewFamily))]
+    private string _fontSource = AppFontService.SourceDefault;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FontPreviewFamily))]
+    private string _fontFamilyName = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FontPreviewFamily))]
+    private string _fontFilePath = string.Empty;
     /// <summary>浅色主题的窗口毛玻璃强度；0 为关闭。仅浅色变体生效，深色与皮肤主题保持原观感。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGlassBlurEnabled))]
@@ -91,6 +103,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _keepModVersions;
     [ObservableProperty] private bool _allowDuplicateImports;
     [ObservableProperty] private string _modNoticeStyle = "Badge";
+    [ObservableProperty] private string _modNoticeDismiss = "Click";
     [ObservableProperty] private bool _updateSameGuidOnImport = true;
     [ObservableProperty] private bool _luaAutoExtract;
     [ObservableProperty] private bool _compatibilityCheckOnStartup;
@@ -119,6 +132,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         { AppThemeService.Dark, AppThemeService.Light, AppThemeService.System, AppThemeService.Ore, AppThemeService.Helldivers };
     public IEnumerable<string> ListDensityOptions { get; } = new[] { "Comfortable", "Compact" };
     public IEnumerable<string> NoticeStyleOptions { get; } = new[] { "Badge", "Outline", "BadgeBlink" };
+    public IEnumerable<string> NoticeDismissOptions { get; } = new[] { "Click", "Hover" };
+    public IEnumerable<string> FontSourceOptions { get; } = new[] { AppFontService.SourceDefault, AppFontService.SourceInstalled, AppFontService.SourceFile };
+    /// <summary>已安装字体族；枚举完成后一次性替换，避免下拉打开期间集合增减。</summary>
+    [ObservableProperty] private IReadOnlyList<string> _systemFontFamilies = Array.Empty<string>();
+    public bool IsFontFamilySelectionVisible => FontSource == AppFontService.SourceInstalled;
+    public bool IsFontFileSelectionVisible => FontSource == AppFontService.SourceFile;
+    /// <summary>设置页的即时预览；默认字体显示内置默认字体。</summary>
+    public Avalonia.Media.FontFamily FontPreviewFamily =>
+        AppFontService.Resolve(FontSource, FontFamilyName, FontFilePath)
+        ?? new Avalonia.Media.FontFamily(AppFontService.DefaultFontFamily);
     public NexusModsAccountViewModel? NexusAccount { get; }
     public AyakaModsAccountViewModel? AyakaAccount { get; }
     public event EventHandler<string>? ThemeChanged;
@@ -272,6 +295,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         NotifyCategoryVisibilityChanged();
         if (value != "账号") _ = StopAccountsAsync();
         if (value == "兼容性") _ = UpdateStaleCompatibilityDataAsync();
+        if (value == "外观") _ = LoadSystemFontsAsync();
+    }
+
+    /// <summary>系统字体枚举在后台执行且只做一次；完成后整体替换候选列表。</summary>
+    private async Task LoadSystemFontsAsync()
+    {
+        if (SystemFontFamilies.Count > 0) return;
+        var families = await Task.Run(AppFontService.GetInstalledFontFamilies);
+        if (families.Count > 0 && SystemFontFamilies.Count == 0) SystemFontFamilies = families;
     }
 
     private void NotifyCategoryVisibilityChanged()
@@ -329,6 +361,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             KeepModVersions = await _settingsService.GetSettingAsync(SettingKeys.KeepModVersions, false);
             AllowDuplicateImports = await _settingsService.GetSettingAsync(SettingKeys.AllowDuplicateImports, false);
             ModNoticeStyle = await _settingsService.GetSettingAsync(SettingKeys.ModNoticeStyle, "Badge");
+            ModNoticeDismiss = await _settingsService.GetSettingAsync(SettingKeys.ModNoticeDismiss, "Click");
             UpdateSameGuidOnImport = await _settingsService.GetSettingAsync(SettingKeys.UpdateSameGuidOnImport, true);
             LuaAutoExtract = await _settingsService.GetSettingAsync(SettingKeys.LuaAutoExtract, false);
             ForceManifestV1 = await _settingsService.GetSettingAsync(SettingKeys.ForceManifestV1, true);
@@ -349,6 +382,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             BackgroundImageOpacity = await _settingsService.GetSettingAsync(SettingKeys.BackgroundImageOpacity, 25.0);
             BackgroundBlur = await _settingsService.GetSettingAsync(SettingKeys.BackgroundBlur, 0.0);
             CardOpacity = await _settingsService.GetSettingAsync(SettingKeys.CardOpacity, 100.0);
+            FontSource = await _settingsService.GetSettingAsync(SettingKeys.FontSource, AppFontService.SourceDefault);
+            FontFamilyName = await _settingsService.GetSettingAsync(SettingKeys.FontFamilyName, string.Empty);
+            FontFilePath = await _settingsService.GetSettingAsync(SettingKeys.FontFilePath, string.Empty);
             GlassIntensity = await _settingsService.GetSettingAsync(SettingKeys.GlassIntensity, GlassMaterialService.DefaultIntensity);
             GlassBlur = await _settingsService.GetSettingAsync(SettingKeys.GlassBlur, LiveBackdropService.DefaultBlur);
             GlassLiveBackdrop = await _settingsService.GetSettingAsync(SettingKeys.GlassLiveBackdrop, false);
@@ -506,6 +542,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.KeepModVersions] = KeepModVersions,
         [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports,
         [SettingKeys.ModNoticeStyle] = ModNoticeStyle,
+        [SettingKeys.ModNoticeDismiss] = ModNoticeDismiss,
         [SettingKeys.UpdateSameGuidOnImport] = UpdateSameGuidOnImport,
         [SettingKeys.LuaAutoExtract] = LuaAutoExtract
     };
@@ -524,6 +561,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         [SettingKeys.BackgroundImageOpacity] = BackgroundImageOpacity,
         [SettingKeys.BackgroundBlur] = BackgroundBlur,
         [SettingKeys.CardOpacity] = CardOpacity,
+        [SettingKeys.FontSource] = FontSource,
+        [SettingKeys.FontFamilyName] = FontFamilyName,
+        [SettingKeys.FontFilePath] = FontFilePath,
         [SettingKeys.GlassIntensity] = Math.Clamp(GlassIntensity, GlassMaterialService.MinIntensity, GlassMaterialService.MaxIntensity),
         [SettingKeys.GlassBlur] = Math.Clamp(GlassBlur, LiveBackdropService.MinBlur, LiveBackdropService.MaxBlur),
         [SettingKeys.GlassLiveBackdrop] = GlassLiveBackdrop,
@@ -627,7 +667,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 [SettingKeys.GlassIntensity] = GlassMaterialService.DefaultIntensity,
                 [SettingKeys.GlassBlur] = LiveBackdropService.DefaultBlur,
                 [SettingKeys.GlassLiveBackdrop] = false,
-                [SettingKeys.EnableAnimations] = true, [SettingKeys.Language] = LanguageCodes.Automatic
+                [SettingKeys.EnableAnimations] = true, [SettingKeys.Language] = LanguageCodes.Automatic,
+                [SettingKeys.FontSource] = AppFontService.SourceDefault,
+                [SettingKeys.FontFamilyName] = string.Empty,
+                [SettingKeys.FontFilePath] = string.Empty
             };
             await _settingsService.SetSettingsAsync(defaults);
         }
@@ -677,6 +720,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private Task ClearBackgroundImageAsync() => SetBackgroundImagePathAsync(string.Empty);
+
+    /// <summary>选择字体文件后切到文件来源并刷新预览；保存设置后才应用到整个界面。</summary>
+    public void SetFontFilePath(string? path)
+    {
+        FontFilePath = path ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(FontFilePath)) FontSource = AppFontService.SourceFile;
+    }
+
+    [RelayCommand]
+    private void ClearFontFile()
+    {
+        FontFilePath = string.Empty;
+        FontSource = AppFontService.SourceDefault;
+    }
 
     [RelayCommand]
     private async Task ClearImageCacheAsync()

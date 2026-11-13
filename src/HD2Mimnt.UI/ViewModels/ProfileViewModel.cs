@@ -265,6 +265,9 @@ public partial class ProfileViewModel : ObservableObject
         await _modService.DismissModNoticeAsync(info.Id);
     }
 
+    /// <summary>提示清除方式：Hover 时鼠标移入卡片即清除，默认单击清除。</summary>
+    public bool DismissNoticeOnHover => _settingsService.GetSetting(SettingKeys.ModNoticeDismiss, "Click") == "Hover";
+
     public void SelectAllVisibleMods() => _modSelection.SelectAll(FocusedMod);
 
     public void SelectModRange(ProfileModViewModel mod, bool additive = false)
@@ -1074,11 +1077,9 @@ public partial class ProfileViewModel : ObservableObject
             var modsById = (await _modService.GetModsByIdsAsync(
                 profile.Mods.Select(profileMod => profileMod.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
-            var deployedModIds = _deploymentService == null ? new HashSet<Guid>()
-                : (await _deploymentService.GetLatestDeploymentsAsync(cancellationToken))
-                    .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
-                        && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
-                    .Select(record => record.ModId).ToHashSet();
+            IReadOnlySet<Guid> deployedModIds = _deploymentService == null
+                ? new HashSet<Guid>()
+                : await _deploymentService.GetDeployedModIdsAsync(cancellationToken);
             _deployedModIds = deployedModIds;
             var noticeStyle = _settingsService.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
             var profileMods = new List<ProfileModViewModel>();

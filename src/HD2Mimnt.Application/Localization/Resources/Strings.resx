@@ -2432,6 +2432,21 @@ See the Conflicts page for details.</value>
   <data name="Options.NoticeBadgeBlink" xml:space="preserve">
     <value>Badge + blinking</value>
   </data>
+  <data name="Options.NoticeDismissClick" xml:space="preserve">
+    <value>Clear on card click</value>
+  </data>
+  <data name="Options.NoticeDismissHover" xml:space="preserve">
+    <value>Clear on mouse hover</value>
+  </data>
+  <data name="Options.FontDefault" xml:space="preserve">
+    <value>Built-in default</value>
+  </data>
+  <data name="Options.FontInstalled" xml:space="preserve">
+    <value>Installed font</value>
+  </data>
+  <data name="Options.FontFile" xml:space="preserve">
+    <value>Font file</value>
+  </data>
   <data name="Options.Copy" xml:space="preserve">
     <value>Copy files</value>
   </data>
@@ -3918,7 +3933,17 @@ Last checked: {7}</value>
   <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>Update mods with the same GUID</value></data>
   <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>On by default: when an imported manifest GUID matches a mod already in the library, update that mod in place (keeping profile references, version history and deployment records) instead of adding a copy. When off, the duplicate import setting applies.</value></data>
   <data name="Settings.Library.NoticeStyle" xml:space="preserve"><value>New/updated mod marker</value></data>
-  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>Shown on mod cards after a new import or an update. Clicking the card clears it. Choose a badge, a pulsing outline, or a badge that blinks.</value></data>
+  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>Shown on mod cards after a new import or an update; cleared with the setting below. Choose a badge, a pulsing outline, or a badge that blinks.</value></data>
+  <data name="Settings.Library.NoticeDismiss" xml:space="preserve"><value>How notices are cleared</value></data>
+  <data name="Settings.Library.NoticeDismissHelp" xml:space="preserve"><value>Clicking the card clears the marker by default. Choose hover to clear it as soon as the pointer enters the card. Applies after saving.</value></data>
+  <data name="Settings.Appearance.FontSource" xml:space="preserve"><value>Interface font</value></data>
+  <data name="Settings.Appearance.FontSourceHelp" xml:space="preserve"><value>Used for all text in the app. Choose the built-in default, an installed system font, or a font file (.ttf/.otf/.ttc). The default follows the font provided by the theme or skin. Applies after saving.</value></data>
+  <data name="Settings.Appearance.FontFamilyWatermark" xml:space="preserve"><value>Choose an installed font</value></data>
+  <data name="Settings.Appearance.FontFamilyHelp" xml:space="preserve"><value>Pick an installed font from the list; while focused, type the first letters to jump to a name. Use a font file when the font is not installed.</value></data>
+  <data name="Settings.Appearance.FontFilePathPlaceholder" xml:space="preserve"><value>Font file path (.ttf/.otf/.ttc)</value></data>
+  <data name="Settings.Appearance.ChooseFontFile" xml:space="preserve"><value>Choose font file</value></data>
+  <data name="Settings.Appearance.FontFiles" xml:space="preserve"><value>Font files</value></data>
+  <data name="Settings.Appearance.FontPreviewText" xml:space="preserve"><value>Interface font preview AaBbCc 0123</value></data>
   <data name="Library.Notice.New" xml:space="preserve"><value>New</value></data>
   <data name="Library.Notice.Updated" xml:space="preserve"><value>Updated</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>

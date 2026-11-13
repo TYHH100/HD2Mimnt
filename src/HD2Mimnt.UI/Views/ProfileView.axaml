@@ -195,6 +195,7 @@
                   <Panel>
                   <Border x:Name="ProfileTutorialCard" Classes="mod-card" Classes.conflict-location="{Binding IsConflictLocation}"
                           PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved"
+                          PointerEntered="ModCard_PointerEntered"
                           ContextRequested="ModCard_ContextRequested">
                     <Grid ColumnDefinitions="52,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                     <!-- 图标槽与顺序胶囊独立。 -->

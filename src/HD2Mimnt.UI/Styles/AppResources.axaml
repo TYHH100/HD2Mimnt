@@ -1,4 +1,5 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="using:HD2Mimnt.UI.Controls">
   <!-- IsSelected 由 ViewModel 驱动；基于 FluentAvalonia 原生主题统一复用选择外观。 -->
   <ControlTheme x:Key="ViewModelSelectableListBoxItemTheme" TargetType="ListBoxItem"
                 BasedOn="{StaticResource {x:Type ListBoxItem}}">
@@ -12,6 +13,40 @@
   <ControlTheme x:Key="ModCardListBoxItemTheme" TargetType="ListBoxItem"
                 BasedOn="{StaticResource ViewModelSelectableListBoxItemTheme}">
     <Setter Property="IsSelected" Value="{ReflectionBinding IsHighlighted, Mode=OneWay}"/>
+  </ControlTheme>
+
+  <!-- 展开/折叠箭头统一外观：32×32 命中区、跟随主题圆角、悬停/按下用语义表面色，
+       勾选（展开）态把右向 chevron 旋转 90°。箭头只切换可见性，不参与分支选择。 -->
+  <ControlTheme x:Key="ExpandChevronToggleTheme" TargetType="ToggleButton">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="Height" Value="32"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}"
+                RenderTransform="{TemplateBinding RenderTransform}" RenderTransformOrigin="50%,50%">
+          <controls:UtilityIcon Kind="Chevron" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover">
+      <Setter Property="Background" Value="{DynamicResource HoverSurfaceBrush}"/>
+    </Style>
+    <Style Selector="^:pressed">
+      <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
+    </Style>
+    <Style Selector="^:checked">
+      <Setter Property="RenderTransform">
+        <RotateTransform Angle="90"/>
+      </Setter>
+    </Style>
   </ControlTheme>
 
   <!-- 页面语义资源引用 FluentAvalonia 色板，不维护第二套深浅色。 -->
@@ -57,7 +92,9 @@
   <SolidColorBrush x:Key="GroupHeaderFillBrush" Color="{DynamicResource SolidBackgroundFillColorQuarternary}" Opacity="{DynamicResource CardSurfaceOpacity}"/>
   <!-- 分隔符分组色板的默认底色：未设置自定义颜色时跟随主题强调色。 -->
   <SolidColorBrush x:Key="GroupTintFallbackBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.15"/>
-  <!-- 皮肤可覆盖的显示字体：标题与控件文字使用它，正文保持系统字体。 -->
+  <!-- 外观设置可覆盖的界面字体；Window 样式引用它，子控件与弹出层随继承生效。 -->
+  <FontFamily x:Key="UiFontFamily">Segoe UI Variable, Segoe UI, Microsoft YaHei UI</FontFamily>
+  <!-- 皮肤可覆盖的显示字体：标题与控件文字使用它，正文保持界面字体。 -->
   <FontFamily x:Key="DisplayFontFamily">Segoe UI Variable, Segoe UI, Microsoft YaHei UI</FontFamily>
   <!-- 皮肤可覆盖的卡片外描边；默认无阴影，保持 Fluent 观感。 -->
   <BoxShadows x:Key="CardShadow">0 0 0 0 #00000000</BoxShadows>

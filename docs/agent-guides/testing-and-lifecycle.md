@@ -56,6 +56,8 @@
 
 - SQLite 上下文串行初始化 schema，释放时只标记上下文已结束，后续打开连接应拒绝；已取得的独占连接由调用方释放。不要在生产 `DbContext.Dispose` 中调用全局 `ClearAllPools` 或强制 GC，否则会干扰并行测试和其他上下文的连接。
 
+- `ModsFTS` 是 external content 的 FTS5 表，触发器中更新/删除必须用 `INSERT INTO ModsFTS(ModsFTS, ...) VALUES('delete', old...)` 再插入新值；直接 `UPDATE`/`DELETE` 会按内容表已更新的值反查旧词条，改 `Name` 为含数字/符号的名称（如 `MDL3 3.0.0-dev.52`）时抛 `SQLITE_CORRUPT`（Error 11），而 `PRAGMA integrity_check` 仍显示 ok。schema 初始化重建触发器后需 `INSERT INTO ModsFTS(ModsFTS) VALUES('rebuild')` 修复历史不一致。回归见 `ModVersionHistoryTests.Update_WithNewManifestName_ReplacesTitle`。来源：https://www.sqlite.org/fts5.html#external_content_tables
+
 - Avalonia Headless 测试在同一进程只能进行一次 `AppBuilder.SetupWithoutStarting()`；新增窗口布局测试必须复用现有测试应用或拆分到独立测试程序集，不能再创建第二个 AppBuilder，否则会出现初始化冲突、资源缺失或测试宿主不退出。
 
 - Avalonia Headless 测试的 `AppBuilder.SetupWithoutStarting()` 必须在测试宿主拥有的 UI 线程上初始化；若测试程序集并行发现或从错误线程触发静态初始化，可能出现 `The calling thread cannot access this object because a different thread owns it`，应先隔离该测试程序集/关闭并行后再判断业务代码是否回归。

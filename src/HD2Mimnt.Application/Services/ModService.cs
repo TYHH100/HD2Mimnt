@@ -209,6 +209,11 @@ public partial class ModService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 original.Path = prepared.Path;
+                // 新包声明了名称时同步标题（版本号常写在名称里）；手动改过名称的条目不覆盖。
+                if (!string.IsNullOrWhiteSpace(prepared.Manifest?.Name)
+                    && (string.IsNullOrWhiteSpace(original.Manifest?.Name)
+                        || string.Equals(original.Name, original.Manifest.Name, StringComparison.Ordinal)))
+                    original.Name = prepared.Manifest.Name;
                 // 本地模组的版本由管理器维护；平台下载更新仍使用网站文件版本。
                 original.Version = file?.Version ?? (original.PlatformLink == null
                     ? ModVersionNumber.BumpMinor(original.Version)
