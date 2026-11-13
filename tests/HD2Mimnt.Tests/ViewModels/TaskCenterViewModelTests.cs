@@ -107,6 +107,67 @@ public sealed class TaskCenterViewModelTests
         return new TaskCenterViewModel(taskService, confirmation.Object);
     }
 
+    [Fact]
+    public async Task Load_ShouldUpdateRunningTaskInPlaceSoProgressBarDoesNotRestart()
+    {
+        var repository = new Mock<ITaskRepository>();
+        var progress = 34d;
+        var message = "已同步 34/78";
+        repository.Setup(item => item.GetHistoryAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ModTask>());
+        // 每次查询都返回新的实体实例，模拟仓储从数据库重建对象。
+        repository.Setup(item => item.GetRunningTasksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new[]
+            {
+                new ModTask
+                {
+                    Id = RunningId, Name = "同步到 HellForge", Type = "HellForgeSync",
+                    Status = Core.Entities.TaskStatus.Running, Progress = progress, Message = message
+                }
+            });
+        var viewModel = CreateViewModel(repository, confirmed: true);
+
+        await viewModel.LoadAsync();
+        var item = Assert.Single(viewModel.Tasks);
+        var changed = new List<string?>();
+        item.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        progress = 52;
+        message = "已同步 40/78";
+        await viewModel.LoadAsync();
+
+        Assert.Same(item, Assert.Single(viewModel.Tasks));
+        Assert.Equal(52, item.Progress);
+        Assert.Equal("已同步 40/78", item.Message);
+        Assert.Contains(nameof(ModTask.Progress), changed);
+    }
+
+    [Fact]
+    public async Task Load_ShouldDropTasksMissingFromSnapshot()
+    {
+        var repository = new Mock<ITaskRepository>();
+        var present = true;
+        repository.Setup(item => item.GetHistoryAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => present
+                ? new[] { new ModTask { Id = RunningId, Name = "历史", Status = Core.Entities.TaskStatus.Completed, EndTime = DateTime.UtcNow } }
+                : Array.Empty<ModTask>());
+        repository.Setup(item => item.GetRunningTasksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ModTask>());
+        var viewModel = CreateViewModel(repository, confirmed: true);
+
+        await viewModel.LoadAsync();
+        Assert.Single(viewModel.Tasks);
+
+        present = false;
+        await viewModel.LoadAsync();
+
+        Assert.Empty(viewModel.Tasks);
+        Assert.True(viewModel.IsEmpty);
+        Assert.False(viewModel.HasFinishedTasks);
+    }
+
+    private static readonly Guid RunningId = Guid.Parse("3e67d398-cb94-4079-beff-de65aaeca288");
+
     private static (ModTask Finished, ModTask Running) SeedTasks(Mock<ITaskRepository> repository, int finishedCount = 1)
     {
         var finished = Enumerable.Range(0, finishedCount)

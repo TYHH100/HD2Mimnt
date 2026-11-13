@@ -163,6 +163,16 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
+            // 上次进程异常退出会留下没有执行句柄的“运行中”记录，启动时先收尾，任务中心才不会出现取消不掉的僵尸任务。
+            try
+            {
+                await taskService.RecoverInterruptedTasksAsync(cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                startupLogger.LogWarning(ex, "收尾上次中断的后台任务失败");
+            }
+
             // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
             Program.CliPipeHost = new CliCommandPipeHost(host.Services);
 

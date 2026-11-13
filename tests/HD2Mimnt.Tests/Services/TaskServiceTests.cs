@@ -245,6 +245,88 @@ public class TaskServiceTests : IDisposable
         Assert.Equal(1, eventCount);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DetachedRunningRecord_ShouldBeFinalizedByCancelOrForceTerminate(bool forceTerminate)
+    {
+        // 模拟上次进程异常退出后遗留的“运行中”记录：数据库里是 Running，但没有内存执行句柄。
+        var taskId = await AddDetachedRecordAsync(Core.Entities.TaskStatus.Running);
+        Assert.Contains(await _taskService.GetRunningTasksAsync(), task => task.Id == taskId);
+
+        if (forceTerminate) await _taskService.ForceTerminateTaskAsync(taskId);
+        else await _taskService.CancelTaskAsync(taskId);
+
+        var stored = await _taskService.GetTaskAsync(taskId);
+        Assert.NotNull(stored);
+        Assert.Equal(forceTerminate
+            ? Core.Entities.TaskStatus.ForceTerminated
+            : Core.Entities.TaskStatus.Cancelled, stored.Status);
+        Assert.NotNull(stored.EndTime);
+        Assert.Empty(await _taskService.GetRunningTasksAsync());
+    }
+
+    [Fact]
+    public async Task DetachedFinishedRecord_ShouldKeepOriginalTerminalState()
+    {
+        var taskId = await AddDetachedRecordAsync(Core.Entities.TaskStatus.Completed);
+        var before = await _taskService.GetTaskAsync(taskId);
+
+        await _taskService.ForceTerminateTaskAsync(taskId);
+        await _taskService.CancelTaskAsync(taskId);
+
+        var stored = await _taskService.GetTaskAsync(taskId);
+        Assert.Equal(before!.Status, stored!.Status);
+        Assert.Equal(before.EndTime, stored.EndTime);
+    }
+
+    [Fact]
+    public async Task RecoverInterruptedTasks_ShouldFinalizeLeftoverRecordsAndKeepLiveTasks()
+    {
+        var leftover = await AddDetachedRecordAsync(Core.Entities.TaskStatus.Running);
+        var waiting = await AddDetachedRecordAsync(Core.Entities.TaskStatus.Waiting);
+        var liveId = await _taskService.CreateTaskAsync("Live task", "Blocking");
+        await _taskService.StartTaskAsync(liveId);
+        try
+        {
+            var recovered = await _taskService.RecoverInterruptedTasksAsync();
+
+            Assert.Equal(2, recovered);
+            foreach (var id in new[] { leftover, waiting })
+            {
+                var stored = await _taskService.GetTaskAsync(id);
+                Assert.Equal(Core.Entities.TaskStatus.Failed, stored!.Status);
+                Assert.Equal("Interrupted", stored.Stage);
+                Assert.NotNull(stored.EndTime);
+            }
+
+            // 本次进程真正在跑的任务不能被收尾。
+            var live = await _taskService.GetTaskAsync(liveId);
+            Assert.Equal(Core.Entities.TaskStatus.Running, live!.Status);
+        }
+        finally
+        {
+            await _taskService.CancelTaskAsync(liveId);
+        }
+    }
+
+    private async Task<Guid> AddDetachedRecordAsync(Core.Entities.TaskStatus status)
+    {
+        var task = new ModTask
+        {
+            Id = Guid.NewGuid(),
+            Name = "遗留任务",
+            Type = "HellForgeSync",
+            Status = status,
+            Progress = 34,
+            Stage = "Running",
+            Message = "已同步 34/78",
+            StartTime = DateTime.UtcNow.AddHours(-1)
+        };
+        await _taskRepository.AddAsync(task);
+        return task.Id;
+    }
+
     [Fact]
     public async Task GetHistory_ShouldReturnCompletedTasks()
     {

@@ -14,6 +14,7 @@ public partial class TaskCenterViewModel : ObservableObject
     private readonly TaskService _taskService;
     private readonly IConfirmationService _confirmationService;
     private readonly SemaphoreSlim _loadGate = new(1, 1);
+    private readonly Dictionary<Guid, ModTask> _taskIndex = new();
     private CancellationTokenSource? _autoRefreshCts;
     [ObservableProperty] private ObservableCollection<ModTask> _tasks = new();
     [ObservableProperty] private bool _isLoading;
@@ -62,7 +63,7 @@ public partial class TaskCenterViewModel : ObservableObject
             var statusMessage = $"运行中 {running.Count()} 个，历史 {tasks.Count()} 个";
             await ApplyOnUiThreadAsync(() =>
             {
-                Tasks = new ObservableCollection<ModTask>(snapshot);
+                MergeTasks(snapshot);
                 StatusMessage = statusMessage;
             });
         }
@@ -96,6 +97,66 @@ public partial class TaskCenterViewModel : ObservableObject
         }
 
         return Dispatcher.UIThread.InvokeAsync(action).GetTask();
+    }
+
+    /// <summary>
+    /// 按 Id 合并快照：同一任务沿用原有列表项实例，只更新变化的属性。
+    /// 每秒整体重建集合会让列表项容器反复销毁重建，进度条随之从 0 重新动画，看起来一直在跳。
+    /// </summary>
+    private void MergeTasks(IReadOnlyList<ModTask> snapshot)
+    {
+        var seen = new HashSet<Guid>(snapshot.Count);
+        var ordered = new List<ModTask>(snapshot.Count);
+        foreach (var incoming in snapshot)
+        {
+            if (!seen.Add(incoming.Id)) continue;
+            if (!_taskIndex.TryGetValue(incoming.Id, out var existing))
+            {
+                _taskIndex[incoming.Id] = incoming;
+                ordered.Add(incoming);
+                continue;
+            }
+
+            CopyInto(existing, incoming);
+            ordered.Add(existing);
+        }
+
+        for (var index = Tasks.Count - 1; index >= 0; index--)
+        {
+            if (seen.Contains(Tasks[index].Id)) continue;
+            _taskIndex.Remove(Tasks[index].Id);
+            Tasks.RemoveAt(index);
+        }
+
+        for (var index = 0; index < ordered.Count; index++)
+        {
+            var item = ordered[index];
+            if (index < Tasks.Count && ReferenceEquals(Tasks[index], item)) continue;
+            var current = IndexOf(item);
+            if (current < 0) Tasks.Insert(index, item);
+            else Tasks.Move(current, index);
+        }
+    }
+
+    private int IndexOf(ModTask item)
+    {
+        for (var index = 0; index < Tasks.Count; index++)
+            if (ReferenceEquals(Tasks[index], item)) return index;
+        return -1;
+    }
+
+    private static void CopyInto(ModTask target, ModTask source)
+    {
+        target.Name = source.Name;
+        target.Type = source.Type;
+        target.Status = source.Status;
+        target.Progress = source.Progress;
+        target.Stage = source.Stage;
+        target.CurrentItem = source.CurrentItem;
+        target.Message = source.Message;
+        target.StartTime = source.StartTime;
+        target.EndTime = source.EndTime;
+        target.Result = source.Result;
     }
 
     private async Task RefreshLoopAsync(TimeSpan interval, CancellationToken cancellationToken)

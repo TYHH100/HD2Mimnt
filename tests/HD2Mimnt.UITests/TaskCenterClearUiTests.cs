@@ -116,4 +116,56 @@ public sealed partial class FluentAvaloniaUiTests
 
         static Guid? IdOf(Control control) => (control.DataContext as ModTask)?.Id;
     }
+
+    [AvaloniaFact]
+    public async Task TaskCenter_Refresh_ShouldKeepProgressBarAndUpdateValueInPlace()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var repository = scope.Services.GetRequiredService<ITaskRepository>();
+        var running = new ModTask
+        {
+            Id = Guid.NewGuid(), Name = "同步到 HellForge", Type = "HellForgeSync", Status = TaskStatus.Running,
+            Progress = 10, Stage = "Running", Message = "已同步 10/78", StartTime = DateTime.UtcNow
+        };
+        await repository.AddAsync(running);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var viewModel = main.TaskCenterViewModel;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 760 };
+        try
+        {
+            window.Show();
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            }
+
+            main.OpenTaskCenterCommand.Execute(null);
+            Layout();
+            var view = window.GetVisualDescendants().OfType<TaskCenterView>().Single();
+            var before = FindProgressBar(view, running.Id);
+            Assert.Equal(10, before.Value);
+
+            var stored = (await repository.GetByIdAsync(running.Id, CancellationToken.None))!;
+            stored.Progress = 60;
+            stored.Message = "已同步 47/78";
+            await repository.UpdateAsync(stored, CancellationToken.None);
+            await viewModel.LoadAsync();
+            Layout();
+
+            // 列表项沿用同一容器：进度条按新值动画，而不是被销毁后从 0 重建。
+            var after = FindProgressBar(view, running.Id);
+            Assert.Same(before, after);
+            Assert.Equal(60, after.Value);
+        }
+        finally
+        {
+            main.CloseTaskCenterCommand.Execute(null);
+            window.DataContext = null;
+            window.Close();
+        }
+
+        static ProgressBar FindProgressBar(Visual root, Guid taskId)
+            => root.GetVisualDescendants().OfType<ProgressBar>()
+                .Single(bar => (bar.DataContext as ModTask)?.Id == taskId);
+    }
 }
