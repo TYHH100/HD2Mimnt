@@ -42,7 +42,9 @@ public static class IasModelPackager
         if (request.Icon is not null)
         {
             var icon = request.Icon;
-            var module = Module(request.Compiled) + "/preview";
+            // 上游预览模块是 catalog 的兄弟节点（.../v1/preview），宿主按该路径取图；
+            // 写成 catalog/preview 时登记存在但游戏内面板取不到预览。
+            var module = PreviewModule(Module(request.Compiled));
             var mime = request.IconMime ?? DetectMime(icon);
             var preview = IasValue.Obj(
                 ("version", IasValue.Of(1L)), ("module", IasValue.Of(module)),
@@ -251,6 +253,13 @@ public static class IasModelPackager
 
     private static string Module(IasCompiledModel compiled)
         => RegistrationString(compiled.Registration, "module");
+
+    /// <summary>上游把预览登记为 catalog 的兄弟节点（.../v1/preview），宿主按此路径取缩略图。</summary>
+    internal static string PreviewModule(string catalogModule)
+    {
+        var slash = catalogModule.LastIndexOf('/');
+        return slash < 0 ? "preview" : catalogModule[..(slash + 1)] + "preview";
+    }
 
     private static string RegistrationString(IasValue registration, string key)
         => (string)((IasValue.Text)((IasValue.Object)registration).Entries
