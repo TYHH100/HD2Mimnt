@@ -30,6 +30,30 @@ public class Hd2ClVariantPlannerTests
     }
 
     [Fact]
+    public void Plan_SharedCompanionForHeadAndBody_StaysOneModel()
+    {
+        var root = CreateRoot();
+        try
+        {
+            Write(root, "components/0/5c7587f1808f45b595b7670a35f5cc6d.082f22454170efd6.hd2author");
+            Write(root, "components/0/5c7587f1808f45b595b7670a35f5cc6d.b68f33f2cdd058da.rigbin");
+            Write(root, "components/1/082f22454170efd6.patch_0");
+            Write(root, "components/2/9ba626afa44a3aa3.patch_2");
+            Write(root, "components/3/b68f33f2cdd058da.patch_0");
+
+            var plans = Hd2ClVariantPlanner.Plan(root);
+
+            var plan = Assert.Single(plans);
+            Assert.Equal("all", plan.Id);
+            Assert.Equal(["components/0", "components/1", "components/2", "components/3"], plan.Folders);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Plan_SingleComponent_ReturnsAllFolders()
     {
         var root = CreateRoot();

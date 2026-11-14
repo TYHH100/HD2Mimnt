@@ -32,6 +32,11 @@ public partial class ProfileViewModel : ObservableObject
     private readonly IHd2ClVariantPrompt? _hd2ClVariantPrompt;
     private bool _hd2ClBusy;
 
+    /// <summary>选中项里是否包含可转换的 HD2IAS 模组；批量转换按钮据此显示。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BatchConvertToHd2ClCommand))]
+    private bool _hasHd2IrSelection;
+
     public Func<Task>? ActiveProfileChanged { get; set; }
     public event EventHandler<ProfileModViewModel>? ConflictModLocationRequested;
 
@@ -174,9 +179,11 @@ public partial class ProfileViewModel : ObservableObject
     private void UpdateModSelectionState()
     {
         SelectedModCount = ProfileMods.Count(mod => mod.CanSelect && mod.IsSelected);
+        HasHd2IrSelection = ProfileMods.Any(mod => mod.CanSelect && mod.IsSelected && mod.SourceInfo?.IsHd2Ir == true);
         BatchEnableModsCommand.NotifyCanExecuteChanged();
         BatchDisableModsCommand.NotifyCanExecuteChanged();
         RemoveSelectedModsCommand.NotifyCanExecuteChanged();
+        BatchDeleteSelectedModsCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -243,6 +250,39 @@ public partial class ProfileViewModel : ObservableObject
             }
         }
         catch (Exception ex) { _notificationService.ShowError($"批量移除模组失败: {ex.Message}", "配置文件"); }
+        finally { IsBatchModOperationRunning = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRunSelectedModAction))]
+    private async Task BatchDeleteSelectedModsAsync()
+    {
+        if (!CanRunSelectedModAction() || SelectedProfile is not { } profile) return;
+        var selected = ProfileMods.Where(mod => mod.CanSelect && mod.IsSelected).ToArray();
+        if (selected.Length == 0) return;
+        if (!await _confirmationService.ConfirmAsync("删除模组",
+                $"确定删除选中的 {selected.Length} 个模组吗？此操作会删除模组文件。")) return;
+
+        IsBatchModOperationRunning = true;
+        try
+        {
+            await SuppressLocalChangeAsync(async () =>
+            {
+                foreach (var mod in selected) await _modService.DeleteModAsync(mod.ModId);
+            });
+            CloseDetailPanel();
+            if (ReferenceEquals(SelectedProfile, profile))
+            {
+                AdjustSeparatorPositionsAfterRemoval(selected);
+                foreach (var mod in selected) ProfileMods.Remove(mod);
+                profile.ModCount = Math.Max(0, profile.ModCount - selected.Length);
+                RenumberProfileMods();
+                ApplyModFilter();
+                IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
+            }
+            if (ModDeleted != null) await ModDeleted();
+            _notificationService.ShowSuccess($"已删除 {selected.Length} 个模组", "删除模组");
+        }
+        catch (Exception ex) { _notificationService.ShowError($"批量删除模组失败: {ex.Message}", "删除模组"); }
         finally { IsBatchModOperationRunning = false; }
     }
 
@@ -495,6 +535,46 @@ public partial class ProfileViewModel : ObservableObject
         finally
         {
             _hd2ClBusy = false;
+        }
+    }
+
+    /// <summary>配置页批量入口：把选中的多个 HD2IAS 模组转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand(CanExecute = nameof(HasHd2IrSelection))]
+    private async Task BatchConvertToHd2ClAsync()
+    {
+        if (_hd2Cl is null) return;
+        if (_hd2ClBusy || IsBatchModOperationRunning)
+        {
+            _notificationService.ShowInfo("已有操作正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        var items = ProfileMods
+            .Where(mod => mod.CanSelect && mod.IsSelected && mod.SourceInfo?.IsHd2Ir == true)
+            .Select(mod => new Hd2ClBatchConversion.Item(mod.ModId, mod.ModName)).ToList();
+        if (items.Count == 0) return;
+
+        _hd2ClBusy = true;
+        IsBatchModOperationRunning = true;
+        try
+        {
+            var summary = await Hd2ClBatchConversion.RunAsync(_hd2Cl, _hd2ClVariantPrompt, items,
+                message => _notificationService.ShowInfo(message, "HD2CL", 1800));
+            await RefreshAfterProfilesChangedAsync();
+            if (ModContentChanged != null) await ModContentChanged();
+            _notificationService.ShowSuccess(summary.Describe(), "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 批量转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 批量转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+            IsBatchModOperationRunning = false;
         }
     }
 

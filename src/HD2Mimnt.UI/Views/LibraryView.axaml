@@ -110,6 +110,7 @@
         <Button x:Name="CheckSelectedCompatibilityButton" Content="{loc:Loc Compatibility.Title}" Command="{Binding CheckSelectedCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc UI.AddToProfiles}" Command="{Binding OpenAddToProfileDialogCommand}" Classes="accent" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.AddSelectedModsToOneOrMoreProfiles}"/>
                     <Button Content="{loc:Loc UI.Disable}" Command="{Binding BatchDisableCommand}" Classes="secondary" Margin="0,0,8,4"/>
+                    <Button Content="转为 HD2CL 角色库" Command="{Binding BatchConvertToHd2ClCommand}" Classes="secondary" Margin="0,0,8,4" IsVisible="{Binding HasHd2IrSelection}" ToolTip.Tip="把选中的 HD2IAS 模组转换为 HD2CL 角色库模型"/>
                     <Button Content="{loc:Loc UI.RemoveFromProfile}" Command="{Binding RemoveSelectedFromProfileCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.RemoveSelectedModsFromTheCurrentProfileAndKeepLibraryFiles}"/>
                     <Button Content="{loc:Loc UI.ClearSelection}" Command="{Binding ClearSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc UI.DeleteFromLibrary}" Command="{Binding BatchDeleteCommand}" Classes="danger" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.DeleteSelectedModsAndTheirFiles}"/>

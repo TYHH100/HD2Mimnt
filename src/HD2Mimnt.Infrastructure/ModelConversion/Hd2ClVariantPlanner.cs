@@ -33,23 +33,34 @@ public static class Hd2ClVariantPlanner
         var shared = folders
             .Where(folder => folder is { PatchTokens.Count: > 0, CompanionCount: 0 } && folder.PatchTokens.All(token => token == MaterialArchive))
             .ToList();
-        var orphanCompanions = new List<FolderInfo>();
-        var extra = groups.ToDictionary(group => group, _ => new List<FolderInfo>());
-        foreach (var folder in folders)
+        var companions = folders
+            .Where(folder => !patchGroups.Contains(folder) && !shared.Contains(folder) && folder.CompanionCount > 0)
+            .ToList();
+        var assignments = companions.Select(folder =>
         {
-            if (patchGroups.Contains(folder)) continue;
-            if (shared.Contains(folder)) continue;
-            if (folder.CompanionCount == 0) continue;
-            var best = groups.Max(group => folder.Tokens.Intersect(group.SelectMany(item => item.Tokens)).Count());
+            var best = groups.Max(group => Overlap(folder, group));
+            var hits = best == 0
+                ? new List<List<FolderInfo>>()
+                : groups.Where(group => Overlap(folder, group) == best).ToList();
+            return (Folder: folder, Groups: hits);
+        }).ToList();
+        // 同一份配套同时对应多个补丁组（头/躯干拆开导出）时，它们属于同一个模型，不能当成不同版本。
+        if (assignments.Any(item => item.Groups.Count > 1))
+            groups = MergeGroups(groups, assignments);
+        var orphanCompanions = assignments.Where(item => item.Groups.Count == 0).Select(item => item.Folder).ToList();
+        var extra = groups.ToDictionary(group => group, _ => new List<FolderInfo>());
+        foreach (var folder in companions)
+        {
+            var best = groups.Max(group => Overlap(folder, group));
             if (best == 0)
             {
-                orphanCompanions.Add(folder);
+                if (!orphanCompanions.Contains(folder)) orphanCompanions.Add(folder);
                 continue;
             }
-            foreach (var group in groups.Where(group =>
-                         folder.Tokens.Intersect(group.SelectMany(item => item.Tokens)).Count() == best))
+            foreach (var group in groups.Where(group => Overlap(folder, group) == best))
                 extra[group].Add(folder);
         }
+        if (groups.Count <= 1) return [Single(folders)];
 
         return groups.Select(group =>
         {
@@ -60,6 +71,37 @@ public static class Hd2ClVariantPlanner
                 .ToList();
             return new Hd2ClVariantPlan(anchor.Relative, ReadName(anchor), members);
         }).ToList();
+    }
+
+    private static int Overlap(FolderInfo folder, List<FolderInfo> group)
+        => folder.Tokens.Intersect(group.SelectMany(item => item.Tokens), StringComparer.OrdinalIgnoreCase).Count();
+
+    private static List<List<FolderInfo>> MergeGroups(List<List<FolderInfo>> groups,
+        List<(FolderInfo Folder, List<List<FolderInfo>> Groups)> assignments)
+    {
+        var parent = Enumerable.Range(0, groups.Count).ToArray();
+        int Find(int value)
+        {
+            while (parent[value] != value) value = parent[value] = parent[parent[value]];
+            return value;
+        }
+        void Union(int left, int right)
+        {
+            left = Find(left);
+            right = Find(right);
+            if (left != right) parent[right] = left;
+        }
+        foreach (var (_, hits) in assignments)
+        {
+            var positions = hits.Select(group => groups.IndexOf(group)).Where(position => position >= 0).ToList();
+            for (var position = 1; position < positions.Count; position++) Union(positions[0], positions[position]);
+        }
+        return groups
+            .Select((group, position) => (group, root: Find(position)))
+            .GroupBy(pair => pair.root)
+            .OrderBy(group => group.Min(pair => pair.group.Min(item => item.Relative)), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.SelectMany(pair => pair.group).ToList())
+            .ToList();
     }
 
     private static List<List<FolderInfo>> Group(List<FolderInfo> patchGroups)
@@ -116,8 +158,9 @@ public static class Hd2ClVariantPlanner
                 tokens.Add(token);
                 continue;
             }
-            if (!Hd2ClArtifactBuilder.IsCompanionFile(name)) continue;
-            companions++;
+            if (Hd2ClArtifactBuilder.IsCompanionFile(name)) companions++;
+            // 头/躯干拆开导出时，某个部件的编号可能只出现在 hd2author/hd2preview 里，
+            // 因此非补丁文件都要参与编号提取，不能只认 rigbin/hd2phys。
             foreach (Match match in Token.Matches(name)) tokens.Add(match.Value.ToLowerInvariant());
         }
         return new FolderInfo(relative, folder, patchTokens, tokens, companions);

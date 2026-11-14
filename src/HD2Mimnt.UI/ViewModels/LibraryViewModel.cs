@@ -223,6 +223,11 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedCount;
 
+    /// <summary>选中项里是否包含可转换的 HD2IAS 模组；批量转换按钮据此显示。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BatchConvertToHd2ClCommand))]
+    private bool _hasHd2IrSelection;
+
     [ObservableProperty]
     private bool _isAllSelected;
 
@@ -1355,6 +1360,44 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>把选中的多个 HD2IAS 模组批量转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand(CanExecute = nameof(HasHd2IrSelection))]
+    private async Task BatchConvertToHd2ClAsync()
+    {
+        if (_hd2Cl is null) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        var items = SelectedMods.Where(mod => mod.IsHd2Ir)
+            .Select(mod => new Hd2ClBatchConversion.Item(mod.Id, mod.Name)).ToList();
+        if (items.Count == 0) return;
+
+        _hd2ClBusy = true;
+        try
+        {
+            var summary = await Hd2ClBatchConversion.RunAsync(_hd2Cl, _hd2ClVariantPrompt, items,
+                message => _notificationService.ShowInfo(message, "HD2CL", 1800));
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+            ImportedModsChanged?.Invoke(this, EventArgs.Empty);
+            _notificationService.ShowSuccess(summary.Describe(), "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 批量转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 批量转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+        }
+    }
+
     /// <summary>
     /// 从当前 Profile 移除选中的 Mod，但保留 Library 资产。
     /// </summary>
@@ -2267,6 +2310,7 @@ public partial class LibraryViewModel : ObservableObject
     {
         SelectedCount = SelectedMods.Count;
         IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
+        HasHd2IrSelection = SelectedMods.Any(mod => mod.IsHd2Ir);
         BatchDisableCommand.NotifyCanExecuteChanged();
         RemoveSelectedFromProfileCommand.NotifyCanExecuteChanged();
         BatchDeleteCommand.NotifyCanExecuteChanged();
