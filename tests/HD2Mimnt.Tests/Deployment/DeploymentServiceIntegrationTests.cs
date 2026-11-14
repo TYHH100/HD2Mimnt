@@ -777,6 +777,103 @@ public class DeploymentServiceIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task DeployProfile_ShouldDeleteUnmanagedPatchFilesAndKeepTrackedAndNonPatchFiles()
+    {
+        var mod = await AddPatchModAsync("managed", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var first = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, first.Status);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        File.WriteAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5"), "unmanaged");
+        File.WriteAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5.stream"), "unmanaged-stream");
+        File.WriteAllText(Path.Combine(data, "9ba626afa44a3aa3.stream"), "base");
+        File.WriteAllText(Path.Combine(data, "notes.txt"), "keep");
+
+        var second = await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, second.Status);
+        Assert.False(File.Exists(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5")));
+        Assert.False(File.Exists(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5.stream")));
+        Assert.Equal("managed", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+        Assert.Equal("base", File.ReadAllText(Path.Combine(data, "9ba626afa44a3aa3.stream")));
+        Assert.Equal("keep", File.ReadAllText(Path.Combine(data, "notes.txt")));
+        Assert.Contains("已删除 2 个未托管的补丁文件", second.Message);
+    }
+
+    [Fact]
+    public async Task DeployProfile_ShouldKeepUnmanagedPatchesWhenDeleteSettingDisabled()
+    {
+        var service = CreateSettingsBackedService((SettingKeys.DeploymentDeleteUnmanagedPatches, false));
+        var mod = await AddPatchModAsync("managed", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom,
+            _testTargetDir);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        var unmanaged = Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5");
+        File.WriteAllText(unmanaged, "unmanaged");
+
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(File.Exists(unmanaged));
+        Assert.DoesNotContain("未托管", result.Message);
+    }
+
+    [Fact]
+    public async Task PreDeploymentCleanup_ShouldDeleteUnmanagedPatchFiles()
+    {
+        var service = CreateSettingsBackedService((SettingKeys.GamePath, _testTargetDir));
+        var mod = await AddPatchModAsync("managed", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy, DeploymentOrder.TopToBottom,
+            _testTargetDir);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        var unmanaged = Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5");
+        File.WriteAllText(unmanaged, "unmanaged");
+        var baseFile = Path.Combine(data, "9ba626afa44a3aa3.stream");
+        File.WriteAllText(baseFile, "base");
+
+        var (filesDeleted, recordsDeleted) = await service.PreDeploymentCleanupAsync();
+
+        Assert.Equal(1, filesDeleted);
+        Assert.Equal(1, recordsDeleted);
+        Assert.False(File.Exists(unmanaged));
+        Assert.Equal("base", File.ReadAllText(baseFile));
+    }
+
+    [Fact]
+    public async Task ReconcileAfterModUpdate_ShouldDeleteUnmanagedPatchFiles()
+    {
+        var mod = await AddPatchModAsync("managed", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        await _deploymentService.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        var unmanaged = Path.Combine(data, "bbbbbbbbbbbbbbbb.patch_9");
+        File.WriteAllText(unmanaged, "unmanaged");
+        var updatedPath = Path.Combine(_testSourceDir, "managed-updated");
+        Directory.CreateDirectory(updatedPath);
+        File.WriteAllText(Path.Combine(updatedPath, "0123456789abcdef.patch_7"), "managed-updated");
+        mod.Path = updatedPath;
+        await _modRepository.UpdateAsync(mod);
+
+        var result = await _deploymentService.ReconcileAfterModUpdateAsync(mod.Id, _testTargetDir);
+
+        Assert.NotNull(result);
+        Assert.Equal(DeploymentStatus.Completed, result!.Status);
+        Assert.False(File.Exists(unmanaged));
+        Assert.Equal("managed-updated", File.ReadAllText(Path.Combine(data, "0123456789abcdef.patch_0")));
+        Assert.Contains("已删除 1 个未托管的补丁文件", result.Message);
+    }
+
+    [Fact]
     public async Task DeleteModDeployment_ForeignFileAtCompactionTarget_ShouldOverwriteByDefault()
     {
         var first = await AddPatchModAsync("first", "0123456789abcdef.patch_7");
@@ -1650,17 +1747,21 @@ public class DeploymentServiceIntegrationTests : IDisposable
 
     /// <summary>构造带设置开关的部署服务；独立设置库避免与主 DbContext 抢占同一 SQLite 文件。</summary>
     private DeploymentService CreateOverwriteConflictsService(bool overwriteConflicts)
+        => CreateSettingsBackedService((SettingKeys.DeploymentOverwriteConflicts, overwriteConflicts));
+
+    /// <summary>构造可预置多项设置的部署服务，设置库与应用数据目录相互隔离。</summary>
+    private DeploymentService CreateSettingsBackedService(params (string Key, object Value)[] settings)
     {
         var dbPath = Path.Combine(Path.GetTempPath(), $"test_deployment_settings_{Guid.NewGuid()}.db");
         var appData = Path.Combine(Path.GetTempPath(), $"test_deployment_appdata_{Guid.NewGuid()}");
         Directory.CreateDirectory(appData);
         _extraCleanupPaths.Add(dbPath);
         _extraCleanupPaths.Add(appData);
-        var settings = new SettingsService(new SettingsRepository(dbPath), appData);
-        settings.SetSettingAsync(SettingKeys.DeploymentOverwriteConflicts, overwriteConflicts).Wait();
+        var settingsService = new SettingsService(new SettingsRepository(dbPath), appData);
+        settingsService.SetSettingsAsync(settings.ToDictionary(item => item.Key, item => item.Value)).Wait();
         return new DeploymentService(_profileRepository, _modRepository, _deploymentRepository,
             new List<HD2Mimnt.Core.Interfaces.IDeploymentMethod> { new CopyDeploymentMethod() },
-            settingsService: settings);
+            settingsService: settingsService);
     }
 
     private async Task<Mod> AddPatchModAsync(string name, string fileName)

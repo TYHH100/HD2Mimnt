@@ -3905,6 +3905,8 @@
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>导入后自动加入并启用模组；没有启用的配置文件时，仅保留在模组库。</value></data>
   <data name="Settings.Deployment.OverwriteConflicts" xml:space="preserve"><value>强制覆盖冲突的补丁文件</value></data>
   <data name="Settings.Deployment.OverwriteConflictsHelp" xml:space="preserve"><value>默认开启。部署或重排编号时，若目标编号已被外部工具（如 HD2CharacterLibrary 生成的 Lua 补丁）占用，直接覆盖该文件；关闭后遇到占用将中止操作并提示。</value></data>
+  <data name="Settings.Deployment.DeleteUnmanagedPatches" xml:space="preserve"><value>自动删除未托管的补丁文件</value></data>
+  <data name="Settings.Deployment.DeleteUnmanagedPatchesHelp" xml:space="preserve"><value>默认开启。部署、清理部署或模组自动增量部署收口后，删除游戏 data 目录中未被部署记录追踪的补丁文件（16 位十六进制前缀 + .patch_N，含 .stream/.gpu_resources）；其它工具或手动放入的补丁也会被删除且无法恢复。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>导入完成后自动关闭悬浮卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
   <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>自动拆包 Lua 模组</value></data>

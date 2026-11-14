@@ -332,6 +332,8 @@ public static class SettingKeys
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
     // 部署/重编号目标被未追踪外部文件（如 HD2CharacterLibrary 生成的 Lua 补丁）占用时是否强制覆盖。
     public const string DeploymentOverwriteConflicts = "Deployment.OverwriteConflicts";
+    // 部署、清理和自动增量收口后删除 data 目录中未被部署记录追踪的补丁文件。
+    public const string DeploymentDeleteUnmanagedPatches = "Deployment.DeleteUnmanagedPatches";
 
     // 搜索相关
     public const string SearchFuzzy = "Search.Fuzzy";
