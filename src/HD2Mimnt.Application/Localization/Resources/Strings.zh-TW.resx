@@ -498,6 +498,21 @@
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>外部工具</value>
   </data>
+  <data name="UI.Hd2ClTitle" xml:space="preserve">
+    <value>HD2CL 角色庫</value>
+  </data>
+  <data name="UI.Hd2ClDescription" xml:space="preserve">
+    <value>把 HD2IAS 模型轉換為獨立的 HD2CL 角色庫模組，自動匯入模組庫並加入目前設定，同時在目前設定中停用來源 IAS 模組（檔案保留）。</value>
+  </data>
+  <data name="UI.Hd2ClRefresh" xml:space="preserve">
+    <value>重新整理可轉換模組</value>
+  </data>
+  <data name="UI.Hd2ClConvert" xml:space="preserve">
+    <value>轉換為 HD2CL</value>
+  </data>
+  <data name="UI.Hd2ClLoading" xml:space="preserve">
+    <value>正在掃描 HD2IAS 模組…</value>
+  </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>登記本地可執行檔案，用于打開模組資源。</value>
   </data>

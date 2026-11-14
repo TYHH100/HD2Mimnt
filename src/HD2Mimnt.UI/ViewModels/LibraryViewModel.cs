@@ -40,6 +40,43 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ConvertModToHd2ClAsync(ModItemViewModel? mod)
+    {
+        if (mod is null || _hd2Cl is null || !mod.IsHd2Ir) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        _hd2ClBusy = true;
+        try
+        {
+            _notificationService.ShowInfo($"正在转换 {mod.Name} 为 HD2CL 角色库模型…", "HD2CL");
+            var progress = new Progress<string>(message =>
+                _notificationService.ShowInfo(message, "HD2CL", 1500));
+            var result = await _hd2Cl.ConvertAsync(mod.Id, progress);
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+            ImportedModsChanged?.Invoke(this, EventArgs.Empty);
+            _notificationService.ShowSuccess(result.SourceDisabled
+                ? $"已生成「{result.Name}」并加入当前配置，源 IAS 模组已在当前配置中禁用。"
+                : $"已生成「{result.Name}」并导入模组库；当前没有配置文件，源 IAS 模组未改动。", "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+        }
+    }
+
     private readonly ModService _modService;
     public ModVersionsViewModel LocalVersions { get; }
     private readonly SearchService _searchService;
@@ -54,6 +91,8 @@ public partial class LibraryViewModel : ObservableObject
     private readonly LuaExtractionService? _luaExtraction;
     private readonly IPluginService? _pluginService;
     private readonly TaskService? _taskService;
+    private readonly HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? _hd2Cl;
+    private bool _hd2ClBusy;
     private CancellationTokenSource? _luaExtractionCts;
 
     /// <summary>插件贡献到模组右键菜单的命令（已启用插件、按授权状态标注）。</summary>
@@ -331,9 +370,10 @@ public partial class LibraryViewModel : ObservableObject
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
-        TaskService? taskService = null)
+        TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null)
     {
         _taskService = taskService;
+        _hd2Cl = hd2Cl;
         _pluginService = pluginService;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;

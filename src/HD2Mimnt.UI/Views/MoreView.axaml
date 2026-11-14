@@ -56,6 +56,32 @@
           </StackPanel>
         </StackPanel>
 
+        <StackPanel IsVisible="{Binding MoreViewModel.IsHd2ClVisible}" Classes="section" Spacing="12">
+          <TextBlock Text="{loc:Loc UI.Hd2ClTitle}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc UI.Hd2ClDescription}" Classes="muted" TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Hd2ClViewModel.Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" Content="{loc:Loc UI.Hd2ClRefresh}" Classes="accent" Command="{Binding Hd2ClViewModel.RefreshCommand}" IsEnabled="{Binding !Hd2ClViewModel.IsBusy}" />
+          </Grid>
+          <ItemsControl ItemsSource="{Binding Hd2ClViewModel.Candidates}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:Hd2ClCandidateItem">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,8">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Path}" Classes="muted" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding CompanionSummary}" Classes="caption-text" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="{loc:Loc UI.Hd2ClConvert}" Classes="accent" VerticalAlignment="Center"
+                          Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).Hd2ClViewModel.ConvertCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock IsVisible="{Binding Hd2ClViewModel.IsLoading}" Text="{loc:Loc UI.Hd2ClLoading}" Classes="muted" />
+        </StackPanel>
+
         <StackPanel IsVisible="{Binding MoreViewModel.IsDevToolsVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.DeveloperTools}" Classes="section-title" />
           <TextBlock Text="{loc:Loc UI.GenerateOrRemoveTestModDataForLocalValidation}" Classes="muted" />

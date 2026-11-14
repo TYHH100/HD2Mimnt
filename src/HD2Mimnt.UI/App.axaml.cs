@@ -631,7 +631,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(),
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
-            sp.GetRequiredService<TaskService>()));
+            sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -712,6 +712,10 @@ public partial class App : Avalonia.Application
                 Path.Combine(appDataPath, "Cache", "IAS-Generator"),
                 Path.Combine(appDataPath, "IAS-System", "deployment.json")));
         services.AddTransient<IasSystemViewModel>();
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(sp =>
+            new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>()));
+        services.AddTransient<Hd2ClViewModel>();
         services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
@@ -760,6 +764,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<AppUpdateViewModel>(),
             sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<HellForgeViewModel>(),
-            sp.GetRequiredService<HellForgeSessionService>()));
+            sp.GetRequiredService<HellForgeSessionService>(),
+            sp.GetRequiredService<Hd2ClViewModel>()));
     }
 }

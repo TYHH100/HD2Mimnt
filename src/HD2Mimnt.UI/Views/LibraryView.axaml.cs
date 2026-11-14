@@ -273,6 +273,8 @@ public partial class LibraryView : UserControl
         };
 
         if (vm.ModelPreview != null) entries.Add(new ContextMenuItem("模型预览", vm.PreviewModelCommand, "Package") { CommandParameter = mod });
+        if (mod.IsHd2Ir)
+            entries.Add(new ContextMenuItem("转换为 HD2CL 角色库…", vm.ConvertModToHd2ClCommand, "Package") { CommandParameter = mod });
         if (vm.AudioPreview != null) entries.Add(new ContextMenuItem("音频预览", vm.PreviewAudioCommand, "Package") { CommandParameter = mod });
         if (vm.Compatibility != null) entries.Add(new ContextMenuItem("兼容性检查与修复", vm.CheckModCompatibilityCommand, "Repair") { CommandParameter = mod });
         if (mod.HasPlatformLink)

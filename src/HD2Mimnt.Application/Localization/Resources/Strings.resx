@@ -498,6 +498,21 @@
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>External tools</value>
   </data>
+  <data name="UI.Hd2ClTitle" xml:space="preserve">
+    <value>HD2CL character library</value>
+  </data>
+  <data name="UI.Hd2ClDescription" xml:space="preserve">
+    <value>Convert an HD2IAS model into a standalone HD2CL character library mod, import it, add it to the current profile, and disable the source IAS mod in that profile.</value>
+  </data>
+  <data name="UI.Hd2ClRefresh" xml:space="preserve">
+    <value>Refresh candidates</value>
+  </data>
+  <data name="UI.Hd2ClConvert" xml:space="preserve">
+    <value>Convert to HD2CL</value>
+  </data>
+  <data name="UI.Hd2ClLoading" xml:space="preserve">
+    <value>Scanning HD2IAS mods…</value>
+  </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>Register local executables to open mod resources.</value>
   </data>

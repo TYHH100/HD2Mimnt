@@ -153,6 +153,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
+    public Hd2ClViewModel? Hd2ClViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
@@ -188,9 +189,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         AppUpdateViewModel? appUpdateViewModel = null,
         IPluginService? pluginService = null,
         HellForgeViewModel? hellForgeViewModel = null,
-        HellForgeSessionService? hellForgeSessionService = null)
+        HellForgeSessionService? hellForgeSessionService = null,
+        Hd2ClViewModel? hd2ClViewModel = null)
     {
         _pluginService = pluginService;
+        Hd2ClViewModel = hd2ClViewModel;
         HellForgeViewModel = hellForgeViewModel;
         _hellForgeSessionService = hellForgeSessionService;
         if (hellForgeSessionService != null)
@@ -289,6 +292,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsIasSystemVisible
                 && IasSystemViewModel is { IsBusy: false } system)
                 _ = system.InitializeAsync();
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2ClVisible
+                && Hd2ClViewModel is { IsBusy: false } cl)
+                _ = cl.RefreshCommand.ExecuteAsync(null);
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {

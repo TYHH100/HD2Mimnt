@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="ModelConversion\Data\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 仅为 Services/ImageLoaderService、ImageCacheService 提供编译期 Avalonia.Base 类型（Bitmap/PixelSize/
          CreateScaledBitmap）。ExcludeAssets="runtime" 使 Avalonia 不流入 Worker/Cli 的发布与 deps.json——
          这两个子进程不消费图像服务；图像服务实际消费方只有 UI，其自身另行完整引用 Avalonia。
