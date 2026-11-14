@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Hd2IAS;
 using HD2Mimnt.Core.Resources;
 using HD2Mimnt.Core.Services;
 using System.Diagnostics;
@@ -92,6 +93,7 @@ public partial class ModItemViewModel : ObservableObject
     public string Author => PlatformLink?.Author ?? _mod.Author;
     public string Description => _mod.Description;
     public bool IsHd2Ir => _mod.WorkflowType == "HD2IAS";
+    public bool IsHd2Cl => _mod.Tags.Contains(Hd2ClProductTag.Value, StringComparer.OrdinalIgnoreCase);
     public IReadOnlyList<string> Hd2IrComponents => _mod.LogicalMod?.Components
         .Select(component => $"{component.Name} · {component.DeployableFiles.Count}").ToArray() ?? [];
     public ModPlatformLink? PlatformLink => _mod.PlatformLink;

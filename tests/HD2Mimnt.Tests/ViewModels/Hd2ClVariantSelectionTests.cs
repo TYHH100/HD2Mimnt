@@ -46,6 +46,16 @@ public class Hd2ClVariantSelectionTests
         Assert.Null(variant);
     }
 
+    [Theory]
+    [InlineData("Model · 【Witch】Milfy 替换 B-08", "【Witch】Milfy 替换 B-08")]
+    [InlineData("HD2IAS · VRC-Milfy-B-08", "VRC-Milfy-B-08")]
+    [InlineData("Texture · 贴图包", "贴图包")]
+    [InlineData("自定义 · 名字", "自定义 · 名字")]
+    [InlineData("普通名称", "普通名称")]
+    [InlineData("Model · ", "Model · ")]
+    public void StripComponentPrefix_RemovesImportPrefixOnly(string source, string expected)
+        => Assert.Equal(expected, Hd2ClNames.StripComponentPrefix(source));
+
     private sealed class FakePrompt(Hd2ClVariant? result) : IHd2ClVariantPrompt
     {
         public int Calls { get; private set; }

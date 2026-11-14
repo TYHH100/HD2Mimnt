@@ -174,6 +174,7 @@
                                             <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.Updated}"/>
                                         </Border>
                                         <Border Classes="chip" IsVisible="{Binding IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
+                                        <Border Classes="chip" IsVisible="{Binding IsHd2Cl}"><TextBlock Text="HD2CL" FontSize="12" Classes="accent-text"/></Border>
                                         <Button Classes="chip" Command="{Binding OpenSourcePageCommand}"
                                                 IsVisible="{Binding HasPlatformLink}" ToolTip.Tip="{loc:LocalizedBinding PlatformLink}">
                                             <TextBlock Text="{loc:LocalizedBinding SourceName}" FontSize="12" Classes="muted"/>

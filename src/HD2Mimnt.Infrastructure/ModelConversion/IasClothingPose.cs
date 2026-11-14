@@ -90,8 +90,9 @@ public static class IasClothingPose
             payload.AddRange(BitConverter.GetBytes(bone.SourceIndex));
             payload.AddRange(BitConverter.GetBytes((uint)bone.PaletteSlot));
             payload.AddRange(BitConverter.GetBytes(bone.Flags));
-            payload.AddRange(BitConverter.GetBytes(bone.TranslationScale));
-            foreach (var value in bone.RestLocal) payload.AddRange(BitConverter.GetBytes(value));
+            payload.AddRange(BitConverter.GetBytes((float)bone.TranslationScale));
+            // 指纹按 4 字节 float 拼接（上游 TARGET 的 12f）；写成 double 会多出一倍字节。
+            foreach (var value in bone.RestLocal) payload.AddRange(BitConverter.GetBytes((float)value));
         }
         IasBinary.Require(IasHash.Sha256Hex(payload.ToArray()).Equals(Convert.ToHexString(fingerprint).ToLowerInvariant(), StringComparison.Ordinal),
             "clothing pose Rig fingerprint differs");

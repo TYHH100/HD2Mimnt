@@ -59,7 +59,8 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
             {
                 var group = groups.FirstOrDefault(item =>
                     item.Id.Equals("component-" + Path.GetFileName(plan.Id), StringComparison.OrdinalIgnoreCase));
-                var name = string.IsNullOrWhiteSpace(group?.Name) ? plan.Name : group.Name;
+                var name = Hd2ClNames.StripComponentPrefix(
+                    string.IsNullOrWhiteSpace(group?.Name) ? plan.Name : group.Name);
                 var description = string.IsNullOrWhiteSpace(group?.Description) ? null : group.Description;
                 return new Hd2ClVariant(plan.Id, name, description, plan.Folders);
             }).ToList(), token);
@@ -117,6 +118,7 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
 
             progress?.Report("导入管理器库…");
             var imported = await _mods.ImportModAsync(artifact.OutputDirectory, token);
+            await _mods.AddTagAsync(imported, Hd2ClProductTag.Value, token);
             Guid? profileId = null;
             var sourceDisabled = false;
             var profile = await _profiles.GetActiveProfileAsync(token);

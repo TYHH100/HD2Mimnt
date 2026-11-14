@@ -53,7 +53,7 @@ public static class Hd2ClArtifactBuilder
 
         progress?.Report(new(70, "生成安装包", request.Name));
         var packaged = IasModelPackager.Build(new IasPackageRequest(modelId,
-            compiled.Name, request.Author, request.Description,
+            request.Name, request.Author, request.Description,
             iconPath, icon, iconMime, compiled, scan.Resources, game,
             scan.ArchiveIds.Concat(set.Routing.BodyOwners.Select(owner => owner.Archive))
                 .Concat(set.Data.Metadata.Members.Select(member => member.Archive))

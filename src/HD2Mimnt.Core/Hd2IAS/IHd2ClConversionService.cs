@@ -6,6 +6,25 @@ public sealed record Hd2ClCandidate(Guid ModId, string Name, string Path, int Co
 /// <summary>合集模组中的一个可转换版本；ComponentFolders 是相对模组根的组件目录。</summary>
 public sealed record Hd2ClVariant(string Id, string Name, string? Description, IReadOnlyList<string> ComponentFolders);
 
+/// <summary>角色库成品标记：模组库与配置页据此显示 HD2CL 徽标，与 HD2IAS 源模组区分。</summary>
+public static class Hd2ClProductTag
+{
+    public const string Value = "HD2CL";
+}
+
+/// <summary>导入合集时会给组件名加「类型 · 」前缀；成品名只保留作者名部分。</summary>
+public static class Hd2ClNames
+{
+    public static string StripComponentPrefix(string name)
+    {
+        var separator = name.IndexOf(" · ", StringComparison.Ordinal);
+        if (separator <= 0) return name;
+        if (!System.Enum.TryParse<Enums.ComponentType>(name[..separator], ignoreCase: false, out _)) return name;
+        var stripped = name[(separator + 3)..].Trim();
+        return stripped.Length == 0 ? name : stripped;
+    }
+}
+
 /// <summary>HD2CL 转换结果：成品模组身份与当前配置中的源模组禁用状态。</summary>
 public sealed record Hd2ClConversionResult(
     Guid ModId,
