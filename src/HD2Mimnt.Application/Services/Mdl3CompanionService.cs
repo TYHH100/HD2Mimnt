@@ -6,8 +6,9 @@ using Microsoft.Extensions.Logging;
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>
-/// MDL3 原生伴生组件（%LOCALAPPDATA%\MDL3 的签名原生桥、config.json 与用户目录）的安装门面。
-/// 只接管 MDL3 加载器角色的模组；伴生载荷来自包内 BUILD.json，不执行官方 install.ps1。
+/// MDL3 原生伴生组件（签名原生桥、config.json 与用户目录）的安装门面。
+/// 数据根按包版本选择：3.0 起为 %ProgramData%\MDL3，2.x 仍为 %LOCALAPPDATA%\MDL3。
+/// 只接管 MDL3 加载器角色的模组；伴生载荷来自包内 BUILD.json，不执行官方 install.ps1 / MDL3Setup.exe。
 /// </summary>
 public class Mdl3CompanionService
 {
@@ -17,9 +18,11 @@ public class Mdl3CompanionService
 
     public Mdl3CompanionService(IAuthenticodeVerifier? verifier = null,
         ILogger<Mdl3CompanionService>? logger = null, string? localApplicationData = null,
-        EacCertificateInstaller? eacCertificateInstaller = null)
+        EacCertificateInstaller? eacCertificateInstaller = null, string? commonApplicationData = null,
+        Func<bool>? isGameRunning = null)
     {
-        _installer = new Mdl3CompanionInstaller(verifier, localApplicationData);
+        _installer = new Mdl3CompanionInstaller(verifier, localApplicationData, commonApplicationData,
+            isGameRunning);
         _eacCertificates = eacCertificateInstaller ?? new EacCertificateInstaller();
         _logger = logger;
     }

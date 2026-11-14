@@ -520,7 +520,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, HardLinkDeploymentMethod>();
 
-        // MDL3 原生伴生组件安装（签名校验 + %LOCALAPPDATA%\MDL3 落位）。
+        // MDL3 原生伴生组件安装（签名校验；3.0+ 落位 %ProgramData%\MDL3，2.x 落位 %LOCALAPPDATA%\MDL3）。
         services.AddSingleton(sp => new Mdl3CompanionService(
             sp.GetService<IAuthenticodeVerifier>() ?? new AuthenticodeVerifier(),
             sp.GetService<ILogger<Mdl3CompanionService>>()));
