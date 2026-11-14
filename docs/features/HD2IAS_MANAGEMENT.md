@@ -1,8 +1,8 @@
 # HD2IAS 管理：运行时安装与 data 模组
 
-> **状态（2026-10-28）**：上游 HD2-Integrated-Armor-System 正在大改并内测，旧管理流程已暂时停用。工具页“HD2IAS 管理”入口、启动/游戏路径/库变更时的运行时与 data 自动检查、缺失通知均不再接线；服务代码保留，待上游新版稳定后恢复。导入识别与普通部署兼容保持不变，补丁位于 `data/` 的数据包按普通模组部署。
+> **状态（2026-11-14）**：旧版“HD2IAS 管理”页已重新开放入口（页内区块默认折叠），可手动检查、安装、卸载 1.4.x 运行时并生成 data；启动、游戏路径变化和库内容变化时的运行时缺失**自动提醒仍停用**（上游内测期），只保留手动刷新。上游 1.5.x 的 `HD2IntegratedArmorSystem` external-runtime / armor 配套流程改在“工具 → HD2IAS 系统”页，见下文[HD2IAS 系统页](#hd2ias-系统页15x-external-runtime)。导入识别与普通部署兼容保持不变，补丁位于 `data/` 的数据包按普通模组部署。
 
-入口为“工具 → HD2IAS 管理”，位于“开发工具”和“关于”之间，不增加顶层导航。默认 Native 路线，可手动选择 Lua。
+入口为“工具 → HD2IAS 管理”，位于“开发工具”之后、“HD2IAS 系统”之前，不增加顶层导航。默认 Native 路线，可手动选择 Lua。
 
 ## 当前流程
 
@@ -100,6 +100,17 @@
 此前对用户提供的真实 1.4.4 包做过只读验证：23 项源文件全部通过，运行包版本 1.4.4、Foundation 1.1.3。真实游戏 VM 编译检查及产物回读验证通过：Lua 主补丁 548899 字节、Native 35686 字节；Lua 主补丁与用户提供的 1.4.0 Lua 样本逐字节相同，Native 未提供原程序样本作逐字节比较。这些是离线结果，不代表游戏内兼容性结论。
 
 更新源此前实际验证：Raw 记录解析出 21 个版本，最高 1.4.5；下载 70,072,794 字节更新包并通过 23 项清单校验。合计 6 次 Raw HTTP 请求，API 请求 0 次。版本与最高版本只是当时的验证记录，不是固定常量。
+
+## HD2IAS 系统页（1.5.x external runtime）
+
+入口为“工具 → HD2IAS 系统”，与上面的旧版“HD2IAS 管理”页相互独立，用于上游 1.5.x 的 `HD2IntegratedArmorSystem` 流程：
+
+1. 填写 `HD2IntegratedArmorSystem` 安装位置（设置键 `IAS.InstallLocation`）。页面自动发现 `<位置>\HD2IntegratedArmorSystem\Runtime\<ID>` 并列出可选 Runtime，保存活动 Runtime（`IAS.ActiveRuntimeId`）。
+2. 枚举模组库中的 IAS 模型组件用于展示；只有页面加载完成且系统已安装时，生成按钮才可用。
+3. 模型组件不再由管理器直写 `armor\rig`。生成时读取安装位置下 `ExternalRuntime\ArmorAssets.zip` 与 `ExternalRuntime\Generator.zip`。部署成功（计划含 IAS 模组，或本次操作改变了当前已部署的 IAS 模组集合）、清理部署收口后、删除 IAS 模组后，`IasCompanionService` 调用上游签名 Python 生成器（`python -I -B -m runtime_generation --request`，metadata-only 请求从库快照读 rig）重建 armor 配套，再按上游 `HD2ExternalTransaction1` 事务语义落盘；未配置 IAS Runtime 时跳过。
+4. 生成可取消，关闭页面时等待当前操作结束。`ExternalRuntime` 与 `Runtime` 是同级目录，目录布局统一经 `IIasSystemService.GetExternalRuntimeRootAsync` 解析，不要自行拼接父目录。
+
+事务字段、路径陷阱、生成器请求格式和同步触发条件见[部署与加载器指南](../agent-guides/deployment-and-loaders.md)中的“IAS armor 配套”条目。旧版 1.4.x 运行时安装/卸载与 data 生成仍走“HD2IAS 管理”页，两套流程不互相替代。上游 1.5.x 仍在迭代，页面显示与生成结果需按实际安装的上游版本核对。
 
 ## 来源与许可证
 

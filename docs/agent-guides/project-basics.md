@@ -14,6 +14,7 @@ HD2Mimnt 是基于 .NET 10、Avalonia 和 SQLite 的 Helldivers 2 模组管理�
 | `HD2Mimnt.Infrastructure` | SQLite Repository、部署实现、工作流、平台适配器 |
 | `HD2Mimnt.Application` | 业务服务与流程编排 |
 | `HD2Mimnt.UI` | Avalonia View、ViewModel、DI 注册 |
+| `HD2Mimnt.Cli` | 命令行入口：转发到运行中的 UI，或在 UI 未运行时无头执行 |
 | `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | 插件接口、独立进程宿主与 IPC、Lua 脚本运行时（MoonSharp，只在宿主进程引用） |
 | `HD2Mimnt.Worker` | 后台工作进程 |
 

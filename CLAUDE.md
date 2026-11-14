@@ -15,6 +15,8 @@ HD2Mimnt is a Helldivers 2 Mod Manager built with .NET 10, Avalonia UI, and SQLi
 **Additional Projects**:
 - `HD2Mimnt.PluginSDK`: Plugin development SDK (interfaces: IPlugin, IModPlugin, IDeploymentPlugin, IAnalysisPlugin)
 - `HD2Mimnt.PluginHost`: Isolated plugin execution host (separate process)
+- `HD2Mimnt.PluginLua`: Lua runtime used by PluginHost (MoonSharp; referenced only by the host process)
+- `HD2Mimnt.Cli`: Command-line entry that forwards commands to a running UI over a named pipe, or runs headless when the UI is closed
 - `HD2Mimnt.Worker`: Background worker process for long-running tasks
 
 ## Build and Test Commands
@@ -42,16 +44,12 @@ dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
 # Run single test method
 dotnet test --filter "FullyQualifiedName~ProfileServiceTests.CreateProfile_ShouldSucceed"
 
-# Run benchmarks
-cd benchmarks/HD2Mimnt.Benchmarks
-dotnet run -c Release
-
 # Run stability tests
 cd tests/HD2Mimnt.StabilityTests
 dotnet test
 
-# Publish for Windows x64
-dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained
+# Publish for Windows x64 (framework-dependent single file, matches Release.pubxml)
+dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
 ```
 
 ## Architecture Highlights
@@ -81,21 +79,21 @@ Plugin system uses isolated processes for safety:
 - Plugins implement `IPlugin` (base), `IModPlugin`, `IDeploymentPlugin`, or `IAnalysisPlugin`
 - PluginHost runs in separate process, communicates via IPC
 - Plugins have manifest-based permissions (filesystem, network, database)
-- Sandbox isolation prevents plugins from affecting main application
+- Process isolation keeps plugin faults and API keys out of the UI process; it is not an OS-level sandbox (plugins run as the same Windows user)
 
 ### Task System
 All long-running operations are tracked through the `TaskService`:
 - Import, Scan, Validation, Deployment, Cleanup tasks
 - Progress tracking with stages and percentages
 - Cancellation support via CancellationToken
-- Workers (`ScanWorker`, `ValidationWorker`, `ImportWorker`) execute background operations
+- Worker tasks (`ValidationWorkerTask`, `ImportWorkerTask`, `DeploymentWorkerTask`, `CleanupWorkerTask`, `HellForgeSyncWorkerTask`) execute background operations in the separate Worker process
 
 ### Platform Integration
 External mod platforms (Nexus Mods, etc.) are abstracted via `IModPlatform`:
 - Search, download, version checking
 - Platform-specific metadata
 - `PlatformRegistry` manages available adapters
-- Currently includes `MockPlatformAdapter` for testing
+- The UI registers Nexus Mods and Ayaka Mods adapters; `MockPlatformAdapter` remains only as a test fixture
 
 ## Key Design Patterns
 
@@ -136,7 +134,8 @@ SQLite database with core tables:
 
 Test framework: xUnit with Moq for mocking
 - Unit tests: `tests/HD2Mimnt.Tests/`
-- Benchmarks: `benchmarks/HD2Mimnt.Benchmarks/` (BenchmarkDotNet)
+- UI tests: `tests/HD2Mimnt.UITests/` (Avalonia Headless, xUnit v3)
+- Performance tests: `tests/HD2Mimnt.PerformanceTests/`
 - Stability tests: `tests/HD2Mimnt.StabilityTests/` (long-running scenarios)
 
 When writing tests:
@@ -190,6 +189,5 @@ When writing tests:
 ## Current Status
 
 Version: 以 `Directory.Build.props` 的 `<Version>` 为准
-Recent phases completed: Phase 22 (Release preparation), Phase 21 (Stability testing), Phase 20 (Performance testing), Phase 19 (AI Integration), Phase 18 (External platforms), Phase 17 (Plugin system)
 
-All core systems are functional. The application is in early alpha with ongoing UI and feature development.
+The application is in early alpha. Current behavior and known gaps are documented under `docs/` (start from `docs/README.md`); phase reports under `docs/Archive records/` are historical and are not current status.

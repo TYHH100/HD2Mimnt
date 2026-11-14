@@ -1,10 +1,13 @@
 name: Release
 
-# 推送 v主.次.补[-阶段] 形式的标签（如 v0.1.0-alpha、v1.0.0）时自动构建并创建 GitHub Release。
+# 推送 V主.次.补[-阶段] 形式的标签（如 V0.1.0-alpha、V1.0.0）时自动构建并创建 GitHub Release。
+# 同时接受小写 v 前缀，兼容已有脚本；版本号推导会去掉 v/V 前缀。
 # 发布流程说明见 docs/RELEASE_PROCESS.md。
 on:
   push:
     tags:
+      - 'V*.*.*'
+      - 'V*.*.*-*'
       - 'v*.*.*'
       - 'v*.*.*-*'
 
@@ -28,7 +31,7 @@ jobs:
       # dotnet publish 自带还原与依赖构建
       - name: Compute version
         shell: pwsh
-        run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^v', '')"
+        run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^[vV]', '')"
 
       # 与 Release.pubxml 一致：win-x64、框架依赖、单文件。
       # 框架依赖单文件不支持 EnableCompressionInSingleFile（NETSDK1176，仅自包含发布可用）。

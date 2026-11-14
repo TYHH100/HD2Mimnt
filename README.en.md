@@ -10,7 +10,7 @@ A Helldivers 2 mod manager built on .NET 10 and Avalonia, primarily targeting Wi
 - **Configuration system**: multiple profiles for the mods enabled in different scenarios, switched with one click
 - **Several deployment methods**: copy, symbolic links, hard links
 - **Background tasks**: scanning, importing and deployment run asynchronously with progress reporting and cancellation
-- **Plugin system**: an SDK plus a separate host process, so plugins run isolated
+- **Plugin system**: an SDK plus a separate host process, so plugins run isolated; supports DLL, Lua and hybrid plugins
 
 ## Tech Stack
 
@@ -37,7 +37,8 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 | `HD2Mimnt.Infrastructure` | Data access, deployment implementations, workflows |
 | `HD2Mimnt.Application` | Business services and orchestration |
 | `HD2Mimnt.UI` | Avalonia UI (MVVM) |
-| `HD2Mimnt.PluginSDK` / `PluginHost` | Plugin SDK and isolated host process |
+| `HD2Mimnt.Cli` | Command-line entry: forwards to a running UI, or runs headless when the UI is closed |
+| `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | Plugin SDK, isolated host process and Lua script runtime |
 | `HD2Mimnt.Worker` | Background worker process |
 
 Under `tests/` there are four test projects: unit tests (Tests), UI tests (UITests), stability tests (StabilityTests) and performance tests (PerformanceTests).
