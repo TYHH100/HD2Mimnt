@@ -16,6 +16,9 @@ public sealed class Hd2ClConversionWorkerTask : IWorkerTask
         var arguments = command.Arguments;
         var components = Optional(arguments, "Components")?
             .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var optionGroups = Optional(arguments, "OptionGroups") is { } optionJson
+            ? JsonSerializer.Deserialize<List<Hd2ClOptionGroup>>(optionJson)
+            : null;
         var request = new Hd2ClArtifactRequest(
             Required(arguments, "Seed"),
             Required(arguments, "Name"),
@@ -26,7 +29,8 @@ public sealed class Hd2ClConversionWorkerTask : IWorkerTask
             Required(arguments, "OutputDirectory"),
             Optional(arguments, "ThumbnailPath"),
             Optional(arguments, "ManifestIconPath"),
-            components);
+            components,
+            optionGroups);
 
         var reporter = new WorkerProgressReporter(host, cancellationToken);
         var progress = new InlineProgress<Hd2ClBuildProgress>(value =>

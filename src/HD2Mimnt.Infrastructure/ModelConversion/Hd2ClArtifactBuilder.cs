@@ -1,6 +1,14 @@
 using System.Text.RegularExpressions;
+using HD2Mimnt.Core.IO;
 
 namespace HD2Mimnt.Infrastructure.ModelConversion;
+
+/// <summary>成品中的一个可选配色/部件分支；SourceDirectory 是源模组内的相对目录。</summary>
+public sealed record Hd2ClOptionChoice(string Name, string? Image, string SourceDirectory);
+
+/// <summary>成品的一个互斥选项组，对应源模组的一个 V1 选项；分支目录里只允许材质与贴图。</summary>
+public sealed record Hd2ClOptionGroup(string Name, string? Description, string? Image, bool Enabled,
+    int DefaultIndex, IReadOnlyList<Hd2ClOptionChoice> Choices);
 
 /// <summary>一次 HD2CL 产物构建所需的全部输入；路径均由主程序解析后传入。</summary>
 public sealed record Hd2ClArtifactRequest(
@@ -13,7 +21,8 @@ public sealed record Hd2ClArtifactRequest(
     string OutputDirectory,
     string? ThumbnailPath = null,
     string? ManifestIconPath = null,
-    IReadOnlyList<string>? ComponentSelection = null);
+    IReadOnlyList<string>? ComponentSelection = null,
+    IReadOnlyList<Hd2ClOptionGroup>? OptionGroups = null);
 
 /// <summary>产物身份：成品显示名与写出的成品目录（直接交给管理器导入）。</summary>
 public sealed record Hd2ClArtifactResult(string Name, string OutputDirectory);
@@ -52,19 +61,117 @@ public static class Hd2ClArtifactBuilder
         token.ThrowIfCancellationRequested();
 
         progress?.Report(new(70, "生成安装包", request.Name));
+        // 选项预览图要先进成品，清单才能写出成品内相对路径；缺失图片保持 null，不阻塞转换。
+        var optionGroups = request.OptionGroups is { Count: > 0 }
+            ? CopyOptionImages(request.ModPath, request.OutputDirectory, request.OptionGroups, token)
+            : null;
         var packaged = IasModelPackager.Build(new IasPackageRequest(modelId,
             request.Name, request.Author, request.Description,
             iconPath, icon, iconMime, compiled, scan.Resources, game,
             scan.ArchiveIds.Concat(set.Routing.BodyOwners.Select(owner => owner.Archive))
                 .Concat(set.Data.Metadata.Members.Select(member => member.Archive))
                 .Select(archive => archive.ToLowerInvariant().StartsWith("0x", StringComparison.Ordinal)
-                    ? archive[2..] : archive.ToLowerInvariant()).Distinct().ToList()));
+                    ? archive[2..] : archive.ToLowerInvariant()).Distinct().ToList(),
+            optionGroups));
         token.ThrowIfCancellationRequested();
 
         progress?.Report(new(85, "导出成品文件", packaged.Name));
         await IasModelPackager.WriteMembersAsync(request.OutputDirectory, packaged.Members, token);
+        if (request.OptionGroups is { Count: > 0 })
+            CopyOptionPayloads(request.ModPath, request.OutputDirectory, request.OptionGroups, token);
         progress?.Report(new(100, "转换完成", packaged.Name));
         return new Hd2ClArtifactResult(packaged.Name, request.OutputDirectory);
+    }
+
+    /// <summary>
+    /// 把选项预览图复制进成品（游戏内选项面板按成品内相对路径读取），并把清单里的图片路径改写成成品路径。
+    /// 清单没声明图片时退回分支目录里的 icon.*；都没有则保持 null。
+    /// </summary>
+    internal static IReadOnlyList<Hd2ClOptionGroup> CopyOptionImages(string modPath, string outputDirectory,
+        IReadOnlyList<Hd2ClOptionGroup> groups, CancellationToken token)
+    {
+        var result = new List<Hd2ClOptionGroup>(groups.Count);
+        for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+        {
+            token.ThrowIfCancellationRequested();
+            var group = groups[groupIndex];
+            var groupFolder = (groupIndex + 1).ToString();
+            // 单分支组在清单里是普通开关，不存在“选中子选项”这一步，缩略图优先从唯一分支目录取。
+            var groupFallback = group.Choices.Count == 1 ? group.Choices[0].SourceDirectory : null;
+            var groupImage = CopyOptionImage(modPath, outputDirectory, group.Image, groupFallback,
+                "Material/" + groupFolder + "/icon", token);
+            var choices = new List<Hd2ClOptionChoice>(group.Choices.Count);
+            for (var choiceIndex = 0; choiceIndex < group.Choices.Count; choiceIndex++)
+            {
+                var choice = group.Choices[choiceIndex];
+                choices.Add(choice with
+                {
+                    Image = CopyOptionImage(modPath, outputDirectory, choice.Image, choice.SourceDirectory,
+                        $"Material/{groupFolder}/{choiceIndex + 1}/icon", token)
+                });
+            }
+            result.Add(group with { Image = groupImage, Choices = choices });
+        }
+        return result;
+    }
+
+    private static string? CopyOptionImage(string modPath, string outputDirectory, string? declared,
+        string? fallbackDirectory, string targetWithoutExtension, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(declared))
+            candidates.Add(Path.Combine(modPath, declared.Replace('/', Path.DirectorySeparatorChar)));
+        if (!string.IsNullOrWhiteSpace(fallbackDirectory))
+        {
+            var branch = Path.Combine(modPath, fallbackDirectory.Replace('/', Path.DirectorySeparatorChar));
+            if (Directory.Exists(branch))
+                candidates.AddRange(ImageFiles(branch).OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+        }
+        foreach (var candidate in candidates)
+        {
+            if (!File.Exists(candidate) || !PathGuard.IsInsideRoot(modPath, candidate)) continue;
+            var extension = Path.GetExtension(candidate).ToLowerInvariant();
+            if (extension is not (".png" or ".jpg" or ".jpeg" or ".webp")) continue;
+            var relative = targetWithoutExtension + extension;
+            var target = Path.Combine(outputDirectory, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(candidate, target, overwrite: true);
+            return relative;
+        }
+        return null;
+    }
+
+    private static IEnumerable<string> ImageFiles(string directory)
+        => new[] { "icon.png", "icon.jpg", "icon.jpeg", "icon.webp" }
+            .Select(name => Path.Combine(directory, name));
+
+    /// <summary>把源模组的配色/部件分支原样复制进成品，按选项启用后在部署时只带选中的那份。</summary>
+    private static void CopyOptionPayloads(string modPath, string outputDirectory,
+        IReadOnlyList<Hd2ClOptionGroup> groups, CancellationToken token)
+    {
+        for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+        {
+            var group = groups[groupIndex];
+            for (var choiceIndex = 0; choiceIndex < group.Choices.Count; choiceIndex++)
+            {
+                token.ThrowIfCancellationRequested();
+                var source = Path.Combine(modPath,
+                    group.Choices[choiceIndex].SourceDirectory.Replace('/', Path.DirectorySeparatorChar));
+                IasBinary.Require(Directory.Exists(source), "配色选项目录不存在：" + group.Choices[choiceIndex].SourceDirectory);
+                var target = Path.Combine(outputDirectory, "Material", (groupIndex + 1).ToString(), (choiceIndex + 1).ToString());
+                foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+                {
+                    var name = Path.GetFileName(file);
+                    if (!IsPatchFile(name)
+                        && !name.EndsWith(".gpu_resources", StringComparison.OrdinalIgnoreCase)
+                        && !name.EndsWith(".stream", StringComparison.OrdinalIgnoreCase)) continue;
+                    var destination = Path.Combine(target, Path.GetRelativePath(source, file));
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Copy(file, destination, overwrite: true);
+                }
+            }
+        }
     }
 
     public static IEnumerable<string> ComponentFolders(string root)
@@ -135,9 +242,15 @@ public static class Hd2ClArtifactBuilder
             {
                 // 配套校验会按 mod_group 清单核对任意成员（含图片/作者信息）的摘要，
                 // 因此除补丁三元组外都保留；三元组另有资源解析路径，不能在这里重复持有。
+                // 选项可以只选中 HD2IndependentRig 子目录；配套成员键必须保留该目录前缀，
+                // 因为 .hd2shared 里的引用名就是相对 HD2IndependentRig 的。
+                var memberRoot = Path.GetFileName(folder).Equals("HD2IndependentRig", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetDirectoryName(folder)!
+                    : folder;
                 var members = new Dictionary<string, byte[]>(StringComparer.Ordinal);
                 foreach (var (full, relative) in files.Where(file => !IsPatchMember(file.Relative)))
-                    members[relative] = File.ReadAllBytes(full);
+                    members[memberRoot == folder ? relative : Path.GetRelativePath(memberRoot, full).Replace('\\', '/')]
+                        = File.ReadAllBytes(full);
                 companions.Add(members);
             }
 

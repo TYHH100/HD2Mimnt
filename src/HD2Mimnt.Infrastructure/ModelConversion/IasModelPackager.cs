@@ -14,7 +14,8 @@ public sealed record IasPackageRequest(
     IasCompiledModel Compiled,
     IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> Available,
     IasGameData Game,
-    IReadOnlyList<string>? MaterialHints = null);
+    IReadOnlyList<string>? MaterialHints = null,
+    IReadOnlyList<Hd2ClOptionGroup>? OptionGroups = null);
 
 public sealed record IasPackagedModel(
     string Name,
@@ -113,6 +114,11 @@ public static class IasModelPackager
             ("Description", IasValue.Of(request.Description)));
         if (request.IconPath is not null && request.Icon is not null)
             manifest = With(manifest, "IconPath", IasValue.Of(request.IconPath));
+        if (request.OptionGroups is { Count: > 0 })
+        {
+            manifest = With(manifest, "Version", IasValue.Of(1L));
+            manifest = With(manifest, "Options", OptionManifest(request.OptionGroups));
+        }
         var members = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         if (request.IconPath is not null && request.Icon is not null) members[request.IconPath] = request.Icon;
         members["manifest.json"] = Encoding.UTF8.GetBytes(IasLua.WriteJson(manifest, ensureAscii: false, sortKeys: false, indent: 2));
@@ -257,6 +263,62 @@ public static class IasModelPackager
         string Read(string key) => (string)((IasValue.Text)spec.Entries.First(entry => entry.Key == key).Value).Value;
         long version = ((IasValue.Integer)spec.Entries.First(entry => entry.Key == "version").Value).Value;
         return new IasNativeDataSpec((int)version, Read("module"), Read("sha256"));
+    }
+
+    /// <summary>
+    /// 成品的 V1 选项树：首个开关映射根目录，保证模型与自带材质补丁始终参与部署
+    /// （有 Include 映射时只展开列出的目录，根目录不列就会被跳过）；
+    /// 其后每个互斥配色组一组子选项，Include 指向复制进成品的 Material 目录。
+    /// </summary>
+    internal static IasValue OptionManifest(IReadOnlyList<Hd2ClOptionGroup> groups)
+    {
+        var options = new List<IasValue>
+        {
+            IasValue.Obj(
+                ("Name", IasValue.Of("模型")),
+                ("Description", IasValue.Of("Model")),
+                ("Image", IasValue.Nil.Instance),
+                ("DefaultEnabled", IasValue.Of(true)),
+                ("Include", IasValue.Of(new List<IasValue> { IasValue.Of(".") })))
+        };
+        for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+        {
+            var group = groups[groupIndex];
+            if (group.Choices.Count == 1)
+            {
+                // 只有一个分支的组用普通开关，避免出现只有一项的下拉框。
+                options.Add(IasValue.Obj(
+                    ("Name", IasValue.Of(group.Name)),
+                    ("Description", IasValue.Of(group.Description ?? string.Empty)),
+                    ("Image", group.Image is null ? IasValue.Nil.Instance : IasValue.Of(group.Image)),
+                    ("DefaultEnabled", IasValue.Of(group.Enabled)),
+                    ("Include", IasValue.Of(new List<IasValue>
+                    {
+                        IasValue.Of($"Material/{groupIndex + 1}/1")
+                    }))));
+                continue;
+            }
+            var choices = new List<IasValue>();
+            for (var choiceIndex = 0; choiceIndex < group.Choices.Count; choiceIndex++)
+            {
+                var choice = group.Choices[choiceIndex];
+                choices.Add(IasValue.Obj(
+                    ("Name", IasValue.Of(choice.Name)),
+                    ("Description", IasValue.Of(string.Empty)),
+                    ("Image", choice.Image is null ? IasValue.Nil.Instance : IasValue.Of(choice.Image)),
+                    ("Include", IasValue.Of(new List<IasValue>
+                    {
+                        IasValue.Of($"Material/{groupIndex + 1}/{choiceIndex + 1}")
+                    }))));
+            }
+            options.Add(IasValue.Obj(
+                ("Name", IasValue.Of(group.Name)),
+                ("Description", IasValue.Of(group.Description ?? string.Empty)),
+                ("Image", group.Image is null ? IasValue.Nil.Instance : IasValue.Of(group.Image)),
+                ("DefaultEnabled", IasValue.Of(group.Enabled)),
+                ("SubOptions", IasValue.Of(choices))));
+        }
+        return IasValue.Of(options);
     }
 
     private static IasValue With(IasValue value, string key, IasValue replacement)
