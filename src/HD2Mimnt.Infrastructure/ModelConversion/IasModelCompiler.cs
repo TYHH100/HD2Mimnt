@@ -108,7 +108,12 @@ public static class IasModelCompiler
         foreach (var unit in units.Values)
             IasBinary.Require(unit.Refs[0] == 0 && unit.Refs[2] == 0 && unit.Refs[3] == 0 && unit.Refs[4] == 0,
                 unit.Id + ": unsupported external Unit dependency");
-        var geometry = units.ToDictionary(pair => pair.Key, pair => pair.Value.Geometry(), StringComparer.Ordinal);
+        // 各 Unit 的几何分类互不共享状态；并行度限制在 4，避免大模组同时保留过多顶点缓存。
+        var unitKeys = units.Keys.ToList();
+        var stats = new IasGeometryStats[unitKeys.Count];
+        RunParallel(unitKeys.Count, 4, index => stats[index] = units[unitKeys[index]].Geometry());
+        var geometry = new Dictionary<string, IasGeometryStats>(StringComparer.Ordinal);
+        for (var index = 0; index < unitKeys.Count; index++) geometry[unitKeys[index]] = stats[index];
 
         var profiles = data.RenderProfiles.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var bindings = new Dictionary<string, IasBinding>(StringComparer.Ordinal);
@@ -165,21 +170,25 @@ public static class IasModelCompiler
         var displayUnits = new Dictionary<string, string>(StringComparer.Ordinal);
         var drive = new Dictionary<string, IasDriveRecord>(StringComparer.Ordinal);
         var privateBones = new Dictionary<ulong, ulong>();
-        foreach (var uid in assembled.Selected.Order(StringComparer.Ordinal))
+        var selectedUnits = assembled.Selected.Order(StringComparer.Ordinal).ToList();
+        foreach (var uid in selectedUnits)
+        {
+            if (!externalBones.TryGetValue(uid, out var external) || privateBones.ContainsKey(external.Id)) continue;
+            var name = prefix + "bones/" + Format + "/" + $"{external.Id:x16}" + "/"
+                       + IasHash.Sha256Hex(external.Resource.Toc, external.Resource.Gpu, external.Resource.Stream);
+            var privateId = IasHash.Murmur64(name);
+            privateBones[external.Id] = privateId;
+            owned[(IasResourceTypes.Bones, privateId)] = external.Resource;
+        }
+
+        UnitViewResult BuildUnitViews(string uid)
         {
             var unit = units[uid];
             var profile = profiles[uid];
             var cached = unit.Resource;
             if (externalBones.TryGetValue(uid, out var external))
             {
-                if (!privateBones.TryGetValue(external.Id, out var privateId))
-                {
-                    var name = prefix + "bones/" + Format + "/" + $"{external.Id:x16}" + "/"
-                               + IasHash.Sha256Hex(Concat(external.Resource.Toc, external.Resource.Gpu, external.Resource.Stream));
-                    privateId = IasHash.Murmur64(name);
-                    privateBones[external.Id] = privateId;
-                    owned[(IasResourceTypes.Bones, privateId)] = external.Resource;
-                }
+                var privateId = privateBones[external.Id];
                 var toc = (byte[])unit.Resource.Toc.Clone();
                 BitConverter.GetBytes(privateId).CopyTo(toc, 8);
                 cached = unit.Resource with { Toc = toc };
@@ -187,15 +196,14 @@ public static class IasModelCompiler
             var record = new IasDriveRecord(uid, unit.Graph.Count,
                 Enumerable.Range(1, profile.Nodes.Count).ToList(),
                 profile.Nodes.Select(node => node.Name).ToList());
-            drive[uid] = record;
             var assetName = prefix + "view/" + Format + "/" + uid + "/"
-                            + IasHash.Sha256Hex(Concat(cached.Toc, cached.Gpu, cached.Stream)) + "/tp";
+                            + IasHash.Sha256Hex(cached.Toc, cached.Gpu, cached.Stream) + "/tp";
             var viewId = IasHash.Murmur64(assetName);
             IasBinary.Require(!units.ContainsKey($"{viewId:x16}"), "derived Unit collides with source Unit");
-            displayUnits[uid] = $"{viewId:x16}";
-            owned[(IasResourceTypes.Unit, viewId)] = cached;
-            drive[$"{viewId:x16}"] = record;
-            if (assembled.Selected.Contains(uid) && assembled.HeadUnits.Contains(uid)) continue;
+            var display = $"{viewId:x16}";
+            if (assembled.HeadUnits.Contains(uid))
+                return new UnitViewResult(uid, display, record, cached, viewId, []);
+
             var labels = unit.Graph.ToDictionary(node => node.Hash, node => node.Name!);
             var resolved = new List<string>();
             foreach (var node in profile.Nodes)
@@ -205,19 +213,35 @@ public static class IasModelCompiler
                 labels[IasHash.Murmur32(node.Name)] = label;
             }
             var (buffers, _) = unit.PartitionLabels([labels, null]);
+            var roles = new List<(string Role, ulong ViewId, IasResource Resource)>(buffers.Count);
             foreach (var (role, gpu) in buffers)
             {
-                assetName = prefix + "view/" + Format + "/" + uid + "/"
-                            + IasHash.Sha256Hex(Concat(cached.Toc, gpu)) + "/" + role;
-                viewId = IasHash.Murmur64(assetName);
-                IasBinary.Require(!units.ContainsKey($"{viewId:x16}"), "derived Unit collides with source Unit");
-                owned[(IasResourceTypes.Unit, viewId)] = new IasResource(cached.Toc, gpu, unit.Resource.Stream,
-                    cached.EntryMetadata, cached.Origin);
-                viewMaps[role][uid] = $"{viewId:x16}";
-                drive[$"{viewId:x16}"] = record;
+                var roleAssetName = prefix + "view/" + Format + "/" + uid + "/"
+                                    + IasHash.Sha256Hex(cached.Toc, gpu) + "/" + role;
+                var roleViewId = IasHash.Murmur64(roleAssetName);
+                IasBinary.Require(!units.ContainsKey($"{roleViewId:x16}"), "derived Unit collides with source Unit");
+                roles.Add((role, roleViewId, new IasResource(cached.Toc, gpu, unit.Resource.Stream,
+                    cached.EntryMetadata, cached.Origin)));
             }
+            return new UnitViewResult(uid, display, record, cached, viewId, roles);
         }
 
+        // 每个 Unit 的视图与分区互不共享状态；并行度限制在 3，避免同时保留过多 GPU 掩码副本。
+        var unitViews = new UnitViewResult[selectedUnits.Count];
+        RunParallel(unitViews.Length, 3, index => unitViews[index] = BuildUnitViews(selectedUnits[index]));
+        foreach (var result in unitViews)
+        {
+            drive[result.Uid] = result.Record;
+            displayUnits[result.Uid] = result.DisplayUnit;
+            owned[(IasResourceTypes.Unit, result.TpViewId)] = result.Cached;
+            drive[result.DisplayUnit] = result.Record;
+            foreach (var (role, roleViewId, resource) in result.Roles)
+            {
+                owned[(IasResourceTypes.Unit, roleViewId)] = resource;
+                viewMaps[role][result.Uid] = $"{roleViewId:x16}";
+                drive[$"{roleViewId:x16}"] = result.Record;
+            }
+        }
         var views = new Dictionary<string, IasValue>(StringComparer.Ordinal);
         foreach (var (role, mapping) in viewMaps)
             views[role] = ViewValue(role, mapping, assembled, profiles, nativeGraph, data, drive,
@@ -651,19 +675,26 @@ public static class IasModelCompiler
         return types;
     }
 
-    private static byte[] Concat(params byte[][] values)
+    /// <summary>并行执行时保持业务异常原样抛出，避免调用方只看到 AggregateException。</summary>
+    private static void RunParallel(int count, int degree, Action<int> body)
     {
-        var result = new byte[values.Sum(value => value.Length)];
-        var offset = 0;
-        foreach (var value in values)
+        try
         {
-            value.CopyTo(result, offset);
-            offset += value.Length;
+            Parallel.For(0, count, new ParallelOptions { MaxDegreeOfParallelism = degree }, body);
         }
-        return result;
+        catch (AggregateException error)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                .Capture(error.Flatten().InnerExceptions[0]).Throw();
+            throw;
+        }
     }
 
     private sealed record IasDriveRecord(string Profile, int SceneNodes, IReadOnlyList<int> Nodes, IReadOnlyList<string> Names);
+
+    private sealed record UnitViewResult(string Uid, string DisplayUnit, IasDriveRecord Record,
+        IasResource Cached, ulong TpViewId,
+        IReadOnlyList<(string Role, ulong ViewId, IasResource Resource)> Roles);
 
     private sealed class PartState(string id, string name, int selected)
     {
@@ -886,11 +917,35 @@ public static class IasModelCompiler
         if (leftMeshes.Count != rightMeshes.Count) return false;
         var maximum = 0.0;
         var checkedVertices = 0;
+        static double MaxDiff(IReadOnlyList<double> left, IReadOnlyList<double> right)
+        {
+            var result = 0.0;
+            var count = Math.Min(left.Count, right.Count);
+            for (var index = 0; index < count; index++)
+                result = Math.Max(result, Math.Abs(left[index] - right[index]));
+            return result;
+        }
+        static double[] Position(IasUnit unit, IasUnitMesh mesh, uint vertex, Dictionary<uint, double[]> cache)
+        {
+            if (cache.TryGetValue(vertex, out var value)) return value;
+            value = unit.VertexReader.ReadStatic(mesh, vertex, 0, 0);
+            cache[vertex] = value;
+            return value;
+        }
         for (var index = 0; index < leftMeshes.Count; index++)
         {
             var a = leftMeshes[index];
             var b = rightMeshes[index];
             if (a.Lod != b.Lod || a.Sections.Count != b.Sections.Count) return false;
+            var leftComponents = left.Streams[(int)a.Stream].Components
+                .Where(component => component.Kind is >= 1 and <= 5)
+                .ToDictionary(component => (component.Kind, component.Index));
+            var rightComponents = right.Streams[(int)b.Stream].Components
+                .Where(component => component.Kind is >= 1 and <= 5)
+                .ToDictionary(component => (component.Kind, component.Index));
+            if (!leftComponents.Keys.ToHashSet().SetEquals(rightComponents.Keys)) return false;
+            var positionsA = new Dictionary<uint, double[]>();
+            var positionsB = new Dictionary<uint, double[]>();
             for (var sectionIndex = 0; sectionIndex < a.Sections.Count; sectionIndex++)
             {
                 var sectionA = a.Sections[sectionIndex];
@@ -900,13 +955,6 @@ public static class IasModelCompiler
                     .SelectMany(face => new[] { face.A, face.B, face.C }).ToHashSet();
                 if (vertices.Count > 0 && sectionA.Material != sectionB.Material) return false;
                 if (vertices.Count == 0) continue;
-                var leftComponents = left.Streams[(int)a.Stream].Components
-                    .Where(component => component.Kind is >= 1 and <= 5)
-                    .ToDictionary(component => (component.Kind, component.Index));
-                var rightComponents = right.Streams[(int)b.Stream].Components
-                    .Where(component => component.Kind is >= 1 and <= 5)
-                    .ToDictionary(component => (component.Kind, component.Index));
-                if (!leftComponents.Keys.ToHashSet().SetEquals(rightComponents.Keys)) return false;
                 foreach (var vertex in vertices)
                 {
                     foreach (var (key, component) in leftComponents)
@@ -915,22 +963,22 @@ public static class IasModelCompiler
                         if (component.Format != other.Format) return false;
                         var valueA = left.VertexReader.ReadStatic(a, vertex, key.Kind, key.Index);
                         var valueB = right.VertexReader.ReadStatic(b, vertex, key.Kind, key.Index);
-                        var error = valueA.Zip(valueB).Select(pair => Math.Abs(pair.First - pair.Second)).DefaultIfEmpty(0).Max();
+                        var error = MaxDiff(valueA, valueB);
                         if (error != 0 && component.Format is not (0 or 1 or 2 or 3 or 32 or 33 or 34 or 35)) return false;
                         if (error >= 2e-5) return false;
                     }
                     var influencesA = left.Influences(a, sectionA, vertex);
                     var influencesB = right.Influences(b, sectionB, vertex);
                     if (influencesA.Count != influencesB.Count) return false;
+                    var positionA = Position(left, a, vertex, positionsA);
+                    var positionB = Position(right, b, vertex, positionsB);
                     if (a.Rigid || b.Rigid)
                     {
                         if (a.Rigid != b.Rigid) return false;
                         if (left.Graph[influencesA[0].Scene].Hash != right.Graph[influencesB[0].Scene].Hash) return false;
-                        var positionA = left.VertexReader.ReadStatic(a, vertex, 0, 0);
-                        var positionB = right.VertexReader.ReadStatic(b, vertex, 0, 0);
                         var pointA = IasAffine.Point(left.Graph[(int)a.Transform].World, positionA);
                         var pointB = IasAffine.Point(right.Graph[(int)b.Transform].World, positionB);
-                        maximum = Math.Max(maximum, pointA.Zip(pointB).Select(pair => Math.Abs(pair.First - pair.Second)).Max());
+                        maximum = Math.Max(maximum, MaxDiff(pointA, pointB));
                         checkedVertices++;
                     }
                     else
@@ -941,11 +989,9 @@ public static class IasModelCompiler
                             if (left.Graph[influencesA[channel].Scene].Hash != right.Graph[influencesB[channel].Scene].Hash) return false;
                             if (influencesA[channel].Internal is not int leftIndex || influencesB[channel].Internal is not int rightIndex)
                                 return false;
-                            var positionA = left.VertexReader.ReadStatic(a, vertex, 0, 0);
-                            var positionB = right.VertexReader.ReadStatic(b, vertex, 0, 0);
                             var pointA = IasAffine.Point(left.Bones[a.Lod].Matrices[leftIndex], positionA);
                             var pointB = IasAffine.Point(right.Bones[b.Lod].Matrices[rightIndex], positionB);
-                            maximum = Math.Max(maximum, pointA.Zip(pointB).Select(pair => Math.Abs(pair.First - pair.Second)).Max());
+                            maximum = Math.Max(maximum, MaxDiff(pointA, pointB));
                             checkedVertices++;
                         }
                     }

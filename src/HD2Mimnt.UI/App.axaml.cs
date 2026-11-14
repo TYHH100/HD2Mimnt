@@ -507,6 +507,7 @@ public partial class App : Avalonia.Application
             taskService.RegisterProcessWorker("Cleanup");
             taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
+            taskService.RegisterProcessWorker("Hd2ClConversion");
             return taskService;
         });
         services.AddSingleton<PlatformDownloadTaskRunner>();
@@ -642,7 +643,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
-            sp.GetRequiredService<OptionTranslationService>()));
+            sp.GetRequiredService<OptionTranslationService>(),
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -714,7 +716,8 @@ public partial class App : Avalonia.Application
         services.AddTransient<IasSystemViewModel>();
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(sp =>
             new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
-                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>()));
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
+                sp.GetRequiredService<TaskService>()));
         services.AddTransient<Hd2ClViewModel>();
         services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(

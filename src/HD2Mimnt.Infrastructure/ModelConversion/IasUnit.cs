@@ -207,6 +207,38 @@ public sealed class IasUnit
     public IasVertexReader VertexReader { get; }
     public Dictionary<int, int> RigidDrivers { get; } = new();
 
+    // 顶点级分类在同一次编译里会被 Geometry 与 PartitionLabels 反复访问；
+    // 只缓存布局与判定结果，不缓存坐标/权重数组，避免把整份 GPU 再复制一遍。
+    private readonly Dictionary<int, SkinLayout> _skinLayouts = new();
+    private readonly Dictionary<int, ZeroSkinCheck> _zeroSkinChecks = new();
+
+    private sealed record SkinLayout(int[] IndexKeys, int[] WeightKeys, (uint Kind, uint Index)[] ExtraIndexKeys);
+
+    private sealed record ZeroSkinCheck(bool Candidate, (uint Kind, uint Index)[] ExtraIndexKeys);
+
+    private SkinLayout SkinLayoutOf(IasUnitMesh mesh)
+    {
+        if (_skinLayouts.TryGetValue(mesh.Index, out var cached)) return cached;
+        var indexKeys = mesh.VertexKeys.Where(key => key.Kind == 6).Select(key => (int)key.Index).ToArray();
+        var weightKeys = mesh.VertexKeys.Where(key => key.Kind == 7).Select(key => (int)key.Index).ToArray();
+        var extra = mesh.VertexKeys.Where(key => key.Kind == 6 && key.Index != 0).ToArray();
+        var layout = new SkinLayout(indexKeys, weightKeys, extra);
+        _skinLayouts[mesh.Index] = layout;
+        return layout;
+    }
+
+    private ZeroSkinCheck ZeroSkinCheckOf(IasUnitMesh mesh)
+    {
+        if (_zeroSkinChecks.TryGetValue(mesh.Index, out var cached)) return cached;
+        var seven = mesh.VertexKeys.Where(key => key.Kind == 7).ToList();
+        var candidate = seven is [(7, 0)] && mesh.VertexKeys.Contains((6u, 0u));
+        var format = candidate ? VertexReader.FormatOf(mesh, 7, 0) : 0;
+        candidate = candidate && format is 3 or 4 or 24 or 28 or 35;
+        var result = new ZeroSkinCheck(candidate, candidate ? SkinLayoutOf(mesh).ExtraIndexKeys : []);
+        _zeroSkinChecks[mesh.Index] = result;
+        return result;
+    }
+
     public static IReadOnlyList<IasSceneNode> ReadGraph(byte[] toc, IReadOnlyDictionary<uint, string> names)
     {
         var start = (int)ReadU(toc, 52);
@@ -366,33 +398,30 @@ public sealed class IasUnit
 
     public bool Unskinned(IasUnitMesh mesh) => mesh.Rigid;
 
-    public IReadOnlyList<(int Scene, double Weight, int? Internal, object Palette)> Influences(IasUnitMesh mesh, IasUnitSection section, uint vertex)
+    public IReadOnlyList<(int Scene, double Weight, int? Internal, int Palette)> Influences(IasUnitMesh mesh, IasUnitSection section, uint vertex)
     {
         if (Unskinned(mesh))
         {
             var scene = RigidDrivers.GetValueOrDefault((int)mesh.Transform, (int)mesh.Transform);
             IasBinary.Require(Graph[scene].Name is not null || AllowUnnamed,
                 Id + ": visible rigid renderer has no declared scene transform name");
-            return [(scene, 1.0, null, ("rigid", scene))];
+            return [(scene, 1.0, null, 0)];
         }
-        var vertexKeys = mesh.VertexKeys;
-        var indexKeys = vertexKeys.Where(key => key.Kind == 6).Select(key => (int)key.Index).ToList();
-        var weightKeys = vertexKeys.Where(key => key.Kind == 7).Select(key => (int)key.Index).ToList();
-        IasBinary.Require(indexKeys.Count > 0 && indexKeys[0] == 0, Id + ": unsupported skin-index channels");
-        IasBinary.Require(weightKeys.SequenceEqual([0]), Id + ": unsupported skin-weight channels");
+        var layout = SkinLayoutOf(mesh);
+        IasBinary.Require(layout.IndexKeys.Length > 0 && layout.IndexKeys[0] == 0, Id + ": unsupported skin-index channels");
+        IasBinary.Require(layout.WeightKeys.SequenceEqual([0]), Id + ": unsupported skin-weight channels");
         var weightValues = VertexReader.Read(Resource.Gpu, mesh, vertex, 7, 0);
         var indexValues = VertexReader.Read(Resource.Gpu, mesh, vertex, 6, 0);
         IasBinary.Require(indexValues.Length > 0 && weightValues.Length > 0 && weightValues.Length <= indexValues.Length,
             Id + ": skin weight/index widths do not match");
-        foreach (var (kind, index) in vertexKeys)
+        foreach (var (kind, index) in layout.ExtraIndexKeys)
         {
-            if (kind != 6 || index == 0) continue;
             IasBinary.Require(VertexReader.Read(Resource.Gpu, mesh, vertex, kind, index).All(value => value == 0),
                 Id + ": nonzero extra skin-index channel " + index);
         }
         IasBinary.Require(mesh.Lod >= 0 && mesh.Lod < Bones.Count, "mesh palette LOD");
         var bones = Bones[mesh.Lod];
-        var result = new List<(int, double, int?, object)>();
+        var result = new List<(int Scene, double Weight, int? Internal, int Palette)>();
         for (var index = 0; index < Math.Min(indexValues.Length, weightValues.Length); index++)
         {
             var weight = weightValues[index];
@@ -419,8 +448,9 @@ public sealed class IasUnit
         foreach (var mesh in Meshes)
         {
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-            var cache = new Dictionary<(int, uint), (double[] Position, (int Scene, double Weight, int? Internal, object Palette)[] Influences)>();
+            var cache = new Dictionary<(int, uint), (double[] Position, (int Scene, double Weight, int? Internal, int Palette)[] Influences)>();
             var positions = new Dictionary<uint, double[]>();
+            var zeroSkin = new Dictionary<uint, bool>();
             var rigid = Unskinned(mesh);
             foreach (var section in mesh.Sections)
             {
@@ -431,7 +461,7 @@ public sealed class IasUnit
                     if (distinct) counts["distinct_index_triangles"] = counts.GetValueOrDefault("distinct_index_triangles") + 1;
                     if (Nondegenerate(mesh, face, positions)) counts["nondegenerate_triangles"] = counts.GetValueOrDefault("nondegenerate_triangles") + 1;
                     if (mesh.Culling || mesh.Lod < 0 || !distinct) continue;
-                    if (!rigid && ZeroSkinFace(mesh, face))
+                    if (!rigid && ZeroSkinFace(mesh, face, zeroSkin))
                     {
                         counts["collapsed_skin_triangles"] = counts.GetValueOrDefault("collapsed_skin_triangles") + 1;
                         continue;
@@ -450,14 +480,16 @@ public sealed class IasUnit
                     }
                     else
                     {
-                        var signatures = new List<(double A, double B, double C, string Influences)>();
-                        foreach (var vertex in new[] { face.A, face.B, face.C })
+                        var vertices = new[] { face.A, face.B, face.C };
+                        var entries = new (double[] Position, (int Scene, double Weight, int? Internal, int Palette)[] Influences)[3];
+                        for (var item = 0; item < 3; item++)
                         {
+                            var vertex = vertices[item];
                             var key = (section.Index, vertex);
                             if (!cache.TryGetValue(key, out var entry))
                             {
                                 var influences = Influences(mesh, section, vertex).ToArray();
-                                foreach (var item in influences) weighted.Add(item.Scene);
+                                foreach (var influence in influences) weighted.Add(influence.Scene);
                                 if (!positions.TryGetValue(vertex, out var position))
                                 {
                                     position = VertexReader.Read(Resource.Gpu, mesh, vertex, 0, 0);
@@ -466,15 +498,22 @@ public sealed class IasUnit
                                 entry = (position, influences);
                                 cache[key] = entry;
                             }
-                            signatures.Add((entry.Position[0], entry.Position[1], entry.Position[2],
-                                string.Join("|", entry.Influences.Select(item =>
-                                    $"{item.Palette}:{item.Weight.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}"))));
+                            entries[item] = entry;
                         }
-                        var sharedLine = signatures.Select(signature => signature.Influences).Distinct(StringComparer.Ordinal).Count() == 1
-                                         && new[] { signatures.Select(s => s.A).Distinct().Count() == 1,
-                                                    signatures.Select(s => s.B).Distinct().Count() == 1,
-                                                    signatures.Select(s => s.C).Distinct().Count() == 1 }.Count(value => value) >= 2;
-                        if (signatures.Distinct().Count() == 3 && !sharedLine)
+                        // 上游签名只比较坐标与 (palette, weight)；这里直接结构比较，避免每个面拼字符串。
+                        var sameInfluences = PaletteWeightsEqual(entries[0].Influences, entries[1].Influences)
+                                             && PaletteWeightsEqual(entries[1].Influences, entries[2].Influences);
+                        var sameComponents = (entries[0].Position[0] == entries[1].Position[0]
+                                              && entries[0].Position[0] == entries[2].Position[0] ? 1 : 0)
+                                             + (entries[0].Position[1] == entries[1].Position[1]
+                                                && entries[0].Position[1] == entries[2].Position[1] ? 1 : 0)
+                                             + (entries[0].Position[2] == entries[1].Position[2]
+                                                && entries[0].Position[2] == entries[2].Position[2] ? 1 : 0);
+                        var sharedLine = sameInfluences && sameComponents >= 2;
+                        var allDistinct = !SameVertex(entries[0], entries[1])
+                                          && !SameVertex(entries[0], entries[2])
+                                          && !SameVertex(entries[1], entries[2]);
+                        if (allDistinct && !sharedLine)
                             counts["animated_triangles"] = counts.GetValueOrDefault("animated_triangles") + 1;
                     }
                 }
@@ -514,6 +553,24 @@ public sealed class IasUnit
         return cross0 * cross0 + cross1 * cross1 + cross2 * cross2 > 4e-24;
     }
 
+    private static bool PaletteWeightsEqual(
+        ReadOnlySpan<(int Scene, double Weight, int? Internal, int Palette)> left,
+        ReadOnlySpan<(int Scene, double Weight, int? Internal, int Palette)> right)
+    {
+        if (left.Length != right.Length) return false;
+        for (var index = 0; index < left.Length; index++)
+        {
+            if (left[index].Palette != right[index].Palette || left[index].Weight != right[index].Weight) return false;
+        }
+        return true;
+    }
+
+    private static bool SameVertex(
+        (double[] Position, (int Scene, double Weight, int? Internal, int Palette)[] Influences) left,
+        (double[] Position, (int Scene, double Weight, int? Internal, int Palette)[] Influences) right)
+        => left.Position[0] == right.Position[0] && left.Position[1] == right.Position[1]
+           && left.Position[2] == right.Position[2] && PaletteWeightsEqual(left.Influences, right.Influences);
+
     public bool RigidDegenerate(IasUnitMesh mesh, (uint A, uint B, uint C) face, Dictionary<uint, double[]> positions)
     {
         if (face.A == face.B || face.A == face.C || face.B == face.C) return true;
@@ -535,17 +592,22 @@ public sealed class IasUnit
         return ab[0] * ac[1] == ab[1] * ac[0] && ab[0] * ac[2] == ab[2] * ac[0] && ab[1] * ac[2] == ab[2] * ac[1];
     }
 
-    public bool ZeroSkinFace(IasUnitMesh mesh, (uint A, uint B, uint C) face)
+    public bool ZeroSkinFace(IasUnitMesh mesh, (uint A, uint B, uint C) face, Dictionary<uint, bool>? cache = null)
     {
-        if (mesh.VertexKeys.Where(key => key.Kind == 7).ToList() is not [(7, 0)]) return false;
-        if (!mesh.VertexKeys.Contains((6u, 0u))) return false;
-        var format = VertexReader.FormatOf(mesh, 7, 0);
-        if (format is not (3 or 4 or 24 or 28 or 35)) return false;
-        var extra = mesh.VertexKeys.Where(key => key.Kind == 6 && key.Index != 0).ToList();
+        var check = ZeroSkinCheckOf(mesh);
+        if (!check.Candidate) return false;
         foreach (var vertex in new[] { face.A, face.B, face.C })
         {
-            if (VertexReader.Read(Resource.Gpu, mesh, vertex, 7, 0).Any(value => value != 0)) return false;
-            if (extra.Any(key => VertexReader.Read(Resource.Gpu, mesh, vertex, key.Kind, key.Index).Any(value => value != 0))) return false;
+            if (cache is not null && cache.TryGetValue(vertex, out var known))
+            {
+                if (!known) return false;
+                continue;
+            }
+            var zero = !VertexReader.Read(Resource.Gpu, mesh, vertex, 7, 0).Any(value => value != 0)
+                       && !check.ExtraIndexKeys.Any(key =>
+                           VertexReader.Read(Resource.Gpu, mesh, vertex, key.Kind, key.Index).Any(value => value != 0));
+            if (cache is not null) cache[vertex] = zero;
+            if (!zero) return false;
         }
         return true;
     }
@@ -581,6 +643,7 @@ public sealed class IasUnit
             }).ToList();
             var cache = new Dictionary<(int, uint), bool[][]>();
             var positions = new Dictionary<uint, double[]>();
+            var zeroSkin = new Dictionary<uint, bool>();
             var rigid = Unskinned(mesh);
             foreach (var section in mesh.Sections)
             {
@@ -588,10 +651,9 @@ public sealed class IasUnit
                 {
                     var face = section.Faces[faceIndex];
                     var offset = section.IndexOffset + 3 * faceIndex * Streams[(int)mesh.Stream].IndexStride;
-                    var raw = buildBuffers ? Resource.Gpu.AsSpan(offset, 3 * Streams[(int)mesh.Stream].IndexStride).ToArray() : null;
                     string role;
                     if (mesh.Culling || mesh.Lod < 0 || face.A == face.B || face.A == face.C || face.B == face.C
-                        || (rigid && RigidDegenerate(mesh, face, positions)) || (!rigid && ZeroSkinFace(mesh, face)))
+                        || (rigid && RigidDegenerate(mesh, face, positions)) || (!rigid && ZeroSkinFace(mesh, face, zeroSkin)))
                     {
                         foreach (var count in counts) count["helper_triangles"] = count.GetValueOrDefault("helper_triangles") + 1;
                         role = "helper";
@@ -608,15 +670,40 @@ public sealed class IasUnit
                                 classified = new bool[sceneLabels.Count][];
                                 for (var labelIndex = 0; labelIndex < sceneLabels.Count; labelIndex++)
                                 {
-                                    var named = new Dictionary<string, double>(StringComparer.Ordinal);
-                                    foreach (var item in influences)
+                                    var labels = sceneLabels[labelIndex];
+                                    var headNeck = 0.0;
+                                    string? dominant = null;
+                                    var dominantWeight = double.NegativeInfinity;
+                                    for (var item = 0; item < influences.Count; item++)
                                     {
-                                        var name = sceneLabels[labelIndex][item.Scene];
+                                        var name = labels[influences[item].Scene];
                                         IasBinary.Require(name is not null, "unresolved partition influence");
-                                        named[name!] = named.GetValueOrDefault(name) + item.Weight;
+                                        if (name is "head" or "neck") headNeck += influences[item].Weight;
+                                        // 只对首次出现的名字做主导判定：同名权重求和，且首个最大值优先，与原先字典+稳定排序一致。
+                                        var seen = false;
+                                        for (var previous = 0; previous < item; previous++)
+                                        {
+                                            if (labels[influences[previous].Scene] != name) continue;
+                                            seen = true;
+                                            break;
+                                        }
+                                        if (seen) continue;
+                                        var total = influences[item].Weight;
+                                        for (var other = item + 1; other < influences.Count; other++)
+                                        {
+                                            if (labels[influences[other].Scene] == name) total += influences[other].Weight;
+                                        }
+                                        if (total > dominantWeight)
+                                        {
+                                            dominantWeight = total;
+                                            dominant = name;
+                                        }
                                     }
-                                    classified[labelIndex] = [named.GetValueOrDefault("head") + named.GetValueOrDefault("neck") > 0,
-                                        arms.Contains(named.OrderByDescending(pair => pair.Value).First().Key, StringComparer.Ordinal)];
+                                    classified[labelIndex] =
+                                    [
+                                        headNeck > 0,
+                                        dominant is not null && arms.Contains(dominant, StringComparer.Ordinal)
+                                    ];
                                 }
                                 cache[key] = classified;
                             }
@@ -643,12 +730,14 @@ public sealed class IasUnit
                         if (distinct) selected[role] = selected.GetValueOrDefault(role) + 1;
                         if (buildBuffers)
                         {
+                            // 未分配给该角色的三角形整体塌缩到首索引；直接从 GPU 读首索引写后两个索引，避免每面复制整面。
                             var stride = Streams[(int)mesh.Stream].IndexStride;
+                            var first = Resource.Gpu.AsSpan(offset, stride);
                             foreach (var (bufferName, buffer) in buffers)
                             {
                                 if (bufferName == role) continue;
-                                for (var index = 0; index < 3; index++)
-                                    Buffer.BlockCopy(raw!, 0, buffer, offset + index * stride, stride);
+                                first.CopyTo(buffer.AsSpan(offset + stride, stride));
+                                first.CopyTo(buffer.AsSpan(offset + 2 * stride, stride));
                             }
                         }
                     }
@@ -666,12 +755,18 @@ public sealed class IasUnit
             }
             foreach (var (offset, stride, assigned) in faceRoles)
             {
-                var originalFace = Resource.Gpu.AsSpan(offset, 3 * stride);
-                var keep = assigned == "helper" || assigned == role;
-                var expected = keep
-                    ? originalFace.ToArray()
-                    : Enumerable.Repeat(originalFace[..stride].ToArray(), 3).SelectMany(item => item).ToArray();
-                IasBinary.Require(raw.AsSpan(offset, 3 * stride).SequenceEqual(expected), "mask face mismatch");
+                var actual = raw.AsSpan(offset, 3 * stride);
+                var first = Resource.Gpu.AsSpan(offset, stride);
+                if (assigned == "helper" || assigned == role)
+                {
+                    IasBinary.Require(actual.SequenceEqual(Resource.Gpu.AsSpan(offset, 3 * stride)), "mask face mismatch");
+                }
+                else
+                {
+                    IasBinary.Require(actual[..stride].SequenceEqual(first)
+                                      && actual.Slice(stride, stride).SequenceEqual(first)
+                                      && actual.Slice(2 * stride, stride).SequenceEqual(first), "mask face mismatch");
+                }
             }
         }
         return (result, stats.Select(stat => stat.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal)).ToList());
@@ -703,19 +798,33 @@ public sealed record IasGeometryStats(
 /// <summary>按 Unit 流声明读取 GPU 顶点通道；只为几何分类提供只读值。</summary>
 public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> streams)
 {
-    public uint FormatOf(IasUnitMesh mesh, uint kind, uint index)
-        => streams[(int)mesh.Stream].Components.First(component => component.Kind == kind && component.Index == index).Format;
+    // 同一 Unit 的通道布局固定：顶点级读取非常密集，缓存组件偏移避免每次线性查找。
+    private readonly Dictionary<(uint Stream, uint Kind, uint Index), (int Offset, uint Format)> _components = new();
+
+    public uint FormatOf(IasUnitMesh mesh, uint kind, uint index) => Component(mesh, kind, index).Format;
 
     public double[] Read(byte[] _, IasUnitMesh mesh, uint vertex, uint kind, uint index) => Read(mesh, vertex, kind, index);
 
     public double[] ReadStatic(IasUnitMesh mesh, uint vertex, uint kind, uint index) => Read(mesh, vertex, kind, index);
 
+    private (int Offset, uint Format) Component(IasUnitMesh mesh, uint kind, uint index)
+    {
+        var key = (mesh.Stream, kind, index);
+        if (_components.TryGetValue(key, out var found)) return found;
+        foreach (var item in streams[(int)mesh.Stream].Components)
+        {
+            if (item.Kind != kind || item.Index != index) continue;
+            found = (item.Offset, item.Format);
+            _components[key] = found;
+            return found;
+        }
+        throw new InvalidDataException("模型数据检查：missing vertex component");
+    }
+
     private double[] Read(IasUnitMesh mesh, uint vertex, uint kind, uint index)
     {
         var stream = streams[(int)mesh.Stream];
-        var component = stream.Components.FirstOrDefault(item => item.Kind == kind && item.Index == index);
-        if (!stream.Components.Any(item => item.Kind == kind && item.Index == index))
-            throw new InvalidDataException("模型数据检查：missing vertex component");
+        var component = Component(mesh, kind, index);
         var offset = mesh.VertexStart + (int)vertex * stream.Stride + component.Offset;
         return Decode(gpu, offset, component.Format);
     }
@@ -725,14 +834,50 @@ public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> str
         switch (format)
         {
             case 0: return [BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset))];
-            case 1: return Enumerable.Range(0, 2).Select(index => (double)BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
-            case 2: return Enumerable.Range(0, 3).Select(index => (double)BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
-            case 3: return Enumerable.Range(0, 4).Select(index => (double)BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
+            case 1:
+                return
+                [
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4))
+                ];
+            case 2:
+                return
+                [
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 8))
+                ];
+            case 3:
+                return
+                [
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 8)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 12))
+                ];
             case 4: return gpu.AsSpan(offset, 4).ToArray().Select(value => value / 255.0).ToArray();
             case 21: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset))];
-            case 22: return Enumerable.Range(0, 2).Select(index => (double)BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
-            case 23: return Enumerable.Range(0, 3).Select(index => (double)BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
-            case 24: return Enumerable.Range(0, 4).Select(index => (double)BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4 * index))).ToArray();
+            case 22:
+                return
+                [
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4))
+                ];
+            case 23:
+                return
+                [
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 8))
+                ];
+            case 24:
+                return
+                [
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 8)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 12))
+                ];
             case 25: return [gpu[offset]];
             case 26: return [gpu[offset], gpu[offset + 1]];
             case 27: return [gpu[offset], gpu[offset + 1], gpu[offset + 2]];
@@ -744,9 +889,27 @@ public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> str
             }
             case 30: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset))];
             case 32: return [(double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset)))];
-            case 33: return Enumerable.Range(0, 2).Select(index => (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2 * index)))).ToArray();
-            case 34: return Enumerable.Range(0, 3).Select(index => (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2 * index)))).ToArray();
-            case 35: return Enumerable.Range(0, 4).Select(index => (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2 * index)))).ToArray();
+            case 33:
+                return
+                [
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2)))
+                ];
+            case 34:
+                return
+                [
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 4)))
+                ];
+            case 35:
+                return
+                [
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 4))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 6)))
+                ];
             default: throw new InvalidDataException("模型数据检查：unsupported vertex format " + format);
         }
     }

@@ -39,6 +39,7 @@ public static class WorkerFactory
             "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
             "HellForgeSync" => new HellForgeSyncWorkerTask(services.GetRequiredService<HellForgeModSyncService>()),
             "Import" => new ImportWorkerTask(services.GetRequiredService<ModService>()),
+            "Hd2ClConversion" => new Hd2ClConversionWorkerTask(),
             _ => throw new ArgumentException($"Unknown worker type: {workerType}", nameof(workerType))
         };
     }

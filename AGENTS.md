@@ -22,7 +22,7 @@
 | 项目结构、入口、命令、架构 | [`project-basics.md`](docs/agent-guides/project-basics.md) |
 | 部署、配置文件、加载器、补丁清理 | [`deployment-and-loaders.md`](docs/agent-guides/deployment-and-loaders.md) |
 | HellForge 私服集成、CLI 会话进度与档案、模组同步路线 | [`features/HELLFORGE_INTEGRATION.md`](docs/features/HELLFORGE_INTEGRATION.md) |
-| HD2CL（角色库）原生转换、成品打包与自动入库 | [`features/HD2CL_INTEGRATION.md`](docs/features/HD2CL_INTEGRATION.md) |
+| HD2CL（角色库）原生转换、成品文件夹输出与自动入库 | [`features/HD2CL_INTEGRATION.md`](docs/features/HD2CL_INTEGRATION.md) |
 | 外部平台、Nexus Mods、下载和凭据 | [`platforms-and-downloads.md`](docs/agent-guides/platforms-and-downloads.md) |
 | Avalonia、FluentAvalonia、选择、拖放和通知 | [`ui-and-avalonia.md`](docs/agent-guides/ui-and-avalonia.md) |
 | 主题、换肤、皮肤资源与外观验收 | [`theming.md`](docs/agent-guides/theming.md) |

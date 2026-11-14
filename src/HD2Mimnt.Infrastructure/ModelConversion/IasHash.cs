@@ -57,6 +57,14 @@ public static class IasHash
 
     public static string Sha256Hex(string value) => Sha256Hex(System.Text.Encoding.UTF8.GetBytes(value));
 
+    /// <summary>分段哈希，避免为拼接 TOC/GPU/Stream 再分配一份同等大小的缓冲区。</summary>
+    public static string Sha256Hex(params byte[][] parts)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var part in parts) hash.AppendData(part);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
     public static ulong Fnv1a64(string value)
     {
         var result = 14695981039346656037UL;

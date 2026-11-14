@@ -5,6 +5,7 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Hd2IAS;
 using Avalonia.Threading;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -27,6 +28,8 @@ public partial class ProfileViewModel : ObservableObject
     private readonly SettingsService _settingsService;
     private readonly OptionTranslationService? _optionTranslation;
     private readonly ImagePreviewService? _imagePreview;
+    private readonly IHd2ClConversionService? _hd2Cl;
+    private bool _hd2ClBusy;
 
     public Func<Task>? ActiveProfileChanged { get; set; }
     public event EventHandler<ProfileModViewModel>? ConflictModLocationRequested;
@@ -423,9 +426,10 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null)
     {
         _optionTranslation = optionTranslation;
+        _hd2Cl = hd2Cl;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
@@ -446,6 +450,43 @@ public partial class ProfileViewModel : ObservableObject
             ApplyModSelection, (mod, focused) => mod.IsFocused = focused, mod => mod.CanSelect);
         _profileMods.CollectionChanged += OnProfileModsCollectionChanged;
         _settingsService.SettingChanged += OnDeploymentDirectionChanged;
+    }
+
+    /// <summary>配置页右键：把当前 Profile 中的 HD2IAS 模组转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand]
+    private async Task ConvertModToHd2ClAsync(ProfileModViewModel? mod)
+    {
+        if (mod is null || _hd2Cl is null || mod.SourceInfo?.IsHd2Ir != true) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        _hd2ClBusy = true;
+        try
+        {
+            _notificationService.ShowInfo($"正在转换 {mod.ModName} 为 HD2CL 角色库模型…", "HD2CL");
+            var progress = new Progress<string>(message =>
+                _notificationService.ShowInfo(message, "HD2CL", 1500));
+            var result = await _hd2Cl.ConvertAsync(mod.ModId, progress);
+            await RefreshAfterProfilesChangedAsync();
+            if (ModContentChanged != null) await ModContentChanged();
+            _notificationService.ShowSuccess(result.SourceDisabled
+                ? $"已生成「{result.Name}」并加入当前配置，源 IAS 模组已在当前配置中禁用。"
+                : $"已生成「{result.Name}」并导入模组库；当前没有配置文件，源 IAS 模组未改动。", "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+        }
     }
 
     private void OnModNoticeDismissed(object? sender, Guid id)

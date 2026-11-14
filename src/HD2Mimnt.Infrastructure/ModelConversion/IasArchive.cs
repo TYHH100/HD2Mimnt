@@ -98,6 +98,7 @@ public static class IasArchive
     /// <summary>按上游布局写出 TOC/GPU/Stream；TOC 段按 16 字节、其余按 64 字节对齐。</summary>
     public static IasArchiveBuffers Write(IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> entries)
     {
+        var ordered = entries.OrderBy(entry => entry.Key.Type).ThenBy(entry => entry.Key.Id).ToList();
         var kinds = entries.Keys.Select(key => key.Type).Distinct().Order().ToArray();
         var counts = entries.Keys.GroupBy(key => key.Type).ToDictionary(group => group.Key, group => group.Count());
         var header = new byte[HeaderSize];
@@ -113,48 +114,97 @@ public static class IasArchive
             BinaryPrimitives.WriteUInt64LittleEndian(types.AsSpan(offset + 16), (ulong)counts[kinds[index]]);
             BinaryPrimitives.WriteUInt64LittleEndian(types.AsSpan(offset + 24), TypeRecordTail);
         }
-        var toc = new List<byte>(HeaderSize + types.Length + RowSize * entries.Count);
-        toc.AddRange(header);
-        toc.AddRange(types);
-        toc.AddRange(new byte[RowSize * entries.Count]);
-        var gpu = new List<byte>();
-        var stream = new List<byte>();
+
+        // 先按对齐规则算出精确长度再一次性分配，避免 List<byte> 扩容与 ToArray 造成的多份副本。
+        long tocLength = HeaderSize + types.Length + (long)RowSize * ordered.Count;
+        long gpuLength = 0;
+        long streamLength = 0;
+        foreach (var (_, value) in ordered)
+        {
+            ValidateMetadata(value);
+            tocLength = AlignedLength(tocLength, value.Toc.Length, 16);
+            gpuLength = AlignedLength(gpuLength, value.Gpu.Length, 64);
+            streamLength = AlignedLength(streamLength, value.Stream.Length, 64);
+        }
+
+        var toc = new byte[checked((int)tocLength)];
+        var gpu = new byte[checked((int)gpuLength)];
+        var stream = new byte[checked((int)streamLength)];
+        header.CopyTo(toc, 0);
+        types.CopyTo(toc, HeaderSize);
+        long tocPosition = HeaderSize + types.Length + (long)RowSize * ordered.Count;
+        long gpuPosition = 0;
+        long streamPosition = 0;
         var rowIndex = 0;
-        foreach (var ((type, id), value) in entries.OrderBy(entry => entry.Key.Type).ThenBy(entry => entry.Key.Id))
+        foreach (var ((type, id), value) in ordered)
         {
             rowIndex++;
-            var (tocOffset, tocSize) = Append(toc, value.Toc, 16);
-            var (gpuOffset, gpuSize) = Append(gpu, value.Gpu, 64);
-            var (streamOffset, streamSize) = Append(stream, value.Stream, 64);
+            var (tocOffset, tocSize) = Append(toc, ref tocPosition, value.Toc, 16);
+            var (gpuOffset, gpuSize) = Append(gpu, ref gpuPosition, value.Gpu, 64);
+            var (streamOffset, streamSize) = Append(stream, ref streamPosition, value.Stream, 64);
             var metadata = value.Metadata;
-            if (metadata.Length != 4 || metadata.Any(item => item < 0))
-                throw new InvalidDataException("模型数据检查：invalid archive entry metadata");
-            var row = new byte[RowSize];
+            var rowOffset = checked(HeaderSize + types.Length + RowSize * (rowIndex - 1));
+            var row = toc.AsSpan(rowOffset, RowSize);
             BinaryPrimitives.WriteUInt64LittleEndian(row, id);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(8), type);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(16), tocOffset);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(24), streamOffset);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(32), gpuOffset);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(40), (ulong)metadata[0]);
-            BinaryPrimitives.WriteUInt64LittleEndian(row.AsSpan(48), (ulong)metadata[1]);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(56), (uint)tocSize);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(60), (uint)streamSize);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(64), (uint)gpuSize);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(68), (uint)metadata[2]);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(72), (uint)metadata[3]);
-            BinaryPrimitives.WriteUInt32LittleEndian(row.AsSpan(76), (uint)rowIndex);
-            var rowOffset = HeaderSize + types.Length + RowSize * (rowIndex - 1);
-            for (var byteIndex = 0; byteIndex < RowSize; byteIndex++) toc[rowOffset + byteIndex] = row[byteIndex];
+            BinaryPrimitives.WriteUInt64LittleEndian(row[8..], type);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[16..], tocOffset);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[24..], streamOffset);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[32..], gpuOffset);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[40..], (ulong)metadata[0]);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[48..], (ulong)metadata[1]);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[56..], (uint)tocSize);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[60..], (uint)streamSize);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[64..], (uint)gpuSize);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[68..], (uint)metadata[2]);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[72..], (uint)metadata[3]);
+            BinaryPrimitives.WriteUInt32LittleEndian(row[76..], (uint)rowIndex);
         }
-        return new(toc.ToArray(), gpu.ToArray(), stream.ToArray());
+        return new(toc, gpu, stream);
     }
 
-    private static (ulong Offset, uint Size) Append(List<byte> buffer, byte[] data, int alignment)
+    /// <summary>不复制载荷地核对刚写出的归档与源资源一致。</summary>
+    public static void VerifyReadback(ReadOnlySpan<byte> toc, ReadOnlySpan<byte> gpu, ReadOnlySpan<byte> stream,
+        IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> expected)
     {
-        var padding = (alignment - buffer.Count % alignment) % alignment;
-        if (padding > 0) buffer.AddRange(new byte[padding]);
-        var offset = data.Length > 0 ? (ulong)buffer.Count : 0UL;
-        buffer.AddRange(data);
+        var rows = ReadRows(toc);
+        if (rows.Count != expected.Count) throw new InvalidDataException("模型补丁回读身份不一致。");
+        foreach (var (key, row) in rows)
+        {
+            if (!expected.TryGetValue(key, out var value)) throw new InvalidDataException("模型补丁回读身份不一致。");
+            VerifyPayload(toc, row.TocOffset, row.TocSize, value.Toc, "TOC", key);
+            VerifyPayload(gpu, row.GpuOffset, row.GpuSize, value.Gpu, ".gpu_resources", key);
+            VerifyPayload(stream, row.StreamOffset, row.StreamSize, value.Stream, ".stream", key);
+        }
+    }
+
+    private static void ValidateMetadata(IasResource value)
+    {
+        var metadata = value.Metadata;
+        if (metadata.Length != 4 || metadata.Any(item => item < 0))
+            throw new InvalidDataException("模型数据检查：invalid archive entry metadata");
+    }
+
+    private static long AlignedLength(long position, int length, int alignment)
+        => position + (alignment - position % alignment) % alignment + length;
+
+    private static (ulong Offset, uint Size) Append(byte[] buffer, ref long position, byte[] data, int alignment)
+    {
+        position += (alignment - position % alignment) % alignment;
+        var offset = data.Length > 0 ? (ulong)position : 0UL;
+        if (data.Length > 0) data.CopyTo(buffer, position);
+        position += data.Length;
         return (offset, (uint)data.Length);
+    }
+
+    private static void VerifyPayload(ReadOnlySpan<byte> raw, ulong offset, uint size, byte[] expected,
+        string name, (ulong Type, ulong Id) key)
+    {
+        if (size != (uint)expected.Length) throw new InvalidDataException("模型补丁回读载荷不一致。");
+        if (size == 0) return;
+        if (offset + size > (ulong)raw.Length)
+            throw new InvalidDataException(
+                $"模型补丁回读载荷越界（{name} {key.Type:x16}/{key.Id:x16}, offset {offset}, length {size}）。");
+        if (!raw.Slice((int)offset, (int)size).SequenceEqual(expected))
+            throw new InvalidDataException("模型补丁回读载荷不一致。");
     }
 }

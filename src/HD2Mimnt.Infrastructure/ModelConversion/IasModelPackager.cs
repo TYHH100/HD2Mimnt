@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using SharpCompress.Archives;
 
 namespace HD2Mimnt.Infrastructure.ModelConversion;
 
@@ -29,6 +27,7 @@ public sealed record IasPackagedModel(
 public static class IasModelPackager
 {
     private const string Patch = "9ba626afa44a3aa3.patch_1";
+    private const string MaterialPatch = "9ba626afa44a3aa3.patch_2";
     private const string PackageArchive = "9ba626afa44a3aa3";
     private const ulong PackageId = 0x9ba626afa44a3aa3;
     private const int CatalogMaxBytes = 8_388_608;
@@ -36,6 +35,8 @@ public static class IasModelPackager
     public static IasPackagedModel Build(IasPackageRequest request)
     {
         var owned = new Dictionary<(ulong Type, ulong Id), IasResource>(request.Compiled.Owned);
+        // 大目录的 Lua 字面量只生成一次：重复调用会在 profile 归并阶段做两遍整树遍历。
+        var catalogExpression = CatalogExpression(request.Compiled.Catalog);
         var registration = With(request.Compiled.Registration, "delivery", IasValue.Of("manual-adapted-v1"));
         if (request.Icon is not null)
         {
@@ -64,12 +65,25 @@ public static class IasModelPackager
         }
         var used = required.Order().Where(id => request.Available.ContainsKey((IasResourceTypes.Material, id))).ToList();
         var dependenciesUsed = required.Order().ToList();
+        // 源模组自带的材质与它引用的贴图随成品一起打包；否则禁用源模组后游戏只剩默认材质。
+        // 只读取当前可见材质及其父链，原生（游戏内）材质仍按资源编号引用。
+        var bundledMaterials = new Dictionary<(ulong Type, ulong Id), IasResource>();
+        foreach (var id in used)
+        {
+            var material = request.Available[(IasResourceTypes.Material, id)];
+            bundledMaterials[(IasResourceTypes.Material, id)] = material;
+            foreach (var textureId in TextureDependencies(material.Toc))
+            {
+                if (request.Available.TryGetValue((IasResourceTypes.Texture, textureId), out var texture))
+                    bundledMaterials[(IasResourceTypes.Texture, textureId)] = texture;
+            }
+        }
         registration = With(registration, "materials",
             IasValue.Of(used.Select(id => IasValue.Of($"{id:x16}")).ToList()));
         var code = Encoding.ASCII.GetBytes("-- HD2CL_MODEL_V1 ")
             .Concat(IasLua.JsonBytes(registration))
             .Concat("\nreturn "u8.ToArray())
-            .Concat(Encoding.UTF8.GetBytes(CatalogExpression(request.Compiled.Catalog)))
+            .Concat(Encoding.UTF8.GetBytes(catalogExpression))
             .Concat("\n"u8.ToArray()).ToArray();
         IasBinary.Require(code.Length + 8 <= CatalogMaxBytes, "生成的模型目录超过接收容量。");
         owned[(IasResourceTypes.Lua, IasHash.Murmur64(Module(request.Compiled)))] = LuaResource(code);
@@ -103,70 +117,36 @@ public static class IasModelPackager
         if (request.IconPath is not null && request.Icon is not null) members[request.IconPath] = request.Icon;
         members["manifest.json"] = Encoding.UTF8.GetBytes(IasLua.WriteJson(manifest, ensureAscii: false, sortKeys: false, indent: 2));
         var buffers = IasArchive.Write(owned);
-        var parsed = IasArchive.ReadEntries(buffers.Toc, buffers.Gpu, buffers.Stream);
-        IasBinary.Require(parsed.Count == owned.Count, "模型补丁回读身份不一致。");
-        foreach (var (key, value) in owned)
-        {
-            var loaded = parsed[key];
-            IasBinary.Require(loaded.Toc.SequenceEqual(value.Toc) && loaded.Gpu.SequenceEqual(value.Gpu)
-                              && loaded.Stream.SequenceEqual(value.Stream), "模型补丁回读载荷不一致。");
-        }
+        IasArchive.VerifyReadback(buffers.Toc, buffers.Gpu, buffers.Stream, owned);
         members[Patch] = buffers.Toc;
         members[Patch + ".gpu_resources"] = buffers.Gpu;
         members[Patch + ".stream"] = buffers.Stream;
+        if (bundledMaterials.Count > 0)
+        {
+            var materialBuffers = IasArchive.Write(bundledMaterials);
+            IasArchive.VerifyReadback(materialBuffers.Toc, materialBuffers.Gpu, materialBuffers.Stream, bundledMaterials);
+            members[MaterialPatch] = materialBuffers.Toc;
+            members[MaterialPatch + ".gpu_resources"] = materialBuffers.Gpu;
+            members[MaterialPatch + ".stream"] = materialBuffers.Stream;
+        }
         return new IasPackagedModel(request.Name, members, manifest, registration,
-            IasHash.Sha256Hex(Encoding.UTF8.GetBytes(CatalogExpression(request.Compiled.Catalog))));
+            IasHash.Sha256Hex(Encoding.UTF8.GetBytes(catalogExpression)));
     }
 
-    /// <summary>用随程序分发的 7za 写出与上游一致的 LZMA2 固实包，并回读校验成员。</summary>
-    public static async Task WriteArchiveAsync(string archivePath, IReadOnlyDictionary<string, byte[]> members,
+    /// <summary>
+    /// 把成品成员直接写入目录。转换结果最终都会导入管理器，先压成 7z 再解压只会多一轮 I/O 与 CPU；
+    /// 需要单独分发压缩包时再另加导出选项。
+    /// </summary>
+    public static async Task WriteMembersAsync(string directory, IReadOnlyDictionary<string, byte[]> members,
         CancellationToken token)
     {
-        var work = Path.Combine(Path.GetTempPath(), "hd2cl-pack-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(work);
-        try
+        Directory.CreateDirectory(directory);
+        foreach (var (name, raw) in members)
         {
-            foreach (var (name, raw) in members)
-            {
-                var target = Path.Combine(work, name.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                await File.WriteAllBytesAsync(target, raw, token);
-            }
-            var executable = Path.Combine(AppContext.BaseDirectory, "Tools", "7zip", "7za.exe");
-            if (!File.Exists(executable)) throw new FileNotFoundException("Creator.SevenZipMissing", executable);
-            var start = new ProcessStartInfo(executable)
-            {
-                WorkingDirectory = work, UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true
-            };
-            foreach (var argument in new[] { "a", "-t7z", "-m0=LZMA2", "-mx=7", "-md=128m", "-mfb=273",
-                         "-ms=on", "-mmt=1", "-scsUTF-8", "-sccUTF-8", "-bso0", "-bsp0", "-bse2", "-y" })
-                start.ArgumentList.Add(argument);
-            start.ArgumentList.Add(archivePath);
-            foreach (var name in members.Keys.Order(StringComparer.Ordinal)) start.ArgumentList.Add(name);
-            using var process = Process.Start(start) ?? throw new IOException("Could not start 7za.");
-            var output = process.StandardOutput.ReadToEndAsync(token);
-            var errors = process.StandardError.ReadToEndAsync(token);
-            await process.WaitForExitAsync(token);
-            await Task.WhenAll(output, errors);
-            if (process.ExitCode != 0) throw new IOException($"7-Zip ({process.ExitCode}): {(await errors).Trim()}");
             token.ThrowIfCancellationRequested();
-            using var archive = ArchiveFactory.OpenArchive(archivePath);
-            var extracted = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-            foreach (var entry in archive.Entries.Where(entry => !entry.IsDirectory))
-            {
-                using var stream = entry.OpenEntryStream();
-                using var buffer = new MemoryStream();
-                await stream.CopyToAsync(buffer, token);
-                extracted[entry.Key.Replace('\\', '/')] = buffer.ToArray();
-            }
-            IasBinary.Require(extracted.Count == members.Count
-                              && members.All(pair => extracted.TryGetValue(pair.Key, out var raw) && raw.SequenceEqual(pair.Value)),
-                "7z 解压回读文件不一致。");
-        }
-        finally
-        {
-            if (Directory.Exists(work)) Directory.Delete(work, recursive: true);
+            var target = Path.Combine(directory, name.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            await File.WriteAllBytesAsync(target, raw, token);
         }
     }
 
@@ -175,14 +155,22 @@ public static class IasModelPackager
         var literal = IasLua.Literal(catalog);
         if (Encoding.UTF8.GetByteCount(literal) <= 4_190_208) return literal;
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        CollectProfiles(catalog, counts);
+        var literals = new Dictionary<IasValue.Object, string>(ReferenceEqualityComparer.Instance);
+        string LiteralOf(IasValue.Object obj)
+        {
+            if (literals.TryGetValue(obj, out var text)) return text;
+            text = IasLua.Literal(obj);
+            literals[obj] = text;
+            return text;
+        }
+        CollectProfiles(catalog, counts, LiteralOf);
         var shared = counts.Where(pair => pair.Value > 1).Select(pair => pair.Key)
             .OrderBy(text => text, IasCodePointComparer.Instance)
             .Select((text, index) => (text, index: index + 1))
             .ToDictionary(pair => pair.text, pair => pair.index, StringComparer.Ordinal);
         string Encode(IasValue value) => value switch
         {
-            IasValue.Object obj when IsProfileObject(obj) && shared.TryGetValue(IasLua.Literal(obj), out var index)
+            IasValue.Object obj when IsProfileObject(obj) && shared.TryGetValue(LiteralOf(obj), out var index)
                 => "_profiles[" + index + "]",
             IasValue.Object obj => "{" + string.Join(",", obj.Entries
                 .OrderBy(entry => entry.Key, IasCodePointComparer.Instance)
@@ -194,20 +182,21 @@ public static class IasModelPackager
                + Encode(catalog) + " end)()";
     }
 
-    private static void CollectProfiles(IasValue value, Dictionary<string, int> counts)
+    private static void CollectProfiles(IasValue value, Dictionary<string, int> counts,
+        Func<IasValue.Object, string> literalOf)
     {
         switch (value)
         {
             case IasValue.Object obj:
                 if (IsProfileObject(obj))
                 {
-                    var text = IasLua.Literal(obj);
+                    var text = literalOf(obj);
                     counts[text] = counts.GetValueOrDefault(text) + 1;
                 }
-                foreach (var entry in obj.Entries) CollectProfiles(entry.Value, counts);
+                foreach (var entry in obj.Entries) CollectProfiles(entry.Value, counts, literalOf);
                 break;
             case IasValue.Array array:
-                foreach (var item in array.Items) CollectProfiles(item, counts);
+                foreach (var item in array.Items) CollectProfiles(item, counts, literalOf);
                 break;
         }
     }
@@ -237,6 +226,21 @@ public static class IasModelPackager
             }
         }
         return null;
+    }
+
+    /// <summary>Material TOC：偏移 64 是贴图数量，136 + 4*count 起是数量个 uint64 贴图编号。</summary>
+    private static IEnumerable<ulong> TextureDependencies(byte[] toc)
+    {
+        if (toc.Length < 68) yield break;
+        var count = BitConverter.ToUInt32(toc, 64);
+        IasBinary.Require(count <= 4096, "材质贴图数量超出预期。");
+        var offset = 136L + 4L * count;
+        IasBinary.Require(offset + 8L * count <= toc.Length, "材质贴图表越界。");
+        for (var index = 0; index < count; index++)
+        {
+            var id = BitConverter.ToUInt64(toc, (int)(offset + 8L * index));
+            if (id != 0) yield return id;
+        }
     }
 
     private static string Module(IasCompiledModel compiled)
