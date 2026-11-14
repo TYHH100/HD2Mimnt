@@ -594,6 +594,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();
         services.AddSingleton<IConfirmationService>(sp => sp.GetRequiredService<ConfirmationService>());
+        services.AddSingleton<Hd2ClVariantPromptService>();
+        services.AddSingleton<IHd2ClVariantPrompt>(sp => sp.GetRequiredService<Hd2ClVariantPromptService>());
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
@@ -632,7 +634,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(),
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
-            sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>()));
+            sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
+            sp.GetRequiredService<IHd2ClVariantPrompt>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -644,7 +647,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<OptionTranslationService>(),
-            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>()));
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
+            sp.GetRequiredService<IHd2ClVariantPrompt>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -768,6 +772,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<HellForgeViewModel>(),
             sp.GetRequiredService<HellForgeSessionService>(),
-            sp.GetRequiredService<Hd2ClViewModel>()));
+            sp.GetRequiredService<Hd2ClViewModel>(),
+            sp.GetRequiredService<Hd2ClVariantPromptService>()));
     }
 }

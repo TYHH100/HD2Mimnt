@@ -48,8 +48,25 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
         }, token);
     }
 
-    public async Task<Hd2ClConversionResult> ConvertAsync(Guid modId, IProgress<string>? progress = null,
-        CancellationToken token = default)
+    public async Task<IReadOnlyList<Hd2ClVariant>> GetVariantsAsync(Guid modId, CancellationToken token = default)
+    {
+        var mod = await _mods.GetModByIdAsync(modId, token)
+                  ?? throw new InvalidOperationException("模组不存在：" + modId);
+        if (!Directory.Exists(mod.Path)) throw new InvalidOperationException("模组目录不存在：" + mod.Path);
+        var groups = mod.Manifest?.OptionGroups ?? [];
+        return await Task.Run(() => (IReadOnlyList<Hd2ClVariant>)Hd2ClVariantPlanner.Plan(mod.Path)
+            .Select(plan =>
+            {
+                var group = groups.FirstOrDefault(item =>
+                    item.Id.Equals("component-" + Path.GetFileName(plan.Id), StringComparison.OrdinalIgnoreCase));
+                var name = string.IsNullOrWhiteSpace(group?.Name) ? plan.Name : group.Name;
+                var description = string.IsNullOrWhiteSpace(group?.Description) ? null : group.Description;
+                return new Hd2ClVariant(plan.Id, name, description, plan.Folders);
+            }).ToList(), token);
+    }
+
+    public async Task<Hd2ClConversionResult> ConvertAsync(Guid modId, IReadOnlyList<string>? componentFolders = null,
+        string? productName = null, IProgress<string>? progress = null, CancellationToken token = default)
     {
         var mod = await _mods.GetModByIdAsync(modId, token)
                   ?? throw new InvalidOperationException("模组不存在：" + modId);
@@ -67,7 +84,7 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
             var arguments = new Dictionary<string, string>
             {
                 ["Seed"] = seed,
-                ["Name"] = mod.Name,
+                ["Name"] = productName ?? mod.Name,
                 ["Author"] = mod.Author ?? string.Empty,
                 ["Description"] = mod.Description ?? string.Empty,
                 ["ModPath"] = mod.Path,
@@ -77,9 +94,11 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
             if (!string.IsNullOrWhiteSpace(mod.ThumbnailPath)) arguments["ThumbnailPath"] = mod.ThumbnailPath;
             if (!string.IsNullOrWhiteSpace(mod.Manifest?.IconPath))
                 arguments["ManifestIconPath"] = Path.Combine(mod.Path, mod.Manifest.IconPath);
+            if (componentFolders is { Count: > 0 })
+                arguments["Components"] = string.Join('|', componentFolders);
 
             var outcome = await _tasks.RunProcessTaskAsync(
-                $"转换「{mod.Name}」为 HD2CL 角色库",
+                $"转换「{productName ?? mod.Name}」为 HD2CL 角色库",
                 "Hd2ClConversion",
                 arguments,
                 new ProgressBridge(progress),

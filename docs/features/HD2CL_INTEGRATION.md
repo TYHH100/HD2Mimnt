@@ -6,6 +6,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 
 - 工具页分类「HD2CL 角色库」：列出模组库中含 IAS 配套（`*.rigbin` / `*.hd2phys` / `*.hd2shared` / `*.hd2pose` / `mod_group.json`）的 HD2IAS 模组，逐个一键转换。
 - 模组卡片右键「转换为 HD2CL 角色库…」：对单个 IAS 模组执行同一流程；模组库与配置页当前 Profile 的模组列表都提供该入口。
+- 合集模组（一个模组内包含多个版本/组件）在转换前弹出选择浮窗：按组件文件名里的资源编号自动分组（配套组件归入对应模型组件，纯材质组件随每个版本携带），只扫描所选版本的组件，成品名取所选版本名；普通模组不提示。
 - 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。如需单独分发压缩包，后续再加导出选项。
 - 材质：源模组自带的可见材质及其贴图沿父链收集后打进 `9ba626afa44a3aa3.patch_2`（含 `.gpu_resources`/`.stream`），因此禁用源模组后成品仍显示原材质；游戏原生材质仍只按资源编号引用，不复制。
 - 转换使用默认选择：全部配套组件、`Slim` 体型、随模型携带的材质与图标；不做交互式部件/材质选择。
@@ -16,14 +17,15 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 | 层 | 文件 | 对应上游模块 |
 | --- | --- | --- |
 | Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Hd2ClArtifactBuilder.cs` | 扫描组件 → 合并配套 → 编译 → 打包（可在 Worker 独立进程执行，不访问数据库） |
+| Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Hd2ClVariantPlanner.cs` | 合集模组按组件文件名编号分组出多个可转换版本 |
 | Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/IasModelCompiler.cs` | `ias_builder.compile_model`（IAS 路径） |
 | Infrastructure | `IasModelPackager.cs` | `manual_backend.package_data`（非 bundled 形态）与成品成员写出 |
 | Infrastructure | `IasBodyCatalog.cs` + `Data/ias_body_types.json`、`Data/ias_stock_recipes.json` | `ias_body_types`、`ias_stock_recipes` |
 | Infrastructure | `IasCompanionSets.cs` | `companion_sets.read_set` |
 | Infrastructure | `IasUnit.cs` / `IasCompanion.cs` / `IasArchive.cs` 等 | Unit、Rig/物理/共享、Stingray Archive、序列化 |
-| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、拉起 Worker、导入成品、配置切换 |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、版本识别、拉起 Worker、导入成品、配置切换 |
 | Worker | `src/HD2Mimnt.Worker/Hd2ClConversionWorkerTask.cs` | 接收参数并驱动 `Hd2ClArtifactBuilder` |
-| UI | `Hd2ClViewModel.cs`、`MoreView.axaml`、`LibraryView.axaml.cs` | 工具页卡片与模组右键入口 |
+| UI | `Hd2ClViewModel.cs`、`Hd2ClVariantPromptService.cs`、`MoreView.axaml`、`LibraryView.axaml.cs` | 工具页卡片、版本选择浮窗与模组右键入口 |
 
 序列化必须与上游逐字节一致：Lua 目录使用 `IasLua.Literal`，登记与原生数据分别使用 `IasLua.JsonBytes`（ASCII、键排序）和 `System.Text.Json`（小写字段名、不转义 `+`/`/`）。改动这些序列化会直接改变成品哈希。
 
@@ -48,6 +50,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 私有 Unit 数量 33（15 个 TP + 16 个分区视图 + 私有 Bones），原生物理域 2 个；
 - 成员在写出前由 `IasArchive.VerifyReadback` 逐资源回读校验；成品以文件夹交付，不再生成压缩包。
 - 源模组自带材质时另写出 `9ba626afa44a3aa3.patch_2` 及其 `.gpu_resources`/`.stream`，模型补丁本身仍不含材质与贴图。
+- 合集样例（3 个模型组件 + 3 个配套组件 + 1 个材质组件）能识别出 3 个版本，逐版本转换均成功，材质包自动随每个版本携带。
 
 性能改造后另做了一次回归对照（本机真实模组：35 个源 Unit、4 个补丁组、GPU 合计约 181 MB）：
 优化前后的四个成品文件（`manifest.json`、`.patch_1`、`.gpu_resources`、`.stream`）SHA-256 全部一致。
@@ -87,6 +90,8 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 成品目录必须位于本次转换的临时目录内，由服务端 `finally` 统一删除；文件夹导入是复制语义，导入完成前不能提前清理。
 - 成品目录根层必须直接放 `manifest.json`，不要额外包一层同名子目录；否则导入器会把它当成合集或嵌套清单重新定位根目录。
 - 并行 Unit 分类时，每个 Unit 的缓存只能由该 Unit 的任务访问；共享的只有只读 GPU 数组。并行异常要拆掉 `AggregateException`，否则任务中心只剩一句“One or more errors occurred”。
+- 合集模组不能把所有组件合并扫描：多个版本的 Unit/材质编号相同，会互相覆盖甚至报“冲突的重复资源”；必须先用 `Hd2ClVariantPlanner` 按组件文件名里的 16 位编号分组，再只扫描所选版本。
+- 同一版本内补丁按加载顺序覆盖同名资源（材质差分包会以相同编号重复出现），扫描顺序即覆盖顺序，后者生效；不要恢复成“内容不同就报错”。
 
 ## 已知限制
 
@@ -94,6 +99,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 形态键（morph）仍需上游手动转换入口；检测到 `HD2Morph1` 会在配套解析阶段直接拒绝。
 - 等价皮肤判断用于旧版部件迁移，按上游可见属性/蒙皮/位置误差 `< 2e-5` 复核；皮肤通道不可访问时会退化为更保守的结果。
 - 成品以文件夹交付并直接入库，不保留中间压缩包；如果以后需要单独分发 `.7z`，再增加显式导出选项。
+- 合集版本按组件文件名编号分组：无法与任何模型组件关联的配套组件会附到每个版本，暂不支持把多个版本合并进一个成品。
 - 不校验作者签名、不做游戏内运行验证；转换结果仍需实机验收。
 
 ## 许可与来源

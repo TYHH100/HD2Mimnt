@@ -14,6 +14,8 @@ public sealed class Hd2ClConversionWorkerTask : IWorkerTask
         CancellationToken cancellationToken)
     {
         var arguments = command.Arguments;
+        var components = Optional(arguments, "Components")?
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var request = new Hd2ClArtifactRequest(
             Required(arguments, "Seed"),
             Required(arguments, "Name"),
@@ -23,7 +25,8 @@ public sealed class Hd2ClConversionWorkerTask : IWorkerTask
             Required(arguments, "GameDataRoot"),
             Required(arguments, "OutputDirectory"),
             Optional(arguments, "ThumbnailPath"),
-            Optional(arguments, "ManifestIconPath"));
+            Optional(arguments, "ManifestIconPath"),
+            components);
 
         var reporter = new WorkerProgressReporter(host, cancellationToken);
         var progress = new InlineProgress<Hd2ClBuildProgress>(value =>

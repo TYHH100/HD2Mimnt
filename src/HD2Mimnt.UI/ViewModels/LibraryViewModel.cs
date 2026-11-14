@@ -52,10 +52,16 @@ public partial class LibraryViewModel : ObservableObject
         _hd2ClBusy = true;
         try
         {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_hd2Cl, _hd2ClVariantPrompt, mod.Id);
+            if (canceled)
+            {
+                _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+                return;
+            }
             _notificationService.ShowInfo($"正在转换 {mod.Name} 为 HD2CL 角色库模型…", "HD2CL");
             var progress = new Progress<string>(message =>
                 _notificationService.ShowInfo(message, "HD2CL", 1500));
-            var result = await _hd2Cl.ConvertAsync(mod.Id, progress);
+            var result = await _hd2Cl.ConvertAsync(mod.Id, variant?.ComponentFolders, variant?.Name, progress);
             await LoadModsAsync();
             await _searchService.BuildIndexAsync();
             ImportedModsChanged?.Invoke(this, EventArgs.Empty);
@@ -92,6 +98,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly IPluginService? _pluginService;
     private readonly TaskService? _taskService;
     private readonly HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? _hd2Cl;
+    private readonly IHd2ClVariantPrompt? _hd2ClVariantPrompt;
     private bool _hd2ClBusy;
     private CancellationTokenSource? _luaExtractionCts;
 
@@ -370,17 +377,19 @@ public partial class LibraryViewModel : ObservableObject
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
-        TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null)
+        TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null,
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
     {
         _taskService = taskService;
         _hd2Cl = hd2Cl;
+        _hd2ClVariantPrompt = hd2ClVariantPrompt;
         _pluginService = pluginService;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
         _luaExtraction = luaExtraction;
         _modService = modService;
-        _modService.NoticeDismissed += OnModNoticeDismissed;
+        _modService?.NoticeDismissed += OnModNoticeDismissed;
         LocalVersions = new(modService, confirmationService, async () =>
         {
             await LoadModsAsync();

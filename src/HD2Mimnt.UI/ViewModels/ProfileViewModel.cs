@@ -29,6 +29,7 @@ public partial class ProfileViewModel : ObservableObject
     private readonly OptionTranslationService? _optionTranslation;
     private readonly ImagePreviewService? _imagePreview;
     private readonly IHd2ClConversionService? _hd2Cl;
+    private readonly IHd2ClVariantPrompt? _hd2ClVariantPrompt;
     private bool _hd2ClBusy;
 
     public Func<Task>? ActiveProfileChanged { get; set; }
@@ -426,10 +427,12 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null,
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
     {
         _optionTranslation = optionTranslation;
         _hd2Cl = hd2Cl;
+        _hd2ClVariantPrompt = hd2ClVariantPrompt;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
@@ -465,10 +468,16 @@ public partial class ProfileViewModel : ObservableObject
         _hd2ClBusy = true;
         try
         {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_hd2Cl, _hd2ClVariantPrompt, mod.ModId);
+            if (canceled)
+            {
+                _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+                return;
+            }
             _notificationService.ShowInfo($"正在转换 {mod.ModName} 为 HD2CL 角色库模型…", "HD2CL");
             var progress = new Progress<string>(message =>
                 _notificationService.ShowInfo(message, "HD2CL", 1500));
-            var result = await _hd2Cl.ConvertAsync(mod.ModId, progress);
+            var result = await _hd2Cl.ConvertAsync(mod.ModId, variant?.ComponentFolders, variant?.Name, progress);
             await RefreshAfterProfilesChangedAsync();
             if (ModContentChanged != null) await ModContentChanged();
             _notificationService.ShowSuccess(result.SourceDisabled

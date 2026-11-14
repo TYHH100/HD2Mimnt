@@ -12,7 +12,8 @@ public sealed record Hd2ClArtifactRequest(
     string GameDataRoot,
     string OutputDirectory,
     string? ThumbnailPath = null,
-    string? ManifestIconPath = null);
+    string? ManifestIconPath = null,
+    IReadOnlyList<string>? ComponentSelection = null);
 
 /// <summary>产物身份：成品显示名与写出的成品目录（直接交给管理器导入）。</summary>
 public sealed record Hd2ClArtifactResult(string Name, string OutputDirectory);
@@ -31,7 +32,7 @@ public static class Hd2ClArtifactBuilder
         IProgress<Hd2ClBuildProgress>? progress, CancellationToken token)
     {
         progress?.Report(new(5, "扫描模组组件", request.Name));
-        var scan = Scan(request.ModPath, token);
+        var scan = Scan(request.ModPath, request.ComponentSelection, token);
         IasBinary.Require(scan.Companions.Count > 0,
             "该模组没有找到 IAS 配套（rigbin/hd2phys/hd2shared），无法生成角色库模型。");
         IasBinary.Require(scan.Resources.Keys.Any(key => key.Type == IasResourceTypes.Unit),
@@ -88,13 +89,25 @@ public static class Hd2ClArtifactBuilder
            || name.EndsWith(".hd2pose", StringComparison.OrdinalIgnoreCase)
            || Path.GetFileName(name).Equals("mod_group.json", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsPatchName(string name) => PatchName.IsMatch(Path.GetFileName(name));
+    public static bool IsPatchFile(string name) => PatchName.IsMatch(Path.GetFileName(name));
 
     /// <summary>补丁本体与其 GPU/Stream 边车另有资源解析路径，不进入配套成员表。</summary>
     private static bool IsPatchMember(string name)
         => name.EndsWith(".gpu_resources", StringComparison.OrdinalIgnoreCase)
            || name.EndsWith(".stream", StringComparison.OrdinalIgnoreCase)
-           || IsPatchName(name);
+           || IsPatchFile(name);
+
+    /// <summary>合集模组只扫描用户选中的组件；相对路径来自版本规划，必须落在模组目录内。</summary>
+    private static IReadOnlyList<string> ResolveFolders(string root, IReadOnlyList<string>? selection)
+    {
+        if (selection is not { Count: > 0 }) return ComponentFolders(root).ToList();
+        var folders = selection
+            .Select(relative => Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar))))
+            .ToList();
+        foreach (var folder in folders)
+            IasBinary.Require(Directory.Exists(folder), "选择的组件目录不存在：" + folder);
+        return folders;
+    }
 
     private sealed record ScanResult(
         Dictionary<(ulong Type, ulong Id), IasResource> Resources,
@@ -105,12 +118,12 @@ public static class Hd2ClArtifactBuilder
     /// 只把配套文件保留在内存；补丁三元组逐个读取、解析后立即释放原始字节，
     /// 避免整份模组（含上百 MB 的 gpu_resources）在扫描期间出现两份副本。
     /// </summary>
-    private static ScanResult Scan(string root, CancellationToken token)
+    private static ScanResult Scan(string root, IReadOnlyList<string>? selection, CancellationToken token)
     {
         var resources = new Dictionary<(ulong Type, ulong Id), IasResource>();
         var companions = new List<IReadOnlyDictionary<string, byte[]>>();
         var archives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var folder in ComponentFolders(root))
+        foreach (var folder in ResolveFolders(root, selection))
         {
             token.ThrowIfCancellationRequested();
             var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
@@ -129,7 +142,7 @@ public static class Hd2ClArtifactBuilder
             }
 
             foreach (var (full, _) in files
-                         .Where(file => IsPatchName(file.Relative))
+                         .Where(file => IsPatchFile(file.Relative))
                          .OrderBy(file => file.Relative, StringComparer.Ordinal))
             {
                 token.ThrowIfCancellationRequested();
@@ -141,12 +154,9 @@ public static class Hd2ClArtifactBuilder
                 var stream = File.Exists(streamPath) ? File.ReadAllBytes(streamPath) : [];
                 archives.Add(fileName[..16].ToLowerInvariant());
                 foreach (var (key, value) in IasArchive.ReadEntries(toc, gpu, stream))
-                {
-                    if (resources.TryGetValue(key, out var existing))
-                        IasBinary.Require(existing.Toc.SequenceEqual(value.Toc) && existing.Gpu.SequenceEqual(value.Gpu)
-                                          && existing.Stream.SequenceEqual(value.Stream), "模组出现冲突的重复资源。");
+                    // 同一模组内的补丁按加载顺序覆盖同名资源，游戏侧同样是后者生效；
+                    // 合集模组的材质差分包会以相同编号重复出现，不能按冲突拒绝。
                     resources[key] = value;
-                }
             }
         }
         return new ScanResult(resources, companions, archives);

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Hd2IAS;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -11,11 +12,14 @@ public partial class Hd2ClViewModel : ObservableObject
 {
     private readonly IHd2ClConversionService _service;
     private readonly NotificationService _notifications;
+    private readonly IHd2ClVariantPrompt? _variantPrompt;
 
-    public Hd2ClViewModel(IHd2ClConversionService service, NotificationService notifications)
+    public Hd2ClViewModel(IHd2ClConversionService service, NotificationService notifications,
+        IHd2ClVariantPrompt? variantPrompt = null)
     {
         _service = service;
         _notifications = notifications;
+        _variantPrompt = variantPrompt;
     }
 
     public ObservableCollection<Hd2ClCandidateItem> Candidates { get; } = new();
@@ -62,8 +66,14 @@ public partial class Hd2ClViewModel : ObservableObject
         IsBusy = true;
         try
         {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_service, _variantPrompt, item.ModId);
+            if (canceled)
+            {
+                Status = "已取消转换。";
+                return;
+            }
             var progress = new Progress<string>(message => Status = message);
-            var result = await _service.ConvertAsync(item.ModId, progress);
+            var result = await _service.ConvertAsync(item.ModId, variant?.ComponentFolders, variant?.Name, progress);
             Status = result.SourceDisabled
                 ? $"已生成「{result.Name}」并加入当前配置；源 IAS 模组已在当前配置中禁用。"
                 : $"已生成「{result.Name}」并导入模组库；当前没有配置文件，源 IAS 模组未改动。";
