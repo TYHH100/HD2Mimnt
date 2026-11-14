@@ -20,7 +20,9 @@
 | HD2IR 嵌套角色包、组件选项与部署接入 | [HD2IR_INTEGRATION.md](features/HD2IR_INTEGRATION.md) |
 | 散装文件夹 / 包裹压缩包的多模组合集与两级选项 | [MOD_COLLECTION_IMPORT.md](features/MOD_COLLECTION_IMPORT.md) |
 | Lua 加载器识别配置的字段说明与手动新增步骤 | 随应用分发：`src/HD2Mimnt.Infrastructure/Config/LoaderCatalog.md` |
-| （暂时停用）HD2IAS 运行包诊断与 Lua / Native 系统 data ZIP 生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
+| 旧版 HD2IAS 1.4.x 运行包诊断、安装/卸载与 Lua / Native 系统 data 生成（页面已开放，自动提醒停用） | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md) |
+| HD2IAS 系统页：1.5.x external runtime、Runtime 发现与 armor 配套生成 | [HD2IAS_MANAGEMENT.md](features/HD2IAS_MANAGEMENT.md#hd2ias-系统页15x-external-runtime) |
+| HellForge 私服：安装根、玩家档案、会话进度、模组同步、启动设置与日志 | [HELLFORGE_INTEGRATION.md](features/HELLFORGE_INTEGRATION.md) |
 | Nexus Mods v3 API 契约快照 | [nexus_openapi.yaml](references/nexus_openapi.yaml) |
 | 总体设计与路线 | [v2 总体开发计划](plans/HD2Mimnt%20v2%20%E6%80%BB%E4%BD%93%E5%BC%80%E5%8F%91%E8%AE%A1%E5%88%92.md)；计划不等于已实现功能 |
 | 自动冲突检查与性能测量边界 | [性能评估](reports/automatic-conflict-check-performance.md) |

@@ -498,6 +498,21 @@
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>外部工具</value>
   </data>
+  <data name="UI.Hd2ClTitle" xml:space="preserve">
+    <value>HD2CL 角色库</value>
+  </data>
+  <data name="UI.Hd2ClDescription" xml:space="preserve">
+    <value>把 HD2IAS 模型转换为独立的 HD2CL 角色库模组，自动导入模组库并加入当前配置，同时在当前配置中禁用源 IAS 模组（文件保留）。</value>
+  </data>
+  <data name="UI.Hd2ClRefresh" xml:space="preserve">
+    <value>刷新可转换模组</value>
+  </data>
+  <data name="UI.Hd2ClConvert" xml:space="preserve">
+    <value>转换为 HD2CL</value>
+  </data>
+  <data name="UI.Hd2ClLoading" xml:space="preserve">
+    <value>正在扫描 HD2IAS 模组…</value>
+  </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>登记本地可执行文件，用于打开模组资源。</value>
   </data>
@@ -2423,6 +2438,30 @@
   <data name="Options.Compact" xml:space="preserve">
     <value>紧凑</value>
   </data>
+  <data name="Options.NoticeBadge" xml:space="preserve">
+    <value>仅标志</value>
+  </data>
+  <data name="Options.NoticeOutline" xml:space="preserve">
+    <value>仅描边</value>
+  </data>
+  <data name="Options.NoticeBadgeBlink" xml:space="preserve">
+    <value>标志 + 闪烁</value>
+  </data>
+  <data name="Options.NoticeDismissClick" xml:space="preserve">
+    <value>点击卡片清除</value>
+  </data>
+  <data name="Options.NoticeDismissHover" xml:space="preserve">
+    <value>鼠标悬停清除</value>
+  </data>
+  <data name="Options.FontDefault" xml:space="preserve">
+    <value>内置默认</value>
+  </data>
+  <data name="Options.FontInstalled" xml:space="preserve">
+    <value>系统字体</value>
+  </data>
+  <data name="Options.FontFile" xml:space="preserve">
+    <value>字体文件</value>
+  </data>
   <data name="Options.Copy" xml:space="preserve">
     <value>复制文件</value>
   </data>
@@ -3881,6 +3920,8 @@
   <data name="Settings.Profiles.AutoAddImportedModsHelp" xml:space="preserve"><value>导入后自动加入并启用模组；没有启用的配置文件时，仅保留在模组库。</value></data>
   <data name="Settings.Deployment.OverwriteConflicts" xml:space="preserve"><value>强制覆盖冲突的补丁文件</value></data>
   <data name="Settings.Deployment.OverwriteConflictsHelp" xml:space="preserve"><value>默认开启。部署或重排编号时，若目标编号已被外部工具（如 HD2CharacterLibrary 生成的 Lua 补丁）占用，直接覆盖该文件；关闭后遇到占用将中止操作并提示。</value></data>
+  <data name="Settings.Deployment.DeleteUnmanagedPatches" xml:space="preserve"><value>自动删除未托管的补丁文件</value></data>
+  <data name="Settings.Deployment.DeleteUnmanagedPatchesHelp" xml:space="preserve"><value>默认开启。部署、清理部署或模组自动增量部署收口后，删除游戏 data 目录中未被部署记录追踪的补丁文件（16 位十六进制前缀 + .patch_N，含 .stream/.gpu_resources）；其它工具或手动放入的补丁也会被删除且无法恢复。</value></data>
   <data name="Settings.Library.ImportAutoClose" xml:space="preserve"><value>导入完成后自动关闭悬浮卡片</value></data>
   <data name="Settings.Library.ImportAutoCloseHelp" xml:space="preserve"><value>全部导入成功后关闭；失败或取消时保留结果。</value></data>
   <data name="Settings.Library.LuaAutoExtract" xml:space="preserve"><value>自动拆包 Lua 模组</value></data>
@@ -3906,6 +3947,22 @@
   <data name="Settings.Library.KeepVersionsHelp" xml:space="preserve"><value>更新时保留之前的完整版本，可在详情中切换；会额外占用磁盘空间。保存后生效。</value></data>
   <data name="Settings.Library.AllowDuplicates" xml:space="preserve"><value>允许重复导入</value></data>
   <data name="Settings.Library.AllowDuplicatesHelp" xml:space="preserve"><value>默认关闭：阻止库内或历史版本中已有的相同内容重复入库。开启后允许独立副本；已有重复项不会自动删除。</value></data>
+  <data name="Settings.Library.UpdateSameGuid" xml:space="preserve"><value>相同 GUID 自动更新</value></data>
+  <data name="Settings.Library.UpdateSameGuidHelp" xml:space="preserve"><value>默认开启：导入的模组清单 GUID 与库内已有模组相同时，直接更新该模组（保留配置引用、版本历史与部署记录），而不是新增副本；关闭后按“允许重复导入”设置处理。</value></data>
+  <data name="Settings.Library.NoticeStyle" xml:space="preserve"><value>新增/更新模组提示</value></data>
+  <data name="Settings.Library.NoticeStyleHelp" xml:space="preserve"><value>新导入或更新过的模组会在卡片上显示提示，按下方“提示清除方式”清除。可选择标志、描边（淡入淡出）或标志 + 闪烁。</value></data>
+  <data name="Settings.Library.NoticeDismiss" xml:space="preserve"><value>提示清除方式</value></data>
+  <data name="Settings.Library.NoticeDismissHelp" xml:space="preserve"><value>默认单击卡片清除；选择“鼠标悬停清除”后，指针移入卡片即清除。保存后生效。</value></data>
+  <data name="Settings.Appearance.FontSource" xml:space="preserve"><value>界面字体</value></data>
+  <data name="Settings.Appearance.FontSourceHelp" xml:space="preserve"><value>整个界面的文字都使用该字体。可选内置默认、系统字体或字体文件（.ttf/.otf/.ttc）；默认跟随主题皮肤自带的字体。保存后生效。</value></data>
+  <data name="Settings.Appearance.FontFamilyWatermark" xml:space="preserve"><value>选择已安装字体</value></data>
+  <data name="Settings.Appearance.FontFamilyHelp" xml:space="preserve"><value>从列表中选择已安装字体，聚焦后可按名称首字母快速定位；字体未安装时请改用“字体文件”。</value></data>
+  <data name="Settings.Appearance.FontFilePathPlaceholder" xml:space="preserve"><value>字体文件路径（.ttf/.otf/.ttc）</value></data>
+  <data name="Settings.Appearance.ChooseFontFile" xml:space="preserve"><value>选择字体文件</value></data>
+  <data name="Settings.Appearance.FontFiles" xml:space="preserve"><value>字体文件</value></data>
+  <data name="Settings.Appearance.FontPreviewText" xml:space="preserve"><value>界面字体预览 AaBbCc 0123</value></data>
+  <data name="Library.Notice.New" xml:space="preserve"><value>新增</value></data>
+  <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>导入无清单的模组时，自动生成 V1 清单格式而非旧版 Legacy 格式。启用后，库中没有清单的模组也可自动升级为 V1。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
@@ -3913,6 +3970,19 @@
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用压缩包更新…</value></data>
   <data name="Versions.Switch" xml:space="preserve"><value>切换到所选版本</value></data>
   <data name="Versions.Delete" xml:space="preserve"><value>删除所选历史版本</value></data>
+  <data name="Versions.Compare" xml:space="preserve"><value>查看文件变动</value></data>
+  <data name="Versions.Compare.Summary" xml:space="preserve"><value>以当前版本为基准：新增 {0}、修改 {1}、删除 {2} 个文件。</value></data>
+  <data name="Versions.Compare.Same" xml:space="preserve"><value>所选版本与当前版本的文件内容一致。</value></data>
+  <data name="Versions.Change.Added" xml:space="preserve"><value>新增</value></data>
+  <data name="Versions.Change.Modified" xml:space="preserve"><value>修改</value></data>
+  <data name="Versions.Change.Removed" xml:space="preserve"><value>删除</value></data>
+  <data name="Versions.Diff.Open" xml:space="preserve"><value>详细对比…</value></data>
+  <data name="Versions.Diff.Title" xml:space="preserve"><value>文件变动对比</value></data>
+  <data name="Versions.Diff.Direction" xml:space="preserve"><value>当前 {0} → 所选 {1}</value></data>
+  <data name="Versions.Diff.Binary" xml:space="preserve"><value>二进制文件，无法逐行显示。大小 {0} → {1}；首个差异位于偏移 {2}，共 {3} 个字节不同。</value></data>
+  <data name="Versions.Diff.TooLarge" xml:space="preserve"><value>文件超过 4 MB，未加载内容对比。</value></data>
+  <data name="Versions.Diff.Truncated" xml:space="preserve"><value>差异较多，仅显示前 {0} 行。</value></data>
+  <data name="Versions.Diff.Approximate" xml:space="preserve"><value>文件较大，已按行号并列显示，未做逐行对齐。</value></data>
   <data name="Versions.EnableTitle" xml:space="preserve"><value>保留模组历史版本</value></data>
   <data name="Versions.EnableWarning" xml:space="preserve"><value>开启后，使用压缩包或在线更新模组会保留之前的完整文件，可在模组详情中切换本地版本。每个版本都会额外占用磁盘空间，更新越多占用越大，且不会自动清理。切换后需检查模组选项并重新部署。关闭只停止保留新版本，已有版本仍可切换或手动删除。确定开启吗？</value></data>
   <data name="Versions.SwitchTitle" xml:space="preserve"><value>切换本地版本</value></data>
@@ -4321,4 +4391,106 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.AiTranslation.ThinkingEffort.Medium" xml:space="preserve"><value>中</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.High" xml:space="preserve"><value>高</value></data>
   <data name="Settings.AiTranslation.ThinkingEffort.Max" xml:space="preserve"><value>最高</value></data>
+  <data name="HellForge.Title" xml:space="preserve"><value>HellForge 档案</value></data>
+  <data name="HellForge.Description" xml:space="preserve"><value>查看 HellForge 安装状态并管理玩家档案（进度与库存）。切换档案对下一次会话生效。</value></data>
+  <data name="HellForge.StatusTitle" xml:space="preserve"><value>安装状态</value></data>
+  <data name="HellForge.Version" xml:space="preserve"><value>HellForge 版本</value></data>
+  <data name="HellForge.GameBuild" xml:space="preserve"><value>游戏版本</value></data>
+  <data name="HellForge.Engine" xml:space="preserve"><value>引擎</value></data>
+  <data name="HellForge.ModSdk" xml:space="preserve"><value>模组 SDK</value></data>
+  <data name="HellForge.GameCopy" xml:space="preserve"><value>游戏副本</value></data>
+  <data name="HellForge.Session" xml:space="preserve"><value>会话</value></data>
+  <data name="HellForge.CurrentProfile" xml:space="preserve"><value>当前档案</value></data>
+  <data name="HellForge.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>玩家档案</value></data>
+  <data name="HellForge.Create" xml:space="preserve"><value>新建档案</value></data>
+  <data name="HellForge.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="HellForge.InUse" xml:space="preserve"><value>使用中</value></data>
+  <data name="HellForge.Switch" xml:space="preserve"><value>切换</value></data>
+  <data name="HellForge.NoProfiles" xml:space="preserve"><value>暂无档案。</value></data>
+  <data name="HellForge.CreateTitle" xml:space="preserve"><value>新建档案</value></data>
+  <data name="HellForge.NameLabel" xml:space="preserve"><value>档案名称</value></data>
+  <data name="HellForge.NamePlaceholder" xml:space="preserve"><value>1-32 位小写字母、数字或连字符</value></data>
+  <data name="HellForge.TemplateLabel" xml:space="preserve"><value>模板</value></data>
+  <data name="HellForge.CreateConfirm" xml:space="preserve"><value>创建</value></data>
+  <data name="HellForge.Loading" xml:space="preserve"><value>正在读取 HellForge 状态…</value></data>
+  <data name="HellForge.Switching" xml:space="preserve"><value>正在切换档案…</value></data>
+  <data name="HellForge.Creating" xml:space="preserve"><value>正在创建档案…</value></data>
+  <data name="HellForge.Failed" xml:space="preserve"><value>HellForge 操作失败：{0}</value></data>
+  <data name="HellForge.NotConfigured" xml:space="preserve"><value>尚未配置有效的 HellForge 安装目录，请先在「设置 → 游戏」中选择。</value></data>
+  <data name="HellForge.Loaded" xml:space="preserve"><value>HellForge 状态已加载。</value></data>
+  <data name="HellForge.Ready" xml:space="preserve"><value>就绪</value></data>
+  <data name="HellForge.NotReady" xml:space="preserve"><value>未就绪</value></data>
+  <data name="HellForge.SessionRunning" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.SessionIdle" xml:space="preserve"><value>未运行</value></data>
+  <data name="HellForge.ProfileSwitched" xml:space="preserve"><value>已选择档案「{0}」，下一次会话生效。</value></data>
+  <data name="HellForge.ProfileCreated" xml:space="preserve"><value>已创建档案「{0}」。</value></data>
+  <data name="HellForge.NameInvalid" xml:space="preserve"><value>档案名须为 1-32 位小写字母、数字或连字符。</value></data>
+  <data name="HellForge.TemplateRequired" xml:space="preserve"><value>请为新档案选择一个模板。</value></data>
+  <data name="HellForge.SessionTitle" xml:space="preserve"><value>会话进度</value></data>
+  <data name="HellForge.StartSession" xml:space="preserve"><value>启动会话</value></data>
+  <data name="HellForge.StopSession" xml:space="preserve"><value>停止</value></data>
+  <data name="HellForge.Stopping" xml:space="preserve"><value>正在停止会话…</value></data>
+  <data name="HellForge.Step.BuildMods" xml:space="preserve"><value>构建模组</value></data>
+  <data name="HellForge.Step.VerifyFiles" xml:space="preserve"><value>校验文件</value></data>
+  <data name="HellForge.Step.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.Step.Launching" xml:space="preserve"><value>启动中</value></data>
+  <data name="HellForge.Step.Running" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.Phase.Idle" xml:space="preserve"><value>没有运行中的会话。</value></data>
+  <data name="HellForge.Phase.Preparing" xml:space="preserve"><value>正在构建模组并校验游戏副本…</value></data>
+  <data name="HellForge.Phase.AwaitingNetworkBlock" xml:space="preserve"><value>等待安装网络隔离（如出现 Windows 提示请确认）…</value></data>
+  <data name="HellForge.Phase.AwaitingSteamBroker" xml:space="preserve"><value>等待 Steam 代理连接（沙箱会话）…</value></data>
+  <data name="HellForge.Phase.Patching" xml:space="preserve"><value>正在启动游戏…</value></data>
+  <data name="HellForge.Phase.Running" xml:space="preserve"><value>游戏运行中。</value></data>
+  <data name="HellForge.Phase.Ended" xml:space="preserve"><value>会话已结束。</value></data>
+  <data name="HellForge.Phase.Failed" xml:space="preserve"><value>会话失败。</value></data>
+  <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
+  <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
+  <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
+  <data name="HellForge.Sync.None" xml:space="preserve"><value>尚未同步模组。</value></data>
+  <data name="HellForge.Sync.Source" xml:space="preserve"><value>来源配置：{0} · 上次同步：{1}</value></data>
+  <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>（未知配置）</value></data>
+  <data name="HellForge.Sync.Hint" xml:space="preserve"><value>在配置文件页点击“部署”同步启用的模组；“清理部署”会移除本管理器同步的模组。</value></data>
+  <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
+  <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
+  <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>
+  <data name="HellForge.War.Live" xml:space="preserve"><value>实时战争</value></data>
+  <data name="HellForge.War.Frozen" xml:space="preserve"><value>冻结战争</value></data>
+  <data name="HellForge.War.Open" xml:space="preserve"><value>全部星球开放</value></data>
+  <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>本地 PlayFab 后端</value></data>
+  <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>与 Steam 好友联机</value></data>
+  <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>收集游戏日志</value></data>
+  <data name="HellForge.Settings.CrashDump" xml:space="preserve"><value>崩溃时保存完整内存转储（体积大）</value></data>
+  <data name="HellForge.Settings.Sandbox" xml:space="preserve"><value>沙箱运行</value></data>
+  <data name="HellForge.Settings.SteamUdp" xml:space="preserve"><value>Steam 中继联机（Linux）</value></data>
+  <data name="HellForge.Settings.GameOptions" xml:space="preserve"><value>游戏启动参数</value></data>
+  <data name="HellForge.Settings.Advanced" xml:space="preserve"><value>高级</value></data>
+  <data name="HellForge.Settings.Strangers" xml:space="preserve"><value>与陌生人联机</value></data>
+  <data name="HellForge.Strangers.Default" xml:space="preserve"><value>跟随沙箱</value></data>
+  <data name="HellForge.Strangers.Yes" xml:space="preserve"><value>开启</value></data>
+  <data name="HellForge.Strangers.No" xml:space="preserve"><value>关闭</value></data>
+  <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>允许会话中更改模组（实验性）</value></data>
+  <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>战利品含 Forge Credits 的比例（%）</value></data>
+  <data name="HellForge.Settings.Save" xml:space="preserve"><value>保存设置</value></data>
+  <data name="HellForge.Settings.Saving" xml:space="preserve"><value>正在保存设置…</value></data>
+  <data name="HellForge.Settings.Saved" xml:space="preserve"><value>设置已保存，下次会话生效。</value></data>
+  <data name="HellForge.Logs.Title" xml:space="preserve"><value>会话日志</value></data>
+  <data name="HellForge.Logs.Hint" xml:space="preserve"><value>导出所选会话的日志或保存崩溃报告；不会上传任何内容。</value></data>
+  <data name="HellForge.Logs.None" xml:space="preserve"><value>还没有会话日志：先启动一次会话。</value></data>
+  <data name="HellForge.Logs.Export" xml:space="preserve"><value>保存日志…</value></data>
+  <data name="HellForge.Logs.CrashReport" xml:space="preserve"><value>保存崩溃报告…</value></data>
+  <data name="HellForge.Logs.IncludeDump" xml:space="preserve"><value>包含崩溃转储（体积大）</value></data>
+  <data name="HellForge.Logs.Exporting" xml:space="preserve"><value>正在保存会话日志…</value></data>
+  <data name="HellForge.Logs.Exported" xml:space="preserve"><value>已保存 {0} 个日志文件到 {1}</value></data>
+  <data name="HellForge.Logs.CrashSaved" xml:space="preserve"><value>崩溃报告已保存到 {0}</value></data>
+  <data name="HellForge.Logs.ExitCode" xml:space="preserve"><value>退出码 {0}</value></data>
+  <data name="HellForge.Logs.Crashed" xml:space="preserve"><value>崩溃</value></data>
+  <data name="HellForge.LogStatus.Completed" xml:space="preserve"><value>已完成</value></data>
+  <data name="HellForge.LogStatus.Failed" xml:space="preserve"><value>失败</value></data>
+  <data name="HellForge.LogStatus.CleanupFailed" xml:space="preserve"><value>清理失败</value></data>
+  <data name="HellForge.LogStatus.Observed" xml:space="preserve"><value>已结束</value></data>
+  <data name="HellForge.LogStatus.Running" xml:space="preserve"><value>运行中</value></data>
+  <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>崩溃</value></data>
+  <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip 压缩包</value></data>
 </root>

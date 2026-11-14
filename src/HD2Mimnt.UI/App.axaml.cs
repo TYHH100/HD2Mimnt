@@ -163,6 +163,16 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
+            // 上次进程异常退出会留下没有执行句柄的“运行中”记录，启动时先收尾，任务中心才不会出现取消不掉的僵尸任务。
+            try
+            {
+                await taskService.RecoverInterruptedTasksAsync(cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                startupLogger.LogWarning(ex, "收尾上次中断的后台任务失败");
+            }
+
             // CLI 管道宿主：允许外部 HD2Mimnt.Cli 在本进程内执行管理命令（仅主实例走到这里）。
             Program.CliPipeHost = new CliCommandPipeHost(host.Services);
 
@@ -177,6 +187,20 @@ public partial class App : Avalonia.Application
             {
                 // 换肤失败不能阻断启动：保留默认深色，用户仍可在设置页重新选择。
                 startupLogger.LogWarning(ex, "启动期应用保存的主题失败，使用默认深色");
+            }
+
+            // 界面字体与主题一样必须在窗口创建前应用，避免先按默认字体渲染一帧。
+            try
+            {
+                var fontSettings = ServiceProvider.GetRequiredService<SettingsService>();
+                AppFontService.Apply(
+                    fontSettings.GetSetting(SettingKeys.FontSource, AppFontService.SourceDefault),
+                    fontSettings.GetSetting(SettingKeys.FontFamilyName, string.Empty),
+                    fontSettings.GetSetting(SettingKeys.FontFilePath, string.Empty));
+            }
+            catch (Exception ex)
+            {
+                startupLogger.LogWarning(ex, "启动期应用保存的界面字体失败，使用默认字体");
             }
 
             // 创建并展示主窗口。
@@ -481,7 +505,9 @@ public partial class App : Avalonia.Application
             taskService.RegisterProcessWorker("Validation");
             taskService.RegisterProcessWorker("Deployment");
             taskService.RegisterProcessWorker("Cleanup");
+            taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
+            taskService.RegisterProcessWorker("Hd2ClConversion");
             return taskService;
         });
         services.AddSingleton<PlatformDownloadTaskRunner>();
@@ -495,7 +521,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IDeploymentMethod, SymbolicLinkDeploymentMethod>();
         services.AddSingleton<IDeploymentMethod, HardLinkDeploymentMethod>();
 
-        // MDL3 原生伴生组件安装（签名校验 + %LOCALAPPDATA%\MDL3 落位）。
+        // MDL3 原生伴生组件安装（签名校验；3.0+ 落位 %ProgramData%\MDL3，2.x 落位 %LOCALAPPDATA%\MDL3）。
         services.AddSingleton(sp => new Mdl3CompanionService(
             sp.GetService<IAuthenticodeVerifier>() ?? new AuthenticodeVerifier(),
             sp.GetService<ILogger<Mdl3CompanionService>>()));
@@ -547,11 +573,29 @@ public partial class App : Avalonia.Application
 
         services.AddSingleton(sp => new GameDetectionService(
             sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetService<ILogger<GameDetectionService>>()));
+        services.AddSingleton(sp => new HellForgeService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetService<ILogger<HellForgeService>>()));
+        services.AddSingleton(sp => new HellForgeSessionService(
+            sp.GetRequiredService<HellForgeService>(),
+            sp.GetService<ILogger<HellForgeSessionService>>()));
+        services.AddSingleton(sp => new HellForgeModSyncService(
+            sp.GetRequiredService<HellForgeService>(),
+            sp.GetRequiredService<IProfileRepository>(),
+            sp.GetRequiredService<IModRepository>(),
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetServices<IDeploymentMethod>(),
+            Path.Combine(appDataPath, "hellforge-sync.json"),
+            sp.GetService<ILogger<HellForgeModSyncService>>(),
+            Path.Combine(storageLocations.CachePath, "HellForgeSync")));
 
         services.AddSingleton<NotificationService>();
         services.AddSingleton<ConfirmationService>();
         services.AddSingleton<IConfirmationService>(sp => sp.GetRequiredService<ConfirmationService>());
+        services.AddSingleton<Hd2ClVariantPromptService>();
+        services.AddSingleton<IHd2ClVariantPrompt>(sp => sp.GetRequiredService<Hd2ClVariantPromptService>());
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
@@ -590,7 +634,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(),
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
-            sp.GetRequiredService<TaskService>()));
+            sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
+            sp.GetRequiredService<IHd2ClVariantPrompt>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -601,7 +646,9 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ImagePreviewService>(),
             sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
-            sp.GetRequiredService<OptionTranslationService>()));
+            sp.GetRequiredService<OptionTranslationService>(),
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
+            sp.GetRequiredService<IHd2ClVariantPrompt>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),
@@ -671,6 +718,12 @@ public partial class App : Avalonia.Application
                 Path.Combine(appDataPath, "Cache", "IAS-Generator"),
                 Path.Combine(appDataPath, "IAS-System", "deployment.json")));
         services.AddTransient<IasSystemViewModel>();
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(sp =>
+            new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
+                sp.GetRequiredService<TaskService>()));
+        services.AddTransient<Hd2ClViewModel>();
+        services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
 
@@ -716,6 +769,10 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<SoundFixViewModel>(),
             sp.GetRequiredService<IasSystemViewModel>(),
             sp.GetRequiredService<AppUpdateViewModel>(),
-            sp.GetRequiredService<IPluginService>()));
+            sp.GetRequiredService<IPluginService>(),
+            sp.GetRequiredService<HellForgeViewModel>(),
+            sp.GetRequiredService<HellForgeSessionService>(),
+            sp.GetRequiredService<Hd2ClViewModel>(),
+            sp.GetRequiredService<Hd2ClVariantPromptService>()));
     }
 }

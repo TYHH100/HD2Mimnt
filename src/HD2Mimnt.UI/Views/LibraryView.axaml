@@ -110,6 +110,7 @@
         <Button x:Name="CheckSelectedCompatibilityButton" Content="{loc:Loc Compatibility.Title}" Command="{Binding CheckSelectedCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc UI.AddToProfiles}" Command="{Binding OpenAddToProfileDialogCommand}" Classes="accent" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.AddSelectedModsToOneOrMoreProfiles}"/>
                     <Button Content="{loc:Loc UI.Disable}" Command="{Binding BatchDisableCommand}" Classes="secondary" Margin="0,0,8,4"/>
+                    <Button Content="转为 HD2CL 角色库" Command="{Binding BatchConvertToHd2ClCommand}" Classes="secondary" Margin="0,0,8,4" IsVisible="{Binding HasHd2IrSelection}" ToolTip.Tip="把选中的 HD2IAS 模组转换为 HD2CL 角色库模型"/>
                     <Button Content="{loc:Loc UI.RemoveFromProfile}" Command="{Binding RemoveSelectedFromProfileCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.RemoveSelectedModsFromTheCurrentProfileAndKeepLibraryFiles}"/>
                     <Button Content="{loc:Loc UI.ClearSelection}" Command="{Binding ClearSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
                     <Button Content="{loc:Loc UI.DeleteFromLibrary}" Command="{Binding BatchDeleteCommand}" Classes="danger" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.DeleteSelectedModsAndTheirFiles}"/>
@@ -130,9 +131,11 @@
                     <DataTemplate x:DataType="vm:ModItemViewModel">
                         <!-- 与配置页共用原生选择容器；ItemsControl 不接管 ViewModel 的选中状态。 -->
                         <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}">
+                        <Panel>
                         <Border Classes="mod-card"
                                 Classes.compact="{Binding $parent[UserControl].((vm:LibraryViewModel)DataContext).IsCompactList}"
-                                ContextRequested="ModCard_ContextRequested">
+                                ContextRequested="ModCard_ContextRequested"
+                                PointerEntered="OnModCardPointerEntered">
                                 <Grid ColumnDefinitions="52,*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                                 <!-- 图标槽：无缩略图时显示 Package 图标 -->
                                 <Panel Grid.RowSpan="2" Width="52" Height="52">
@@ -165,7 +168,14 @@
                                 <Grid Grid.Column="1" Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,Auto,*" ColumnSpacing="6"
                                       VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <Border Classes="notice-chip" Classes.blinking="{Binding ShowNoticeBlink}" IsVisible="{Binding ShowNewNoticeBadge}">
+                                            <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.New}"/>
+                                        </Border>
+                                        <Border Classes="notice-chip" Classes.blinking="{Binding ShowNoticeBlink}" IsVisible="{Binding ShowUpdatedNoticeBadge}">
+                                            <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.Updated}"/>
+                                        </Border>
                                         <Border Classes="chip" IsVisible="{Binding IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
+                                        <Border Classes="chip" IsVisible="{Binding IsHd2Cl}"><TextBlock Text="HD2CL" FontSize="12" Classes="accent-text"/></Border>
                                         <Button Classes="chip" Command="{Binding OpenSourcePageCommand}"
                                                 IsVisible="{Binding HasPlatformLink}" ToolTip.Tip="{loc:LocalizedBinding PlatformLink}">
                                             <TextBlock Text="{loc:LocalizedBinding SourceName}" FontSize="12" Classes="muted"/>
@@ -190,6 +200,9 @@
                                 </Button>
                             </Grid>
                         </Border>
+                        <!-- 独立描边层：只让描边淡入淡出，不改变卡片内容的不透明度。 -->
+                        <Border Classes="notice-outline" IsVisible="{Binding ShowNoticeOutline}"/>
+                        </Panel>
                         </ListBoxItem>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

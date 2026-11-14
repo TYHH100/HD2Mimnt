@@ -61,7 +61,7 @@
 
 - 无 `Directory.Build.props` / `Directory.Packages.props`（无中央包管理）。
 - **Microsoft.Extensions 三版本混用**：9.0.0（Core）/ 10.0.0（PluginHost、Worker）/ 10.0.11（UI、Tests）；测试栈两代并存（Tests/UITests 用 TestSdk 17.14.1 + xunit 2.9.3/3.2.2，Perf/Stability 用 17.12.0 + xunit 2.9.2）。
-- `tests/HD2Mimnt.Tests.csproj:13` 引用 `Microsoft.EntityFrameworkCore.InMemory 9.0.0`，但 src 无任何项目使用 EF Core——疑似遗留依赖。
+- `tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj:13` 引用 `Microsoft.EntityFrameworkCore.InMemory 9.0.0`，但 src 无任何项目使用 EF Core——疑似遗留依赖（Phase 0 已移除）。
 - 全仓库无 `TreatWarningsAsErrors`、无 `.editorconfig`，122 个构建警告无人治理。
 
 ### A4.【低】卫生问题
@@ -112,7 +112,7 @@
 
 - `BackupService.cs:68-69`：`VACUUM INTO '{escapedPath}'` 手工转义，改参数化 `VACUUM INTO @path` 可消除。
 - 断点续传文件名为 URI 的 SHA-256（可预测，`HttpDownloadService.cs:41`），位于应用数据目录，同用户进程可预置符号链接——低危，可用随机后缀。
-- 备份恢复直接替换 DB/settings.json（备份功能的固有信任边界，建议恢复前显示来源与时间）。
+- 备份恢复直接替换数据库（当时设置仍在 `settings.json`；现已迁移到 SQLite `Settings` 表，备份只含数据库。这是备份功能的固有信任边界，建议恢复前显示来源与时间）。
 
 ---
 

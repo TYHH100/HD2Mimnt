@@ -18,7 +18,9 @@ public sealed class ModVersionPreferencesTests : IDisposable
         var confirmation = new Mock<IConfirmationService>();
         var pending = new TaskCompletionSource<bool>();
         confirmation.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(pending.Task);
-        using var vm = new SettingsViewModel(settings, new GameDetectionService(settings), new NotificationService(), cache.Object,
+        using var vm = new SettingsViewModel(settings,
+            new GameDetectionService(settings, new HellForgeSessionService(new HellForgeService(settings))),
+            new NotificationService(), cache.Object,
             confirmationService: confirmation.Object);
         await vm.LoadAsync();
         Assert.False(vm.KeepModVersions); Assert.False(vm.AllowDuplicateImports);

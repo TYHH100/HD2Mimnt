@@ -216,6 +216,10 @@ public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderV
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>嵌套（第三层）子选项是否展开；仅在有嵌套子选项的行上使用。</summary>
+    [ObservableProperty]
+    private bool _isExpanded;
+
     public string DisplayName => string.IsNullOrWhiteSpace(TranslatedName) ? Name : TranslatedName!;
     public string DisplayDescription => string.IsNullOrWhiteSpace(TranslatedDescription) ? Description : TranslatedDescription!;
     public bool HasTranslation => !string.IsNullOrWhiteSpace(TranslatedName) || !string.IsNullOrWhiteSpace(TranslatedDescription);
@@ -240,6 +244,24 @@ public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderV
         TranslatedName = string.IsNullOrWhiteSpace(name) ? null : name;
         TranslatedDescription = string.IsNullOrWhiteSpace(description) ? null : description;
         OnPropertyChanged(nameof(HasTranslation));
+    }
+
+    /// <summary>
+    /// 嵌套子选项（第三层起）：一级子选项只负责分组展示，文件映射在嵌套叶子的 Include 声明。
+    /// </summary>
+    public IReadOnlyList<ProfileModSubOptionChoiceViewModel> SubOptions { get; init; } =
+        Array.Empty<ProfileModSubOptionChoiceViewModel>();
+
+    public bool HasSubOptions => SubOptions.Count > 0;
+
+    /// <summary>上级一级子选项；null 表示本项是一级子选项。仅在选项弹窗/预览 ViewModel 构建时回填一次。</summary>
+    public ProfileModSubOptionChoiceViewModel? Parent { get; set; }
+
+    public override void Dispose()
+    {
+        if (IsDisposed) return;
+        foreach (var nested in SubOptions) nested.Dispose();
+        base.Dispose();
     }
 }
 

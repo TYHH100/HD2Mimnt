@@ -34,6 +34,9 @@ public class Mod
     public ModSource Source { get; set; }
     public ModStatus Status { get; set; }
 
+    /// <summary>导入或更新后尚未查看的卡片提示；点击模组卡片后清除。</summary>
+    public ModNoticeKind Notice { get; set; }
+
     /// <summary>
     /// Mod 清单数据
     /// </summary>

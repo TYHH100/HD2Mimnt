@@ -87,11 +87,9 @@ public partial class ProfileViewModel
             detail.Icon = profileMod.Icon;
             if (_deploymentService != null)
             {
-                var deployments = await _deploymentService.GetLatestDeploymentsAsync(cancellation.Token);
+                var deployedModIds = await _deploymentService.GetDeployedModIdsAsync(cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
-                detail.IsDeployed = deployments.Any(record => record.ModId == detail.Id
-                    && Enum.TryParse<DeploymentStatus>(record.Status, out var status)
-                    && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed);
+                detail.IsDeployed = deployedModIds.Contains(detail.Id);
             }
             if (string.IsNullOrWhiteSpace(detail.Hash))
             {

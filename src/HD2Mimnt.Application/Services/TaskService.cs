@@ -366,15 +366,56 @@ public class TaskService
     }
 
     /// <summary>
-    /// 取消任务
+    /// 取消任务；没有执行句柄的遗留记录直接收尾为终态，否则任务中心会一直卡在“运行中”。
     /// </summary>
     public async Task CancelTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
-        if (_runningTasks.TryGetValue(taskId, out var cts))
+        if (!_runningTasks.TryGetValue(taskId, out var cts))
         {
-            try { cts.Cancel(); } catch (ObjectDisposedException) { }
+            await FinalizeDetachedTaskAsync(taskId, Core.Entities.TaskStatus.Cancelled, cancellationToken);
+            return;
         }
+
+        try { cts.Cancel(); } catch (ObjectDisposedException) { }
         await WaitForTaskAsync(taskId, cancellationToken);
+    }
+
+    /// <summary>
+    /// 收尾上次进程退出后遗留的“运行中/等待中”记录：它们没有执行句柄，界面既取消不了也终止不了。
+    /// </summary>
+    public async Task<int> RecoverInterruptedTasksAsync(CancellationToken cancellationToken = default)
+    {
+        var interrupted = (await _taskRepository.GetRunningTasksAsync(cancellationToken))
+            .Where(task => !_runningTasks.ContainsKey(task.Id))
+            .ToList();
+        foreach (var task in interrupted)
+        {
+            task.Status = Core.Entities.TaskStatus.Failed;
+            task.Stage = "Interrupted";
+            task.Message = "上次退出时任务被中断";
+            task.EndTime = DateTime.UtcNow;
+            await _taskRepository.UpdateAsync(task, cancellationToken);
+        }
+
+        return interrupted.Count;
+    }
+
+    /// <summary>把没有执行句柄的遗留记录写成终态；已结束或已删除的记录不做处理。</summary>
+    private async Task FinalizeDetachedTaskAsync(Guid taskId, Core.Entities.TaskStatus status,
+        CancellationToken cancellationToken)
+    {
+        var task = await _taskRepository.GetByIdAsync(taskId, cancellationToken);
+        if (task == null || IsDeletable(task)) return;
+
+        task.Status = status;
+        task.Stage = status == Core.Entities.TaskStatus.ForceTerminated ? "Terminated" : "Cancelled";
+        task.Message = status == Core.Entities.TaskStatus.ForceTerminated
+            ? "Task was force terminated"
+            : "Task was cancelled";
+        task.EndTime = DateTime.UtcNow;
+        await _taskRepository.UpdateAsync(task, cancellationToken);
+        var notifyUser = !_tasksWithoutAutoNotification.TryRemove(taskId, out _);
+        TaskCompleted?.Invoke(this, new TaskCompletedEventArgs(task, notifyUser));
     }
 
     public async Task WaitForTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
@@ -390,12 +431,13 @@ public class TaskService
     }
 
     /// <summary>
-    /// 强制终止任务
+    /// 强制终止任务；没有执行句柄的遗留记录直接收尾为终态。
     /// </summary>
     public async Task ForceTerminateTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         if (!_runningTasks.TryGetValue(taskId, out var cts))
         {
+            await FinalizeDetachedTaskAsync(taskId, Core.Entities.TaskStatus.ForceTerminated, cancellationToken);
             return;
         }
 
@@ -405,8 +447,10 @@ public class TaskService
         await stateGate.WaitAsync(cancellationToken);
         try
         {
+            // 等待闸门期间任务可能已自然结束，此时同样按遗留记录收尾，避免界面停在前一刻的“运行中”。
             if (!_runningTasks.ContainsKey(taskId))
             {
+                await FinalizeDetachedTaskAsync(taskId, Core.Entities.TaskStatus.ForceTerminated, cancellationToken);
                 return;
             }
 

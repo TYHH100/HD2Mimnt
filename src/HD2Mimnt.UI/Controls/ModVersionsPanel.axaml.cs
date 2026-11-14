@@ -3,12 +3,20 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.ViewModels;
+using HD2Mimnt.UI.Views;
 
 namespace HD2Mimnt.UI.Controls;
 
 public partial class ModVersionsPanel : UserControl
 {
     public ModVersionsPanel() => InitializeComponent();
+
+    private async void OpenDetailedDiff(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ModVersionsViewModel vm || TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (vm.CreateDetailedDiff() is not { } model) return;
+        await VersionDiffWindow.ShowAsync(owner, model);
+    }
 
     private async void PickArchive(object? sender, RoutedEventArgs e)
     {

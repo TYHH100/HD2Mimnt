@@ -207,6 +207,7 @@ public sealed partial class FluentAvaloniaUiTests
                     {
                         "Deployment" => new DeploymentWorkerTask(services.GetRequiredService<DeploymentService>()),
                         "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
+                        "HellForgeSync" => new HellForgeSyncWorkerTask(services.GetRequiredService<HellForgeModSyncService>()),
                         "Import" => new ImportWorkerTask(importModServiceFactory?.Invoke(services)
                             ?? services.GetRequiredService<ModService>()),
                         _ => throw new NotSupportedException(workerType)

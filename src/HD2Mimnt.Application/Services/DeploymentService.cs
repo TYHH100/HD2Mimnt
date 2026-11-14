@@ -101,6 +101,32 @@ public class DeploymentService
         return await _deploymentRepository.GetLatestDeploymentsAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 当前安装中文件仍是模组现版本的已部署模组集合。更新替换模组内容后若没能自动增量部署，
+    /// 旧记录仍指向旧版本文件，此时按未部署处理，避免卡片显示与游戏目录实际内容不符。
+    /// </summary>
+    public async Task<IReadOnlySet<Guid>> GetDeployedModIdsAsync(CancellationToken cancellationToken = default)
+    {
+        var records = (await GetLatestDeploymentsAsync(cancellationToken))
+            .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
+                && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
+            .ToList();
+        if (records.Count == 0) return new HashSet<Guid>();
+
+        var modsById = (await _modRepository.GetByIdsAsync(
+                records.Select(record => record.ModId).Distinct(), cancellationToken))
+            .ToDictionary(mod => mod.Id);
+        return records
+            .Where(record => !modsById.TryGetValue(record.ModId, out var mod) || IsDeployedAtCurrentVersion(record, mod))
+            .Select(record => record.ModId)
+            .ToHashSet();
+    }
+
+    /// <summary>记录里的版本是部署当时写入的；旧记录没有版本时无法判断，按已部署保留。</summary>
+    private static bool IsDeployedAtCurrentVersion(DeploymentRecord record, Mod mod)
+        => string.IsNullOrWhiteSpace(record.ModVersion) || string.IsNullOrWhiteSpace(mod.Version)
+            || string.Equals(record.ModVersion, mod.Version, StringComparison.Ordinal);
+
     /// <summary>获取指定游戏安装的当前部署状态。</summary>
     public async Task<IReadOnlyList<DeploymentRecord>> GetDeploymentsForGameAsync(string gamePath,
         CancellationToken cancellationToken = default)
@@ -234,8 +260,17 @@ public class DeploymentService
         }
 
         var preservedSummary = preserved > 0 ? $"，保留未变更 {preserved} 个" : string.Empty;
+        var unmanagedSummary = string.Empty;
+        if (gamePath != null)
+        {
+            var unmanaged = await DeleteUnmanagedPatchFilesAsync(gamePath,
+                message => progress?.Report(message), cancellationToken);
+            if (unmanaged.Deleted > 0 || unmanaged.Failed > 0)
+                unmanagedSummary = $"，删除 {unmanaged.Deleted} 个未托管补丁"
+                    + (unmanaged.Failed > 0 ? $"（{unmanaged.Failed} 个未能删除）" : string.Empty);
+        }
         var location = legacySessionId.HasValue ? $"会话 {legacySessionId}" : $"安装 {gamePath}";
-        progress?.Report($"Pre-Deployment Cleanup 完成: {location}，删除 {filesDeleted} 个文件{preservedSummary}, {recordsDeleted} 个记录");
+        progress?.Report($"Pre-Deployment Cleanup 完成: {location}，删除 {filesDeleted} 个文件{preservedSummary}, {recordsDeleted} 个记录{unmanagedSummary}");
         return (filesDeleted, recordsDeleted, hadIasDeployments);
     }
 
@@ -777,7 +812,16 @@ public class DeploymentService
                 result.Status = plan.SkippedModNames.Count > 0
                     ? DeploymentStatus.PartiallyFailed
                     : DeploymentStatus.Completed;
+                var unmanaged = await DeleteUnmanagedPatchFilesAsync(plan.GamePath,
+                    message => progress?.Report(new DeploymentProgress
+                    {
+                        Stage = "Cleaning", Message = message, TotalMods = plan.TotalMods
+                    }), cancellationToken);
                 result.Message = BuildSuccessMessage(plan, profile, outcome, targeted);
+                if (unmanaged.Deleted > 0)
+                    result.Message += $"；已删除 {unmanaged.Deleted} 个未托管的补丁文件";
+                if (unmanaged.Failed > 0)
+                    result.Message += $"；{unmanaged.Failed} 个未托管补丁文件未能删除";
                 progress?.Report(new DeploymentProgress
                 {
                     Stage = "Completed", Message = result.Message, TotalMods = result.TotalMods,
@@ -854,15 +898,18 @@ public class DeploymentService
         ReconcileOutcome outcome, bool targeted)
     {
         var targetDirectory = plan.DataPath;
+        string message;
         if (outcome.AlreadyCurrent)
-            return targeted
+            message = targeted
                 ? $"该模组与当前部署一致，无需更新：{outcome.UnchangedFiles} 个文件保持原状。"
                 : $"配置“{profile.Name}”与当前安装状态一致，无需重新部署：{outcome.UnchangedFiles} 个文件保持原状。位置：{targetDirectory}";
-
-        var counts = $"新增 {outcome.AddedFiles}、更新 {outcome.UpdatedFiles}、移动 {outcome.MovedFiles}、删除 {outcome.RemovedFiles} 个文件";
-        var message = targeted
-            ? $"已自动增量部署：{counts}。"
-            : $"配置“{profile.Name}”：已部署 {plan.Mods.Count}/{plan.TotalMods} 个模组，{counts}。位置：{targetDirectory}";
+        else
+        {
+            var counts = $"新增 {outcome.AddedFiles}、更新 {outcome.UpdatedFiles}、移动 {outcome.MovedFiles}、删除 {outcome.RemovedFiles} 个文件";
+            message = targeted
+                ? $"已自动增量部署：{counts}。"
+                : $"配置“{profile.Name}”：已部署 {plan.Mods.Count}/{plan.TotalMods} 个模组，{counts}。位置：{targetDirectory}";
+        }
         if (plan.SkippedModNames.Count > 0)
             message += $"；无可部署补丁：{string.Join("、", plan.SkippedModNames)}";
         return message;
@@ -913,6 +960,50 @@ public class DeploymentService
             .Select(file => DeploymentPlanBuilder.NormalizePath(file.TargetPath))
             .OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 删除 data 目录中未被当前部署记录追踪的补丁文件。只匹配补丁命名（16 位十六进制前缀 +
+    /// <c>.patch_N</c> + 可选 <c>.stream</c>/<c>.gpu_resources</c>），基础游戏文件和非补丁文件保持不动。
+    /// </summary>
+    private async Task<(int Deleted, int Failed)> DeleteUnmanagedPatchFilesAsync(string gamePath,
+        Action<string>? report, CancellationToken cancellationToken)
+    {
+        if (!(_settingsService?.GetSetting(SettingKeys.DeploymentDeleteUnmanagedPatches, true) ?? true))
+            return (0, 0);
+
+        var dataPath = Path.Combine(gamePath, "data");
+        if (!Directory.Exists(dataPath)) return (0, 0);
+
+        var tracked = await LoadTrackedTargetsAsync(gamePath, cancellationToken);
+        var deleted = 0;
+        var failed = 0;
+        foreach (var file in Directory.EnumerateFiles(dataPath, "*", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!PatchDeploymentPlanner.TryParseTarget(file, out _, out _, out _)) continue;
+            var normalized = DeploymentPlanBuilder.NormalizePath(file);
+            if (normalized == null || tracked.Contains(normalized)) continue;
+            try
+            {
+                File.Delete(file);
+                deleted++;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                _logger?.LogWarning(ex, "删除未托管补丁文件失败: {Path}", file);
+            }
+        }
+
+        if (deleted > 0 || failed > 0)
+            report?.Invoke($"已删除 {deleted} 个未托管的补丁文件"
+                + (failed > 0 ? $"，{failed} 个未能删除" : string.Empty));
+        return (deleted, failed);
     }
 
     private string? EffectiveGamePath()

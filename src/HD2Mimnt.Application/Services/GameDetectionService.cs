@@ -42,32 +42,8 @@ public class GameDetectionService
         var cli = Path.Combine(root, "app", "cli", "HellForge.Cli.exe");
         if (File.Exists(cli) && await SupportsPlayCommandAsync(cli, cancellationToken))
         {
-            var startInfo = new ProcessStartInfo(cli)
-            {
-                WorkingDirectory = root,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-            startInfo.ArgumentList.Add("play");
-            startInfo.ArgumentList.Add("--install");
-            startInfo.ArgumentList.Add(root);
-            using var process = Process.Start(startInfo)
-                ?? throw new InvalidOperationException("无法启动 HellForge CLI。");
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
-            var output = await outputTask;
-            var error = await errorTask;
-            if (process.ExitCode != 0)
-            {
-                var detail = string.IsNullOrWhiteSpace(error) ? output.Trim() : error.Trim();
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(detail)
-                    ? $"HellForge CLI 退出码 {process.ExitCode}。"
-                    : detail);
-            }
-            _logger?.LogInformation("HellForge 会话启动命令已完成: {Output}", output);
+            // 会话进度由 HellForgeSessionService 观察（play --wait yes），HF 专页实时显示步骤。
+            await _sessionService.StartAsync(cancellationToken);
             return GameLaunchKind.HellForgeSession;
         }
 
@@ -132,6 +108,7 @@ public class GameDetectionService
     }
 
     private readonly SettingsService _settingsService;
+    private readonly HellForgeSessionService _sessionService;
     private readonly ILogger<GameDetectionService>? _logger;
 
     public GameInfo? CurrentGameInfo { get; private set; }
@@ -140,9 +117,11 @@ public class GameDetectionService
 
     public GameDetectionService(
         SettingsService settingsService,
+        HellForgeSessionService sessionService,
         ILogger<GameDetectionService>? logger = null)
     {
         _settingsService = settingsService;
+        _sessionService = sessionService;
         _logger = logger;
     }
 

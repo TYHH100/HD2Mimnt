@@ -1,0 +1,108 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:HD2Mimnt.UI.Localization"
+        xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+        x:Class="HD2Mimnt.UI.Views.VersionDiffWindow"
+        x:DataType="vm:VersionDiffViewModel"
+        Title="{loc:Loc Versions.Diff.Title}"
+        Width="1040" Height="680"
+        MinWidth="760" MinHeight="480"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Surface1Brush}">
+
+  <Window.Resources>
+    <!-- 修改块底色由主题语义色派生，深浅主题与皮肤都跟随实际主题。 -->
+    <SolidColorBrush x:Key="DiffRemovedBackgroundBrush" Color="{DynamicResource SystemFillColorCritical}" Opacity="0.16"/>
+    <SolidColorBrush x:Key="DiffAddedBackgroundBrush" Color="{DynamicResource SystemFillColorSuccess}" Opacity="0.16"/>
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBlock.diff-line-number">
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+      <Setter Property="TextAlignment" Value="Right"/>
+      <Setter Property="Margin" Value="0,2,6,2"/>
+    </Style>
+    <Style Selector="Border.diff-removed">
+      <Setter Property="Background" Value="{DynamicResource DiffRemovedBackgroundBrush}"/>
+    </Style>
+    <Style Selector="Border.diff-added">
+      <Setter Property="Background" Value="{DynamicResource DiffAddedBackgroundBrush}"/>
+    </Style>
+    <Style Selector="ListBox.diff-files ListBoxItem">
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*">
+    <Border Grid.Row="0" Background="{DynamicResource Surface2Brush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+          <TextBlock Text="{Binding Direction}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+          <TextBlock Text="{Binding Summary}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Button Grid.Column="1" Content="{loc:Loc Common.Close}" Click="OnCloseClick"
+                Classes="accent" MinWidth="96" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="300,*">
+      <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+        <ListBox x:Name="DiffFilesList" Classes="diff-files"
+                 ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:VersionFileChangeItem">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                <TextBlock Text="{Binding Status}" Classes="caption-text" Classes.success="{Binding IsAdded}"
+                           Classes.error="{Binding IsRemoved}" Margin="0,0,8,0"/>
+                <TextBlock Grid.Column="1" Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Path}"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SizeText}" Classes="caption-text"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto">
+        <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{Binding SelectedFile.Path}" FontFamily="Consolas" FontSize="12"
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock Text="{Binding SelectedFile.SizeText}" Classes="caption-text"/>
+          </StackPanel>
+        </Border>
+        <TextBlock Grid.Row="1" Text="{Binding ContentMessage}" IsVisible="{Binding HasMessage}"
+                   TextWrapping="Wrap" Margin="16,10" Classes="caption-text"/>
+        <ScrollViewer Grid.Row="2" IsVisible="{Binding HasContent}" VerticalScrollBarVisibility="Auto" Padding="8,0,8,8">
+          <ItemsControl ItemsSource="{Binding Lines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DiffLineViewModel">
+                <Grid ColumnDefinitions="48,*,1,48,*">
+                  <TextBlock Grid.Column="0" Text="{Binding LeftNumber}" Classes="diff-line-number"/>
+                  <Border Grid.Column="1" Classes.diff-removed="{Binding LeftChanged}" Padding="6,1">
+                    <TextBlock Text="{Binding LeftText}" Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"/>
+                  </Border>
+                  <Border Grid.Column="2" Background="{DynamicResource BorderBrush}"/>
+                  <TextBlock Grid.Column="3" Text="{Binding RightNumber}" Classes="diff-line-number"/>
+                  <Border Grid.Column="4" Classes.diff-added="{Binding RightChanged}" Padding="6,1">
+                    <TextBlock Text="{Binding RightText}" Foreground="{DynamicResource TextPrimaryBrush}"
+                               FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"/>
+                  </Border>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        <ProgressBar Grid.Row="3" IsIndeterminate="True" IsVisible="{Binding IsLoading}"/>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

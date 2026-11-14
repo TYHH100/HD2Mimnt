@@ -46,6 +46,14 @@ public enum ModStatus
     Error
 }
 
+/// <summary>模组卡片上的未读提示：新导入或内容更新后显示，用户点击卡片后清除。</summary>
+public enum ModNoticeKind
+{
+    None,
+    New,
+    Updated
+}
+
 /// <summary>
 /// 任务优先级
 /// </summary>

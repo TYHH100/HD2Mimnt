@@ -16,7 +16,15 @@ public class ProfileModOptionsState
 
     public List<int>? OptionSelections { get; set; }
 
-    public bool IsEmpty => LegacySelectedIndex is null && OptionToggles is null && OptionSelections is null;
+    /// <summary>
+    /// 嵌套子选项的选中索引：SubOptionSelections[i][j] = 选项 i 下子选项 j
+    /// 选中的子-子选项索引（缺省 0，越界由 <c>ResolveEffective</c> 钳制）。
+    /// 第一层子选项未选中嵌套时该选项对应内层列表为空。
+    /// </summary>
+    public List<List<int>>? SubOptionSelections { get; set; }
+
+    public bool IsEmpty => LegacySelectedIndex is null && OptionToggles is null && OptionSelections is null
+        && SubOptionSelections is null;
 
     public static ProfileModOptionsState FromJson(string? json)
     {
@@ -99,6 +107,7 @@ public static class ProfileModOptionResolver
             var options = manifest.Options!;
             var toggles = new List<bool>(options.Count);
             var selections = new List<int>(options.Count);
+            var subSelections = new List<List<int>>(options.Count);
             for (var i = 0; i < options.Count; i++)
             {
                 var toggle = i < state.OptionToggles?.Count
@@ -109,12 +118,27 @@ public static class ProfileModOptionResolver
                 var subCount = options[i].SubOptions?.Count ?? 0;
                 var selected = i < state.OptionSelections?.Count ? state.OptionSelections[i] : 0;
                 selections.Add(subCount > 0 ? Math.Clamp(selected, 0, subCount - 1) : 0);
+
+                // 嵌套子选项：每个一级子选项各自维护一个选中索引（缺省 0、越界钳制）
+                var row = new List<int>();
+                var subs = options[i].SubOptions ?? new List<ModSubOption>();
+                for (var j = 0; j < subs.Count; j++)
+                {
+                    var nestedCount = subs[j].SubOptions?.Count ?? 0;
+                    var storedSub = state.SubOptionSelections;
+                    var storedRow = storedSub is not null &&
+                        i < storedSub.Count && j < storedSub[i]?.Count
+                        ? storedSub[i]![j] : 0;
+                    row.Add(nestedCount > 0 ? Math.Clamp(storedRow, 0, nestedCount - 1) : 0);
+                }
+                subSelections.Add(row);
             }
 
             return new ProfileModOptionsState
             {
                 OptionToggles = toggles,
-                OptionSelections = selections
+                OptionSelections = selections,
+                SubOptionSelections = subSelections.Any(row => row.Count > 0) ? subSelections : null
             };
         }
 
@@ -141,15 +165,17 @@ public static class ProfileModOptionResolver
         if (manifest.ManifestVersion == ManifestVersion.V1)
         {
             var options = manifest.Options!;
-            // Include == null 表示清单未声明映射；空列表是显式的“无文件占位”，两者语义不同
-            if (options.Any(o => o.Include == null && o.SubOptions is not { Count: > 0 })
-                || options.Any(o => o.SubOptions?.Any(s => s.Include == null) == true))
+            // Include == null 表示清单未声明映射；空列表是显式的“无文件占位”，两者语义不同。
+            // 判定递归到叶子：节点可映射 = 自身声明了 Include 或可继续下钻（有嵌套子选项）。
+            // 任一层出现不可映射节点（Include null 且无嵌套）→ 整模组回退全量部署。
+            if (options.Any(o => !IsMappable(o.Include, o.SubOptions)))
             {
                 return new OptionDeployPlan { Scope = OptionDeployScope.FullDirectory };
             }
 
             var toggles = state.OptionToggles ?? new List<bool>(options.Select(o => o.DefaultEnabled ?? true));
             var selections = state.OptionSelections ?? new List<int>(new int[options.Count]);
+            var subSelections = state.SubOptionSelections;
             var directories = new List<string>();
             for (var i = 0; i < options.Count; i++)
             {
@@ -158,15 +184,7 @@ public static class ProfileModOptionResolver
                     continue;
                 }
 
-                if (options[i].Include != null)
-                    directories.AddRange(options[i].Include!);
-
-                var subOptions = options[i].SubOptions;
-                if (subOptions is { Count: > 0 })
-                {
-                    var subIndex = i < selections.Count ? Math.Clamp(selections[i], 0, subOptions.Count - 1) : 0;
-                    directories.AddRange(subOptions[subIndex].Include!);
-                }
+                AddDirectories(directories, options[i].Include, options[i].SubOptions, i, selections, subSelections);
             }
 
             return new OptionDeployPlan { Scope = OptionDeployScope.DirectoryList, Directories = directories };
@@ -186,5 +204,60 @@ public static class ProfileModOptionResolver
             Scope = OptionDeployScope.DirectoryList,
             Directories = new[] { legacyOptions[selectedIndex] }
         };
+    }
+
+    /// <summary>
+    /// 节点（选项或子选项）可映射：自身声明了 Include，或可继续下钻到嵌套子选项。
+    /// 递归到叶子：任一层出现不可映射节点（Include null 且无嵌套）→ 整模组回退全量部署。
+    /// </summary>
+    private static bool IsMappable(List<string>? include, List<ModSubOption>? subOptions)
+        => include != null
+           || (subOptions is { Count: > 0 } && subOptions.All(s => IsMappable(s.Include, s.SubOptions)));
+
+    /// <summary>
+    /// 递归收集节点的文件目录：节点自身 Include（声明了才加）+ 选中子分支下钻。
+    /// 分支索引：一级取 selections[optionIndex]，第二层取 subSelections[optionIndex][subIndex]，
+    /// 更深的层级暂无选择状态，一律取第 0 个（当前已知模组最深 3 级）。
+    /// </summary>
+    private static void AddDirectories(
+        List<string> directories,
+        List<string>? include,
+        List<ModSubOption>? subOptions,
+        int optionIndex,
+        List<int> selections,
+        List<List<int>>? subSelections)
+    {
+        if (include != null)
+        {
+            directories.AddRange(include);
+        }
+
+        if (subOptions is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var subIndex = optionIndex < selections.Count
+            ? Math.Clamp(selections[optionIndex], 0, subOptions.Count - 1)
+            : 0;
+        var nested = subOptions[subIndex];
+
+        if (nested.Include != null)
+        {
+            directories.AddRange(nested.Include);
+        }
+
+        if (nested.SubOptions is { Count: > 0 })
+        {
+            var leafIndex = subSelections is { } rows && optionIndex < rows.Count
+                && subIndex < rows[optionIndex]?.Count
+                ? Math.Clamp(rows[optionIndex]![subIndex], 0, nested.SubOptions.Count - 1)
+                : 0;
+            var leaf = nested.SubOptions[leafIndex];
+            if (leaf.Include != null)
+            {
+                directories.AddRange(leaf.Include);
+            }
+        }
     }
 }

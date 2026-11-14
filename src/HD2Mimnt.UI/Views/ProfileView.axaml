@@ -132,7 +132,9 @@
         <Button x:Name="CheckSelectedCompatibilityButton" Content="{loc:Loc Compatibility.Title}" Command="{Binding CheckSelectedCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.Enable}" Command="{Binding BatchEnableModsCommand}" Classes="secondary" Margin="0,0,8,4"/>
         <Button Content="{loc:Loc UI.Disable}" Command="{Binding BatchDisableModsCommand}" Classes="secondary" Margin="0,0,8,4"/>
+        <Button Content="转为 HD2CL 角色库" Command="{Binding BatchConvertToHd2ClCommand}" Classes="secondary" Margin="0,0,8,4" IsVisible="{Binding HasHd2IrSelection}" ToolTip.Tip="把选中的 HD2IAS 模组转换为 HD2CL 角色库模型"/>
         <Button Content="{loc:Loc UI.RemoveFromProfile.40200d7e}" Command="{Binding RemoveSelectedModsCommand}" Classes="secondary" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.RemoveSelectedModsFromTheProfileBeingViewed}"/>
+        <Button Content="{loc:Loc UI.DeleteFromLibrary}" Command="{Binding BatchDeleteSelectedModsCommand}" Classes="danger" Margin="0,0,8,4" ToolTip.Tip="{loc:Loc UI.DeleteSelectedModsAndTheirFiles}"/>
         <Button Content="{loc:Loc UI.ClearSelection}" Command="{Binding ClearModSelectionCommand}" Classes="tertiary" Margin="0,0,8,4"/>
       </WrapPanel>
       </Grid>
@@ -192,8 +194,10 @@
                   <Border Classes="group-member-host" Classes.is-group="{Binding IsInsideGroup}">
                     <!-- 使用 FluentAvalonia 原生 ListBoxItem 选中模板，保持与模组库单选效果一致。 -->
                     <ListBoxItem Theme="{StaticResource ModCardListBoxItemTheme}" Classes="profile-mod-item">
+                  <Panel>
                   <Border x:Name="ProfileTutorialCard" Classes="mod-card" Classes.conflict-location="{Binding IsConflictLocation}"
                           PointerPressed="ModCard_PointerPressed" PointerMoved="ModCard_PointerMoved"
+                          PointerEntered="ModCard_PointerEntered"
                           ContextRequested="ModCard_ContextRequested">
                     <Grid ColumnDefinitions="52,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
                     <!-- 图标槽与顺序胶囊独立。 -->
@@ -242,6 +246,12 @@
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="{Binding ModName}"/>
                     <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <Border Classes="notice-chip" Classes.blinking="{Binding SourceInfo.ShowNoticeBlink}" IsVisible="{Binding SourceInfo.ShowNewNoticeBadge}">
+                        <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.New}"/>
+                      </Border>
+                      <Border Classes="notice-chip" Classes.blinking="{Binding SourceInfo.ShowNoticeBlink}" IsVisible="{Binding SourceInfo.ShowUpdatedNoticeBadge}">
+                        <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.Updated}"/>
+                      </Border>
                       <Border Classes="chip">
                         <TextBlock Text="{Binding PositionText}" FontSize="12" Classes="muted"/>
                       </Border>
@@ -254,6 +264,7 @@
                         <TextBlock Text="{Binding ModVersion, StringFormat='v{0}'}" FontSize="12" Classes="muted"/>
                       </Border>
                       <Border Classes="chip" IsVisible="{Binding SourceInfo.IsHd2Ir}"><TextBlock Text="HD2IAS" FontSize="12" Classes="accent-text"/></Border>
+                      <Border Classes="chip" IsVisible="{Binding SourceInfo.IsHd2Cl}"><TextBlock Text="HD2CL" FontSize="12" Classes="accent-text"/></Border>
                       <Border Classes="chip" IsVisible="{Binding IsLuaMod}">
                         <TextBlock Text="Lua Mods" FontSize="12" Classes="accent-text"/>
                       </Border>
@@ -281,6 +292,9 @@
 
                     </Grid>
                   </Border>
+                  <!-- 独立描边层：只让描边淡入淡出，不改变卡片内容的不透明度。 -->
+                  <Border Classes="notice-outline" IsVisible="{Binding SourceInfo.ShowNoticeOutline}"/>
+                  </Panel>
                     </ListBoxItem>
                   </Border>
                 </Grid>

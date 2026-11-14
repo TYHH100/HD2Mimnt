@@ -106,6 +106,12 @@ public sealed partial class FluentAvaloniaUiTests
             var panel = detail.GetVisualDescendants().OfType<ModVersionsPanel>().Single();
             Assert.Same(library.LocalVersions, panel.DataContext);
             Assert.Single(library.LocalVersions.Versions);
+            ClickVersionControl(window, panel.FindControl<Button>("CompareLocalVersionButton")!);
+            await library.LocalVersions.CompareCommand.ExecutionTask!;
+            Assert.True(library.LocalVersions.HasCompareResult);
+            Assert.Contains(library.LocalVersions.Changes,
+                change => change.Path == "0123456789abcdef.patch_0"
+                    && change.Status == HD2Mimnt.UI.Localization.UiLocalization.Current["Versions.Change.Modified"]);
             ClickVersionControl(window, panel.FindControl<Button>("SwitchLocalVersionButton")!);
             await library.LocalVersions.SwitchCommand.ExecutionTask!;
             Assert.Equal("1", (await mods.GetModByIdAsync(id))!.Version);
@@ -121,11 +127,62 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Same(profile.LocalVersions, panel.DataContext);
             ClickVersionControl(window, panel.FindControl<Button>("SwitchLocalVersionButton")!);
             await profile.LocalVersions.SwitchCommand.ExecutionTask!;
-            Assert.Equal("2", (await mods.GetModByIdAsync(id))!.Version);
-            Assert.Equal("2", Assert.Single(library.FilteredMods).Version);
-            Assert.Equal("2", Assert.Single(profile.ProfileMods).ModVersion);
+            Assert.Equal("1.1.0", (await mods.GetModByIdAsync(id))!.Version);
+            Assert.Equal("1.1.0", Assert.Single(library.FilteredMods).Version);
+            Assert.Equal("1.1.0", Assert.Single(profile.ProfileMods).ModVersion);
         }
         finally { await main.CanCloseAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+    }
+
+    [AvaloniaFact]
+    public async Task VersionDiffWindow_ShowsSideBySideContentForTextFile()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.KeepModVersions, true);
+        var mods = scope.Services.GetRequiredService<ModService>();
+        string Archive(string version)
+        {
+            var file = Path.Combine(scope.Root, "diff-" + version + ".zip");
+            using var zip = ZipFile.Open(file, ZipArchiveMode.Create);
+            using (var writer = new StreamWriter(zip.CreateEntry("manifest.json").Open())) writer.Write("{\"Name\":\"Diff\",\"Version\":\"" + version + "\"}");
+            using (var writer = new StreamWriter(zip.CreateEntry("0123456789abcdef.patch_0").Open()))
+                writer.Write(version == "1" ? "alpha\nbeta" : "alpha\ngamma");
+            return file;
+        }
+        var id = await mods.ImportModAsync(Archive("1"));
+        await mods.UpdateFromLocalArchiveAsync(id, Archive("2"));
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var window = new VersionDiffWindow { Width = 1000, Height = 640 };
+        try
+        {
+            var library = main.LibraryViewModel;
+            library.ShowModDetailCommand.Execute(Assert.Single(library.FilteredMods));
+            await library.LocalVersions.Completion;
+            await library.LocalVersions.CompareCommand.ExecuteAsync(null);
+            var diff = library.LocalVersions.CreateDetailedDiff();
+            Assert.NotNull(diff);
+            diff!.SelectedFile = diff.Files.First(file => file.Change.Path == "0123456789abcdef.patch_0");
+            await diff.LoadTask;
+            Assert.True(diff.HasContent);
+
+            window.DataContext = diff;
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            using var frame = window.CaptureRenderedFrame();
+            Assert.NotNull(frame);
+            var texts = window.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text).ToList();
+            Assert.Contains("beta", texts);
+            Assert.Contains("gamma", texts);
+        }
+        finally
+        {
+            window.Close();
+            await main.CanCloseAsync();
+            Dispatcher.UIThread.RunJobs();
+        }
     }
 
     private static void ClickVersionControl(Window window, Control control)

@@ -12,6 +12,7 @@ internal sealed class WorkerProgressReporter(
 {
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private long? _lastSent;
+    private string? _lastStage;
     private bool _hasValue;
     private (double Progress, string Stage, string Item, string Message) _latest;
 
@@ -20,8 +21,11 @@ internal sealed class WorkerProgressReporter(
         _latest = (progress, stage, item ?? string.Empty, message ?? string.Empty);
         _hasValue = true;
         var now = _clock.ElapsedMilliseconds;
-        // 首条进度必须送达：否则长任务在第一条节流窗口内阻塞时，UI 会一直停在不确定态。
-        if (_lastSent is { } last && now - last < intervalMilliseconds) return;
+        // 阶段切换必须立即送达：长时间扫描/编译期间，界面不能停留在上一个阶段。
+        // 同一阶段内仍按间隔节流，避免文件级回报淹没管道。
+        var stageChanged = _lastStage != stage;
+        if (!stageChanged && _lastSent is { } last && now - last < intervalMilliseconds) return;
+        _lastStage = stage;
         _lastSent = now;
         Send();
     }

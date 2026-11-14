@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 测试替身：模拟 HellForge.Cli.exe 的 status/profiles/settings JSON 输出。
+       测试在安装根目录预置 cli-<command>.json 作为应答，cli-fail.txt 模拟失败；
+       每次调用把收到的参数追加到 cli-args.txt 供断言。程序集名即 HellForge.Cli，
+       测试把 exe/dll/runtimeconfig.json 复制到 <root>/app/cli/ 下使用。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>HellForge.Cli</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

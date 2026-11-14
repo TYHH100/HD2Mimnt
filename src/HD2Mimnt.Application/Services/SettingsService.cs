@@ -332,6 +332,8 @@ public static class SettingKeys
     public const string DeploymentAutoBackup = "Deployment.AutoBackup";
     // 部署/重编号目标被未追踪外部文件（如 HD2CharacterLibrary 生成的 Lua 补丁）占用时是否强制覆盖。
     public const string DeploymentOverwriteConflicts = "Deployment.OverwriteConflicts";
+    // 部署、清理和自动增量收口后删除 data 目录中未被部署记录追踪的补丁文件。
+    public const string DeploymentDeleteUnmanagedPatches = "Deployment.DeleteUnmanagedPatches";
 
     // 搜索相关
     public const string SearchFuzzy = "Search.Fuzzy";
@@ -343,6 +345,12 @@ public static class SettingKeys
     public const string ImportAutoClose = "Library.ImportAutoClose";
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";
+    /// <summary>新导入/已更新模组的卡片提示方式：Badge、Outline、BadgeBlink。</summary>
+    public const string ModNoticeStyle = "Library.ModNoticeStyle";
+    /// <summary>新增/更新提示的清除方式：Click（默认单击卡片）或 Hover（鼠标移入即清除）。</summary>
+    public const string ModNoticeDismiss = "Library.ModNoticeDismiss";
+    // 导入的清单 GUID 与库内已有模组相同时直接更新该模组，默认开启。
+    public const string UpdateSameGuidOnImport = "Library.UpdateSameGuidOnImport";
 
     // Lua 审查：导入与存量模组的自动拆包默认关闭，需要用户明确开启。
     // 键前缀为 Library，随“模组库”分类一起保存与恢复默认。
@@ -382,6 +390,10 @@ public static class SettingKeys
     public const string WindowWidth = "UI.WindowWidth";
     public const string WindowHeight = "UI.WindowHeight";
     public const string WindowMaximized = "UI.WindowMaximized";
+    // 界面字体：FontDefault、FontInstalled（系统字体族名）或 FontFile（字体文件路径）。
+    public const string FontSource = "UI.FontSource";
+    public const string FontFamilyName = "UI.FontFamilyName";
+    public const string FontFilePath = "UI.FontFilePath";
 
     // 性能相关
     public const string ImageCacheSize = "Performance.ImageCacheSize";

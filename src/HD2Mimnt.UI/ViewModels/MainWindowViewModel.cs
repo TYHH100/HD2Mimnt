@@ -40,10 +40,12 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly BackupViewModel _backupViewModel;
     private readonly LogViewModel _logViewModel;
     private readonly ConfirmationService _confirmationService;
+    private readonly Hd2ClVariantPromptService? _hd2ClVariantPrompt;
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
     private readonly IPluginService? _pluginService;
+    private readonly HellForgeSessionService? _hellForgeSessionService;
     private string? _pluginUiSignature;
     private int _tutorialOriginPage;
     private string? _tutorialOriginSettingsCategory;
@@ -51,10 +53,13 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private Avalonia.Controls.Window? _ownerWindow;
 
     /// <summary>
-    /// 固定页（配置 / 模组库 / 冲突 / 工具 / 设置 / 浏览 / 创作）在 <see cref="SelectedTabIndex"/> 中占用的槽位数，
+    /// 固定页（配置 / 模组库 / 冲突 / 工具 / 设置 / 浏览 / 创作 / HellForge）在 <see cref="SelectedTabIndex"/> 中占用的槽位数，
     /// 插件页面从这里开始顺延。主窗口构建导航项时复用同一个常量。
     /// </summary>
-    public const int PluginPageOffset = 7;
+    public const int PluginPageOffset = 8;
+
+    /// <summary>HellForge 专页的固定槽位；仅 HellForge 游戏源下显示导航入口。</summary>
+    public const int HellForgeTabIndex = 7;
 
     /// <summary>插件贡献的独立页面，安装/启用后作为导航项出现。</summary>
     public ObservableCollection<PluginUiSurfaceViewModel> PluginPages { get; } = new();
@@ -149,9 +154,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
+    public Hd2ClViewModel? Hd2ClViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
+    public HellForgeViewModel? HellForgeViewModel { get; }
 
     public MainWindowViewModel(
         LibraryViewModel libraryViewModel,
@@ -181,9 +188,18 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         SoundFixViewModel? soundFixViewModel = null,
         IasSystemViewModel? iasSystemViewModel = null,
         AppUpdateViewModel? appUpdateViewModel = null,
-        IPluginService? pluginService = null)
+        IPluginService? pluginService = null,
+        HellForgeViewModel? hellForgeViewModel = null,
+        HellForgeSessionService? hellForgeSessionService = null,
+        Hd2ClViewModel? hd2ClViewModel = null,
+        Hd2ClVariantPromptService? hd2ClVariantPrompt = null)
     {
         _pluginService = pluginService;
+        Hd2ClViewModel = hd2ClViewModel;
+        HellForgeViewModel = hellForgeViewModel;
+        _hellForgeSessionService = hellForgeSessionService;
+        if (hellForgeSessionService != null)
+            hellForgeSessionService.SessionStarted += OnHellForgeSessionStarted;
         Compatibility = compatibility;
         if (Compatibility != null)
         {
@@ -206,6 +222,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                     NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
                     NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
                     NavigateToModCreationCommand.NotifyCanExecuteChanged();
+                    NavigateToHellForgeCommand.NotifyCanExecuteChanged();
                 }
             };
         }
@@ -232,6 +249,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _logViewModel = logViewModel;
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
+        _hd2ClVariantPrompt = hd2ClVariantPrompt;
         _imagePreview = imagePreviewService;
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
@@ -277,6 +295,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsIasSystemVisible
                 && IasSystemViewModel is { IsBusy: false } system)
                 _ = system.InitializeAsync();
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2ClVisible
+                && Hd2ClViewModel is { IsBusy: false } cl)
+                _ = cl.RefreshCommand.ExecuteAsync(null);
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {
@@ -311,6 +332,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 NavigateToSettingsCommand.NotifyCanExecuteChanged();
                 NavigateToBrowseCommand.NotifyCanExecuteChanged();
                 NavigateToModCreationCommand.NotifyCanExecuteChanged();
+                NavigateToHellForgeCommand.NotifyCanExecuteChanged();
                 if (Tutorial.IsOpen)
                 {
                     _tutorialOriginPage = SelectedTabIndex;
@@ -364,6 +386,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _settingsViewModel.ThemeChanged += OnThemeChanged;
         _settingsViewModel.ListDensityChanged += OnListDensityChanged;
         _settingsViewModel.AppearanceChanged += OnAppearanceChanged;
+        _settingsViewModel.GameSourceChanged += OnGameSourceChanged;
         _settingsViewModel.AutoCheckConflictsChanged += (_, enabled) =>
             ApplyOnUiThread(() => _conflictsViewModel.SetAutomaticChecking(enabled));
         _backupViewModel.RefreshAfterRestoreAsync = OnBackupRestoredAsync;
@@ -566,6 +589,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             case 4: NavigateToSettings(); break;
             case 5: NavigateToBrowseCommand.Execute(null); break;
             case 6: NavigateToModCreation(); break;
+            case 7: NavigateToHellForgeCommand.Execute(null); break;
         }
     }
 
@@ -641,6 +665,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskService.TaskStarted -= OnTaskStarted;
         _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
         _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
+        _settingsViewModel.GameSourceChanged -= OnGameSourceChanged;
+        if (_hellForgeSessionService != null)
+            _hellForgeSessionService.SessionStarted -= OnHellForgeSessionStarted;
         _backupViewModel.RefreshAfterRestoreAsync = null;
         if (ModelPreview is { } preview)
         {
@@ -866,6 +893,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
         NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
         NavigateToModCreationCommand.NotifyCanExecuteChanged();
+        NavigateToHellForgeCommand.NotifyCanExecuteChanged();
     }
 
     private void OnAudioPreviewChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
@@ -875,6 +903,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NavigateToConflictsCommand.NotifyCanExecuteChanged(); NavigateToToolsCommand.NotifyCanExecuteChanged();
         NavigateToSettingsCommand.NotifyCanExecuteChanged(); NavigateToBrowseCommand.NotifyCanExecuteChanged();
         NavigateToModCreationCommand.NotifyCanExecuteChanged();
+        NavigateToHellForgeCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
@@ -910,6 +939,15 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         CurrentView = BrowseModsViewModel;
         StatusBarText = "浏览模组";
         if (BrowseModsViewModel != null) await BrowseModsViewModel.EnsureLoadedAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanNavigate))]
+    private async Task NavigateToHellForgeAsync()
+    {
+        SelectedTabIndex = HellForgeTabIndex;
+        CurrentView = HellForgeViewModel;
+        StatusBarText = "HellForge 档案";
+        if (HellForgeViewModel != null) await HellForgeViewModel.InitializeAsync();
     }
 
     partial void OnSelectedTabIndexChanged(int oldValue, int newValue)
@@ -1084,6 +1122,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     {
         _ownerWindow = owner;
         _confirmationService.SetOwner(owner);
+        _hd2ClVariantPrompt?.SetOwner(owner);
         // 实时玻璃的取屏要求窗口已显示（排除自身截图的 API 需要可见窗口），显示后再应用一次。
         owner.Opened += (_, _) => ApplyTransparencyBrushes();
         // 取屏是异步启动的：第一帧到达才知道图层可以显示，不能只看 Apply 那一刻有没有帧。
@@ -1151,6 +1190,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         if (SoundFixViewModel != null) await SoundFixViewModel.CancelAndWaitAsync();
         if (Hd2IASManagementViewModel != null) await Hd2IASManagementViewModel.CancelAndWaitAsync();
         if (IasSystemViewModel != null) await IasSystemViewModel.CancelAndWaitAsync();
+        if (HellForgeViewModel != null) await HellForgeViewModel.CancelAndWaitAsync();
         if (BrowseModsViewModel != null) await BrowseModsViewModel.LeavePageAsync();
         if (ManagerMigrationViewModel is { IsBusy: true } migration)
         {
@@ -1205,11 +1245,31 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ApplyTransparencyBrushes();
     }
 
+    /// <summary>设置保存后游戏源实际变化：切到 HellForge 自动进入专页；切回官方时不停留在已隐藏的页面。</summary>
+    private void OnGameSourceChanged(object? sender, bool isHellForge)
+    {
+        ApplyOnUiThread(() =>
+        {
+            if (isHellForge) NavigateToHellForgeCommand.Execute(null);
+            else if (SelectedTabIndex == HellForgeTabIndex) NavigateToSettings();
+        });
+    }
+
+    /// <summary>会话启动（无论从哪个页面发起）后跳到 HellForge 专页，让准备进度可见。</summary>
+    private void OnHellForgeSessionStarted(object? sender, EventArgs e)
+    {
+        ApplyOnUiThread(() =>
+        {
+            if (SelectedTabIndex != HellForgeTabIndex) NavigateToHellForgeCommand.Execute(null);
+        });
+    }
+
     private void OnAppearanceChanged(object? sender, EventArgs e) => QueueUiRefresh(ApplyAppearanceAsync);
 
     /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
     public async Task ApplyAppearanceAsync()
     {
+        AppFontService.Apply(_settingsViewModel.FontSource, _settingsViewModel.FontFamilyName, _settingsViewModel.FontFilePath);
         BackgroundImageOpacity = Math.Clamp(_settingsViewModel.BackgroundImageOpacity, 0, 100) / 100.0;
         BackgroundBlurRadius = Math.Clamp(_settingsViewModel.BackgroundBlur, 0, 40);
 

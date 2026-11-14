@@ -56,6 +56,8 @@
 
 - SQLite 上下文串行初始化 schema，释放时只标记上下文已结束，后续打开连接应拒绝；已取得的独占连接由调用方释放。不要在生产 `DbContext.Dispose` 中调用全局 `ClearAllPools` 或强制 GC，否则会干扰并行测试和其他上下文的连接。
 
+- `ModsFTS` 是 external content 的 FTS5 表，触发器中更新/删除必须用 `INSERT INTO ModsFTS(ModsFTS, ...) VALUES('delete', old...)` 再插入新值；直接 `UPDATE`/`DELETE` 会按内容表已更新的值反查旧词条，改 `Name` 为含数字/符号的名称（如 `MDL3 3.0.0-dev.52`）时抛 `SQLITE_CORRUPT`（Error 11），而 `PRAGMA integrity_check` 仍显示 ok。schema 初始化重建触发器后需 `INSERT INTO ModsFTS(ModsFTS) VALUES('rebuild')` 修复历史不一致。回归见 `ModVersionHistoryTests.Update_WithNewManifestName_ReplacesTitle`。来源：https://www.sqlite.org/fts5.html#external_content_tables
+
 - Avalonia Headless 测试在同一进程只能进行一次 `AppBuilder.SetupWithoutStarting()`；新增窗口布局测试必须复用现有测试应用或拆分到独立测试程序集，不能再创建第二个 AppBuilder，否则会出现初始化冲突、资源缺失或测试宿主不退出。
 
 - Avalonia Headless 测试的 `AppBuilder.SetupWithoutStarting()` 必须在测试宿主拥有的 UI 线程上初始化；若测试程序集并行发现或从错误线程触发静态初始化，可能出现 `The calling thread cannot access this object because a different thread owns it`，应先隔离该测试程序集/关闭并行后再判断业务代码是否回归。
@@ -65,6 +67,10 @@
 - 运行中的 UI 或 Visual Studio 锁住常规输出时，可用 `dotnet build HD2Mimnt.slnx --no-restore -m:1 -p:OutputPath=<独立临时绝对目录>/` 保留现有 obj 并隔离输出；随后 `dotnet test <测试项目> --no-build --no-restore -p:OutputPath=<同一目录>/ --filter <相关用例>` 顺序运行。确认输出中的测试程序集路径与实际通过数量，不能将无测试执行的 exit 0 当作通过；完成后删除该临时目录。来源：https://learn.microsoft.com/dotnet/core/tools/dotnet-test
 
 - 任务中心或其它覆盖层的自动刷新必须有明确的 Start/Stop 生命周期；关闭面板和应用退出时取消刷新令牌，并串行化加载，不能留下后台轮询或让旧快照覆盖新状态。
+
+- 任务中心列表必须按 Id 原地合并快照（实体实现变更通知），不能每秒重建 `ObservableCollection` 或列表项对象：容器反复销毁重建会让进度条从 0 重新动画，表现为“界面一直在刷新、进度条乱跳”。合并只用一次集合替换之外的最小操作（属性赋值、`Move`），删除和排序按 Id 处理。
+
+- 只有内存里存在执行句柄的任务才能流转实时状态：数据库里的 `Running`/`Waiting` 记录可能来自上次进程异常退出或终态落库失败，启动时统一收尾为终态，取消/强制终止对没有执行句柄的记录也必须直接写终态，否则任务中心会出现既取消不掉也终止不了的僵尸任务（按钮看起来可点，实际是空操作）。
 
 - 任务完成事件必须在最终状态写入数据库并从运行任务集合移除后发布；UI 通知处理器只负责呈现结果和刷新视图，不能在事件回调中重新执行任务状态持久化。
 

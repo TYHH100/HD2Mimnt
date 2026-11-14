@@ -37,6 +37,7 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 | `HD2Mimnt.Infrastructure` | 数据访问、部署实现、工作流 |
 | `HD2Mimnt.Application` | 业务服务与流程编排 |
 | `HD2Mimnt.UI` | Avalonia 界面（MVVM） |
+| `HD2Mimnt.Cli` | 命令行入口：转发到运行中的 UI，或在 UI 未运行时独立执行 |
 | `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | 插件 SDK、隔离宿主进程与 Lua 脚本运行时 |
 | `HD2Mimnt.Worker` | 后台工作进程 |
 

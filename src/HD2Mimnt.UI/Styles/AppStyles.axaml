@@ -1,7 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- 基础控件的模板、禁用/悬停/按下/焦点状态由 FluentAvalonia 提供。 -->
   <Style Selector="Window">
-    <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Microsoft YaHei UI"/>
+    <Setter Property="FontFamily" Value="{DynamicResource UiFontFamily}"/>
     <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
     <Setter Property="Background" Value="{DynamicResource Surface0Brush}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
@@ -87,6 +87,37 @@
     <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/><Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/><Setter Property="Padding" Value="8,2"/>
+  </Style>
+  <Style Selector="Border.notice-chip">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}"/>
+    <Setter Property="Padding" Value="7,1"/><Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBlock.notice-chip-text">
+    <Setter Property="Foreground" Value="White"/><Setter Property="FontSize" Value="11"/><Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Border.notice-chip.blinking">
+    <Style.Animations>
+      <Animation Duration="0:0:1" IterationCount="INFINITE">
+        <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+        <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.3"/></KeyFrame>
+        <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+  <Style Selector="Border.notice-outline">
+    <Setter Property="IsHitTestVisible" Value="False"/>
+    <Setter Property="Margin" Value="0,4"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}"/>
+    <Style.Animations>
+      <Animation Duration="0:0:1.2" IterationCount="INFINITE" Easing="SineEaseInOut">
+        <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+        <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.15"/></KeyFrame>
+        <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1"/></KeyFrame>
+      </Animation>
+    </Style.Animations>
   </Style>
   <Style Selector="Button.chip">
     <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>

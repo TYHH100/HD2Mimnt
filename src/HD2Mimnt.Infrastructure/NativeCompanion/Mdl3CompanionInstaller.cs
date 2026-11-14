@@ -23,15 +23,20 @@ public sealed record CompanionStatus(CompanionInstallState State, CompanionBuild
 public sealed record CompanionOperationResult(bool Success, string? Message = null);
 
 /// <summary>
-/// 复刻 MDL3 官方 install.ps1 -CompanionOnly 语义：把签名原生桥 DLL 安装到
-/// <c>%LOCALAPPDATA%\MDL3</c>，合并保留 config.json 未知键，预创建游戏 VM 无法自建的用户目录，
-/// 并写官方 schema 的 install-state.json 保证后续仍可运行官方脚本。哈希与签名校验失败一律拒绝安装。
+/// 复刻 MDL3 官方 install.ps1 -CompanionOnly 语义：把签名原生桥 DLL 安装到 MDL3 数据根
+/// （3.0 起为 <c>%ProgramData%\MDL3</c>，2.x 为 <c>%LOCALAPPDATA%\MDL3</c>），合并保留 config.json 未知键，
+/// 预创建游戏 VM 无法自建的用户目录，并写官方 schema 的 install-state.json 保证后续仍可运行官方脚本。
+/// 哈希与签名校验失败一律拒绝安装。
 /// </summary>
 public sealed class Mdl3CompanionInstaller
 {
     private const string ConfigFileName = "config.json";
     private const string StateFileName = "install-state.json";
     private const string GameProcessName = "helldivers2";
+
+    /// <summary>3.0 起数据根与共享用户目录从用户目录迁到 %ProgramData%，与用户名无关。</summary>
+    private const int SharedLayoutMajorVersion = 3;
+    private const int SharedStateSchema = 2;
 
     /// <summary>config.json 中由管理器托管的键；其余键（未来版本新增配置）合并保留。</summary>
     private static readonly HashSet<string> ConfigManagedKeys = new(StringComparer.Ordinal)
@@ -44,7 +49,8 @@ public sealed class Mdl3CompanionInstaller
     private const string TaskJit = "on";
     private const string ProductName = "MDL3";
 
-    /// <summary>MDL 2.2.1 起共享的用户目录（相对 %LOCALAPPDATA%）；游戏 VM 无法创建目录，须提前建好且永不删除。</summary>
+    /// <summary>MDL 2.2.1 起共享的用户目录（3.0 起相对 %ProgramData%，旧版相对 %LOCALAPPDATA%）；
+    /// 游戏 VM 无法创建目录，须提前建好且永不删除。</summary>
     private static readonly string[] UserFolders =
     [
         "MDL/Helldivers2/Mods",
@@ -56,22 +62,45 @@ public sealed class Mdl3CompanionInstaller
 
     private readonly IAuthenticodeVerifier _verifier;
     private readonly string _localApplicationData;
+    private readonly string _commonApplicationData;
+    private readonly Func<bool> _isGameRunning;
 
-    public Mdl3CompanionInstaller(IAuthenticodeVerifier? verifier = null, string? localApplicationData = null)
+    public Mdl3CompanionInstaller(IAuthenticodeVerifier? verifier = null, string? localApplicationData = null,
+        string? commonApplicationData = null, Func<bool>? isGameRunning = null)
     {
         _verifier = verifier ?? new AuthenticodeVerifier();
         _localApplicationData = string.IsNullOrWhiteSpace(localApplicationData)
             ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
             : localApplicationData!;
+        _commonApplicationData = string.IsNullOrWhiteSpace(commonApplicationData)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
+            : commonApplicationData!;
+        _isGameRunning = isGameRunning ?? (() => Process.GetProcessesByName(GameProcessName).Length > 0);
     }
 
-    public string DefaultDataRoot => Path.Combine(_localApplicationData, "MDL3");
+    /// <summary>按包版本选择数据根：3.0+ 为 %ProgramData%\MDL3，2.x 仍为用户目录。</summary>
+    private string DefaultDataRoot(CompanionBuild build)
+        => Path.Combine(UsesSharedLayout(build) ? _commonApplicationData : _localApplicationData, "MDL3");
+
+    /// <summary>共享用户目录的根：随 3.0 数据根一起迁移到 %ProgramData%。</summary>
+    private string SharedFolderBase(CompanionBuild build)
+        => UsesSharedLayout(build) ? _commonApplicationData : _localApplicationData;
+
+    internal static bool UsesSharedLayout(CompanionBuild build)
+        => ParseMajorVersion(build.Version) >= SharedLayoutMajorVersion;
+
+    private static int ParseMajorVersion(string version)
+    {
+        var end = 0;
+        while (end < version.Length && char.IsAsciiDigit(version[end])) end++;
+        return end > 0 && int.TryParse(version[..end], out var major) ? major : 0;
+    }
 
     public CompanionStatus GetStatus(string modDirectory, string? dataRoot = null)
     {
         var build = CompanionBuildReader.Read(modDirectory);
         if (build == null) return new CompanionStatus(CompanionInstallState.NoPayload, null);
-        dataRoot ??= DefaultDataRoot;
+        dataRoot ??= DefaultDataRoot(build);
         var nativeTarget = ResolveNativeTarget(dataRoot, build.NativePath);
         if (!File.Exists(nativeTarget) || !File.Exists(Path.Combine(dataRoot, ConfigFileName)))
             return new CompanionStatus(CompanionInstallState.NotInstalled, build);
@@ -91,18 +120,20 @@ public sealed class Mdl3CompanionInstaller
     {
         var build = CompanionBuildReader.Read(modDirectory);
         if (build == null) return false;
-        dataRoot ??= DefaultDataRoot;
+        dataRoot ??= DefaultDataRoot(build);
         var root = Path.GetFullPath(dataRoot);
         var nativeTarget = ResolveNativeTarget(root, build.NativePath);
         if (!File.Exists(nativeTarget) ||
             !string.Equals(HashFile(nativeTarget), build.NativeSha256, StringComparison.OrdinalIgnoreCase)) return false;
         // 游戏 VM 无法自建目录，被外部删除时必须回到安装流程重建。
         if (!Directory.Exists(Path.Combine(root, "Logs"))) return false;
+        var folderBase = SharedFolderBase(build);
         foreach (var folder in UserFolders)
         {
-            if (!Directory.Exists(Path.Combine(_localApplicationData, folder.Replace('/', '\\')))) return false;
+            if (!Directory.Exists(Path.Combine(folderBase, folder.Replace('/', '\\')))) return false;
         }
-        if (!ConfigIsCurrent(Path.Combine(root, ConfigFileName), nativeTarget, gamePath)) return false;
+        if (!ConfigIsCurrent(Path.Combine(root, ConfigFileName), nativeTarget, gamePath,
+                UsesSharedLayout(build))) return false;
         return StateIsCurrent(Path.Combine(root, StateFileName), build, root, gamePath, nativeTarget);
     }
 
@@ -113,7 +144,7 @@ public sealed class Mdl3CompanionInstaller
         if (IsCurrent(modDirectory, gamePath, dataRoot)) return new CompanionOperationResult(true);
         var build = CompanionBuildReader.Read(modDirectory)
             ?? throw new InvalidOperationException("模组包没有可安装的原生伴生组件（缺少 BUILD.json 或源 DLL）");
-        dataRoot ??= DefaultDataRoot;
+        dataRoot ??= DefaultDataRoot(build);
         cancellationToken.ThrowIfCancellationRequested();
 
         var source = CompanionBuildReader.NativeSourcePath(modDirectory, build);
@@ -131,8 +162,9 @@ public sealed class Mdl3CompanionInstaller
         progress?.Invoke("创建 MDL3 用户目录...");
         var root = Path.GetFullPath(dataRoot);
         Directory.CreateDirectory(Path.Combine(root, "Logs"));
+        var folderBase = SharedFolderBase(build);
         foreach (var folder in UserFolders)
-            Directory.CreateDirectory(Path.Combine(_localApplicationData, folder.Replace('/', '\\')));
+            Directory.CreateDirectory(Path.Combine(folderBase, folder.Replace('/', '\\')));
 
         var nativeTarget = ResolveNativeTarget(root, build.NativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(nativeTarget)!);
@@ -164,8 +196,9 @@ public sealed class Mdl3CompanionInstaller
 
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Invoke("写入 MDL3 配置...");
-        WriteConfig(root, nativeTarget, gamePath);
-        WriteInstallState(root, build, gamePath, nativeTarget);
+        var sharedLayout = UsesSharedLayout(build);
+        WriteConfig(root, nativeTarget, gamePath, sharedLayout);
+        WriteInstallState(root, build, gamePath, nativeTarget, sharedLayout);
         return new CompanionOperationResult(true, $"MDL3 原生伴生组件已安装：{nativeTarget}");
     }
 
@@ -175,7 +208,7 @@ public sealed class Mdl3CompanionInstaller
     {
         var build = CompanionBuildReader.Read(modDirectory);
         if (build == null) return new CompanionOperationResult(true);
-        dataRoot ??= DefaultDataRoot;
+        dataRoot ??= DefaultDataRoot(build);
         cancellationToken.ThrowIfCancellationRequested();
         var root = Path.GetFullPath(dataRoot);
         var nativeTarget = ResolveNativeTarget(root, build.NativePath);
@@ -196,20 +229,28 @@ public sealed class Mdl3CompanionInstaller
     private string ResolveNativeTarget(string dataRoot, string nativePath)
         => Path.GetFullPath(Path.Combine(dataRoot, nativePath.Replace('/', '\\')));
 
-    /// <summary>期望的托管键取值；写入与一致性判定共用，避免两处字面量漂移。</summary>
-    private static JsonObject DesiredConfig(string nativeTarget, string gamePath) => new()
+    /// <summary>期望的托管键取值；写入与一致性判定共用，避免两处字面量漂移。
+    /// 3.0 的官方 config 只保留前五项，旧版脚本还会写两个调试开关。</summary>
+    private static JsonObject DesiredConfig(string nativeTarget, string gamePath, bool sharedLayout)
     {
-        ["schema"] = ConfigSchema,
-        ["dll"] = nativeTarget,
-        ["game_dir"] = gamePath,
-        ["native_memory_mb"] = NativeMemoryMb,
-        ["task_jit"] = TaskJit,
-        ["example_autostart"] = false,
-        ["integration_selftest"] = false,
-    };
+        var config = new JsonObject
+        {
+            ["schema"] = ConfigSchema,
+            ["dll"] = nativeTarget,
+            ["game_dir"] = gamePath,
+            ["native_memory_mb"] = NativeMemoryMb,
+            ["task_jit"] = TaskJit,
+        };
+        if (!sharedLayout)
+        {
+            config["example_autostart"] = false;
+            config["integration_selftest"] = false;
+        }
+        return config;
+    }
 
     /// <summary>托管键逐项等于目标值即视为一致；未知键（未来版本的配置项）不参与判定。</summary>
-    private static bool ConfigIsCurrent(string configPath, string nativeTarget, string gamePath)
+    private static bool ConfigIsCurrent(string configPath, string nativeTarget, string gamePath, bool sharedLayout)
     {
         JsonObject? config;
         try
@@ -221,7 +262,7 @@ public sealed class Mdl3CompanionInstaller
             return false;
         }
         if (config == null) return false;
-        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath))
+        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath, sharedLayout))
         {
             if (!config.TryGetPropertyValue(name, out var actual) || !JsonNode.DeepEquals(value, actual)) return false;
         }
@@ -252,9 +293,9 @@ public sealed class Mdl3CompanionInstaller
         }
     }
 
-    private static void EnsureNoGameRunning()
+    private void EnsureNoGameRunning()
     {
-        if (Process.GetProcessesByName(GameProcessName).Length == 0) return;
+        if (!_isGameRunning()) return;
         throw new InvalidOperationException("请先关闭 Helldivers 2 再安装或移除原生伴生组件");
     }
 
@@ -283,7 +324,7 @@ public sealed class Mdl3CompanionInstaller
         }
     }
 
-    private void WriteConfig(string root, string nativeTarget, string gamePath)
+    private void WriteConfig(string root, string nativeTarget, string gamePath, bool sharedLayout)
     {
         var configPath = Path.Combine(root, ConfigFileName);
         // 官方脚本语义：只接管托管键，其余键（未来版本新增配置）合并保留；旧文件先备份。
@@ -305,7 +346,7 @@ public sealed class Mdl3CompanionInstaller
             }
         }
 
-        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath))
+        foreach (var (name, value) in DesiredConfig(nativeTarget, gamePath, sharedLayout))
             config[name] = value?.DeepClone();
         File.WriteAllText(configPath, config.ToJsonString(new JsonSerializerOptions
         {
@@ -314,18 +355,25 @@ public sealed class Mdl3CompanionInstaller
         }), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
-    private void WriteInstallState(string root, CompanionBuild build, string gamePath, string nativeTarget)
+    private void WriteInstallState(string root, CompanionBuild build, string gamePath, string nativeTarget,
+        bool sharedLayout)
     {
         var statePath = Path.Combine(root, StateFileName);
-        var payload = new Dictionary<string, object?>
+        var files = new[] { new Dictionary<string, string> { ["path"] = nativeTarget, ["sha256"] = build.NativeSha256.ToLowerInvariant() } };
+        var payload = new Dictionary<string, object?>();
+        // 3.0 官方的 state 升到 schema 2，并记录 native_version 与安装来源。
+        if (sharedLayout)
         {
-            ["product"] = ProductName,
-            ["version"] = build.Version,
-            ["game"] = gamePath,
-            ["data"] = root,
-            ["files"] = new[] { new Dictionary<string, string> { ["path"] = nativeTarget, ["sha256"] = build.NativeSha256.ToLowerInvariant() } },
-            ["installed_utc"] = DateTime.UtcNow.ToString("o"),
-        };
+            payload["schema"] = SharedStateSchema;
+            payload["native_version"] = build.NativeVersion;
+        }
+        payload["product"] = ProductName;
+        payload["version"] = build.Version;
+        payload["data"] = root;
+        payload["game"] = gamePath;
+        payload["files"] = files;
+        if (sharedLayout) payload["installed_by"] = "HD2Mimnt";
+        payload["installed_utc"] = DateTime.UtcNow.ToString("o");
         File.WriteAllText(statePath, JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
             WriteIndented = true,

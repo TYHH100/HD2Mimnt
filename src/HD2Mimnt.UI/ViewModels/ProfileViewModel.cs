@@ -5,6 +5,7 @@ using HD2Mimnt.Application.Services;
 using HD2Mimnt.Application.Services.AI;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Hd2IAS;
 using Avalonia.Threading;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -27,6 +28,14 @@ public partial class ProfileViewModel : ObservableObject
     private readonly SettingsService _settingsService;
     private readonly OptionTranslationService? _optionTranslation;
     private readonly ImagePreviewService? _imagePreview;
+    private readonly IHd2ClConversionService? _hd2Cl;
+    private readonly IHd2ClVariantPrompt? _hd2ClVariantPrompt;
+    private bool _hd2ClBusy;
+
+    /// <summary>选中项里是否包含可转换的 HD2IAS 模组；批量转换按钮据此显示。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BatchConvertToHd2ClCommand))]
+    private bool _hasHd2IrSelection;
 
     public Func<Task>? ActiveProfileChanged { get; set; }
     public event EventHandler<ProfileModViewModel>? ConflictModLocationRequested;
@@ -170,9 +179,11 @@ public partial class ProfileViewModel : ObservableObject
     private void UpdateModSelectionState()
     {
         SelectedModCount = ProfileMods.Count(mod => mod.CanSelect && mod.IsSelected);
+        HasHd2IrSelection = ProfileMods.Any(mod => mod.CanSelect && mod.IsSelected && mod.SourceInfo?.IsHd2Ir == true);
         BatchEnableModsCommand.NotifyCanExecuteChanged();
         BatchDisableModsCommand.NotifyCanExecuteChanged();
         RemoveSelectedModsCommand.NotifyCanExecuteChanged();
+        BatchDeleteSelectedModsCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -242,6 +253,39 @@ public partial class ProfileViewModel : ObservableObject
         finally { IsBatchModOperationRunning = false; }
     }
 
+    [RelayCommand(CanExecute = nameof(CanRunSelectedModAction))]
+    private async Task BatchDeleteSelectedModsAsync()
+    {
+        if (!CanRunSelectedModAction() || SelectedProfile is not { } profile) return;
+        var selected = ProfileMods.Where(mod => mod.CanSelect && mod.IsSelected).ToArray();
+        if (selected.Length == 0) return;
+        if (!await _confirmationService.ConfirmAsync("删除模组",
+                $"确定删除选中的 {selected.Length} 个模组吗？此操作会删除模组文件。")) return;
+
+        IsBatchModOperationRunning = true;
+        try
+        {
+            await SuppressLocalChangeAsync(async () =>
+            {
+                foreach (var mod in selected) await _modService.DeleteModAsync(mod.ModId);
+            });
+            CloseDetailPanel();
+            if (ReferenceEquals(SelectedProfile, profile))
+            {
+                AdjustSeparatorPositionsAfterRemoval(selected);
+                foreach (var mod in selected) ProfileMods.Remove(mod);
+                profile.ModCount = Math.Max(0, profile.ModCount - selected.Length);
+                RenumberProfileMods();
+                ApplyModFilter();
+                IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
+            }
+            if (ModDeleted != null) await ModDeleted();
+            _notificationService.ShowSuccess($"已删除 {selected.Length} 个模组", "删除模组");
+        }
+        catch (Exception ex) { _notificationService.ShowError($"批量删除模组失败: {ex.Message}", "删除模组"); }
+        finally { IsBatchModOperationRunning = false; }
+    }
+
     public void SetModSelectionAnchor(ProfileModViewModel mod)
     {
         _modSelection.SetAnchor(mod);
@@ -256,6 +300,17 @@ public partial class ProfileViewModel : ObservableObject
     {
         if (_modSelection.Toggle(mod)) FocusedMod = mod;
     }
+
+    /// <summary>点击配置页模组卡片后清除提示；库页的同一模组通过 NoticeDismissed 同步。</summary>
+    public async Task DismissModNoticeAsync(ProfileModViewModel mod)
+    {
+        if (mod.SourceInfo is not { HasNotice: true } info) return;
+        info.DismissNotice();
+        await _modService.DismissModNoticeAsync(info.Id);
+    }
+
+    /// <summary>提示清除方式：Hover 时鼠标移入卡片即清除，默认单击清除。</summary>
+    public bool DismissNoticeOnHover => _settingsService.GetSetting(SettingKeys.ModNoticeDismiss, "Click") == "Hover";
 
     public void SelectAllVisibleMods() => _modSelection.SelectAll(FocusedMod);
 
@@ -412,9 +467,12 @@ public partial class ProfileViewModel : ObservableObject
     public bool IsProfileModsErrorStateVisible => HasSelectedProfile && !IsProfileModsLoading && HasProfileModsError;
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
-    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null)
+    public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null,
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
     {
         _optionTranslation = optionTranslation;
+        _hd2Cl = hd2Cl;
+        _hd2ClVariantPrompt = hd2ClVariantPrompt;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
@@ -425,6 +483,7 @@ public partial class ProfileViewModel : ObservableObject
         });
         _profileService = profileService;
         _modService = modService;
+        _modService.NoticeDismissed += OnModNoticeDismissed;
         _notificationService = notificationService;
         _confirmationService = confirmationService;
         _settingsService = settingsService;
@@ -434,6 +493,100 @@ public partial class ProfileViewModel : ObservableObject
             ApplyModSelection, (mod, focused) => mod.IsFocused = focused, mod => mod.CanSelect);
         _profileMods.CollectionChanged += OnProfileModsCollectionChanged;
         _settingsService.SettingChanged += OnDeploymentDirectionChanged;
+    }
+
+    /// <summary>配置页右键：把当前 Profile 中的 HD2IAS 模组转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand]
+    private async Task ConvertModToHd2ClAsync(ProfileModViewModel? mod)
+    {
+        if (mod is null || _hd2Cl is null || mod.SourceInfo?.IsHd2Ir != true) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        _hd2ClBusy = true;
+        try
+        {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_hd2Cl, _hd2ClVariantPrompt, mod.ModId);
+            if (canceled)
+            {
+                _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+                return;
+            }
+            _notificationService.ShowInfo($"正在转换 {mod.ModName} 为 HD2CL 角色库模型…", "HD2CL");
+            var progress = new Progress<string>(message =>
+                _notificationService.ShowInfo(message, "HD2CL", 1500));
+            var result = await _hd2Cl.ConvertAsync(mod.ModId, variant?.ComponentFolders, variant?.Name, progress);
+            await RefreshAfterProfilesChangedAsync();
+            if (ModContentChanged != null) await ModContentChanged();
+            _notificationService.ShowSuccess(result.SourceDisabled
+                ? $"已生成「{result.Name}」并加入当前配置，源 IAS 模组已在当前配置中禁用。"
+                : $"已生成「{result.Name}」并导入模组库；当前没有配置文件，源 IAS 模组未改动。", "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+        }
+    }
+
+    /// <summary>配置页批量入口：把选中的多个 HD2IAS 模组转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand(CanExecute = nameof(HasHd2IrSelection))]
+    private async Task BatchConvertToHd2ClAsync()
+    {
+        if (_hd2Cl is null) return;
+        if (_hd2ClBusy || IsBatchModOperationRunning)
+        {
+            _notificationService.ShowInfo("已有操作正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        var items = ProfileMods
+            .Where(mod => mod.CanSelect && mod.IsSelected && mod.SourceInfo?.IsHd2Ir == true)
+            .Select(mod => new Hd2ClBatchConversion.Item(mod.ModId, mod.ModName)).ToList();
+        if (items.Count == 0) return;
+
+        _hd2ClBusy = true;
+        IsBatchModOperationRunning = true;
+        try
+        {
+            var summary = await Hd2ClBatchConversion.RunAsync(_hd2Cl, _hd2ClVariantPrompt, items,
+                message => _notificationService.ShowInfo(message, "HD2CL", 1800));
+            await RefreshAfterProfilesChangedAsync();
+            if (ModContentChanged != null) await ModContentChanged();
+            _notificationService.ShowSuccess(summary.Describe(), "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 批量转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 批量转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+            IsBatchModOperationRunning = false;
+        }
+    }
+
+    private void OnModNoticeDismissed(object? sender, Guid id)
+    {
+        void Apply()
+        {
+            foreach (var mod in ProfileMods)
+                if (mod.SourceInfo?.Id == id) mod.SourceInfo.DismissNotice();
+        }
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
     }
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
@@ -458,6 +611,14 @@ public partial class ProfileViewModel : ObservableObject
             }
             if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Reload();
             else Dispatcher.UIThread.Post(Reload);
+            return;
+        }
+        if (e.Key == SettingKeys.ModNoticeStyle)
+        {
+            var style = e.NewValue as string;
+            void ApplyNoticeStyle() { foreach (var mod in ProfileMods) mod.SourceInfo?.ApplyNoticeStyle(style); }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) ApplyNoticeStyle();
+            else Dispatcher.UIThread.Post(ApplyNoticeStyle);
             return;
         }
         if (e.Key == SettingKeys.ProfilesPinExpandedGroups)
@@ -1046,24 +1207,25 @@ public partial class ProfileViewModel : ObservableObject
             var modsById = (await _modService.GetModsByIdsAsync(
                 profile.Mods.Select(profileMod => profileMod.ModId), cancellationToken))
                 .ToDictionary(mod => mod.Id);
-            var deployedModIds = _deploymentService == null ? new HashSet<Guid>()
-                : (await _deploymentService.GetLatestDeploymentsAsync(cancellationToken))
-                    .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
-                        && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
-                    .Select(record => record.ModId).ToHashSet();
+            IReadOnlySet<Guid> deployedModIds = _deploymentService == null
+                ? new HashSet<Guid>()
+                : await _deploymentService.GetDeployedModIdsAsync(cancellationToken);
             _deployedModIds = deployedModIds;
+            var noticeStyle = _settingsService.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
                 if (modsById.TryGetValue(profileMod.ModId, out var mod))
                 {
+                    var sourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) };
+                    sourceInfo.ApplyNoticeStyle(noticeStyle);
                     var cardVm = new ProfileModViewModel
                     {
                         ProfileId = profileMod.ProfileId,
                         ModId = profileMod.ModId,
                         ModName = mod.Name,
                         ModVersion = mod.PlatformLink?.InstalledVersion ?? mod.Version,
-                        SourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) },
+                        SourceInfo = sourceInfo,
                         Enabled = profileMod.Enabled,
                         IsDeployed = deployedModIds.Contains(mod.Id),
                         Order = profileMod.Order,

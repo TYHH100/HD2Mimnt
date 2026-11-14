@@ -40,6 +40,49 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task ConvertModToHd2ClAsync(ModItemViewModel? mod)
+    {
+        if (mod is null || _hd2Cl is null || !mod.IsHd2Ir) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        _hd2ClBusy = true;
+        try
+        {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_hd2Cl, _hd2ClVariantPrompt, mod.Id);
+            if (canceled)
+            {
+                _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+                return;
+            }
+            _notificationService.ShowInfo($"正在转换 {mod.Name} 为 HD2CL 角色库模型…", "HD2CL");
+            var progress = new Progress<string>(message =>
+                _notificationService.ShowInfo(message, "HD2CL", 1500));
+            var result = await _hd2Cl.ConvertAsync(mod.Id, variant?.ComponentFolders, variant?.Name, progress);
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+            ImportedModsChanged?.Invoke(this, EventArgs.Empty);
+            _notificationService.ShowSuccess(result.SourceDisabled
+                ? $"已生成「{result.Name}」并加入当前配置，源 IAS 模组已在当前配置中禁用。"
+                : $"已生成「{result.Name}」并导入模组库；当前没有配置文件，源 IAS 模组未改动。", "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
+        }
+    }
+
     private readonly ModService _modService;
     public ModVersionsViewModel LocalVersions { get; }
     private readonly SearchService _searchService;
@@ -54,6 +97,9 @@ public partial class LibraryViewModel : ObservableObject
     private readonly LuaExtractionService? _luaExtraction;
     private readonly IPluginService? _pluginService;
     private readonly TaskService? _taskService;
+    private readonly HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? _hd2Cl;
+    private readonly IHd2ClVariantPrompt? _hd2ClVariantPrompt;
+    private bool _hd2ClBusy;
     private CancellationTokenSource? _luaExtractionCts;
 
     /// <summary>插件贡献到模组右键菜单的命令（已启用插件、按授权状态标注）。</summary>
@@ -176,6 +222,11 @@ public partial class LibraryViewModel : ObservableObject
 
     [ObservableProperty]
     private int _selectedCount;
+
+    /// <summary>选中项里是否包含可转换的 HD2IAS 模组；批量转换按钮据此显示。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BatchConvertToHd2ClCommand))]
+    private bool _hasHd2IrSelection;
 
     [ObservableProperty]
     private bool _isAllSelected;
@@ -331,15 +382,19 @@ public partial class LibraryViewModel : ObservableObject
         BrowserDownloadHandoffService? browserDownloads = null, ModCompatibilityViewModel? compatibility = null,
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
-        TaskService? taskService = null)
+        TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null,
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
     {
         _taskService = taskService;
+        _hd2Cl = hd2Cl;
+        _hd2ClVariantPrompt = hd2ClVariantPrompt;
         _pluginService = pluginService;
         ModelPreview = modelPreview;
         AudioPreview = audioPreview;
         Compatibility = compatibility;
         _luaExtraction = luaExtraction;
         _modService = modService;
+        _modService?.NoticeDismissed += OnModNoticeDismissed;
         LocalVersions = new(modService, confirmationService, async () =>
         {
             await LoadModsAsync();
@@ -646,7 +701,13 @@ public partial class LibraryViewModel : ObservableObject
             // 创建 ViewModels
             ClearSelection();
             DetachModSelectionHandlers();
-            _allMods = await Task.Run(() => modsList.Select(m => new ModItemViewModel(m)).ToList());
+            var noticeStyle = _settingsService?.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
+            _allMods = await Task.Run(() => modsList.Select(m =>
+            {
+                var item = new ModItemViewModel(m);
+                item.ApplyNoticeStyle(noticeStyle);
+                return item;
+            }).ToList());
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
@@ -671,11 +732,7 @@ public partial class LibraryViewModel : ObservableObject
                 }
             }
 
-            var deployedModIds = (await _deploymentService.GetLatestDeploymentsAsync())
-                .Where(d => Enum.TryParse<DeploymentStatus>(d.Status, out var status) &&
-                            (status == DeploymentStatus.Completed || status == DeploymentStatus.PartiallyFailed))
-                .Select(d => d.ModId)
-                .ToHashSet();
+            var deployedModIds = await _deploymentService.GetDeployedModIdsAsync();
             foreach (var modVm in _allMods)
             {
                 modVm.IsDeployed = deployedModIds.Contains(modVm.Id);
@@ -813,9 +870,24 @@ public partial class LibraryViewModel : ObservableObject
         _searchDebounceTimer.Start();
     }
 
+    private void OnModNoticeDismissed(object? sender, Guid id)
+    {
+        void Apply() { _allMods.FirstOrDefault(mod => mod.Id == id)?.DismissNotice(); }
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
+    }
+
     /// <summary>设置页保存模组库/搜索选项后的运行时响应：搜索规则立即刷新，Lua 自动拆包开关驱动补拆或取消。</summary>
     private void OnLibrarySettingsChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key == SettingKeys.ModNoticeStyle)
+        {
+            var style = e.NewValue as string;
+            void ApplyStyle() { foreach (var mod in _allMods) mod.ApplyNoticeStyle(style); }
+            if (Dispatcher.UIThread.CheckAccess()) ApplyStyle();
+            else Dispatcher.UIThread.Post(ApplyStyle);
+            return;
+        }
         if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
         {
             if (string.IsNullOrWhiteSpace(SearchText)) return;
@@ -1066,6 +1138,17 @@ public partial class LibraryViewModel : ObservableObject
         if (_modSelection.Focus(mod)) FocusedMod = mod;
     }
 
+    /// <summary>点击卡片后清除新导入/已更新提示；先更新界面，再持久化清除结果。</summary>
+    public async Task DismissModNoticeAsync(ModItemViewModel mod)
+    {
+        if (!mod.HasNotice) return;
+        mod.DismissNotice();
+        await _modService.DismissModNoticeAsync(mod.Id);
+    }
+
+    /// <summary>提示清除方式：Hover 时鼠标移入卡片即清除，默认单击清除。每次现读设置，保存后即时生效。</summary>
+    public bool DismissNoticeOnHover => _settingsService?.GetSetting(SettingKeys.ModNoticeDismiss, "Click") == "Hover";
+
     /// <summary>Ctrl+点击切换多选，并把本次点击作为新的范围锚点。</summary>
     public void ToggleSelected(ModItemViewModel mod)
     {
@@ -1274,6 +1357,44 @@ public partial class LibraryViewModel : ObservableObject
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>把选中的多个 HD2IAS 模组批量转换为 HD2CL 角色库模型。</summary>
+    [RelayCommand(CanExecute = nameof(HasHd2IrSelection))]
+    private async Task BatchConvertToHd2ClAsync()
+    {
+        if (_hd2Cl is null) return;
+        if (_hd2ClBusy)
+        {
+            _notificationService.ShowInfo("已有 HD2CL 转换正在进行，请等待完成。", "HD2CL");
+            return;
+        }
+        var items = SelectedMods.Where(mod => mod.IsHd2Ir)
+            .Select(mod => new Hd2ClBatchConversion.Item(mod.Id, mod.Name)).ToList();
+        if (items.Count == 0) return;
+
+        _hd2ClBusy = true;
+        try
+        {
+            var summary = await Hd2ClBatchConversion.RunAsync(_hd2Cl, _hd2ClVariantPrompt, items,
+                message => _notificationService.ShowInfo(message, "HD2CL", 1800));
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+            ImportedModsChanged?.Invoke(this, EventArgs.Empty);
+            _notificationService.ShowSuccess(summary.Describe(), "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            _notificationService.ShowInfo("HD2CL 批量转换已取消。", "HD2CL");
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"HD2CL 批量转换失败：{ex.Message}", "HD2CL");
+        }
+        finally
+        {
+            _hd2ClBusy = false;
         }
     }
 
@@ -1582,6 +1703,31 @@ public partial class LibraryViewModel : ObservableObject
                 _notificationService.ShowWithNavigation(NotificationLevel.Warning, "请先选择配置文件", "打开配置文件", NotificationNavigationTarget.Profiles, "部署模组");
                 return;
             }
+            if (IsHellForgeMode)
+            {
+                DeploymentTitle = "同步到 HellForge";
+                var hfOrder = await ReadDeploymentOrderAsync();
+                // 同步按设置中的部署方式写入 mods\（不调 mod-add）：确认文案须让用户看到实际写入方式。
+                var hfMethod = _settingsService == null ? DeploymentMethod.Copy.ToString()
+                    : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentMethod, DeploymentMethod.Copy.ToString());
+                var hfMethodName = Enum.TryParse<DeploymentMethod>(hfMethod, true, out var parsedMethod)
+                    ? parsedMethod switch
+                    {
+                        DeploymentMethod.HardLink => "硬链接",
+                        DeploymentMethod.SymbolicLink => "符号链接",
+                        _ => "文件复制"
+                    }
+                    : "文件复制";
+                await RunHellForgeSyncTaskAsync("同步到 HellForge", "同步到 HellForge",
+                    $"配置：{profile.Name}\n启用模组：{profile.Mods.Count(mod => mod.Enabled)} 个\n写入方式：{hfMethodName}（按设置中的部署方式，不可用时自动回退为文件复制）\n将把启用的普通模组导入 HellForge 的 mods 目录（Lua 加载器与 HD2IAS 模组跳过），由 HellForge 会话负责暂存与清理，不写入游戏副本。是否继续？",
+                    new Dictionary<string, string>
+                    {
+                        ["Mode"] = "Sync",
+                        ["ProfileId"] = profile.Id.ToString(),
+                        ["Order"] = hfOrder.ToString()
+                    }, deploymentCts);
+                return;
+            }
             var gamePath = _gameDetectionService.CurrentGameInfo?.Path;
             if (string.IsNullOrWhiteSpace(gamePath))
             {
@@ -1645,6 +1791,39 @@ public partial class LibraryViewModel : ObservableObject
     private async Task CleanupAsync()
     {
         if (IsDeploying) return;
+        if (IsHellForgeMode)
+        {
+            IsDeploying = true;
+            ResetDeploymentProgress();
+            DeploymentTitle = "清理 HellForge 模组";
+            IsDeploymentProgressOpen = true;
+            _deploymentCts = new CancellationTokenSource();
+            var hfCts = _deploymentCts;
+            try
+            {
+                await RunHellForgeSyncTaskAsync("清理 HellForge 模组", "清理 HellForge 模组",
+                    "将从 HellForge 的 mods 目录移除本管理器同步的全部模组（不影响游戏副本与他人模组）。是否继续？",
+                    new Dictionary<string, string> { ["Mode"] = "Remove" }, hfCts);
+            }
+            catch (OperationCanceledException)
+            {
+                _notificationService.ShowWarning("同步清理已取消", "清理 HellForge 模组");
+            }
+            catch (Exception ex)
+            {
+                _notificationService.ShowError($"同步清理失败: {ex.Message}", "清理 HellForge 模组");
+            }
+            finally
+            {
+                _deploymentCts = null;
+                hfCts.Dispose();
+                IsDeploying = false;
+                IsDeploymentProgressOpen = false;
+                DeploymentMessage = string.Empty;
+                ResetDeploymentProgress();
+            }
+            return;
+        }
         if (!await _confirmationService.ConfirmAsync(
                 "清理部署",
                 "将删除最近一次部署产生的目标文件和部署记录。是否继续？"))
@@ -1733,6 +1912,56 @@ public partial class LibraryViewModel : ObservableObject
                 break;
             default:
                 _notificationService.ShowError(task?.Message ?? "部署失败", "部署模组");
+                break;
+        }
+    }
+
+    private bool IsHellForgeMode =>
+        _settingsService?.GetGameInstallationMode() == GameInstallationMode.HellForge;
+
+    private async Task<DeploymentOrder> ReadDeploymentOrderAsync()
+    {
+        var savedOrder = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
+            : await _settingsService.GetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
+        return savedOrder == DeploymentOrder.BottomToTop.ToString() ? DeploymentOrder.BottomToTop : DeploymentOrder.TopToBottom;
+    }
+
+    /// <summary>HellForge 模式：部署=同步模组进 mods\，清理=移除本管理器同步的模组；经独立 Worker 进程执行。</summary>
+    private async Task RunHellForgeSyncTaskAsync(string taskTitle, string confirmTitle, string confirmMessage,
+        Dictionary<string, string> args, CancellationTokenSource cts)
+    {
+        DeploymentMessage = "等待确认...";
+        if (!await _confirmationService.ConfirmAsync(confirmTitle, confirmMessage)) return;
+        DeploymentMessage = "正在同步到 HellForge...";
+        var progress = new Progress<TaskProgress>(p =>
+        {
+            if (ReferenceEquals(_deploymentCts, cts) && !cts.IsCancellationRequested && !string.IsNullOrWhiteSpace(p.Message))
+                DeploymentMessage = p.Message;
+        });
+        var outcome = await RequireTaskService().RunProcessTaskAsync(taskTitle, "HellForgeSync", args, progress,
+            cancellationToken: cts.Token);
+        ShowHellForgeSyncOutcome(outcome.Task, taskTitle);
+        await LoadModsAsync();
+    }
+
+    private void ShowHellForgeSyncOutcome(ModTask? task, string title)
+    {
+        switch (task?.Status)
+        {
+            case TaskStatus.Completed:
+                _notificationService.ShowSuccess(string.IsNullOrWhiteSpace(task.Result) ? "同步完成" : task.Result, title);
+                break;
+            case TaskStatus.PartiallyFailed:
+                _notificationService.ShowWarning(task.Result ?? "同步未完全成功", title);
+                break;
+            case TaskStatus.Cancelled:
+                _notificationService.ShowWarning("同步已取消", title);
+                break;
+            case TaskStatus.ForceTerminated:
+                _notificationService.ShowWarning("同步已强制终止", title);
+                break;
+            default:
+                _notificationService.ShowError(task?.Message ?? "同步失败", title);
                 break;
         }
     }
@@ -2081,6 +2310,7 @@ public partial class LibraryViewModel : ObservableObject
     {
         SelectedCount = SelectedMods.Count;
         IsAllSelected = FilteredMods.Count > 0 && FilteredMods.All(mod => mod.IsSelected);
+        HasHd2IrSelection = SelectedMods.Any(mod => mod.IsHd2Ir);
         BatchDisableCommand.NotifyCanExecuteChanged();
         RemoveSelectedFromProfileCommand.NotifyCanExecuteChanged();
         BatchDeleteCommand.NotifyCanExecuteChanged();

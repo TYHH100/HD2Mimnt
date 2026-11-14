@@ -89,7 +89,7 @@ public sealed class GlassMaterialUiTests
         {
             var settings = new SettingsService(root);
             var imageCache = new Mock<IImageCacheService>();
-            viewModel = new SettingsViewModel(settings, new GameDetectionService(settings), new NotificationService(), imageCache.Object)
+            viewModel = new SettingsViewModel(settings, new GameDetectionService(settings, new HellForgeSessionService(new HellForgeService(settings))), new NotificationService(), imageCache.Object)
             {
                 SelectedCategory = "外观",
                 // 毛玻璃强度只在浅色主题下展示。
@@ -175,7 +175,7 @@ public sealed class GlassMaterialUiTests
         {
             var settings = new SettingsService(root);
             var imageCache = new Mock<IImageCacheService>();
-            viewModel = new SettingsViewModel(settings, new GameDetectionService(settings), new NotificationService(), imageCache.Object)
+            viewModel = new SettingsViewModel(settings, new GameDetectionService(settings, new HellForgeSessionService(new HellForgeService(settings))), new NotificationService(), imageCache.Object)
             {
                 SelectedCategory = "外观"
             };

@@ -17,6 +17,11 @@ public partial class ModOptionsSelector : UserControl
         if (sender is Control { DataContext: ProfileModSubOptionChoiceViewModel choice }
             && DataContext is IModOptionsSelection selection) selection.SelectSubOption(choice);
     }
+    private void NestedExpand_Tapped(object? sender, TappedEventArgs e)
+    {
+        // 行尾展开箭头的 tap 由 ToggleButton 自身消费，避免冒泡到所在行的 SubChoice_Tapped 误改分支选择。
+        e.Handled = true;
+    }
     private void LegacyChoice_Tapped(object? sender, TappedEventArgs e)
     {
         if (sender is Control { DataContext: ProfileModLegacyChoiceViewModel choice }

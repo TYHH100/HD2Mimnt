@@ -90,6 +90,7 @@ public class HD2MimntDbContext : IDisposable
                 ThumbnailPath TEXT,
                 Source INTEGER NOT NULL DEFAULT 0,
                 Status INTEGER NOT NULL DEFAULT 0,
+                Notice INTEGER NOT NULL DEFAULT 0,
                 ManifestJson TEXT,
                 ContainsScripts INTEGER NOT NULL DEFAULT 0,
                 NexusModId INTEGER
@@ -331,21 +332,30 @@ public class HD2MimntDbContext : IDisposable
             );
 
             -- FTS5 触发器：插入时同步
-            CREATE TRIGGER IF NOT EXISTS mods_fts_insert AFTER INSERT ON Mods BEGIN
+            -- ModsFTS 是 external content 表，更新/删除必须用 'delete' 特殊命令传入旧值；
+            -- 直接 UPDATE/DELETE 会按内容表新值反查旧词条，名称含数字/符号时抛 SQLITE_CORRUPT。
+            DROP TRIGGER IF EXISTS mods_fts_insert;
+            CREATE TRIGGER mods_fts_insert AFTER INSERT ON Mods BEGIN
                 INSERT INTO ModsFTS(rowid, Id, Name, Description, Author)
                 VALUES (new.rowid, new.Id, new.Name, new.Description, new.Author);
             END;
 
-            -- FTS5 触发器：更新时同步
-            CREATE TRIGGER IF NOT EXISTS mods_fts_update AFTER UPDATE ON Mods BEGIN
-                UPDATE ModsFTS SET Name=new.Name, Description=new.Description, Author=new.Author
-                WHERE rowid=new.rowid;
+            DROP TRIGGER IF EXISTS mods_fts_update;
+            CREATE TRIGGER mods_fts_update AFTER UPDATE ON Mods BEGIN
+                INSERT INTO ModsFTS(ModsFTS, rowid, Id, Name, Description, Author)
+                VALUES ('delete', old.rowid, old.Id, old.Name, old.Description, old.Author);
+                INSERT INTO ModsFTS(rowid, Id, Name, Description, Author)
+                VALUES (new.rowid, new.Id, new.Name, new.Description, new.Author);
             END;
 
-            -- FTS5 触发器：删除时同步
-            CREATE TRIGGER IF NOT EXISTS mods_fts_delete AFTER DELETE ON Mods BEGIN
-                DELETE FROM ModsFTS WHERE rowid=old.rowid;
+            DROP TRIGGER IF EXISTS mods_fts_delete;
+            CREATE TRIGGER mods_fts_delete AFTER DELETE ON Mods BEGIN
+                INSERT INTO ModsFTS(ModsFTS, rowid, Id, Name, Description, Author)
+                VALUES ('delete', old.rowid, old.Id, old.Name, old.Description, old.Author);
             END;
+
+            -- 旧触发器可能已写出不一致的词条，启动时重建索引。
+            INSERT INTO ModsFTS(ModsFTS) VALUES ('rebuild');
 
             -- Logical Mods table (HD2IAS nested archive support)
             CREATE TABLE IF NOT EXISTS LogicalMods (
@@ -571,6 +581,7 @@ public class HD2MimntDbContext : IDisposable
             // 极旧库的 Mods 表连 Hash 都没有：插入模组和判重索引都依赖该列，必须先补再建索引。
             ("Mods", "Hash", "TEXT"),
             ("Mods", "ContentFingerprint", "TEXT"),
+            ("Mods", "Notice", "INTEGER NOT NULL DEFAULT 0"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),

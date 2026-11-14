@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
+using HD2Mimnt.Core.Hd2IAS;
 using HD2Mimnt.Core.Resources;
 using HD2Mimnt.Core.Services;
 using System.Diagnostics;
@@ -92,6 +93,7 @@ public partial class ModItemViewModel : ObservableObject
     public string Author => PlatformLink?.Author ?? _mod.Author;
     public string Description => _mod.Description;
     public bool IsHd2Ir => _mod.WorkflowType == "HD2IAS";
+    public bool IsHd2Cl => _mod.Tags.Contains(Hd2ClProductTag.Value, StringComparer.OrdinalIgnoreCase);
     public IReadOnlyList<string> Hd2IrComponents => _mod.LogicalMod?.Components
         .Select(component => $"{component.Name} · {component.DeployableFiles.Count}").ToArray() ?? [];
     public ModPlatformLink? PlatformLink => _mod.PlatformLink;
@@ -131,6 +133,31 @@ public partial class ModItemViewModel : ObservableObject
     public string Path => _mod.Path;
     public ModCategory Category => _mod.Category;
     public ModStatus Status => _mod.Status;
+    public ModNoticeKind Notice => _mod.Notice;
+    public bool HasNotice => Notice != ModNoticeKind.None;
+
+    /// <summary>提示方式：Badge（仅标志）、Outline（仅描边）、BadgeBlink（标志并闪烁）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNewNoticeBadge))]
+    [NotifyPropertyChangedFor(nameof(ShowUpdatedNoticeBadge))]
+    [NotifyPropertyChangedFor(nameof(ShowNoticeOutline))]
+    [NotifyPropertyChangedFor(nameof(ShowNoticeBlink))]
+    private string _noticeStyle = "Badge";
+
+    public bool ShowNewNoticeBadge => HasNotice && Notice == ModNoticeKind.New && NoticeStyle != "Outline";
+    public bool ShowUpdatedNoticeBadge => HasNotice && Notice == ModNoticeKind.Updated && NoticeStyle != "Outline";
+    public bool ShowNoticeOutline => HasNotice && NoticeStyle == "Outline";
+    public bool ShowNoticeBlink => HasNotice && NoticeStyle == "BadgeBlink";
+
+    public void ApplyNoticeStyle(string? style)
+        => NoticeStyle = style is "Outline" or "BadgeBlink" ? style : "Badge";
+
+    public void DismissNotice()
+    {
+        if (!HasNotice) return;
+        _mod.Notice = ModNoticeKind.None;
+        OnPropertyChanged(string.Empty);
+    }
     public List<string> Tags => _mod.Tags;
     public long Size => _mod.Size;
     public DateTime CreatedAt => _mod.CreatedAt;

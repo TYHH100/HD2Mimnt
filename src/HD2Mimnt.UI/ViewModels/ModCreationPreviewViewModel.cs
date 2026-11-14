@@ -48,7 +48,15 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
         {
             var children = (option.SubOptions ?? []).Select((sub, index) =>
             {
-                var child = new ProfileModSubOptionChoiceViewModel { Name = sub.Name, Description = sub.Description, IsSelected = index == 0 };
+                // 嵌套（第三层）：快照展示同样支持，选中态不进草稿
+                var grandchildren = (sub.SubOptions ?? []).Select((nested, nestedIndex) =>
+                {
+                    var grandchild = new ProfileModSubOptionChoiceViewModel
+                    { Name = nested.Name, Description = nested.Description, IsSelected = nestedIndex == 0 };
+                    _images.Add((nested.Image, image => grandchild.Image = image)); return grandchild;
+                }).ToList();
+                var child = new ProfileModSubOptionChoiceViewModel { Name = sub.Name, Description = sub.Description, IsSelected = index == 0, SubOptions = grandchildren };
+                foreach (var grandchild in grandchildren) grandchild.Parent = child;
                 _images.Add((sub.Image, image => child.Image = image)); return child;
             }).ToList();
             var card = new ProfileModOptionCardViewModel { Name = option.Name, Description = option.Description,
@@ -99,7 +107,13 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
 
     public void SelectSubOption(ProfileModSubOptionChoiceViewModel? choice)
     {
-        var card = OptionCards.FirstOrDefault(card => card.SubOptions.Contains(choice!));
+        if (choice == null) return;
+        if (choice.Parent is { } parent)
+        {
+            foreach (var nested in parent.SubOptions) nested.IsSelected = ReferenceEquals(nested, choice);
+            return;
+        }
+        var card = OptionCards.FirstOrDefault(card => card.SubOptions.Contains(choice));
         if (card != null) foreach (var sub in card.SubOptions) sub.IsSelected = ReferenceEquals(sub, choice);
     }
     public void SelectLegacyChoice(ProfileModLegacyChoiceViewModel? choice)

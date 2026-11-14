@@ -19,7 +19,10 @@
           <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text" TextWrapping="Wrap"
                      IsVisible="{Binding HasDescription}"/>
         </StackPanel>
-        <Border Grid.Column="2" Width="32" IsVisible="{Binding HasSubOptions}" IsHitTestVisible="False"/>
+        <ToggleButton Grid.Column="2" Classes="expand-chevron" Theme="{StaticResource ExpandChevronToggleTheme}"
+                      IsVisible="{Binding HasSubOptions}"
+                      IsChecked="{Binding $parent[Expander].IsExpanded, Mode=TwoWay}"
+                      ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}"/>
         <CheckBox Grid.Column="3" Width="32" VerticalAlignment="Center"
                   IsChecked="{Binding IsEnabled, Mode=OneWay}"
                   Command="{Binding $parent[UserControl].((vm:IModOptionsSelection)DataContext).ToggleOptionCommand}"
@@ -59,16 +62,14 @@
   </UserControl.Resources>
 
 <UserControl.Styles>
+  <!-- 原生箭头隐藏，二级与三级箭头统一由 ExpandChevronToggleTheme 渲染（见 AppResources.axaml）。 -->
   <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader">
     <Setter Property="Padding" Value="0"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
-  <!-- 原生箭头放在头部预留槽位，所有选项的勾选框保持最右侧对齐。 -->
   <Style Selector="Expander.mod-option /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
-    <Setter Property="Grid.Column" Value="0"/>
-    <Setter Property="HorizontalAlignment" Value="Right"/>
-    <Setter Property="Margin" Value="0,0,44,0"/>
+    <Setter Property="IsVisible" Value="False"/>
   </Style>
   <!-- 复用 FluentAvalonia 原生 ListBoxItem 模板，只调整内容布局，不覆盖选中态模板。 -->
   <Style Selector="ListBoxItem.option-choice-item">
@@ -109,18 +110,53 @@
                               <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}" Classes="option-choice-item"
                                            Tapped="SubChoice_Tapped">
                                 <Border Classes="sub-choice">
-                                  <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
-                                    <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
-                                            Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
-                                      <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                      <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
-                                                 ToolTip.Tip="{Binding Name}"/>
-                                      <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
-                                                 TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
-                                    </StackPanel>
-                                  </Grid>
+                                  <StackPanel Spacing="0">
+                                    <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10">
+                                      <Border Width="40" Height="40" CornerRadius="4" Background="{DynamicResource Surface3Brush}"
+                                              Tapped="PreviewImage_Tapped" Cursor="Hand" ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+                                        <Image Source="{Binding Image}" Width="40" Height="40" Stretch="Uniform"/>
+                                      </Border>
+                                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}"/>
+                                        <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
+                                                   TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
+                                      </StackPanel>
+                                      <!-- 行尾展开箭头：与二级箭头共用主题，只切换第三层可见性，不影响分支选择。 -->
+                                      <ToggleButton Grid.Column="2" Classes="expand-chevron"
+                                                    Theme="{StaticResource ExpandChevronToggleTheme}"
+                                                    IsChecked="{Binding IsExpanded}" IsVisible="{Binding HasSubOptions}"
+                                                    Tapped="NestedExpand_Tapped"
+                                                    ToolTip.Tip="{loc:Loc UI.CollapseExpandGroup}"/>
+                                    </Grid>
+                                    <!-- 第三层：嵌套变体（叶子 Include 才决定部署文件），默认折叠，行尾箭头展开。 -->
+                                    <ItemsControl ItemsSource="{Binding SubOptions}" IsVisible="{Binding IsExpanded}" Margin="8,4,0,4">
+                                      <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ProfileModSubOptionChoiceViewModel">
+                                          <ListBoxItem Theme="{StaticResource ViewModelSelectableListBoxItemTheme}"
+                                                       Classes="option-choice-item nested-choice"
+                                                       Tapped="SubChoice_Tapped" Margin="0,2">
+                                            <Border Classes="sub-choice">
+                                              <Grid ColumnDefinitions="32,*,Auto" ColumnSpacing="8">
+                                                <Border Width="32" Height="32" CornerRadius="4"
+                                                        Background="{DynamicResource Surface3Brush}"
+                                                        Tapped="PreviewImage_Tapped" Cursor="Hand"
+                                                        ToolTip.Tip="{loc:Loc UI.PreviewOriginalImage}">
+                                                  <Image Source="{Binding Image}" Width="32" Height="32" Stretch="Uniform"/>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                  <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"
+                                                             ToolTip.Tip="{Binding Name}"/>
+                                                  <TextBlock Text="{Binding DisplayDescription}" Classes="caption-text"
+                                                             TextWrapping="Wrap" IsVisible="{Binding HasDescription}"/>
+                                                </StackPanel>
+                                              </Grid>
+                                            </Border>
+                                          </ListBoxItem>
+                                        </DataTemplate>
+                                      </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                  </StackPanel>
                                 </Border>
                               </ListBoxItem>
                             </DataTemplate>

@@ -37,10 +37,13 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
     }
 
     private Mdl3CompanionService CreateService(EacCertificateInstaller? eacCertificates = null)
-        => new(_verifier, localApplicationData: LibraryPath, eacCertificateInstaller: eacCertificates);
+        => new(_verifier, localApplicationData: LibraryPath, eacCertificateInstaller: eacCertificates,
+            commonApplicationData: ProgramDataPath, isGameRunning: () => false);
 
     private string LibraryPath => Path.Combine(_root, "localappdata");
-    private string DataRoot => Path.Combine(LibraryPath, "MDL3");
+    private string ProgramDataPath => Path.Combine(_root, "programdata");
+    private string DataRoot => Path.Combine(ProgramDataPath, "MDL3");
+    private string LegacyDataRoot => Path.Combine(LibraryPath, "MDL3");
 
     [Fact]
     public void PackageWithoutBuildJson_ShouldReportNoPayload()
@@ -114,11 +117,12 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(DataRoot, "config.json")));
         Assert.True(File.Exists(Path.Combine(DataRoot, "config.json.backup")));
         Assert.True(File.Exists(Path.Combine(DataRoot, "install-state.json")));
-        // 游戏 VM 无法自建的用户目录须提前创建。
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "MDL", "Helldivers2", "Mods")));
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "MDL", "Helldivers2", "Languages", "Options")));
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "CowboyBingus", "Helldivers2", "Logs")));
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "HD2Runtime", "mod_data")));
+        // 3.0 起共享用户目录随数据根一起落在 %ProgramData%；游戏 VM 无法自建目录须提前创建。
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "MDL", "Helldivers2", "Mods")));
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "MDL", "Helldivers2", "Languages", "Options")));
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "CowboyBingus", "Helldivers2", "Logs")));
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "HD2Runtime", "mod_data")));
+        Assert.False(Directory.Exists(LegacyDataRoot));
 
         using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(DataRoot, "config.json")));
         Assert.Equal(1, config.RootElement.GetProperty("schema").GetInt32());
@@ -128,9 +132,33 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
         Assert.Equal("keep-me", config.RootElement.GetProperty("future_option").GetString());
 
         using var state = JsonDocument.Parse(File.ReadAllText(Path.Combine(DataRoot, "install-state.json")));
+        Assert.Equal(2, state.RootElement.GetProperty("schema").GetInt32());
         Assert.Equal("MDL3", state.RootElement.GetProperty("product").GetString());
+        Assert.Equal("0.4.5", state.RootElement.GetProperty("native_version").GetString());
         Assert.Equal(1, state.RootElement.GetProperty("files").GetArrayLength());
         Assert.Equal(dll, state.RootElement.GetProperty("files")[0].GetProperty("path").GetString());
+        Assert.Equal(CompanionInstallState.Installed, service.GetStatus(mod).State);
+    }
+
+    [Fact]
+    public void Install_LegacyVersion_ShouldKeepLocalApplicationDataLayout()
+    {
+        // 2.x 官方仍读用户目录；不能因为包版本解析失败或旧包也写进 %ProgramData%。
+        var mod = AddMod("MDL3 2.x");
+        WritePackage(mod.Path, thumbprint: _verifier.Result.SignerThumbprint!, version: "2.2.1");
+        var service = CreateService();
+
+        var result = service.EnsureInstalledAsync(mod, _root).GetAwaiter().GetResult();
+
+        Assert.True(result.Success, result.Message);
+        var dll = Path.Combine(LegacyDataRoot, "Native", "mdl_native_bridge.dll");
+        Assert.True(File.Exists(dll));
+        Assert.False(Directory.Exists(DataRoot));
+        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "MDL", "Helldivers2", "Mods")));
+        using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(LegacyDataRoot, "config.json")));
+        Assert.True(config.RootElement.TryGetProperty("example_autostart", out _));
+        using var state = JsonDocument.Parse(File.ReadAllText(Path.Combine(LegacyDataRoot, "install-state.json")));
+        Assert.False(state.RootElement.TryGetProperty("schema", out _));
         Assert.Equal(CompanionInstallState.Installed, service.GetStatus(mod).State);
     }
 
@@ -196,7 +224,7 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
                 File.Delete(Path.Combine(DataRoot, "install-state.json"));
                 break;
             case "userfolder":
-                Directory.Delete(Path.Combine(LibraryPath, "HD2Runtime", "mod_data"), true);
+                Directory.Delete(Path.Combine(ProgramDataPath, "HD2Runtime", "mod_data"), true);
                 break;
         }
 
@@ -205,7 +233,7 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
         Assert.True(result.Success, result.Message);
         Assert.NotNull(result.Message);
         Assert.True(File.Exists(Path.Combine(DataRoot, "install-state.json")));
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "HD2Runtime", "mod_data")));
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "HD2Runtime", "mod_data")));
         using var config = JsonDocument.Parse(File.ReadAllText(Path.Combine(DataRoot, "config.json")));
         Assert.Equal(gamePath, config.RootElement.GetProperty("game_dir").GetString());
         Assert.Equal(CompanionInstallState.Installed, service.GetStatus(mod).State);
@@ -243,7 +271,7 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
         Assert.False(File.Exists(Path.Combine(DataRoot, "Native", "mdl_native_bridge.dll")));
         Assert.False(File.Exists(Path.Combine(DataRoot, "install-state.json")));
         Assert.True(File.Exists(Path.Combine(DataRoot, "config.json")));
-        Assert.True(Directory.Exists(Path.Combine(LibraryPath, "MDL", "Helldivers2", "Mods")));
+        Assert.True(Directory.Exists(Path.Combine(ProgramDataPath, "MDL", "Helldivers2", "Mods")));
         Assert.Equal(CompanionInstallState.NotInstalled, service.GetStatus(mod).State);
     }
 
@@ -318,7 +346,7 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
 
     /// <summary>写出 BUILD.json 与 Native 源 DLL；哈希默认与内容一致，可指定错误值测试拒绝路径。</summary>
     private static void WritePackage(string modDirectory, string? buildSha256 = null, string? thumbprint = null,
-        string nativePath = "Native/mdl_native_bridge.dll")
+        string nativePath = "Native/mdl_native_bridge.dll", string version = "3.0.0-dev.21")
     {
         Directory.CreateDirectory(Path.Combine(modDirectory, "Native"));
         var dllPath = Path.Combine(modDirectory, "Native", "mdl_native_bridge.dll");
@@ -332,7 +360,7 @@ public sealed class Mdl3CompanionServiceTests : IDisposable
             ["native_version"] = "0.4.5",
             ["patch_sha256"] = "unused",
             ["requires_signature"] = false,
-            ["version"] = "3.0.0-dev.21",
+            ["version"] = version,
         });
         File.WriteAllText(Path.Combine(modDirectory, "BUILD.json"), json);
     }

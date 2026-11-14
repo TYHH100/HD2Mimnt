@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -72,6 +74,12 @@ public sealed partial class FluentAvaloniaUiTests
                 window.MouseUp(point, MouseButton.Left);
                 Layout();
             }
+            void Hover(Control control)
+            {
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(point);
+                Layout();
+            }
             Layout();
             main.NotificationPanelViewModel.DismissAllToasts();
             Layout();
@@ -83,8 +91,9 @@ public sealed partial class FluentAvaloniaUiTests
             var checkbox = expander.GetVisualDescendants().OfType<CheckBox>().Single();
             var plainCheckbox = surface.GetVisualDescendants().OfType<CheckBox>()
                 .Single(item => item.IsEffectivelyVisible && ReferenceEquals(item.DataContext, vm.ModOptionsDialog.OptionCards[0]));
-            var chevron = expander.GetVisualDescendants().OfType<Border>()
-                .Single(item => item.Name == "ExpandCollapseChevronBorder");
+            // 二级展开箭头与三级嵌套箭头共用 ExpandChevronToggleTheme：同一命中尺寸与悬停/展开外观。
+            var chevron = expander.GetVisualDescendants().OfType<ToggleButton>()
+                .Single(item => item.Classes.Contains("expand-chevron"));
             var preview = expander.GetVisualDescendants().OfType<Image>().Single(item => ReferenceEquals(item.Source, image))
                 .GetVisualAncestors().OfType<Border>().First();
             foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
@@ -94,6 +103,8 @@ public sealed partial class FluentAvaloniaUiTests
                 window.Width = width;
                 Layout();
                 Assert.False(expander.IsExpanded);
+                Assert.False(chevron.IsChecked);
+                Assert.Equal(32, chevron.Bounds.Width);
                 Assert.DoesNotContain(surface.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text == "子选项");
                 Assert.True(title.Bounds.Width > 0 && checkbox.IsEffectivelyVisible);
                 var checkboxRight = checkbox.TranslatePoint(new Point(checkbox.Bounds.Width, 0), surface)!.Value.X;
@@ -101,8 +112,15 @@ public sealed partial class FluentAvaloniaUiTests
                 Assert.InRange(Math.Abs(checkboxRight - plainCheckboxRight), 0, 1);
                 Assert.True(chevron.TranslatePoint(new Point(chevron.Bounds.Width, 0), surface)!.Value.X
                     <= checkbox.TranslatePoint(default, surface)!.Value.X);
+                var idleBackground = ((ISolidColorBrush)chevron.Background!).Color;
+                Hover(chevron);
+                Assert.NotEqual(idleBackground, ((ISolidColorBrush)chevron.Background!).Color);
+                window.MouseMove(new Point(0, 0));
+                Layout();
                 Click(title);
                 Assert.True(expander.IsExpanded);
+                Assert.True(chevron.IsChecked);
+                Assert.Equal(90, Assert.IsType<RotateTransform>(chevron.RenderTransform).Angle);
                 Assert.True(card.IsEnabled);
                 Assert.True(card.SubOptions[0].IsSelected);
                 await Task.Delay(200);
@@ -142,6 +160,108 @@ public sealed partial class FluentAvaloniaUiTests
             window.DataContext = null;
             window.Close();
             app.RequestedThemeVariant = originalTheme;
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ModOptionsNestedArrow_SharesChevronStatesWithSecondLevel()
+    {
+        // 回归：三级嵌套箭头曾用裸模板，悬停/按下/展开都没有任何反馈；两级箭头必须共用同一外观。
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options = new List<ModOption>
+            {
+                new()
+                {
+                    Name = "材质",
+                    SubOptions = new List<ModSubOption>
+                    {
+                        new()
+                        {
+                            Name = "丝袜换色",
+                            SubOptions = new List<ModSubOption> { new() { Name = "黑色" }, new() { Name = "白色" } }
+                        },
+                        new() { Name = "头发换色" }
+                    }
+                }
+            }
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        var window = new MainWindow { DataContext = main, Width = 1000, Height = 760 };
+        try
+        {
+            window.Show();
+            main.NotificationPanelViewModel.DismissAllToasts();
+            var surface = window.GetVisualDescendants().OfType<ProfileView>().Single()
+                .FindControl<Border>("ModOptionsDialogSurface")!;
+            void Layout()
+            {
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                using var frame = window.CaptureRenderedFrame();
+            }
+            void Click(Control control)
+            {
+                Layout();
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                Layout();
+            }
+            void Hover(Control control)
+            {
+                var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
+                window.MouseMove(point);
+                Layout();
+            }
+            Layout();
+            var expander = surface.GetVisualDescendants().OfType<Expander>().Single(item => item.IsEffectivelyVisible);
+            var headerChevron = expander.GetVisualDescendants().OfType<ToggleButton>()
+                .Single(item => item.Classes.Contains("expand-chevron"));
+            Click(headerChevron);
+            Assert.True(expander.IsExpanded);
+            Assert.True(headerChevron.IsChecked);
+
+            var subOption = dialog.OptionCards[0].SubOptions[0];
+            Assert.True(subOption.IsSelected);
+            var nestedChevron = surface.GetVisualDescendants().OfType<ToggleButton>()
+                .Single(item => item.Classes.Contains("expand-chevron") && item.IsEffectivelyVisible
+                    && !ReferenceEquals(item, headerChevron));
+            Assert.False(nestedChevron.IsChecked);
+            Assert.Equal(headerChevron.Bounds.Width, nestedChevron.Bounds.Width);
+            Assert.DoesNotContain(surface.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.IsEffectivelyVisible && text.Text == "黑色");
+
+            Hover(headerChevron);
+            var hoverBackground = ((ISolidColorBrush)headerChevron.Background!).Color;
+            Hover(nestedChevron);
+            Assert.Equal(hoverBackground, ((ISolidColorBrush)nestedChevron.Background!).Color);
+
+            Click(nestedChevron);
+            Assert.True(subOption.IsExpanded);
+            Assert.True(nestedChevron.IsChecked);
+            Assert.Equal(90, Assert.IsType<RotateTransform>(nestedChevron.RenderTransform).Angle);
+            // 箭头只切换第三层可见性：不改变分支选择，也不收起二级。
+            Assert.True(expander.IsExpanded);
+            Assert.True(subOption.IsSelected);
+            Assert.Contains(surface.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.IsEffectivelyVisible && text.Text == "黑色");
+        }
+        finally
+        {
+            vm.CloseModOptions();
+            window.DataContext = null;
+            window.Close();
         }
     }
 
