@@ -24,9 +24,11 @@
    git checkout master
    git read-tree -u --reset dev
    git commit -m "0.2.0-beta"
-   git tag -a V0.2.0-beta -m "0.2.0-beta"
+   git tag -a V0.2.0-beta --cleanup=verbatim -F release-notes.md   # 标签注释正文就是 Release 更新说明
    git push origin master V0.2.0-beta
    ```
+
+   `release-notes.md` 是临时文件：首行写版本号（可省略），空一行后写更新内容（Markdown 可用）；打完标签即可删除，不要提交进仓库。注意 `git tag` 默认会丢掉以 `#` 开头的行，Markdown 标题需要配合 `--cleanup=verbatim` 才能保留（见[注意事项](#注意事项)）。
 
 3. 推送标签后 GitHub Actions 自动构建并创建 GitHub Release，产物为主包 `HD2Mimnt-<版本>-win-x64.zip`（不含 `.pdb`）与调试符号包 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
 4. 回到 `dev` 继续下一轮开发：`git checkout dev`。
@@ -37,6 +39,8 @@
 
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。工作流同时接受小写 `v` 前缀以兼容旧脚本，版本号推导会去掉 `v`/`V`；仓库标签规范仍使用大写 `V`。
 - 步骤：发布 UI 主程序（自带还原与依赖构建）→ 主包与符号包分离打包 → 创建 Release。
+- Release 更新说明取自标签注释：首行若只是版本号会被去掉，其余正文原样写入 Release；标签没有任何正文时回退到 `--generate-notes` 按提交自动生成。本地可用 `git tag -l -n99 <标签>` 核对。
+- 更新说明写错时无需重打标签：`gh release edit <标签> --notes-file <文件>` 即可修正已发布的 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
 - 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
 - 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。框架依赖单文件不支持 `EnableCompressionInSingleFile`（NETSDK1176，仅自包含发布可用），不要给发布命令添加该属性。
@@ -48,3 +52,4 @@
 - 发布提交后 `master` 与 `dev` 内容一致；`dev` 保留完整历史，`master` 只有各次发布提交。不要把 `master` 反向合并回 `dev` 的开发线。
 - 发布提交的内容等于 `dev` 当前快照与 `master` 上一发布提交的差异；`dev` 上一次发布之后的新增工作就是下次发布的全部内容。
 - 建议在 GitHub 仓库设置中对 `master` 启用分支保护（禁止 force push），历史覆盖只允许在初始化时进行一次。
+- 标签注释默认按提交信息规则清理：以 `#` 开头的行会被整行丢弃。写发布说明时用 `git tag -a --cleanup=verbatim -F <文件>`；用 `-m "标题" -m "正文"` 时不要用 `#` 标题。

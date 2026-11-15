@@ -56,20 +56,21 @@ public sealed class BrowserProtocolHostTests
     }
 
     [Fact]
-    public void Registration_ShouldOfferApplicationWithoutOverwritingAnotherNxmHandler()
+    public void Registration_ShouldOfferApplicationWithoutTakingOverNxmHandler()
     {
         if (!OperatingSystem.IsWindows()) return;
         var path = @"Software\HD2Mimnt-Protocol-Test-" + Guid.NewGuid().ToString("N");
+        const string executable = @"C:\Mod Tools\HD2Mimnt.UI.exe";
+        var command = WebsiteDownloadLauncher.BuildCommand(executable, "");
         try
         {
             using var root = Registry.CurrentUser.CreateSubKey(path);
             using (var existing = root.CreateSubKey(@"Software\Classes\nxm\shell\open\command"))
                 existing.SetValue("", "existing-manager %1");
-            var command = WebsiteDownloadLauncher.BuildCommand(@"C:\Mod Tools\HD2Mimnt.exe", "");
-            WebsiteDownloadLauncher.Register(root, command, @"C:\Mod Tools\HD2Mimnt.exe");
+            WebsiteDownloadLauncher.Register(root, command, executable);
             using var candidates = root.OpenSubKey(@"Software\Classes\nxm\OpenWithProgids");
             Assert.Contains("HD2Mimnt.nxm", candidates!.GetValueNames());
-            using var appEntry = root.OpenSubKey(@"Software\Classes\Applications\HD2Mimnt.exe");
+            using var appEntry = root.OpenSubKey(@"Software\Classes\Applications\HD2Mimnt.UI.exe");
             Assert.Equal("HD2Mimnt", appEntry!.GetValue("FriendlyAppName"));
             using var protocolEntry = appEntry.OpenSubKey("SupportedProtocols");
             Assert.Contains("nxm", protocolEntry!.GetValueNames());
@@ -77,21 +78,32 @@ public sealed class BrowserProtocolHostTests
             Assert.Equal(command, appCommand!.GetValue(""));
             using var association = root.OpenSubKey(@"Software\HD2Mimnt\Capabilities\URLAssociations");
             Assert.Equal("HD2Mimnt.nxm", association!.GetValue("nxm"));
-            using var handler = root.OpenSubKey(@"Software\Classes\HD2Mimnt.nxm\shell\open\command");
-            Assert.Equal("\"C:\\Mod Tools\\HD2Mimnt.exe\" \"%1\"", handler!.GetValue(""));
+            using var progIdCommand = root.OpenSubKey(@"Software\Classes\HD2Mimnt.nxm\shell\open\command");
+            Assert.Equal(command, progIdCommand!.GetValue(""));
             using var existingHandler = root.OpenSubKey(@"Software\Classes\nxm\shell\open\command");
             Assert.Equal("existing-manager %1", existingHandler!.GetValue(""));
-            // 当前用户先前已选择本应用时，移动后的执行路径应随注册更新。
-            using (var owned = root.OpenSubKey(@"Software\Classes\nxm\shell\open\command", writable: true))
-                owned!.SetValue("", command);
-            var movedCommand = WebsiteDownloadLauncher.BuildCommand(@"C:\New Folder\HD2Mimnt.exe", "");
-            Assert.True(WebsiteDownloadLauncher.Register(root, movedCommand, @"C:\New Folder\HD2Mimnt.exe"));
-            Assert.False(WebsiteDownloadLauncher.Register(root, movedCommand, @"C:\New Folder\HD2Mimnt.exe"));
-            Assert.Equal(movedCommand, existingHandler.GetValue(""));
-            Assert.Equal(movedCommand, handler.GetValue(""));
+
+            // 旧版本静默写过本应用的 nxm 默认处理器；升级后应清理，由系统选择器接管默认关联。
+            using (var hijacked = root.CreateSubKey(@"Software\Classes\nxm\shell\open\command"))
+                hijacked.SetValue("", command);
+            using (var scheme = root.CreateSubKey(@"Software\Classes\nxm"))
+            {
+                scheme.SetValue("", "URL:Nexus Mods Protocol");
+                scheme.SetValue("URL Protocol", "");
+            }
+            const string movedExecutable = @"C:\New Folder\HD2Mimnt.UI.exe";
+            var movedCommand = WebsiteDownloadLauncher.BuildCommand(movedExecutable, "");
+            Assert.True(WebsiteDownloadLauncher.Register(root, movedCommand, movedExecutable));
+            Assert.False(WebsiteDownloadLauncher.Register(root, movedCommand, movedExecutable));
+            using var cleared = root.OpenSubKey(@"Software\Classes\nxm\shell\open\command");
+            Assert.Null(cleared?.GetValue(""));
+            using var schemeKey = root.OpenSubKey(@"Software\Classes\nxm");
+            Assert.Null(schemeKey!.GetValue(""));
+            Assert.Null(schemeKey.GetValue("URL Protocol"));
+            Assert.Equal(movedCommand, progIdCommand.GetValue(""));
             Assert.Equal(movedCommand, appCommand.GetValue(""));
             using var icon = root.OpenSubKey(@"Software\Classes\HD2Mimnt.nxm\DefaultIcon");
-            Assert.Equal("\"C:\\New Folder\\HD2Mimnt.exe\",0", icon!.GetValue(""));
+            Assert.Equal("\"C:\\New Folder\\HD2Mimnt.UI.exe\",0", icon!.GetValue(""));
             Assert.Equal("\"C:\\dotnet.exe\" \"C:\\Mod Tools\\HD2Mimnt.UI.dll\" \"%1\"",
                 WebsiteDownloadLauncher.BuildCommand(@"C:\dotnet.exe", @"C:\Mod Tools\HD2Mimnt.UI.dll"));
         }

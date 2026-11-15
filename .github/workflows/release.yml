@@ -56,8 +56,36 @@ jobs:
           Compress-Archive -Path "$publishDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64.zip"
           Compress-Archive -Path "$symbolsDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64-symbols.zip"
 
+      # 发布说明取自标签注解正文：第一行可以是版本号标题（会被去掉），其后为更新内容。
+      # 标签正文为空（例如老的轻量标签或只写了一行版本号）时保留自动生成。
+      - name: Collect release notes from tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if [ -z "$(git tag -l "$tag")" ]; then
+            git fetch --depth=1 origin "+refs/tags/$tag:refs/tags/$tag"
+          fi
+          notes="$(git tag -l --format='%(contents)' "$tag" | tr -d '\r')"
+          first_line="$(printf '%s\n' "$notes" | head -n 1)"
+          if printf '%s' "$first_line" | grep -Eqx '(v|V)?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)*'; then
+            notes="$(printf '%s\n' "$notes" | tail -n +2)"
+          fi
+          printf '%s\n' "$notes" | sed -e '/./,$!d' > dist/release-notes.md
+          if [ -s dist/release-notes.md ]; then
+            echo "HAS_TAG_NOTES=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_TAG_NOTES=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Create GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "Release $GITHUB_REF_NAME" --generate-notes dist/*.zip
+        run: |
+          set -euo pipefail
+          notes_args=(--generate-notes)
+          if [ "$HAS_TAG_NOTES" = "true" ]; then
+            notes_args=(--notes-file dist/release-notes.md)
+          fi
+          gh release create "$GITHUB_REF_NAME" --title "Release $GITHUB_REF_NAME" "${notes_args[@]}" dist/*.zip

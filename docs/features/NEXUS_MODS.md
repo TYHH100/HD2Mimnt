@@ -188,7 +188,7 @@ N 网更新窗口默认开启“网页授权下载（免费账户）”。检查
 3. 在网页完成下载确认，浏览器提示打开 `nxm` 链接时选择 **HD2Mimnt**。无需复制粘贴链接。
 4. 应用接收回传，检查游戏、模组、所选文件及有效期，再调用 v1 `/users/validate.json` 比较当前认证账户与 `user_id`。校验通过后自动继续原来的下载或替换动作；下载前再次验证并兑换 v1 `/games/helldivers2/mods/{mod_id}/files/{file_id}/download_link.json` 返回的 `URI`。
 
-Windows 在主实例启动及发起网页下载时先检查当前用户的 `HD2Mimnt.nxm` ProgID、RegisteredApplications 和 URLAssociations，无需管理员权限。已有其它管理器的默认 `nxm` 处理器不被覆盖；无已有处理器时添加协议入口。若浏览器仍打开其它管理器，可在 Windows 默认应用中将 NXM 链接的处理应用改为 HD2Mimnt。注册完整且路径一致时直接跳过，不重复写入或通知 Windows 刷新；首次注册、条目缺失或构建目录移动时才更新 ProgID、应用选择器、图标和属于本应用的协议打开命令，并刷新关联缓存；注册命令引用当前可执行文件；通过 `dotnet` 启动时同时引用应用 DLL，路径和协议参数均加引号。
+Windows 在主实例启动及发起网页下载时只读检查当前用户的 `HD2Mimnt.nxm` ProgID、RegisteredApplications、URLAssociations 和应用选择器候选，无需管理员权限，且只登记这些候选：不写 `HKCU\Software\Classes\nxm` 的默认处理器，也不广播 `SHCNE_ASSOCCHANGED`。Windows 11 会把程序静默改写默认处理器视为关联劫持并批量恢复默认应用（所有文件类型重新询问打开方式），因此首次接收链接时由系统选择器让用户选择 **HD2Mimnt** 并由系统写入关联；旧版本写过的自有 `nxm` 命令在下次注册时清理。已有其它管理器的默认 `nxm` 处理器不被覆盖；若浏览器仍打开其它管理器，可在 Windows 默认应用中将 NXM 链接的处理应用改为 HD2Mimnt。注册完整且路径一致时直接跳过；首次注册、条目缺失或构建目录移动时才更新 ProgID、应用选择器、图标和候选命令。注册命令引用当前可执行文件；通过 `dotnet` 启动时同时引用应用 DLL，路径和协议参数均加引号。
 
 启动参数与运行中回传使用同一接收入口。同一用户、数据目录只运行一个窗口，第二个进程通过仅当前用户可连接的命名管道转发参数，保留原窗口中的开发密钥和等待动作。启动期间的链接先在内存排队，界面初始化完成后再处理。没有等待任务时，有效链接直接触发下载并导入；冷启动复用已保存的认证，缺少认证时引导设置中的账号登录。错误游戏/模组/文件、过期链接保留等待状态并提示重新从所选网页授权；显式取消或切换文件后回传不会继续旧动作；切页及收起面板时仍可接收匹配回调，且不强制导航，重复回传不会创建第二次下载。
 400 表示授权与账户或文件不匹配，410 表示授权过期，均提示从网页重新取得链接。签名地址下载不附带 API 凭据。原压缩包可能是 ZIP、7z、RAR 等，保存时保留平台提供的文件名；更新解压仍按内容识别格式。
@@ -214,7 +214,7 @@ dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --filter "Full
 
 免费模式另覆盖网站文件编号、同账户授权、非法/过期/其它模组链接、400/410 错误、临时凭据隐藏及实际窗口更新替换，断言该流程未请求 v3 repacked 接口。下载授权规则亦对照 [Nexus Mods 官方客户端 getDownloadURLs](https://github.com/Nexus-Mods/node-nexus-api/blob/master/src/Nexus.ts)。
 
-浏览器回传回归使用隔离的命名管道和注册表子键，覆盖启动排队、单实例转发、默认关联保留、实际下载按钮到协议回传的自动替换、错文件/过期/错账户、取消与重复回传、只下载压缩包。未用真实浏览器或真实账户完成端到端验证。Windows 注册依据：[默认应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/default-programs)、[应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/app-registration)。
+浏览器回传回归使用隔离的命名管道和注册表子键，覆盖启动排队、单实例转发、其它管理器默认关联保留、旧版本自有 `nxm` 命令清理、实际下载按钮到协议回传的自动替换、错文件/过期/错账户、取消与重复回传、只下载压缩包。未用真实浏览器或真实账户完成端到端验证。Windows 注册依据：[默认应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/default-programs)、[应用注册](https://learn.microsoft.com/en-us/windows/win32/shell/app-registration)。
 
 凭据回归使用真实 DPAPI 与隔离 SQLite，覆盖密文入库、更新覆盖、新数据库上下文恢复、清除后不再恢复、损坏密文拒绝解密、读写失败保持已有凭据，以及开发工具实际按钮和主窗口启动恢复。
 
