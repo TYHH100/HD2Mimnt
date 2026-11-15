@@ -41,6 +41,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly LogViewModel _logViewModel;
     private readonly ConfirmationService _confirmationService;
     private readonly Hd2ClVariantPromptService? _hd2ClVariantPrompt;
+    private readonly MmdSourceInfoPromptService? _mmdSourceInfoPrompt;
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
@@ -155,6 +156,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public SoundFixViewModel? SoundFixViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
+    public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
@@ -192,7 +194,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         HellForgeViewModel? hellForgeViewModel = null,
         HellForgeSessionService? hellForgeSessionService = null,
         Hd2ClViewModel? hd2ClViewModel = null,
-        Hd2ClVariantPromptService? hd2ClVariantPrompt = null)
+        Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
+        MmdAdaptationViewModel? mmdAdaptationViewModel = null,
+        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null)
     {
         _pluginService = pluginService;
         Hd2ClViewModel = hd2ClViewModel;
@@ -250,6 +254,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
+        _mmdSourceInfoPrompt = mmdSourceInfoPrompt;
+        MmdAdaptationViewModel = mmdAdaptationViewModel;
         _imagePreview = imagePreviewService;
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
@@ -1123,6 +1129,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _ownerWindow = owner;
         _confirmationService.SetOwner(owner);
         _hd2ClVariantPrompt?.SetOwner(owner);
+        _mmdSourceInfoPrompt?.SetOwner(owner);
         // 实时玻璃的取屏要求窗口已显示（排除自身截图的 API 需要可见窗口），显示后再应用一次。
         owner.Opened += (_, _) => ApplyTransparencyBrushes();
         // 取屏是异步启动的：第一帧到达才知道图层可以显示，不能只看 Apply 那一刻有没有帧。

@@ -10,6 +10,8 @@ public static class IasResourceTypes
     public const ulong Material = 0xEAC0B497876ADEDF;
     public const ulong Texture = 0xCD4238C6A0C69E32;
     public const ulong Lua = 0xA14E8DFA2CD117E2;
+    /// <summary>murmur64("animation")：MMD 动作片段所在的资源类型。</summary>
+    public const ulong Animation = 10600967118105529382;
     /// <summary>murmur64("bones")，不直接等于 Unit 类型。</summary>
     public const ulong Bones = 0x18DEAD01056B72E9;
     public const ulong Avatar = 5556372446766824087;

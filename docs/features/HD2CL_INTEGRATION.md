@@ -16,6 +16,36 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 转换使用默认选择：全部配套组件、`Slim` 体型、随模型携带的材质与图标；不做交互式部件/材质选择。
 - 扫描、编译、打包与成品写出都在 `HD2Mimnt.Worker` 独立进程执行（进程 Worker 类型 `Hd2ClConversion`），主程序只负责结果入库与配置开关。转换期间的高 CPU 与大内存不进入 UI 进程，并可在任务中心查看进度。
 
+## MMD 资源包适配
+
+工具页「HD2CL 角色库」内分为「角色模型 / MMD 资源包」两个标签页。MMD 页把原始动作资源编译成独立播放的 HD2CL 数据包：模型与 MMD 使用各自的输入和检查结果，互不替换游戏原有表情动作。
+
+- 来源：ZIP、7z、完整模组目录，或单个 `.patch_*` 三件套入口。清单目录外还有散落文件时拒绝；一个来源包含多份 `manifest.json` 时按合集处理：递归找出含 MMD 动作或适配标记的曲包，排除共用运行时等非 MMD 组件后列出供选择，选中的曲包目录作为后续检查/转换的来源。
+- 检查（`MmdAdapter.Inspect`）：读取动作补丁资源，识别“已是独立数据包”、“旧版 90 骨骼动作模组”与“MDL3 曲包”三种来源，列出曲目、时长、帧率、音乐/镜头是否包含、原包动作选项与覆盖告警。合集或来源清单有多个加载选项时必须先选一项再检查；曲包内仍有多个选项时以 `曲包::选项` 组合键继续选择。
+- MDL3 曲包：动作仍是 90 骨骼 Stingray 片段，但关键帧记录改用紧凑布局（无 4 字节通道头，记录直接从 `subtype` 开始）；镜头是烘焙到 30 FPS 的 8 浮点采样行；音轨是 32 kHz 双声道 MS-ADPCM，按微软规范解码后重采样到 48 kHz PCM 再打包。登记表缺少 `rate`/`channels` 时从 WAVEFORMATEX 头读取。
+- 待机播放方式：不修改时沿用原包（旧包默认 `loop` 持续姿势），可改为 `once` 完整演出；检查结果里的方式回填到界面，用户改动后才作为覆盖值。
+- 转换（`MmdAdapter.Convert`）：解码 Stingray 动作关键帧为 `HD2POSE1` 逐帧姿势，提取镜头烘焙表与 48 kHz 双声道 PCM 音轨，按 `mods/hd2cl/mmd/v1/<id>/{catalog,pose,camera,wav,preview}` 打包，成品为 `9ba626afa44a3aa3.patch_0` 三件套加清单；导入模组库并打 `HD2CL` 标记，存在当前配置时自动加入并启用。
+- 缺清单的裸包需要补充名称与稳定来源标识：`Guid = uuid5(NAMESPACE_URL, "HD2ManualMMDSource/" + key)`；成品 Guid 为 `uuid5(NAMESPACE_URL, "HD2CharacterLibrary/MMD/<id>/adapted-mmd")`。
+- 检查与转换都在 `HD2Mimnt.Worker` 的 `MmdAdaptation` 任务中执行（`Action=inspect/convert`），主程序只负责导入与配置开关。
+
+代码分层：
+
+| 层 | 文件 | 对应上游模块 |
+| --- | --- | --- |
+| Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Mmd/MmdMotion.cs` | `mmd_motion.py`（90 骨骼动作解码，兼容两种关键帧记录布局） |
+| Infrastructure | `ModelConversion/Mmd/MmdBundle.cs` | `mmd_bundle.py`（登记/校验/打包/解包） |
+| Infrastructure | `ModelConversion/Mmd/MmdSourceReader.cs` | `mmd_adapter._source` + `source_io` 读取子集、合集曲包探测 |
+| Infrastructure | `ModelConversion/Mmd/MmdAdapter.cs` | `mmd_adapter.inspect/convert` |
+| Infrastructure | `ModelConversion/Mmd/MmdMdl3Reader.cs` | MDL3 注册表/镜头/音轨脚本解析（上游 `mmd_adapter` 不支持） |
+| Infrastructure | `ModelConversion/Mmd/MmdAudio.cs` | MS-ADPCM 解码与 48 kHz 重采样（无上游对应实现） |
+| Application | `src/HD2Mimnt.Application/Services/MmdAdaptationService.cs` | 拉起 Worker、导入成品、加入配置 |
+| Worker | `src/HD2Mimnt.Worker/MmdAdaptationWorkerTask.cs` | `Action=inspect/convert` |
+| UI | `MmdAdaptationViewModel.cs`、`MmdSourceInfoPromptService.cs`、`Hd2ClMmdView.axaml`、`MoreView.axaml` | 工具页标签页与来源信息弹窗 |
+
+验证基线：合成样例（1 秒静止 90 骨骼动作 + 单音轨 + 31 帧镜头 + 1×1 图标）在 Python 上游与 C# 下产出的 `9ba626afa44a3aa3.patch_0` 与 `manifest.json` SHA-256 完全一致（见 `MmdAdapterTests.Convert_MatchUpstreamHashes`），已适配包再次转换的补丁字节也一致。仅完成结构验证，游戏内播放仍需实机验收。
+
+MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 合集能列出 13 个曲包并排除共用运行时，全部检查为 `ready`；`146_Idol_拳击_MDL3` 转换得到 2,704 帧姿势、2,705 行镜头与约 90.1 秒 48 kHz PCM（4,325,376 帧，峰值 5,176、RMS 1,447，无削波），并通过 `MmdBundle.Check` 回读。合成样例覆盖紧凑关键帧、ADPCM 单块解码与 32 kHz→48 kHz 重采样（`MmdMdl3Tests`、`MmdAudioTests`）。
+
 ## 代码分层
 
 | 层 | 文件 | 对应上游模块 |
@@ -111,6 +141,18 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 旧版本转换出的成品没有 `HD2CL` 标签、名字里带 `▲`，需要删除后重新转换。
 - 批量转换的版本选择必须在启动 Worker 之前全部确认完：并发里再弹模态窗会互相抢占界面；版本浮窗点取消只跳过当前模组。
 - 批量并发上限为 2：每个 Worker 转换完整模型时峰值约 1 GB，放开并发会把内存打满。
+- MMD 动作片段头部是 24 字节 `<IIfIII`，但骨骼通道从偏移 60 开始（26 字节头 + 2 字节保留 + 34 字节通道标志位）；从 26 直接读会把标志位当成平移，随后报“动作含未支持的缩放通道”。
+- 镜头数据按 Python `splitlines()` 语义切行，尾部换行不产生空行；用 `Split('\n')` 会多出一行导致“MMD 镜头帧数或切点无效”。
+- MMD 登记行与清单的 JSON 键顺序参与哈希：动作行顺序为 `protocol,id,title,fps,duration,stage,origin,idle_playback,delivery,sha256[,preview]`；清单 `json.dumps(indent=2)` 无尾随换行（角色模型清单才带换行）。
+- 成品描述常量使用全角分号（“镜头；安装时”）；字符不一致会改变 `manifest.json` 摘要。
+- 已适配包再次转换必须按 Lua 资源里的 `-- HD2CL_MMD_V1 ` 标记优先识别，不能落回旧版动作解析；否则会把登记资源当成作者脚本处理。
+- MMD 来源常为 GBK 文件名 ZIP：压缩包读取按 cp936 回退，成员路径统一成 posix 并拒绝 `..`、盘符与 Windows 保留名。
+- 待机播放方式不要用 ComboBox：Avalonia 的选中项在运行时切换语言后按旧文本宽度裁切，改用两个单选项。
+- MDL3 工具导出的动作片段关键帧记录没有 4 字节通道头，记录直接以 `subtype` 开头；按经典布局硬读会报“未知的动作通道 0”。解码前先用首条记录判断两种布局（`subtype ∈ {2,4,5,6}` 且经典 sub 不成立才算紧凑），两种布局不能混用。
+- MS-ADPCM 预测除数是 **256** 不是 64：`(s1*c1 + s2*c2) / 256`（[MultimediaWiki](https://wiki.multimedia.cx/index.php/Microsoft_ADPCM)）。用 64 会让整轨削波成方波（峰值 32768、RMS 接近满幅），看起来“能播”但全是噪声。
+- MDL3 音轨 Lua 不一定写 `rate`/`channels`，按 WAVEFORMATEX 头（声道数偏移 2、采样率偏移 4）回退。
+- MS-ADPCM 块头 14 字节（预测器各 1 字节，delta/sample1/sample2 各 2 字节交错）；每个数据字节高半字节为左声道、低半字节为右声道，一个字节只产生一帧，块内样本数 = 2 + (块长 − 14)。
+- 合集曲包探测直接读 `*.patch_0` 的表：有 Animation 类型行或 Lua 行带 `-- HD2CL_MMD_V1 ` 标记才算 MMD 曲包；按 `manifest.json` 名称判断会把“共用运行时”也列进来。只有一份含 MMD 曲包时自动选中，避免用户多点一次。
 
 ## 已知限制
 
@@ -121,6 +163,8 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 合集版本按组件文件名编号分组：无法与任何模型组件关联的配套组件会附到每个版本，暂不支持把多个版本合并进一个成品。
 - 成品选项只支持「一级选项 + 一层互斥子选项」的材质分支；多层嵌套或分支含非材质资源时退回单分支转换。选项预览图按清单 `Image` 复制到 `Material/组[/选项]/icon.*` 并改写为成品内相对路径，未声明时退回分支目录的 `icon.*`；源模组没有图就没有缩略图。
 - 不校验作者签名、不做游戏内运行验证；转换结果仍需实机验收。
+- MDL3 音轨从 32 kHz 重采样到 48 kHz 使用 Catmull-Rom 插值，属于有损重建，音高/时长正确但高频细节与原生重采样不完全一致；不含内嵌音轨的曲包（检查结果音乐为否）转换后没有 wav，需曲包自带音乐或依赖共用运行时。
+- 紧凑关键帧布局目前只见到 `subtype` 记录（平移/四元数原始浮点）；若其他工具在同一布局里混入压缩记录，会报“未知的动作通道”。
 
 ## 许可与来源
 

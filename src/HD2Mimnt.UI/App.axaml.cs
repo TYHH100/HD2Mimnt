@@ -508,6 +508,7 @@ public partial class App : Avalonia.Application
             taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
             taskService.RegisterProcessWorker("Hd2ClConversion");
+            taskService.RegisterProcessWorker("MmdAdaptation");
             return taskService;
         });
         services.AddSingleton<PlatformDownloadTaskRunner>();
@@ -596,6 +597,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IConfirmationService>(sp => sp.GetRequiredService<ConfirmationService>());
         services.AddSingleton<Hd2ClVariantPromptService>();
         services.AddSingleton<IHd2ClVariantPrompt>(sp => sp.GetRequiredService<Hd2ClVariantPromptService>());
+        services.AddSingleton<MmdSourceInfoPromptService>();
+        services.AddSingleton<IHd2ClMmdSourceInfoPrompt>(sp => sp.GetRequiredService<MmdSourceInfoPromptService>());
         services.AddSingleton<ImagePreviewService>();
 
         services.AddSingleton<ModCompatibilityViewModel>();
@@ -722,7 +725,14 @@ public partial class App : Avalonia.Application
             new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
                 sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
                 sp.GetRequiredService<TaskService>()));
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IMmdAdaptationService>(sp =>
+            new MmdAdaptationService(sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<TaskService>()));
         services.AddTransient<Hd2ClViewModel>();
+        services.AddTransient(sp => new MmdAdaptationViewModel(
+            sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IMmdAdaptationService>(),
+            sp.GetRequiredService<NotificationService>(),
+            sp.GetRequiredService<IHd2ClMmdSourceInfoPrompt>()));
         services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(
             sp.GetRequiredService<NotificationService>()));
@@ -773,6 +783,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HellForgeViewModel>(),
             sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetRequiredService<Hd2ClViewModel>(),
-            sp.GetRequiredService<Hd2ClVariantPromptService>()));
+            sp.GetRequiredService<Hd2ClVariantPromptService>(),
+            sp.GetRequiredService<MmdAdaptationViewModel>(),
+            sp.GetRequiredService<MmdSourceInfoPromptService>()));
     }
 }

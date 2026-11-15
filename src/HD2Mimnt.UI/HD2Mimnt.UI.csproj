@@ -94,4 +94,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="HD2Mimnt.UITests" />
+  </ItemGroup>
 </Project>

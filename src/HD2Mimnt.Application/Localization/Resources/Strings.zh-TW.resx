@@ -513,6 +513,75 @@
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>正在掃描 HD2IAS 模組…</value>
   </data>
+  <data name="UI.Hd2ClTabModel" xml:space="preserve">
+    <value>角色模型</value>
+  </data>
+  <data name="UI.Hd2ClTabMmd" xml:space="preserve">
+    <value>MMD 資源包</value>
+  </data>
+  <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
+    <value>MMD 資源包適配</value>
+  </data>
+  <data name="UI.Hd2ClMmdDescription" xml:space="preserve">
+    <value>將原始動作資源整理為可安裝的獨立播放包。獨立播放，不取代遊戲原有表情動作。</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceLabel" xml:space="preserve">
+    <value>MMD 原始資源包 / 目錄</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFile" xml:space="preserve">
+    <value>選擇檔案…</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFolder" xml:space="preserve">
+    <value>選擇目錄…</value>
+  </data>
+  <data name="UI.Hd2ClMmdOptionLabel" xml:space="preserve">
+    <value>原包動作選項</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceInfo" xml:space="preserve">
+    <value>補充來源資訊…</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLabel" xml:space="preserve">
+    <value>待機播放方式</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLoop" xml:space="preserve">
+    <value>持續姿勢（循環播放）</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleOnce" xml:space="preserve">
+    <value>完整演出（播放一次）</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleHint" xml:space="preserve">
+    <value>用於自動待機。檢查時沿用原包方式，舊包預設持續姿勢。</value>
+  </data>
+  <data name="UI.Hd2ClMmdCheck" xml:space="preserve">
+    <value>檢查內容</value>
+  </data>
+  <data name="UI.Hd2ClMmdConvert" xml:space="preserve">
+    <value>開始轉換</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoTitle" xml:space="preserve">
+    <value>MMD 來源資訊</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoHint" xml:space="preserve">
+    <value>僅在原包缺少清單時使用；已有清單保留原資訊。</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoName" xml:space="preserve">
+    <value>曲包名稱</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoKey" xml:space="preserve">
+    <value>更新識別（選填）</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoAuthor" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoIcon" xml:space="preserve">
+    <value>原圖示路徑</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoDescription" xml:space="preserve">
+    <value>說明</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoSave" xml:space="preserve">
+    <value>儲存來源資訊</value>
+  </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>登記本地可執行檔案，用于打開模組資源。</value>
   </data>

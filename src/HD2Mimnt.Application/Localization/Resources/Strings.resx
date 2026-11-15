@@ -513,6 +513,75 @@
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>Scanning HD2IAS mods…</value>
   </data>
+  <data name="UI.Hd2ClTabModel" xml:space="preserve">
+    <value>Character models</value>
+  </data>
+  <data name="UI.Hd2ClTabMmd" xml:space="preserve">
+    <value>MMD packs</value>
+  </data>
+  <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
+    <value>MMD pack adaptation</value>
+  </data>
+  <data name="UI.Hd2ClMmdDescription" xml:space="preserve">
+    <value>Turn raw MMD motion resources into an installable standalone playback pack. It plays independently and does not replace the game's original emote actions.</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceLabel" xml:space="preserve">
+    <value>MMD source pack / folder</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFile" xml:space="preserve">
+    <value>Choose file…</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFolder" xml:space="preserve">
+    <value>Choose folder…</value>
+  </data>
+  <data name="UI.Hd2ClMmdOptionLabel" xml:space="preserve">
+    <value>Source motion option</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceInfo" xml:space="preserve">
+    <value>Source info…</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLabel" xml:space="preserve">
+    <value>Idle playback</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLoop" xml:space="preserve">
+    <value>Hold pose (loop)</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleOnce" xml:space="preserve">
+    <value>Full performance (play once)</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleHint" xml:space="preserve">
+    <value>Used for automatic idle. Checking keeps the source pack's mode; older packs default to hold pose.</value>
+  </data>
+  <data name="UI.Hd2ClMmdCheck" xml:space="preserve">
+    <value>Check content</value>
+  </data>
+  <data name="UI.Hd2ClMmdConvert" xml:space="preserve">
+    <value>Start conversion</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoTitle" xml:space="preserve">
+    <value>MMD source info</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoHint" xml:space="preserve">
+    <value>Only used when the source pack has no manifest; existing manifests keep their own info.</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoName" xml:space="preserve">
+    <value>Pack name</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoKey" xml:space="preserve">
+    <value>Update key (optional)</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoIcon" xml:space="preserve">
+    <value>Source icon</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoSave" xml:space="preserve">
+    <value>Save source info</value>
+  </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>Register local executables to open mod resources.</value>
   </data>
