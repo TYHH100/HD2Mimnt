@@ -4562,4 +4562,56 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>崩潰</value></data>
   <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>未知</value></data>
   <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip 壓縮檔</value></data>
+  <data name="GpuUsage.Value" xml:space="preserve">
+    <value>GPU資源量：{0}</value>
+  </data>
+  <data name="GpuUsage.Calculating" xml:space="preserve">
+    <value>GPU資源量：計算中…</value>
+  </data>
+  <data name="GpuUsage.Unknown" xml:space="preserve">
+    <value>GPU資源量：未確認</value>
+  </data>
+  <data name="GpuUsage.Partial" xml:space="preserve">
+    <value>GPU資源量：部分統計</value>
+  </data>
+  <data name="GpuUsage.LibraryScope" xml:space="preserve">
+    <value>按模組庫預設選項統計。</value>
+  </data>
+  <data name="GpuUsage.ProfileScope" xml:space="preserve">
+    <value>按此設定檔儲存的選項統計；卡片顯示該模組選中的資源量。</value>
+  </data>
+  <data name="GpuUsage.TotalScope" xml:space="preserve">
+    <value>此設定檔已啟用模組按部署順序覆蓋後，最終生效的資源總量。</value>
+  </data>
+  <data name="GpuUsage.Explanation" xml:space="preserve">
+    <value>統計紋理載荷、模型及其他 GPU 資料；實際駐留顯存及相對原版的增量會有所不同。</value>
+  </data>
+  <data name="GpuUsage.Details" xml:space="preserve">
+    <value>紋理：{0}
+模型：{1}
+其他 GPU 資料：{2}
+資源數：{3}</value>
+  </data>
+  <data name="GpuUsage.PartialDetails" xml:space="preserve">
+    <value>部分統計（總量尚未確認）：
+紋理：{0}
+模型：{1}
+其他 GPU 資料：{2}
+已讀資源數：{3}</value>
+  </data>
+  <data name="GpuUsage.Disabled" xml:space="preserve">
+    <value>已停用，不計入設定檔總計。</value>
+  </data>
+  <data name="GpuUsage.Effective" xml:space="preserve">
+    <value>目前設定檔最終生效貢獻：{0}</value>
+  </data>
+  <data name="GpuUsage.EffectiveUnknown" xml:space="preserve">
+    <value>部分已啟用資源未確認，目前設定檔生效貢獻尚無法確認。</value>
+  </data>
+  <data name="GpuUsage.MoreWarnings" xml:space="preserve">
+    <value>另有 {0} 項問題。</value>
+  </data>
+  <data name="GpuUsage.ExactTotal" xml:space="preserve">
+    <value>載荷精確合計：{0} 位元組</value>
+  </data>
 </root>

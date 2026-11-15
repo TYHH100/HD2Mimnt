@@ -4562,4 +4562,56 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>Crashed</value></data>
   <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>Unknown</value></data>
   <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip archive</value></data>
+  <data name="GpuUsage.Value" xml:space="preserve">
+    <value>GPU resources: {0}</value>
+  </data>
+  <data name="GpuUsage.Calculating" xml:space="preserve">
+    <value>GPU resources: calculating…</value>
+  </data>
+  <data name="GpuUsage.Unknown" xml:space="preserve">
+    <value>GPU resources: unconfirmed</value>
+  </data>
+  <data name="GpuUsage.Partial" xml:space="preserve">
+    <value>GPU resources: partial</value>
+  </data>
+  <data name="GpuUsage.LibraryScope" xml:space="preserve">
+    <value>Default options in the mod library.</value>
+  </data>
+  <data name="GpuUsage.ProfileScope" xml:space="preserve">
+    <value>Saved options in this profile; the card shows this mod's selected resources.</value>
+  </data>
+  <data name="GpuUsage.TotalScope" xml:space="preserve">
+    <value>Enabled mods in this profile, after resource overrides in deployment order.</value>
+  </data>
+  <data name="GpuUsage.Explanation" xml:space="preserve">
+    <value>Static texture payloads and model/other GPU data. Actual VRAM residency and the increase over the base game can differ.</value>
+  </data>
+  <data name="GpuUsage.Details" xml:space="preserve">
+    <value>Textures: {0}
+Models: {1}
+Other GPU data: {2}
+Resources: {3}</value>
+  </data>
+  <data name="GpuUsage.PartialDetails" xml:space="preserve">
+    <value>Partial results (the total is unconfirmed):
+Textures: {0}
+Models: {1}
+Other GPU data: {2}
+Resources read: {3}</value>
+  </data>
+  <data name="GpuUsage.Disabled" xml:space="preserve">
+    <value>Disabled; excluded from the profile total.</value>
+  </data>
+  <data name="GpuUsage.Effective" xml:space="preserve">
+    <value>Effective contribution in this profile: {0}</value>
+  </data>
+  <data name="GpuUsage.EffectiveUnknown" xml:space="preserve">
+    <value>Effective contribution is unconfirmed because some enabled resources could not be verified.</value>
+  </data>
+  <data name="GpuUsage.MoreWarnings" xml:space="preserve">
+    <value>{0} additional issues.</value>
+  </data>
+  <data name="GpuUsage.ExactTotal" xml:space="preserve">
+    <value>Exact payload total: {0} bytes</value>
+  </data>
 </root>

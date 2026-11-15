@@ -4,14 +4,20 @@ using System.Buffers;
 namespace HD2Mimnt.Infrastructure.Analysis;
 
 public readonly record struct PatchResourceEntry(ulong ResourceId, ulong TypeId, uint DataSize,
-    uint StreamSize, uint GpuSize, uint? UnitVersion);
+    uint StreamSize, uint GpuSize, uint? UnitVersion)
+{
+    public ulong StreamOffset { get; init; }
+    public ulong GpuOffset { get; init; }
+    public DdsTextureMemoryInfo? TextureMemory { get; init; }
+}
 
 /// <summary>只读取 TOC 和 Unit 版本，不加载整份补丁或伴随文件。</summary>
 public static class PatchResourceIndexReader
 {
     private const ulong UnitTypeId = 0xe0a48d0be9a7453f;
 
-    public static IReadOnlyList<PatchResourceEntry> Read(string path, CancellationToken cancellationToken = default)
+    public static IReadOnlyList<PatchResourceEntry> Read(string path, CancellationToken cancellationToken = default,
+        bool readTextureMetadata = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -58,7 +64,13 @@ public static class PatchResourceIndexReader
                         unitVersion = BinaryPrimitives.ReadUInt32LittleEndian(version);
                     }
                     resources.Add(new(id, type, size, BinaryPrimitives.ReadUInt32LittleEndian(entry[60..]),
-                        BinaryPrimitives.ReadUInt32LittleEndian(entry[64..]), unitVersion));
+                        BinaryPrimitives.ReadUInt32LittleEndian(entry[64..]), unitVersion)
+                    {
+                        StreamOffset = BinaryPrimitives.ReadUInt64LittleEndian(entry[24..]),
+                        GpuOffset = BinaryPrimitives.ReadUInt64LittleEndian(entry[32..]),
+                        TextureMemory = readTextureMetadata && type == 0xcd4238c6a0c69e32
+                            ? DdsTextureMemoryReader.Read(stream, offset, size) : null
+                    });
                 }
             }
             cancellationToken.ThrowIfCancellationRequested();

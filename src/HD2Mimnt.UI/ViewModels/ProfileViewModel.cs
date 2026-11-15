@@ -468,8 +468,9 @@ public partial class ProfileViewModel : ObservableObject
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
     public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null,
-        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null)
     {
+        _gpuUsageService = gpuUsageService;
         _optionTranslation = optionTranslation;
         _hd2Cl = hd2Cl;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
@@ -641,6 +642,7 @@ public partial class ProfileViewModel : ObservableObject
             RenumberProfileMods();
             ApplyModFilter();
             DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+            RefreshGpuUsage();
         }
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
         else Dispatcher.UIThread.Post(Apply);
@@ -1120,6 +1122,8 @@ public partial class ProfileViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
+        _gpuUsageCts?.Cancel();
+        ProfileGpuUsage = null;
         CloseDetailPanel();
         ClearModSelection();
         IsAddModOpen = false;
@@ -1261,6 +1265,7 @@ public partial class ProfileViewModel : ObservableObject
             IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
             await RefreshActiveProfileDeploymentStatusAsync();
             _ = LoadProfileModIconsAsync(cancellationToken);
+            RefreshGpuUsage();
         }
         catch (OperationCanceledException)
         {

@@ -26,6 +26,7 @@
   <Style Selector="Border.sticky-group-header.group-drop-target">
     <Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/>
   </Style>
+  <Style Selector="TextBlock.gpu-usage-disabled"><Setter Property="Opacity" Value="0.5"/></Style>
 </UserControl.Styles>
 
   <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="240,*" Margin="24,16,24,20">
@@ -114,7 +115,7 @@
     <!-- 顶部搜索与批量操作栏，沿用模组库的布局和组件样式。 -->
     <Border Grid.Row="0" Grid.Column="1" Classes="card" Padding="12,10" Margin="0,0,0,12">
       <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <Grid>
           <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False" Foreground="{DynamicResource TextControlForeground}"/>
           <TextBox x:Name="ProfileModSearchBox" PlaceholderText="{loc:Loc UI.SearchModsInTheCurrentProfile}" Text="{Binding ModSearchText}" Padding="34,6,12,6" VerticalAlignment="Center"/>
@@ -122,6 +123,11 @@
         <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearModSearchCommand}" ToolTip.Tip="{loc:Loc UI.ClearSearch}" Margin="6,0,0,0" VerticalAlignment="Center">
           <controls:UtilityIcon Kind="BackspaceQWERTY"/>
         </Button>
+        <TextBlock x:Name="ProfileGpuUsageLabel" Grid.Column="2" Text="{loc:LocalizedBinding ProfileGpuUsage.Label}"
+                   Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="200" TextTrimming="CharacterEllipsis"
+                   IsVisible="{Binding ProfileGpuUsage, Converter={StaticResource NotNullConverter}}">
+          <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding ProfileGpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
+        </TextBlock>
       </Grid>
       <WrapPanel x:Name="ProfileSelectionToolbar" Grid.Row="1" IsVisible="{Binding HasSelectedMods}">
         <Border Background="{DynamicResource SelectedSurfaceBrush}" CornerRadius="4" Padding="10,5" VerticalAlignment="Center" Margin="0,0,8,4">
@@ -245,7 +251,10 @@
                     <TextBlock Grid.Column="1" Text="{Binding ModName}" FontSize="17" FontWeight="SemiBold"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="{Binding ModName}"/>
-                    <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <WrapPanel Grid.Column="1" Grid.Row="1" Classes="profile-mod-metadata" VerticalAlignment="Center">
+                      <WrapPanel.Styles>
+                        <Style Selector="WrapPanel.profile-mod-metadata > :is(Control)"><Setter Property="Margin" Value="0,2,6,0"/></Style>
+                      </WrapPanel.Styles>
                       <Border Classes="notice-chip" Classes.blinking="{Binding SourceInfo.ShowNoticeBlink}" IsVisible="{Binding SourceInfo.ShowNewNoticeBadge}">
                         <TextBlock Classes="notice-chip-text" Text="{loc:Loc Library.Notice.New}"/>
                       </Border>
@@ -272,7 +281,11 @@
                       <TextBlock Text="{loc:Loc Shell.NotDeployed}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !IsDeployed}"/>
                       <TextBlock Text="{loc:Loc UI.HasOptions}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding HasOptions}"/>
                       <TextBlock Text="{loc:Loc UI.FixedPosition}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !CanDrag}"/>
-                    </StackPanel>
+                      <TextBlock x:Name="ProfileModGpuUsageLabel" Text="{loc:LocalizedBinding GpuUsage.Label}" FontSize="12" Classes="muted" Classes.gpu-usage-disabled="{Binding !Enabled}" VerticalAlignment="Center"
+                                 IsVisible="{Binding GpuUsage, Converter={StaticResource NotNullConverter}}">
+                        <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding GpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
+                      </TextBlock>
+                    </WrapPanel>
 
                     <Button Grid.Column="2" Grid.RowSpan="2" Classes="icon-button" VerticalAlignment="Center"
                             IsVisible="{Binding HasOptions}"

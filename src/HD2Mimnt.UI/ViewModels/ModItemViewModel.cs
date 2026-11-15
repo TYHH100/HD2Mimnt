@@ -40,6 +40,7 @@ public static class ModCategoryText
 public partial class ModItemViewModel : ObservableObject
 {
     private Mod _mod;
+    [ObservableProperty] private GpuUsageDisplay? _gpuUsage;
     public ModCompatibilityBadgeViewModel? CompatibilityBadge { get; set; }
     public System.Windows.Input.ICommand? CheckCompatibilityCommand { get; set; }
     [ObservableProperty] private ModVersionsViewModel? _localVersions;

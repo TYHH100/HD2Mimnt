@@ -465,6 +465,7 @@ public partial class App : Avalonia.Application
             sp.GetService<ILogger<ExternalManagerMigrationService>>()));
 
         services.AddSingleton<ConflictDetectionService>();
+        services.AddSingleton<ModGpuUsageService>();
         services.AddSingleton<IModCompatibilityAnalyzer, ModCompatibilityAnalyzer>();
         services.AddSingleton<ICompatibilityResultStore, CompatibilityResultRepository>();
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("compatibility-names", (_, _) => new System.Net.Http.HttpClient
@@ -638,7 +639,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
-            sp.GetRequiredService<IHd2ClVariantPrompt>()));
+            sp.GetRequiredService<IHd2ClVariantPrompt>(), sp.GetRequiredService<ModGpuUsageService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),
@@ -651,7 +652,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<ModCompatibilityViewModel>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<OptionTranslationService>(),
             sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
-            sp.GetRequiredService<IHd2ClVariantPrompt>()));
+            sp.GetRequiredService<IHd2ClVariantPrompt>(), sp.GetRequiredService<ModGpuUsageService>()));
 
         services.AddTransient(sp => new ConflictsViewModel(
             sp.GetRequiredService<ConflictDetectionService>(),

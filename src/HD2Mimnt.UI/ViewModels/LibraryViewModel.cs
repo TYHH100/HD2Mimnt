@@ -383,8 +383,9 @@ public partial class LibraryViewModel : ObservableObject
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
         TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null,
-        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null)
     {
+        _gpuUsageService = gpuUsageService;
         _taskService = taskService;
         _hd2Cl = hd2Cl;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
@@ -709,6 +710,7 @@ public partial class LibraryViewModel : ObservableObject
                 return item;
             }).ToList());
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
+            RefreshGpuUsage();
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
             AttachModSelectionHandlers();

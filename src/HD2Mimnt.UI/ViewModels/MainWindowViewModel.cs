@@ -686,6 +686,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             await audioPreview.StopAsync();
         }
         await WaitForRefreshesAsync();
+        await _libraryViewModel.StopGpuUsageAsync();
+        await _profileViewModel.StopGpuUsageAsync();
     }
 
     private static void ApplyOnUiThread(Action action)
@@ -793,6 +795,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         {
             if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
             if (!isLocalChange) await _profileViewModel.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
+            if (e.AffectsConflictResults) _profileViewModel.RefreshGpuUsage();
             await _libraryViewModel.RefreshProfileStateAsync();
             SyncConflictProfile();
             UpdateCurrentProfile();

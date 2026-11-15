@@ -188,8 +188,15 @@
                                     <TextBlock Grid.Column="2" Text="{loc:Loc UI.Deployed}" FontSize="12" Classes="accent-text" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
                                     <TextBlock Grid.Column="3" Text="{Binding Author}" MaxWidth="100" FontSize="12" Classes="muted" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Author}"/>
-                                    <TextBlock Grid.Column="4" Text="{Binding SizeFormatted}" FontSize="12" Classes="caption-text"
-                                               VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                                    <Grid Grid.Column="4" RowDefinitions="Auto,Auto" RowSpacing="2">
+                                        <TextBlock Text="{Binding SizeFormatted}" FontSize="12" Classes="caption-text"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock x:Name="LibraryGpuUsageLabel" Grid.Row="1" FontSize="12" Classes="muted"
+                                                   Text="{loc:LocalizedBinding GpuUsage.Label}" TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding GpuUsage, Converter={StaticResource NotNullConverter}}">
+                                            <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding GpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
+                                        </TextBlock>
+                                    </Grid>
                                 </Grid>
 
                                 <!-- 右侧操作：加入 Profile + 删除（删除按钮造型同配置文件页的移除按钮） -->
