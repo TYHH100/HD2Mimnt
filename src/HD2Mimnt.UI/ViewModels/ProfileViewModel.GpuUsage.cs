@@ -9,22 +9,54 @@ public partial class ProfileViewModel
     private CancellationTokenSource? _gpuUsageCts;
     private Task _gpuUsageTask = Task.CompletedTask;
     private bool _gpuUsageStopped;
-    [ObservableProperty] private GpuUsageDisplay? _profileGpuUsage;
+    private string? _gpuUsageSignature;
+    private Guid? _gpuUsageProfileId;
+    private bool _gpuUsageDirty = true;
+
+    /// <summary>数据源发生变化（配置、启用状态、选项、部署方向等）时标记，允许下一次重新统计。</summary>
+    public void MarkGpuUsageDirty() => _gpuUsageDirty = true;
+    [ObservableProperty] private GpuUsageDisplay? _profileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
+    [ObservableProperty] private bool _profileGpuUsageVisible;
 
     public Task WaitForGpuUsageAsync() => _gpuUsageTask;
 
+    private bool ShowGpuUsage => _settingsService?.GetSetting(SettingKeys.ShowGpuUsage, false) ?? false;
+
     public void RefreshGpuUsage()
     {
-        if (_gpuUsageService == null || _gpuUsageStopped) return;
+        if (_gpuUsageService == null || _gpuUsageStopped || !ShowGpuUsage) return;
+        if (SelectedProfile is not { } profile)
+        {
+            // 保持占位对象，避免绑定在 null 路径上反复报错。
+            ProfileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
+            ProfileGpuUsageVisible = false;
+            return;
+        }
+        var cards = ProfileMods.ToArray();
+        ProfileGpuUsageVisible = true;
+        // 对结果有影响的内容（模组、启用状态、选项、BSL 角色、部署方向）未变时跳过重扫。
+        var signature = $"{profile.Id:N}|{_bottomToTop}|{_loaderOrderLocked}|{_keepLoaderGroups}|" +
+            string.Concat(cards.Where(card => !card.IsSeparator).Select(card =>
+                $"{card.ModId:N}:{card.Enabled}:{(int)card.BslRole}:{card.StoredOptions.ToJson()};"));
+        if (!_gpuUsageDirty && signature == _gpuUsageSignature && ProfileGpuUsage is { Usage: not null }
+            && cards.All(card => card.IsSeparator || card.GpuUsage is { Usage: not null }))
+            return;
+        _gpuUsageDirty = false;
+        _gpuUsageSignature = signature;
         _gpuUsageCts?.Cancel();
-        ProfileGpuUsage = null;
-        if (SelectedProfile is not { } profile) return;
+        if (_gpuUsageProfileId != profile.Id)
+        {
+            _gpuUsageProfileId = profile.Id;
+            ProfileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
+        }
         var previous = _gpuUsageTask;
         var cts = new CancellationTokenSource();
         _gpuUsageCts = cts;
-        var cards = ProfileMods.ToArray();
-        ProfileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
-        foreach (var card in cards) card.GpuUsage = new(null, GpuUsageScope.ProfileMod);
+        foreach (var card in cards)
+        {
+            card.GpuUsage ??= new(null, GpuUsageScope.ProfileMod);
+            card.GpuUsageVisible = true;
+        }
         _gpuUsageTask = UpdateGpuUsageAsync(previous, profile.Id, cards, cts);
     }
 
@@ -58,6 +90,20 @@ public partial class ProfileViewModel
         {
             if (ReferenceEquals(_gpuUsageCts, cts)) _gpuUsageCts = null;
             cts.Dispose();
+        }
+    }
+
+    private void ClearGpuUsage()
+    {
+        _gpuUsageCts?.Cancel();
+        _gpuUsageSignature = null;
+        _gpuUsageDirty = true;
+        ProfileGpuUsage = null;
+        ProfileGpuUsageVisible = false;
+        foreach (var card in ProfileMods)
+        {
+            card.GpuUsage = null;
+            card.GpuUsageVisible = false;
         }
     }
 

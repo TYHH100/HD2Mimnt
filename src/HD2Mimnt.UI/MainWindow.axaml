@@ -83,11 +83,13 @@
         </StackPanel>
       </fa:FANavigationView.PaneFooter>
       <Border Background="{DynamicResource ContentFillBrush}">
+        <Grid>
         <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
         <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
           <TabControl.Styles><Style Selector="TabControl#PageHost > TabItem"><Setter Property="IsVisible" Value="False"/></Style></TabControl.Styles>
-          <TabItem IsVisible="False"><views:ProfileView DataContext="{Binding ProfileViewModel}"/></TabItem>
-          <TabItem IsVisible="False"><views:LibraryView DataContext="{Binding LibraryViewModel}"/></TabItem>
+          <!-- 配置与模组库常驻可视树，只切 IsVisible；放进 TabItem 会在每次切页时整树卸载重建。 -->
+          <TabItem IsVisible="False"/>
+          <TabItem IsVisible="False"/>
           <TabItem IsVisible="False"><views:ConflictsView DataContext="{Binding ConflictsViewModel}"/></TabItem>
           <TabItem IsVisible="False"><views:MoreView/></TabItem>
           <TabItem IsVisible="False"><views:SettingsView DataContext="{Binding SettingsViewModel}"/></TabItem>
@@ -95,6 +97,11 @@
           <TabItem IsVisible="False"><views:ModCreationView DataContext="{Binding ModCreationViewModel}"/></TabItem>
           <TabItem IsVisible="False"><views:HellForgeView DataContext="{Binding HellForgeViewModel}"/></TabItem>
         </TabControl>
+        <views:ProfileView DataContext="{Binding ProfileViewModel}"
+                           IsVisible="{Binding #PageHost.SelectedIndex, Converter={StaticResource EqualConverter}, ConverterParameter=0, FallbackValue=False}"/>
+        <views:LibraryView DataContext="{Binding LibraryViewModel}"
+                           IsVisible="{Binding #PageHost.SelectedIndex, Converter={StaticResource EqualConverter}, ConverterParameter=1, FallbackValue=False}"/>
+        </Grid>
       </Border>
     </fa:FANavigationView>
     <Border x:Name="StatusBar" Grid.Row="2" Background="{DynamicResource ChromeFillBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,0">

@@ -114,17 +114,26 @@ public sealed class ModGpuUsageServiceTests : IDisposable
         await _settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.BottomToTop.ToString());
         Assert.Equal(107, (await _service.ScanProfileAsync(_profile.Id)).Total.Bytes.TotalBytes);
         WritePatch(Path.Combine(first.Path, "aaaaaaaaaaaaaaaa.patch_11"), new Resource(1, Unit, 0));
+        // 新增补丁由管理器刷新流程作废缓存后才参与统计。
+        _service.InvalidateScans();
         Assert.Equal(7, (await _service.ScanProfileAsync(_profile.Id)).Total.Bytes.TotalBytes);
     }
 
     [Fact]
-    public async Task Scan_ShouldRefreshChangedIndexesAndRecheckCompanionsOnCacheHits()
+    public async Task Scan_ShouldReuseModResultsUntilInvalidated()
     {
         var mod = AddMod();
         var path = Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_0");
         WritePatch(path, new Resource(1, Unit, 100));
-        Assert.Equal(100, (await _service.ScanModsAsync([mod.Id]))[mod.Id].Bytes.TotalBytes);
+        var first = (await _service.ScanModsAsync([mod.Id]))[mod.Id];
+        Assert.Equal(100, first.Bytes.TotalBytes);
+        // 同一模组与选项在模组库页、配置页和重复调用之间只计算一次。
+        Assert.Same(first, (await _service.ScanModsAsync([mod.Id]))[mod.Id]);
+        Assert.Same(first, (await _service.ScanProfileAsync(_profile.Id)).Mods[mod.Id]);
+        // 文件被改写后，管理器刷新（InvalidateScans）才重新读取。
         using (var gpu = File.OpenWrite(path + ".gpu_resources")) gpu.SetLength(1);
+        Assert.Same(first, (await _service.ScanModsAsync([mod.Id]))[mod.Id]);
+        _service.InvalidateScans();
         Assert.False((await _service.ScanModsAsync([mod.Id]))[mod.Id].IsComplete);
         var stamp = File.GetLastWriteTimeUtc(path);
         WritePatch(path, new Resource(1, Unit, 200));

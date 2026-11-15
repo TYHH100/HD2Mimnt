@@ -897,6 +897,17 @@ public partial class LibraryViewModel : ObservableObject
             else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
             return;
         }
+        if (e.Key == SettingKeys.ShowGpuUsage)
+        {
+            void ApplyGpuUsage()
+            {
+                if (ShowGpuUsage) RefreshGpuUsage();
+                else ClearGpuUsage();
+            }
+            if (Dispatcher.UIThread.CheckAccess()) ApplyGpuUsage();
+            else Dispatcher.UIThread.Post(ApplyGpuUsage);
+            return;
+        }
         if (e.Key == SettingKeys.LuaAutoExtract && _luaExtraction != null)
         {
             if (_luaExtraction.IsEnabled)
@@ -1682,6 +1693,8 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        // 手动刷新可能涉及绕过管理器改写的文件；导入、更新、修复会改写模组元数据，缓存键自动失效。
+        _gpuUsageService?.InvalidateScans();
         await LoadModsAsync();
     }
 

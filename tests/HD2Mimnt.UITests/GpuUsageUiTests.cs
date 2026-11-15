@@ -24,6 +24,7 @@ public sealed partial class FluentAvaloniaUiTests
         var settings = scope.Services.GetRequiredService<SettingsService>();
         await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
         await settings.SetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, false);
+        await settings.SetSettingAsync(SettingKeys.ShowGpuUsage, true);
         var repository = scope.Services.GetRequiredService<IModRepository>();
         var profiles = scope.Services.GetRequiredService<ProfileService>();
         var profileId = await profiles.CreateProfileAsync("GPU test");
@@ -87,6 +88,7 @@ public sealed partial class FluentAvaloniaUiTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var labels = libraryView.GetVisualDescendants().OfType<TextBlock>().Where(text => text.Name == "LibraryGpuUsageLabel").ToArray();
             Assert.Equal(2, labels.Length);
+            Assert.All(labels, label => Assert.True(label.IsVisible));
             Assert.All(labels, label => Assert.Contains("MiB", label.Text));
             Capture(window, "Dark", "gpu-library");
 
@@ -100,6 +102,17 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(emptyId, profile.SelectedProfile.Id);
             Assert.Equal(0, profile.ProfileGpuUsage!.Usage!.Bytes.TotalBytes);
             Assert.Empty(profile.ProfileMods);
+
+            // 关闭设置后取消统计并清空两页展示，避免后台扫描继续拖慢界面。
+            await settings.SetSettingAsync(SettingKeys.ShowGpuUsage, false);
+            Dispatcher.UIThread.RunJobs();
+            await library.WaitForGpuUsageAsync();
+            await profile.WaitForGpuUsageAsync();
+            Assert.Null(profile.ProfileGpuUsage);
+            Assert.All(library.FilteredMods, card => Assert.Null(card.GpuUsage));
+            Assert.False(totalLabel.IsVisible);
+            Assert.All(libraryView.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "LibraryGpuUsageLabel"), text => Assert.False(text.IsVisible));
         }
         finally
         {
@@ -108,6 +121,65 @@ public sealed partial class FluentAvaloniaUiTests
             window.Close();
             Dispatcher.UIThread.RunJobs();
         }
+    }
+
+    [AvaloniaFact]
+    public async Task GpuUsage_ShouldSkipRescanWhenPagesAndContentUnchanged()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.TopToBottom.ToString());
+        await settings.SetSettingAsync(SettingKeys.ShowGpuUsage, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = await profiles.CreateProfileAsync("GPU cache");
+        await profiles.SetActiveProfileAsync(profileId);
+        var mod = new Mod { Id = Guid.NewGuid(), Name = "HD2Mimnt Test GPU cache", Version = "1.0",
+            Path = Path.Combine(scope.Root, "gpu-cache", "1"), BslRole = BslModRole.None,
+            BslDetectionVersion = BslModDetector.DetectionVersion };
+        WritePatch(Path.Combine(mod.Path, "aaaaaaaaaaaaaaaa.patch_0"), new Resource(1, Unit, 16 * 1048576));
+        await scope.Services.GetRequiredService<IModRepository>().AddAsync(mod);
+        await profiles.AddModToProfileAsync(profileId, mod.Id);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var library = main.LibraryViewModel;
+        var profile = main.ProfileViewModel;
+        await main.WaitForRefreshesAsync();
+        await library.WaitForGpuUsageAsync();
+        await profile.WaitForGpuUsageAsync();
+        var libraryTask = library.WaitForGpuUsageAsync();
+        var profileTask = profile.WaitForGpuUsageAsync();
+        var libraryValues = library.FilteredMods.ToDictionary(card => card.Id, card => card.GpuUsage);
+        var profileValues = profile.ProfileMods.ToDictionary(card => card.ModId, card => card.GpuUsage);
+        var total = profile.ProfileGpuUsage;
+
+        // 切页不触发任何重新统计。
+        foreach (var index in new[] { 0, 1, 0, 1 })
+        {
+            main.SelectedTabIndex = index;
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(20);
+        }
+        await library.WaitForGpuUsageAsync();
+        await profile.WaitForGpuUsageAsync();
+        Assert.Same(libraryTask, library.WaitForGpuUsageAsync());
+        Assert.Same(profileTask, profile.WaitForGpuUsageAsync());
+
+        // 内容未变的刷新直接复用，不把已显示的数字重置为“计算中”。
+        profile.RefreshGpuUsage();
+        Assert.Same(profileTask, profile.WaitForGpuUsageAsync());
+        Assert.Same(total, profile.ProfileGpuUsage);
+        Assert.All(profile.ProfileMods, card => Assert.Same(profileValues[card.ModId], card.GpuUsage));
+        Assert.All(library.FilteredMods, card => Assert.Same(libraryValues[card.Id], card.GpuUsage));
+
+        // 部署方向变化会改变覆盖关系，必须重算。
+        await settings.SetSettingAsync(SettingKeys.DefaultDeploymentOrder, DeploymentOrder.BottomToTop.ToString());
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (ReferenceEquals(profileTask, profile.WaitForGpuUsageAsync()) && !timeout.IsCancellationRequested)
+            await Task.Delay(20, timeout.Token);
+        Assert.NotSame(profileTask, profile.WaitForGpuUsageAsync());
+        await profile.WaitForGpuUsageAsync();
+        await main.ConflictsViewModel.StopScanAsync();
+        await main.DisposeAsync();
     }
 
     [AvaloniaFact]

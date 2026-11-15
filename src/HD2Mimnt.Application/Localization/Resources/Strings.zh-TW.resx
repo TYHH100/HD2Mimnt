@@ -4034,6 +4034,8 @@
   <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>強制新匯入模組為 V1 清單格式</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>匯入無清單的模組時，自動產生 V1 清單格式而非舊版 Legacy 格式。啟用後，庫中沒有清單的模組也可自動升級為 V1。</value></data>
+  <data name="Settings.Library.ShowGpuUsage" xml:space="preserve"><value>顯示 GPU 資源量</value></data>
+  <data name="Settings.Library.ShowGpuUsageHelp" xml:space="preserve"><value>在模組庫與設定檔頁卡片上顯示靜態 GPU 資源量。統計需要背景讀取模組資源檔案，可能短暫影響介面流暢度，預設關閉。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本機版本</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>可從壓縮包更新此模組，或切換已保留的版本。目前版本見下方模組資訊。</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用壓縮包更新…</value></data>

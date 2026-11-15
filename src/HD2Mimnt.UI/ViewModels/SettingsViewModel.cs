@@ -56,6 +56,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _overwriteDeploymentConflicts = true;
     [ObservableProperty] private bool _deleteUnmanagedPatches = true;
     [ObservableProperty] private bool _showThumbnails = true;
+    [ObservableProperty] private bool _showGpuUsage;
     [ObservableProperty] private bool _searchFuzzy;
     [ObservableProperty] private bool _searchPinyin;
     [ObservableProperty]
@@ -376,6 +377,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             OverwriteDeploymentConflicts = await _settingsService.GetSettingAsync(SettingKeys.DeploymentOverwriteConflicts, true);
             DeleteUnmanagedPatches = await _settingsService.GetSettingAsync(SettingKeys.DeploymentDeleteUnmanagedPatches, true);
             ShowThumbnails = await _settingsService.GetSettingAsync(SettingKeys.ShowModThumbnails, true);
+            ShowGpuUsage = await _settingsService.GetSettingAsync(SettingKeys.ShowGpuUsage, false);
             SearchFuzzy = await _settingsService.GetSettingAsync(SettingKeys.SearchFuzzy, false);
             SearchPinyin = await _settingsService.GetSettingAsync(SettingKeys.SearchPinyin, false);
             Theme = await _settingsService.GetSettingAsync(SettingKeys.Theme, AppThemeService.DefaultTheme);
@@ -541,6 +543,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private Dictionary<string, object> GetLibraryPreferences() => new()
     {
         [SettingKeys.ShowModThumbnails] = ShowThumbnails,
+        [SettingKeys.ShowGpuUsage] = ShowGpuUsage,
         [SettingKeys.ImportAutoClose] = ImportAutoClose,
         [SettingKeys.KeepModVersions] = KeepModVersions,
         [SettingKeys.AllowDuplicateImports] = AllowDuplicateImports,

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
@@ -28,8 +29,23 @@ public sealed class ModGpuUsageService(IProfileRepository profiles, IModReposito
     private const ulong TextureType = 0xcd4238c6a0c69e32;
     private const ulong UnitType = 0xe0a48d0be9a7453f;
     private readonly PatchResourceIndexCache _cache = new(readTextureMetadata: true);
+    private readonly Dictionary<string, Scan> _scanCache = new(StringComparer.Ordinal);
+    private readonly object _scanCacheGate = new();
+    private const int ScanCacheLimit = 4096;
     private sealed record Resource(Guid ModId, GpuResourceBytes Bytes);
     private sealed record Scan(ModGpuUsage Usage, Dictionary<(ulong Type, ulong Id), Resource> Resources);
+
+    /// <summary>模组文件可能被导入、更新、修复或手动刷新改写时调用，之后重新扫描。</summary>
+    public void InvalidateScans()
+    {
+        lock (_scanCacheGate) _scanCache.Clear();
+    }
+
+    // 结果只取决于模组身份、路径、选项和清单；内容变化由 InvalidateScans 显式通知。
+    private static string ScanCacheKey(Mod mod, string? optionsJson) =>
+        $"{mod.Id:N}|{mod.Path}|{ProfileModOptionResolver.ResolveEffective(mod.Manifest, optionsJson).ToJson()}"
+        + $"{mod.Hash}|{mod.Size}|{mod.ModifiedAt.Ticks}|"
+        + (mod.Manifest == null ? string.Empty : JsonSerializer.Serialize(mod.Manifest));
 
     public Task<IReadOnlyDictionary<Guid, ModGpuUsage>> ScanModsAsync(IEnumerable<Guid> ids,
         CancellationToken cancellationToken = default)
@@ -94,6 +110,10 @@ public sealed class ModGpuUsageService(IProfileRepository profiles, IModReposito
 
     private Scan ScanMod(Mod mod, string? optionsJson, CancellationToken token)
     {
+        var cacheKey = ScanCacheKey(mod, optionsJson);
+        lock (_scanCacheGate)
+            if (_scanCache.TryGetValue(cacheKey, out var cached))
+                return cached;
         var warnings = new List<string>();
         var resources = new Dictionary<(ulong Type, ulong Id), Resource>();
         try
@@ -160,7 +180,15 @@ public sealed class ModGpuUsageService(IProfileRepository profiles, IModReposito
         }
         var total = default(GpuResourceBytes);
         foreach (var resource in resources.Values) total += resource.Bytes;
-        return new(new(mod.Id, total, resources.Count, warnings), resources);
+        var scan = new Scan(new(mod.Id, total, resources.Count, warnings), resources);
+        // 只缓存完整结果；缺文件或读取异常下次仍重新检查。
+        if (warnings.Count == 0)
+            lock (_scanCacheGate)
+            {
+                if (_scanCache.Count >= ScanCacheLimit) _scanCache.Clear();
+                _scanCache[cacheKey] = scan;
+            }
+        return scan;
     }
 
     private static long GetLength(string path) => File.Exists(path) ? new FileInfo(path).Length : -1;

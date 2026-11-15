@@ -4034,6 +4034,8 @@
   <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>导入无清单的模组时，自动生成 V1 清单格式而非旧版 Legacy 格式。启用后，库中没有清单的模组也可自动升级为 V1。</value></data>
+  <data name="Settings.Library.ShowGpuUsage" xml:space="preserve"><value>显示 GPU 资源量</value></data>
+  <data name="Settings.Library.ShowGpuUsageHelp" xml:space="preserve"><value>在模组库和配置页卡片上显示静态 GPU 资源量。统计需要后台读取模组资源文件，可能短暂影响界面流畅度，默认关闭。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>可从压缩包更新此模组，或切换已保留的版本。当前版本见下方模组信息。</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用压缩包更新…</value></data>

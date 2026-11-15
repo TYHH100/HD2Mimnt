@@ -247,6 +247,9 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ShowModThumbnails}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding ShowThumbnails}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ShowGpuUsage}" Description="{loc:Loc Settings.Library.ShowGpuUsageHelp}">
+            <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ShowGpuUsageToggle" IsChecked="{Binding ShowGpuUsage}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
+          </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Library.ForceManifestV1}" Description="{loc:Loc Settings.Library.ForceManifestV1Help}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch x:Name="ForceManifestV1Toggle" IsChecked="{Binding ForceManifestV1}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>

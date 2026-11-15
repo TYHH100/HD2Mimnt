@@ -795,7 +795,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         {
             if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
             if (!isLocalChange) await _profileViewModel.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
-            if (e.AffectsConflictResults) _profileViewModel.RefreshGpuUsage();
+            if (e.AffectsConflictResults)
+            {
+                _profileViewModel.MarkGpuUsageDirty();
+                _profileViewModel.RefreshGpuUsage();
+            }
             await _libraryViewModel.RefreshProfileStateAsync();
             SyncConflictProfile();
             UpdateCurrentProfile();

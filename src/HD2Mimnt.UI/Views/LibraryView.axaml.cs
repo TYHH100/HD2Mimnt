@@ -22,17 +22,27 @@ public partial class LibraryView : UserControl
         ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerReleasedEvent, OnModListContextReleased, RoutingStrategies.Bubble, handledEventsToo: true);
         DataContextChanged += OnLibraryDataContextChanged;
+        AttachedToVisualTree += (_, _) => AttachPluginCommandResultSource(DataContext as LibraryViewModel);
         DetachedFromVisualTree += (_, _) =>
         {
-            if (DataContext is LibraryViewModel vm)
-            {
-                vm.ModLink?.CloseCommand.Execute(null);
-                if (vm.ModOnline is { } online)
-                    SafeAsync.FireAndForget(online.CloseCommand.ExecuteAsync(null), "关闭在线详情");
-            }
-
+            LeavePage();
             AttachPluginCommandResultSource(null);
         };
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        // 页面常驻可视树，切走时只隐藏，需在此关闭原先随卸载关闭的浮层。
+        if (change.Property == IsVisibleProperty && !change.GetNewValue<bool>()) LeavePage();
+    }
+
+    private void LeavePage()
+    {
+        if (DataContext is not LibraryViewModel vm) return;
+        vm.ModLink?.CloseCommand.Execute(null);
+        if (vm.ModOnline is { } online)
+            SafeAsync.FireAndForget(online.CloseCommand.ExecuteAsync(null), "关闭在线详情");
     }
 
     private void OnLibraryDataContextChanged(object? sender, EventArgs e)

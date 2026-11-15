@@ -11,6 +11,9 @@ public sealed record GpuUsageDisplay(ModGpuUsage? Usage, GpuUsageScope Scope,
 {
     public GpuUsageText Label => new(this, false);
     public GpuUsageText Tooltip => new(this, true);
+
+    // Label/Tooltip 指回自身，默认记录 ToString 会无限递归；绑定错误日志会触发它。
+    public override string ToString() => $"GpuUsageDisplay({Scope}, {Usage?.Bytes.TotalBytes ?? 0} B)";
 }
 
 public sealed record GpuUsageText(GpuUsageDisplay Display, bool IsTooltip)
@@ -54,4 +57,6 @@ public sealed record GpuUsageText(GpuUsageDisplay Display, bool IsTooltip)
     }
 
     private static string Format(long bytes) => (bytes / 1048576d).ToString("N2", UiLocalization.Current.Culture) + " MiB";
+
+    public override string ToString() => Localize();
 }

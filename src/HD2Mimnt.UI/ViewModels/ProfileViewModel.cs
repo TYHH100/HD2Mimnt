@@ -592,6 +592,17 @@ public partial class ProfileViewModel : ObservableObject
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key == SettingKeys.ShowGpuUsage)
+        {
+            void ApplyGpuUsage()
+            {
+                if (ShowGpuUsage) RefreshGpuUsage();
+                else ClearGpuUsage();
+            }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) ApplyGpuUsage();
+            else Dispatcher.UIThread.Post(ApplyGpuUsage);
+            return;
+        }
         if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
         {
             void ApplySearch()
@@ -642,6 +653,7 @@ public partial class ProfileViewModel : ObservableObject
             RenumberProfileMods();
             ApplyModFilter();
             DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+            MarkGpuUsageDirty();
             RefreshGpuUsage();
         }
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
@@ -1123,7 +1135,9 @@ public partial class ProfileViewModel : ObservableObject
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
         _gpuUsageCts?.Cancel();
-        ProfileGpuUsage = null;
+        // 保留占位对象，避免标签绑定在 null 路径上反复报错。
+        ProfileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
+        ProfileGpuUsageVisible = false;
         CloseDetailPanel();
         ClearModSelection();
         IsAddModOpen = false;
@@ -1265,6 +1279,7 @@ public partial class ProfileViewModel : ObservableObject
             IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
             await RefreshActiveProfileDeploymentStatusAsync();
             _ = LoadProfileModIconsAsync(cancellationToken);
+            MarkGpuUsageDirty();
             RefreshGpuUsage();
         }
         catch (OperationCanceledException)

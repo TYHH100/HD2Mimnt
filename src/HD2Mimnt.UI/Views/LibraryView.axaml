@@ -193,7 +193,7 @@
                                                    VerticalAlignment="Center" HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock x:Name="LibraryGpuUsageLabel" Grid.Row="1" FontSize="12" Classes="muted"
                                                    Text="{loc:LocalizedBinding GpuUsage.Label}" TextTrimming="CharacterEllipsis"
-                                                   IsVisible="{Binding GpuUsage, Converter={StaticResource NotNullConverter}}">
+                                                   IsVisible="{Binding GpuUsageVisible}">
                                             <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding GpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
                                         </TextBlock>
                                     </Grid>

@@ -4034,6 +4034,8 @@ Last checked: {7}</value>
   <data name="Library.Notice.Updated" xml:space="preserve"><value>Updated</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>When importing mods without manifests, automatically generate V1 format instead of legacy format. When enabled, mods without manifests in the library can also be auto-upgraded to V1.</value></data>
+  <data name="Settings.Library.ShowGpuUsage" xml:space="preserve"><value>Show GPU resource usage</value></data>
+  <data name="Settings.Library.ShowGpuUsageHelp" xml:space="preserve"><value>Display the static GPU resource size on library and profile cards. The background scan reads mod resource files and can briefly slow the interface, so it is off by default.</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>Update this mod from an archive, or switch to a saved version. The current version is shown below in the mod details.</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>Update from archive…</value></data>

@@ -70,10 +70,7 @@ public partial class ProfileView : UserControl
         ModItemsControl.AddHandler(PointerReleasedEvent, ModList_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
         DetachedFromVisualTree += (_, _) =>
         {
-            ClearSortPreview();
-            ResetStickyGroupHeader();
-            (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
-            _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
+            LeavePage();
             SubscribeConflictNavigation(null);
         };
         AttachedToVisualTree += (_, _) => SubscribeConflictNavigation(DataContext as ProfileViewModel);
@@ -84,6 +81,21 @@ public partial class ProfileView : UserControl
             SubscribeConflictNavigation(DataContext as ProfileViewModel);
         };
         ModItemsControl.LayoutUpdated += (_, _) => UpdateStickyGroupHeader();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        // 页面常驻可视树，切走时只隐藏，需在此完成原先卸载时的收尾。
+        if (change.Property == IsVisibleProperty && !change.GetNewValue<bool>()) LeavePage();
+    }
+
+    private void LeavePage()
+    {
+        ClearSortPreview();
+        ResetStickyGroupHeader();
+        (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
+        _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
     }
 
     /// <summary>右键配置文件行：经统一的 AppContextMenu 模块弹出操作菜单。</summary>

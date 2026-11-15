@@ -866,7 +866,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.False(previous.IsEnabled);
             Assert.Equal("游戏", main.SettingsViewModel.SelectedCategory);
             Click(next);
-            Assert.Equal("部署", main.SettingsViewModel.SelectedCategory);
+            Assert.Equal("配置文件", main.SettingsViewModel.SelectedCategory);
             Click(previous);
             Assert.Equal(0, main.Tutorial.CurrentStepIndex);
 

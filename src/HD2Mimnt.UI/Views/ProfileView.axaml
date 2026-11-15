@@ -125,7 +125,7 @@
         </Button>
         <TextBlock x:Name="ProfileGpuUsageLabel" Grid.Column="2" Text="{loc:LocalizedBinding ProfileGpuUsage.Label}"
                    Classes="muted" FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0" MaxWidth="200" TextTrimming="CharacterEllipsis"
-                   IsVisible="{Binding ProfileGpuUsage, Converter={StaticResource NotNullConverter}}">
+                   IsVisible="{Binding ProfileGpuUsageVisible}">
           <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding ProfileGpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
         </TextBlock>
       </Grid>
@@ -282,7 +282,7 @@
                       <TextBlock Text="{loc:Loc UI.HasOptions}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding HasOptions}"/>
                       <TextBlock Text="{loc:Loc UI.FixedPosition}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !CanDrag}"/>
                       <TextBlock x:Name="ProfileModGpuUsageLabel" Text="{loc:LocalizedBinding GpuUsage.Label}" FontSize="12" Classes="muted" Classes.gpu-usage-disabled="{Binding !Enabled}" VerticalAlignment="Center"
-                                 IsVisible="{Binding GpuUsage, Converter={StaticResource NotNullConverter}}">
+                                 IsVisible="{Binding GpuUsageVisible}">
                         <ToolTip.Tip><TextBlock Text="{loc:LocalizedBinding GpuUsage.Tooltip}" MaxWidth="440" TextWrapping="Wrap"/></ToolTip.Tip>
                       </TextBlock>
                     </WrapPanel>

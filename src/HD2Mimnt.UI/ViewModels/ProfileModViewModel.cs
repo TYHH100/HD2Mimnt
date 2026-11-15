@@ -13,7 +13,8 @@ public sealed record ConflictModTarget(Guid ModId, string ModName);
 
 public partial class ProfileModViewModel : ObservableObject
 {
-    [ObservableProperty] private GpuUsageDisplay? _gpuUsage;
+    [ObservableProperty] private GpuUsageDisplay? _gpuUsage = new(null, GpuUsageScope.ProfileMod);
+    [ObservableProperty] private bool _gpuUsageVisible;
     public ModItemViewModel? SourceInfo { get; init; }
     [ObservableProperty]
     private bool _isConflictLocation;
