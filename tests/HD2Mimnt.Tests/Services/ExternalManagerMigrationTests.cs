@@ -101,6 +101,67 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         Assert.True(ProfileModOptionsState.FromJson(two.Mods[1].OptionsJson).OptionToggles![0]);
     }
 
+    [Fact]
+    public async Task Arsenal_DefaultProfile_ImportsAvailableMembersAndKeepsOtherProfilesAllOrNothing()
+    {
+        var a = SourceMod("a");
+        var b = SourceMod("b");
+        var c = SourceMod("c");
+        var missing = SourceMod("missing");
+        Directory.Delete(missing.SourcePath, true);
+        var source = Path.Combine(_root, "arsenal-partial-default");
+        WriteJson(Path.Combine(source, "hd2a_data.json"), new
+        {
+            modsLibrary = new[]
+            {
+                new { uuid = "a", path = a.SourcePath, label = "A" },
+                new { uuid = "b", path = b.SourcePath, label = "B" },
+                new { uuid = "c", path = c.SourcePath, label = "C" },
+                new { uuid = "missing", path = missing.SourcePath, label = "已删除" }
+            },
+            modsList = new Dictionary<string, object>
+            {
+                ["default"] = new { label = "Default Profile", mods = new object[]
+                {
+                    new { type = "separator", title = "第一组", backgroundColor = "#112233", collapsed = true },
+                    new { uuid = "a", enabled = true, optionsConfig = Array.Empty<object>() },
+                    new { uuid = "b", enabled = false, optionsConfig = Array.Empty<object>() },
+                    new { type = "separator", title = "第二组", backgroundColor = "#445566" },
+                    new { uuid = "c", enabled = true, optionsConfig = Array.Empty<object>() },
+                    new { uuid = "missing", enabled = true, optionsConfig = Array.Empty<object>() }
+                } },
+                ["custom"] = new { label = "备用", mods = new object[]
+                {
+                    new { uuid = "a", enabled = true, optionsConfig = Array.Empty<object>() },
+                    new { uuid = "missing", enabled = true, optionsConfig = Array.Empty<object>() }
+                } }
+            },
+            profileOrder = new[] { "custom", "default" }, selectedProfile = "custom", setTopPriority = false
+        });
+        await _profiles.InitializeAsync();
+        var targetId = (await _profiles.GetActiveProfileAsync())!.Id;
+        var plan = await _migration.PreviewAsync(new(ExternalManagerKind.HD2Arsenal, source));
+        Assert.Contains(plan.Issues, issue => issue.Message.Contains("源模组目录不存在"));
+        var defaultProfile = Assert.Single(plan.Profiles, profile => profile.IsDefault);
+        Assert.Equal(4, defaultProfile.Mods.Count);
+        var result = await _migration.MigrateAsync(plan);
+        Assert.Contains(result.Issues, issue => issue.Item == "Default Profile" && issue.Message.Contains("已跳过这些成员"));
+        Assert.Contains(result.Issues, issue => issue.Item == "备用" && issue.Message.Contains("保留源配置供重试"));
+        Assert.Equal(targetId, result.ProfileIds["default"]);
+        Assert.DoesNotContain("custom", result.ProfileIds);
+        var target = (await _profileRepository.GetByIdAsync(targetId))!;
+        Assert.Equal(new[] { result.ModIds["a"], result.ModIds["b"], result.ModIds["c"] },
+            target.Mods.Select(item => item.ModId));
+        Assert.Equal(new[] { true, false, true }, target.Mods.Select(item => item.Enabled));
+        Assert.Equal(new[] { ("第一组", 0, (int?)2, true, "#112233"), ("第二组", 2, (int?)1, false, "#445566") },
+            target.Separators.Select(separator => (separator.Name, separator.Order, separator.MemberCount, separator.IsCollapsed, separator.Color)));
+        var retry = await _migration.MigrateAsync(plan);
+        Assert.Equal(3, retry.ReusedMods);
+        Assert.Equal(1, retry.ReusedProfiles);
+        Assert.Equal(targetId, retry.ProfileIds["default"]);
+        Assert.Equal(3, (await _profileRepository.GetByIdAsync(targetId))!.Mods.Count);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
@@ -162,10 +223,17 @@ public sealed class ExternalManagerMigrationTests : IAsyncLifetime
         Assert.Equal("Default Profiles", target.Name);
         if (hasMissingMember)
         {
-            Assert.Empty(result.ProfileIds);
-            Assert.Empty(target.Mods);
-            Assert.Empty(target.DefaultMigrationState);
+            // 默认配置只跳过未迁入的成员，其余成员仍合并，避免一份大配置因少量失效引用整份丢失。
+            Assert.Equal(targetId, result.ProfileIds[defaultId]);
+            Assert.Equal(ids.Select(id => result.ModIds[id]), target.Mods.Select(item => item.ModId));
+            Assert.True(target.Mods[0].Enabled);
+            Assert.False(target.Mods[1].Enabled);
             Assert.Contains(result.Issues, issue => issue.Message.Contains("未成功迁入"));
+            Assert.Equal(("装备", 0, (int?)2), (target.Separators[0].Name, target.Separators[0].Order, target.Separators[0].MemberCount));
+            Assert.Single(target.DefaultMigrationState);
+            var partialRetry = await _migration.MigrateAsync(plan);
+            Assert.Equal(2, partialRetry.ReusedMods);
+            Assert.Equal(1, partialRetry.ReusedProfiles);
             return;
         }
         Assert.Equal(targetId, result.ProfileIds[defaultId]);
