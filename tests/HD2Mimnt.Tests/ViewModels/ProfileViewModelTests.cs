@@ -829,6 +829,31 @@ public sealed class ProfileViewModelTests : IDisposable
             vm.GetSeparatorMembers(row).Select(item => item.ModId));
     }
 
+    [Fact]
+    public async Task ModSearch_ShouldReuseRowCollectionAndInstances()
+    {
+        var alpha = await AddModAsync("Alpha Mod");
+        var beta = await AddModAsync("Beta Mod");
+        var profileId = await _profileService.CreateProfileAsync("Profile");
+        await _profileService.AddModToProfileAsync(profileId, alpha.Id);
+        await _profileService.AddModToProfileAsync(profileId, beta.Id);
+        await _profileService.SetActiveProfileAsync(profileId);
+        var vm = CreateViewModel();
+        await vm.LoadProfilesAsync();
+        var rows = vm.ProfileRows;
+        var visible = vm.VisibleProfileMods;
+        var betaRow = vm.ProfileRows.Single(row => row.ModId == beta.Id);
+
+        vm.ModSearchText = "Beta";
+        Assert.Same(rows, vm.ProfileRows);
+        Assert.Same(visible, vm.VisibleProfileMods);
+        Assert.Same(betaRow, Assert.Single(vm.VisibleProfileMods));
+
+        vm.ModSearchText = string.Empty;
+        Assert.Same(rows, vm.ProfileRows);
+        Assert.Same(betaRow, vm.ProfileRows.Single(row => row.ModId == beta.Id));
+    }
+
     private ProfileViewModel CreateViewModel(SettingsService? settings = null)
     {
         var confirmation = new Mock<IConfirmationService>();

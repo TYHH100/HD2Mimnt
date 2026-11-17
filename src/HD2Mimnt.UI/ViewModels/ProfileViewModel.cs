@@ -920,10 +920,35 @@ public partial class ProfileViewModel : ObservableObject
             }
         }
         MarkGroupSlabs(rows);
-        VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
-        ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
+        var visible = rows.Where(row => !row.IsSeparator).ToList();
+        // 同一配置内只改变成员/顺序时就地同步，避免整表换新导致容器与样式全部重建。
+        if (SyncRows(VisibleProfileMods, visible) == false)
+            VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(visible);
+        if (SyncRows(ProfileRows, rows) == false)
+            ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
         StickyGroupHeader = null;
         HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
+    }
+
+    // 返回 false 表示两批行没有共同对象（例如切换了配置），由调用方整表换新更划算。
+    private static bool SyncRows(ObservableCollection<ProfileModViewModel> target,
+        IReadOnlyList<ProfileModViewModel> desired)
+    {
+        if (target.Count == 0) return desired.Count == 0;
+        if (desired.Count == 0) { target.Clear(); return true; }
+        var keep = new HashSet<ProfileModViewModel>(desired);
+        var overlap = target.Any(keep.Contains);
+        if (!overlap) return false;
+        for (var i = target.Count - 1; i >= 0; i--)
+            if (!keep.Contains(target[i])) target.RemoveAt(i);
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (i < target.Count && ReferenceEquals(target[i], desired[i])) continue;
+            var existing = target.IndexOf(desired[i]);
+            if (existing < 0) target.Insert(i, desired[i]);
+            else target.Move(existing, i);
+        }
+        return true;
     }
 
     /// <summary>按视口顶部行更新吸顶标题：只吸附当前展开用户分组，进入下一个分组时自然替换。</summary>
