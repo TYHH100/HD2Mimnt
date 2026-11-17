@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interop;
 using HD2Mimnt.Infrastructure.Repositories;
@@ -8,6 +10,19 @@ namespace HD2Mimnt.Infrastructure.Interop;
 /// <summary>使用独立只读连接和读事务，不在后台共享 UI Repository 的连接。</summary>
 public sealed class OfflineInteropSnapshotReader(string databasePath) : IOfflineInteropSource
 {
+    // 快照只投影清单，不会被调用方修改；按清单 JSON 复用解析结果，避免每次重发整库时全部重解析。
+    private readonly ConcurrentDictionary<string, ModManifest?> _manifestCache = new(StringComparer.Ordinal);
+    private const int ManifestCacheLimit = 4096;
+
+    private ModManifest? ParseManifestCached(string json)
+    {
+        if (_manifestCache.TryGetValue(json, out var cached)) return cached;
+        var parsed = JsonSerializer.Deserialize<ModManifest>(json);
+        if (_manifestCache.Count >= ManifestCacheLimit) _manifestCache.Clear();
+        _manifestCache.TryAdd(json, parsed);
+        return parsed;
+    }
+
     public async Task<OfflineInteropData> ReadAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -28,7 +43,8 @@ public sealed class OfflineInteropSnapshotReader(string databasePath) : IOffline
             return rows;
         }
 
-        var mods = await Read("SELECT * FROM Mods ORDER BY Id", ModRepository.MapToMod).ConfigureAwait(false);
+        var mods = await Read("SELECT * FROM Mods ORDER BY Id",
+            reader => ModRepository.MapToMod(reader, ParseManifestCached)).ConfigureAwait(false);
         var profiles = await Read("SELECT * FROM Profiles ORDER BY IsDefault DESC, SortOrder, Id",
             ProfileRepository.MapToProfile).ConfigureAwait(false);
         var members = await Read("SELECT * FROM ProfileMods ORDER BY [Order], ModId", reader => new ProfileMod

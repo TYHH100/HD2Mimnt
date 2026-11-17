@@ -8,7 +8,7 @@ public sealed class OfflineInteropPublisher
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
     private readonly IReadOnlyList<IOfflineInteropAdapter> _adapters;
     public string RootPath { get; }
@@ -56,7 +56,7 @@ public sealed class OfflineInteropPublisher
         try
         {
             await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                65536, FileOptions.Asynchronous | FileOptions.WriteThrough))
+                65536, FileOptions.Asynchronous))
             {
                 await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);

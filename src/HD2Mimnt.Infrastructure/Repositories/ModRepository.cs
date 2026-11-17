@@ -326,7 +326,9 @@ public class ModRepository : IModRepository
         return Convert.ToInt64(result) > 0;
     }
 
-    internal static Mod MapToMod(SqliteDataReader reader)
+    private static ModManifest? ParseManifest(string json) => JsonSerializer.Deserialize<ModManifest>(json);
+
+    internal static Mod MapToMod(SqliteDataReader reader, Func<string, ModManifest?>? parseManifest = null)
     {
         var tagsJson = reader.GetString(reader.GetOrdinal("Tags"));
         var tags = string.IsNullOrEmpty(tagsJson)
@@ -339,7 +341,7 @@ public class ModRepository : IModRepository
 
         var manifest = string.IsNullOrEmpty(manifestJson)
             ? null
-            : JsonSerializer.Deserialize<ModManifest>(manifestJson);
+            : (parseManifest ?? ParseManifest)(manifestJson);
 
         return new Mod
         {

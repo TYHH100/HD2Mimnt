@@ -284,6 +284,33 @@ public sealed class OfflineInteropTests : IAsyncLifetime
         Assert.Empty(Directory.EnumerateFiles(Path.Combine(Bootstrap, "interop"), "*.tmp", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task RapidRefreshRequests_AreCoalescedByPublishThrottle()
+    {
+        await AddMod("节流合并");
+        await _interop.StartAsync();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var poll = Task.Run(async () =>
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                ids.Add((await Read()).SnapshotId);
+                await Task.Delay(100, CancellationToken.None);
+            }
+        });
+        for (var i = 0; i < 8; i++)
+        {
+            _interop.RequestRefresh();
+            await Task.Delay(100);
+        }
+        await Task.Delay(2500);
+        await cts.CancelAsync();
+        await poll;
+        // 连续事件应合并：初始发布之外最多再发布两次。
+        Assert.InRange(ids.Count, 1, 3);
+    }
+
     private async Task WaitFor(Func<OfflineRuntimeV1, bool> predicate)
     {
         var timer = Stopwatch.StartNew();
