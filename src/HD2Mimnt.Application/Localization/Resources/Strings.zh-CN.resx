@@ -1052,6 +1052,9 @@
   <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
     <value>启用界面动画</value>
   </data>
+  <data name="UI.EnableInterfaceAnimationsHelp" xml:space="preserve">
+    <value>关闭后跳过页面切换、浮层入场、卡片悬停和闪烁等过渡效果。</value>
+  </data>
   <data name="UI.CustomBackground" xml:space="preserve">
     <value>自定义背景</value>
   </data>

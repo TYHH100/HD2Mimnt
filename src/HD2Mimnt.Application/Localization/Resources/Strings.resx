@@ -1052,6 +1052,9 @@ Deny: do not install this plugin</value>
   <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
     <value>Enable interface animations</value>
   </data>
+  <data name="UI.EnableInterfaceAnimationsHelp" xml:space="preserve">
+    <value>Turn off to skip page transitions, overlay entrances, card hover and blinking effects.</value>
+  </data>
   <data name="UI.CustomBackground" xml:space="preserve">
     <value>Custom background</value>
   </data>

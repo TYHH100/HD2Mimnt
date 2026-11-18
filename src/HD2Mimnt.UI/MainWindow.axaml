@@ -4,6 +4,7 @@
         xmlns:views="using:HD2Mimnt.UI.Views"
         xmlns:controls="using:HD2Mimnt.UI.Controls"
         xmlns:fa="using:FluentAvalonia.UI.Controls"
+        xmlns:motion="using:HD2Mimnt.UI.Services"
         x:Class="HD2Mimnt.UI.MainWindow" x:DataType="vm:MainWindowViewModel"
         Closing="OnClosing" Title="{loc:LocalizedBinding Title}"
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="40"
@@ -82,7 +83,7 @@
           </Grid>
         </StackPanel>
       </fa:FANavigationView.PaneFooter>
-      <Border Background="{DynamicResource ContentFillBrush}">
+      <Border x:Name="PageContentSurface" Background="{DynamicResource ContentFillBrush}">
         <Grid>
         <!-- 页面顺序与 ViewModel 的导航命令一致，保留各页面状态。 -->
         <TabControl x:Name="PageHost" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
@@ -121,14 +122,14 @@
     <controls:NotificationToastHost x:Name="ToastHost" Grid.Row="1" Grid.RowSpan="2" DataContext="{Binding NotificationPanelViewModel}"
                                     IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).IsNotificationPanelOpen}"
                                     Width="380" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,20,16" ZIndex="220"/>
-    <Panel IsVisible="{Binding IsNotificationPanelOpen}" Grid.RowSpan="3" ZIndex="210">
+    <Panel IsVisible="{Binding IsNotificationPanelOpen}" Grid.RowSpan="3" ZIndex="210" motion:MotionEffects.Entrance="True">
       <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="{DynamicResource NotificationCornerRadius}" BoxShadow="0 6 22 0 #26000000" ClipToBounds="True"
               Width="400" MaxHeight="560" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16,64,16,16">
         <controls:NotificationPanel DataContext="{Binding NotificationPanelViewModel}"/>
       </Border>
     </Panel>
-    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsTaskCenterOpen}" Grid.RowSpan="3" ZIndex="200">
+    <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsTaskCenterOpen}" Grid.RowSpan="3" ZIndex="200" motion:MotionEffects.Entrance="True">
       <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="{DynamicResource OverlayCornerRadius}"
               MaxWidth="680" MaxHeight="560" Margin="24" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="16">
@@ -140,7 +141,7 @@
     </Border>
     <controls:ImagePreviewOverlay Grid.RowSpan="3" DataContext="{Binding ImagePreview}" ZIndex="300"/>
     <Border Grid.RowSpan="3" IsVisible="{Binding LibraryViewModel.IsDeploymentProgressOpen}"
-            Background="{DynamicResource OverlayScrimBrush}" ZIndex="340">
+            Background="{DynamicResource OverlayScrimBrush}" ZIndex="340" motion:MotionEffects.Entrance="True">
       <Border x:Name="DeploymentOperationSurface" Background="{DynamicResource Surface2Brush}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               CornerRadius="{DynamicResource OverlayCornerRadius}" Padding="24" Margin="24"
@@ -179,7 +180,7 @@
     <controls:ModCompatibilityOverlay x:Name="CompatibilityOverlay" Grid.RowSpan="3" DataContext="{Binding Compatibility}" ZIndex="360"/>
     <controls:ModImportOverlay x:Name="ModImportOverlay" Grid.RowSpan="3" DataContext="{Binding LibraryViewModel}" ZIndex="350"/>
     <Border x:Name="ImportDragHint" Grid.RowSpan="3" Background="{DynamicResource OverlayScrimBrush}"
-            IsHitTestVisible="False" IsVisible="False" ZIndex="400">
+            IsHitTestVisible="False" IsVisible="False" ZIndex="400" motion:MotionEffects.Entrance="True">
       <Border Classes="card" Padding="32,24" HorizontalAlignment="Center" VerticalAlignment="Center"
               BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2">
         <StackPanel Spacing="8">

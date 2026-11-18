@@ -214,6 +214,7 @@ public partial class App : Avalonia.Application
             mainViewModel.AttachOwner(mainWindow);
             // 毛玻璃在窗口显示前应用：浅色主题不必先渲染一帧不透明背景再切换。
             var appearanceSettings = ServiceProvider.GetRequiredService<SettingsService>();
+            UiMotion.Apply(appearanceSettings.GetSetting(SettingKeys.EnableAnimations, true));
             GlassMaterialService.Apply(
                 mainWindow,
                 ActualThemeVariant,

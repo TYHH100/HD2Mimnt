@@ -411,7 +411,7 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ListDensity}">
             <fa:FASettingsExpanderItem.Footer><ComboBox ItemsSource="{Binding ListDensityOptions}" SelectedItem="{Binding ListDensity}" Width="200"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{loc:LocalizedBinding}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="{loc:Loc UI.EnableInterfaceAnimations}">
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.EnableInterfaceAnimations}" Description="{loc:Loc UI.EnableInterfaceAnimationsHelp}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding EnableAnimations}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>

@@ -2,6 +2,7 @@
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              x:Class="HD2Mimnt.UI.Views.ProfileView"
              x:DataType="vm:ProfileViewModel">
 
@@ -441,7 +442,7 @@
         </Grid>
       </Border>
       <Border x:Name="ConflictModPickerOverlay" IsVisible="{Binding IsConflictPickerOpen}"
-              Background="{DynamicResource OverlayScrimBrush}" ZIndex="10">
+              Background="{DynamicResource OverlayScrimBrush}" ZIndex="10" motion:MotionEffects.Entrance="True">
         <Border x:Name="ConflictModPickerSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
                 Width="360" MaxHeight="360" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
           <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
@@ -474,7 +475,8 @@
 
     <!-- 右键模组卡片后的定位输入面板；使用不透明主题背景，不受卡片透明度影响。 -->
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
-            IsVisible="{Binding IsMoveToPositionDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="50">
+            IsVisible="{Binding IsMoveToPositionDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="50"
+            motion:MotionEffects.Entrance="True">
       <Border Name="MoveToPositionDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
               Width="400" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20">
         <StackPanel Spacing="12">
@@ -493,7 +495,8 @@
 
     <!-- 右键“加入指定分组”分组选择面板；与定位面板同样使用不透明主题背景。 -->
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
-            IsVisible="{Binding IsAddToGroupDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="52">
+            IsVisible="{Binding IsAddToGroupDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="52"
+            motion:MotionEffects.Entrance="True">
       <Border Name="AddToGroupDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
               Width="400" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20">
         <StackPanel Spacing="12">
@@ -516,7 +519,8 @@
     </Border>
 
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
-            IsVisible="{Binding IsRenameProfileDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="55">
+            IsVisible="{Binding IsRenameProfileDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="55"
+            motion:MotionEffects.Entrance="True">
       <Border Classes="card" Background="{DynamicResource Surface2Brush}" Width="400" Padding="20"
               HorizontalAlignment="Center" VerticalAlignment="Center">
         <StackPanel Spacing="12">
@@ -551,7 +555,8 @@
 
     <!-- ══ 模组选项覆盖层（应用内模态弹窗：v1 选项卡片+子选项多选一 / v0 互斥单选，带预览图）══ -->
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
-            IsVisible="{Binding IsModOptionsDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="20">
+            IsVisible="{Binding IsModOptionsDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="20"
+            motion:MotionEffects.Entrance="True">
       <Border Name="ModOptionsDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}" Width="680" MaxHeight="660"
               HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0">
         <Grid RowDefinitions="Auto,*,Auto">
@@ -607,7 +612,8 @@
     </Border>
 
     <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="0" Grid.ColumnSpan="2"
-            IsVisible="{Binding IsSeparatorDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="25">
+            IsVisible="{Binding IsSeparatorDialogOpen}" Background="{DynamicResource OverlayScrimBrush}" ZIndex="25"
+            motion:MotionEffects.Entrance="True">
       <Border Classes="card" Background="{DynamicResource Surface2Brush}" Width="420" Padding="20"
               HorizontalAlignment="Center" VerticalAlignment="Center">
         <StackPanel Spacing="12">

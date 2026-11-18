@@ -6,6 +6,7 @@
              xmlns:core="using:HD2Mimnt.Core.Entities"
              xmlns:intf="using:HD2Mimnt.Core.Interfaces"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              xmlns:avConverters="using:Avalonia.Data.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="HD2Mimnt.UI.Views.LibraryView"
@@ -265,11 +266,11 @@
     </Grid>
 
     <!-- 模组详情抽屉 -->
-    <Grid IsVisible="{Binding IsDetailPanelOpen}" ZIndex="100">
+    <Grid IsVisible="{Binding IsDetailPanelOpen}" ZIndex="100" motion:MotionEffects.Entrance="True">
         <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnDetailBackgroundPressed"/>
         <controls:ModDetailPanel DataContext="{Binding SelectedModDetail}" HorizontalAlignment="Right" Width="400"/>
     </Grid>
-    <Grid IsVisible="{Binding ModLink.IsOpen}" ZIndex="120">
+    <Grid IsVisible="{Binding ModLink.IsOpen}" ZIndex="120" motion:MotionEffects.Entrance="True">
       <Border Background="{DynamicResource OverlayScrimBrush}" />
       <Border x:Name="ModLinkDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
               DataContext="{Binding ModLink}" x:DataType="vm:ModLinkViewModel"
@@ -298,7 +299,7 @@
       </Border>
     </Grid>
 
-    <Grid IsVisible="{Binding ModOnline.IsOpen}" ZIndex="125">
+    <Grid IsVisible="{Binding ModOnline.IsOpen}" ZIndex="125" motion:MotionEffects.Entrance="True">
       <Border Background="{DynamicResource OverlayScrimBrush}" />
       <Border x:Name="ModOnlineDialogSurface" Classes="card" Background="{DynamicResource Surface2Brush}"
               DataContext="{Binding ModOnline}" x:DataType="vm:ModOnlineViewModel"
