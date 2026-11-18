@@ -173,20 +173,194 @@ public sealed class HellForgeModSyncServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SyncProfile_SkipsLoadersAndIas_WithReasons()
+    public async Task SyncProfile_SkipsLoaders_WithReason()
     {
         var normal = await CreateFlatMod("Normal");
         var loader = await CreateFlatMod("Loader", mod => { mod.BslRole = BslModRole.Loader; mod.BslDetectionVersion = int.MaxValue; });
-        var ias = await CreateFlatMod("Ias", mod => mod.WorkflowType = "HD2IAS");
-        var profile = await CreateProfile((normal, true, null), (loader, true, null), (ias, true, null));
+        var profile = await CreateProfile((normal, true, null), (loader, true, null));
 
         var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
 
-        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
+        // 设计性排除不把整次同步判成失败，但原因必须写进文案，否则用户只能看到“跳过”看不到“为什么”。
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
         Assert.Equal(1, result.SyncedCount);
-        Assert.Equal(2, result.SkippedMods.Count);
-        Assert.Contains(result.SkippedMods, s => s.Name == "Loader" && s.Reason.Contains("加载器"));
-        Assert.Contains(result.SkippedMods, s => s.Name == "Ias" && s.Reason.Contains("HD2IAS"));
+        var skip = Assert.Single(result.SkippedMods);
+        Assert.Equal("Loader", skip.Name);
+        Assert.Contains("加载器", skip.Reason);
+        Assert.True(skip.Expected);
+        Assert.Contains("Loader（Lua 加载器由 HellForge 模组页管理，不参与同步）", result.Message);
+    }
+
+    [Fact]
+    public async Task SyncProfile_DependencyLuaMod_IsSyncedWithItsLuaPatch()
+    {
+        // Dependency 是“声明依赖加载器的内容模组”（BSL/HD2Runtime 的 Lua 模组）：HellForge 本身支持这类模组，
+        // 其 Lua 就在补丁包内（Mods.cs HoldsLua），补丁按原字节复制即可，不应与加载器本体一起被跳过。
+        var luaMod = await CreateFlatMod("LuaContent", mod =>
+        {
+            mod.BslRole = BslModRole.Dependency;
+            mod.BslDetectionVersion = int.MaxValue;
+            mod.ContainsScripts = true;
+        });
+        var profile = await CreateProfile((luaMod, true, null));
+
+        var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Empty(result.SkippedMods);
+        Assert.Equal(1, result.SyncedCount);
+        var deployed = Path.Combine(ModsDir, $"hd2mimnt.{luaMod.Id:N}", "data", $"{BundleX}.patch_0");
+        Assert.True(File.Exists(deployed));
+        Assert.Equal(await File.ReadAllTextAsync(Path.Combine(luaMod.Path, $"{BundleX}.patch_0")),
+            await File.ReadAllTextAsync(deployed));
+    }
+
+    [Fact]
+    public async Task SyncProfile_IasMod_SyncsDataPatchAndWritesNativeFiles()
+    {
+        // HD2IAS 是混合体：data 补丁由 HellForge 暂存，bin\HD2IndependentRig 的原生文件 HellForge 没有承载机制，
+        // 由本管理器直写它的游戏目录并登记归属。
+        var ias = await CreateIasMod("IasModel");
+        var profile = await CreateProfile((ias, true, null));
+
+        var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.Empty(result.SkippedMods);
+        Assert.Equal(1, result.SyncedCount);
+        var deployed = Path.Combine(ModsDir, $"hd2mimnt.{ias.Id:N}", "data", $"{BundleX}.patch_0");
+        Assert.True(File.Exists(deployed),
+            $"synced={result.SyncedCount}; dirs={string.Join(" | ", Directory.GetDirectories(ModsDir).Select(Path.GetFileName))}");
+        var native = Path.Combine(_fixture.Root, "game", "bin", "HD2IndependentRig", "hero.rigbin");
+        Assert.True(File.Exists(native));
+        Assert.Equal("rig-bytes", await File.ReadAllTextAsync(native));
+        // 作者元数据不落游戏目录。
+        Assert.False(File.Exists(Path.Combine(_fixture.Root, "game", "bin", "HD2IndependentRig", "hero.hd2author")));
+        // 归属写进状态文件，供禁用/清理时只删自己写的文件。
+        var state = await File.ReadAllTextAsync(Path.Combine(_root, "appdata", "hellforge-sync.json"));
+        Assert.Contains("bin/HD2IndependentRig/hero.rigbin", state);
+    }
+
+    [Fact]
+    public async Task SyncProfile_IasModDisabled_RemovesOwnedNativeFiles()
+    {
+        var ias = await CreateIasMod("IasModel");
+        var profile = await CreateProfile((ias, true, null));
+        await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+        var native = Path.Combine(_fixture.Root, "game", "bin", "HD2IndependentRig", "hero.rigbin");
+        Assert.True(File.Exists(native));
+
+        // 禁用后重新同步：上一次写的原生文件必须一起撤掉，不能留在游戏目录里。
+        profile.Mods[0].Enabled = false;
+        await _profiles.UpdateAsync(profile);
+        var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.False(File.Exists(native));
+        Assert.False(Directory.Exists(Path.Combine(ModsDir, $"hd2mimnt.{ias.Id:N}")));
+    }
+
+    /// <summary>按导入后的形态造一个 HD2IAS 模组：components\0 的 data 补丁 + components\1 的原生 rig 文件。</summary>
+    private async Task<Mod> CreateIasMod(string name)
+    {
+        var id = Guid.NewGuid();
+        var directory = Path.Combine(_library, id.ToString("N"));
+        var dataDirectory = Path.Combine(directory, "components", "0");
+        var rigDirectory = Path.Combine(directory, "components", "1", "HD2IndependentRig");
+        Directory.CreateDirectory(dataDirectory);
+        Directory.CreateDirectory(rigDirectory);
+        await File.WriteAllTextAsync(Path.Combine(dataDirectory, $"{BundleX}.patch_0"), name + "-model");
+        await File.WriteAllTextAsync(Path.Combine(rigDirectory, "hero.rigbin"), "rig-bytes");
+        await File.WriteAllTextAsync(Path.Combine(rigDirectory, "hero.hd2author"), "{\"Author\":\"test\"}");
+        var logical = new LogicalMod
+        {
+            Id = id, Name = name, Version = "1.0.0", Author = "test",
+            Components =
+            [
+                new LogicalModComponent
+                {
+                    ComponentId = "model-0", Type = ComponentType.Model, Name = "Model", SourcePackageId = id,
+                    DeployableFiles =
+                    [
+                        new DeployableFile
+                        {
+                            SourcePath = $"components/0/{BundleX}.patch_0", TargetPath = $"data/{BundleX}.patch_0"
+                        }
+                    ]
+                },
+                new LogicalModComponent
+                {
+                    ComponentId = "rig-0", Type = ComponentType.HD2IAS, Name = "Rig", SourcePackageId = id,
+                    DeployableFiles =
+                    [
+                        new DeployableFile
+                        {
+                            SourcePath = "components/1/HD2IndependentRig/hero.rigbin",
+                            TargetPath = "bin/HD2IndependentRig/hero.rigbin"
+                        },
+                        new DeployableFile
+                        {
+                            SourcePath = "components/1/HD2IndependentRig/hero.hd2author",
+                            TargetPath = "bin/HD2IndependentRig/hero.hd2author"
+                        }
+                    ]
+                }
+            ]
+        };
+        await File.WriteAllTextAsync(Path.Combine(directory, ".hd2mimnt-hd2ir.json"),
+            System.Text.Json.JsonSerializer.Serialize(logical));
+        var manifest = new ModManifest
+        {
+            Guid = id, Name = name, ManifestVersion = ManifestVersion.V1,
+            Options =
+            [
+                new ModOption { Name = "Model", Include = ["components/0"] },
+                new ModOption { Name = "Rig", Include = ["components/1/HD2IndependentRig"] }
+            ]
+        };
+        var mod = new Mod
+        {
+            Id = id, Name = name, Version = "1.0.0", Path = directory, Manifest = manifest,
+            WorkflowType = Hd2IrIntegrationService.Workflow, LogicalMod = logical,
+            Category = ModCategory.Armor, ImportedAt = DateTime.UtcNow, ThumbnailPath = string.Empty
+        };
+        await _mods.AddAsync(mod);
+        return mod;
+    }
+
+    [Fact]
+    public async Task SyncProfile_SameSkipReason_GroupsNamesInMessage()
+    {
+        var a = await CreateFlatMod("Loader_A", mod => { mod.BslRole = BslModRole.Loader; mod.BslDetectionVersion = int.MaxValue; });
+        var b = await CreateFlatMod("Loader_B", mod => { mod.BslRole = BslModRole.CslLoader; mod.BslDetectionVersion = int.MaxValue; });
+        var profile = await CreateProfile((a, true, null), (b, true, null));
+
+        var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        // 名称顺序随部署序列（加载器优先级）变化，只校验同原因合并成一组、原因只出现一次。
+        Assert.Contains("跳过 2 个：", result.Message);
+        Assert.Contains("Loader_A", result.Message);
+        Assert.Contains("Loader_B", result.Message);
+        const string reason = "（Lua 加载器由 HellForge 模组页管理，不参与同步）";
+        Assert.Equal(1, result.Message.Split(reason).Length - 1);
+    }
+
+    [Fact]
+    public async Task SyncProfile_MissingModFolder_StillReportsPartialFailure()
+    {
+        var missing = await CreateFlatMod("Gone");
+        Directory.Delete(missing.Path, recursive: true);
+        var profile = await CreateProfile((missing, true, null));
+
+        var result = await _sync.SyncProfileAsync(profile.Id, DeploymentOrder.TopToBottom);
+
+        // 文件缺失不是设计性排除：仍要提示未完全成功。
+        Assert.Equal(DeploymentStatus.PartiallyFailed, result.Status);
+        var skip = Assert.Single(result.SkippedMods);
+        Assert.Equal("模组文件缺失", skip.Reason);
+        Assert.False(skip.Expected);
+        Assert.Contains("Gone（模组文件缺失）", result.Message);
     }
 
     [Fact]
