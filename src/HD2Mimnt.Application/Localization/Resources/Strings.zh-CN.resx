@@ -4473,6 +4473,12 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Session" xml:space="preserve"><value>会话</value></data>
   <data name="HellForge.CurrentProfile" xml:space="preserve"><value>当前档案</value></data>
   <data name="HellForge.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.Category.Overview" xml:space="preserve"><value>概览</value></data>
+  <data name="HellForge.Category.Session" xml:space="preserve"><value>会话</value></data>
+  <data name="HellForge.Category.Profiles" xml:space="preserve"><value>档案</value></data>
+  <data name="HellForge.Category.Mods" xml:space="preserve"><value>模组</value></data>
+  <data name="HellForge.Category.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="HellForge.Category.Logs" xml:space="preserve"><value>日志</value></data>
   <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>玩家档案</value></data>
   <data name="HellForge.Create" xml:space="preserve"><value>新建档案</value></data>
   <data name="HellForge.Refresh" xml:space="preserve"><value>刷新</value></data>
@@ -4522,6 +4528,42 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Sync.Source" xml:space="preserve"><value>来源配置：{0} · 上次同步：{1}</value></data>
   <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>（未知配置）</value></data>
   <data name="HellForge.Sync.Hint" xml:space="preserve"><value>在配置文件页点击“部署”同步启用的模组；“清理部署”会移除本管理器同步的模组。</value></data>
+  <data name="HellForge.Mods.Title" xml:space="preserve"><value>HellForge 模组</value></data>
+  <data name="HellForge.Mods.Hint" xml:space="preserve"><value>这里列出 HellForge 自己 mods 目录中的模组。在此添加的模组直接写入该目录，不经过本管理器的档案与部署流程；开关、排序、选项与删除也会直接改到 HellForge。会话运行中 CLI 会拒绝修改模组。</value></data>
+  <data name="HellForge.Mods.Enable" xml:space="preserve"><value>启用</value></data>
+  <data name="HellForge.Mods.Disable" xml:space="preserve"><value>禁用</value></data>
+  <data name="HellForge.Mods.Remove" xml:space="preserve"><value>移除</value></data>
+  <data name="HellForge.Mods.RemoveTitle" xml:space="preserve"><value>移除模组</value></data>
+  <data name="HellForge.Mods.RemoveConfirm" xml:space="preserve"><value>确定要从 HellForge 的 mods 目录移除「{0}」吗？</value></data>
+  <data name="HellForge.Mods.Removed" xml:space="preserve"><value>已从 HellForge 的 mods 目录移除「{0}」。</value></data>
+  <data name="HellForge.Mods.MoveUp" xml:space="preserve"><value>上移</value></data>
+  <data name="HellForge.Mods.MoveDown" xml:space="preserve"><value>下移</value></data>
+  <data name="HellForge.Mods.Options" xml:space="preserve"><value>选项</value></data>
+  <data name="HellForge.Mods.Code" xml:space="preserve"><value>联机模组码</value></data>
+  <data name="HellForge.Mods.Switching" xml:space="preserve"><value>正在切换模组…</value></data>
+  <data name="HellForge.Mods.Removing" xml:space="preserve"><value>正在移除模组…</value></data>
+  <data name="HellForge.Mods.Reordering" xml:space="preserve"><value>正在调整模组顺序…</value></data>
+  <data name="HellForge.Mods.OptionUpdate" xml:space="preserve"><value>正在保存外观包选项…</value></data>
+  <data name="HellForge.Mods.OpenFolder" xml:space="preserve"><value>打开 mods 目录</value></data>
+  <data name="HellForge.Mods.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
+  <data name="HellForge.Mods.FolderNoManifest" xml:space="preserve"><value>所选文件夹里没有 hellforge-mod.json 或 manifest.json。</value></data>
+  <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>列表最上方的模组最后加载并覆盖下方；上移/下移只在同组（游戏性/每玩家/仅本机）内生效。</value></data>
+  <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>开关模组；会话运行中 CLI 会拒绝修改。</value></data>
+  <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>联机模组码 {0}：好友需要相同的 {1} 个游戏性模组，顺序不限。</value></data>
+  <data name="HellForge.Mods.Add" xml:space="preserve"><value>添加模组…</value></data>
+  <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>刷新列表</value></data>
+  <data name="HellForge.Mods.None" xml:space="preserve"><value>HellForge 的 mods 目录中还没有模组。</value></data>
+  <data name="HellForge.Mods.Loading" xml:space="preserve"><value>正在读取 HellForge 模组…</value></data>
+  <data name="HellForge.Mods.Adding" xml:space="preserve"><value>正在添加模组到 HellForge…</value></data>
+  <data name="HellForge.Mods.Added" xml:space="preserve"><value>已添加「{0}」到 HellForge 的 mods 目录。</value></data>
+  <data name="HellForge.Mods.ArchiveFile" xml:space="preserve"><value>模组压缩包</value></data>
+  <data name="HellForge.Mods.ManifestFile" xml:space="preserve"><value>模组清单</value></data>
+  <data name="HellForge.Mods.Enabled" xml:space="preserve"><value>已启用</value></data>
+  <data name="HellForge.Mods.Disabled" xml:space="preserve"><value>已禁用</value></data>
+  <data name="HellForge.Mods.Group.Gameplay" xml:space="preserve"><value>游戏性</value></data>
+  <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>每玩家</value></data>
+  <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>仅本机</value></data>
+  <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge 报告以下模组目录有问题：</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>

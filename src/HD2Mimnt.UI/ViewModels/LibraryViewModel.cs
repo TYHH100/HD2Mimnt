@@ -94,6 +94,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly IConfirmationService _confirmationService;
     private readonly ImagePreviewService? _imagePreview;
     private readonly SettingsService? _settingsService;
+    private readonly HellForgeModSyncService? _hellForgeSync;
     private readonly LuaExtractionService? _luaExtraction;
     private readonly IPluginService? _pluginService;
     private readonly TaskService? _taskService;
@@ -383,7 +384,8 @@ public partial class LibraryViewModel : ObservableObject
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
         TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null,
-        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null)
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null,
+        HellForgeModSyncService? hellForgeSync = null)
     {
         _gpuUsageService = gpuUsageService;
         _taskService = taskService;
@@ -418,6 +420,7 @@ public partial class LibraryViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
         _settingsService = settingsService;
+        _hellForgeSync = hellForgeSync;
         if (_settingsService != null) _settingsService.SettingChanged += OnLibrarySettingsChanged;
         _modSelection = new(() => FilteredMods, () => SelectedMods, SyncListSelection,
             (mod, focused) => mod.IsFocused = focused);
@@ -710,6 +713,7 @@ public partial class LibraryViewModel : ObservableObject
                 return item;
             }).ToList());
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
+            await ApplyHellForgeMarksAsync();
             RefreshGpuUsage();
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
@@ -897,9 +901,16 @@ public partial class LibraryViewModel : ObservableObject
             else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
             return;
         }
-        if (e.Key == SettingKeys.ShowGpuUsage)
+        if (e.Key == SettingKeys.GameMode)
         {
-            void ApplyGpuUsage()
+            // 切到 HellForge 显示同步标记，切回官方立即隐藏。
+            void ApplyMarks() => _ = ApplyHellForgeMarksAsync();
+            if (Dispatcher.UIThread.CheckAccess()) ApplyMarks();
+            else Dispatcher.UIThread.Post(ApplyMarks);
+            return;
+        }
+        if (e.Key == SettingKeys.ShowGpuUsage)
+        {            void ApplyGpuUsage()
             {
                 if (ShowGpuUsage) RefreshGpuUsage();
                 else ClearGpuUsage();
@@ -1933,6 +1944,51 @@ public partial class LibraryViewModel : ObservableObject
 
     private bool IsHellForgeMode =>
         _settingsService?.GetGameInstallationMode() == GameInstallationMode.HellForge;
+
+    /// <summary>
+    /// HellForge 模式：把上次同步时算出的标记贴到模组卡片；官方模式或读取失败时清空。
+    /// 标记只描述 HellForge 侧的导出状态（分类、顺序、运行时需求），不写库也不进 Tags。
+    /// </summary>
+    private async Task ApplyHellForgeMarksAsync()
+    {
+        IReadOnlyDictionary<Guid, HellForgeModMarkInfo>? marks = null;
+        if (IsHellForgeMode && _hellForgeSync != null)
+        {
+            try { marks = (await _hellForgeSync.GetStatusAsync()).Marks; }
+            catch { marks = null; }
+        }
+        foreach (var mod in _allMods)
+        {
+            if (marks != null && marks.TryGetValue(mod.Id, out var info))
+            {
+                var (text, tip) = DescribeHellForgeMark(info);
+                mod.ApplyHellForgeMark(text, tip);
+            }
+            else mod.ClearHellForgeMark();
+        }
+    }
+
+    private static (string Text, string Tip) DescribeHellForgeMark(HellForgeModMarkInfo info)
+    {
+        var detail = string.IsNullOrWhiteSpace(info.Detail) ? string.Empty : Environment.NewLine + info.Detail;
+        return info.Mark switch
+        {
+            HellForgeModMark.Available => ("HF 可用",
+                "干净外观包：导出分类与加载顺序都与官方部署一致。" + detail),
+            HellForgeModMark.Flattened => ("HF 已扁平",
+                "不是干净 V1 包，导出为扁平模组。HellForge 会把它排在外观包之后加载，覆盖结果可能与官方部署不同。" + detail),
+            HellForgeModMark.NeedsRuntime => ("需 Lua 运行时",
+                "补丁含 Lua 脚本。HellForge 需要玩家自装 Bingus Shared Loader 或 HD2Runtime 运行时，否则这个模组不会生效。" + detail),
+            HellForgeModMark.OrderSensitive => ("HF 顺序敏感",
+                "与其他模组修改同一资源包。HellForge 会改变它们的加载顺序，覆盖结果可能与官方部署不同。" + detail),
+            HellForgeModMark.NotSynced => ("未同步",
+                "这个模组不参与 HellForge 同步。" + detail),
+            HellForgeModMark.Unsupported => ("HF 不支持",
+                "HellForge 不支持这个模组。" + detail),
+            _ => ("HF", detail)
+        };
+    }
+
 
     private async Task<DeploymentOrder> ReadDeploymentOrderAsync()
     {

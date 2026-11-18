@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:loc="using:HD2Mimnt.UI.Localization"
-             xmlns:app="using:HD2Mimnt.Application.Services"
+             xmlns:app="using:HD2Mimnt.Application.Services" xmlns:controls="using:HD2Mimnt.UI.Controls"
              x:Class="HD2Mimnt.UI.Views.HellForgeView" x:DataType="vm:HellForgeViewModel">
   <UserControl.Styles>
     <Style Selector="Border.step-circle">
@@ -11,240 +11,413 @@
     <Style Selector="Border.step-circle.done"><Setter Property="Background" Value="{DynamicResource SuccessBrush}"/></Style>
     <Style Selector="Border.step-circle.active"><Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/><Setter Property="BorderThickness" Value="2"/></Style>
     <Style Selector="Border.step-circle.failed"><Setter Property="Background" Value="{DynamicResource ErrorBrush}"/></Style>
+    <Style Selector="Button.side-nav.active"><Setter Property="Background" Value="{DynamicResource SelectedSurfaceBrush}"/></Style>
   </UserControl.Styles>
   <Panel>
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Classes="section" Spacing="14" Margin="24,16">
-        <TextBlock x:Name="HellForgeTitle" Text="{loc:Loc HellForge.Title}" Classes="section-title"/>
-        <TextBlock Text="{loc:Loc HellForge.Description}" Classes="muted" TextWrapping="Wrap"/>
-
-        <!-- 安装状态：版本与就绪信息，均来自 CLI status。 -->
-        <Border Classes="card" Padding="16" IsVisible="{Binding HasStatus}">
-          <StackPanel Spacing="12">
-            <TextBlock Text="{loc:Loc HellForge.StatusTitle}" FontWeight="SemiBold"/>
-            <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="12">
-              <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.Version}" Classes="caption-text"/>
-                <TextBlock x:Name="HellForgeVersionText" Text="{Binding HellForgeVersion}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.GameBuild}" Classes="caption-text"/>
-                <TextBlock Text="{Binding GameBuild}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="0" Grid.Column="2" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.Engine}" Classes="caption-text"/>
-                <TextBlock Text="{Binding EngineVersion}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="0" Grid.Column="3" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.ModSdk}" Classes="caption-text"/>
-                <TextBlock Text="{Binding ModSdkVersion}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.GameCopy}" Classes="caption-text"/>
-                <TextBlock Text="{Binding GameCopyText}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.Session}" Classes="caption-text"/>
-                <TextBlock Text="{Binding SessionText}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="1" Grid.Column="2" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.CurrentProfile}" Classes="caption-text"/>
-                <TextBlock Text="{Binding CurrentProfile}"/>
-              </StackPanel>
-              <StackPanel Grid.Row="1" Grid.Column="3" Spacing="2">
-                <TextBlock Text="{loc:Loc HellForge.NetworkBlock}" Classes="caption-text"/>
-                <TextBlock Text="{Binding NetworkBlock}"/>
-              </StackPanel>
-            </Grid>
+    <!-- 配置文件页形式：左侧整高卡片承载分类导航，右侧为各分区的卡片内容。 -->
+    <Grid ColumnDefinitions="240,*" Margin="24,16,24,20">
+      <Border Classes="card" Padding="12" Margin="0,0,16,0">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" x:Name="HellForgeTitle" Text="{loc:Loc HellForge.Title}"
+                     Classes="section-title" TextWrapping="Wrap" Margin="10,2,0,10"/>
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6">
+            <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,8"/>
+            <TextBlock Text="{loc:Loc HellForge.Description}" Classes="caption-text" TextWrapping="Wrap" Margin="10,0,4,2"/>
           </StackPanel>
+          <StackPanel Spacing="2">
+            <Button Classes="side-nav" Classes.active="{Binding IsOverviewCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Overview">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Home" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding OverviewLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="side-nav" Classes.active="{Binding IsSessionCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Session">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Tasks" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding SessionLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="side-nav" Classes.active="{Binding IsProfilesCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Profiles">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Folder" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ProfilesLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="side-nav" Classes.active="{Binding IsModsCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Mods">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Package" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ModsLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="side-nav" Classes.active="{Binding IsSettingsCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Settings">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Settings" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding SettingsLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="side-nav" Classes.active="{Binding IsLogsCategoryVisible}"
+                    Command="{Binding SelectCategoryCommand}" CommandParameter="Logs">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:UtilityIcon Kind="Logs" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding LogsLabel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*">
+        <Border Classes="card" Padding="12,10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <TextBlock Text="{Binding SelectedCategoryLabel}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button x:Name="RefreshHellForgeButton" Content="{loc:Loc HellForge.Refresh}" Command="{Binding RefreshCommand}"/>
+              <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
+            </StackPanel>
+          </Grid>
         </Border>
-
-        <!-- 会话进度：CLI 事件流实时映射的准备步骤。 -->
-        <Border Classes="card" Padding="16">
-          <StackPanel Spacing="12">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{loc:Loc HellForge.SessionTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button x:Name="StartSessionButton" Content="{loc:Loc HellForge.StartSession}" Classes="accent"
-                        Command="{Binding StartSessionCommand}"/>
-                <Button x:Name="StopSessionButton" Content="{loc:Loc HellForge.StopSession}"
-                        Command="{Binding StopSessionCommand}"/>
-              </StackPanel>
-            </Grid>
-            <ItemsControl x:Name="SessionStepBar" ItemsSource="{Binding SessionSteps}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="16"/></ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:HellForgeSessionStepItem">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Border Classes="step-circle" Width="24" Height="24" CornerRadius="12"
-                            Classes.done="{Binding IsDone}" Classes.active="{Binding IsActive}" Classes.failed="{Binding IsFailed}">
-                      <TextBlock Text="{Binding Number}" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="caption-text"/>
-                    </Border>
-                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Classes="caption-text"/>
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <TextBlock x:Name="SessionStatusText" Text="{Binding SessionStatusText}" Classes="muted" TextWrapping="Wrap"/>
-            <TextBlock Text="{Binding SessionProblemsText}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
-                       IsVisible="{Binding HasSessionProblems}"/>
-            <TextBlock Text="{Binding SessionNoticeText}" Classes="caption-text" TextWrapping="Wrap"
-                       IsVisible="{Binding HasSessionNotice}"/>
-          </StackPanel>
-        </Border>
-
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBlock Text="{loc:Loc HellForge.ProfilesTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="CreateProfileButton" Content="{loc:Loc HellForge.Create}" Classes="accent"
-                    Command="{Binding OpenCreateDialogCommand}"/>
-            <Button x:Name="RefreshHellForgeButton" Content="{loc:Loc HellForge.Refresh}" Command="{Binding RefreshCommand}"/>
-            <Button Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}"/>
-          </StackPanel>
-        </Grid>
-        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
-        <TextBlock x:Name="HellForgeStatusMessage" Text="{Binding StatusMessage}" Classes="muted" TextWrapping="Wrap"
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" IsVisible="{Binding IsBusy}" Margin="0,12,0,0"/>
+        <TextBlock Grid.Row="2" x:Name="HellForgeStatusMessage" Text="{Binding StatusMessage}" Classes="muted"
+                   TextWrapping="Wrap" Margin="0,8,0,0"
                    IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-        <ItemsControl x:Name="ProfileList" ItemsSource="{Binding Profiles}" IsVisible="{Binding HasProfiles}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:HellForgeProfileItem">
-              <Border Classes="card" Padding="14,10" Margin="0,4">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="2">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                      <Border Classes="chip" VerticalAlignment="Center" IsVisible="{Binding IsSelected}">
-                        <TextBlock Text="{loc:Loc HellForge.InUse}" Classes="caption-text"/>
-                      </Border>
+        <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled" Margin="0,14,0,0">
+          <StackPanel Spacing="14" Margin="0,0,4,0">
+            <!-- 概览：安装状态与模组同步结果（只读）。 -->
+            <StackPanel Spacing="14" IsVisible="{Binding IsOverviewCategoryVisible}">
+              <Border Classes="card" Padding="16" IsVisible="{Binding HasStatus}">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="{loc:Loc HellForge.StatusTitle}" FontWeight="SemiBold"/>
+                  <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" RowSpacing="12">
+                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.Version}" Classes="caption-text"/>
+                      <TextBlock x:Name="HellForgeVersionText" Text="{Binding HellForgeVersion}"/>
                     </StackPanel>
-                    <TextBlock Text="{Binding Template}" Classes="caption-text"/>
-                  </StackPanel>
-                  <Button Grid.Column="1" Content="{loc:Loc HellForge.Switch}" VerticalAlignment="Center"
-                          IsEnabled="{Binding !IsSelected}"
-                          Command="{Binding $parent[ItemsControl].((vm:HellForgeViewModel)DataContext).SwitchProfileCommand}"
-                          CommandParameter="{Binding}"/>
-                </Grid>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.GameBuild}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding GameBuild}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.Engine}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding EngineVersion}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="3" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.ModSdk}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding ModSdkVersion}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.GameCopy}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding GameCopyText}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.Session}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding SessionText}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.CurrentProfile}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding CurrentProfile}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="3" Spacing="2">
+                      <TextBlock Text="{loc:Loc HellForge.NetworkBlock}" Classes="caption-text"/>
+                      <TextBlock Text="{Binding NetworkBlock}"/>
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
               </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <TextBlock Text="{loc:Loc HellForge.NoProfiles}" Classes="muted"
-                   IsVisible="{Binding !HasProfiles}"/>
 
-        <!-- 模组同步状态（只读）：同步入口在配置文件页“部署”按钮，此处仅展示结果。置于档案列表之后，避免位移交互内容。 -->
-        <Border Classes="card" Padding="16">
-          <StackPanel Spacing="8">
-            <TextBlock Text="{loc:Loc HellForge.SyncTitle}" FontWeight="SemiBold"/>
-            <TextBlock x:Name="SyncStatusText" Text="{Binding SyncStatusText}" TextWrapping="Wrap"/>
-            <TextBlock x:Name="SyncSourceText" Text="{Binding SyncSourceText}" Classes="caption-text" TextWrapping="Wrap"
-                       IsVisible="{Binding HasSync}"/>
-            <TextBlock Text="{loc:Loc HellForge.Sync.Hint}" Classes="muted" TextWrapping="Wrap"/>
-          </StackPanel>
-        </Border>
+              <!-- 模组同步状态（只读）：同步入口在配置文件页“部署”按钮，此处仅展示结果。 -->
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{loc:Loc HellForge.SyncTitle}" FontWeight="SemiBold"/>
+                  <TextBlock x:Name="SyncStatusText" Text="{Binding SyncStatusText}" TextWrapping="Wrap"/>
+                  <TextBlock x:Name="SyncSourceText" Text="{Binding SyncSourceText}" Classes="caption-text" TextWrapping="Wrap"
+                             IsVisible="{Binding HasSync}"/>
+                  <TextBlock Text="{loc:Loc HellForge.Sync.Hint}" Classes="muted" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
 
-        <!-- 启动设置：CLI settings 的可编辑项；保存时只发送改动项。 -->
-        <Border Classes="card" Padding="16" IsVisible="{Binding HasSettings}">
-          <StackPanel Spacing="12">
-            <TextBlock Text="{loc:Loc HellForge.Settings.Title}" FontWeight="SemiBold"/>
-            <TextBlock Text="{loc:Loc HellForge.Settings.Hint}" Classes="muted" TextWrapping="Wrap"/>
-            <StackPanel Spacing="6">
-              <TextBlock Text="{loc:Loc HellForge.Settings.War}"/>
-              <ComboBox x:Name="WarSelector" ItemsSource="{Binding WarOptions}" SelectedItem="{Binding SelectedWar}"
-                        HorizontalAlignment="Stretch">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate x:DataType="vm:HellForgeChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
+            <!-- 会话：CLI 事件流实时映射的准备步骤。 -->
+            <Border Classes="card" Padding="16" IsVisible="{Binding IsSessionCategoryVisible}">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{loc:Loc HellForge.SessionTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="StartSessionButton" Content="{loc:Loc HellForge.StartSession}" Classes="accent"
+                            Command="{Binding StartSessionCommand}"/>
+                    <Button x:Name="StopSessionButton" Content="{loc:Loc HellForge.StopSession}"
+                            Command="{Binding StopSessionCommand}"/>
+                  </StackPanel>
+                </Grid>
+                <ItemsControl x:Name="SessionStepBar" ItemsSource="{Binding SessionSteps}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="16"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HellForgeSessionStepItem">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Classes="step-circle" Width="24" Height="24" CornerRadius="12"
+                                Classes.done="{Binding IsDone}" Classes.active="{Binding IsActive}" Classes.failed="{Binding IsFailed}">
+                          <TextBlock Text="{Binding Number}" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="caption-text"/>
+                        </Border>
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Classes="caption-text"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock x:Name="SessionStatusText" Text="{Binding SessionStatusText}" Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding SessionProblemsText}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasSessionProblems}"/>
+                <TextBlock Text="{Binding SessionNoticeText}" Classes="caption-text" TextWrapping="Wrap"
+                           IsVisible="{Binding HasSessionNotice}"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 档案：玩家档案列表与新建。 -->
+            <StackPanel Spacing="14" IsVisible="{Binding IsProfilesCategoryVisible}">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{loc:Loc HellForge.ProfilesTitle}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="CreateProfileButton" Content="{loc:Loc HellForge.Create}" Classes="accent"
+                        Command="{Binding OpenCreateDialogCommand}"/>
+              </Grid>
+
+              <ItemsControl x:Name="ProfileList" ItemsSource="{Binding Profiles}" IsVisible="{Binding HasProfiles}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:HellForgeProfileItem">
+                    <Border Classes="card" Padding="14,10" Margin="0,4">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Border Classes="chip" VerticalAlignment="Center" IsVisible="{Binding IsSelected}">
+                              <TextBlock Text="{loc:Loc HellForge.InUse}" Classes="caption-text"/>
+                            </Border>
+                          </StackPanel>
+                          <TextBlock Text="{Binding Template}" Classes="caption-text"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="{loc:Loc HellForge.Switch}" VerticalAlignment="Center"
+                                IsEnabled="{Binding !IsSelected}"
+                                Command="{Binding $parent[ItemsControl].((vm:HellForgeViewModel)DataContext).SwitchProfileCommand}"
+                                CommandParameter="{Binding}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{loc:Loc HellForge.NoProfiles}" Classes="muted"
+                         IsVisible="{Binding !HasProfiles}"/>
             </StackPanel>
-            <StackPanel Spacing="6">
-              <TextBlock Text="{loc:Loc HellForge.Settings.GameOptions}"/>
-              <TextBox x:Name="GameOptionsInput" Text="{Binding GameOptions, UpdateSourceTrigger=PropertyChanged}"/>
-            </StackPanel>
-            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="16">
-              <TextBlock Grid.Row="0" Text="{loc:Loc HellForge.Settings.LocalPlayFab}" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="0" Grid.Column="1" x:Name="LocalPlayFabToggle" IsChecked="{Binding SettingLocalPlayFab}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-              <TextBlock Grid.Row="1" Text="{loc:Loc HellForge.Settings.Multiplayer}" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="1" Grid.Column="1" x:Name="MultiplayerToggle" IsChecked="{Binding SettingMultiplayer}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-              <TextBlock Grid.Row="2" Text="{loc:Loc HellForge.Settings.EngineLog}" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="2" Grid.Column="1" x:Name="EngineLogToggle" IsChecked="{Binding SettingEngineLog}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-              <TextBlock Grid.Row="3" Text="{loc:Loc HellForge.Settings.CrashDump}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="3" Grid.Column="1" x:Name="CrashDumpToggle" IsChecked="{Binding SettingCrashDump}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-              <TextBlock Grid.Row="4" Text="{loc:Loc HellForge.Settings.Sandbox}" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="4" Grid.Column="1" x:Name="SandboxToggle" IsChecked="{Binding SettingSandbox}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-              <TextBlock Grid.Row="5" Text="{loc:Loc HellForge.Settings.SteamUdp}" VerticalAlignment="Center"/>
-              <ToggleSwitch Grid.Row="5" Grid.Column="1" x:Name="SteamUdpToggle" IsChecked="{Binding SettingSteamUdp}"
-                            OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
-            </Grid>
-            <Expander Header="{loc:Loc HellForge.Settings.Advanced}" HorizontalAlignment="Stretch">
-              <StackPanel Spacing="10" Margin="0,6,0,0">
+
+            <!-- 模组：HellForge 自己 mods\ 的列表；添加直接走 mod-add，不经过本管理器档案。 -->
+            <Border Classes="card" Padding="16" IsVisible="{Binding IsModsCategoryVisible}">
+              <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{loc:Loc HellForge.Mods.Title}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="OpenHellForgeModsFolderButton" Content="{loc:Loc HellForge.Mods.OpenFolder}"
+                            Click="OnOpenModsFolderClick"/>
+                    <Button x:Name="RefreshHellForgeModsButton" Content="{loc:Loc HellForge.Mods.Refresh}"
+                            Command="{Binding RefreshModsCommand}"/>
+                    <Button x:Name="AddHellForgeModFolderButton" Content="{loc:Loc HellForge.Mods.AddFolder}"
+                            Click="OnAddModFolderClick"/>
+                    <Button x:Name="AddHellForgeModButton" Content="{loc:Loc HellForge.Mods.Add}" Classes="accent"
+                            Command="{Binding RequestAddModCommand}"/>
+                  </StackPanel>
+                </Grid>
+                <TextBlock Text="{loc:Loc HellForge.Mods.Hint}" Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock Text="{loc:Loc HellForge.Mods.OrderHint}" Classes="caption-text" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NoHellForgeModsText" Text="{loc:Loc HellForge.Mods.None}" Classes="muted" TextWrapping="Wrap"
+                           IsVisible="{Binding !HasMods}"/>
+                <ItemsControl x:Name="HellForgeModList" ItemsSource="{Binding ModRows}" IsVisible="{Binding HasMods}">
+                  <ItemsControl.DataTemplates>
+                    <!-- 分组标题：与客户端一致，游戏性在上、每玩家/仅本机在下。 -->
+                    <DataTemplate DataType="vm:HellForgeModGroupHeader" x:DataType="vm:HellForgeModGroupHeader">
+                      <Grid ColumnDefinitions="*,Auto" Margin="2,14,2,4">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes="caption-text"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Count}" Classes="caption-text" VerticalAlignment="Center"/>
+                      </Grid>
+                    </DataTemplate>
+                    <DataTemplate DataType="vm:HellForgeModItem" x:DataType="vm:HellForgeModItem">
+                      <Border Classes="card" Padding="14,10" Margin="0,4">
+                        <StackPanel Spacing="6">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Spacing="2">
+                              <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                <Border Classes="chip" VerticalAlignment="Center" IsVisible="{Binding !Enabled}">
+                                  <TextBlock Text="{loc:Loc HellForge.Mods.Disabled}" Classes="caption-text"/>
+                                </Border>
+                              </StackPanel>
+                              <TextBlock Text="{Binding DetailText}" Classes="caption-text" TextWrapping="Wrap"/>
+                              <ItemsControl ItemsSource="{Binding Tags}" IsVisible="{Binding HasTags}" Margin="0,2,0,0">
+                                <ItemsControl.ItemsPanel>
+                                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate>
+                                    <Border Classes="chip" Margin="0,0,6,0" Padding="6,1">
+                                      <TextBlock Text="{Binding}" Classes="caption-text" FontSize="10"/>
+                                    </Border>
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <ToggleSwitch IsChecked="{Binding Enabled, Mode=TwoWay}" OnContent="" OffContent=""
+                                            VerticalAlignment="Center"
+                                            ToolTip.Tip="{loc:Loc HellForge.Mods.SwitchHint}"/>
+                              <Button Content="{loc:Loc HellForge.Mods.MoveUp}" IsEnabled="{Binding CanMoveUp}"
+                                      ToolTip.Tip="{loc:Loc HellForge.Mods.OrderHint}"
+                                      Command="{Binding $parent[ItemsControl].((vm:HellForgeViewModel)DataContext).MoveModUpCommand}"
+                                      CommandParameter="{Binding}"/>
+                              <Button Content="{loc:Loc HellForge.Mods.MoveDown}" IsEnabled="{Binding CanMoveDown}"
+                                      ToolTip.Tip="{loc:Loc HellForge.Mods.OrderHint}"
+                                      Command="{Binding $parent[ItemsControl].((vm:HellForgeViewModel)DataContext).MoveModDownCommand}"
+                                      CommandParameter="{Binding}"/>
+                              <Button Content="{loc:Loc HellForge.Mods.Remove}" IsVisible="{Binding Removable}"
+                                      Command="{Binding $parent[ItemsControl].((vm:HellForgeViewModel)DataContext).RemoveModCommand}"
+                                      CommandParameter="{Binding}"/>
+                            </StackPanel>
+                          </Grid>
+                          <!-- 外观包选项：开关与子选项变化后经 mod-pack 落盘。 -->
+                          <Expander Header="{loc:Loc HellForge.Mods.Options}" IsVisible="{Binding HasOptions}"
+                                    HorizontalAlignment="Stretch">
+                            <ItemsControl ItemsSource="{Binding Options}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HellForgePackOptionItem">
+                                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="0,4">
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding On, Mode=TwoWay}"
+                                                  OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding Variants}"
+                                              SelectedItem="{Binding Picked, Mode=TwoWay}"
+                                              IsVisible="{Binding HasVariants}" MinWidth="120"/>
+                                  </Grid>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </Expander>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.DataTemplates>
+                </ItemsControl>
+                <SelectableTextBlock x:Name="HellForgeModlistCode" Text="{Binding ModlistText}" Classes="caption-text"
+                                     TextWrapping="Wrap" IsVisible="{Binding HasModlistCode}"/>
+                <TextBlock x:Name="HellForgeModProblems" Text="{Binding ModProblemsText}"
+                           Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasModProblems}"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 启动设置：CLI settings 的可编辑项；保存时只发送改动项。 -->
+            <Border Classes="card" Padding="16" IsVisible="{Binding IsSettingsCategoryVisible}">
+              <StackPanel Spacing="12" IsVisible="{Binding HasSettings}">
+                <TextBlock Text="{loc:Loc HellForge.Settings.Title}" FontWeight="SemiBold"/>
+                <TextBlock Text="{loc:Loc HellForge.Settings.Hint}" Classes="muted" TextWrapping="Wrap"/>
                 <StackPanel Spacing="6">
-                  <TextBlock Text="{loc:Loc HellForge.Settings.Strangers}"/>
-                  <ComboBox x:Name="StrangersSelector" ItemsSource="{Binding StrangersOptions}" SelectedItem="{Binding SelectedStrangers}"
+                  <TextBlock Text="{loc:Loc HellForge.Settings.War}"/>
+                  <ComboBox x:Name="WarSelector" ItemsSource="{Binding WarOptions}" SelectedItem="{Binding SelectedWar}"
                             HorizontalAlignment="Stretch">
                     <ComboBox.ItemTemplate>
                       <DataTemplate x:DataType="vm:HellForgeChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
                 </StackPanel>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                  <TextBlock Text="{loc:Loc HellForge.Settings.LiveChanges}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                  <ToggleSwitch Grid.Column="1" x:Name="LiveChangesToggle" IsChecked="{Binding SettingLiveChanges}"
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{loc:Loc HellForge.Settings.GameOptions}"/>
+                  <TextBox x:Name="GameOptionsInput" Text="{Binding GameOptions, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="16">
+                  <TextBlock Grid.Row="0" Text="{loc:Loc HellForge.Settings.LocalPlayFab}" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="0" Grid.Column="1" x:Name="LocalPlayFabToggle" IsChecked="{Binding SettingLocalPlayFab}"
+                                OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  <TextBlock Grid.Row="1" Text="{loc:Loc HellForge.Settings.Multiplayer}" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="1" Grid.Column="1" x:Name="MultiplayerToggle" IsChecked="{Binding SettingMultiplayer}"
+                                OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  <TextBlock Grid.Row="2" Text="{loc:Loc HellForge.Settings.EngineLog}" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="2" Grid.Column="1" x:Name="EngineLogToggle" IsChecked="{Binding SettingEngineLog}"
+                                OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  <TextBlock Grid.Row="3" Text="{loc:Loc HellForge.Settings.CrashDump}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="3" Grid.Column="1" x:Name="CrashDumpToggle" IsChecked="{Binding SettingCrashDump}"
+                                OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  <TextBlock Grid.Row="4" Text="{loc:Loc HellForge.Settings.Sandbox}" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="4" Grid.Column="1" x:Name="SandboxToggle" IsChecked="{Binding SettingSandbox}"
+                                OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                  <TextBlock Grid.Row="5" Text="{loc:Loc HellForge.Settings.SteamUdp}" VerticalAlignment="Center"/>
+                  <ToggleSwitch Grid.Row="5" Grid.Column="1" x:Name="SteamUdpToggle" IsChecked="{Binding SettingSteamUdp}"
                                 OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
                 </Grid>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                  <TextBlock Text="{loc:Loc HellForge.Settings.ForgeCredits}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                  <NumericUpDown Grid.Column="1" x:Name="ForgeCreditsInput" Value="{Binding ForgeCreditChance}"
-                                 Minimum="0" Maximum="100" Increment="5" FormatString="N0" Width="120"/>
-                </Grid>
-              </StackPanel>
-            </Expander>
-            <Button x:Name="SaveHellForgeSettingsButton" Content="{loc:Loc HellForge.Settings.Save}" Classes="accent"
-                    Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Right"/>
-          </StackPanel>
-        </Border>
-
-        <!-- 会话日志：CLI logs 的运行记录；导出/崩溃报告由视图选保存路径，不上传。 -->
-        <Border Classes="card" Padding="16">
-          <StackPanel Spacing="12">
-            <TextBlock Text="{loc:Loc HellForge.Logs.Title}" FontWeight="SemiBold"/>
-            <TextBlock Text="{loc:Loc HellForge.Logs.Hint}" Classes="muted" TextWrapping="Wrap"/>
-            <TextBlock x:Name="NoLogsText" Text="{loc:Loc HellForge.Logs.None}" Classes="muted" TextWrapping="Wrap"
-                       IsVisible="{Binding !HasLogs}"/>
-            <ListBox x:Name="LogRunList" ItemsSource="{Binding LogRuns}" SelectedItem="{Binding SelectedLogRun}"
-                     MaxHeight="220" IsVisible="{Binding HasLogs}">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:HellForgeLogRunItem">
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                    <StackPanel Spacing="2">
-                      <TextBlock Text="{Binding Title}"/>
-                      <TextBlock Text="{Binding DetailText}" Classes="caption-text" TextWrapping="Wrap"
-                                 IsVisible="{Binding HasDetail}"/>
+                <Expander Header="{loc:Loc HellForge.Settings.Advanced}" HorizontalAlignment="Stretch">
+                  <StackPanel Spacing="10" Margin="0,6,0,0">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="{loc:Loc HellForge.Settings.Strangers}"/>
+                      <ComboBox x:Name="StrangersSelector" ItemsSource="{Binding StrangersOptions}" SelectedItem="{Binding SelectedStrangers}"
+                                HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="vm:HellForgeChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
                     </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding StatusText}" Classes="caption-text" VerticalAlignment="Center"/>
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <StackPanel Orientation="Horizontal" Spacing="12">
-              <Button x:Name="ExportLogsButton" Content="{loc:Loc HellForge.Logs.Export}"
-                      Command="{Binding RequestExportLogsCommand}"/>
-              <Button x:Name="SaveCrashReportButton" Content="{loc:Loc HellForge.Logs.CrashReport}"
-                      Command="{Binding RequestCrashReportCommand}"/>
-              <CheckBox x:Name="IncludeDumpCheck" Content="{loc:Loc HellForge.Logs.IncludeDump}"
-                        IsChecked="{Binding IncludeCrashDump}" VerticalAlignment="Center"/>
-            </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <TextBlock Text="{loc:Loc HellForge.Settings.LiveChanges}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                      <ToggleSwitch Grid.Column="1" x:Name="LiveChangesToggle" IsChecked="{Binding SettingLiveChanges}"
+                                    OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                      <TextBlock Text="{loc:Loc HellForge.Settings.ForgeCredits}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                      <NumericUpDown Grid.Column="1" x:Name="ForgeCreditsInput" Value="{Binding ForgeCreditChance}"
+                                     Minimum="0" Maximum="100" Increment="5" FormatString="N0" Width="120"/>
+                    </Grid>
+                  </StackPanel>
+                </Expander>
+                <Button x:Name="SaveHellForgeSettingsButton" Content="{loc:Loc HellForge.Settings.Save}" Classes="accent"
+                        Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Right"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 会话日志：CLI logs 的运行记录；导出/崩溃报告由视图选保存路径，不上传。 -->
+            <Border Classes="card" Padding="16" IsVisible="{Binding IsLogsCategoryVisible}">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{loc:Loc HellForge.Logs.Title}" FontWeight="SemiBold"/>
+                <TextBlock Text="{loc:Loc HellForge.Logs.Hint}" Classes="muted" TextWrapping="Wrap"/>
+                <TextBlock x:Name="NoLogsText" Text="{loc:Loc HellForge.Logs.None}" Classes="muted" TextWrapping="Wrap"
+                           IsVisible="{Binding !HasLogs}"/>
+                <ListBox x:Name="LogRunList" ItemsSource="{Binding LogRuns}" SelectedItem="{Binding SelectedLogRun}"
+                         MaxHeight="220" IsVisible="{Binding HasLogs}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HellForgeLogRunItem">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="{Binding Title}"/>
+                          <TextBlock Text="{Binding DetailText}" Classes="caption-text" TextWrapping="Wrap"
+                                     IsVisible="{Binding HasDetail}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding StatusText}" Classes="caption-text" VerticalAlignment="Center"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Button x:Name="ExportLogsButton" Content="{loc:Loc HellForge.Logs.Export}"
+                          Command="{Binding RequestExportLogsCommand}"/>
+                  <Button x:Name="SaveCrashReportButton" Content="{loc:Loc HellForge.Logs.CrashReport}"
+                          Command="{Binding RequestCrashReportCommand}"/>
+                  <CheckBox x:Name="IncludeDumpCheck" Content="{loc:Loc HellForge.Logs.IncludeDump}"
+                            IsChecked="{Binding IncludeCrashDump}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
-        </Border>
-      </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
 
     <!-- 新建档案：不透明遮罩弹窗，避免受卡片透明度影响。 -->
     <Border Background="{DynamicResource OverlayScrimBrush}" IsVisible="{Binding IsCreateDialogOpen}">

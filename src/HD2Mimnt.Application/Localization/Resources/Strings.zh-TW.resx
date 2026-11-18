@@ -4473,6 +4473,12 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Session" xml:space="preserve"><value>工作階段</value></data>
   <data name="HellForge.CurrentProfile" xml:space="preserve"><value>目前檔案</value></data>
   <data name="HellForge.NetworkBlock" xml:space="preserve"><value>網路隔離</value></data>
+  <data name="HellForge.Category.Overview" xml:space="preserve"><value>概覽</value></data>
+  <data name="HellForge.Category.Session" xml:space="preserve"><value>工作階段</value></data>
+  <data name="HellForge.Category.Profiles" xml:space="preserve"><value>檔案</value></data>
+  <data name="HellForge.Category.Mods" xml:space="preserve"><value>模組</value></data>
+  <data name="HellForge.Category.Settings" xml:space="preserve"><value>設定</value></data>
+  <data name="HellForge.Category.Logs" xml:space="preserve"><value>日誌</value></data>
   <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>玩家檔案</value></data>
   <data name="HellForge.Create" xml:space="preserve"><value>新建檔案</value></data>
   <data name="HellForge.Refresh" xml:space="preserve"><value>重新整理</value></data>
@@ -4522,6 +4528,42 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Sync.Source" xml:space="preserve"><value>來源配置：{0} · 上次同步：{1}</value></data>
   <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>（未知配置）</value></data>
   <data name="HellForge.Sync.Hint" xml:space="preserve"><value>在配置檔案頁點擊「部署」同步啟用的模組；「清理部署」會移除本管理器同步的模組。</value></data>
+  <data name="HellForge.Mods.Title" xml:space="preserve"><value>HellForge 模組</value></data>
+  <data name="HellForge.Mods.Hint" xml:space="preserve"><value>這裡列出 HellForge 自己 mods 目錄中的模組。在此新增的模組直接寫入該目錄，不經過本管理器的檔案與部署流程；開關、排序、選項與刪除也會直接改到 HellForge。工作階段執行中 CLI 會拒絕修改模組。</value></data>
+  <data name="HellForge.Mods.Enable" xml:space="preserve"><value>啟用</value></data>
+  <data name="HellForge.Mods.Disable" xml:space="preserve"><value>停用</value></data>
+  <data name="HellForge.Mods.Remove" xml:space="preserve"><value>移除</value></data>
+  <data name="HellForge.Mods.RemoveTitle" xml:space="preserve"><value>移除模組</value></data>
+  <data name="HellForge.Mods.RemoveConfirm" xml:space="preserve"><value>確定要從 HellForge 的 mods 目錄移除「{0}」嗎？</value></data>
+  <data name="HellForge.Mods.Removed" xml:space="preserve"><value>已從 HellForge 的 mods 目錄移除「{0}」。</value></data>
+  <data name="HellForge.Mods.MoveUp" xml:space="preserve"><value>上移</value></data>
+  <data name="HellForge.Mods.MoveDown" xml:space="preserve"><value>下移</value></data>
+  <data name="HellForge.Mods.Options" xml:space="preserve"><value>選項</value></data>
+  <data name="HellForge.Mods.Code" xml:space="preserve"><value>連線模組碼</value></data>
+  <data name="HellForge.Mods.Switching" xml:space="preserve"><value>正在切換模組…</value></data>
+  <data name="HellForge.Mods.Removing" xml:space="preserve"><value>正在移除模組…</value></data>
+  <data name="HellForge.Mods.Reordering" xml:space="preserve"><value>正在調整模組順序…</value></data>
+  <data name="HellForge.Mods.OptionUpdate" xml:space="preserve"><value>正在儲存外觀包選項…</value></data>
+  <data name="HellForge.Mods.OpenFolder" xml:space="preserve"><value>開啟 mods 目錄</value></data>
+  <data name="HellForge.Mods.AddFolder" xml:space="preserve"><value>新增資料夾…</value></data>
+  <data name="HellForge.Mods.FolderNoManifest" xml:space="preserve"><value>所選資料夾裡沒有 hellforge-mod.json 或 manifest.json。</value></data>
+  <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>清單最上方的模組最後載入並覆蓋下方；上移/下移只在同組（遊戲性/每玩家/僅本機）內生效。</value></data>
+  <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>開關模組；工作階段執行中 CLI 會拒絕修改。</value></data>
+  <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>連線模組碼 {0}：好友需要相同的 {1} 個遊戲性模組，順序不限。</value></data>
+  <data name="HellForge.Mods.Add" xml:space="preserve"><value>新增模組…</value></data>
+  <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>重新整理清單</value></data>
+  <data name="HellForge.Mods.None" xml:space="preserve"><value>HellForge 的 mods 目錄中還沒有模組。</value></data>
+  <data name="HellForge.Mods.Loading" xml:space="preserve"><value>正在讀取 HellForge 模組…</value></data>
+  <data name="HellForge.Mods.Adding" xml:space="preserve"><value>正在新增模組到 HellForge…</value></data>
+  <data name="HellForge.Mods.Added" xml:space="preserve"><value>已新增「{0}」到 HellForge 的 mods 目錄。</value></data>
+  <data name="HellForge.Mods.ArchiveFile" xml:space="preserve"><value>模組壓縮檔</value></data>
+  <data name="HellForge.Mods.ManifestFile" xml:space="preserve"><value>模組清單</value></data>
+  <data name="HellForge.Mods.Enabled" xml:space="preserve"><value>已啟用</value></data>
+  <data name="HellForge.Mods.Disabled" xml:space="preserve"><value>已停用</value></data>
+  <data name="HellForge.Mods.Group.Gameplay" xml:space="preserve"><value>遊戲性</value></data>
+  <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>每玩家</value></data>
+  <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>僅本機</value></data>
+  <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge 回報以下模組目錄有問題：</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>啟動設定</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>儲存後對下一次工作階段生效；工作階段執行中 CLI 會拒絕修改。「與陌生人連線」和 Forge Credits 比例儲存在模組設定中。</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>銀河戰爭</value></data>

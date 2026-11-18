@@ -154,6 +154,29 @@ public partial class ModItemViewModel : ObservableObject
     public void ApplyNoticeStyle(string? style)
         => NoticeStyle = style is "Outline" or "BadgeBlink" ? style : "Badge";
 
+    // HellForge 模式标记：同步时算出、只在 HellForge 模式显示；切回官方模式由库页清空，不写库也不进 Tags。
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHellForgeMark))]
+    private string? _hellForgeMarkText;
+
+    [ObservableProperty]
+    private string? _hellForgeMarkTip;
+
+    public bool HasHellForgeMark => !string.IsNullOrEmpty(HellForgeMarkText);
+
+    public void ApplyHellForgeMark(string text, string? tip)
+    {
+        HellForgeMarkText = text;
+        HellForgeMarkTip = tip;
+    }
+
+    public void ClearHellForgeMark()
+    {
+        if (HellForgeMarkText == null && HellForgeMarkTip == null) return;
+        HellForgeMarkText = null;
+        HellForgeMarkTip = null;
+    }
+
     public void DismissNotice()
     {
         if (!HasNotice) return;

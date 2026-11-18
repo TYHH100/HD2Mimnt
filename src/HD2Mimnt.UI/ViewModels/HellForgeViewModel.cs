@@ -27,6 +27,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private readonly ProfileService _profiles;
     private readonly NotificationService _notificationService;
     private readonly UiLocalization _localization;
+    private readonly IConfirmationService _confirmation;
     private CancellationTokenSource? _cancellation;
     private HellForgeStatus? _status;
     private HellForgeSyncStatus? _syncStatus;
@@ -38,6 +39,8 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private string _workingKey = "HellForge.Loading";
     private int _lastActiveStep;
     private bool _sessionEndedNotified;
+    private bool _suppressPackEvents;
+    private bool _suppressModEvents;
 
     public Task Completion { get; private set; } = Task.CompletedTask;
 
@@ -63,21 +66,32 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private HellForgeLogRunItem? _selectedLogRun;
     [ObservableProperty] private bool _includeCrashDump;
+    [ObservableProperty] private HellForgeCategoryItem? _selectedCategory;
 
+    public ObservableCollection<HellForgeCategoryItem> Categories { get; } = new();
     public ObservableCollection<HellForgeProfileItem> Profiles { get; } = new();
     public ObservableCollection<HellForgeTemplateInfo> Templates { get; } = new();
     public ObservableCollection<HellForgeSessionStepItem> SessionSteps { get; } = new();
     public ObservableCollection<HellForgeChoice> WarOptions { get; } = new();
     public ObservableCollection<HellForgeChoice> StrangersOptions { get; } = new();
     public ObservableCollection<HellForgeLogRunItem> LogRuns { get; } = new();
+    public ObservableCollection<HellForgeModItem> HellForgeMods { get; } = new();
+    /// <summary>展示用：模组行与分组标题混排（分组标题按 group 变化插入）。</summary>
+    public ObservableCollection<object> ModRows { get; } = new();
 
     /// <summary>请求保存日志 / 崩溃报告（视图负责选路径，再回调 ExportLogsAsync / CreateCrashReportAsync）。</summary>
     public event EventHandler? ExportLogsRequested;
     public event EventHandler? CrashReportRequested;
+    /// <summary>请求添加 HellForge 模组（视图选文件后回调 AddModAsync，直接进 HF 的 mods\）。</summary>
+    public event EventHandler? AddModRequested;
+
+    private bool _modsLoaded;
+    private HellForgeModsList? _modsList;
 
     public HellForgeViewModel(HellForgeService service, HellForgeSessionService session,
         HellForgeModSyncService syncService, ProfileService profiles,
-        NotificationService notificationService, UiLocalization localization)
+        NotificationService notificationService, UiLocalization localization,
+        IConfirmationService confirmation)
     {
         _service = service;
         _session = session;
@@ -85,11 +99,31 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         _profiles = profiles;
         _notificationService = notificationService;
         _localization = localization;
+        _confirmation = confirmation;
         _localization.PropertyChanged += OnLanguageChanged;
         _session.StateChanged += OnSessionStateChanged;
         RebuildChoiceLabels();
+        RebuildCategories();
         UpdateSessionProgress();
     }
+
+    public bool IsOverviewCategoryVisible => CategoryIs("Overview");
+    public bool IsSessionCategoryVisible => CategoryIs("Session");
+    public bool IsProfilesCategoryVisible => CategoryIs("Profiles");
+    public bool IsModsCategoryVisible => CategoryIs("Mods");
+    public bool IsSettingsCategoryVisible => CategoryIs("Settings");
+    public bool IsLogsCategoryVisible => CategoryIs("Logs");
+
+    public string OverviewLabel => CategoryLabel("Overview");
+    public string SessionLabel => CategoryLabel("Session");
+    public string ProfilesLabel => CategoryLabel("Profiles");
+    public string ModsLabel => CategoryLabel("Mods");
+    public string SettingsLabel => CategoryLabel("Settings");
+    public string LogsLabel => CategoryLabel("Logs");
+    public string SelectedCategoryLabel => SelectedCategory?.Label ?? string.Empty;
+
+    private bool CategoryIs(string key) => SelectedCategory?.Key == key;
+    private string CategoryLabel(string key) => Categories.FirstOrDefault(category => category.Key == key)?.Label ?? string.Empty;
 
     public bool IsInstallationConfigured => _service.TryGetInstallationRoot(out _);
     public bool HasStatus => _status != null;
@@ -117,6 +151,22 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         : string.Empty;
     /// <summary>settings 已加载，设置卡可编辑。</summary>
     public bool HasSettings => _settingsSnapshot != null;
+
+    public bool HasMods => HellForgeMods.Count > 0;
+    public bool HasModProblems => _modsList?.Problems.Count > 0;
+    public string ModProblemsText => HasModProblems
+        ? _localization["HellForge.Mods.Problems"] + "\n" + string.Join("\n", _modsList!.Problems)
+        : string.Empty;
+    /// <summary>联机模组码：好友比对用；没有启用的游戏性模组时 CLI 给 null。</summary>
+    public bool HasModlistCode => !string.IsNullOrEmpty(_modsList?.Modlist);
+    public string ModlistText => HasModlistCode
+        ? _localization.Format("HellForge.Mods.Modlist", _modsList!.Modlist!,
+            HellForgeMods.Count(mod => mod.Enabled && mod.Group == "gameplay"))
+        : string.Empty;
+    /// <summary>HF 安装根的 mods 目录（打开资源管理器用）；未配置时为空。</summary>
+    public string ModsDirectory => _service.TryGetInstallationRoot(out var root)
+        ? Path.Combine(root, "mods")
+        : string.Empty;
 
     public bool IsSettingsDirty => _settingsSnapshot is { } saved && (
         (SelectedWar?.Value ?? "live") != (saved.War ?? "live")
@@ -157,18 +207,173 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         : string.Empty;
 
     /// <summary>进入页面时加载；刷新按钮共用同一流程。</summary>
-    public Task InitializeAsync() => OperateAsync("HellForge.Loading", async token =>
-    {
-        await LoadAsync(token);
-        await _session.RefreshAsync(token);
-    });
+    public Task InitializeAsync() => OperateAsync("HellForge.Loading", ReloadAsync);
 
     [RelayCommand(CanExecute = nameof(CanOperate))]
-    private Task RefreshAsync() => OperateAsync("HellForge.Loading", async token =>
+    private Task RefreshAsync() => OperateAsync("HellForge.Loading", ReloadAsync);
+
+    /// <summary>状态/档案/设置/日志一次读齐；模组列表已加载过时顺带刷新，避免常驻额外 CLI 开销。</summary>
+    private async Task ReloadAsync(CancellationToken token)
     {
         await LoadAsync(token);
         await _session.RefreshAsync(token);
+        if (_modsLoaded) await LoadModsCoreAsync(token);
+    }
+
+    /// <summary>模组分区首次进入时按需读取；CLI mods 会扫描整个 mods\，不放进页面初始化。</summary>
+    [RelayCommand(CanExecute = nameof(CanRefreshMods))]
+    private Task RefreshModsAsync() => OperateAsync("HellForge.Mods.Loading", LoadModsCoreAsync);
+
+    private bool CanRefreshMods() => !IsBusy && IsInstallationConfigured;
+
+    /// <summary>添加 HellForge 模组：视图选文件（压缩包或模组清单）后回调 AddModAsync。</summary>
+    [RelayCommand(CanExecute = nameof(CanAddMod))]
+    private void RequestAddMod() => AddModRequested?.Invoke(this, EventArgs.Empty);
+
+    private bool CanAddMod() => !IsBusy && IsInstallationConfigured && !IsSessionActive;
+
+    /// <summary>添加文件夹模组：先找清单再走 mod-add；找不到清单直接提示。</summary>
+    public async Task AddModFromFolderAsync(string folder)
+    {
+        var manifest = new[] { "hellforge-mod.json", "manifest.json" }
+            .Select(name => Path.Combine(folder, name))
+            .FirstOrDefault(File.Exists);
+        if (manifest == null)
+        {
+            ReportUiError(_localization["HellForge.Mods.FolderNoManifest"]);
+            return;
+        }
+        await AddModAsync(manifest);
+    }
+
+    /// <summary>行内开关：开关变化经 mod-switch 落盘，失败或忙碌/会话中时回滚。</summary>
+    private void OnModEnabledChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (_suppressModEvents || sender is not HellForgeModItem item) return;
+        if (args.PropertyName != nameof(HellForgeModItem.Enabled)) return;
+        if (IsBusy || IsSessionActive)
+        {
+            RevertModEnabled(item);
+            return;
+        }
+        _ = ApplyModEnabledAsync(item);
+    }
+
+    private async Task ApplyModEnabledAsync(HellForgeModItem item)
+    {
+        var wanted = item.Enabled;
+        await OperateAsync("HellForge.Mods.Switching", async token =>
+        {
+            var result = await _service.SwitchModAsync(item.Id, wanted, token);
+            _suppressModEvents = true;
+            try
+            {
+                item.Enabled = result.Enabled;
+                item.MarkEnabledApplied();
+            }
+            finally { _suppressModEvents = false; }
+            OnPropertyChanged(nameof(ModlistText));
+        });
+        if (_error != null) RevertModEnabled(item);
+    }
+
+    private void RevertModEnabled(HellForgeModItem item)
+    {
+        _suppressModEvents = true;
+        try { item.Enabled = item.AppliedEnabled; }
+        finally { _suppressModEvents = false; }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRemoveMod))]
+    private Task RemoveModAsync(HellForgeModItem? item) => OperateAsync("HellForge.Mods.Removing", async token =>
+    {
+        if (item == null) return;
+        var confirmed = await _confirmation.ConfirmAsync(
+            _localization["HellForge.Mods.RemoveTitle"],
+            _localization.Format("HellForge.Mods.RemoveConfirm", item.Name));
+        if (!confirmed) return;
+        await _service.RemoveModAsync(item.Id, token);
+        HellForgeMods.Remove(item);
+        UpdateModMoveFlags();
+        OnPropertyChanged(nameof(HasMods));
+        _notificationService.ShowSuccess(
+            _localization.Format("HellForge.Mods.Removed", item.Name), "HellForge");
     });
+
+    private bool CanRemoveMod(HellForgeModItem? item) =>
+        item is { Removable: true } && !IsBusy && !IsSessionActive;
+
+    [RelayCommand(CanExecute = nameof(CanMoveModUp))]
+    private Task MoveModUpAsync(HellForgeModItem? item) => MoveModAsync(item, -1);
+
+    private bool CanMoveModUp(HellForgeModItem? item) => item?.CanMoveUp == true && !IsBusy && !IsSessionActive;
+
+    [RelayCommand(CanExecute = nameof(CanMoveModDown))]
+    private Task MoveModDownAsync(HellForgeModItem? item) => MoveModAsync(item, 1);
+
+    private bool CanMoveModDown(HellForgeModItem? item) => item?.CanMoveDown == true && !IsBusy && !IsSessionActive;
+
+    /// <summary>上/下移一格：只在同组内移动，发 mod-order 后本地同步顺序，避免再跑一次很慢的 mods。</summary>
+    private Task MoveModAsync(HellForgeModItem? item, int delta)
+    {
+        if (item == null) return Task.CompletedTask;
+        var index = HellForgeMods.IndexOf(item);
+        var target = index + delta;
+        if (index < 0 || target < 0 || target >= HellForgeMods.Count) return Task.CompletedTask;
+        if (HellForgeMods[target].Group != item.Group) return Task.CompletedTask;
+        var ids = HellForgeMods.Select(mod => mod.Id).ToList();
+        (ids[index], ids[target]) = (ids[target], ids[index]);
+        return OperateAsync("HellForge.Mods.Reordering", async token =>
+        {
+            await _service.OrderModsAsync(ids, token);
+            HellForgeMods.Move(index, target);
+            UpdateModMoveFlags();
+        });
+    }
+
+    /// <summary>视图层异常（文件对话框等）上报到通知，避免 async void 静默失败。</summary>
+    public void ReportUiError(string message)
+        => _notificationService.ShowError(_localization.Format("HellForge.Failed", message), "HellForge");
+
+    /// <summary>直接写入 HellForge 的 mods\（CLI mod-add），不经过 HD2Mimnt 档案与部署流程。</summary>
+    public Task AddModAsync(string file) => OperateAsync("HellForge.Mods.Adding", async token =>
+    {
+        var result = await _service.AddModAsync(file, token);
+        await LoadModsCoreAsync(token);
+        _notificationService.ShowSuccess(
+            _localization.Format("HellForge.Mods.Added", result.Name), "HellForge");
+    });
+
+    private async Task EnsureModsLoadedAsync()
+    {
+        if (_modsLoaded || IsBusy || !IsInstallationConfigured) return;
+        await OperateAsync("HellForge.Mods.Loading", LoadModsCoreAsync);
+    }
+
+    private async Task LoadModsCoreAsync(CancellationToken token)
+    {
+        ApplyMods(await _service.GetModsAsync(token));
+        _modsLoaded = true;
+    }
+
+    partial void OnSelectedCategoryChanged(HellForgeCategoryItem? value)
+    {
+        OnPropertyChanged(nameof(IsOverviewCategoryVisible));
+        OnPropertyChanged(nameof(IsSessionCategoryVisible));
+        OnPropertyChanged(nameof(IsProfilesCategoryVisible));
+        OnPropertyChanged(nameof(IsModsCategoryVisible));
+        OnPropertyChanged(nameof(IsSettingsCategoryVisible));
+        OnPropertyChanged(nameof(IsLogsCategoryVisible));
+        OnPropertyChanged(nameof(SelectedCategoryLabel));
+        if (value?.Key == "Mods") _ = EnsureModsLoadedAsync();
+    }
+
+    [RelayCommand]
+    private void SelectCategory(string? key)
+    {
+        var category = Categories.FirstOrDefault(candidate => candidate.Key == key);
+        if (category != null) SelectedCategory = category;
+    }
 
     [RelayCommand(CanExecute = nameof(CanStartSession))]
     private void StartSession()
@@ -391,6 +596,169 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     private static string Capitalize(string value) => char.ToUpperInvariant(value[0]) + value[1..];
 
+    /// <summary>重建分类标签并保留当前分类（语言切换时调用）。</summary>
+    private void RebuildCategories()
+    {
+        var key = SelectedCategory?.Key ?? "Profiles";
+        Categories.Clear();
+        foreach (var (categoryKey, resource) in new[]
+                 {
+                     ("Overview", "HellForge.Category.Overview"),
+                     ("Session", "HellForge.Category.Session"),
+                     ("Profiles", "HellForge.Category.Profiles"),
+                     ("Mods", "HellForge.Category.Mods"),
+                     ("Settings", "HellForge.Category.Settings"),
+                     ("Logs", "HellForge.Category.Logs")
+                 })
+            Categories.Add(new HellForgeCategoryItem(categoryKey, _localization[resource]));
+        SelectedCategory = Categories.FirstOrDefault(category => category.Key == key)
+            ?? Categories.First(category => category.Key == "Profiles");
+        OnPropertyChanged(nameof(OverviewLabel));
+        OnPropertyChanged(nameof(SessionLabel));
+        OnPropertyChanged(nameof(ProfilesLabel));
+        OnPropertyChanged(nameof(ModsLabel));
+        OnPropertyChanged(nameof(SettingsLabel));
+        OnPropertyChanged(nameof(LogsLabel));
+    }
+
+    /// <summary>HF 模组列表来自 CLI mods（mods\ 的权威列表）；按客户端分组顺序展示（游戏性在上）。</summary>
+    private void ApplyMods(HellForgeModsList list)
+    {
+        _modsList = list;
+        HellForgeMods.Clear();
+        foreach (var mod in list.Mods.OrderBy(mod => GroupRank(mod.Group)))
+            HellForgeMods.Add(CreateModItem(mod));
+        RebuildModRows();
+        UpdateModMoveFlags();
+        OnPropertyChanged(nameof(HasMods));
+        OnPropertyChanged(nameof(HasModProblems));
+        OnPropertyChanged(nameof(ModProblemsText));
+        OnPropertyChanged(nameof(HasModlistCode));
+        OnPropertyChanged(nameof(ModlistText));
+        OnPropertyChanged(nameof(ModsDirectory));
+        RemoveModCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>扁平列表 + 分组标题，整体重建（标题里带该组数量）。</summary>
+    private void RebuildModRows()
+    {
+        ModRows.Clear();
+        string? current = null;
+        foreach (var mod in HellForgeMods)
+        {
+            if (mod.Group != current)
+            {
+                current = mod.Group;
+                ModRows.Add(new HellForgeModGroupHeader(GroupText(mod.Group),
+                    HellForgeMods.Count(candidate => candidate.Group == mod.Group)));
+            }
+            ModRows.Add(mod);
+        }
+    }
+
+    private HellForgeModItem CreateModItem(HellForgeModInfo mod)
+    {
+        var detail = new List<string> { mod.Id };
+        if (!string.IsNullOrEmpty(mod.Version)) detail.Add($"v{mod.Version}");
+        var item = new HellForgeModItem(mod.Id, mod.Name, mod.Group ?? string.Empty, mod.Removable,
+            mod.Enabled, string.Join(" · ", detail), mod.Tags);
+        item.PropertyChanged += OnModEnabledChanged;
+        foreach (var option in mod.Options ?? [])
+        {
+            var optionItem = new HellForgePackOptionItem(mod.Id, option.Name, option.On,
+                option.Variants ?? [], option.Picked);
+            optionItem.PropertyChanged += OnPackOptionChanged;
+            item.Options.Add(optionItem);
+        }
+        return item;
+    }
+
+    /// <summary>外观包选项变化：经 mod-pack 落盘，失败或忙碌时回滚勾选状态。</summary>
+    private void OnPackOptionChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (_suppressPackEvents || sender is not HellForgePackOptionItem option) return;
+        if (args.PropertyName is not (nameof(HellForgePackOptionItem.On) or nameof(HellForgePackOptionItem.Picked))) return;
+        if (IsBusy || IsSessionActive)
+        {
+            RevertPackOption(option);
+            return;
+        }
+        _ = ApplyPackOptionAsync(option, args.PropertyName);
+    }
+
+    private async Task ApplyPackOptionAsync(HellForgePackOptionItem option, string property)
+    {
+        var wantedOn = option.On;
+        var wantedPicked = option.Picked;
+        await OperateAsync("HellForge.Mods.OptionUpdate", async token =>
+        {
+            var result = property == nameof(HellForgePackOptionItem.On)
+                ? await _service.SetPackOptionAsync(option.ModId, option.Name, on: wantedOn, cancellationToken: token)
+                : await _service.SetPackOptionAsync(option.ModId, option.Name, variant: wantedPicked, cancellationToken: token);
+            ApplyPackOptions(option.ModId, result.Options);
+        });
+        if (_error != null) RevertPackOption(option);
+    }
+
+    private void ApplyPackOptions(string modId, List<HellForgeModOption> options)
+    {
+        var item = HellForgeMods.FirstOrDefault(mod => mod.Id == modId);
+        if (item == null) return;
+        _suppressPackEvents = true;
+        try
+        {
+            foreach (var option in options)
+            {
+                var target = item.Options.FirstOrDefault(candidate => candidate.Name == option.Name);
+                if (target == null) continue;
+                target.On = option.On;
+                target.Picked = option.Picked;
+                target.MarkApplied();
+            }
+        }
+        finally { _suppressPackEvents = false; }
+    }
+
+    private void RevertPackOption(HellForgePackOptionItem option)
+    {
+        _suppressPackEvents = true;
+        try
+        {
+            option.On = option.AppliedOn;
+            option.Picked = option.AppliedPicked;
+        }
+        finally { _suppressPackEvents = false; }
+    }
+
+    private void UpdateModMoveFlags()
+    {
+        for (var index = 0; index < HellForgeMods.Count; index++)
+        {
+            var item = HellForgeMods[index];
+            item.CanMoveUp = index > 0 && HellForgeMods[index - 1].Group == item.Group;
+            item.CanMoveDown = index + 1 < HellForgeMods.Count && HellForgeMods[index + 1].Group == item.Group;
+        }
+        MoveModUpCommand.NotifyCanExecuteChanged();
+        MoveModDownCommand.NotifyCanExecuteChanged();
+        RemoveModCommand.NotifyCanExecuteChanged();
+    }
+
+    private static int GroupRank(string? group) => group switch
+    {
+        "gameplay" => 0,
+        "per-player" => 1,
+        "cosmetic" => 2,
+        _ => 3
+    };
+
+    private string GroupText(string? group) => group switch
+    {
+        "gameplay" => _localization["HellForge.Mods.Group.Gameplay"],
+        "per-player" => _localization["HellForge.Mods.Group.PerPlayer"],
+        "cosmetic" => _localization["HellForge.Mods.Group.Cosmetic"],
+        _ => group ?? string.Empty
+    };
+
     private void ApplyLogs(HellForgeLogsResult logs)
     {
         _logs = logs;
@@ -448,6 +816,11 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         SaveSettingsCommand.NotifyCanExecuteChanged();
         RequestExportLogsCommand.NotifyCanExecuteChanged();
         RequestCrashReportCommand.NotifyCanExecuteChanged();
+        RefreshModsCommand.NotifyCanExecuteChanged();
+        RequestAddModCommand.NotifyCanExecuteChanged();
+        RemoveModCommand.NotifyCanExecuteChanged();
+        MoveModUpCommand.NotifyCanExecuteChanged();
+        MoveModDownCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
         Refresh();
     }
@@ -528,6 +901,10 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SessionNoticeText));
         StartSessionCommand.NotifyCanExecuteChanged();
         StopSessionCommand.NotifyCanExecuteChanged();
+        RequestAddModCommand.NotifyCanExecuteChanged();
+        RemoveModCommand.NotifyCanExecuteChanged();
+        MoveModUpCommand.NotifyCanExecuteChanged();
+        MoveModDownCommand.NotifyCanExecuteChanged();
     }
 
     private static int StepOfPhase(HellForgeSessionPhase phase) => phase switch
@@ -561,7 +938,14 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         try { await action(cancellation.Token); }
         catch (OperationCanceledException) { }
         catch (Exception error) { _error = error.Message; }
-        finally { _cancellation = null; IsBusy = false; completion.TrySetResult(); }
+        finally
+        {
+            _cancellation = null;
+            IsBusy = false;
+            completion.TrySetResult();
+            // 页面加载期间切到模组分区会被忙碌拦截，这里补一次按需加载；失败不再自动重试（避免循环）。
+            if (_error == null && SelectedCategory?.Key == "Mods" && !_modsLoaded) _ = EnsureModsLoadedAsync();
+        }
     }
 
     private void OnLanguageChanged(object? sender, PropertyChangedEventArgs args)
@@ -570,7 +954,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         Refresh();
         UpdateSessionProgress();
         RebuildChoiceLabels();
+        RebuildCategories();
         if (_logs != null) ApplyLogs(_logs);
+        if (_modsList != null) ApplyMods(_modsList);
     }
 
     private void Refresh()
@@ -580,7 +966,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             nameof(ModSdkVersion), nameof(NetworkBlock), nameof(CurrentProfile), nameof(IsSessionRunning),
             nameof(IsGameCopyReady), nameof(GameCopyText), nameof(SessionText),
             nameof(HasSync), nameof(SyncedModCount), nameof(SyncStatusText), nameof(SyncSourceText),
-            nameof(HasSettings), nameof(IsSettingsDirty), nameof(HasLogs) })
+            nameof(HasSettings), nameof(IsSettingsDirty), nameof(HasLogs),
+            nameof(HasMods), nameof(HasModProblems), nameof(ModProblemsText),
+            nameof(HasModlistCode), nameof(ModlistText), nameof(ModsDirectory) })
             OnPropertyChanged(property);
         SaveSettingsCommand.NotifyCanExecuteChanged();
         RequestExportLogsCommand.NotifyCanExecuteChanged();
@@ -615,6 +1003,81 @@ public sealed class HellForgeSessionStepItem(int number, string label, bool isDo
 
 /// <summary>设置卡里的枚举项（war、陌生人联机）；标签随语言重建。</summary>
 public sealed record HellForgeChoice(string Value, string Label);
+
+/// <summary>HF 专页左侧分类；Key 稳定，Label 随语言重建。</summary>
+public sealed record HellForgeCategoryItem(string Key, string Label);
+
+/// <summary>模组分组标题（GAMEPLAY / PER PLAYER / CLIENT ONLY），与模组行混排。</summary>
+public sealed record HellForgeModGroupHeader(string Title, int Count);
+
+/// <summary>HellForge mods\ 列表的一行（CLI mods 的权威列表）；随刷新整体重建。</summary>
+public sealed partial class HellForgeModItem : ObservableObject
+{
+    public HellForgeModItem(string id, string name, string group, bool removable, bool enabled,
+        string detailText, IReadOnlyList<string> tags)
+    {
+        Id = id;
+        Name = name;
+        Group = group;
+        Removable = removable;
+        DetailText = detailText;
+        Tags = tags.Select(tag => tag.ToUpperInvariant()).ToArray();
+        _enabled = enabled;
+        AppliedEnabled = enabled;
+    }
+
+    public string Id { get; }
+    public string Name { get; }
+    /// <summary>CLI 分组（gameplay / per-player / cosmetic）；只允许同组内调整顺序。</summary>
+    public string Group { get; }
+    public bool Removable { get; }
+    public string DetailText { get; }
+    /// <summary>CLI tags（大写，如 BUNDLED / CODE / DATA / ZIP / PACK / LUA）。</summary>
+    public IReadOnlyList<string> Tags { get; }
+    public bool HasTags => Tags.Count > 0;
+    [ObservableProperty] private bool _enabled;
+    [ObservableProperty] private bool _canMoveUp;
+    [ObservableProperty] private bool _canMoveDown;
+    public ObservableCollection<HellForgePackOptionItem> Options { get; } = new();
+    public bool HasOptions => Options.Count > 0;
+
+    /// <summary>最近一次 CLI 已确认的开关值，失败或忙碌冲突时回滚用。</summary>
+    public bool AppliedEnabled { get; private set; }
+
+    public void MarkEnabledApplied() => AppliedEnabled = Enabled;
+}
+
+/// <summary>外观包的一个选项：On 开关与子选项选择；变化后经 mod-pack 落盘。</summary>
+public sealed partial class HellForgePackOptionItem : ObservableObject
+{
+    public HellForgePackOptionItem(string modId, string name, bool on, IReadOnlyList<string> variants, string? picked)
+    {
+        ModId = modId;
+        Name = name;
+        _on = on;
+        _picked = picked;
+        AppliedOn = on;
+        AppliedPicked = picked;
+        foreach (var variant in variants) Variants.Add(variant);
+    }
+
+    public string ModId { get; }
+    public string Name { get; }
+    public ObservableCollection<string> Variants { get; } = new();
+    public bool HasVariants => Variants.Count > 0;
+    [ObservableProperty] private bool _on;
+    [ObservableProperty] private string? _picked;
+
+    /// <summary>最近一次 CLI 已确认的值，失败或忙碌冲突时回滚用。</summary>
+    public bool AppliedOn { get; private set; }
+    public string? AppliedPicked { get; private set; }
+
+    public void MarkApplied()
+    {
+        AppliedOn = On;
+        AppliedPicked = Picked;
+    }
+}
 
 /// <summary>日志列表的一行；随刷新整体重建。</summary>
 public sealed class HellForgeLogRunItem(HellForgeLogRun run, string title, string statusText, string detailText)

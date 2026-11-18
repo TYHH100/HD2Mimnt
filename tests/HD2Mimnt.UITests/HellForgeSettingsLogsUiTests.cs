@@ -35,6 +35,8 @@ public sealed partial class FluentAvaloniaUiTests
             await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
             Layout();
             var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            hf.SelectedCategory = hf.Categories.Single(c => c.Key == "Settings");
+            Layout();
 
             // 设置卡显示 CLI settings 的值；无改动时“保存设置”不可用。
             Assert.True(hf.HasSettings);
@@ -104,6 +106,8 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.True(hf.SelectedLogRun.Crashed);
             Assert.Contains("崩溃", hf.SelectedLogRun.DetailText);
             var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            hf.SelectedCategory = hf.Categories.Single(c => c.Key == "Logs");
+            Layout();
             Assert.True(view.FindControl<ListBox>("LogRunList")!.IsEffectivelyVisible);
             Assert.True(view.FindControl<Button>("ExportLogsButton")!.IsEffectivelyEnabled);
             Assert.True(view.FindControl<Button>("SaveCrashReportButton")!.IsEffectivelyEnabled);

@@ -639,7 +639,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<PlatformDownloadTaskRunner>(), sp.GetRequiredService<ModelPreviewViewModel>(), sp.GetRequiredService<AudioPreviewViewModel>(),
             sp.GetRequiredService<LuaExtractionService>(), sp.GetRequiredService<IPluginService>(),
             sp.GetRequiredService<TaskService>(), sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService>(),
-            sp.GetRequiredService<IHd2ClVariantPrompt>(), sp.GetRequiredService<ModGpuUsageService>()));
+            sp.GetRequiredService<IHd2ClVariantPrompt>(), sp.GetRequiredService<ModGpuUsageService>(),
+            sp.GetRequiredService<HellForgeModSyncService>()));
 
         services.AddTransient(sp => new ProfileViewModel(
             sp.GetRequiredService<ProfileService>(),

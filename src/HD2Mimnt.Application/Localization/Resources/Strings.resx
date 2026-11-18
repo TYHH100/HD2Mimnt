@@ -4473,6 +4473,12 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Session" xml:space="preserve"><value>Session</value></data>
   <data name="HellForge.CurrentProfile" xml:space="preserve"><value>Selected profile</value></data>
   <data name="HellForge.NetworkBlock" xml:space="preserve"><value>Network block</value></data>
+  <data name="HellForge.Category.Overview" xml:space="preserve"><value>Overview</value></data>
+  <data name="HellForge.Category.Session" xml:space="preserve"><value>Session</value></data>
+  <data name="HellForge.Category.Profiles" xml:space="preserve"><value>Profiles</value></data>
+  <data name="HellForge.Category.Mods" xml:space="preserve"><value>Mods</value></data>
+  <data name="HellForge.Category.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="HellForge.Category.Logs" xml:space="preserve"><value>Logs</value></data>
   <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>Player profiles</value></data>
   <data name="HellForge.Create" xml:space="preserve"><value>New profile</value></data>
   <data name="HellForge.Refresh" xml:space="preserve"><value>Refresh</value></data>
@@ -4522,6 +4528,42 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Sync.Source" xml:space="preserve"><value>Source profile: {0} · Last sync: {1}</value></data>
   <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>(unknown profile)</value></data>
   <data name="HellForge.Sync.Hint" xml:space="preserve"><value>Use Deploy on the Profiles page to sync enabled mods; Clean deployment removes the mods this manager synced.</value></data>
+  <data name="HellForge.Mods.Title" xml:space="preserve"><value>HellForge mods</value></data>
+  <data name="HellForge.Mods.Hint" xml:space="preserve"><value>These are the mods in HellForge's own mods folder. Mods added here go there directly and skip this manager's profiles and deployment; switches, ordering, options and removal apply to HellForge too. The CLI refuses mod changes while a session runs.</value></data>
+  <data name="HellForge.Mods.Enable" xml:space="preserve"><value>Enable</value></data>
+  <data name="HellForge.Mods.Disable" xml:space="preserve"><value>Disable</value></data>
+  <data name="HellForge.Mods.Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="HellForge.Mods.RemoveTitle" xml:space="preserve"><value>Remove mod</value></data>
+  <data name="HellForge.Mods.RemoveConfirm" xml:space="preserve"><value>Remove "{0}" from HellForge's mods folder?</value></data>
+  <data name="HellForge.Mods.Removed" xml:space="preserve"><value>{0} removed from HellForge's mods folder.</value></data>
+  <data name="HellForge.Mods.MoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="HellForge.Mods.MoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="HellForge.Mods.Options" xml:space="preserve"><value>Options</value></data>
+  <data name="HellForge.Mods.Code" xml:space="preserve"><value>Co-op modlist code</value></data>
+  <data name="HellForge.Mods.Switching" xml:space="preserve"><value>Switching the mod…</value></data>
+  <data name="HellForge.Mods.Removing" xml:space="preserve"><value>Removing the mod…</value></data>
+  <data name="HellForge.Mods.Reordering" xml:space="preserve"><value>Reordering mods…</value></data>
+  <data name="HellForge.Mods.OptionUpdate" xml:space="preserve"><value>Saving the pack option…</value></data>
+  <data name="HellForge.Mods.OpenFolder" xml:space="preserve"><value>Open mods folder</value></data>
+  <data name="HellForge.Mods.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
+  <data name="HellForge.Mods.FolderNoManifest" xml:space="preserve"><value>No hellforge-mod.json or manifest.json in the selected folder.</value></data>
+  <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>The top mod loads last and wins; Move up/down only reorders within the same group.</value></data>
+  <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>Turn the mod on or off; the CLI refuses changes while a session runs.</value></data>
+  <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>Modlist code {0}: friends need the same {1} gameplay mods; the order is up to you.</value></data>
+  <data name="HellForge.Mods.Add" xml:space="preserve"><value>Add mod…</value></data>
+  <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>Refresh list</value></data>
+  <data name="HellForge.Mods.None" xml:space="preserve"><value>No mods in HellForge's mods folder yet.</value></data>
+  <data name="HellForge.Mods.Loading" xml:space="preserve"><value>Reading HellForge mods…</value></data>
+  <data name="HellForge.Mods.Adding" xml:space="preserve"><value>Adding the mod to HellForge…</value></data>
+  <data name="HellForge.Mods.Added" xml:space="preserve"><value>{0} added to HellForge's mods folder.</value></data>
+  <data name="HellForge.Mods.ArchiveFile" xml:space="preserve"><value>Mod archive</value></data>
+  <data name="HellForge.Mods.ManifestFile" xml:space="preserve"><value>Mod manifest</value></data>
+  <data name="HellForge.Mods.Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="HellForge.Mods.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="HellForge.Mods.Group.Gameplay" xml:space="preserve"><value>Gameplay</value></data>
+  <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>Per-player</value></data>
+  <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>Client-only</value></data>
+  <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge reported problems with these mod folders:</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>Launch settings</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>Saved settings apply to the next session; the CLI refuses changes while a session runs. Strangers and Forge Credits are saved in the mods settings.</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>Galactic war</value></data>
