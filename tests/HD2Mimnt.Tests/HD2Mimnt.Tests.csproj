@@ -26,6 +26,8 @@
     <ProjectReference Include="..\..\src\HD2Mimnt.UI\HD2Mimnt.UI.csproj" />
     <ProjectReference Include="..\HD2Mimnt.WorkerStub\HD2Mimnt.WorkerStub.csproj" />
     <ProjectReference Include="..\HD2Mimnt.HellForgeCliStub\HD2Mimnt.HellForgeCliStub.csproj" />
+    <!-- 沙箱逃逸探针是编译型插件，只有真正跑起来才能验证进程边界 -->
+    <ProjectReference Include="..\..\samples\plugins\EscapeProbe\EscapeProbe.csproj" />
   </ItemGroup>
 
 </Project>
