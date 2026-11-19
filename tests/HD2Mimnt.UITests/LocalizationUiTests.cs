@@ -40,6 +40,34 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task NavigationFooter_ShouldShowDeploymentSummary_WhenGameDetected()
+    {
+        await using var scope = await UiScope.CreateAsync(systemLanguage: new TestSystemLanguage());
+        await scope.Services.GetRequiredService<ILocalizationService>().SetLanguageAsync("zh-CN");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        main.GameDetected = true;
+        main.DeployedModCount = 3;
+        main.ManagedFileCount = 12;
+        main.UnmanagedFileCount = 2;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 780 };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var texts = window.GetVisualDescendants().OfType<TextBlock>()
+                .Select(block => block.Text).Where(text => text != null).ToList();
+            Assert.Contains(texts, text => text == "已部署 3");
+            Assert.Contains(texts, text => text == "托管 12");
+            Assert.Contains(texts, text => text == "未托管 2");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task AppearanceCategory_ReopeningAndRestoringLanguageSelection_ShouldNotWriteSettings()
     {
         await using var scope = await UiScope.CreateAsync(systemLanguage: new TestSystemLanguage());

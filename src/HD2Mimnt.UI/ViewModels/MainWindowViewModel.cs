@@ -33,6 +33,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
     private readonly ModService _modService;
+    private readonly DeploymentService _deploymentService;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly TaskCenterViewModel _taskCenterViewModel;
     private readonly ExternalToolsViewModel _externalToolsViewModel;
@@ -91,6 +92,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private string _gamePath = string.Empty;
+
+    // 导航栏部署概览（仅在找到游戏时显示）
+    [ObservableProperty]
+    private int _deployedModCount;
+
+    [ObservableProperty]
+    private int _managedFileCount;
+
+    [ObservableProperty]
+    private int _unmanagedFileCount;
 
     // 当前配置文件
     [ObservableProperty]
@@ -172,6 +183,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         TestDataService testDataService,
         ProfileService profileService,
         ModService modService,
+        DeploymentService deploymentService,
         SettingsViewModel settingsViewModel,
         TaskCenterViewModel taskCenterViewModel,
         NotificationPanelViewModel notificationPanelViewModel,
@@ -241,6 +253,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _testDataService = testDataService;
         _profileService = profileService;
         _modService = modService;
+        _deploymentService = deploymentService;
         _settingsViewModel = settingsViewModel;
         _taskCenterViewModel = taskCenterViewModel;
         _externalToolsViewModel = externalToolsViewModel;
@@ -603,6 +616,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private void SubscribeToEvents()
     {
         _gameDetectionService.GameStatusChanged += OnGameStatusChanged;
+        _deploymentService.DeploymentsChanged += OnDeploymentsChanged;
         _notificationService.NotificationAdded += OnNotificationAdded;
         _taskService.TaskCompleted += OnTaskCompleted;
         _taskService.TaskStarted += OnTaskStarted;
@@ -624,6 +638,21 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             };
             if (e.NewStatus != Application.Services.GameStatus.Checking && Hd2IASManagementViewModel != null)
                 await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
+            await RefreshDeploymentSummaryAsync();
+        });
+    }
+
+    private void OnDeploymentsChanged(object? sender, EventArgs e) => QueueUiRefresh(RefreshDeploymentSummaryAsync);
+
+    /// <summary>读取部署概览；游戏缺失或统计失败时保持 0，不影响主界面。</summary>
+    private async Task RefreshDeploymentSummaryAsync()
+    {
+        var summary = await _deploymentService.GetSummaryAsync();
+        ApplyOnUiThread(() =>
+        {
+            DeployedModCount = summary.DeployedModCount;
+            ManagedFileCount = summary.ManagedFileCount;
+            UnmanagedFileCount = summary.UnmanagedFileCount;
         });
     }
 
@@ -671,6 +700,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskService.TaskCompleted -= OnTaskCompleted;
         _taskService.TaskStarted -= OnTaskStarted;
         _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
+        _deploymentService.DeploymentsChanged -= OnDeploymentsChanged;
         _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
         _settingsViewModel.GameSourceChanged -= OnGameSourceChanged;
         if (_hellForgeSessionService != null)
@@ -820,6 +850,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _externalToolsViewModel.InitializeAsync();
         await _pluginManagementViewModel.InitializeAsync();
         UpdateCurrentProfile();
+        await RefreshDeploymentSummaryAsync();
     }
 
     public async Task InitializeAsync()
@@ -853,6 +884,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
         // 更新当前配置
         UpdateCurrentProfile();
+        await RefreshDeploymentSummaryAsync();
 
         // 显示欢迎通知
         if (Hd2IASManagementViewModel != null)
@@ -928,6 +960,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         SelectedTabIndex = 0;
         CurrentView = _profileViewModel;
         StatusBarText = "配置文件";
+        // 回到首页时重新统计，手动放进 data 目录的补丁也能及时反映。
+        QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
@@ -1268,6 +1302,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             if (isHellForge) NavigateToHellForgeCommand.Execute(null);
             else if (SelectedTabIndex == HellForgeTabIndex) NavigateToSettings();
         });
+        QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     /// <summary>会话启动（无论从哪个页面发起）后跳到 HellForge 专页，让准备进度可见。</summary>

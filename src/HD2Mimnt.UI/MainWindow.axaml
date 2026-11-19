@@ -59,11 +59,20 @@
       </fa:FANavigationView.MenuItems>
       <fa:FANavigationView.PaneFooter>
         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,16,0">
-          <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{loc:LocalizedBinding GameStatus}">
-            <Ellipse Width="7" Height="7" Fill="{DynamicResource DisabledBrush}" Classes.detected="{Binding GameDetected}" VerticalAlignment="Center">
-              <Ellipse.Styles><Style Selector="Ellipse.detected"><Setter Property="Fill" Value="{DynamicResource SuccessBrush}"/></Style></Ellipse.Styles>
-            </Ellipse>
+          <!-- 找到游戏时显示部署概览；检测异常时才占用位置显示状态。 -->
+          <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{loc:LocalizedBinding GameStatus}" IsVisible="{Binding !GameDetected}">
+            <Ellipse Width="7" Height="7" Fill="{DynamicResource DisabledBrush}" VerticalAlignment="Center"/>
             <TextBlock Text="{loc:LocalizedBinding GameStatus}" Classes="caption-text" VerticalAlignment="Center" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding GameDetected}">
+            <Ellipse Width="7" Height="7" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" ToolTip.Tip="{Binding GamePath}"/>
+            <TextBlock Text="{loc:LocalizedBinding DeployedModCount, FormatKey=Game.Summary.DeployedMods}" Classes="caption-text" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc Game.Summary.DeployedModsTip}"/>
+            <TextBlock Text="·" Classes="caption-text" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:LocalizedBinding ManagedFileCount, FormatKey=Game.Summary.ManagedFiles}" Classes="caption-text" VerticalAlignment="Center" ToolTip.Tip="{loc:Loc Game.Summary.ManagedFilesTip}"/>
+            <TextBlock Text="·" Classes="caption-text" VerticalAlignment="Center"/>
+            <TextBlock Text="{loc:LocalizedBinding UnmanagedFileCount, FormatKey=Game.Summary.UnmanagedFiles}" Classes="caption-text" VerticalAlignment="Center"
+                       Classes.warning="{Binding UnmanagedFileCount, Converter={StaticResource GreaterThanZeroConverter}}"
+                       ToolTip.Tip="{loc:Loc Game.Summary.UnmanagedFilesTip}"/>
           </StackPanel>
           <Button x:Name="OpenDeploymentProgressButton" IsVisible="{Binding LibraryViewModel.IsDeploying}"
                   Command="{Binding LibraryViewModel.OpenDeploymentProgressCommand}"

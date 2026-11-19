@@ -765,6 +765,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<TestDataService>(),
             sp.GetRequiredService<ProfileService>(),
             sp.GetRequiredService<ModService>(),
+            sp.GetRequiredService<DeploymentService>(),
             sp.GetRequiredService<SettingsViewModel>(),
             sp.GetRequiredService<TaskCenterViewModel>(),
             sp.GetRequiredService<NotificationPanelViewModel>(),

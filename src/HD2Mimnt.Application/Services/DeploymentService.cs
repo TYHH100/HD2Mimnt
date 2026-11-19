@@ -136,6 +136,61 @@ public class DeploymentService
     }
 
     /// <summary>
+    /// 导航栏概览：当前安装的已部署模组数、部署记录托管文件数、data 目录未托管补丁数。
+    /// 没有有效游戏目录时全部为 0。
+    /// </summary>
+    public async Task<DeploymentSummary> GetSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        var gamePath = EffectiveGamePath();
+        if (gamePath == null) return new DeploymentSummary(0, 0, 0);
+
+        var records = await _deploymentRepository.GetCurrentDeploymentsAsync(gamePath, cancellationToken);
+        var deployed = records
+            .Where(record => Enum.TryParse<DeploymentStatus>(record.Status, out var status)
+                && status is DeploymentStatus.Completed or DeploymentStatus.PartiallyFailed)
+            .ToList();
+        var modsById = (await _modRepository.GetByIdsAsync(
+                deployed.Select(record => record.ModId).Distinct(), cancellationToken))
+            .ToDictionary(mod => mod.Id);
+        var deployedModCount = deployed
+            .Where(record => !modsById.TryGetValue(record.ModId, out var mod) || IsDeployedAtCurrentVersion(record, mod))
+            .Select(record => record.ModId)
+            .Distinct()
+            .Count();
+        var managedFileCount = deployed.Sum(record => record.Files.Count);
+        var tracked = records.SelectMany(record => record.Files)
+            .Select(file => DeploymentPlanBuilder.NormalizePath(file.TargetPath))
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new DeploymentSummary(deployedModCount, managedFileCount,
+            CountUnmanagedPatchFiles(gamePath, tracked));
+    }
+
+    /// <summary>data 目录中未被任何当前部署记录追踪的补丁文件数；口径与部署时的未托管清理一致。</summary>
+    private int CountUnmanagedPatchFiles(string gamePath, IReadOnlySet<string> tracked)
+    {
+        var dataPath = Path.Combine(gamePath, "data");
+        if (!Directory.Exists(dataPath)) return 0;
+        try
+        {
+            var count = 0;
+            foreach (var file in Directory.EnumerateFiles(dataPath, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!PatchDeploymentPlanner.TryParseTarget(file, out _, out _, out _)) continue;
+                var normalized = DeploymentPlanBuilder.NormalizePath(file);
+                if (normalized == null || tracked.Contains(normalized)) continue;
+                count++;
+            }
+            return count;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "统计未托管补丁失败: {Path}", dataPath);
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// 获取指定会话的部署记录
     /// </summary>
     public async Task<IEnumerable<DeploymentRecord>> GetDeploymentsBySessionIdAsync(
@@ -1232,6 +1287,9 @@ public class DeploymentProgress
     public int CurrentModFiles { get; set; }
     public int CurrentModTotalFiles { get; set; }
 }
+
+/// <summary>导航栏部署概览。</summary>
+public sealed record DeploymentSummary(int DeployedModCount, int ManagedFileCount, int UnmanagedFileCount);
 
 /// <summary>
 /// 部署结果
