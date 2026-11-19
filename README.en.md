@@ -49,6 +49,10 @@ Under `tests/` there are four test projects: unit tests (Tests), UI tests (UITes
 - [Release process](docs/RELEASE_PROCESS.md)
 - [Contribution rules](AGENTS.md)
 
+## AI Disclosure
+
+This project was developed with the assistance of multiple AI tools (covering code authoring, refactoring and documentation). Since several different AI models were involved, we cannot list each of them by name, so this statement covers them collectively. All AI-assisted output was reviewed, built and tested by humans; the maintainers remain accountable for the quality and correctness of the code.
+
 ## License
 
 [MIT](LICENSE)
