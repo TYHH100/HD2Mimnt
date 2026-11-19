@@ -12,7 +12,7 @@ namespace HD2Mimnt.Application.Services;
 public static class AppUpdateConstants
 {
     public const string Repository = "TYHH100/HD2Mimnt";
-    // 发布产物按项目名输出为 HD2Mimnt.UI.exe（单文件发布不重写 AssemblyName）。
+    // 发布产物按项目名输出为 HD2Mimnt.UI.exe（AssemblyName 未改写）。
     public const string MainExecutableName = "HD2Mimnt.UI.exe";
     public const string AssetNameTemplate = "HD2Mimnt-{0}-win-x64.zip";
     public const string ReleasePageUrl = "https://github.com/TYHH100/HD2Mimnt/releases/latest";

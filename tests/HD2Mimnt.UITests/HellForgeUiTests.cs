@@ -150,6 +150,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(1, main.SelectedTabIndex);
             await main.LibraryViewModel.LaunchGameCommand.ExecuteAsync(null);
             await WaitForAsync(() => main.SelectedTabIndex == 7 && hf.IsSessionRunning);
+            hf.SelectedCategory = hf.Categories.Single(c => c.Key == "Session");
             Layout();
             var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
             // VM 标志翻转到按钮绑定传播之间有调度间隙；等实际断言的控件状态 settled 再断言，避免无头偶发。

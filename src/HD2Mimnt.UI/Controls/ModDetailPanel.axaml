@@ -236,6 +236,73 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <TextBlock Text="{loc:Loc UI.MyTags}" Classes="detail-label"/>
+            <ItemsControl ItemsSource="{Binding UserTagItems}" IsVisible="{Binding HasUserTags}" Margin="0,0,0,8">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel/>
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:UserTagItemViewModel">
+                  <Border Background="Transparent"
+                          BorderBrush="{Binding Brush}"
+                          BorderThickness="1"
+                          CornerRadius="4"
+                          Padding="6,2"
+                          Margin="0,0,8,8">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Button Classes="icon-button"
+                              Width="14" Height="14" MinWidth="0" Padding="0" CornerRadius="7"
+                              ToolTip.Tip="{loc:Loc UI.TagColor}">
+                        <Button.Flyout>
+                          <Flyout Placement="BottomEdgeAlignedLeft">
+                            <ColorView Color="{Binding Color, Mode=TwoWay}"
+                                       IsAlphaEnabled="False" IsAlphaVisible="False" Width="240"/>
+                          </Flyout>
+                        </Button.Flyout>
+                        <Ellipse Width="10" Height="10" Fill="{Binding Brush}"/>
+                      </Button>
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="12"
+                                 Foreground="{Binding Brush}"
+                                 VerticalAlignment="Center"/>
+                      <Button Classes="icon-button"
+                              Width="16" Height="16" MinWidth="0" Padding="0" CornerRadius="8"
+                              Command="{Binding $parent[UserControl].((vm:ModItemViewModel)DataContext).RemoveUserTagCommand}"
+                              CommandParameter="{Binding Name}"
+                              ToolTip.Tip="{loc:Loc UI.RemoveTag}">
+                        <controls:UtilityIcon Kind="Close" Width="10" Height="10"/>
+                      </Button>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,0,0,16">
+              <Button Classes="icon-button" Width="28" Height="28" MinWidth="0" Padding="0" CornerRadius="14"
+                      ToolTip.Tip="{loc:Loc UI.TagColor}">
+                <Button.Flyout>
+                  <Flyout Placement="BottomEdgeAlignedLeft">
+                    <ColorView Color="{Binding NewUserTagColor, Mode=TwoWay}"
+                               IsAlphaEnabled="False" IsAlphaVisible="False" Width="240"/>
+                  </Flyout>
+                </Button.Flyout>
+                <Ellipse Width="16" Height="16" Fill="{Binding NewUserTagBrush}"
+                         Stroke="{DynamicResource BorderBrush}" StrokeThickness="1"/>
+              </Button>
+              <AutoCompleteBox Grid.Column="1"
+                               x:Name="UserTagInput"
+                               Text="{Binding NewUserTag, Mode=TwoWay}"
+                               ItemsSource="{Binding UserTagSuggestions}"
+                               FilterMode="Contains"
+                               Watermark="{loc:Loc UI.AddTagHint}"/>
+              <Button Grid.Column="2"
+                      Content="{loc:Loc UI.AddTag}"
+                      Command="{Binding AddUserTagCommand}"
+                      Classes="accent"/>
+            </Grid>
+
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8"

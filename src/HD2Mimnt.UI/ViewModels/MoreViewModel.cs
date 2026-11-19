@@ -7,7 +7,7 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class MoreViewModel : ObservableObject
 {
-    public string[] Categories { get; } = { "教程", "直链下载", "插件", "备份与恢复", "管理器迁移", "音效修复", "日志", "外部工具", "HD2CL 角色库", "开发工具", "HD2IAS 管理", "HD2IAS 系统", "关于" };
+    public string[] Categories { get; } = { "教程", "直链下载", "插件", "备份与恢复", "管理器迁移", "音效修复", "日志", "外部工具", "HD2CL 角色库", "开发工具", "HD2IAS 管理", "HD2IAS 系统" };
 
     [ObservableProperty]
     private string _selectedCategory = "插件";
@@ -18,7 +18,6 @@ public partial class MoreViewModel : ObservableObject
     public bool IsExternalToolsVisible => SelectedCategory == "外部工具";
     public bool IsHd2ClVisible => SelectedCategory == "HD2CL 角色库";
     public bool IsDevToolsVisible => SelectedCategory == "开发工具";
-    public bool IsAboutVisible => SelectedCategory == "关于";
     public bool IsTutorialVisible => SelectedCategory == "教程";
     public bool IsMigrationVisible => SelectedCategory == "管理器迁移";
     public bool IsDirectDownloadVisible => SelectedCategory == "直链下载";
@@ -34,7 +33,6 @@ public partial class MoreViewModel : ObservableObject
         OnPropertyChanged(nameof(IsExternalToolsVisible));
         OnPropertyChanged(nameof(IsHd2ClVisible));
         OnPropertyChanged(nameof(IsDevToolsVisible));
-        OnPropertyChanged(nameof(IsAboutVisible));
         OnPropertyChanged(nameof(IsTutorialVisible));
         OnPropertyChanged(nameof(IsMigrationVisible));
         OnPropertyChanged(nameof(IsDirectDownloadVisible));

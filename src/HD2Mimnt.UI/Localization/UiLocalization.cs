@@ -78,6 +78,7 @@ public sealed class UiLocalization : INotifyPropertyChanged, IDisposable
     {
         if (value is null || ReferenceEquals(value, AvaloniaProperty.UnsetValue)) return string.Empty;
         if (value is HD2Mimnt.UI.Services.ModPlatformErrorMessage error) return error.Localize();
+        if (value is HD2Mimnt.UI.ViewModels.GpuUsageText gpuUsage) return gpuUsage.Localize();
         if (value is ModPlatformLink link)
             return link.SupportsUpdates
                 ? Format("Metadata.Summary", link.PlatformId == "ayakamods" ? "Ayaka Mods" : "Nexus Mods", link.ModId,

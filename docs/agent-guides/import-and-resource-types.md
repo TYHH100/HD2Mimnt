@@ -4,6 +4,8 @@
 
 ## 易错点与正确做法
 
+- GPU 资源量经 `ModGpuUsageService` 计算：沿用部署选项和数字补丁顺序，按 `(TypeId, ResourceId)` 覆盖，零 GPU 载荷也保留覆盖语义。纹理逐 mip 计算并核对 TOC/伴随，Unit 主数据不全算显存；未知、缺失或解析失败不显示 0，也不把不完整结果当下界。静态资源量与运行时显存、相对原版增量分开；口径及来源见 [GPU 资源量说明](../features/MOD_GPU_USAGE.md)。
+
 - 游戏参考 Unit 的 TOC 尺寸可包含内部结束记录之后的填充，不能沿用模组重建的 `ending + 8 == TOC size` 条件拒绝参考。详细读取验证 `ending >= 0x60` 且 `ending + 8 <= TOC size`，另行检查 LOD 范围；索引仍保存原始 TOC 尺寸，保留资源读取上限和歧义判断。真实样本的结束记录后多 8 字节，版本读取成功不代表详细读取成功，回归须覆盖带填充参考的预览、修复与恢复。预览失败展示缺失、歧义或具体读取错误；版本/LOD 已一致的样本无动作是有效结果。来源：[旧管理器参考读取](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/VersionCheck/GameUnitReferenceReader.cs)，[Apache 2.0 许可证](../../src/HD2Mimnt.Infrastructure/ThirdParty/Helldivers2ModManager/LICENSE.txt)。
 
 - DSAR 块大小不等于单次资源读取大小。真实 `bundles*.nxa` 存在约 857 MiB 的合法未压缩块，块表不能套用 Unit 的 64 MiB 读取上限；未压缩块按存储偏移随机读取所需区间，不能解除上限后仍整块分配。磁盘索引载入也须接受大块，继续校验文件范围、顺序和未压缩尺寸一致性。回归包含大块内 TOC/Unit 读取、缓存复用和分配量；合成小块通过后仍需真实归档构建验收。依据为本地实际块表与 [旧管理器 DSAR 读取](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Services/VersionCheck/GameUnitReferenceReader.cs)，原有 [Apache 2.0 许可证](../../src/HD2Mimnt.Infrastructure/ThirdParty/Helldivers2ModManager/LICENSE.txt)保留。
@@ -47,9 +49,9 @@
 
 - Echelon 的选项引用映射须与 HD2Mimnt 部署一致：只匹配 Include 目录直属补丁，不能用路径前缀递归包含未选变体。Legacy 子目录转换为一个互斥子选项；原生只有分隔符起点时，为显式短范围和空组添加结束条目。库组织配置须用持久化标记识别，不能凭显示名称猜测。来源：[原生格式与往返验证](../features/EXTERNAL_MANAGER_MIGRATION.md)
 
-- 外部管理器迁移复用 Application 的导入和配置服务；模组身份包含管理器、源数据目录、源条目 ID 与准备后内容哈希，不能只按名称或作者 GUID 覆盖用户记录。文件、图片、标签、清单和哈希完成后才落库；成功项保留供重试，未提交副本在失败/取消时清理。真实文件缺失或复制失败仍跳过整个配置。HD2MM 的 `ModGuids` 是缓存，只有不在源库且在配置及全局状态表中均无保存状态的删除残留才可过滤，并提示数量；不能把有状态的缺失成员静默丢弃。来源：[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://www.sqlite.org/lang_transaction.html
+- 外部管理器迁移复用 Application 的导入和配置服务；模组身份包含管理器、源数据目录、源条目 ID 与准备后内容哈希，不能只按名称或作者 GUID 覆盖用户记录。文件、图片、标签、清单和哈希完成后才落库；成功项保留供重试，未提交副本在失败/取消时清理。普通配置有成员未成功迁入时整份跳过；默认配置只跳过未迁入成员并合并其余成员，避免少量失效目录导致默认配置为空。HD2MM 的 `ModGuids` 是缓存，只有不在源库且在配置及全局状态表中均无保存状态的删除残留才可过滤，并提示数量；不能把有状态的缺失成员静默丢弃。来源：[迁移模块说明](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://www.sqlite.org/lang_transaction.html
 
-- 来源默认配置映射到目标已有 `IsDefault` 配置，保留目标 ID、名称、默认保护和活动状态；HD2MM 认固定默认 GUID，Arsenal 认 `default` 键，Echelon 版本 2 只认唯一 `Default` 名称，不能猜第一份或活动配置。合并保留无关成员及分隔符，重算剩余成员范围；成员、选项、分隔符及迁移快照标记在同一事务提交，重复快照保留用户后续编辑，失败不能先留下成功标记。来源更新后替换它先前迁入的成员及分隔符，不能把新旧内容快照同时留在默认配置中启用；旧库模组副本仍保留。来源：[默认配置合并策略](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://learn.microsoft.com/dotnet/standard/data/sqlite/transactions
+- 来源默认配置映射到目标已有 `IsDefault` 配置，保留目标 ID、名称、默认保护和活动状态；HD2MM 认固定默认 GUID，Arsenal 认 `default` 键，Echelon 版本 2 只认唯一 `Default` 名称，不能猜第一份或活动配置。合并保留无关成员及分隔符，重算剩余成员范围；成员、选项、分隔符及迁移快照标记在同一事务提交，重复快照保留用户后续编辑，失败不能先留下成功标记。来源默认配置中未成功迁入的成员只跳过该成员并报告，其它成员仍合并，分隔符范围按剩余成员重算；普通配置仍整份跳过。来源更新后替换它先前迁入的成员及分隔符，不能把新旧内容快照同时留在默认配置中启用；旧库模组副本仍保留。来源：[默认配置合并策略](../features/EXTERNAL_MANAGER_MIGRATION.md)、https://learn.microsoft.com/dotnet/standard/data/sqlite/transactions
 
 - 迁移清单时将未知包元数据保留在独立扩展 JSON；`Version` 只保存格式、`ModVersion` 在扩展中保存模组版本，Legacy 不写 `Version`。缺少 `Include` 与显式 `Include: []` 语义不同，不能序列化成相同结果。Echelon 按集合的真实文件路径复制到独立目录，有选项时只部署被引用集合，无选项才部署全部集合；选项排列须同时转换选择索引。来源：[来源格式及验证范围](../features/EXTERNAL_MANAGER_MIGRATION.md)
 

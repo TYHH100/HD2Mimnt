@@ -76,8 +76,9 @@ public static class BslProfilePolicy
                 throw new InvalidOperationException(
                     $"{snapshot.GuestLoaderNames} 只能与 {snapshot.HostLoaderNames} 同时启用，请调整加载器组合");
 
-        // 已启用的加载器中保留与本次选择互相成全的组合：BML 在用时启用 CSL 不关闭 BML，反之亦然。
-        // 互相成全是传递闭包（多个从属加载器经主加载器互相成全），须迭代到不动点，单遍会受配置页顺序影响。
+        // 已启用的加载器只要与本次选择仍能组成合法组合就保留：主加载器唯一；有主加载器时从属加载器
+        // 必须由它托管；没有主加载器时各从属加载器自持 boot，可以同时启用（如 MDL3 与 Chef Shared Loader）。
+        // 保留关系是传递闭包（BML 在用时启用 CSL 不关闭 BML，反之亦然），须迭代到不动点，单遍会受配置页顺序影响。
         var keep = new HashSet<Guid>(selectedIds);
         bool added;
         do
@@ -86,12 +87,17 @@ public static class BslProfilePolicy
             foreach (var item in profile.Mods.Where(item => item.Enabled && !keep.Contains(item.ModId)))
             {
                 var role = RoleOf(item.ModId);
-                if (IsGuestLoader(role) && keep.Any(id => snapshot.CanHost(RoleOf(id), role))
-                    || IsPrimaryLoader(role) && keep.Any(id => IsGuestLoader(RoleOf(id)) && snapshot.CanHost(role, RoleOf(id))))
-                {
-                    keep.Add(item.ModId);
-                    added = true;
-                }
+                if (!IsLoader(role)) continue;
+                var keptRoles = keep.Select(RoleOf).ToList();
+                if (keptRoles.Contains(role)) continue;
+                var primary = keptRoles.FirstOrDefault(IsPrimaryLoader);
+                var compatible = IsPrimaryLoader(role)
+                    ? primary == BslModRole.None
+                        && keptRoles.All(kept => !IsGuestLoader(kept) || snapshot.CanHost(role, kept))
+                    : primary == BslModRole.None || snapshot.CanHost(primary, role);
+                if (!compatible) continue;
+                keep.Add(item.ModId);
+                added = true;
             }
         }
         while (added);
@@ -105,7 +111,7 @@ public static class BslProfilePolicy
         return changed;
     }
 
-    /// <summary>部署前校验加载器组合：主加载器互斥、从属加载器必须有其托管者、同角色只允许一份。</summary>
+    /// <summary>部署前校验加载器组合：主加载器互斥、有主加载器时从属加载器必须由其托管、同角色只允许一份。</summary>
     public static void ValidateLoaderCombination(IEnumerable<BslModRole> roles)
     {
         var snapshot = LoaderRegistry.Current;

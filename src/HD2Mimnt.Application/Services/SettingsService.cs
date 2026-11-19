@@ -316,6 +316,9 @@ public static class SettingKeys
     public const string IasInstallLocation = "IAS.InstallLocation";
     public const string IasActiveRuntimeId = "IAS.ActiveRuntimeId";
 
+    // HD2CL 角色库：成品导出压缩包时记住上次选择的目录。
+    public const string Hd2ClExportDirectory = "Hd2Cl.ExportDirectory";
+
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
@@ -342,6 +345,8 @@ public static class SettingKeys
     // 模组库相关
     public const string DefaultFilterCategory = "Library.DefaultFilterCategory";
     public const string ShowModThumbnails = "Library.ShowThumbnails";
+    /// <summary>模组库/配置页卡片显示静态 GPU 资源量；默认关闭，避免后台统计拖慢界面。</summary>
+    public const string ShowGpuUsage = "Library.ShowGpuUsage";
     public const string ImportAutoClose = "Library.ImportAutoClose";
     public const string KeepModVersions = "Library.KeepModVersions";
     public const string AllowDuplicateImports = "Library.AllowDuplicateImports";

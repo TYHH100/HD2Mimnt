@@ -1,7 +1,8 @@
 namespace HD2Mimnt.Infrastructure.Analysis;
 
 /// <summary>进程内 LRU 索引缓存；仅保存完整解析结果，不缓存目录、选项或部署顺序。</summary>
-public sealed class PatchResourceIndexCache(long maximumBytes = 64 * 1024 * 1024, int maximumFiles = 8192)
+public sealed class PatchResourceIndexCache(long maximumBytes = 64 * 1024 * 1024, int maximumFiles = 8192,
+    bool readTextureMetadata = false)
 {
     private sealed record Stamp(long Length, DateTime Modified, DateTime Created);
     private sealed record Entry(Stamp Stamp, IReadOnlyList<PatchResourceEntry> Resources, long Bytes, LinkedListNode<string> Node);
@@ -30,7 +31,7 @@ public sealed class PatchResourceIndexCache(long maximumBytes = 64 * 1024 * 1024
             }
         }
         cached = false;
-        var resources = PatchResourceIndexReader.Read(path, token);
+        var resources = PatchResourceIndexReader.Read(path, token, readTextureMetadata);
         var after = GetStamp(path);
         if (before != after) throw new IOException("补丁在检查时发生变更，请重新检查");
         token.ThrowIfCancellationRequested();

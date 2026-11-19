@@ -99,6 +99,15 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     private string _modSearchText = string.Empty;
 
+    private IReadOnlyList<string>? _tagPool;
+    private int _tagSuggestionTokenStart;
+
+    [ObservableProperty]
+    private bool _isTagSuggestionOpen;
+
+    [ObservableProperty]
+    private IReadOnlyList<string> _tagSuggestions = [];
+
     [ObservableProperty]
     private string _newProfileName = string.Empty;
 
@@ -468,8 +477,9 @@ public partial class ProfileViewModel : ObservableObject
     public bool HasNoAvailableMods => AvailableLibraryMods.Count == 0;
 
     public ProfileViewModel(ProfileService profileService, ModService modService, NotificationService notificationService, IConfirmationService confirmationService, SettingsService settingsService, ImagePreviewService? imagePreview = null, DeploymentService? deploymentService = null, ModCompatibilityViewModel? compatibility = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null, OptionTranslationService? optionTranslation = null, IHd2ClConversionService? hd2Cl = null,
-        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null)
     {
+        _gpuUsageService = gpuUsageService;
         _optionTranslation = optionTranslation;
         _hd2Cl = hd2Cl;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
@@ -591,6 +601,17 @@ public partial class ProfileViewModel : ObservableObject
 
     private void OnDeploymentDirectionChanged(object? sender, SettingChangedEventArgs e)
     {
+        if (e.Key == SettingKeys.ShowGpuUsage)
+        {
+            void ApplyGpuUsage()
+            {
+                if (ShowGpuUsage) RefreshGpuUsage();
+                else ClearGpuUsage();
+            }
+            if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) ApplyGpuUsage();
+            else Dispatcher.UIThread.Post(ApplyGpuUsage);
+            return;
+        }
         if (e.Key is SettingKeys.SearchFuzzy or SettingKeys.SearchPinyin)
         {
             void ApplySearch()
@@ -641,6 +662,8 @@ public partial class ProfileViewModel : ObservableObject
             RenumberProfileMods();
             ApplyModFilter();
             DeploymentDirectionChanged?.Invoke(this, EventArgs.Empty);
+            MarkGpuUsageDirty();
+            RefreshGpuUsage();
         }
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess()) Apply();
         else Dispatcher.UIThread.Post(Apply);
@@ -700,7 +723,47 @@ public partial class ProfileViewModel : ObservableObject
         }
     }
 
-    partial void OnModSearchTextChanged(string value) => ApplyModFilter();
+    partial void OnModSearchTextChanged(string value)
+    {
+        UpdateTagSuggestions(value);
+        ApplyModFilter();
+    }
+
+    /// <summary>搜索框末尾输入 @词元时，按前缀/拼音给出当前配置内的标签补全。</summary>
+    private void UpdateTagSuggestions(string? text)
+    {
+        if (!TagSuggestion.TryGetTrailingToken(text, out var token, out var start))
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagPool ??= ProfileMods
+            .Where(row => !row.IsSeparator && row.SourceInfo != null)
+            .SelectMany(row => row.SourceInfo!.SearchableTags)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var matches = TagSuggestion.Rank(_tagPool, token);
+        if (matches.Count == 0)
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagSuggestionTokenStart = start;
+        TagSuggestions = matches;
+        IsTagSuggestionOpen = true;
+    }
+
+    public void ApplyTagSuggestion(string tag)
+    {
+        ModSearchText = TagSuggestion.Apply(ModSearchText, _tagSuggestionTokenStart, tag);
+        CloseTagSuggestions();
+    }
+
+    public void CloseTagSuggestions()
+    {
+        IsTagSuggestionOpen = false;
+        TagSuggestions = [];
+    }
 
     /// <summary>包一层抑制标记：服务端事件触发时不再重复重载本页。</summary>
     private async Task SuppressLocalChangeAsync(Func<Task> mutation)
@@ -828,10 +891,18 @@ public partial class ProfileViewModel : ObservableObject
 
     private void ApplyModFilter()
     {
-        var query = ModSearchText.Trim();
         var options = SearchMatchOptions.FromSettings(_settingsService);
-        bool Matches(ProfileModViewModel row) =>
-            SearchMatcher.MatchAny(query, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
+        var (keyword, tagFilters) = TagQuery.Parse(ModSearchText);
+        bool Matches(ProfileModViewModel row)
+        {
+            if (tagFilters.Count > 0
+                && (row.SourceInfo is not { } info
+                    || !TagQuery.MatchesAllTags(info.SearchableTags, tagFilters)))
+                return false;
+            return keyword.Length == 0
+                || SearchMatcher.MatchAny(keyword, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
+        }
+        var query = ModSearchText.Trim();
         var separator = _luaSeparator;
         var luaMembers = ProfileMods.Where(mod => mod.IsLuaGroupMember).ToList();
         separator.GroupModCount = luaMembers.Count;
@@ -873,7 +944,9 @@ public partial class ProfileViewModel : ObservableObject
             if (query.Length == 0 && separator.IsCollapsed)
                 visibleOrdinary.RemoveAll(row => row.IsLuaGroupMember);
             rows.AddRange(visibleOrdinary);
-            if (luaMembers.Count > 0)
+            var matchedLuaMembers = visibleOrdinary.Count(row => row.IsLuaGroupMember);
+            // 搜索无命中时不再保留空的 Lua 分组占位。
+            if (luaMembers.Count > 0 && (query.Length == 0 || matchedLuaMembers > 0))
             {
                 var visibleMembers = visibleOrdinary.Where(row => row.IsLuaGroupMember).ToList();
                 if (_bottomToTop)
@@ -892,24 +965,50 @@ public partial class ProfileViewModel : ObservableObject
         {
             var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember
                 && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
+            var showLuaSeparator = separator.GroupModCount > 0 && (query.Length == 0 || fixedRows.Count > 0);
             if (_bottomToTop)
             {
                 rows.AddRange(fixedRows);
-                if (separator.GroupModCount > 0) rows.Add(separator);
+                if (showLuaSeparator) rows.Add(separator);
                 rows.AddRange(visibleOrdinary);
             }
             else
             {
                 rows.AddRange(visibleOrdinary);
-                if (separator.GroupModCount > 0) rows.Add(separator);
+                if (showLuaSeparator) rows.Add(separator);
                 rows.AddRange(fixedRows);
             }
         }
         MarkGroupSlabs(rows);
-        VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(rows.Where(row => !row.IsSeparator));
-        ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
+        var visible = rows.Where(row => !row.IsSeparator).ToList();
+        // 同一配置内只改变成员/顺序时就地同步，避免整表换新导致容器与样式全部重建。
+        if (SyncRows(VisibleProfileMods, visible) == false)
+            VisibleProfileMods = new ObservableCollection<ProfileModViewModel>(visible);
+        if (SyncRows(ProfileRows, rows) == false)
+            ProfileRows = new ObservableCollection<ProfileModViewModel>(rows);
         StickyGroupHeader = null;
         HasNoModResults = query.Length > 0 && rows.Count == 0 && (ProfileMods.Count > 0 || ProfileSeparators.Count > 0);
+    }
+
+    // 返回 false 表示两批行没有共同对象（例如切换了配置），由调用方整表换新更划算。
+    private static bool SyncRows(ObservableCollection<ProfileModViewModel> target,
+        IReadOnlyList<ProfileModViewModel> desired)
+    {
+        if (target.Count == 0) return desired.Count == 0;
+        if (desired.Count == 0) { target.Clear(); return true; }
+        var keep = new HashSet<ProfileModViewModel>(desired);
+        var overlap = target.Any(keep.Contains);
+        if (!overlap) return false;
+        for (var i = target.Count - 1; i >= 0; i--)
+            if (!keep.Contains(target[i])) target.RemoveAt(i);
+        for (var i = 0; i < desired.Count; i++)
+        {
+            if (i < target.Count && ReferenceEquals(target[i], desired[i])) continue;
+            var existing = target.IndexOf(desired[i]);
+            if (existing < 0) target.Insert(i, desired[i]);
+            else target.Move(existing, i);
+        }
+        return true;
     }
 
     /// <summary>按视口顶部行更新吸顶标题：只吸附当前展开用户分组，进入下一个分组时自然替换。</summary>
@@ -1120,6 +1219,10 @@ public partial class ProfileViewModel : ObservableObject
 
     partial void OnSelectedProfileChanged(ProfileItemViewModel? value)
     {
+        _gpuUsageCts?.Cancel();
+        // 保留占位对象，避免标签绑定在 null 路径上反复报错。
+        ProfileGpuUsage = new(null, GpuUsageScope.ProfileTotal);
+        ProfileGpuUsageVisible = false;
         CloseDetailPanel();
         ClearModSelection();
         IsAddModOpen = false;
@@ -1212,6 +1315,7 @@ public partial class ProfileViewModel : ObservableObject
                 : await _deploymentService.GetDeployedModIdsAsync(cancellationToken);
             _deployedModIds = deployedModIds;
             var noticeStyle = _settingsService.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
+            var tagColors = await _modService.GetTagColorsAsync(cancellationToken);
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
@@ -1219,6 +1323,7 @@ public partial class ProfileViewModel : ObservableObject
                 {
                     var sourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) };
                     sourceInfo.ApplyNoticeStyle(noticeStyle);
+                    sourceInfo.ApplyTagColors(tagColors);
                     var cardVm = new ProfileModViewModel
                     {
                         ProfileId = profileMod.ProfileId,
@@ -1246,6 +1351,7 @@ public partial class ProfileViewModel : ObservableObject
 
             cancellationToken.ThrowIfCancellationRequested();
             ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
+            _tagPool = null;
             _loadedProfileId = profile.Id;
             _loadedProfileContent = ProfileContentSignature(profile);
             _luaSeparator.ProfileId = profile.Id;
@@ -1261,6 +1367,8 @@ public partial class ProfileViewModel : ObservableObject
             IsProfileModsEmpty = ProfileMods.Count == 0 && ProfileSeparators.Count == 0;
             await RefreshActiveProfileDeploymentStatusAsync();
             _ = LoadProfileModIconsAsync(cancellationToken);
+            MarkGpuUsageDirty();
+            RefreshGpuUsage();
         }
         catch (OperationCanceledException)
         {

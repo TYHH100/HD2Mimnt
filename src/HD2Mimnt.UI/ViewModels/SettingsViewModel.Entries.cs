@@ -31,7 +31,8 @@ public partial class SettingsViewModel
         new EntryVisibilityOption("settings.ai", "AI 服务"),
         new EntryVisibilityOption("settings.appearance", "外观"),
         new EntryVisibilityOption("settings.cache", "缓存"),
-        new EntryVisibilityOption("settings.logs", "日志")
+        new EntryVisibilityOption("settings.logs", "日志"),
+        new EntryVisibilityOption("settings.about", "关于")
     };
 
     public bool ShowProfilesEntry => !_hiddenEntries.Contains("navigation.profiles");
@@ -41,6 +42,7 @@ public partial class SettingsViewModel
     public bool ShowConflictsEntry => !_hiddenEntries.Contains("navigation.conflicts");
     public bool ShowToolsEntry => !_hiddenEntries.Contains("navigation.tools");
     public bool IsEntriesCategoryVisible => SelectedCategory == "入口自定义";
+    public bool IsAboutCategoryVisible => IsSectionVisible("关于");
 
     public IEnumerable<string> SettingsCategories => SettingsEntries
         .Where(entry => !_hiddenEntries.Contains(entry.Id)).Select(entry => GetCategory(entry.Label)).Distinct()

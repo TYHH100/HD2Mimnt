@@ -15,7 +15,10 @@ public class Mod
     public string Description { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public ModCategory Category { get; set; }
+    /// <summary>清单与系统标记（如 HD2CL）导入的标签，随模组包更新。</summary>
     public List<string> Tags { get; set; } = new();
+    /// <summary>用户自建标签：存于库根 .hd2mimnt-metadata 档案，不进 manifest、不参与内容哈希。</summary>
+    public List<string> UserTags { get; set; } = new();
     /// <summary>TOC 中的资源 Type ID。null 表示尚未扫描；空列表表示未识别出资源。</summary>
     public List<ulong>? ResourceTypeIds { get; set; }
     /// <summary>null 表示尚未识别；只依据清单声明和 Lua 资源契约识别 BSL。</summary>

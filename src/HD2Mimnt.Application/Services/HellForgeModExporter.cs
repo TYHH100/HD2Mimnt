@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.IO;
+using HD2Mimnt.Core.ModelPreview;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -132,6 +133,10 @@ internal static class HellForgeModExporter
         }
 
         var icon = await TryStageIconAsync(mod, exportDirectory, place, cancellationToken);
+        // HellForge 只把 texture/material/sound/font/strings 视为客户端可见（Mods.cs ClientOnlyPatches），
+        // 含 unit 的纯外观包会被判 shared，联机时会要求对方下载整个人物/武器模型。
+        // 这里按补丁的实际资源类型补一份清单标记：全部为视觉资源才标 cosmetic，存疑一律维持 shared。
+        var cosmetic = IsCosmeticOnly(entries);
         var manifest = new
         {
             format = 1,
@@ -139,12 +144,54 @@ internal static class HellForgeModExporter
             name = Truncate(string.IsNullOrWhiteSpace(mod.Name) ? mod.Id.ToString("N") : mod.Name, 80),
             version = Truncate(string.IsNullOrWhiteSpace(mod.Version) ? "1.0.0" : mod.Version, 32),
             description = mod.Description ?? string.Empty,
-            gameplay = true,
+            gameplay = !cosmetic,
             icon
         };
         var manifestPath = Path.Combine(exportDirectory, "hellforge-mod.json");
         await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest), cancellationToken);
         return manifestPath;
+    }
+
+    /// <summary>
+    /// 扁平导出可标为 cosmetic 的资源类型：只影响本机画面的模型、材质、贴图、动画与音频。
+    /// 不含 Level / Entity / Prefab / Physics / Config / NetworkConfig / Lua 等会改变玩法、
+    /// 关卡或联机行为的类型；未知类型同样不纳入，宁可判 shared 让联机对齐。
+    /// Package 是资源包索引（列出包内资源 id），本身不含玩法逻辑；HD2IAS 角色替换补丁的
+    /// data 归档里 Unit 与 Package 成对出现，不纳入会让纯人物替换包被判成需要联机同步的数据。
+    /// </summary>
+    private static readonly HashSet<ulong> CosmeticResourceTypes =
+    [
+        PatchResourceTypeIds.Package,
+        PatchResourceTypeIds.Texture, PatchResourceTypeIds.Material, PatchResourceTypeIds.Unit,
+        PatchResourceTypeIds.Bones, PatchResourceTypeIds.Animation, PatchResourceTypeIds.StateMachine,
+        PatchResourceTypeIds.Cloth, PatchResourceTypeIds.Particles, PatchResourceTypeIds.RagdollProfile,
+        PatchResourceTypeIds.IkSkeleton, PatchResourceTypeIds.TextureAtlas, PatchResourceTypeIds.GeometryGroup,
+        PatchResourceTypeIds.ShadingEnvironment, PatchResourceTypeIds.ShadingEnvironmentMapping,
+        PatchResourceTypeIds.RenderConfig, PatchResourceTypeIds.Renderable,
+        PatchResourceTypeIds.ShaderLibrary, PatchResourceTypeIds.ShaderLibraryGroup,
+        PatchResourceTypeIds.WwiseBank, PatchResourceTypeIds.WwiseStream, PatchResourceTypeIds.WwiseDep,
+        PatchResourceTypeIds.WwiseMetadata, PatchResourceTypeIds.WwiseProperties,
+        PatchResourceTypeIds.Font, PatchResourceTypeIds.RuntimeFont, PatchResourceTypeIds.Strings,
+        PatchResourceTypeIds.MouseCursor, PatchResourceTypeIds.Bik, PatchResourceTypeIds.Bik2,
+        PatchResourceTypeIds.CameraShake
+    ];
+
+    /// <summary>
+    /// 已选补丁是否全部只含客户端可见资源。任一主补丁读不出类型、没有资源或含白名单外类型即返回 false。
+    /// 只看主补丁：<c>.stream</c>/<c>.gpu_resources</c> 是同一资源的附属载荷，单独解析没有意义。
+    /// </summary>
+    private static bool IsCosmeticOnly(IReadOnlyList<PatchDeploymentPlanner.FileEntry> entries)
+    {
+        var any = false;
+        foreach (var entry in entries)
+        {
+            if (entry.Suffix.Length > 0) continue;
+            if (entry.SourcePath is null) return false;
+            if (!PatchResourceTypeReader.TryReadTypeIds(entry.SourcePath, out var types)) return false;
+            if (!types.All(CosmeticResourceTypes.Contains)) return false;
+            any = true;
+        }
+        return any;
     }
 
     /// <summary>扁平化模组 id：hd2mimnt.&lt;modId N 格式&gt;（41 字符，自描述归属，合法 id）。</summary>
@@ -294,7 +341,7 @@ internal static class HellForgeModExporter
     /// 导出布局版本：清单写法/文件组织一改就要 +1，否则已同步过的模组会因指纹未变被跳过，
     /// 旧的（可能不完整的）导出目录会一直留着。旧版本号算出的指纹与新版不同，下次同步会自动重导一次。
     /// </summary>
-    private const int ExportFormat = 2;
+    private const int ExportFormat = 5;
 
     /// <summary>内容指纹（stat 级，廉价）：pack 与选项无关（导出内容恒定），flat 含选项快照。
     /// 与 HellForge ModStaging.Same 一样用 长度+修改时间 判断变化。</summary>

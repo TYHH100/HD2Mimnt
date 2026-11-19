@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              x:Class="HD2Mimnt.UI.Controls.AudioPreviewOverlay" x:DataType="vm:AudioPreviewViewModel"
              IsVisible="{Binding IsOpen, FallbackValue=False}" Focusable="True" KeyboardNavigation.TabNavigation="Cycle">
   <!-- 播放/暂停字形用 Segoe MDL2 Assets（\uE768 播放 / \uE769 暂停 / \uE71A 停止）；

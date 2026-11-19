@@ -96,12 +96,106 @@ public class SearchServiceTests : IDisposable
         await _searchService.BuildIndexAsync();
 
         // Act
-        var results = await _searchService.SearchAsync("tag:armor");
+        var results = await _searchService.SearchAsync("@armor");
 
         // Assert
         var resultList = results.ToList();
-        Assert.NotEmpty(resultList);
+        Assert.Equal(2, resultList.Count);
         Assert.All(resultList, mod => Assert.Contains("armor", mod.Tags));
+    }
+
+    [Fact]
+    public async Task SearchAsync_UserTag_ShouldMatchCustomTags()
+    {
+        await _modRepository.AddAsync(new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Custom Tagged",
+            Version = "1.0.0",
+            Author = "Test",
+            Description = "Test",
+            Path = "/test/usertag",
+            Category = ModCategory.Visual,
+            Tags = new List<string>(),
+            UserTags = new List<string> { "DPS优化" },
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            ImportedAt = DateTime.UtcNow
+        });
+        await _searchService.BuildIndexAsync();
+
+        var results = (await _searchService.SearchAsync("@dps优化")).ToList();
+
+        Assert.Single(results);
+        Assert.Equal("Custom Tagged", results[0].Name);
+    }
+
+    [Fact]
+    public async Task SearchAsync_MultipleTagFilters_ShouldIntersectWithKeyword()
+    {
+        await AddTestMods();
+        await _searchService.BuildIndexAsync();
+
+        var bothTags = (await _searchService.SearchAsync("@armor @visual")).ToList();
+        Assert.Single(bothTags);
+        Assert.Equal("Armor Mod Beta", bothTags[0].Name);
+
+        var withKeyword = (await _searchService.SearchAsync("@gameplay weapon")).ToList();
+        Assert.Single(withKeyword);
+        Assert.Equal("Weapon Enhancement", withKeyword[0].Name);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Hd2IasBadge_ShouldMatchAsVirtualTag()
+    {
+        await _modRepository.AddAsync(new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Ias Character",
+            Version = "1.0.0",
+            Author = "Test",
+            Description = "Test",
+            Path = "/test/hd2ias",
+            Category = ModCategory.Character,
+            WorkflowType = "HD2IAS",
+            Tags = new List<string>(),
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            ImportedAt = DateTime.UtcNow
+        });
+        await _searchService.BuildIndexAsync();
+
+        var results = (await _searchService.SearchAsync("@HD2IAS")).ToList();
+
+        Assert.Single(results);
+        Assert.Equal("Ias Character", results[0].Name);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CategoryAndLuaBadges_ShouldMatchPrefix()
+    {
+        await _modRepository.AddAsync(new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Video Loader Pack",
+            Version = "1.0.0",
+            Author = "Test",
+            Description = "Test",
+            Path = "/test/video",
+            Category = ModCategory.Visual,
+            ResourceTypeIds = new List<ulong> { 0x5ee65304478f8db5UL },
+            BslRole = BslModRole.Loader,
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow,
+            ImportedAt = DateTime.UtcNow
+        });
+        await _searchService.BuildIndexAsync();
+
+        var video = (await _searchService.SearchAsync("@视频")).ToList();
+        var lua = (await _searchService.SearchAsync("@lua")).ToList();
+
+        Assert.Single(video);
+        Assert.Contains(lua, mod => mod.Name == "Video Loader Pack");
     }
 
     [Fact]

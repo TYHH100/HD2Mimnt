@@ -70,62 +70,12 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
     public async Task<Hd2ClConversionResult> ConvertAsync(Guid modId, IReadOnlyList<string>? componentFolders = null,
         string? productName = null, IProgress<string>? progress = null, CancellationToken token = default)
     {
-        var mod = await _mods.GetModByIdAsync(modId, token)
-                  ?? throw new InvalidOperationException("模组不存在：" + modId);
-        var gameRoot = _settings.GetEffectiveGamePath();
-        if (string.IsNullOrWhiteSpace(gameRoot))
-            throw new InvalidOperationException("未检测到游戏安装目录，无法读取原生材质与骨架。");
-        var dataRoot = Path.Combine(gameRoot, "data");
-        var gameData = Directory.Exists(dataRoot) ? dataRoot : gameRoot;
-        var seed = mod.Manifest is { Guid: var guid } && guid != Guid.Empty ? guid.ToString() : mod.Name;
-        var profile = await _profiles.GetActiveProfileAsync(token);
-        // 带选项的模组（颜色/部件切换）把分支原样带进成品，由成品选项决定部署哪一套；
-        // 显式传入的版本选择（合集浮窗）优先于选项。
-        var explicitSelection = componentFolders is not null;
-        var scope = ResolveConversionScope(mod,
-            profile?.Mods.FirstOrDefault(item => item.ModId == modId)?.OptionsJson);
-        componentFolders ??= scope.Components;
-        var optionGroups = explicitSelection ? null : scope.OptionGroups;
-        if (componentFolders is { Count: 0 })
-            throw new InvalidOperationException("当前模组选项没有选中任何文件，无法转换。");
-        var work = Path.Combine(Path.GetTempPath(), "HD2Mimnt-HD2CL", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(work);
+        var plan = await PrepareAsync(modId, componentFolders, token);
+        var work = CreateWorkDirectory();
         var output = Path.Combine(work, "package");
         try
         {
-            var arguments = new Dictionary<string, string>
-            {
-                ["Seed"] = seed,
-                ["Name"] = productName ?? mod.Name,
-                ["Author"] = mod.Author ?? string.Empty,
-                ["Description"] = mod.Description ?? string.Empty,
-                ["ModPath"] = mod.Path,
-                ["GameDataRoot"] = gameData,
-                ["OutputDirectory"] = output
-            };
-            if (!string.IsNullOrWhiteSpace(mod.ThumbnailPath)) arguments["ThumbnailPath"] = mod.ThumbnailPath;
-            if (!string.IsNullOrWhiteSpace(mod.Manifest?.IconPath))
-                arguments["ManifestIconPath"] = Path.Combine(mod.Path, mod.Manifest.IconPath);
-            if (componentFolders is { Count: > 0 })
-                arguments["Components"] = string.Join('|', componentFolders);
-            if (optionGroups is not null)
-                arguments["OptionGroups"] = JsonSerializer.Serialize(optionGroups);
-
-            var outcome = await _tasks.RunProcessTaskAsync(
-                $"转换「{productName ?? mod.Name}」为 HD2CL 角色库",
-                "Hd2ClConversion",
-                arguments,
-                new ProgressBridge(progress),
-                cancellationToken: token);
-            if (outcome.Task?.Status is HD2Mimnt.Core.Entities.TaskStatus.Cancelled
-                or HD2Mimnt.Core.Entities.TaskStatus.ForceTerminated)
-                throw new OperationCanceledException(token);
-            if (outcome.Task?.Status != HD2Mimnt.Core.Entities.TaskStatus.Completed || string.IsNullOrEmpty(outcome.Data))
-                throw new InvalidOperationException(outcome.Task?.Errors.FirstOrDefault()
-                    ?? outcome.Task?.Message ?? "HD2CL 转换失败。");
-
-            var artifact = JsonSerializer.Deserialize<Hd2ClArtifactResult>(outcome.Data)
-                           ?? throw new InvalidOperationException("HD2CL 转换结果无效。");
+            var artifact = await BuildArtifactAsync(plan, output, productName, progress, token);
             if (!Directory.Exists(artifact.OutputDirectory))
                 throw new InvalidOperationException("HD2CL 转换没有生成成品目录。");
 
@@ -139,9 +89,9 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
             {
                 profileId = currentProfile.Id;
                 await _profiles.AddModToProfileAsync(currentProfile.Id, imported, token);
-                if (optionGroups is not null)
+                if (plan.OptionGroups is not null)
                     await _profiles.SetModOptionsAsync(currentProfile.Id, imported,
-                        ProductOptionState(optionGroups), token);
+                        ProductOptionState(plan.OptionGroups), token);
                 await _profiles.SetModEnabledAsync(currentProfile.Id, imported, true, token);
                 await _profiles.SetModEnabledAsync(currentProfile.Id, modId, false, token);
                 sourceDisabled = true;
@@ -153,10 +103,108 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
         }
         finally
         {
-            try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            DeleteWorkDirectory(work);
         }
+    }
+
+    /// <summary>只导出压缩包：转换产物打成 7z 写到指定目录，不导入模组库、不改当前配置。</summary>
+    public async Task<Hd2ClExportResult> ExportAsync(Guid modId, string outputDirectory,
+        IReadOnlyList<string>? componentFolders = null, string? productName = null,
+        IProgress<string>? progress = null, CancellationToken token = default)
+    {
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+            throw new ArgumentException("请选择导出目录。", nameof(outputDirectory));
+        var plan = await PrepareAsync(modId, componentFolders, token);
+        var work = CreateWorkDirectory();
+        var output = Path.Combine(work, "package");
+        try
+        {
+            var artifact = await BuildArtifactAsync(plan, output, productName, progress, token);
+            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, artifact.Name,
+                artifact.OutputDirectory, progress, token);
+            progress?.Report("已导出压缩包：" + archive);
+            return new Hd2ClExportResult(artifact.Name, archive);
+        }
+        finally
+        {
+            DeleteWorkDirectory(work);
+        }
+    }
+
+    private sealed record ConversionPlan(Mod Mod, string Seed, string GameData,
+        IReadOnlyList<string>? Components, IReadOnlyList<Hd2ClOptionGroup>? OptionGroups);
+
+    private async Task<ConversionPlan> PrepareAsync(Guid modId, IReadOnlyList<string>? componentFolders,
+        CancellationToken token)
+    {
+        var mod = await _mods.GetModByIdAsync(modId, token)
+                  ?? throw new InvalidOperationException("模组不存在：" + modId);
+        var gameRoot = _settings.GetEffectiveGamePath();
+        if (string.IsNullOrWhiteSpace(gameRoot))
+            throw new InvalidOperationException("未检测到游戏安装目录，无法读取原生材质与骨架。");
+        var dataRoot = Path.Combine(gameRoot, "data");
+        var seed = mod.Manifest is { Guid: var guid } && guid != Guid.Empty ? guid.ToString() : mod.Name;
+        var profile = await _profiles.GetActiveProfileAsync(token);
+        // 带选项的模组（颜色/部件切换）把分支原样带进成品，由成品选项决定部署哪一套；
+        // 显式传入的版本选择（合集浮窗）优先于选项。
+        var explicitSelection = componentFolders is not null;
+        var scope = ResolveConversionScope(mod,
+            profile?.Mods.FirstOrDefault(item => item.ModId == modId)?.OptionsJson);
+        componentFolders ??= scope.Components;
+        var optionGroups = explicitSelection ? null : scope.OptionGroups;
+        if (componentFolders is { Count: 0 })
+            throw new InvalidOperationException("当前模组选项没有选中任何文件，无法转换。");
+        return new ConversionPlan(mod, seed, Directory.Exists(dataRoot) ? dataRoot : gameRoot,
+            componentFolders, optionGroups);
+    }
+
+    private async Task<Hd2ClArtifactResult> BuildArtifactAsync(ConversionPlan plan, string output,
+        string? productName, IProgress<string>? progress, CancellationToken token)
+    {
+        var arguments = new Dictionary<string, string>
+        {
+            ["Seed"] = plan.Seed,
+            ["Name"] = productName ?? plan.Mod.Name,
+            ["Author"] = plan.Mod.Author ?? string.Empty,
+            ["Description"] = plan.Mod.Description ?? string.Empty,
+            ["ModPath"] = plan.Mod.Path,
+            ["GameDataRoot"] = plan.GameData,
+            ["OutputDirectory"] = output
+        };
+        if (!string.IsNullOrWhiteSpace(plan.Mod.ThumbnailPath)) arguments["ThumbnailPath"] = plan.Mod.ThumbnailPath;
+        if (!string.IsNullOrWhiteSpace(plan.Mod.Manifest?.IconPath))
+            arguments["ManifestIconPath"] = Path.Combine(plan.Mod.Path, plan.Mod.Manifest.IconPath);
+        if (plan.Components is { Count: > 0 }) arguments["Components"] = string.Join('|', plan.Components);
+        if (plan.OptionGroups is not null) arguments["OptionGroups"] = JsonSerializer.Serialize(plan.OptionGroups);
+
+        var outcome = await _tasks.RunProcessTaskAsync(
+            $"转换「{productName ?? plan.Mod.Name}」为 HD2CL 角色库",
+            "Hd2ClConversion",
+            arguments,
+            new ProgressBridge(progress),
+            cancellationToken: token);
+        if (outcome.Task?.Status is HD2Mimnt.Core.Entities.TaskStatus.Cancelled
+            or HD2Mimnt.Core.Entities.TaskStatus.ForceTerminated)
+            throw new OperationCanceledException(token);
+        if (outcome.Task?.Status != HD2Mimnt.Core.Entities.TaskStatus.Completed || string.IsNullOrEmpty(outcome.Data))
+            throw new InvalidOperationException(outcome.Task?.Errors.FirstOrDefault()
+                ?? outcome.Task?.Message ?? "HD2CL 转换失败。");
+        return JsonSerializer.Deserialize<Hd2ClArtifactResult>(outcome.Data)
+               ?? throw new InvalidOperationException("HD2CL 转换结果无效。");
+    }
+
+    private static string CreateWorkDirectory()
+    {
+        var work = Path.Combine(Path.GetTempPath(), "HD2Mimnt-HD2CL", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        return work;
+    }
+
+    private static void DeleteWorkDirectory(string work)
+    {
+        try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private const string MaterialArchive = "9ba626afa44a3aa3";

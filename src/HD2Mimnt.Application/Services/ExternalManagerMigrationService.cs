@@ -77,9 +77,20 @@ public sealed class ExternalManagerMigrationService
                 token.ThrowIfCancellationRequested();
                 try
                 {
+                    var available = external.Mods.Where(item => imported.ContainsKey(item.SourceModId)).ToList();
                     var missing = external.Mods.Where(item => !imported.ContainsKey(item.SourceModId)).Select(item => item.SourceModId).ToList();
-                    if (missing.Count > 0) throw new InvalidDataException($"{missing.Count} 个配置成员未成功迁入，保留源配置供重试：{string.Join(", ", missing)}");
-                    var profile = MapProfile(external, imported, direction);
+                    ExternalMigrationProfile sourceProfile = external;
+                    if (missing.Count > 0)
+                    {
+                        // 普通配置保持整份跳过；默认配置成员多、源目录缺失常见，导入可用成员比整份丢弃更符合预期。
+                        if (!external.IsDefault)
+                            throw new InvalidDataException($"{missing.Count} 个配置成员未成功迁入，保留源配置供重试：{string.Join(", ", missing)}");
+                        if (available.Count == 0)
+                            throw new InvalidDataException($"{missing.Count} 个配置成员均未成功迁入，已跳过默认配置。");
+                        result.Issues.Add(new(external.Name, $"{missing.Count} 个配置成员未成功迁入，已跳过这些成员。"));
+                        sourceProfile = KeepImportedMembers(external, imported);
+                    }
+                    var profile = MapProfile(sourceProfile, imported, direction);
                     profile.Id = MigrationIdentity.Create(identity, "profile", external.SourceId.ToUpperInvariant(), JsonSerializer.Serialize(new
                     {
                         external.Name, direction, profile.Mods, profile.IsLibraryLayout,
@@ -102,6 +113,37 @@ public sealed class ExternalManagerMigrationService
             return result;
         }
         finally { _gate.Release(); }
+    }
+
+    /// <summary>默认配置只保留已迁入成员，并将分隔符边界换算到筛选后的成员位置。</summary>
+    private static ExternalMigrationProfile KeepImportedMembers(ExternalMigrationProfile external,
+        IReadOnlyDictionary<string, Mod> imported)
+    {
+        var kept = external.Mods.Select((item, index) => (item, index))
+            .Where(pair => imported.ContainsKey(pair.item.SourceModId)).ToList();
+        var positions = kept.Select(pair => pair.index).ToList();
+        var filtered = new ExternalMigrationProfile
+        {
+            SourceId = external.SourceId, Name = external.Name, WasActive = external.WasActive,
+            IsDefault = external.IsDefault, IsLibraryLayout = external.IsLibraryLayout,
+            DeploymentOrder = external.DeploymentOrder,
+            IsLuaGroupCollapsed = external.IsLuaGroupCollapsed, LuaSeparatorColor = external.LuaSeparatorColor
+        };
+        filtered.Mods.AddRange(kept.Select(pair => pair.item));
+        var separators = external.Separators.OrderBy(item => item.Order).ToList();
+        for (var index = 0; index < separators.Count; index++)
+        {
+            var separator = separators[index];
+            var start = Math.Clamp(separator.Order, 0, external.Mods.Count);
+            var end = Math.Clamp(separator.MemberCount.HasValue ? start + Math.Max(0, separator.MemberCount.Value)
+                : index + 1 < separators.Count ? separators[index + 1].Order : external.Mods.Count, start, external.Mods.Count);
+            filtered.Separators.Add(separator with
+            {
+                Order = positions.Count(position => position < start),
+                MemberCount = positions.Count(position => position >= start && position < end)
+            });
+        }
+        return filtered;
     }
 
     private static Profile MapProfile(ExternalMigrationProfile external, IReadOnlyDictionary<string, Mod> mods, DeploymentOrder direction)

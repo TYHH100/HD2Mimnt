@@ -18,6 +18,7 @@
     <Compile Include="../HD2Mimnt.Tests/Services/CompatibilityFixture.cs" Link="Compatibility/CompatibilityFixture.cs"/>
     <Compile Include="../HD2Mimnt.Tests/Services/HellForgeCliFixture.cs" Link="HellForge/HellForgeCliFixture.cs"/>
     <Compile Include="../HD2Mimnt.Tests/Services/SoundFixFixture.cs" Link="SoundFix/SoundFixFixture.cs"/>
+    <Compile Include="../HD2Mimnt.Tests/Services/GpuUsageFixture.cs" Link="GpuUsage/GpuUsageFixture.cs"/>
     <Compile Include="../HD2Mimnt.PerformanceTests/LargeLibraryWorkload.cs" Link="Performance/LargeLibraryWorkload.cs"/>
   </ItemGroup>
 </Project>

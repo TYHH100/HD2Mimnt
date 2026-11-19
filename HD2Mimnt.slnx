@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/plugins/AiSummarizer/AiSummarizer.csproj" />
+    <Project Path="samples/plugins/EscapeProbe/EscapeProbe.csproj" />
     <Project Path="samples/plugins/HelloWorld/HelloWorld.csproj" />
     <Project Path="samples/plugins/LuaHybrid/HybridTools.csproj" />
     <Project Path="samples/plugins/ThemeShowcase/ThemeShowcase.csproj" />

@@ -9,6 +9,9 @@
     <PlatformTarget>x64</PlatformTarget>
     <ProductName>HD2Mimnt</ProductName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- 不生成 *.deps.json：托管依赖在 lib/ 由 LibAssemblyResolver 解析，宿主缺 deps 时按应用目录探测；
+         实测 UI/Cli 在无 deps 下均可运行。runtimeconfig.json 仍由宿主按固定文件名读取，必须保留。 -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,61 +28,37 @@
     <Content Include="Assets\Fonts\Monocraft.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- 子进程宿主是独立进程，无法读取 UI 单文件包里内存加载的托管程序集。
-       只复制 $(OutDir) 里的 apphost 会漏掉 Core/PluginSDK 等依赖，发布版启动即 FileNotFoundException。
-       这里把两个子项目各自按“框架依赖单文件”重新发布，每个子进程只随应用带一个 exe；
-       它们需要的原生库已由 UI 发布目录提供，与子进程同目录可直接探测到。 -->
-  <!-- GenerateSingleFileBundle 在产物已是最新时会整体跳过，挂在它上面的 BeforeTargets 不会执行；
-       GeneratePublishDependencyFile 每次发布都会运行，且排在待发布列表计算之后。 -->
-  <Target Name="PublishChildProcessHosts" BeforeTargets="GeneratePublishDependencyFile">
-    <PropertyGroup>
-      <_ChildHostsDir>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\child-hosts\</_ChildHostsDir>
-    </PropertyGroup>
-    <MSBuild Projects="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj"
-             Targets="Publish"
-             BuildInParallel="false"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)PluginHost\;Version=$(Version)" />
-    <MSBuild Projects="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj"
-             Targets="Publish"
-             BuildInParallel="false"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Worker\;Version=$(Version)" />
-    <!-- CLI 也按框架依赖单文件发布到发布根目录，与主程序同目录，launch 才能按同目录规则找到 UI。 -->
-    <MSBuild Projects="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj"
-             Targets="Publish"
-             BuildInParallel="false"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false;PublishSingleFile=true;PublishDir=$(_ChildHostsDir)Cli\;Version=$(Version)" />
+  <!-- 子进程入口（PluginHost/Worker/Cli）与主程序一样是普通多文件发布：项目引用已把各自的
+       exe/dll/deps/runtimeconfig 带进发布列表，入口 dll 留在根目录，其余托管依赖统一进 lib/。
+       四个入口程序集各自编译共享的 LibAssemblyResolver，从 lib/ 解析依赖。 -->
+  <ItemGroup>
+    <Compile Include="..\Shared\LibAssemblyResolver.cs" Link="LibAssemblyResolver.cs" />
+  </ItemGroup>
+
+  <!-- 不单文件发布：托管程序集与 pdb 统一收进 lib/，根目录只留入口 exe、各自 runtimeconfig、
+       原生库和内容目录（不生成 deps.json）；四个入口程序集的解析由共享 LibAssemblyResolver
+       在模块初始化阶段完成。原生库不能挪：没有 deps.json 后 DllImport 只在应用目录里找。
+       入口程序集（UI/Cli/PluginHost/Worker 的 dll）必须与各自 exe 同目录（宿主按 exe 名推导入口）。 -->
+  <Target Name="MoveManagedAssembliesToLib" AfterTargets="Publish" Condition="'$(PublishSingleFile)' != 'true'">
     <ItemGroup>
-      <!-- 项目引用已把子项目的 apphost/dll/deps/runtimeconfig 放进待发布项；单文件子进程只需要 exe，
-           先移除这些原始项，避免旧 apphost 覆盖单文件 exe。 -->
-      <_ChildHostPublishFile Include="@(ResolvedFileToPublish)"
-                             Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.PluginHost')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Worker')) or $([System.String]::Copy('%(RelativePath)').StartsWith('HD2Mimnt.Cli'))" />
-      <ResolvedFileToPublish Remove="@(_ChildHostPublishFile)" />
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.exe"
-                             RelativePath="HD2Mimnt.PluginHost.exe"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)Worker\HD2Mimnt.Worker.exe"
-                             RelativePath="HD2Mimnt.Worker.exe"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.exe"
-                             RelativePath="HD2Mimnt.Cli.exe"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-      <!-- 符号随发布目录提供给 CI 的 symbols 包，子进程崩溃转储仍可解析。 -->
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)PluginHost\HD2Mimnt.PluginHost.pdb"
-                             RelativePath="HD2Mimnt.PluginHost.pdb"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)Worker\HD2Mimnt.Worker.pdb"
-                             RelativePath="HD2Mimnt.Worker.pdb"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
-      <ResolvedFileToPublish Include="$(_ChildHostsDir)Cli\HD2Mimnt.Cli.pdb"
-                             RelativePath="HD2Mimnt.Cli.pdb"
-                             CopyToPublishDirectory="PreserveNewest"
-                             ExcludeFromSingleFile="true" />
+      <!-- 只收拢根目录顶层的托管 dll；zh-CN/ 之类的卫星资源目录保持原位，
+           卫星资源按文化探测，不需要额外的资源解析逻辑。 -->
+      <_ManagedAssemblyToMove Include="@(ResolvedFileToPublish)"
+                              Condition="'%(Extension)' == '.dll'
+                                         and '%(RelativePath)' == '%(Filename)%(Extension)'
+                                         and '%(ResolvedFileToPublish.AssetType)' != 'native'
+                                         and '%(ResolvedFileToPublish.CopyToPublishDirectory)' != 'Never'
+                                         and '%(Filename)' != 'HD2Mimnt.UI'
+                                         and '%(Filename)' != 'HD2Mimnt.Cli'
+                                         and '%(Filename)' != 'HD2Mimnt.PluginHost'
+                                         and '%(Filename)' != 'HD2Mimnt.Worker'" />
+      <_PublishRootPdb Include="$(PublishDir)*.pdb" />
     </ItemGroup>
+    <MakeDir Directories="$(PublishDir)lib" />
+    <Move SourceFiles="@(_ManagedAssemblyToMove->'$(PublishDir)%(RelativePath)')"
+          DestinationFiles="@(_ManagedAssemblyToMove->'$(PublishDir)lib\%(RelativePath)')" />
+    <Move SourceFiles="@(_PublishRootPdb)" DestinationFolder="$(PublishDir)lib"
+          Condition="'@(_PublishRootPdb)' != ''" />
   </Target>
 
   <ItemGroup>
@@ -93,5 +72,8 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="HD2Mimnt.UITests" />
   </ItemGroup>
 </Project>

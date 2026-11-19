@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.ModelPreview;
 
 namespace HD2Mimnt.Tests.Services;
 
@@ -91,6 +92,64 @@ public sealed class HellForgeModExporterTests : IDisposable
         Assert.Equal(HellForgeModExporter.FlatModId(mod), manifest.GetProperty("id").GetString());
         Assert.True(manifest.GetProperty("gameplay").GetBoolean());
         Assert.Equal("1.0.0", manifest.GetProperty("version").GetString());
+    }
+
+    [Fact]
+    public async Task ExportFlat_ModelOnlyPatches_MarkCosmetic()
+    {
+        // 纯人物/武器外观：模型 + 材质 + 贴图。HellForge 自己的白名单不含 unit，会判 shared，
+        // 导致加入房间时要求对方下载整个模型；导出侧必须补成 cosmetic。
+        var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "Model Skin" });
+        WritePatchWithTypes(mod.Path, BundleX, 0,
+            PatchResourceTypeIds.Unit, PatchResourceTypeIds.Material, PatchResourceTypeIds.Texture);
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)).RootElement;
+        Assert.Equal(HellForgeModKind.Flat, export.Kind);
+        Assert.False(manifest.GetProperty("gameplay").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ExportFlat_PackageIndexPatch_MarkCosmetic()
+    {
+        // HD2IAS 角色替换的 data 归档是 Package（资源包索引）+ Unit 成对出现：
+        // 纯人物替换不该因为 Package 被判成需要联机同步的数据。
+        var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "IAS Model" });
+        WritePatchWithTypes(mod.Path, BundleX, 0,
+            PatchResourceTypeIds.Package, PatchResourceTypeIds.Unit);
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)).RootElement;
+        Assert.Equal(HellForgeModKind.Flat, export.Kind);
+        Assert.False(manifest.GetProperty("gameplay").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ExportFlat_PatchWithGameplayType_StaysShared()
+    {
+        var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "Weapon Stats" });
+        WritePatchWithTypes(mod.Path, BundleX, 0,
+            PatchResourceTypeIds.Unit, PatchResourceTypeIds.Material, PatchResourceTypeIds.Entity);
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)).RootElement;
+        Assert.True(manifest.GetProperty("gameplay").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ExportFlat_UnreadablePatch_StaysShared()
+    {
+        // 读不出资源类型时不能猜：保持 gameplay，让联机按 shared 对齐。
+        var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "Unknown" });
+        WritePatch(mod.Path, BundleX, 0, "not-a-real-patch");
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)).RootElement;
+        Assert.True(manifest.GetProperty("gameplay").GetBoolean());
     }
 
     [Fact]
@@ -327,6 +386,29 @@ public sealed class HellForgeModExporterTests : IDisposable
         File.WriteAllText(main, content);
         if (stream) File.WriteAllText(main + ".stream", content + "-stream");
         if (gpu) File.WriteAllText(main + ".gpu_resources", content + "-gpu");
+    }
+
+    /// <summary>
+    /// 写一个只有头部与资源索引的最小补丁，供导出器的 cosmetic 判定读取。
+    /// 布局必须与真实 TOC 一致，否则读取器会读到错位数据：72 字节头，
+    /// 随后 typeCount × 32 类型表，再 fileCount × 80 文件条目（类型 id 在偏移 8）。
+    /// </summary>
+    private static void WritePatchWithTypes(string directory, string bundle, int index, params ulong[] typeIds)
+    {
+        Directory.CreateDirectory(directory);
+        using var stream = File.Create(Path.Combine(directory, $"{bundle}.patch_{index}"));
+        using var writer = new BinaryWriter(stream);
+        writer.Write(0xF0000011u);
+        writer.Write(1u);                  // 类型表条目数
+        writer.Write((uint)typeIds.Length); // 文件条目数
+        for (var i = 0; i < (72 - 12) / 4; i++) writer.Write(0u);
+        for (var i = 0; i < 32 / 4; i++) writer.Write(0u); // 类型表占位（读取器只跳过）
+        foreach (var typeId in typeIds)
+        {
+            writer.Write(0UL);
+            writer.Write(typeId);
+            for (var i = 0; i < 8; i++) writer.Write(0UL);
+        }
     }
 
     public void Dispose()

@@ -26,6 +26,8 @@ public sealed class OfflineInteropService : IAsyncDisposable
     private readonly Channel<bool> _updates = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
     { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true, SingleWriter = false });
     private readonly Dictionary<Guid, CachedFiles> _fileCache = new();
+    private static readonly TimeSpan MinPublishInterval = TimeSpan.FromSeconds(2);
+    private DateTime _lastPublishUtc = DateTime.MinValue;
     private Task? _worker;
     private bool _started;
     public string IndexPath => _publisher.IndexPath;
@@ -61,7 +63,18 @@ public sealed class OfflineInteropService : IAsyncDisposable
 
     private void Changed(object? sender, EventArgs args) => _updates.Writer.TryWrite(true);
     private void ProfilesChanged(object? sender, ProfilesChangedEventArgs args) => Changed(sender, args);
-    private void SettingChanged(object? sender, SettingChangedEventArgs args) => Changed(sender, args);
+
+    // 只有参与快照投影的设置才需要重发；显示类设置触发整库重建就是纯浪费。
+    private static readonly HashSet<string> SnapshotSettingKeys = new(StringComparer.Ordinal)
+    {
+        SettingKeys.GamePath, SettingKeys.GameAutoDetect, SettingKeys.GameMode, SettingKeys.HellForgePath,
+        SettingKeys.DefaultDeploymentOrder, SettingKeys.ProfilesLockLoaders, SettingKeys.ProfilesFreeLoaderOrder
+    };
+
+    private void SettingChanged(object? sender, SettingChangedEventArgs args)
+    {
+        if (SnapshotSettingKeys.Contains(args.Key)) _updates.Writer.TryWrite(true);
+    }
 
     private async Task RunAsync()
     {
@@ -69,11 +82,15 @@ public sealed class OfflineInteropService : IAsyncDisposable
         {
             while (await _updates.Reader.WaitToReadAsync(_stop.Token).ConfigureAwait(false))
             {
-                await Task.Delay(150, _stop.Token).ConfigureAwait(false);
+                // 连续删除/切换配置时事件按秒到达，整库重建代价高，合并成至少 2 秒一次。
+                var sinceLastPublish = DateTime.UtcNow - _lastPublishUtc;
+                if (sinceLastPublish < MinPublishInterval)
+                    await Task.Delay(MinPublishInterval - sinceLastPublish, _stop.Token).ConfigureAwait(false);
                 while (_updates.Reader.TryRead(out _)) { }
                 // 写入失败保留旧快照，短暂占用解除后自动重试。
                 while (!await TryRefreshAsync(_stop.Token).ConfigureAwait(false))
                     await Task.Delay(TimeSpan.FromSeconds(2), _stop.Token).ConfigureAwait(false);
+                _lastPublishUtc = DateTime.UtcNow;
             }
         }
         catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }

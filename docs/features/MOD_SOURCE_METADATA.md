@@ -16,7 +16,7 @@
 
 ```json
 {
-  "SchemaVersion": 1,
+  "SchemaVersion": 2,
   "ModId": "00000000-0000-0000-0000-000000000001",
   "Source": {
     "PlatformId": "ayakamods",
@@ -29,9 +29,12 @@
     "InstalledWebsiteFileId": "39632",
     "Author": "Argxs",
     "AuthorUrl": "https://ayakamods.com/members/argxs.408385/"
-  }
+  },
+  "UserTags": ["常用", "外观"]
 }
 ```
+
+`SchemaVersion` 2 增加 `UserTags`（用户自建标签）：详情面板添加/删除标签时写这份档案，数据库 `UserTags` 列只做镜像，供列表与搜索使用；manifest、补丁和内容哈希都不受影响。旧版 `SchemaVersion` 1 档案仍可读取，按“没有该字段”处理并保留数据库中的用户标签。库页与配置页卡片最多显示 2 个标签，其余折叠为 `+N`；搜索用 `@标签` 过滤来源标签与用户标签，可多个并用（取交集）或与关键字组合（库页与配置文件页的搜索框都支持），过滤词按前缀匹配，兼容多项名称。两个搜索框在末尾输入 `@词元` 时会弹出补全下拉（前缀与拼音匹配、随输入实时更新），点击或回车/Tab 填入完整标签。所有系统徽标/分类也作为虚拟标签参与搜索，不入库：`HD2IAS`（工作流）、`Lua Mods`（Lua 资源或 BSL 角色）、资源类型名称（如 `护甲`、`视频 BIK2`）、来源平台（`Ayaka Mods`、`Nexus Mods`）；`HD2CL` 沿用已入库的系统标签。标签颜色按标签名全局共享，保存在同目录的 `tag-colors.json`；未单独配置时按标签名稳定取色，详情面板点击标签前的色点可修改。
 
 完整文件还包含可空的全局模组 ID、远端版本和获取时间。JSON 在模组内容目录之外，不修改原压缩包、`manifest.json`、补丁、Lua 或其它原档案，不参与内容哈希和部署。模组库迁移会随库目录搬迁元数据。原数据库 `PlatformLinkJson` 保留兼容镜像：旧库或 JSON 缺失、损坏时仍可读取已保存关联；写 JSON 后数据库失败则恢复旧 JSON。删除模组同时删除对应元数据。JSON 不保存 Key、OAuth/NXM 凭据或临时存储 URL。
 

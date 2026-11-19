@@ -196,7 +196,8 @@ public sealed class SettingsViewModelTests : IDisposable
     public async Task MergedCategories_ShouldKeepSectionVisibilityAndLegacyEntryIds()
     {
         using var vm = CreateViewModel("invalid-game-path");
-        Assert.Equal(11, vm.SettingsCategories.Count());
+        Assert.Equal(12, vm.SettingsCategories.Count());
+        Assert.Contains("关于", vm.SettingsCategories);
         foreach (var (previous, current) in new[] { ("部署", "配置文件"), ("搜索", "模组库"), ("缓存", "存储位置") })
         {
             Assert.DoesNotContain(previous, vm.SettingsCategories);
@@ -574,6 +575,32 @@ public sealed class SettingsViewModelTests : IDisposable
             Directory.CreateDirectory(Path.Combine(game, name));
         File.WriteAllText(Path.Combine(game, "bin", "helldivers2.exe"), string.Empty);
         return root;
+    }
+
+    [Fact]
+    public void AboutCategory_ShouldExposeLicenseLinksAndOpenInBrowser()
+    {
+        var launcher = new RecordingBrowserLauncher();
+        using var vm = new SettingsViewModel(
+            _settingsService, _gameDetectionService, new NotificationService(), _imageCache.Object,
+            browserLauncher: launcher);
+        vm.SelectedCategory = "关于";
+        Assert.True(vm.IsAboutCategoryVisible);
+        Assert.False(vm.IsSaveBarVisible);
+        Assert.Contains(vm.Licenses, item => item.Name.Contains("hd2-repatcher") && item.License == "MIT"
+            && item.Url == "https://github.com/RaidingForPants/hd2-repatcher");
+        Assert.Contains(vm.Licenses, item => item.Name == "HD2SDK-AQ-Edition"
+            && item.Url == "https://github.com/Estecsky/HD2SDK-AQ-Edition");
+        Assert.Contains(vm.Licenses, item => item.Name.Contains("hd2-mod-crates")
+            && item.Url == "https://github.com/eigeen/hd2-mod-crates");
+        vm.OpenLinkCommand.Execute("https://example.com/license");
+        Assert.Equal("https://example.com/license", Assert.Single(launcher.Urls));
+    }
+
+    private sealed class RecordingBrowserLauncher : IBrowserLauncher
+    {
+        public List<string> Urls { get; } = new();
+        public void Open(string url) => Urls.Add(url);
     }
 
     private SettingsViewModel CreateViewModel(string gamePath, NotificationService? notificationService = null)

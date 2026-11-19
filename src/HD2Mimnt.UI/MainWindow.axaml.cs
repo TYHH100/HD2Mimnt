@@ -1,4 +1,7 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Animation.Easings;
+using Avalonia.Rendering.Composition;
+using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
@@ -32,11 +35,14 @@ public partial class MainWindow : Window
     private int _versionClickCount;
     private DateTime _versionClickWindowStartUtc;
     private bool _pluginSyncScheduled;
+    private int _lastTabIndex;
 
     public MainWindow()
     {
         InitializeComponent();
         _pageJelly = new PageJellyAnimator(ApplicationSurface, StatusBar);
+        UiMotion.Changed += OnMotionChanged;
+        ApplyMotionPreference();
         DragDrop.SetAllowDrop(this, true);
         // DragDrop 使用冒泡路由；即使子控件标记已处理，窗口仍统一接收外部文件。
         AddHandler(DragDrop.DragOverEvent, OnFileDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -52,6 +58,7 @@ public partial class MainWindow : Window
             GlassBackdropImage.Source = null;
             ImportDragHint.IsVisible = false;
             _pageJelly.Stop();
+            UiMotion.Changed -= OnMotionChanged;
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -123,6 +130,7 @@ public partial class MainWindow : Window
         SyncPluginNavigation();
         SyncPluginMenu();
         UpdateNavigationSelection();
+        _lastTabIndex = _viewModel?.SelectedTabIndex ?? 0;
 
         if (_viewModel != null)
         {
@@ -294,7 +302,42 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.SelectedTabIndex)) UpdateNavigationSelection();
+        if (e.PropertyName != nameof(MainWindowViewModel.SelectedTabIndex)) return;
+
+        var current = _viewModel?.SelectedTabIndex ?? 0;
+        var previous = _lastTabIndex;
+        _lastTabIndex = current;
+        UpdateNavigationSelection();
+        PlayPageTransition(previous, current);
+    }
+
+    private void OnMotionChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) ApplyMotionPreference();
+        else Dispatcher.UIThread.Post(ApplyMotionPreference);
+    }
+
+    private void ApplyMotionPreference()
+    {
+        ApplicationSurface.Classes.Set("motion", UiMotion.IsEnabled);
+        if (!UiMotion.IsEnabled) _pageJelly.Stop();
+    }
+
+    /// <summary>切页时给内容面一次短促的淡入；不用横向位移，避免与导航顺序和页面刷新节奏打架。</summary>
+    private void PlayPageTransition(int previous, int current)
+    {
+        if (!UiMotion.IsEnabled || previous == current) return;
+        // 教程覆盖层按切换前的页面截图定位，切页动画会让高亮与底层错位。
+        if (_viewModel?.Tutorial.IsOpen == true) return;
+
+        var visual = ElementComposition.GetElementVisual(PageContentSurface);
+        if (visual is null || visual.IsDisposed) return;
+
+        var opacity = visual.Compositor.CreateScalarKeyFrameAnimation();
+        opacity.Duration = UiMotion.StandardDuration;
+        opacity.InsertKeyFrame(0f, 0.72f);
+        opacity.InsertKeyFrame(1f, 1f, new CubicEaseOut());
+        visual.StartAnimation("Opacity", opacity);
     }
 
     private void OnTutorialShortcut(object? sender, KeyEventArgs e)

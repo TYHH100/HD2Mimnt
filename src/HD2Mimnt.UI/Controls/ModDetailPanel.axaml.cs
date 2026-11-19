@@ -13,6 +13,15 @@ public partial class ModDetailPanel : UserControl
     public ModDetailPanel()
     {
         InitializeComponent();
+        UserTagInput.AddHandler(KeyDownEvent, OnUserTagInputKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    private void OnUserTagInputKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not ModItemViewModel mod) return;
+        if (!mod.AddUserTagCommand.CanExecute(null)) return;
+        mod.AddUserTagCommand.Execute(null);
+        e.Handled = true;
     }
 
     private async void PreviewModel(object? sender, RoutedEventArgs e)

@@ -28,16 +28,21 @@ public sealed partial class FluentAvaloniaUiTests
             var badge = window.FindControl<Border>("VersionBadge")!;
             Assert.Equal($"v{AppInfo.Version}", badge.GetVisualDescendants().OfType<TextBlock>().Single().Text);
 
-            main.MoreViewModel.SelectedCategory = "关于";
-            main.SelectedTabIndex = 3;
+            main.SettingsViewModel.SelectedCategory = "关于";
+            main.SelectedTabIndex = 4;
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
-            var aboutLines = window.GetVisualDescendants().OfType<MoreView>().Single()
+            var settingsView = window.GetVisualDescendants().OfType<SettingsView>().Single();
+            var aboutLines = settingsView
                 .GetVisualDescendants().OfType<TextBlock>()
                 .Select(text => text.Text ?? string.Empty)
                 .Where(text => text.Contains("Helldivers 2", StringComparison.Ordinal))
                 .ToArray();
             Assert.Contains(aboutLines, text => text.Contains(AppInfo.Version, StringComparison.Ordinal));
+            Assert.NotNull(settingsView.FindControl<Button>("OpenRepositoryButton"));
+            var licenses = settingsView.FindControl<ItemsControl>("ThirdPartyLicenseList");
+            Assert.NotNull(licenses);
+            Assert.NotEmpty((IEnumerable<ThirdPartyLicense>)licenses.ItemsSource!);
         }
         finally { window.Content = null; window.Close(); }
     }

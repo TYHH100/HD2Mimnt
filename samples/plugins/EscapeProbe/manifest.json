@@ -1,0 +1,135 @@
+{
+  // 编译型逃逸探针：故意以 0 权限 + Sandbox 模式安装，
+  // 然后用原生 .NET 去撞进程边界，验证“权限清单约束的是 SDK 调用，还是进程能力”。
+  "id": "com.hd2mimnt.samples.escape-probe",
+  "name": "沙箱逃逸探针",
+  "version": "1.0.0",
+  "author": "HD2Mimnt Samples",
+  "description": "以 0 权限的 Sandbox 插件身份直接调用 .NET，尝试越权读写文件、启动进程、枚举环境变量与外联。仅用于实证隔离强度，不产生破坏性行为。",
+  "apiVersion": "1.3.0",
+  "runtime": "net10.0",
+
+  "kind": "dotnet",
+  "assembly": "EscapeProbe.dll",
+  "entryType": "HD2Mimnt.Samples.EscapeProbe.EscapeProbePlugin",
+
+  // 关键点：Sandbox 模式、零权限。下面的探测全部不依赖任何已授权能力。
+  "permissionMode": "Sandbox",
+  "requestedPermissions": [],
+
+  "commands": [
+    {
+      "name": "escape-report",
+      "displayName": "跑全部逃逸项",
+      "description": "依次尝试五类越界行为，汇总成一张判定表。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "escape-file-read",
+      "displayName": "任意文件读取",
+      "description": "绕过 IPluginStorage 直接读插件目录外的文件。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "escape-file-write",
+      "displayName": "任意文件写入",
+      "description": "绕过 IPluginStorage 往系统临时目录写文件。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "escape-process",
+      "displayName": "启动子进程",
+      "description": "用 Process.Start 执行 whoami 与 hostname。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "escape-env",
+      "displayName": "枚举环境变量",
+      "description": "枚举进程环境变量名，统计疑似凭据变量。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "escape-network",
+      "displayName": "外联测试",
+      "description": "尝试 DNS 解析与 TCP 直连。",
+      "placement": "pluginPage"
+    }
+  ],
+
+  "ui": {
+    "pages": [
+      {
+        "id": "escape",
+        "title": "逃逸探针",
+        "icon": "Bug",
+        "description": "0 权限 + Sandbox 模式，直接调用 .NET 撞进程边界。",
+        "blocks": [
+          {
+            "type": "notice",
+            "tone": "danger",
+            "title": "这是安全测试插件",
+            "text": "它声明 Sandbox 模式且不申请任何权限，却尝试直接读写文件、启动进程、枚举环境变量与外联。用来验证隔离到底管住了什么。"
+          },
+          {
+            "type": "markdown",
+            "text": "## 判定口径\n\n**越界成功**：绕过 SDK 直接触达文件系统 / 进程 / 网络。\n\n**被拦住**：系统调用被拒绝。\n\n本探针不输出任何文件内容与凭据值；联网只做 DNS 解析与 TCP 握手，不发送应用数据。"
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "label": "跑全部逃逸项",
+                "icon": "Play",
+                "style": "primary",
+                "command": "escape-report"
+              },
+              {
+                "label": "外联测试",
+                "icon": "Globe",
+                "command": "escape-network"
+              }
+            ]
+          },
+          {
+            "type": "divider"
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "label": "文件读取",
+                "icon": "Document",
+                "command": "escape-file-read"
+              },
+              {
+                "label": "文件写入",
+                "icon": "Save",
+                "command": "escape-file-write"
+              },
+              {
+                "label": "子进程",
+                "icon": "Play",
+                "command": "escape-process"
+              },
+              {
+                "label": "环境变量",
+                "icon": "Settings",
+                "command": "escape-env"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "menus": [
+      {
+        "id": "escape-menu",
+        "placement": "mainMenu",
+        "label": "逃逸探针",
+        "icon": "Bug",
+        "description": "跑一遍进程隔离实测",
+        "command": "escape-report"
+      }
+    ]
+  }
+}

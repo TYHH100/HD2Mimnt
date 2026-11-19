@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -106,7 +106,22 @@
     <value>Description</value>
   </data>
   <data name="UI.Tags" xml:space="preserve">
-    <value>Tags</value>
+    <value>Source Tags</value>
+  </data>
+  <data name="UI.MyTags" xml:space="preserve">
+    <value>My Tags</value>
+  </data>
+  <data name="UI.AddTag" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="UI.AddTagHint" xml:space="preserve">
+    <value>Type a tag and press Enter</value>
+  </data>
+  <data name="UI.RemoveTag" xml:space="preserve">
+    <value>Remove tag</value>
+  </data>
+  <data name="UI.TagColor" xml:space="preserve">
+    <value>Tag color</value>
   </data>
   <data name="UI.FileInformation" xml:space="preserve">
     <value>File information</value>
@@ -325,7 +340,7 @@
     <value>Current profile</value>
   </data>
   <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
-    <value>Click to focus; Ctrl-click to select, Shift for a range, Ctrl+Shift to extend; Ctrl+A selects all, Esc clears selection. Search supports tag: filters.</value>
+    <value>Click to focus; Ctrl-click to select, Shift for a range, Ctrl+Shift to extend; Ctrl+A selects all, Esc clears selection. Search supports @tag filters.</value>
   </data>
   <data name="UI.AllCategories" xml:space="preserve">
     <value>All categories</value>
@@ -334,7 +349,7 @@
     <value>Sort</value>
   </data>
   <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
-    <value>Search name, author or description; supports tag: filters…</value>
+    <value>Search name, author or description; supports @tag filters…</value>
   </data>
   <data name="UI.ClearSearch" xml:space="preserve">
     <value>Clear search</value>
@@ -382,7 +397,7 @@
     <value>No search results</value>
   </data>
   <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
-    <value>No mods match your search; tag: filters are supported</value>
+    <value>No mods match your search; @tag filters are supported</value>
   </data>
   <data name="UI.NoFilterResults" xml:space="preserve">
     <value>No filter results</value>
@@ -510,8 +525,86 @@
   <data name="UI.Hd2ClConvert" xml:space="preserve">
     <value>Convert to HD2CL</value>
   </data>
+  <data name="UI.Hd2ClExport" xml:space="preserve">
+    <value>Export .7z…</value>
+  </data>
+  <data name="UI.Hd2ClExportPickTitle" xml:space="preserve">
+    <value>Choose export folder</value>
+  </data>
+  <data name="UI.Hd2ClExportHint" xml:space="preserve">
+    <value>Export only packs the result into a .7z in the chosen folder; it does not import the mod or change the current profile.</value>
+  </data>
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>Scanning HD2IAS mods…</value>
+  </data>
+  <data name="UI.Hd2ClTabModel" xml:space="preserve">
+    <value>Character models</value>
+  </data>
+  <data name="UI.Hd2ClTabMmd" xml:space="preserve">
+    <value>MMD packs</value>
+  </data>
+  <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
+    <value>MMD pack adaptation</value>
+  </data>
+  <data name="UI.Hd2ClMmdDescription" xml:space="preserve">
+    <value>Turn raw MMD motion resources into an installable standalone playback pack. It plays independently and does not replace the game's original emote actions.</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceLabel" xml:space="preserve">
+    <value>MMD source pack / folder</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFile" xml:space="preserve">
+    <value>Choose file…</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFolder" xml:space="preserve">
+    <value>Choose folder…</value>
+  </data>
+  <data name="UI.Hd2ClMmdOptionLabel" xml:space="preserve">
+    <value>Source motion option</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceInfo" xml:space="preserve">
+    <value>Source info…</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLabel" xml:space="preserve">
+    <value>Idle playback</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLoop" xml:space="preserve">
+    <value>Hold pose (loop)</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleOnce" xml:space="preserve">
+    <value>Full performance (play once)</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleHint" xml:space="preserve">
+    <value>Used for automatic idle. Checking keeps the source pack's mode; older packs default to hold pose.</value>
+  </data>
+  <data name="UI.Hd2ClMmdCheck" xml:space="preserve">
+    <value>Check content</value>
+  </data>
+  <data name="UI.Hd2ClMmdConvert" xml:space="preserve">
+    <value>Start conversion</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoTitle" xml:space="preserve">
+    <value>MMD source info</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoHint" xml:space="preserve">
+    <value>Only used when the source pack has no manifest; existing manifests keep their own info.</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoName" xml:space="preserve">
+    <value>Pack name</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoKey" xml:space="preserve">
+    <value>Update key (optional)</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoIcon" xml:space="preserve">
+    <value>Source icon</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoSave" xml:space="preserve">
+    <value>Save source info</value>
   </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>Register local executables to open mod resources.</value>
@@ -561,8 +654,20 @@
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
     <value>Helldivers 2 mod manager · Version {0}</value>
   </data>
-  <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
-    <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
+  <data name="UI.ProjectRepository" xml:space="preserve">
+    <value>Project repository</value>
+  </data>
+  <data name="UI.ThirdPartyLicenses" xml:space="preserve">
+    <value>Third-party licenses</value>
+  </data>
+  <data name="UI.ThirdPartyLicensesHelp" xml:space="preserve">
+    <value>Open-source components and external tools used by HD2Mimnt, with their licenses and project links.</value>
+  </data>
+  <data name="UI.OpenLinkInBrowser" xml:space="preserve">
+    <value>Open link in browser</value>
+  </data>
+  <data name="UI.NoUpstreamLicense" xml:space="preserve">
+    <value>No upstream license attached</value>
   </data>
   <data name="Updates.CheckNow" xml:space="preserve">
     <value>Check for app updates</value>
@@ -726,7 +831,7 @@ Deny: do not install this plugin</value>
     <value>Default · Cannot be deleted</value>
   </data>
   <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
-    <value>Search mods in the current profile…</value>
+    <value>Search mods in the current profile; supports @tag filters…</value>
   </data>
   <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
     <value>Remove from profile</value>
@@ -982,6 +1087,9 @@ Deny: do not install this plugin</value>
   </data>
   <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
     <value>Enable interface animations</value>
+  </data>
+  <data name="UI.EnableInterfaceAnimationsHelp" xml:space="preserve">
+    <value>Turn off to skip page transitions, overlay entrances, card hover and blinking effects.</value>
   </data>
   <data name="UI.CustomBackground" xml:space="preserve">
     <value>Custom background</value>
@@ -2271,7 +2379,7 @@ See the Conflicts page for details.</value>
     <value>Find and select mods</value>
   </data>
   <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
-    <value>Search matches name, author and description and supports tag: filters. Click to focus, Ctrl-click to select, Shift for a range and Ctrl+A for all. Use batch actions to add selected mods to profiles.</value>
+    <value>Search matches name, author and description and supports @tag filters. Click to focus, Ctrl-click to select, Shift for a range and Ctrl+A for all. Use batch actions to add selected mods to profiles.</value>
   </data>
   <data name="UI.CreateModCombinations" xml:space="preserve">
     <value>Create mod combinations</value>
@@ -2479,6 +2587,24 @@ See the Conflicts page for details.</value>
   </data>
   <data name="Game.Invalid" xml:space="preserve">
     <value>Invalid Path</value>
+  </data>
+  <data name="Game.Summary.DeployedMods" xml:space="preserve">
+    <value>Deployed {0:N0}</value>
+  </data>
+  <data name="Game.Summary.ManagedFiles" xml:space="preserve">
+    <value>Managed {0:N0}</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFiles" xml:space="preserve">
+    <value>Unmanaged {0:N0}</value>
+  </data>
+  <data name="Game.Summary.DeployedModsTip" xml:space="preserve">
+    <value>Mods deployed at their current version for this game installation.</value>
+  </data>
+  <data name="Game.Summary.ManagedFilesTip" xml:space="preserve">
+    <value>Game files tracked by the current deployment records.</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFilesTip" xml:space="preserve">
+    <value>Patch files in the game data folder that no deployment record tracks; removed on the next deploy when cleanup is enabled.</value>
   </data>
   <data name="Game.Detecting" xml:space="preserve">
     <value>Detecting...</value>
@@ -3965,6 +4091,8 @@ Last checked: {7}</value>
   <data name="Library.Notice.Updated" xml:space="preserve"><value>Updated</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>Force new imports to use V1 manifest format</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>When importing mods without manifests, automatically generate V1 format instead of legacy format. When enabled, mods without manifests in the library can also be auto-upgraded to V1.</value></data>
+  <data name="Settings.Library.ShowGpuUsage" xml:space="preserve"><value>Show GPU resource usage</value></data>
+  <data name="Settings.Library.ShowGpuUsageHelp" xml:space="preserve"><value>Display the static GPU resource size on library and profile cards. The background scan reads mod resource files and can briefly slow the interface, so it is off by default.</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>Local versions</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>Update this mod from an archive, or switch to a saved version. The current version is shown below in the mod details.</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>Update from archive…</value></data>
@@ -4402,6 +4530,12 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Session" xml:space="preserve"><value>Session</value></data>
   <data name="HellForge.CurrentProfile" xml:space="preserve"><value>Selected profile</value></data>
   <data name="HellForge.NetworkBlock" xml:space="preserve"><value>Network block</value></data>
+  <data name="HellForge.Category.Overview" xml:space="preserve"><value>Overview</value></data>
+  <data name="HellForge.Category.Session" xml:space="preserve"><value>Session</value></data>
+  <data name="HellForge.Category.Profiles" xml:space="preserve"><value>Profiles</value></data>
+  <data name="HellForge.Category.Mods" xml:space="preserve"><value>Mods</value></data>
+  <data name="HellForge.Category.Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="HellForge.Category.Logs" xml:space="preserve"><value>Logs</value></data>
   <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>Player profiles</value></data>
   <data name="HellForge.Create" xml:space="preserve"><value>New profile</value></data>
   <data name="HellForge.Refresh" xml:space="preserve"><value>Refresh</value></data>
@@ -4444,6 +4578,13 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Phase.Running" xml:space="preserve"><value>The game is running.</value></data>
   <data name="HellForge.Phase.Ended" xml:space="preserve"><value>Session ended.</value></data>
   <data name="HellForge.Phase.Failed" xml:space="preserve"><value>Session failed.</value></data>
+  <data name="HellForge.Session.Restarting" xml:space="preserve"><value>The host's mods are ready; restarting the game for the mod sync…</value></data>
+  <data name="HellForge.Restart.UnsupportedPlatform" xml:space="preserve"><value>Cannot restart automatically for mod sync: this needs Windows.</value></data>
+  <data name="HellForge.Restart.MissingSyncFile" xml:space="preserve"><value>Cannot restart automatically: the mod sync file was not found ({0}).</value></data>
+  <data name="HellForge.Restart.DryRunFailed" xml:space="preserve"><value>Cannot prepare the automatic restart: {0}</value></data>
+  <data name="HellForge.Restart.StartFailed" xml:space="preserve"><value>Cannot start the session runner: {0}</value></data>
+  <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>The automatic restart did not start a new session; check the HellForge logs.</value></data>
+  <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>Mod sync asked for a restart too many times; automatic restart stopped.</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>Mod problems:</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>Mod sync</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>{0} mods synced to HellForge</value></data>
@@ -4451,6 +4592,51 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Sync.Source" xml:space="preserve"><value>Source profile: {0} · Last sync: {1}</value></data>
   <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>(unknown profile)</value></data>
   <data name="HellForge.Sync.Hint" xml:space="preserve"><value>Use Deploy on the Profiles page to sync enabled mods; Clean deployment removes the mods this manager synced.</value></data>
+  <data name="HellForge.Mods.Title" xml:space="preserve"><value>HellForge mods</value></data>
+  <data name="HellForge.Mods.Hint" xml:space="preserve"><value>These are the mods in HellForge's own mods folder. Mods added here go there directly and skip this manager's profiles and deployment; switches, ordering, options and removal apply to HellForge too. The CLI refuses mod changes while a session runs.</value></data>
+  <data name="HellForge.Mods.Enable" xml:space="preserve"><value>Enable</value></data>
+  <data name="HellForge.Mods.Disable" xml:space="preserve"><value>Disable</value></data>
+  <data name="HellForge.Mods.Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="HellForge.Mods.RemoveTitle" xml:space="preserve"><value>Remove mod</value></data>
+  <data name="HellForge.Mods.RemoveConfirm" xml:space="preserve"><value>Remove "{0}" from HellForge's mods folder?</value></data>
+  <data name="HellForge.Mods.Removed" xml:space="preserve"><value>{0} removed from HellForge's mods folder.</value></data>
+  <data name="HellForge.Mods.MoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="HellForge.Mods.MoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="HellForge.Mods.Options" xml:space="preserve"><value>Options</value></data>
+  <data name="HellForge.Mods.Code" xml:space="preserve"><value>Co-op modlist code</value></data>
+  <data name="HellForge.Mods.Switching" xml:space="preserve"><value>Switching the mod…</value></data>
+  <data name="HellForge.Mods.Removing" xml:space="preserve"><value>Removing the mod…</value></data>
+  <data name="HellForge.Mods.Reordering" xml:space="preserve"><value>Reordering mods…</value></data>
+  <data name="HellForge.Mods.OptionUpdate" xml:space="preserve"><value>Saving the pack option…</value></data>
+  <data name="HellForge.Mods.OpenFolder" xml:space="preserve"><value>Open mods folder</value></data>
+  <data name="HellForge.Mods.AddFolder" xml:space="preserve"><value>Add folder…</value></data>
+  <data name="HellForge.Mods.FolderNoManifest" xml:space="preserve"><value>No hellforge-mod.json or manifest.json in the selected folder.</value></data>
+  <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>The top mod loads last and wins; Move up/down only reorders within the same group.</value></data>
+  <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>Turn the mod on or off; the CLI refuses changes while a session runs.</value></data>
+  <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>Modlist code {0}: friends need the same {1} gameplay mods; the order is up to you.</value></data>
+  <data name="HellForge.Mods.ModlistEmpty" xml:space="preserve"><value>No gameplay mod is on: the co-op modlist code is empty.</value></data>
+  <data name="HellForge.Mods.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="HellForge.Mods.Copied" xml:space="preserve"><value>Co-op modlist code copied.</value></data>
+  <data name="HellForge.Mods.Compare" xml:space="preserve"><value>Compare</value></data>
+  <data name="HellForge.Mods.CompareWatermark" xml:space="preserve"><value>Paste a friend's co-op modlist code</value></data>
+  <data name="HellForge.Mods.CompareMatch" xml:space="preserve"><value>Match: you play with the same gameplay mods, so you can co-op.</value></data>
+  <data name="HellForge.Mods.CompareMismatch" xml:space="preserve"><value>Mismatch: your gameplay mods differ, so a join is refused or brings mod sync.</value></data>
+  <data name="HellForge.Mods.CompareInvalid" xml:space="preserve"><value>Enter the 8-character hex co-op modlist code.</value></data>
+  <data name="HellForge.Mods.CompareNoLocal" xml:space="preserve"><value>No gameplay mod is on here, so there is no co-op modlist code to compare.</value></data>
+  <data name="HellForge.Mods.Add" xml:space="preserve"><value>Add mod…</value></data>
+  <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>Refresh list</value></data>
+  <data name="HellForge.Mods.None" xml:space="preserve"><value>No mods in HellForge's mods folder yet.</value></data>
+  <data name="HellForge.Mods.Loading" xml:space="preserve"><value>Reading HellForge mods…</value></data>
+  <data name="HellForge.Mods.Adding" xml:space="preserve"><value>Adding the mod to HellForge…</value></data>
+  <data name="HellForge.Mods.Added" xml:space="preserve"><value>{0} added to HellForge's mods folder.</value></data>
+  <data name="HellForge.Mods.ArchiveFile" xml:space="preserve"><value>Mod archive</value></data>
+  <data name="HellForge.Mods.ManifestFile" xml:space="preserve"><value>Mod manifest</value></data>
+  <data name="HellForge.Mods.Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="HellForge.Mods.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="HellForge.Mods.Group.Gameplay" xml:space="preserve"><value>Gameplay</value></data>
+  <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>Per-player</value></data>
+  <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>Client-only</value></data>
+  <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge reported problems with these mod folders:</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>Launch settings</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>Saved settings apply to the next session; the CLI refuses changes while a session runs. Strangers and Forge Credits are saved in the mods settings.</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>Galactic war</value></data>
@@ -4493,4 +4679,75 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>Crashed</value></data>
   <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>Unknown</value></data>
   <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip archive</value></data>
+  <data name="GpuUsage.Value" xml:space="preserve">
+    <value>GPU resources: {0}</value>
+  </data>
+  <data name="GpuUsage.Calculating" xml:space="preserve">
+    <value>GPU resources: calculating…</value>
+  </data>
+  <data name="GpuUsage.Unknown" xml:space="preserve">
+    <value>GPU resources: unconfirmed</value>
+  </data>
+  <data name="GpuUsage.Partial" xml:space="preserve">
+    <value>GPU resources: partial</value>
+  </data>
+  <data name="GpuUsage.LibraryScope" xml:space="preserve">
+    <value>Default options in the mod library.</value>
+  </data>
+  <data name="GpuUsage.ProfileScope" xml:space="preserve">
+    <value>Saved options in this profile; the card shows this mod's selected resources.</value>
+  </data>
+  <data name="GpuUsage.TotalScope" xml:space="preserve">
+    <value>Enabled mods in this profile, after resource overrides in deployment order.</value>
+  </data>
+  <data name="GpuUsage.Explanation" xml:space="preserve">
+    <value>Static texture payloads and model/other GPU data. Actual VRAM residency and the increase over the base game can differ.</value>
+  </data>
+  <data name="GpuUsage.Details" xml:space="preserve">
+    <value>Textures: {0}
+Models: {1}
+Other GPU data: {2}
+Resources: {3}</value>
+  </data>
+  <data name="GpuUsage.PartialDetails" xml:space="preserve">
+    <value>Partial results (the total is unconfirmed):
+Textures: {0}
+Models: {1}
+Other GPU data: {2}
+Resources read: {3}</value>
+  </data>
+  <data name="GpuUsage.Disabled" xml:space="preserve">
+    <value>Disabled; excluded from the profile total.</value>
+  </data>
+  <data name="GpuUsage.Effective" xml:space="preserve">
+    <value>Effective contribution in this profile: {0}</value>
+  </data>
+  <data name="GpuUsage.EffectiveUnknown" xml:space="preserve">
+    <value>Effective contribution is unconfirmed because some enabled resources could not be verified.</value>
+  </data>
+  <data name="GpuUsage.MoreWarnings" xml:space="preserve">
+    <value>{0} additional issues.</value>
+  </data>
+  <data name="GpuUsage.ExactTotal" xml:space="preserve">
+    <value>Exact payload total: {0} bytes</value>
+  </data>
+  <data name="ArmorSwap.Title" xml:space="preserve"><value>Armor Swap</value></data>
+  <data name="ArmorSwap.Description" xml:space="preserve"><value>Migrate an armor appearance patch to another armor and generate an installable patch.</value></data>
+  <data name="ArmorSwap.Patch" xml:space="preserve"><value>Appearance patch</value></data>
+  <data name="ArmorSwap.Browse" xml:space="preserve"><value>Browse</value></data>
+  <data name="ArmorSwap.Target" xml:space="preserve"><value>Target armor</value></data>
+  <data name="ArmorSwap.Output" xml:space="preserve"><value>Output folder</value></data>
+  <data name="ArmorSwap.OutputHint" xml:space="preserve"><value>Leave empty to create a folder next to the patch.</value></data>
+  <data name="ArmorSwap.Pad" xml:space="preserve"><value>Fill target-only slots with empty meshes</value></data>
+  <data name="ArmorSwap.Run" xml:space="preserve"><value>Start swap</value></data>
+  <data name="ArmorSwap.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="ArmorSwap.PatchPlaceholder" xml:space="preserve"><value>Select .patch_0 or type a path</value></data>
+  <data name="ArmorSwap.Running" xml:space="preserve"><value>Working…</value></data>
+  <data name="ArmorSwap.LibraryMod" xml:space="preserve"><value>Appearance mod</value></data>
+  <data name="ArmorSwap.LibraryModPlaceholder" xml:space="preserve"><value>Pick an appearance mod from the library</value></data>
+  <data name="ArmorSwap.FolderHint" xml:space="preserve"><value>Tick the mod's option folders (base / material / part toggles). Each folder is swapped separately and keeps its folder and patch name, so the imported result can still switch parts; for mutually exclusive variants tick only one.</value></data>
+  <data name="ArmorSwap.SelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="ArmorSwap.Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="ArmorSwap.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="ArmorSwap.Import" xml:space="preserve"><value>Import the result into the mod library</value></data>
 </root>

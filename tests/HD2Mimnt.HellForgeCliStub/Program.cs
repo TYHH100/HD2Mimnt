@@ -42,6 +42,19 @@ if (File.Exists(fail))
 // 用于验证“运行中 → 停止”的交互；否则直接按 cli-play-exit.txt 的退出码退出。
 if (command == "play")
 {
+    // --dry-run：输出会话运行器命令行（不启动），供 MOD SYNC 自动重启测试使用。
+    if (args.Contains("--dry-run"))
+    {
+        var self = Environment.ProcessPath ?? throw new InvalidOperationException("Stub path is unknown.");
+        Console.Write(JsonSerializer.Serialize(new
+        {
+            @event = "dry-run",
+            sessionRunner = self,
+            arguments = new[] { "session-runner", "--install", root },
+            crashDump = false
+        }));
+        return 0;
+    }
     var stream = Path.Combine(root, "cli-play.jsonl");
     if (!File.Exists(stream))
     {
@@ -65,6 +78,24 @@ if (command == "play")
     }
     var exitFile = Path.Combine(root, "cli-play-exit.txt");
     return File.Exists(exitFile) && int.TryParse(File.ReadAllText(exitFile).Trim(), out var code) ? code : 0;
+}
+
+// session-runner：模拟 MOD SYNC 重启后的会话运行器。写 logs\play-session.json 与新 run 的
+// result.json 后退出（result 内容可用 cli-restart-result.json 预置），供自动重启端到端测试。
+if (command == "session-runner")
+{
+    var runId = "restart-1";
+    var customRun = Path.Combine(root, "cli-restart-run.txt");
+    if (File.Exists(customRun) && File.ReadAllText(customRun).Trim() is { Length: > 0 } name) runId = name;
+    var run = Path.Combine(root, "logs", "sessions", runId);
+    Directory.CreateDirectory(run);
+    File.WriteAllText(Path.Combine(root, "logs", "play-session.json"),
+        JsonSerializer.Serialize(new { runId, run, startedUtc = DateTime.UtcNow.ToString("o") }));
+    var canned = Path.Combine(root, "cli-restart-result.json");
+    File.WriteAllText(Path.Combine(run, "result.json"),
+        File.Exists(canned) ? File.ReadAllText(canned) : """{"status":"observed"}""");
+    var restartExit = Path.Combine(root, "cli-restart-exit.txt");
+    return File.Exists(restartExit) && int.TryParse(File.ReadAllText(restartExit).Trim(), out var restartCode) ? restartCode : 0;
 }
 
 // stop：写入停止信号让 hold 中的 play 收尾，输出 stopping。
@@ -205,7 +236,13 @@ internal static partial class StubMods
         var index = settings.Order.Select((id, i) => (id, i)).ToDictionary(t => t.id, t => t.i);
         var ordered = mods.OrderBy(m => index.ContainsKey(m.id) ? 0 : 1)
             .ThenBy(m => index.GetValueOrDefault(m.id)).ThenBy(m => m.id, StringComparer.Ordinal).ToList();
-        return new { mods = ordered, problems = Array.Empty<string>(), modlist = (string?)null, settings = Path.Combine(modsDir, "hellforge-mods.json") };
+        // 与真实 CLI 一致：有启用的游戏性模组时给出 8 位联机模组码（这里用稳定摘要，供比对 UI 测试）。
+        var gameplay = ordered.Where(m => m.enabled && m.group == "gameplay").ToList();
+        var modlist = gameplay.Count == 0
+            ? null
+            : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(string.Join('\n', gameplay.Select(m => m.id + "|" + m.version))))).ToLowerInvariant()[..8];
+        return new { mods = ordered, problems = Array.Empty<string>(), modlist, settings = Path.Combine(modsDir, "hellforge-mods.json") };
     }
 
     private static object[] PackOptions(Mod mod, PackChoice choice) => mod.Options.Select(o => new

@@ -1,0 +1,149 @@
+{
+  // 沙箱红队探针：故意按“恶意插件”的方式申请能力，然后逐项尝试越界。
+  // 所有探测都是无害的——不删文件、不写系统目录、不访问网络、不读取真实密钥，
+  // 每一项只回答一个问题：这道边界到底拦不拦得住。
+  "id": "com.hd2mimnt.samples.sandbox-probe",
+  "name": "沙箱红队探针",
+  "version": "1.0.0",
+  "author": "HD2Mimnt Samples",
+  "description": "以恶意插件的方式申请存储与 AI 能力，逐项尝试沙箱逃逸并输出判定报告。仅用于验证隔离策略，不产生任何破坏性行为。",
+  "apiVersion": "1.3.0",
+
+  "kind": "lua",
+  "script": "main.lua",
+
+  // 恶意插件通常会张口要这两个权限，多数用户会顺手勾上
+  "permissionMode": "Sandbox",
+  "requestedPermissions": ["storage.read", "storage.write"],
+
+  "commands": [
+    {
+      "name": "sandbox-surface",
+      "displayName": "环境面清查",
+      "description": "检查文件、进程、调试、模块加载能力是否真的不可见。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-require-escape",
+      "displayName": "越界加载（..）",
+      "description": "用 .. 跳出插件目录加载模块；宿主报错即拦截成功。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-require-absolute",
+      "displayName": "越界加载（绝对路径）",
+      "description": "直接加载宿主绝对路径；宿主报错即拦截成功。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-storage-traversal",
+      "displayName": "存储穿越（上级目录）",
+      "description": "向插件私有目录之外写文件；宿主报错即拦截成功。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-storage-absolute",
+      "displayName": "存储穿越（绝对路径）",
+      "description": "用绝对路径写文件；宿主报错即拦截成功。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-storage-invalid",
+      "displayName": "存储穿越（非法字符）",
+      "description": "用非法文件名字符写文件；宿主报错即拦截成功。",
+      "placement": "pluginPage"
+    },
+    {
+      "name": "probe-storage-sibling",
+      "displayName": "跨插件目录（前缀碰撞）",
+      "description": "尝试写入 id 与自己前缀相同的相邻插件目录。",
+      "placement": "pluginPage"
+    }
+  ],
+
+  "ui": {
+    "pages": [
+      {
+        "id": "probe",
+        "title": "沙箱探针",
+        "icon": "Bug",
+        "description": "用恶意插件的姿势去撞每一条边界，看哪一条真的拦住了。",
+        "blocks": [
+          {
+            "type": "notice",
+            "tone": "warning",
+            "title": "这是安全测试插件",
+            "text": "它会主动尝试越界（读写插件目录外、加载非法模块），但每一步都只记录结果，不落地任何破坏性改动。"
+          },
+          {
+            "type": "markdown",
+            "text": "## 怎么读结果\n\n沙箱里**没有 `pcall`**，脚本捕获不了错误。所以下面的越界项都是一条命令一次尝试：\n\n- 返回**失败 + 错误信息** → 宿主在抛错那一刻就拦住了，符合预期；\n- 返回**成功** → 越界真的成功了，这是失守。\n\n先点「环境面清查」，再逐项撞击。"
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "label": "环境面清查",
+                "icon": "Search",
+                "style": "primary",
+                "command": "sandbox-surface"
+              },
+              {
+                "label": "越界加载（..）",
+                "icon": "Folder",
+                "command": "probe-require-escape"
+              },
+              {
+                "label": "越界加载（绝对路径）",
+                "icon": "Folder",
+                "command": "probe-require-absolute"
+              }
+            ]
+          },
+          {
+            "type": "divider"
+          },
+          {
+            "type": "markdown",
+            "text": "### 私有存储边界"
+          },
+          {
+            "type": "actions",
+            "actions": [
+              {
+                "label": "上级目录",
+                "icon": "ArrowUp",
+                "command": "probe-storage-traversal"
+              },
+              {
+                "label": "绝对路径",
+                "icon": "HardDrive",
+                "command": "probe-storage-absolute"
+              },
+              {
+                "label": "非法字符",
+                "icon": "Warning",
+                "command": "probe-storage-invalid"
+              },
+              {
+                "label": "跨插件目录",
+                "icon": "People",
+                "command": "probe-storage-sibling"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "menus": [
+      {
+        "id": "probe-menu",
+        "placement": "mainMenu",
+        "label": "沙箱红队探针",
+        "icon": "Bug",
+        "description": "运行一次环境面清查",
+        "command": "sandbox-surface"
+      }
+    ]
+  }
+}

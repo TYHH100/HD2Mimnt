@@ -81,5 +81,10 @@ public class Hd2ClBatchConversionTests
                 Interlocked.Decrement(ref _active);
             }
         }
+
+        public Task<Hd2ClExportResult> ExportAsync(Guid modId, string outputDirectory,
+            IReadOnlyList<string>? componentFolders = null, string? productName = null,
+            IProgress<string>? progress = null, CancellationToken token = default)
+            => throw new NotSupportedException();
     }
 }

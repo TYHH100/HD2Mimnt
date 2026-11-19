@@ -1,8 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              x:Class="HD2Mimnt.UI.Controls.ModCompatibilityOverlay" x:DataType="vm:ModCompatibilityViewModel"
              IsVisible="{Binding IsOpen, FallbackValue=False}" Focusable="True"
+             motion:MotionEffects.Entrance="True"
              KeyboardNavigation.TabNavigation="Cycle">
   <UserControl.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></UserControl.Styles>
   <UserControl.DataTemplates>

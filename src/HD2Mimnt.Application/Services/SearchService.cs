@@ -68,18 +68,15 @@ public class SearchService
                 // Prefix Index - 前缀索引
                 BuildPrefixIndex(mod);
 
-                // Tag Index - 标签索引
-                if (mod.Tags != null)
+                // Tag Index - 标签索引（来源/系统标签与用户自建标签一起进入）
+                foreach (var tag in IndexedTags(mod))
                 {
-                    foreach (var tag in mod.Tags)
+                    var tagKey = tag.ToLowerInvariant();
+                    if (!_tagIndex.ContainsKey(tagKey))
                     {
-                        var tagKey = tag.ToLowerInvariant();
-                        if (!_tagIndex.ContainsKey(tagKey))
-                        {
-                            _tagIndex[tagKey] = new HashSet<Mod>();
-                        }
-                        _tagIndex[tagKey].Add(mod);
+                        _tagIndex[tagKey] = new HashSet<Mod>();
                     }
+                    _tagIndex[tagKey].Add(mod);
                 }
             }
 
@@ -114,17 +111,14 @@ public class SearchService
 
             BuildPrefixIndex(mod);
 
-            if (mod.Tags != null)
+            foreach (var tag in IndexedTags(mod))
             {
-                foreach (var tag in mod.Tags)
+                var tagKey = tag.ToLowerInvariant();
+                if (!_tagIndex.ContainsKey(tagKey))
                 {
-                    var tagKey = tag.ToLowerInvariant();
-                    if (!_tagIndex.ContainsKey(tagKey))
-                    {
-                        _tagIndex[tagKey] = new HashSet<Mod>();
-                    }
-                    _tagIndex[tagKey].Add(mod);
+                    _tagIndex[tagKey] = new HashSet<Mod>();
                 }
+                _tagIndex[tagKey].Add(mod);
             }
         }
     }
@@ -158,18 +152,15 @@ public class SearchService
             RemovePrefixIndex(mod);
 
             // 移除标签索引
-            if (mod.Tags != null)
+            foreach (var tag in IndexedTags(mod))
             {
-                foreach (var tag in mod.Tags)
+                var tagKey = tag.ToLowerInvariant();
+                if (_tagIndex.ContainsKey(tagKey))
                 {
-                    var tagKey = tag.ToLowerInvariant();
-                    if (_tagIndex.ContainsKey(tagKey))
+                    _tagIndex[tagKey].Remove(mod);
+                    if (_tagIndex[tagKey].Count == 0)
                     {
-                        _tagIndex[tagKey].Remove(mod);
-                        if (_tagIndex[tagKey].Count == 0)
-                        {
-                            _tagIndex.Remove(tagKey);
-                        }
+                        _tagIndex.Remove(tagKey);
                     }
                 }
             }
@@ -203,13 +194,22 @@ public class SearchService
             await BuildIndexAsync(cancellationToken);
         }
 
-        var trimmed = query.Trim();
+        var (keyword, tagFilters) = TagQuery.Parse(query);
 
-        // 检查是否是标签搜索
-        if (trimmed.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
+        // @标签：来源/系统标签与用户自建标签都参与；多个标签取交集，可与关键字同时使用。
+        if (tagFilters.Count > 0)
         {
-            var tag = trimmed[4..].Trim().ToLowerInvariant();
-            return SearchByTag(tag);
+            var tagResults = SearchByTags(tagFilters.Select(tag => tag.ToLowerInvariant()).ToList());
+            if (keyword.Length == 0)
+                return tagResults.OrderBy(mod => mod.Name).ToArray();
+            var tagged = new List<(Mod mod, int priority)>();
+            foreach (var mod in tagResults)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var priority = Score(mod, keyword, options);
+                if (priority >= 0) tagged.Add((mod, priority));
+            }
+            return tagged.OrderBy(r => r.priority).ThenBy(r => r.mod.Name).Select(r => r.mod).ToArray();
         }
 
         Mod[] snapshot;
@@ -222,13 +222,17 @@ public class SearchService
         for (var index = 0; index < snapshot.Length; index++)
         {
             if ((index & 255) == 0) cancellationToken.ThrowIfCancellationRequested();
-            var priority = Score(snapshot[index], trimmed, options);
+            var priority = Score(snapshot[index], keyword, options);
             if (priority >= 0) results.Add((snapshot[index], priority));
         }
 
         // 名称精确/前缀优先，其次作者、描述、标签，最后拼音与模糊匹配。
         return results.OrderBy(r => r.priority).ThenBy(r => r.mod.Name).Select(r => r.mod).ToArray();
     }
+
+    /// <summary>来源标签、用户标签与系统虚拟标签（HD2IAS/Lua/资源分类/来源平台）一起参与索引与普通文本匹配。</summary>
+    private static IEnumerable<string> IndexedTags(Mod mod)
+        => TagQuery.EnumerateModTags(mod);
 
     private static int Score(Mod mod, string query, SearchMatchOptions options)
     {
@@ -248,20 +252,28 @@ public class SearchService
 
         if (SearchMatcher.Match(mod.Author, query, options) != SearchMatchKind.None) return 4;
         if (SearchMatcher.Match(mod.Description, query, options) != SearchMatchKind.None) return 5;
-        if (mod.Tags.Any(tag => SearchMatcher.Match(tag, query, options) != SearchMatchKind.None)) return 6;
+        if (IndexedTags(mod).Any(tag => SearchMatcher.Match(tag, query, options) != SearchMatchKind.None)) return 6;
         return -1;
     }
 
-    /// <summary>
-    /// 标签搜索
-    /// </summary>
-    private IEnumerable<Mod> SearchByTag(string tag)
+    /// <summary>多个标签取交集；单个标签按前缀匹配，命中“视频 BIK2”“Lua Mods”这类多项名称。</summary>
+    private Mod[] SearchByTags(IReadOnlyList<string> filters)
     {
-        if (_tagIndex.TryGetValue(tag, out var mods))
+        lock (_indexLock)
         {
-            return mods;
+            HashSet<Mod>? matched = null;
+            foreach (var filter in filters)
+            {
+                var prefixMatches = new HashSet<Mod>();
+                foreach (var (tag, mods) in _tagIndex)
+                    if (tag.StartsWith(filter, StringComparison.OrdinalIgnoreCase))
+                        prefixMatches.UnionWith(mods);
+                if (matched == null) matched = prefixMatches;
+                else matched.IntersectWith(prefixMatches);
+                if (matched.Count == 0) break;
+            }
+            return matched?.ToArray() ?? [];
         }
-        return Enumerable.Empty<Mod>();
     }
 
     /// <summary>

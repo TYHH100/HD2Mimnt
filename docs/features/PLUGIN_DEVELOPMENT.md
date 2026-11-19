@@ -196,6 +196,7 @@ public sealed class DigestCommand : IPluginCommand
 - 脚本串行执行：同一个插件进程内不会有两个命令同时进入 Lua 状态机。
 - 脚本无法访问网络；需要联网的能力必须由宿主提供（当前只有 `hd2.ai`）。
 - 模块加载限定在插件目录内，路径穿越会被拒绝并报错。
+- **沙箱不提供 `pcall` / `xpcall`，脚本无法捕获运行时错误**：任何一次被拒绝的调用都会让当前命令以失败结束，无法在脚本内降级处理。需要“尝试失败就换路径”的逻辑时，拆成多个命令，让宿主逐次返回错误，不要在单个命令里假设可以 try/catch。`collectgarbage` 仍在但为桩实现（`count` 返回 nil），`_MOONSHARP` 仅暴露版本与平台元数据，无可调用入口。
 
 ## 4. manifest.json
 
@@ -341,7 +342,21 @@ var result = await context.AI.CompleteAsync(
 
 不要尝试读取环境变量、配置数据库或 `%APPDATA%` 去找密钥，也不要让模型复述凭据——这类行为会命中上述规则。
 
-**残存风险（如实说明）**：插件与主程序当前以同一 Windows 用户身份运行。若插件绕过 SDK 直接读文件系统，理论上可拿到 DPAPI 密文；`ai.use` 的提示词扫描与终止机制只覆盖经过 SDK 的通道。要彻底阻断需要 OS 级沙箱（受限令牌/AppContainer），尚未实现。
+**残存风险（已实测，不是理论推断）**：插件与主程序当前以同一 Windows 用户身份运行，进程边界不等于权限边界。以 **0 权限 + `Sandbox` 模式**安装的编译型插件，只要绕过 SDK 直接调用 .NET，就能完成下列动作（实测全部成功）：
+
+| 越界行为 | 实测结果 |
+|---|---|
+| 读插件目录外的文件 | 可读 `C:\Windows\win.ini` 与应用数据目录下的定位文件 |
+| 写插件目录外的文件 | 可写系统临时目录 |
+| 启动子进程 | 可执行 `whoami` / `hostname` 并拿到输出 |
+| 枚举环境变量 | 可枚举进程全部环境变量名，其中含疑似凭据变量 |
+| 外联 | DNS 解析成功；TCP 直连受本机网络策略影响，不属于沙箱拦截 |
+
+因此 `permissionMode` 与 `requestedPermissions` 约束的是**经 SDK 的调用**（`hd2.storage`、`hd2.ai` 等），而不是进程能力。`ai.use` 的提示词扫描与终止机制只覆盖经过 SDK 的通道；插件若自行读取 DPAPI 密文，同样不受该机制管辖。
+
+要真正阻断，需要 OS 级沙箱（受限令牌 / AppContainer / 独立低权限账户），尚未实现。任何“插件已隔离”的表述都应带上这个前提。
+
+验证方式：仓库内 `samples/plugins/SandboxProbe`（脚本层）与 `samples/plugins/EscapeProbe`（进程层）分别覆盖这两层边界，后者对应测试为 `tests/HD2Mimnt.Tests/Plugins/EscapeProbeTests.cs`。
 
 ## 7. 版本策略：SDK 不单独拉分支
 
@@ -361,6 +376,8 @@ SDK 是**对外契约**，不是独立产品，因此不拆到单独分支：
 | `samples/plugins/ThemeShowcase` | `ui.theme` 权限、设计令牌主题包（两套配色）、声明式说明页 |
 | `samples/plugins/LuaModCheck` | 纯 Lua 插件：无编译产物、脚本读写私有存储、脚本生成报告与浮窗 |
 | `samples/plugins/LuaHybrid` | 混合插件：`main.lua` 编排界面，`HybridTools.dll` 计算 SHA-256 并回传区块 |
+| `samples/plugins/SandboxProbe` | 安全测试：以恶意插件的姿势撞脚本层边界（全局环境、模块加载逃逸、存储穿越），逐项给出拦截判定 |
+| `samples/plugins/EscapeProbe` | 安全测试：0 权限 + `Sandbox` 模式下直接调用 .NET，实测进程层越界（读写文件、起进程、枚举环境变量、外联） |
 
 构建后 `bin/Debug/net10.0/` 里只有插件 dll 与 manifest（SDK 由宿主提供），整个目录即可作为安装源：
 

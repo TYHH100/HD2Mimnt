@@ -11,10 +11,42 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 分支目录里混有 Unit 等非材质资源时无法安全保留选项，退回「只转换当前选中分支」；成品选项的部署与源模组一致，修改成品选项后重新部署即可换色。
 - 模组库与配置页支持多选：选中多个 HD2IAS 模组后点「转为 HD2CL 角色库」批量转换。先逐个确认版本（多版本才弹浮窗），再并发执行，同时最多 2 个 Worker（单个峰值约 1 GB）；取消版本选择只跳过该模组，失败不影响其余模组，完成后统一提示成功/跳过/失败数量。
 - 成品显示名使用模组名或所选版本名，并去掉导入时自动加的「类型 · 」前缀（`Model · `、`HD2IAS · ` 等）；编译出的模型标题（会裁掉“替换 xxx”并追加 `▲`）只保留在游戏内登记信息里。成品入库时打上 `HD2CL` 标签，模组库与配置页显示 `HD2CL` 徽标，用来和 `HD2IAS` 源模组区分。
-- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。如需单独分发压缩包，后续再加导出选项。
+- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。需要单独分发时点「导出压缩包…」：转换后把成品打成 7z 写到所选目录，不导入模组库、不修改当前配置；每次转换前选择目录，并记住上次选择。
 - 材质：源模组自带的可见材质及其贴图沿父链收集后打进 `9ba626afa44a3aa3.patch_2`（含 `.gpu_resources`/`.stream`），因此禁用源模组后成品仍显示原材质；游戏原生材质仍只按资源编号引用，不复制。
 - 转换使用默认选择：全部配套组件、`Slim` 体型、随模型携带的材质与图标；不做交互式部件/材质选择。
 - 扫描、编译、打包与成品写出都在 `HD2Mimnt.Worker` 独立进程执行（进程 Worker 类型 `Hd2ClConversion`），主程序只负责结果入库与配置开关。转换期间的高 CPU 与大内存不进入 UI 进程，并可在任务中心查看进度。
+
+## MMD 资源包适配
+
+工具页「HD2CL 角色库」内分为「角色模型 / MMD 资源包」两个标签页。MMD 页把原始动作资源编译成独立播放的 HD2CL 数据包：模型与 MMD 使用各自的输入和检查结果，互不替换游戏原有表情动作。
+
+- 来源：ZIP、7z、完整模组目录，或单个 `.patch_*` 三件套入口。清单目录外还有散落文件时拒绝；一个来源包含多份 `manifest.json` 时按合集处理：递归找出含 MMD 动作或适配标记的曲包，排除共用运行时等非 MMD 组件后列出供选择，选中的曲包目录作为后续检查/转换的来源。
+- 检查（`MmdAdapter.Inspect`）：读取动作补丁资源，识别“已是独立数据包”、“旧版 90 骨骼动作模组”与“MDL3 曲包”三种来源，列出曲目、时长、帧率、音乐/镜头是否包含、原包动作选项与覆盖告警。合集或来源清单有多个加载选项时必须先选一项再检查；曲包内仍有多个选项时以 `曲包::选项` 组合键继续选择。
+- MDL3 曲包：动作仍是 90 骨骼 Stingray 片段，但关键帧记录改用紧凑布局（无 4 字节通道头，记录直接从 `subtype` 开始）；镜头是烘焙到 30 FPS 的 8 浮点采样行；音轨是 32 kHz 双声道 MS-ADPCM，按微软规范解码后重采样到 48 kHz PCM 再打包。登记表缺少 `rate`/`channels` 时从 WAVEFORMATEX 头读取。
+- 待机播放方式：不修改时沿用原包（旧包默认 `loop` 持续姿势），可改为 `once` 完整演出；检查结果里的方式回填到界面，用户改动后才作为覆盖值。
+- 转换（`MmdAdapter.Convert`）：解码 Stingray 动作关键帧为 `HD2POSE1` 逐帧姿势，提取镜头烘焙表与 48 kHz 双声道 PCM 音轨，按 `mods/hd2cl/mmd/v1/<id>/{catalog,pose,camera,wav,preview}` 打包，成品为 `9ba626afa44a3aa3.patch_0` 三件套加清单；导入模组库并打 `HD2CL` 标记，存在当前配置时自动加入并启用。
+- 导出：与角色模型一致，「导出压缩包…」把成品打成 7z 写到所选目录，不导入模组库、不改当前配置；同样记住上次选择的目录。
+- 缺清单的裸包需要补充名称与稳定来源标识：`Guid = uuid5(NAMESPACE_URL, "HD2ManualMMDSource/" + key)`；成品 Guid 为 `uuid5(NAMESPACE_URL, "HD2CharacterLibrary/MMD/<id>/adapted-mmd")`。
+- 检查与转换都在 `HD2Mimnt.Worker` 的 `MmdAdaptation` 任务中执行（`Action=inspect/convert`），主程序只负责导入与配置开关。
+
+代码分层：
+
+| 层 | 文件 | 对应上游模块 |
+| --- | --- | --- |
+| Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Mmd/MmdMotion.cs` | `mmd_motion.py`（90 骨骼动作解码，兼容两种关键帧记录布局） |
+| Infrastructure | `ModelConversion/Mmd/MmdBundle.cs` | `mmd_bundle.py`（登记/校验/打包/解包） |
+| Infrastructure | `ModelConversion/Mmd/MmdSourceReader.cs` | `mmd_adapter._source` + `source_io` 读取子集、合集曲包探测 |
+| Infrastructure | `ModelConversion/Mmd/MmdAdapter.cs` | `mmd_adapter.inspect/convert` |
+| Infrastructure | `ModelConversion/Mmd/MmdMdl3Reader.cs` | MDL3 注册表/镜头/音轨脚本解析（上游 `mmd_adapter` 不支持） |
+| Infrastructure | `ModelConversion/Mmd/MmdAudio.cs` | MS-ADPCM 解码与 48 kHz 重采样（无上游对应实现） |
+| Application | `src/HD2Mimnt.Application/Services/MmdAdaptationService.cs` | 拉起 Worker、导入成品、加入配置、导出 7z |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClArchiveExport.cs` | 导出命名清洗与去重、临时包写完再改名 |
+| Worker | `src/HD2Mimnt.Worker/MmdAdaptationWorkerTask.cs` | `Action=inspect/convert` |
+| UI | `MmdAdaptationViewModel.cs`、`MmdSourceInfoPromptService.cs`、`Hd2ClMmdView.axaml`、`MoreView.axaml` | 工具页标签页与来源信息弹窗 |
+
+验证基线：合成样例（1 秒静止 90 骨骼动作 + 单音轨 + 31 帧镜头 + 1×1 图标）在 Python 上游与 C# 下产出的 `9ba626afa44a3aa3.patch_0` 与 `manifest.json` SHA-256 完全一致（见 `MmdAdapterTests.Convert_MatchUpstreamHashes`），已适配包再次转换的补丁字节也一致。仅完成结构验证，游戏内播放仍需实机验收。
+
+MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 合集能列出 13 个曲包并排除共用运行时，全部检查为 `ready`；`146_Idol_拳击_MDL3` 转换得到 2,704 帧姿势、2,705 行镜头与约 90.1 秒 48 kHz PCM（4,325,376 帧，峰值 5,176、RMS 1,447，无削波），并通过 `MmdBundle.Check` 回读。合成样例覆盖紧凑关键帧、ADPCM 单块解码与 32 kHz→48 kHz 重采样（`MmdMdl3Tests`、`MmdAudioTests`）。
 
 ## 代码分层
 
@@ -27,7 +59,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 | Infrastructure | `IasBodyCatalog.cs` + `Data/ias_body_types.json`、`Data/ias_stock_recipes.json` | `ias_body_types`、`ias_stock_recipes` |
 | Infrastructure | `IasCompanionSets.cs` | `companion_sets.read_set` |
 | Infrastructure | `IasUnit.cs` / `IasCompanion.cs` / `IasArchive.cs` 等 | Unit、Rig/物理/共享、Stingray Archive、序列化 |
-| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、版本识别、拉起 Worker、导入成品、配置切换 |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、版本识别、拉起 Worker、导入成品、配置切换、导出 7z |
 | Worker | `src/HD2Mimnt.Worker/Hd2ClConversionWorkerTask.cs` | 接收参数并驱动 `Hd2ClArtifactBuilder` |
 | UI | `Hd2ClViewModel.cs`、`Hd2ClVariantPromptService.cs`、`Hd2ClBatchConversion.cs`、`MoreView.axaml`、`LibraryView.axaml.cs` | 工具页卡片、版本选择浮窗、多选批量转换与模组右键入口 |
 
@@ -75,7 +107,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 
 - 扫描时只保留配套文件，补丁三元组逐个解析后立即释放，不再把整份模组读入再复制；
 - `IasArchive.Write` 按对齐规则先算精确长度再一次性分配，去掉 `List<byte>` 扩容与 `ToArray` 副本；
-- 成品成员直接写入目录，导入端不再解压；需要分发压缩包时再加单独导出选项；
+- 成品成员直接写入目录，导入端不再解压；需要分发时由「导出压缩包…」另打 7z（不入库）；
 - 顶点通道偏移、蒙皮布局与零蒙皮判定缓存；几何签名改为结构比较，分区掩码写入与校验改为零分配 span；
 - 每个 Unit 的几何分类与视图分区互不共享状态，按 4/3 并行度执行。
 
@@ -92,6 +124,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 材质的贴图依赖在 Material TOC 偏移 64 处记录数量（上限 4096），贴图编号从 `136 + 4*count` 起按 `count` 个 `uint64` 排列；打包材质时必须把这些贴图一并写入 `patch_2`，否则禁用源模组后材质贴图丢失。
 - 精确对照时，Lua 目录字面量本身不含代码末尾换行；比较时要显式处理这一字节。
 - 配套成员表不能简单“只保留 companion 后缀”：`mod_group.json` 会按清单核对任意列出文件的摘要，漏掉图片或作者文件会导致摘要不符。当前做法是排除补丁本体与 `.gpu_resources`/`.stream` 边车，其余保留。
+- 导出压缩包必须把成品目录的内容放在压缩包根层（`manifest.json` 直接位于根），不能额外包一层同名目录；否则重新导入时会被当成合集或嵌套清单。
 - 成品目录必须位于本次转换的临时目录内，由服务端 `finally` 统一删除；文件夹导入是复制语义，导入完成前不能提前清理。
 - 成品目录根层必须直接放 `manifest.json`，不要额外包一层同名子目录；否则导入器会把它当成合集或嵌套清单重新定位根目录。
 - 并行 Unit 分类时，每个 Unit 的缓存只能由该 Unit 的任务访问；共享的只有只读 GPU 数组。并行异常要拆掉 `AggregateException`，否则任务中心只剩一句“One or more errors occurred”。
@@ -111,16 +144,30 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 旧版本转换出的成品没有 `HD2CL` 标签、名字里带 `▲`，需要删除后重新转换。
 - 批量转换的版本选择必须在启动 Worker 之前全部确认完：并发里再弹模态窗会互相抢占界面；版本浮窗点取消只跳过当前模组。
 - 批量并发上限为 2：每个 Worker 转换完整模型时峰值约 1 GB，放开并发会把内存打满。
+- MMD 动作片段头部是 24 字节 `<IIfIII`，但骨骼通道从偏移 60 开始（26 字节头 + 2 字节保留 + 34 字节通道标志位）；从 26 直接读会把标志位当成平移，随后报“动作含未支持的缩放通道”。
+- 镜头数据按 Python `splitlines()` 语义切行，尾部换行不产生空行；用 `Split('\n')` 会多出一行导致“MMD 镜头帧数或切点无效”。
+- MMD 登记行与清单的 JSON 键顺序参与哈希：动作行顺序为 `protocol,id,title,fps,duration,stage,origin,idle_playback,delivery,sha256[,preview]`；清单 `json.dumps(indent=2)` 无尾随换行（角色模型清单才带换行）。
+- 成品描述常量使用全角分号（“镜头；安装时”）；字符不一致会改变 `manifest.json` 摘要。
+- 已适配包再次转换必须按 Lua 资源里的 `-- HD2CL_MMD_V1 ` 标记优先识别，不能落回旧版动作解析；否则会把登记资源当成作者脚本处理。
+- MMD 来源常为 GBK 文件名 ZIP：压缩包读取按 cp936 回退，成员路径统一成 posix 并拒绝 `..`、盘符与 Windows 保留名。
+- 待机播放方式不要用 ComboBox：Avalonia 的选中项在运行时切换语言后按旧文本宽度裁切，改用两个单选项。
+- MDL3 工具导出的动作片段关键帧记录没有 4 字节通道头，记录直接以 `subtype` 开头；按经典布局硬读会报“未知的动作通道 0”。解码前先用首条记录判断两种布局（`subtype ∈ {2,4,5,6}` 且经典 sub 不成立才算紧凑），两种布局不能混用。
+- MS-ADPCM 预测除数是 **256** 不是 64：`(s1*c1 + s2*c2) / 256`（[MultimediaWiki](https://wiki.multimedia.cx/index.php/Microsoft_ADPCM)）。用 64 会让整轨削波成方波（峰值 32768、RMS 接近满幅），看起来“能播”但全是噪声。
+- MDL3 音轨 Lua 不一定写 `rate`/`channels`，按 WAVEFORMATEX 头（声道数偏移 2、采样率偏移 4）回退。
+- MS-ADPCM 块头 14 字节（预测器各 1 字节，delta/sample1/sample2 各 2 字节交错）；每个数据字节高半字节为左声道、低半字节为右声道，一个字节只产生一帧，块内样本数 = 2 + (块长 − 14)。
+- 合集曲包探测直接读 `*.patch_0` 的表：有 Animation 类型行或 Lua 行带 `-- HD2CL_MMD_V1 ` 标记才算 MMD 曲包；按 `manifest.json` 名称判断会把“共用运行时”也列进来。只有一份含 MMD 曲包时自动选中，避免用户多点一次。
 
 ## 已知限制
 
 - 只实现非 bundled 单模型成品：源模组自带的可见材质与其贴图会打进 `patch_2`，但不重打包外部材质包，也不处理形态键私有材质。
 - 形态键（morph）仍需上游手动转换入口；检测到 `HD2Morph1` 会在配套解析阶段直接拒绝。
 - 等价皮肤判断用于旧版部件迁移，按上游可见属性/蒙皮/位置误差 `< 2e-5` 复核；皮肤通道不可访问时会退化为更保守的结果。
-- 成品以文件夹交付并直接入库，不保留中间压缩包；如果以后需要单独分发 `.7z`，再增加显式导出选项。
+- 成品默认以文件夹交付并直接入库；「导出压缩包…」走独立路径，把同一份成品打成 7z 放到所选目录，不导入模组库、不改当前配置。导出包根层直接是成品内容，可直接分发或重新导入。
 - 合集版本按组件文件名编号分组：无法与任何模型组件关联的配套组件会附到每个版本，暂不支持把多个版本合并进一个成品。
 - 成品选项只支持「一级选项 + 一层互斥子选项」的材质分支；多层嵌套或分支含非材质资源时退回单分支转换。选项预览图按清单 `Image` 复制到 `Material/组[/选项]/icon.*` 并改写为成品内相对路径，未声明时退回分支目录的 `icon.*`；源模组没有图就没有缩略图。
 - 不校验作者签名、不做游戏内运行验证；转换结果仍需实机验收。
+- MDL3 音轨从 32 kHz 重采样到 48 kHz 使用 Catmull-Rom 插值，属于有损重建，音高/时长正确但高频细节与原生重采样不完全一致；不含内嵌音轨的曲包（检查结果音乐为否）转换后没有 wav，需曲包自带音乐或依赖共用运行时。
+- 紧凑关键帧布局目前只见到 `subtype` 记录（平移/四元数原始浮点）；若其他工具在同一布局里混入压缩记录，会报“未知的动作通道”。
 
 ## 许可与来源
 

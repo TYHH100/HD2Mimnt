@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -106,7 +106,22 @@
     <value>描述</value>
   </data>
   <data name="UI.Tags" xml:space="preserve">
-    <value>标签</value>
+    <value>来源标签</value>
+  </data>
+  <data name="UI.MyTags" xml:space="preserve">
+    <value>我的标签</value>
+  </data>
+  <data name="UI.AddTag" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="UI.AddTagHint" xml:space="preserve">
+    <value>输入标签后回车</value>
+  </data>
+  <data name="UI.RemoveTag" xml:space="preserve">
+    <value>移除标签</value>
+  </data>
+  <data name="UI.TagColor" xml:space="preserve">
+    <value>标签颜色</value>
   </data>
   <data name="UI.FileInformation" xml:space="preserve">
     <value>文件信息</value>
@@ -325,7 +340,7 @@
     <value>当前 Profile</value>
   </data>
   <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
-    <value>单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 tag:标签。</value>
+    <value>单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 @标签。</value>
   </data>
   <data name="UI.AllCategories" xml:space="preserve">
     <value>全部分类</value>
@@ -334,7 +349,7 @@
     <value>排序</value>
   </data>
   <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
-    <value>搜索名称、作者或描述，支持 tag:标签 前缀…</value>
+    <value>搜索名称、作者或描述，用 @标签 筛选…</value>
   </data>
   <data name="UI.ClearSearch" xml:space="preserve">
     <value>清除搜索</value>
@@ -382,7 +397,7 @@
     <value>搜索无结果</value>
   </data>
   <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
-    <value>没有匹配当前搜索条件的 Mod，支持 tag:标签 前缀</value>
+    <value>没有匹配当前搜索条件的 Mod，可用 @标签 筛选</value>
   </data>
   <data name="UI.NoFilterResults" xml:space="preserve">
     <value>筛选无结果</value>
@@ -510,8 +525,86 @@
   <data name="UI.Hd2ClConvert" xml:space="preserve">
     <value>转换为 HD2CL</value>
   </data>
+  <data name="UI.Hd2ClExport" xml:space="preserve">
+    <value>导出压缩包…</value>
+  </data>
+  <data name="UI.Hd2ClExportPickTitle" xml:space="preserve">
+    <value>选择导出目录</value>
+  </data>
+  <data name="UI.Hd2ClExportHint" xml:space="preserve">
+    <value>导出只把成品打成 .7z 放到所选目录，不导入模组库，也不修改当前配置。</value>
+  </data>
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>正在扫描 HD2IAS 模组…</value>
+  </data>
+  <data name="UI.Hd2ClTabModel" xml:space="preserve">
+    <value>角色模型</value>
+  </data>
+  <data name="UI.Hd2ClTabMmd" xml:space="preserve">
+    <value>MMD 资源包</value>
+  </data>
+  <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
+    <value>MMD 资源包适配</value>
+  </data>
+  <data name="UI.Hd2ClMmdDescription" xml:space="preserve">
+    <value>将原始动作资源整理为可安装的独立播放包。独立播放，不替换游戏原有表情动作。</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceLabel" xml:space="preserve">
+    <value>MMD 原始资源包 / 目录</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFile" xml:space="preserve">
+    <value>选择文件…</value>
+  </data>
+  <data name="UI.Hd2ClMmdPickFolder" xml:space="preserve">
+    <value>选择目录…</value>
+  </data>
+  <data name="UI.Hd2ClMmdOptionLabel" xml:space="preserve">
+    <value>原包动作选项</value>
+  </data>
+  <data name="UI.Hd2ClMmdSourceInfo" xml:space="preserve">
+    <value>补充来源信息…</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLabel" xml:space="preserve">
+    <value>待机播放方式</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleLoop" xml:space="preserve">
+    <value>持续姿势（循环播放）</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleOnce" xml:space="preserve">
+    <value>完整演出（播放一次）</value>
+  </data>
+  <data name="UI.Hd2ClMmdIdleHint" xml:space="preserve">
+    <value>用于自动待机。检查时沿用原包方式，旧包默认持续姿势。</value>
+  </data>
+  <data name="UI.Hd2ClMmdCheck" xml:space="preserve">
+    <value>检查内容</value>
+  </data>
+  <data name="UI.Hd2ClMmdConvert" xml:space="preserve">
+    <value>开始转换</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoTitle" xml:space="preserve">
+    <value>MMD 来源信息</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoHint" xml:space="preserve">
+    <value>仅在原包缺少清单时使用；已有清单保留原信息。</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoName" xml:space="preserve">
+    <value>曲包名称</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoKey" xml:space="preserve">
+    <value>更新标识（可选）</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoAuthor" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoIcon" xml:space="preserve">
+    <value>原图标路径</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoDescription" xml:space="preserve">
+    <value>说明</value>
+  </data>
+  <data name="UI.Hd2ClMmdInfoSave" xml:space="preserve">
+    <value>保存来源信息</value>
   </data>
   <data name="UI.RegisterLocalExecutablesToOpenModResources" xml:space="preserve">
     <value>登记本地可执行文件，用于打开模组资源。</value>
@@ -561,8 +654,20 @@
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
     <value>Helldivers 2 模组管理器 · 版本 {0}</value>
   </data>
-  <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
-    <value>项目地址：https://github.com/TYHH100/HD2Mimnt</value>
+  <data name="UI.ProjectRepository" xml:space="preserve">
+    <value>项目仓库</value>
+  </data>
+  <data name="UI.ThirdPartyLicenses" xml:space="preserve">
+    <value>第三方许可证</value>
+  </data>
+  <data name="UI.ThirdPartyLicensesHelp" xml:space="preserve">
+    <value>HD2Mimnt 使用的开源组件与外部工具的许可证及项目地址。</value>
+  </data>
+  <data name="UI.OpenLinkInBrowser" xml:space="preserve">
+    <value>在浏览器中打开链接</value>
+  </data>
+  <data name="UI.NoUpstreamLicense" xml:space="preserve">
+    <value>未附上游许可证</value>
   </data>
   <data name="Updates.CheckNow" xml:space="preserve">
     <value>检查应用更新</value>
@@ -726,7 +831,7 @@
     <value>默认 · 不可删除</value>
   </data>
   <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
-    <value>搜索当前配置的模组…</value>
+    <value>搜索当前配置的模组，支持 @标签…</value>
   </data>
   <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
     <value>移出配置</value>
@@ -982,6 +1087,9 @@
   </data>
   <data name="UI.EnableInterfaceAnimations" xml:space="preserve">
     <value>启用界面动画</value>
+  </data>
+  <data name="UI.EnableInterfaceAnimationsHelp" xml:space="preserve">
+    <value>关闭后跳过页面切换、浮层入场、卡片悬停和闪烁等过渡效果。</value>
   </data>
   <data name="UI.CustomBackground" xml:space="preserve">
     <value>自定义背景</value>
@@ -2271,7 +2379,7 @@
     <value>查找与选择模组</value>
   </data>
   <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
-    <value>搜索可匹配名称、作者、描述，也支持 tag:标签。单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+A 全选。选中后可使用批量操作加入配置文件。</value>
+    <value>搜索可匹配名称、作者、描述，也支持 @标签。单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+A 全选。选中后可使用批量操作加入配置文件。</value>
   </data>
   <data name="UI.CreateModCombinations" xml:space="preserve">
     <value>创建模组组合</value>
@@ -2479,6 +2587,24 @@
   </data>
   <data name="Game.Invalid" xml:space="preserve">
     <value>路径无效</value>
+  </data>
+  <data name="Game.Summary.DeployedMods" xml:space="preserve">
+    <value>已部署 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.ManagedFiles" xml:space="preserve">
+    <value>托管 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFiles" xml:space="preserve">
+    <value>未托管 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.DeployedModsTip" xml:space="preserve">
+    <value>当前游戏安装中按现版本部署的模组数量。</value>
+  </data>
+  <data name="Game.Summary.ManagedFilesTip" xml:space="preserve">
+    <value>当前部署记录追踪的游戏文件数量。</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFilesTip" xml:space="preserve">
+    <value>游戏 data 目录中不属于任何部署记录的补丁文件；下次部署时若开启清理会被删除。</value>
   </data>
   <data name="Game.Detecting" xml:space="preserve">
     <value>正在检测…</value>
@@ -3965,6 +4091,8 @@
   <data name="Library.Notice.Updated" xml:space="preserve"><value>更新</value></data>
   <data name="Settings.Library.ForceManifestV1" xml:space="preserve"><value>强制新导入模组为 V1 清单格式</value></data>
   <data name="Settings.Library.ForceManifestV1Help" xml:space="preserve"><value>导入无清单的模组时，自动生成 V1 清单格式而非旧版 Legacy 格式。启用后，库中没有清单的模组也可自动升级为 V1。</value></data>
+  <data name="Settings.Library.ShowGpuUsage" xml:space="preserve"><value>显示 GPU 资源量</value></data>
+  <data name="Settings.Library.ShowGpuUsageHelp" xml:space="preserve"><value>在模组库和配置页卡片上显示静态 GPU 资源量。统计需要后台读取模组资源文件，可能短暂影响界面流畅度，默认关闭。</value></data>
   <data name="Versions.Title" xml:space="preserve"><value>本地版本</value></data>
   <data name="Versions.Help" xml:space="preserve"><value>可从压缩包更新此模组，或切换已保留的版本。当前版本见下方模组信息。</value></data>
   <data name="Versions.UpdateArchive" xml:space="preserve"><value>使用压缩包更新…</value></data>
@@ -4402,6 +4530,12 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Session" xml:space="preserve"><value>会话</value></data>
   <data name="HellForge.CurrentProfile" xml:space="preserve"><value>当前档案</value></data>
   <data name="HellForge.NetworkBlock" xml:space="preserve"><value>网络隔离</value></data>
+  <data name="HellForge.Category.Overview" xml:space="preserve"><value>概览</value></data>
+  <data name="HellForge.Category.Session" xml:space="preserve"><value>会话</value></data>
+  <data name="HellForge.Category.Profiles" xml:space="preserve"><value>档案</value></data>
+  <data name="HellForge.Category.Mods" xml:space="preserve"><value>模组</value></data>
+  <data name="HellForge.Category.Settings" xml:space="preserve"><value>设置</value></data>
+  <data name="HellForge.Category.Logs" xml:space="preserve"><value>日志</value></data>
   <data name="HellForge.ProfilesTitle" xml:space="preserve"><value>玩家档案</value></data>
   <data name="HellForge.Create" xml:space="preserve"><value>新建档案</value></data>
   <data name="HellForge.Refresh" xml:space="preserve"><value>刷新</value></data>
@@ -4444,6 +4578,13 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Phase.Running" xml:space="preserve"><value>游戏运行中。</value></data>
   <data name="HellForge.Phase.Ended" xml:space="preserve"><value>会话已结束。</value></data>
   <data name="HellForge.Phase.Failed" xml:space="preserve"><value>会话失败。</value></data>
+  <data name="HellForge.Session.Restarting" xml:space="preserve"><value>房主模组已就绪，正在自动重启游戏…</value></data>
+  <data name="HellForge.Restart.UnsupportedPlatform" xml:space="preserve"><value>无法自动重启：该功能仅支持 Windows。</value></data>
+  <data name="HellForge.Restart.MissingSyncFile" xml:space="preserve"><value>无法自动重启：没有找到模组同步文件（{0}）。</value></data>
+  <data name="HellForge.Restart.DryRunFailed" xml:space="preserve"><value>无法准备自动重启：{0}</value></data>
+  <data name="HellForge.Restart.StartFailed" xml:space="preserve"><value>无法启动会话运行器：{0}</value></data>
+  <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>自动重启没有开始新的会话，请查看 HellForge 日志。</value></data>
+  <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>模组同步反复要求重启，已停止自动重启。</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
@@ -4451,6 +4592,51 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Sync.Source" xml:space="preserve"><value>来源配置：{0} · 上次同步：{1}</value></data>
   <data name="HellForge.Sync.UnknownProfile" xml:space="preserve"><value>（未知配置）</value></data>
   <data name="HellForge.Sync.Hint" xml:space="preserve"><value>在配置文件页点击“部署”同步启用的模组；“清理部署”会移除本管理器同步的模组。</value></data>
+  <data name="HellForge.Mods.Title" xml:space="preserve"><value>HellForge 模组</value></data>
+  <data name="HellForge.Mods.Hint" xml:space="preserve"><value>这里列出 HellForge 自己 mods 目录中的模组。在此添加的模组直接写入该目录，不经过本管理器的档案与部署流程；开关、排序、选项与删除也会直接改到 HellForge。会话运行中 CLI 会拒绝修改模组。</value></data>
+  <data name="HellForge.Mods.Enable" xml:space="preserve"><value>启用</value></data>
+  <data name="HellForge.Mods.Disable" xml:space="preserve"><value>禁用</value></data>
+  <data name="HellForge.Mods.Remove" xml:space="preserve"><value>移除</value></data>
+  <data name="HellForge.Mods.RemoveTitle" xml:space="preserve"><value>移除模组</value></data>
+  <data name="HellForge.Mods.RemoveConfirm" xml:space="preserve"><value>确定要从 HellForge 的 mods 目录移除「{0}」吗？</value></data>
+  <data name="HellForge.Mods.Removed" xml:space="preserve"><value>已从 HellForge 的 mods 目录移除「{0}」。</value></data>
+  <data name="HellForge.Mods.MoveUp" xml:space="preserve"><value>上移</value></data>
+  <data name="HellForge.Mods.MoveDown" xml:space="preserve"><value>下移</value></data>
+  <data name="HellForge.Mods.Options" xml:space="preserve"><value>选项</value></data>
+  <data name="HellForge.Mods.Code" xml:space="preserve"><value>联机模组码</value></data>
+  <data name="HellForge.Mods.Switching" xml:space="preserve"><value>正在切换模组…</value></data>
+  <data name="HellForge.Mods.Removing" xml:space="preserve"><value>正在移除模组…</value></data>
+  <data name="HellForge.Mods.Reordering" xml:space="preserve"><value>正在调整模组顺序…</value></data>
+  <data name="HellForge.Mods.OptionUpdate" xml:space="preserve"><value>正在保存外观包选项…</value></data>
+  <data name="HellForge.Mods.OpenFolder" xml:space="preserve"><value>打开 mods 目录</value></data>
+  <data name="HellForge.Mods.AddFolder" xml:space="preserve"><value>添加文件夹…</value></data>
+  <data name="HellForge.Mods.FolderNoManifest" xml:space="preserve"><value>所选文件夹里没有 hellforge-mod.json 或 manifest.json。</value></data>
+  <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>列表最上方的模组最后加载并覆盖下方；上移/下移只在同组（游戏性/每玩家/仅本机）内生效。</value></data>
+  <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>开关模组；会话运行中 CLI 会拒绝修改。</value></data>
+  <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>联机模组码 {0}：好友需要相同的 {1} 个游戏性模组，顺序不限。</value></data>
+  <data name="HellForge.Mods.ModlistEmpty" xml:space="preserve"><value>本机没有启用的游戏性模组，联机模组码为空。</value></data>
+  <data name="HellForge.Mods.Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="HellForge.Mods.Copied" xml:space="preserve"><value>已复制联机模组码。</value></data>
+  <data name="HellForge.Mods.Compare" xml:space="preserve"><value>比对</value></data>
+  <data name="HellForge.Mods.CompareWatermark" xml:space="preserve"><value>粘贴好友的联机模组码</value></data>
+  <data name="HellForge.Mods.CompareMatch" xml:space="preserve"><value>一致：你们的游戏性模组相同，可以一起联机。</value></data>
+  <data name="HellForge.Mods.CompareMismatch" xml:space="preserve"><value>不一致：你们的游戏性模组不同，加入房间会被拒绝或触发模组同步。</value></data>
+  <data name="HellForge.Mods.CompareInvalid" xml:space="preserve"><value>请输入 8 位十六进制联机模组码。</value></data>
+  <data name="HellForge.Mods.CompareNoLocal" xml:space="preserve"><value>本机没有启用的游戏性模组，没有可比的联机模组码。</value></data>
+  <data name="HellForge.Mods.Add" xml:space="preserve"><value>添加模组…</value></data>
+  <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>刷新列表</value></data>
+  <data name="HellForge.Mods.None" xml:space="preserve"><value>HellForge 的 mods 目录中还没有模组。</value></data>
+  <data name="HellForge.Mods.Loading" xml:space="preserve"><value>正在读取 HellForge 模组…</value></data>
+  <data name="HellForge.Mods.Adding" xml:space="preserve"><value>正在添加模组到 HellForge…</value></data>
+  <data name="HellForge.Mods.Added" xml:space="preserve"><value>已添加「{0}」到 HellForge 的 mods 目录。</value></data>
+  <data name="HellForge.Mods.ArchiveFile" xml:space="preserve"><value>模组压缩包</value></data>
+  <data name="HellForge.Mods.ManifestFile" xml:space="preserve"><value>模组清单</value></data>
+  <data name="HellForge.Mods.Enabled" xml:space="preserve"><value>已启用</value></data>
+  <data name="HellForge.Mods.Disabled" xml:space="preserve"><value>已禁用</value></data>
+  <data name="HellForge.Mods.Group.Gameplay" xml:space="preserve"><value>游戏性</value></data>
+  <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>每玩家</value></data>
+  <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>仅本机</value></data>
+  <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge 报告以下模组目录有问题：</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>
@@ -4493,4 +4679,75 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.LogStatus.Crashed" xml:space="preserve"><value>崩溃</value></data>
   <data name="HellForge.LogStatus.Unknown" xml:space="preserve"><value>未知</value></data>
   <data name="HellForge.Logs.ZipFile" xml:space="preserve"><value>Zip 压缩包</value></data>
+  <data name="GpuUsage.Value" xml:space="preserve">
+    <value>GPU资源量：{0}</value>
+  </data>
+  <data name="GpuUsage.Calculating" xml:space="preserve">
+    <value>GPU资源量：计算中…</value>
+  </data>
+  <data name="GpuUsage.Unknown" xml:space="preserve">
+    <value>GPU资源量：未确认</value>
+  </data>
+  <data name="GpuUsage.Partial" xml:space="preserve">
+    <value>GPU资源量：部分统计</value>
+  </data>
+  <data name="GpuUsage.LibraryScope" xml:space="preserve">
+    <value>按模组库默认选项统计。</value>
+  </data>
+  <data name="GpuUsage.ProfileScope" xml:space="preserve">
+    <value>按此配置保存的选项统计；卡片显示该模组选中的资源量。</value>
+  </data>
+  <data name="GpuUsage.TotalScope" xml:space="preserve">
+    <value>此配置已启用模组按部署顺序覆盖后，最终生效的资源总量。</value>
+  </data>
+  <data name="GpuUsage.Explanation" xml:space="preserve">
+    <value>统计纹理载荷、模型及其他 GPU 数据；实际驻留显存及相对原版的增量会有所不同。</value>
+  </data>
+  <data name="GpuUsage.Details" xml:space="preserve">
+    <value>纹理：{0}
+模型：{1}
+其他 GPU 数据：{2}
+资源数：{3}</value>
+  </data>
+  <data name="GpuUsage.PartialDetails" xml:space="preserve">
+    <value>部分统计（总量尚未确认）：
+纹理：{0}
+模型：{1}
+其他 GPU 数据：{2}
+已读资源数：{3}</value>
+  </data>
+  <data name="GpuUsage.Disabled" xml:space="preserve">
+    <value>已禁用，不计入配置总计。</value>
+  </data>
+  <data name="GpuUsage.Effective" xml:space="preserve">
+    <value>当前配置最终生效贡献：{0}</value>
+  </data>
+  <data name="GpuUsage.EffectiveUnknown" xml:space="preserve">
+    <value>部分已启用资源未确认，当前配置生效贡献尚无法确认。</value>
+  </data>
+  <data name="GpuUsage.MoreWarnings" xml:space="preserve">
+    <value>另有 {0} 项问题。</value>
+  </data>
+  <data name="GpuUsage.ExactTotal" xml:space="preserve">
+    <value>载荷精确合计：{0} 字节</value>
+  </data>
+  <data name="ArmorSwap.Title" xml:space="preserve"><value>换甲</value></data>
+  <data name="ArmorSwap.Description" xml:space="preserve"><value>把护甲外观补丁迁移到其它护甲并生成可安装补丁。</value></data>
+  <data name="ArmorSwap.Patch" xml:space="preserve"><value>外观补丁</value></data>
+  <data name="ArmorSwap.Browse" xml:space="preserve"><value>浏览</value></data>
+  <data name="ArmorSwap.Target" xml:space="preserve"><value>目标护甲</value></data>
+  <data name="ArmorSwap.Output" xml:space="preserve"><value>输出目录</value></data>
+  <data name="ArmorSwap.OutputHint" xml:space="preserve"><value>留空则在补丁旁生成目录。</value></data>
+  <data name="ArmorSwap.Pad" xml:space="preserve"><value>用空网格补齐目标多出的槽位</value></data>
+  <data name="ArmorSwap.Run" xml:space="preserve"><value>开始换甲</value></data>
+  <data name="ArmorSwap.Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="ArmorSwap.PatchPlaceholder" xml:space="preserve"><value>选择 .patch_0 或输入路径</value></data>
+  <data name="ArmorSwap.Running" xml:space="preserve"><value>处理中…</value></data>
+  <data name="ArmorSwap.LibraryMod" xml:space="preserve"><value>外观模组</value></data>
+  <data name="ArmorSwap.LibraryModPlaceholder" xml:space="preserve"><value>从模组库选择外观模组</value></data>
+  <data name="ArmorSwap.FolderHint" xml:space="preserve"><value>勾选该模组的选项目录（本体 / 材质 / 部件开关）。每个目录单独换甲并保留原目录与补丁名，导入后仍可按选项切换部件；互斥变体只勾其一。</value></data>
+  <data name="ArmorSwap.SelectAll" xml:space="preserve"><value>全选</value></data>
+  <data name="ArmorSwap.Clear" xml:space="preserve"><value>清空</value></data>
+  <data name="ArmorSwap.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="ArmorSwap.Import" xml:space="preserve"><value>生成后导入模组库</value></data>
 </root>

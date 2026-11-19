@@ -9,6 +9,7 @@ using HD2Mimnt.Core.Resources;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using HD2Mimnt.UI.Localization;
@@ -94,6 +95,7 @@ public partial class LibraryViewModel : ObservableObject
     private readonly IConfirmationService _confirmationService;
     private readonly ImagePreviewService? _imagePreview;
     private readonly SettingsService? _settingsService;
+    private readonly HellForgeModSyncService? _hellForgeSync;
     private readonly LuaExtractionService? _luaExtraction;
     private readonly IPluginService? _pluginService;
     private readonly TaskService? _taskService;
@@ -126,6 +128,15 @@ public partial class LibraryViewModel : ObservableObject
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
+    private IReadOnlyDictionary<string, string> _tagColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string>? _tagPool;
+    private int _tagSuggestionTokenStart;
+
+    [ObservableProperty]
+    private bool _isTagSuggestionOpen;
+
+    [ObservableProperty]
+    private IReadOnlyList<string> _tagSuggestions = [];
     private bool _selectionSyncInProgress;
     private readonly ModSelection<ModItemViewModel> _modSelection;
     private CancellationTokenSource? _detailHashCts;
@@ -383,8 +394,10 @@ public partial class LibraryViewModel : ObservableObject
         PlatformDownloadTaskRunner? downloadTasks = null, ModelPreviewViewModel? modelPreview = null, AudioPreviewViewModel? audioPreview = null,
         LuaExtractionService? luaExtraction = null, IPluginService? pluginService = null,
         TaskService? taskService = null, HD2Mimnt.Core.Hd2IAS.IHd2ClConversionService? hd2Cl = null,
-        IHd2ClVariantPrompt? hd2ClVariantPrompt = null)
+        IHd2ClVariantPrompt? hd2ClVariantPrompt = null, ModGpuUsageService? gpuUsageService = null,
+        HellForgeModSyncService? hellForgeSync = null)
     {
+        _gpuUsageService = gpuUsageService;
         _taskService = taskService;
         _hd2Cl = hd2Cl;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
@@ -417,6 +430,7 @@ public partial class LibraryViewModel : ObservableObject
         _confirmationService = confirmationService;
         _imagePreview = imagePreview;
         _settingsService = settingsService;
+        _hellForgeSync = hellForgeSync;
         if (_settingsService != null) _settingsService.SettingChanged += OnLibrarySettingsChanged;
         _modSelection = new(() => FilteredMods, () => SelectedMods, SyncListSelection,
             (mod, focused) => mod.IsFocused = focused);
@@ -708,7 +722,11 @@ public partial class LibraryViewModel : ObservableObject
                 item.ApplyNoticeStyle(noticeStyle);
                 return item;
             }).ToList());
+            _tagPool = null;
+            await LoadTagColorsAsync();
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
+            await ApplyHellForgeMarksAsync();
+            RefreshGpuUsage();
             CategoryOptions = CreateCategoryOptions(_allMods.SelectMany(mod => mod.ResourceTypeIds));
             OnPropertyChanged(nameof(CategoryOptions));
             AttachModSelectionHandlers();
@@ -783,6 +801,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private async Task ExecuteSearchAsync()
     {
+        CloseTagSuggestions();
         // 取消之前的搜索
         _searchCts?.Cancel();
         _searchCts = new CancellationTokenSource();
@@ -860,6 +879,7 @@ public partial class LibraryViewModel : ObservableObject
     /// </summary>
     partial void OnSearchTextChanged(string value)
     {
+        UpdateTagSuggestions(value);
         _searchDebounceTimer?.Stop();
         _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _searchDebounceTimer.Tick += (_, _) =>
@@ -868,6 +888,39 @@ public partial class LibraryViewModel : ObservableObject
             SafeAsync.Run(ExecuteSearchAsync, "自动搜索");
         };
         _searchDebounceTimer.Start();
+    }
+
+    /// <summary>搜索框末尾输入 @词元时，按前缀/拼音给出标签补全。</summary>
+    private void UpdateTagSuggestions(string? text)
+    {
+        if (!TagSuggestion.TryGetTrailingToken(text, out var token, out var start))
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagPool ??= _allMods.SelectMany(mod => mod.SearchableTags)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var matches = TagSuggestion.Rank(_tagPool, token);
+        if (matches.Count == 0)
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagSuggestionTokenStart = start;
+        TagSuggestions = matches;
+        IsTagSuggestionOpen = true;
+    }
+
+    public void ApplyTagSuggestion(string tag)
+    {
+        SearchText = TagSuggestion.Apply(SearchText, _tagSuggestionTokenStart, tag);
+        CloseTagSuggestions();
+    }
+
+    public void CloseTagSuggestions()
+    {
+        IsTagSuggestionOpen = false;
+        TagSuggestions = [];
     }
 
     private void OnModNoticeDismissed(object? sender, Guid id)
@@ -893,6 +946,24 @@ public partial class LibraryViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(SearchText)) return;
             if (Dispatcher.UIThread.CheckAccess()) _ = ExecuteSearchAsync();
             else Dispatcher.UIThread.Post(() => _ = ExecuteSearchAsync());
+            return;
+        }
+        if (e.Key == SettingKeys.GameMode)
+        {
+            // 切到 HellForge 显示同步标记，切回官方立即隐藏。
+            void ApplyMarks() => _ = ApplyHellForgeMarksAsync();
+            if (Dispatcher.UIThread.CheckAccess()) ApplyMarks();
+            else Dispatcher.UIThread.Post(ApplyMarks);
+            return;
+        }
+        if (e.Key == SettingKeys.ShowGpuUsage)
+        {            void ApplyGpuUsage()
+            {
+                if (ShowGpuUsage) RefreshGpuUsage();
+                else ClearGpuUsage();
+            }
+            if (Dispatcher.UIThread.CheckAccess()) ApplyGpuUsage();
+            else Dispatcher.UIThread.Post(ApplyGpuUsage);
             return;
         }
         if (e.Key == SettingKeys.LuaAutoExtract && _luaExtraction != null)
@@ -1680,6 +1751,8 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        // 手动刷新可能涉及绕过管理器改写的文件；导入、更新、修复会改写模组元数据，缓存键自动失效。
+        _gpuUsageService?.InvalidateScans();
         await LoadModsAsync();
     }
 
@@ -1919,6 +1992,51 @@ public partial class LibraryViewModel : ObservableObject
     private bool IsHellForgeMode =>
         _settingsService?.GetGameInstallationMode() == GameInstallationMode.HellForge;
 
+    /// <summary>
+    /// HellForge 模式：把上次同步时算出的标记贴到模组卡片；官方模式或读取失败时清空。
+    /// 标记只描述 HellForge 侧的导出状态（分类、顺序、运行时需求），不写库也不进 Tags。
+    /// </summary>
+    private async Task ApplyHellForgeMarksAsync()
+    {
+        IReadOnlyDictionary<Guid, HellForgeModMarkInfo>? marks = null;
+        if (IsHellForgeMode && _hellForgeSync != null)
+        {
+            try { marks = (await _hellForgeSync.GetStatusAsync()).Marks; }
+            catch { marks = null; }
+        }
+        foreach (var mod in _allMods)
+        {
+            if (marks != null && marks.TryGetValue(mod.Id, out var info))
+            {
+                var (text, tip) = DescribeHellForgeMark(info);
+                mod.ApplyHellForgeMark(text, tip);
+            }
+            else mod.ClearHellForgeMark();
+        }
+    }
+
+    private static (string Text, string Tip) DescribeHellForgeMark(HellForgeModMarkInfo info)
+    {
+        var detail = string.IsNullOrWhiteSpace(info.Detail) ? string.Empty : Environment.NewLine + info.Detail;
+        return info.Mark switch
+        {
+            HellForgeModMark.Available => ("HF 可用",
+                "干净外观包：导出分类与加载顺序都与官方部署一致。" + detail),
+            HellForgeModMark.Flattened => ("HF 已扁平",
+                "不是干净 V1 包，导出为扁平模组。HellForge 会把它排在外观包之后加载，覆盖结果可能与官方部署不同。" + detail),
+            HellForgeModMark.NeedsRuntime => ("需 Lua 运行时",
+                "补丁含 Lua 脚本。HellForge 需要玩家自装 Bingus Shared Loader 或 HD2Runtime 运行时，否则这个模组不会生效。" + detail),
+            HellForgeModMark.OrderSensitive => ("HF 顺序敏感",
+                "与其他模组修改同一资源包。HellForge 会改变它们的加载顺序，覆盖结果可能与官方部署不同。" + detail),
+            HellForgeModMark.NotSynced => ("未同步",
+                "这个模组不参与 HellForge 同步。" + detail),
+            HellForgeModMark.Unsupported => ("HF 不支持",
+                "HellForge 不支持这个模组。" + detail),
+            _ => ("HF", detail)
+        };
+    }
+
+
     private async Task<DeploymentOrder> ReadDeploymentOrderAsync()
     {
         var savedOrder = _settingsService == null ? DeploymentOrder.TopToBottom.ToString()
@@ -2018,6 +2136,74 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>详情面板维护自定义标签：写入库根档案与数据库，并就地更新卡片与搜索索引。</summary>
+    private async Task AddUserTagAsync(ModItemViewModel mod, string tag, Color? color)
+    {
+        if (!_allMods.Contains(mod)) return;
+        try
+        {
+            var saved = await _modService.AddUserTagAsync(mod.Id, tag);
+            if (color.HasValue)
+            {
+                await _modService.SetTagColorAsync(tag, color.Value.ToString());
+                _tagColors = await _modService.GetTagColorsAsync();
+                foreach (var item in _allMods) item.ApplyTagColors(_tagColors);
+            }
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            _searchService.UpdateModIndex(saved);
+            await ApplyFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowWarning(ex.Message, "添加标签");
+        }
+    }
+
+    private async Task RemoveUserTagAsync(ModItemViewModel mod, string tag)
+    {
+        if (!_allMods.Contains(mod)) return;
+        try
+        {
+            var saved = await _modService.RemoveUserTagAsync(mod.Id, tag);
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            _searchService.UpdateModIndex(saved);
+            await ApplyFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"删除标签失败: {ex.Message}", "删除标签");
+        }
+    }
+
+    private async Task LoadUserTagSuggestionsAsync(ModItemViewModel mod)
+    {
+        try { mod.UserTagSuggestions = (await _modService.GetAllUserTagsAsync()).ToArray(); }
+        catch { /* 补全失败不影响手动输入 */ }
+    }
+
+    private async Task LoadTagColorsAsync()
+    {
+        try { _tagColors = await _modService.GetTagColorsAsync(); }
+        catch { _tagColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); }
+        foreach (var mod in _allMods) mod.ApplyTagColors(_tagColors);
+    }
+
+    private async Task SetTagColorAsync(string tag, Color color)
+    {
+        try
+        {
+            await _modService.SetTagColorAsync(tag, color.ToString());
+            _tagColors = await _modService.GetTagColorsAsync();
+            foreach (var mod in _allMods) mod.ApplyTagColors(_tagColors);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"保存标签颜色失败: {ex.Message}", "标签颜色");
+        }
+    }
+
     public async Task ChangeModImageAsync(ModItemViewModel mod, string imagePath)
     {
         if (mod.IsChangingImage || !_allMods.Contains(mod)) return;
@@ -2084,6 +2270,10 @@ public partial class LibraryViewModel : ObservableObject
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
         mod.CheckUpdatesCommand = ModOnline == null ? null : new AsyncRelayCommand(() => ModOnline.OpenAsync(mod));
         mod.SaveMetadataHandler = SaveModMetadataAsync;
+        mod.AddUserTagHandler = AddUserTagAsync;
+        mod.RemoveUserTagHandler = RemoveUserTagAsync;
+        mod.SetTagColorHandler = SetTagColorAsync;
+        _ = LoadUserTagSuggestionsAsync(mod);
         mod.IsEditingMetadata = false;
         if (string.IsNullOrWhiteSpace(mod.Hash))
         {

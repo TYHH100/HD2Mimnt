@@ -18,7 +18,11 @@ public sealed class HellForgeSyncProgress
     public int CompletedMods { get; set; }
 }
 
-public sealed record HellForgeSyncSkip(string Name, string Reason);
+/// <summary>
+/// 一个被跳过的模组。<paramref name="Expected"/> 为真表示按设计排除（加载器/依赖、HD2IAS），不计为同步失败；
+/// 为假表示真实问题（如模组文件缺失），整体状态仍报部分失败。
+/// </summary>
+public sealed record HellForgeSyncSkip(string Name, string Reason, bool Expected = false);
 
 public sealed class HellForgeSyncResult
 {
@@ -36,7 +40,8 @@ public sealed class HellForgeSyncResult
     public string? ErrorMessage { get; set; }
 }
 
-public sealed record HellForgeSyncStatus(bool HasSync, int ModCount, DateTime? SyncedAt, string? ProfileId);
+public sealed record HellForgeSyncStatus(bool HasSync, int ModCount, DateTime? SyncedAt, string? ProfileId,
+    IReadOnlyDictionary<Guid, HellForgeModMarkInfo>? Marks = null);
 
 /// <summary>
 /// HellForge 模式下的模组同步：把配置中启用的普通模组按设置中的部署方式直接写进安装根 <c>mods\</c>（干净 V1 透传为
@@ -45,8 +50,8 @@ public sealed record HellForgeSyncStatus(bool HasSync, int ModCount, DateTime? S
 /// 临时文件 + 改名），顺序仍用 <c>mod-order</c>；不调 <c>mod-add</c>（内部恒为 File.Copy，无法按设置建链接），
 /// 也不逐个调 <c>mod-switch</c>/<c>mod-pack</c>（每条命令都要重扫整个 mods\，几十个外观包时单次约 5 秒）。
 /// 是否已同步、选项/开关/顺序是否一致全部本地读文件判断，只有真的导入了才跑一次 <c>mods</c> 做权威校验。
-/// 绝不写 game\data（暂存与清理由 HellForge 会话运行器负责）。会话运行中拒绝同步；Lua 加载器/依赖与 HD2IAS 模组
-/// 跳过并记录原因。归属与指纹记录在 AppData 状态文件，未变化的模组跳过重新导出。
+/// 绝不写 game\data（暂存与清理由 HellForge 会话运行器负责）。会话运行中拒绝同步；Lua 加载器本体与 HD2IAS 模组
+/// 跳过并记录原因（依赖加载器的 Lua 内容模组照常导出，Lua 随补丁包落地）。归属与指纹记录在 AppData 状态文件，未变化的模组跳过重新导出。
 /// 接口约定见 HellForge 仓库 docs/external-launchers.md（GPL-3.0，独立进程调用）。
 /// </summary>
 public class HellForgeModSyncService
@@ -109,26 +114,48 @@ public class HellForgeModSyncService
 
             var sequence = BslProfilePolicy.DeploymentSequence(profile, modsById, order, _settings.IsLoaderOrderLocked());
             var skipped = new List<HellForgeSyncSkip>();
+            var marks = new Dictionary<string, HellForgeModMarkRules.Entry>(IdComparer);
+            void MarkSyncedMod(ProfileMod profileMod, HellForgeModMark mark, string detail = "")
+                => marks[profileMod.ModId.ToString("N")] = new HellForgeModMarkRules.Entry { Mark = mark.ToString(), Detail = detail };
             var synced = new List<(ProfileMod ProfileMod, Mod Mod, HellForgeModKind Kind)>();
+            // HD2IAS 模组的组件是「data 补丁 + bin\HD2IndependentRig 原生文件」混合体：data 部分照常进 mods\，
+            // 原生文件 HellForge 没有承载机制，由本管理器直写它的游戏目录（见 SyncNativeFilesAsync）。
+            var iasMods = new Dictionary<string, (ProfileMod ProfileMod, Mod Mod)>(IdComparer);
             foreach (var profileMod in sequence)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!modsById.TryGetValue(profileMod.ModId, out var mod) || !Directory.Exists(mod.Path))
                 {
                     skipped.Add(new HellForgeSyncSkip(mod?.Name ?? profileMod.ModId.ToString("N"), "模组文件缺失"));
+                    MarkSyncedMod(profileMod, HellForgeModMark.NotSynced, "模组文件缺失");
                     continue;
                 }
-                if (BslProfilePolicy.Role(mod) != BslModRole.None)
+                // 只排除加载器本体（含 SmoothBoot）：HellForge 把 BSL/HD2Runtime/MDL3 等当普通模组由模组页自己管理
+                // （upstream docs/lua-bridge.md），再同步一份就会出现同一个加载器两份。声明依赖加载器的 Lua 内容模组照常导出：
+                // HellForge 判断 Lua 模组是“补丁包内含 lua 资源”（Mods.cs HoldsLua），补丁文件按原字节复制，Lua 因此随包落地，
+                // HellForge 会标成 LUA 并归入 CLIENT ONLY。
+                var role = BslProfilePolicy.Role(mod);
+                if (role != BslModRole.None && (BslProfilePolicy.IsLoader(role) || role == BslModRole.SmoothBoot))
                 {
-                    skipped.Add(new HellForgeSyncSkip(mod.Name, "Lua 加载器/依赖模组不参与 HellForge 同步"));
+                    skipped.Add(new HellForgeSyncSkip(mod.Name, "Lua 加载器由 HellForge 模组页管理，不参与同步", Expected: true));
+                    MarkSyncedMod(profileMod, HellForgeModMark.NotSynced, "加载器由 HellForge 模组页管理");
                     continue;
                 }
-                if (string.Equals(mod.WorkflowType, Hd2IrIntegrationService.Workflow, StringComparison.OrdinalIgnoreCase))
+                if (IsIasMod(mod))
                 {
-                    skipped.Add(new HellForgeSyncSkip(mod.Name, "HD2IAS 模组不参与 HellForge 同步"));
-                    continue;
+                    iasMods[mod.Id.ToString("N")] = (profileMod, mod);
+                    // 只有原生文件的组件包（例如纯物理/头盔）没有 data 补丁可给 HellForge：不进 mods\，只落原生文件。
+                    if (PatchDeploymentPlanner.CollectSelectedFiles(mod, profileMod.OptionsJson, cancellationToken).Count == 0)
+                    {
+                        MarkSyncedMod(profileMod, HellForgeModMark.Flattened, "HD2IAS：只有原生文件，已直写 HellForge 游戏目录");
+                        continue;
+                    }
                 }
-                synced.Add((profileMod, mod, HellForgeModExporter.ResolveKind(mod)));
+                // HD2IAS 一律扁平导出：它的组件目录里混着 rigbin/hd2phys 等原生文件，透传成外观包会把它们当补丁塞进 HF，
+                // 而补丁只走 data\；原生文件由本管理器直写游戏目录（见 SyncNativeFilesAsync）。
+                synced.Add((profileMod, mod, IsIasMod(mod)
+                    ? HellForgeModKind.Flat
+                    : HellForgeModExporter.ResolveKind(mod)));
             }
 
             var warnings = new List<string>();
@@ -273,6 +300,40 @@ public class HellForgeModSyncService
             installation.ProfileId = profileId.ToString("N");
             installation.SyncedAt = DateTime.UtcNow;
             installation.Mods = owned;
+            // HD2IAS 的原生文件（rigbin/hd2phys/hd2shared/ini）直写 HellForge 游戏目录，与 mods\ 的 data 补丁一起构成完整模组。
+            await SyncNativeFilesAsync(root, iasMods, installation, placer, warnings, cancellationToken);
+            // 标记按“最后一次落盘的补丁”统计：外观包整组先加载、扁平模组整组后加载，跨组共用资源包时覆盖关系会翻转。
+            var cosmeticBundles = new Dictionary<Guid, IReadOnlyCollection<string>>();
+            var gameplayBundles = new Dictionary<Guid, IReadOnlyCollection<string>>();
+            foreach (var (_, mod, kind) in synced)
+            {
+                var entry = owned[mod.Id.ToString("N")];
+                var folder = foldersById.GetValueOrDefault(entry.HellforgeId)
+                    ?? (local.TryGetValue(entry.HellforgeId, out var scanned) ? scanned.Folder : null);
+                if (folder == null) continue;
+                var target = kind == HellForgeModKind.Pack ? cosmeticBundles : gameplayBundles;
+                target[mod.Id] = CollectBundleKeys(folder, cancellationToken);
+            }
+            var conflicts = HellForgeModMarkRules.FindCrossGroupConflicts(cosmeticBundles, gameplayBundles);
+            foreach (var (profileMod, mod, kind) in synced)
+            {
+                if (IsIasMod(mod))
+                {
+                    // HD2IAS 的数据补丁在 mods\，物理/骨架靠本管理器直写的原生文件与 HD2IAS 运行时：两者缺一即不完整。
+                    MarkSyncedMod(profileMod, HellForgeModMark.Flattened,
+                        "HD2IAS：data 补丁经 mods\\ 同步，原生 rig 文件已直写 HellForge 游戏目录，需要 HD2IAS 运行时");
+                    continue;
+                }
+                var others = conflicts.TryGetValue(mod.Id, out var set)
+                    ? string.Join("、", set.Take(3).Select(id => modsById.TryGetValue(id, out var other) ? other.Name : id.ToString("N")))
+                    : string.Empty;
+                var mark = HellForgeModMarkRules.ResolveSynced(
+                    flattened: kind == HellForgeModKind.Flat,
+                    needsRuntime: IsLuaMod(mod),
+                    orderSensitive: others.Length > 0);
+                MarkSyncedMod(profileMod, mark, others.Length > 0 ? $"与其他模组修改同一资源包：{others}" : string.Empty);
+            }
+            installation.Marks = marks;
             state.Installations[root] = installation;
             SaveState(state);
 
@@ -316,7 +377,8 @@ public class HellForgeModSyncService
 
             var result = new HellForgeSyncResult
             {
-                Status = skipped.Count > 0 ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed,
+                // 按设计排除（加载器/依赖、HD2IAS）不算失败：文案里已列明原因，用真实问题决定整体状态。
+                Status = skipped.Any(skip => !skip.Expected) ? DeploymentStatus.PartiallyFailed : DeploymentStatus.Completed,
                 SyncedCount = synced.Count, UpdatedCount = updated, UnchangedCount = unchanged,
                 RemovedCount = removed, SkippedMods = skipped,
                 // 出现“建链失败改为复制”时按实际写入方式报告，避免文案与实际占用不符。
@@ -355,7 +417,8 @@ public class HellForgeModSyncService
             var root = RequireInstallationRoot();
             await EnsureNoSessionAsync(cancellationToken);
             var state = LoadState();
-            if (!state.Installations.TryGetValue(root, out var installation) || installation.Mods.Count == 0)
+            if (!state.Installations.TryGetValue(root, out var installation)
+                || installation.Mods.Count == 0 && installation.NativeFiles.Count == 0)
                 return new HellForgeSyncResult { Status = DeploymentStatus.Completed, Message = "没有需要同步清理的 HellForge 模组。" };
 
             // 目录与 hellforge-mods.json 里的条目都是本管理器写的：直接删目录 + 清状态，
@@ -379,9 +442,16 @@ public class HellForgeModSyncService
                     }
                 }
                 installation.Mods.Remove(key);
+                installation.Marks.Remove(key);
             }
             modsFile.Remove(ids);
             modsFile.SaveIfChanged();
+            // HD2IAS 的原生文件同样只清理本管理器写过的那批；运行时自身与用户放的文件不在归属内。
+            var gameRoot = Path.Combine(root, "game");
+            foreach (var relative in installation.NativeFiles.Values
+                         .SelectMany(list => list).Distinct(StringComparer.OrdinalIgnoreCase))
+                TryDeleteFile(Path.Combine(gameRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+            installation.NativeFiles.Clear();
             installation.SyncedAt = DateTime.UtcNow;
             SaveState(state);
             var result = new HellForgeSyncResult
@@ -414,7 +484,18 @@ public class HellForgeModSyncService
         var state = LoadState();
         if (!state.Installations.TryGetValue(root, out var installation) || installation.Mods.Count == 0)
             return Task.FromResult(new HellForgeSyncStatus(false, 0, null, null));
-        return Task.FromResult(new HellForgeSyncStatus(true, installation.Mods.Count, installation.SyncedAt, installation.ProfileId));
+        IReadOnlyDictionary<Guid, HellForgeModMarkInfo>? marks = null;
+        if (installation.Marks.Count > 0)
+        {
+            var map = new Dictionary<Guid, HellForgeModMarkInfo>();
+            foreach (var (key, entry) in installation.Marks)
+                if (Guid.TryParseExact(key, "N", out var modId)
+                    && Enum.TryParse<HellForgeModMark>(entry.Mark, out var mark))
+                    map[modId] = new HellForgeModMarkInfo(modId, mark, entry.Detail);
+            if (map.Count > 0) marks = map;
+        }
+        return Task.FromResult(new HellForgeSyncStatus(true, installation.Mods.Count, installation.SyncedAt,
+            installation.ProfileId, marks));
     }
 
     /// <summary>
@@ -509,6 +590,120 @@ public class HellForgeModSyncService
     private static string NormalizePath(string path) =>
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
+    /// <summary>Lua 资源 Type ID（同 ResourceTypeCatalog）：补丁内含 Lua 时 HellForge 需要 Bingus/HD2Runtime 运行时。</summary>
+    private const ulong LuaResourceTypeId = 0xa14e8dfa2cd117e2UL;
+
+    private static bool IsLuaMod(Mod mod) =>
+        mod.ContainsScripts
+        || mod.ResourceTypeIds?.Contains(LuaResourceTypeId) == true
+        || mod.LogicalMod?.Components.Any(component => component.Type == ComponentType.Lua) == true;
+
+    private static bool IsIasMod(Mod mod) =>
+        string.Equals(mod.WorkflowType, Hd2IrIntegrationService.Workflow, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>本管理器在 HellForge 游戏目录里写的原生文件（HD2IAS 的 rig/物理/隔离 ini 等）相对于 game 的路径。</summary>
+    internal static string NativeTargetPath(string relative) => relative.Replace('\\', '/');
+
+    /// <summary>
+    /// 把 HD2IAS 模组的原生文件写进 HellForge 游戏目录：上游只认识 <c>data\</c> 补丁与声明的 native 编辑（网络字段位宽、
+    /// 组件记录 u32），没有“把任意文件放进 bin\”的能力，所以这部分由本管理器按部署方式直写并登记归属。
+    /// 只增改缺失/变化的文件，只删本管理器上次写过、本次不再需要的文件；绝不碰 HD2IAS 运行时自己的文件与用户文件。
+    /// </summary>
+    private async Task SyncNativeFilesAsync(string root,
+        IReadOnlyDictionary<string, (ProfileMod ProfileMod, Mod Mod)> iasMods,
+        HellForgeInstallationSync installation,
+        HellForgeModFilePlacer placer,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        var gameRoot = Path.Combine(root, "game");
+        var desired = new Dictionary<string, List<string>>(IdComparer);
+        var targets = new Dictionary<string, (string Source, string Key)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, (profileMod, mod)) in iasMods)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            List<PatchDeploymentPlanner.FileEntry> entries;
+            try
+            {
+                entries = await Hd2IrIntegrationService.GetNativeFilesAsync(mod, profileMod.OptionsJson, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or FileNotFoundException)
+            {
+                warnings.Add($"“{mod.Name}”的原生文件无法读取：{ex.Message}");
+                continue;
+            }
+
+            var relativePaths = new List<string>();
+            foreach (var entry in entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(entry.SourcePath) || !File.Exists(entry.SourcePath)) continue;
+                var relative = NativeTargetPath(entry.FileName);
+                if (targets.TryGetValue(relative, out var owner))
+                {
+                    if (!string.Equals(owner.Key, key, StringComparison.Ordinal))
+                        warnings.Add($"“{mod.Name}”与另一个模组写入同一原生文件 {relative}，保留先写入的那份。");
+                    continue;
+                }
+                targets[relative] = (entry.SourcePath, key);
+                relativePaths.Add(relative);
+            }
+            if (relativePaths.Count > 0) desired[key] = relativePaths;
+        }
+
+        foreach (var (relative, (source, _)) in targets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var destination = Path.Combine(gameRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+            try
+            {
+                var sourceInfo = new FileInfo(source);
+                var targetInfo = new FileInfo(destination);
+                // 与 mods\ 的指纹同口径（长度 + mtime）：没变就不重写，保持硬链接/时间戳稳定。
+                if (targetInfo.Exists && targetInfo.Length == sourceInfo.Length
+                    && targetInfo.LastWriteTimeUtc == sourceInfo.LastWriteTimeUtc) continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                if (targetInfo.Exists) File.Delete(destination);
+                await placer.PlaceAsync(source, destination, cancellationToken);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                warnings.Add($"写入原生文件 {relative} 失败：{ex.Message}");
+            }
+        }
+
+        // 模组被禁用/移出、或组件选项取消后，上次写的原生文件不再归谁：删掉，别把孤儿文件留在游戏目录里。
+        foreach (var relative in installation.NativeFiles.Values
+                     .SelectMany(list => list).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (targets.ContainsKey(relative)) continue;
+            TryDeleteFile(Path.Combine(gameRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+        }
+        installation.NativeFiles = desired;
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>模组落盘目录里补丁文件的 16 位 bundle key；只看文件名，不读内容。</summary>
+    private static HashSet<string> CollectBundleKeys(string folder, CancellationToken cancellationToken)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        if (!Directory.Exists(folder)) return keys;
+        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var name = Path.GetFileName(file);
+            if (name.Length <= 17 || name[16] != '.' || !name.AsSpan(17).StartsWith("patch_", StringComparison.Ordinal))
+                continue;
+            keys.Add(name[..16].ToLowerInvariant());
+        }
+        return keys;
+    }
+
     /// <summary>只删除 mods\ 内本管理器登记过的模组目录；路径越界时保持原样。</summary>
     private static void DeleteOwnedFolder(string folder, string modsDirectory)
     {
@@ -548,7 +743,13 @@ public class HellForgeModSyncService
         };
         var message = $"已同步 {result.SyncedCount} 个模组到 HellForge（写入方式：{methodName}）：更新 {result.UpdatedCount}、未变化 {result.UnchangedCount}、移除 {result.RemovedCount}。";
         if (result.SkippedMods.Count > 0)
-            message += $"；跳过 {result.SkippedMods.Count} 个：{string.Join("、", result.SkippedMods.Select(skip => skip.Name))}";
+        {
+            // 同一原因的模组并到一组，避免几十个加载器时原因重复到无法阅读。
+            var groups = result.SkippedMods
+                .GroupBy(skip => skip.Reason)
+                .Select(group => $"{string.Join("、", group.Select(skip => skip.Name))}（{group.Key}）");
+            message += $"；跳过 {result.SkippedMods.Count} 个：{string.Join("；", groups)}";
+        }
         if (result.Warnings.Count > 0)
             message += $"；注意：{string.Join("；", result.Warnings)}";
         return message;
@@ -588,6 +789,13 @@ internal sealed class HellForgeInstallationSync
     public string? ProfileId { get; set; }
     public DateTime SyncedAt { get; set; }
     public Dictionary<string, HellForgeSyncedMod> Mods { get; set; } = new();
+    /// <summary>
+    /// HD2IAS 模组写在 HellForge 游戏目录里的原生文件：模组 key → 相对 game 根的 posix 路径。
+    /// HellForge 只认识 <c>data\</c> 补丁，没有承载 <c>bin\HD2IndependentRig\</c> 这类文件的机制，由本管理器直写并登记归属。
+    /// </summary>
+    public Dictionary<string, List<string>> NativeFiles { get; set; } = new();
+    /// <summary>上次同步时算出的 模组 key → HellForge 标记；库页只在 HellForge 模式读取。</summary>
+    public Dictionary<string, HellForgeModMarkRules.Entry> Marks { get; set; } = new();
 }
 
 internal sealed class HellForgeSyncedMod

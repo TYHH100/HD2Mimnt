@@ -47,7 +47,7 @@ public sealed class PageJellyAnimator
 
     public void Start()
     {
-        if (IsActive) return;
+        if (IsActive || !UiMotion.IsEnabled) return;
         IsActive = true;
         AttachTargets();
         _refreshTimer.Start();

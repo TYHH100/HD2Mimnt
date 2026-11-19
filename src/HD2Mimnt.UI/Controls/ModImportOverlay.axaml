@@ -2,8 +2,9 @@
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:HD2Mimnt.UI.ViewModels"
              xmlns:controls="using:HD2Mimnt.UI.Controls"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              x:Class="HD2Mimnt.UI.Controls.ModImportOverlay"
-             x:DataType="vm:LibraryViewModel" IsVisible="{Binding Import.IsOpen}">
+             x:DataType="vm:LibraryViewModel" IsVisible="{Binding Import.IsOpen}" motion:MotionEffects.Entrance="True">
   <Border Background="{DynamicResource OverlayScrimBrush}">
     <Border x:Name="ImportDialog" Background="{DynamicResource Surface2Brush}"
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"

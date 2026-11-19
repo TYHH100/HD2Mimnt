@@ -40,6 +40,8 @@ public static class ModCategoryText
 public partial class ModItemViewModel : ObservableObject
 {
     private Mod _mod;
+    [ObservableProperty] private GpuUsageDisplay? _gpuUsage = new(null, GpuUsageScope.Library);
+    [ObservableProperty] private bool _gpuUsageVisible;
     public ModCompatibilityBadgeViewModel? CompatibilityBadge { get; set; }
     public System.Windows.Input.ICommand? CheckCompatibilityCommand { get; set; }
     [ObservableProperty] private ModVersionsViewModel? _localVersions;
@@ -48,6 +50,7 @@ public partial class ModItemViewModel : ObservableObject
     {
         _mod = saved;
         IsDeployed = false;
+        RefreshUserTagItems();
         OnPropertyChanged(string.Empty);
     }
 
@@ -55,6 +58,7 @@ public partial class ModItemViewModel : ObservableObject
     public void ApplyMetadata(Mod saved)
     {
         _mod = saved;
+        RefreshUserTagItems();
         OnPropertyChanged(string.Empty);
     }
 
@@ -152,6 +156,29 @@ public partial class ModItemViewModel : ObservableObject
     public void ApplyNoticeStyle(string? style)
         => NoticeStyle = style is "Outline" or "BadgeBlink" ? style : "Badge";
 
+    // HellForge 模式标记：同步时算出、只在 HellForge 模式显示；切回官方模式由库页清空，不写库也不进 Tags。
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasHellForgeMark))]
+    private string? _hellForgeMarkText;
+
+    [ObservableProperty]
+    private string? _hellForgeMarkTip;
+
+    public bool HasHellForgeMark => !string.IsNullOrEmpty(HellForgeMarkText);
+
+    public void ApplyHellForgeMark(string text, string? tip)
+    {
+        HellForgeMarkText = text;
+        HellForgeMarkTip = tip;
+    }
+
+    public void ClearHellForgeMark()
+    {
+        if (HellForgeMarkText == null && HellForgeMarkTip == null) return;
+        HellForgeMarkText = null;
+        HellForgeMarkTip = null;
+    }
+
     public void DismissNotice()
     {
         if (!HasNotice) return;
@@ -159,6 +186,76 @@ public partial class ModItemViewModel : ObservableObject
         OnPropertyChanged(string.Empty);
     }
     public List<string> Tags => _mod.Tags;
+    public List<string> UserTags => _mod.UserTags;
+    /// <summary>@ 搜索可命中的标签：来源/用户标签 + 全部系统虚拟标签。</summary>
+    public IEnumerable<string> SearchableTags => HD2Mimnt.Application.Search.TagQuery.EnumerateModTags(_mod);
+    public bool HasUserTags => UserTags.Count > 0;
+    /// <summary>库卡片与配置文件行最多露 2 个标签，其余折叠为 +N。</summary>
+    public IReadOnlyList<UserTagChipViewModel> UserTagPreviewChips => UserTags.Take(2)
+        .Select(tag => new UserTagChipViewModel(tag, UserTagPalette.BrushFor(tag, _tagColors))).ToArray();
+    public bool HasUserTagsOverflow => UserTags.Count > 2;
+    public string UserTagsOverflowText => HasUserTagsOverflow ? $"+{UserTags.Count - 2}" : string.Empty;
+    public string UserTagsTooltip => string.Join("、", UserTags);
+
+    private IReadOnlyDictionary<string, string> _tagColors =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    [ObservableProperty]
+    private IReadOnlyList<UserTagItemViewModel> _userTagItems = [];
+
+    public void ApplyTagColors(IReadOnlyDictionary<string, string> colors)
+    {
+        _tagColors = new Dictionary<string, string>(colors, StringComparer.OrdinalIgnoreCase);
+        // 标签集合没变时就地更新颜色，正在打开的取色面板不会被重建。
+        if (UserTagItems.Select(item => item.Name).SequenceEqual(UserTags, StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var item in UserTagItems)
+                item.ApplyColorSilently(Avalonia.Media.Color.Parse(UserTagPalette.ColorFor(item.Name, _tagColors)));
+        }
+        else RefreshUserTagItems();
+        OnPropertyChanged(nameof(UserTagPreviewChips));
+    }
+
+    private void RefreshUserTagItems()
+    {
+        UserTagItems = UserTags
+            .Select(tag => new UserTagItemViewModel(tag, UserTagPalette.ColorFor(tag, _tagColors), SetTagColorAsync))
+            .ToArray();
+    }
+
+    private async Task SetTagColorAsync(string tag, Avalonia.Media.Color color)
+    {
+        if (SetTagColorHandler == null) return;
+        await SetTagColorHandler(tag, color);
+    }
+
+    // 详情面板内联编辑自定义标签
+    [ObservableProperty]
+    private string _newUserTag = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSavingUserTag;
+
+    public bool CanAddUserTag => !string.IsNullOrWhiteSpace(NewUserTag) && !IsSavingUserTag && AddUserTagHandler != null;
+
+    // 添加前可选颜色：未选时用标签名的自动配色
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NewUserTagBrush))]
+    private Avalonia.Media.Color _newUserTagColor = Avalonia.Media.Color.Parse("#4F8DFD");
+    private bool _hasPendingTagColor;
+    public Avalonia.Media.IBrush NewUserTagBrush => _hasPendingTagColor
+        ? new Avalonia.Media.SolidColorBrush(NewUserTagColor)
+        : UserTagPalette.BrushFor(NewUserTag.Trim(), _tagColors);
+
+    [ObservableProperty]
+    private IReadOnlyList<string> _userTagSuggestions = [];
+
+    public Func<ModItemViewModel, string, Avalonia.Media.Color?, Task>? AddUserTagHandler { get; set; }
+    public Func<ModItemViewModel, string, Task>? RemoveUserTagHandler { get; set; }
+    public Func<string, Avalonia.Media.Color, Task>? SetTagColorHandler { get; set; }
+    public IAsyncRelayCommand AddUserTagCommand { get; }
+    public IRelayCommand<string> RemoveUserTagCommand { get; }
+
     public long Size => _mod.Size;
     public DateTime CreatedAt => _mod.CreatedAt;
     public DateTime ImportedAt => _mod.ImportedAt;
@@ -283,9 +380,15 @@ public partial class ModItemViewModel : ObservableObject
 
         // Initialize commands
         OpenFolderCommand = new RelayCommand(OpenFolder);
+        AddUserTagCommand = new AsyncRelayCommand(AddUserTagAsync, () => CanAddUserTag);
+        RemoveUserTagCommand = new RelayCommand<string>(tag =>
+        {
+            if (!string.IsNullOrEmpty(tag)) _ = RemoveUserTagAsync(tag);
+        });
         var launcher = browser ?? new SystemBrowserLauncher();
         OpenSourcePageCommand = new RelayCommand(() => OpenPage(PlatformLinkUrl, launcher), () => HasPlatformLink);
         OpenAuthorPageCommand = new RelayCommand(() => OpenPage(AuthorPageUrl, launcher), () => HasAuthorPage);
+        RefreshUserTagItems();
     }
 
     private static void OpenPage(string url, IBrowserLauncher browser)
@@ -318,6 +421,43 @@ public partial class ModItemViewModel : ObservableObject
         }
         finally { IsSavingMetadata = false; }
     }
+
+    private async Task AddUserTagAsync()
+    {
+        if (IsSavingUserTag || AddUserTagHandler == null || string.IsNullOrWhiteSpace(NewUserTag)) return;
+        IsSavingUserTag = true;
+        try
+        {
+            await AddUserTagHandler(this, NewUserTag.Trim(), _hasPendingTagColor ? NewUserTagColor : null);
+            _hasPendingTagColor = false;
+            NewUserTag = string.Empty;
+            OnPropertyChanged(nameof(NewUserTagBrush));
+        }
+        finally { IsSavingUserTag = false; }
+    }
+
+    private async Task RemoveUserTagAsync(string tag)
+    {
+        if (IsSavingUserTag || RemoveUserTagHandler == null) return;
+        IsSavingUserTag = true;
+        try { await RemoveUserTagHandler(this, tag); }
+        finally { IsSavingUserTag = false; }
+    }
+
+    partial void OnNewUserTagChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanAddUserTag));
+        OnPropertyChanged(nameof(NewUserTagBrush));
+        AddUserTagCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnNewUserTagColorChanged(Avalonia.Media.Color value)
+    {
+        _hasPendingTagColor = true;
+        OnPropertyChanged(nameof(NewUserTagBrush));
+    }
+
+    partial void OnIsSavingUserTagChanged(bool value) => OnPropertyChanged(nameof(CanAddUserTag));
 
     partial void OnIsEnabledChanged(bool value)
     {

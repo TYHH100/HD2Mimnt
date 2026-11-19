@@ -33,17 +33,54 @@ jobs:
         shell: pwsh
         run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^[vV]', '')"
 
-      # 与 Release.pubxml 一致：win-x64、框架依赖、单文件。
-      # 框架依赖单文件不支持 EnableCompressionInSingleFile（NETSDK1176，仅自包含发布可用）。
-      # 子进程 exe（PluginHost/Worker）由 UI csproj 的 PublishChildProcessHosts 目标补齐。
+      # 与 Release.pubxml 一致：win-x64、框架依赖、非单文件。
+      # 四个入口（UI/Cli/PluginHost/Worker）的 exe、入口 dll、runtimeconfig 由项目引用输出到根目录，
+      # 其余托管程序集由 UI csproj 的 MoveManagedAssembliesToLib 收进发布目录的 lib/；
+      # 四个宿主都关了 GenerateDependencyFile，发布产物不包含任何 deps.json。
       - name: Publish app
         shell: pwsh
         run: >
           dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj
           -c Release -r win-x64
           --self-contained false
-          -p:PublishSingleFile=true
           -p:Version=$env:VERSION
+
+      # 布局回归防护：四个入口文件必须齐全且不包含 deps.json；根目录只允许入口 dll 与原生库，
+      # 托管依赖必须已进 lib/，原生库不能被误收进 lib/（没有 deps.json 后 DllImport 只在应用目录查找）。
+      # 没有 deps 清单可查原生库，改用反射区分：能读出 AssemblyName 的是托管程序集。
+      - name: Verify publish layout
+        shell: pwsh
+        run: |
+          $publishDir = 'src/HD2Mimnt.UI/bin/Release/net10.0/win-x64/publish'
+          $entries = 'HD2Mimnt.UI', 'HD2Mimnt.Cli', 'HD2Mimnt.PluginHost', 'HD2Mimnt.Worker'
+          foreach ($name in $entries) {
+            foreach ($ext in '.exe', '.dll', '.runtimeconfig.json') {
+              if (-not (Test-Path (Join-Path $publishDir "$name$ext"))) {
+                throw "发布目录缺少入口文件：$name$ext"
+              }
+            }
+          }
+          $depsFiles = @(Get-ChildItem -Path $publishDir -Filter *.deps.json -File -Recurse -ErrorAction SilentlyContinue)
+          if ($depsFiles.Count -gt 0) { throw "发布目录不应包含 deps.json：$($depsFiles.Name -join ', ')" }
+
+          function Test-ManagedAssembly([string]$path) {
+            try { [void][System.Reflection.AssemblyName]::GetAssemblyName($path); return $true }
+            catch { return $false }
+          }
+
+          $libDir = Join-Path $publishDir 'lib'
+          $libDlls = @(Get-ChildItem -Path $libDir -Filter *.dll -File -ErrorAction SilentlyContinue)
+          foreach ($required in 'HD2Mimnt.Core.dll', 'HD2Mimnt.Application.dll', 'Avalonia.Base.dll') {
+            if (@($libDlls | ForEach-Object Name) -notcontains $required) { throw "lib/ 下缺少托管程序集：$required" }
+          }
+          $misfiledNative = @($libDlls | Where-Object { -not (Test-ManagedAssembly $_.FullName) } | ForEach-Object Name)
+          if ($misfiledNative.Count -gt 0) { throw "原生库被误收进 lib/：$($misfiledNative -join ', ')" }
+
+          $entryDlls = $entries | ForEach-Object { "$_.dll" }
+          $unexpected = @(Get-ChildItem -Path $publishDir -Filter *.dll -File |
+            Where-Object { $entryDlls -notcontains $_.Name -and (Test-ManagedAssembly $_.FullName) } |
+            ForEach-Object Name)
+          if ($unexpected.Count -gt 0) { throw "发布根目录出现未收拢的托管 dll：$($unexpected -join ', ')" }
 
       # 主包不含 .pdb；调试符号单独打包，便于事后排查本应用与子进程崩溃
       - name: Package release and symbols
@@ -52,12 +89,41 @@ jobs:
           $publishDir = 'src/HD2Mimnt.UI/bin/Release/net10.0/win-x64/publish'
           $symbolsDir = 'dist/symbols'
           New-Item -ItemType Directory -Force $symbolsDir | Out-Null
-          Get-ChildItem -Path $publishDir -Filter *.pdb -File | Move-Item -Destination $symbolsDir
+          # pdb 随托管程序集收在 lib/ 内，需要递归收集
+          Get-ChildItem -Path $publishDir -Filter *.pdb -File -Recurse | Move-Item -Destination $symbolsDir
           Compress-Archive -Path "$publishDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64.zip"
           Compress-Archive -Path "$symbolsDir/*" -DestinationPath "dist/HD2Mimnt-$env:VERSION-win-x64-symbols.zip"
+
+      # 发布说明取自标签注解正文：第一行可以是版本号标题（会被去掉），其后为更新内容。
+      # 标签正文为空（例如老的轻量标签或只写了一行版本号）时保留自动生成。
+      - name: Collect release notes from tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if [ -z "$(git tag -l "$tag")" ]; then
+            git fetch --depth=1 origin "+refs/tags/$tag:refs/tags/$tag"
+          fi
+          notes="$(git tag -l --format='%(contents)' "$tag" | tr -d '\r')"
+          first_line="$(printf '%s\n' "$notes" | head -n 1)"
+          if printf '%s' "$first_line" | grep -Eqx '(v|V)?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)*'; then
+            notes="$(printf '%s\n' "$notes" | tail -n +2)"
+          fi
+          printf '%s\n' "$notes" | sed -e '/./,$!d' > dist/release-notes.md
+          if [ -s dist/release-notes.md ]; then
+            echo "HAS_TAG_NOTES=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_TAG_NOTES=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Create GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "Release $GITHUB_REF_NAME" --generate-notes dist/*.zip
+        run: |
+          set -euo pipefail
+          notes_args=(--generate-notes)
+          if [ "$HAS_TAG_NOTES" = "true" ]; then
+            notes_args=(--notes-file dist/release-notes.md)
+          fi
+          gh release create "$GITHUB_REF_NAME" --title "Release $GITHUB_REF_NAME" "${notes_args[@]}" dist/*.zip

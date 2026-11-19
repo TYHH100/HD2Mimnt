@@ -33,6 +33,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly TestDataService _testDataService;
     private readonly ProfileService _profileService;
     private readonly ModService _modService;
+    private readonly DeploymentService _deploymentService;
     private readonly SettingsViewModel _settingsViewModel;
     private readonly TaskCenterViewModel _taskCenterViewModel;
     private readonly ExternalToolsViewModel _externalToolsViewModel;
@@ -41,6 +42,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly LogViewModel _logViewModel;
     private readonly ConfirmationService _confirmationService;
     private readonly Hd2ClVariantPromptService? _hd2ClVariantPrompt;
+    private readonly MmdSourceInfoPromptService? _mmdSourceInfoPrompt;
     private readonly ConflictsViewModel _conflictsViewModel;
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
@@ -90,6 +92,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private string _gamePath = string.Empty;
+
+    // 导航栏部署概览（仅在找到游戏时显示）
+    [ObservableProperty]
+    private int _deployedModCount;
+
+    [ObservableProperty]
+    private int _managedFileCount;
+
+    [ObservableProperty]
+    private int _unmanagedFileCount;
 
     // 当前配置文件
     [ObservableProperty]
@@ -155,6 +167,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public SoundFixViewModel? SoundFixViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
+    public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
     public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
@@ -170,6 +183,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         TestDataService testDataService,
         ProfileService profileService,
         ModService modService,
+        DeploymentService deploymentService,
         SettingsViewModel settingsViewModel,
         TaskCenterViewModel taskCenterViewModel,
         NotificationPanelViewModel notificationPanelViewModel,
@@ -192,7 +206,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         HellForgeViewModel? hellForgeViewModel = null,
         HellForgeSessionService? hellForgeSessionService = null,
         Hd2ClViewModel? hd2ClViewModel = null,
-        Hd2ClVariantPromptService? hd2ClVariantPrompt = null)
+        Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
+        MmdAdaptationViewModel? mmdAdaptationViewModel = null,
+        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null)
     {
         _pluginService = pluginService;
         Hd2ClViewModel = hd2ClViewModel;
@@ -237,6 +253,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _testDataService = testDataService;
         _profileService = profileService;
         _modService = modService;
+        _deploymentService = deploymentService;
         _settingsViewModel = settingsViewModel;
         _taskCenterViewModel = taskCenterViewModel;
         _externalToolsViewModel = externalToolsViewModel;
@@ -250,6 +267,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NotificationPanelViewModel = notificationPanelViewModel;
         _confirmationService = confirmationService;
         _hd2ClVariantPrompt = hd2ClVariantPrompt;
+        _mmdSourceInfoPrompt = mmdSourceInfoPrompt;
+        MmdAdaptationViewModel = mmdAdaptationViewModel;
         _imagePreview = imagePreviewService;
         _nexusModsTestService = nexusModsTestService;
         ManagerMigrationViewModel = managerMigrationViewModel;
@@ -262,7 +281,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
         {
-            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"工具"页的"关于"分类处理。
+            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"设置"页的"关于"分类处理。
             AppUpdateViewModel.UpdateAvailableDetected += () =>
             {
                 var version = AppUpdateViewModel.LatestVersion ?? string.Empty;
@@ -271,9 +290,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                     UiLocalization.Current["Updates.NotificationAction"],
                     () => Dispatcher.UIThread.Post(() =>
                     {
-                        // 先切换主页面再设置分类，仅改分类在非工具页时无可见效果。
-                        NavigateToToolsCommand.Execute(null);
-                        MoreViewModel.SelectedCategory = "关于";
+                        // 先切换主页面再设置分类，仅改分类在非设置页时无可见效果。
+                        NavigateToSettingsCommand.Execute(null);
+                        if (SettingsViewModel.SettingsCategories.Contains("关于"))
+                            SettingsViewModel.SelectedCategory = "关于";
                     }),
                     UiLocalization.Current["Updates.NotificationTitle"]);
             };
@@ -596,6 +616,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private void SubscribeToEvents()
     {
         _gameDetectionService.GameStatusChanged += OnGameStatusChanged;
+        _deploymentService.DeploymentsChanged += OnDeploymentsChanged;
         _notificationService.NotificationAdded += OnNotificationAdded;
         _taskService.TaskCompleted += OnTaskCompleted;
         _taskService.TaskStarted += OnTaskStarted;
@@ -617,6 +638,21 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             };
             if (e.NewStatus != Application.Services.GameStatus.Checking && Hd2IASManagementViewModel != null)
                 await Hd2IASManagementViewModel.CheckRuntimeRequirementAsync();
+            await RefreshDeploymentSummaryAsync();
+        });
+    }
+
+    private void OnDeploymentsChanged(object? sender, EventArgs e) => QueueUiRefresh(RefreshDeploymentSummaryAsync);
+
+    /// <summary>读取部署概览；游戏缺失或统计失败时保持 0，不影响主界面。</summary>
+    private async Task RefreshDeploymentSummaryAsync()
+    {
+        var summary = await _deploymentService.GetSummaryAsync();
+        ApplyOnUiThread(() =>
+        {
+            DeployedModCount = summary.DeployedModCount;
+            ManagedFileCount = summary.ManagedFileCount;
+            UnmanagedFileCount = summary.UnmanagedFileCount;
         });
     }
 
@@ -664,6 +700,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _taskService.TaskCompleted -= OnTaskCompleted;
         _taskService.TaskStarted -= OnTaskStarted;
         _gameDetectionService.GameStatusChanged -= OnGameStatusChanged;
+        _deploymentService.DeploymentsChanged -= OnDeploymentsChanged;
         _settingsViewModel.AppearanceChanged -= OnAppearanceChanged;
         _settingsViewModel.GameSourceChanged -= OnGameSourceChanged;
         if (_hellForgeSessionService != null)
@@ -680,6 +717,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             await audioPreview.StopAsync();
         }
         await WaitForRefreshesAsync();
+        await _libraryViewModel.StopGpuUsageAsync();
+        await _profileViewModel.StopGpuUsageAsync();
     }
 
     private static void ApplyOnUiThread(Action action)
@@ -787,6 +826,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         {
             if (e.AffectsConflictResults) _conflictsViewModel.InvalidateResults();
             if (!isLocalChange) await _profileViewModel.RefreshAfterProfilesChangedAsync(skipUnchangedProfile: true);
+            if (e.AffectsConflictResults)
+            {
+                _profileViewModel.MarkGpuUsageDirty();
+                _profileViewModel.RefreshGpuUsage();
+            }
             await _libraryViewModel.RefreshProfileStateAsync();
             SyncConflictProfile();
             UpdateCurrentProfile();
@@ -806,6 +850,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _externalToolsViewModel.InitializeAsync();
         await _pluginManagementViewModel.InitializeAsync();
         UpdateCurrentProfile();
+        await RefreshDeploymentSummaryAsync();
     }
 
     public async Task InitializeAsync()
@@ -839,6 +884,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
         // 更新当前配置
         UpdateCurrentProfile();
+        await RefreshDeploymentSummaryAsync();
 
         // 显示欢迎通知
         if (Hd2IASManagementViewModel != null)
@@ -914,6 +960,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         SelectedTabIndex = 0;
         CurrentView = _profileViewModel;
         StatusBarText = "配置文件";
+        // 回到首页时重新统计，手动放进 data 目录的补丁也能及时反映。
+        QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
@@ -1123,6 +1171,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _ownerWindow = owner;
         _confirmationService.SetOwner(owner);
         _hd2ClVariantPrompt?.SetOwner(owner);
+        _mmdSourceInfoPrompt?.SetOwner(owner);
         // 实时玻璃的取屏要求窗口已显示（排除自身截图的 API 需要可见窗口），显示后再应用一次。
         owner.Opened += (_, _) => ApplyTransparencyBrushes();
         // 取屏是异步启动的：第一帧到达才知道图层可以显示，不能只看 Apply 那一刻有没有帧。
@@ -1253,6 +1302,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             if (isHellForge) NavigateToHellForgeCommand.Execute(null);
             else if (SelectedTabIndex == HellForgeTabIndex) NavigateToSettings();
         });
+        QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     /// <summary>会话启动（无论从哪个页面发起）后跳到 HellForge 专页，让准备进度可见。</summary>
@@ -1269,6 +1319,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     /// <summary>应用外观设置：背景图片（后台线程解码）、透明度、模糊度与卡片透明度。</summary>
     public async Task ApplyAppearanceAsync()
     {
+        UiMotion.Apply(_settingsViewModel.EnableAnimations);
         AppFontService.Apply(_settingsViewModel.FontSource, _settingsViewModel.FontFamilyName, _settingsViewModel.FontFilePath);
         BackgroundImageOpacity = Math.Clamp(_settingsViewModel.BackgroundImageOpacity, 0, 100) / 100.0;
         BackgroundBlurRadius = Math.Clamp(_settingsViewModel.BackgroundBlur, 0, 40);

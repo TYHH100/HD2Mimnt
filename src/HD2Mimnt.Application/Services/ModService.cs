@@ -1,3 +1,4 @@
+using HD2Mimnt.Core.Hd2IAS;
 using HD2Mimnt.Core.IO;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
@@ -22,6 +23,7 @@ public partial class ModService
     private readonly DeploymentService? _deploymentService;
     private readonly string _storageDirectory;
     private readonly ModMetadataStore _metadata;
+    private readonly TagColorStore _tagColors;
     private readonly SettingsService? _settingsService;
     private readonly ProfileService? _profileService;
     private readonly SemaphoreSlim _hashGate = new(1, 1);
@@ -66,6 +68,7 @@ public partial class ModService
         _profileService = profileService;
         _storageDirectory = storageDirectory;
         _metadata = new ModMetadataStore(storageDirectory, logger);
+        _tagColors = new TagColorStore(storageDirectory, logger);
         _logger = logger;
         _deploymentService = deploymentService;
 
@@ -549,7 +552,7 @@ public partial class ModService
 
         // 从数据库删除
         await _modRepository.DeleteAsync(id, cancellationToken);
-        await _metadata.WriteAsync(id, null, CancellationToken.None);
+        await _metadata.DeleteAsync(id);
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
         RaiseModsChanged();
@@ -677,12 +680,12 @@ public partial class ModService
 
     private async Task SaveLinkedModAsync(Mod mod, CancellationToken token)
     {
-        var previous = await _metadata.ReadAsync(mod.Id, token);
-        await _metadata.WriteAsync(mod.Id, mod.PlatformLink, token);
+        var previous = await _metadata.ReadDocumentAsync(mod.Id, token);
+        await _metadata.WriteAsync(mod.Id, mod.PlatformLink, mod.UserTags, token);
         try { await _modRepository.UpdateAsync(mod, token); }
         catch
         {
-            await _metadata.WriteAsync(mod.Id, previous, CancellationToken.None);
+            await _metadata.WriteAsync(mod.Id, previous?.Source, previous?.UserTags ?? Array.Empty<string>(), CancellationToken.None);
             throw;
         }
     }
@@ -694,7 +697,8 @@ public partial class ModService
             m.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             m.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             m.Author.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-            m.Tags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase)));
+            m.Tags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+            m.UserTags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase)));
     }
 
     public async Task<IEnumerable<Mod>> GetModsByCategoryAsync(ModCategory category, CancellationToken cancellationToken = default)
@@ -710,7 +714,8 @@ public partial class ModService
     public async Task<IEnumerable<Mod>> GetModsByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
         var allMods = await _modRepository.GetAllAsync(cancellationToken);
-        return allMods.Where(m => m.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+        return allMods.Where(m => m.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)
+            || m.UserTags.Contains(tag, StringComparer.OrdinalIgnoreCase));
     }
 
     #endregion
@@ -801,6 +806,101 @@ public partial class ModService
     {
         var allMods = await _modRepository.GetAllAsync(cancellationToken);
         return allMods.SelectMany(m => m.Tags).Distinct().OrderBy(t => t);
+    }
+
+    /// <summary>用户自建标签写入库根档案（.hd2mimnt-metadata）并同步数据库镜像，不修改 manifest。</summary>
+    public async Task<Mod> AddUserTagAsync(Guid modId, string tag, CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeUserTag(tag);
+        if (normalized.Equals(Hd2ClProductTag.Value, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("HD2CL 是系统标签，不能用作自定义标签。");
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken)
+                ?? throw new InvalidOperationException($"Mod not found: {modId}");
+            if (mod.UserTags.Contains(normalized, StringComparer.OrdinalIgnoreCase)) return mod;
+            mod.UserTags.Add(normalized);
+            mod.ModifiedAt = DateTime.UtcNow;
+            await SaveUserTagsAsync(mod, cancellationToken);
+            RaiseModsChanged();
+            return mod;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    public async Task<Mod> RemoveUserTagAsync(Guid modId, string tag, CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var mod = await _modRepository.GetByIdAsync(modId, cancellationToken)
+                ?? throw new InvalidOperationException($"Mod not found: {modId}");
+            var existing = mod.UserTags.FirstOrDefault(item =>
+                item.Equals(tag.Trim().TrimStart('@'), StringComparison.OrdinalIgnoreCase));
+            if (existing == null) return mod;
+            mod.UserTags.Remove(existing);
+            mod.ModifiedAt = DateTime.UtcNow;
+            await SaveUserTagsAsync(mod, cancellationToken);
+            RaiseModsChanged();
+            return mod;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    public async Task<IEnumerable<string>> GetAllUserTagsAsync(CancellationToken cancellationToken = default)
+    {
+        var allMods = await _modRepository.GetAllAsync(cancellationToken);
+        return allMods.SelectMany(m => m.UserTags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>标签颜色按标签名全局共享，保存在库根档案 tag-colors.json。</summary>
+    public Task<IReadOnlyDictionary<string, string>> GetTagColorsAsync(CancellationToken cancellationToken = default)
+        => _tagColors.ReadAsync(cancellationToken);
+
+    public async Task SetTagColorAsync(string tag, string? color, CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeUserTag(tag);
+        var colors = (await _tagColors.ReadAsync(cancellationToken))
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(color)) colors.Remove(normalized);
+        else
+        {
+            if (!IsHexColor(color)) throw new ArgumentException("颜色格式无效。");
+            colors[normalized] = color;
+        }
+        await _tagColors.WriteAsync(colors, cancellationToken);
+        RaiseModsChanged();
+    }
+
+    private static bool IsHexColor(string value)
+    {
+        if (value.Length is not (7 or 9) || value[0] != '#') return false;
+        for (var index = 1; index < value.Length; index++)
+            if (!Uri.IsHexDigit(value[index])) return false;
+        return true;
+    }
+
+    private static string NormalizeUserTag(string tag)
+    {
+        var normalized = tag.Trim().TrimStart('@').Trim();
+        if (normalized.Length == 0) throw new ArgumentException("标签不能为空。");
+        return normalized;
+    }
+
+    private async Task SaveUserTagsAsync(Mod mod, CancellationToken token)
+    {
+        var previous = await _metadata.ReadDocumentAsync(mod.Id, token);
+        await _metadata.WriteAsync(mod.Id, mod.PlatformLink ?? previous?.Source, mod.UserTags, token);
+        try { await _modRepository.UpdateAsync(mod, token); }
+        catch
+        {
+            await _metadata.WriteAsync(mod.Id, previous?.Source, previous?.UserTags ?? Array.Empty<string>(), CancellationToken.None);
+            throw;
+        }
     }
 
     #endregion

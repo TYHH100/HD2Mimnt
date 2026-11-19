@@ -51,9 +51,47 @@ public partial class ProfileView : UserControl
         }, DispatcherPriority.Loaded);
     }
 
+    private void OnProfileModSearchKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not ProfileViewModel vm) return;
+        if (vm.IsTagSuggestionOpen)
+        {
+            if (e.Key == Key.Escape)
+            {
+                vm.CloseTagSuggestions();
+                e.Handled = true;
+                return;
+            }
+            if (e.Key is Key.Enter or Key.Tab && vm.TagSuggestions.Count > 0)
+            {
+                vm.ApplyTagSuggestion(vm.TagSuggestions[0]);
+                ProfileModSearchBox.Focus();
+                ProfileModSearchBox.CaretIndex = ProfileModSearchBox.Text?.Length ?? 0;
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void OnTagSuggestionClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ProfileViewModel vm || sender is not Button { Tag: string tag }) return;
+        vm.ApplyTagSuggestion(tag);
+        ProfileModSearchBox.Focus();
+        ProfileModSearchBox.CaretIndex = ProfileModSearchBox.Text?.Length ?? 0;
+        e.Handled = true;
+    }
+
+    private void OnProfileModSearchTextChanged(object? sender, TextChangedEventArgs e)
+        => Dispatcher.UIThread.Post(() => TagPopupPlacement.AlignToCaret(ProfileModSearchBox, ProfileSearchTagPopup), DispatcherPriority.Render);
+
+    private void OnProfileModSearchKeyUp(object? sender, KeyEventArgs e)
+        => Dispatcher.UIThread.Post(() => TagPopupPlacement.AlignToCaret(ProfileModSearchBox, ProfileSearchTagPopup), DispatcherPriority.Render);
+
     public ProfileView()
     {
         InitializeComponent();
+        ProfileSearchTagPopup.PlacementTarget = ProfileModSearchBox;
+        ProfileSearchTagPopup.Opened += (_, _) => TagPopupPlacement.AlignToCaret(ProfileModSearchBox, ProfileSearchTagPopup);
         // 在 ListBoxItem 默认选择逻辑之前拦截右键，避免菜单操作自动激活目标配置。
         ProfileList.AddHandler(PointerPressedEvent, ProfileList_PointerPressed, RoutingStrategies.Tunnel);
         // 右键事件在列表容器统一捕获，并包含已被子控件处理过的事件。
@@ -70,10 +108,7 @@ public partial class ProfileView : UserControl
         ModItemsControl.AddHandler(PointerReleasedEvent, ModList_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
         DetachedFromVisualTree += (_, _) =>
         {
-            ClearSortPreview();
-            ResetStickyGroupHeader();
-            (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
-            _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
+            LeavePage();
             SubscribeConflictNavigation(null);
         };
         AttachedToVisualTree += (_, _) => SubscribeConflictNavigation(DataContext as ProfileViewModel);
@@ -84,6 +119,21 @@ public partial class ProfileView : UserControl
             SubscribeConflictNavigation(DataContext as ProfileViewModel);
         };
         ModItemsControl.LayoutUpdated += (_, _) => UpdateStickyGroupHeader();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        // 页面常驻可视树，切走时只隐藏，需在此完成原先卸载时的收尾。
+        if (change.Property == IsVisibleProperty && !change.GetNewValue<bool>()) LeavePage();
+    }
+
+    private void LeavePage()
+    {
+        ClearSortPreview();
+        ResetStickyGroupHeader();
+        (DataContext as ProfileViewModel)?.CloseDetailPanelCommand.Execute(null);
+        _navigationViewModel?.CloseConflictPickerCommand.Execute(null);
     }
 
     /// <summary>右键配置文件行：经统一的 AppContextMenu 模块弹出操作菜单。</summary>

@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" x:Class="HD2Mimnt.UI.Views.Hd2ClMmdView" x:DataType="vm:MmdAdaptationViewModel">
+  <StackPanel Spacing="8">
+    <TextBlock Text="{loc:Loc UI.Hd2ClMmdTitle}" Classes="section-title" />
+    <TextBlock Text="{loc:Loc UI.Hd2ClMmdDescription}" Classes="muted" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc UI.Hd2ClExportHint}" Classes="muted" TextWrapping="Wrap" />
+
+    <TextBlock Text="{loc:Loc UI.Hd2ClMmdSourceLabel}" Classes="muted" Margin="0,6,0,0" />
+    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBox x:Name="MmdSourceBox" Text="{Binding SourcePath, Mode=TwoWay}" />
+      <Button Grid.Column="1" Content="{loc:Loc UI.Hd2ClMmdPickFile}" Click="OnPickFile" />
+      <Button Grid.Column="2" Content="{loc:Loc UI.Hd2ClMmdPickFolder}" Click="OnPickFolder" />
+    </Grid>
+
+    <Grid ColumnDefinitions="170,*,Auto" ColumnSpacing="8">
+      <TextBlock Text="{loc:Loc UI.Hd2ClMmdOptionLabel}" Classes="muted" VerticalAlignment="Center" />
+      <ComboBox x:Name="MmdOptionBox" Grid.Column="1" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption, Mode=TwoWay}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:MmdOptionItem"><TextBlock Text="{Binding Display}" /></DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Grid.Column="2" Content="{loc:Loc UI.Hd2ClMmdSourceInfo}" Command="{Binding EditSourceInfoCommand}" />
+    </Grid>
+
+    <Grid ColumnDefinitions="170,*" ColumnSpacing="8">
+      <TextBlock Text="{loc:Loc UI.Hd2ClMmdIdleLabel}" Classes="muted" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+        <RadioButton x:Name="MmdIdleLoopButton" GroupName="MmdIdleMode" IsChecked="{Binding IsIdleLoop, Mode=TwoWay}">
+          <TextBlock Text="{loc:Loc UI.Hd2ClMmdIdleLoop}" />
+        </RadioButton>
+        <RadioButton x:Name="MmdIdleOnceButton" GroupName="MmdIdleMode" IsChecked="{Binding IsIdleOnce, Mode=TwoWay}">
+          <TextBlock Text="{loc:Loc UI.Hd2ClMmdIdleOnce}" />
+        </RadioButton>
+      </StackPanel>
+    </Grid>
+    <TextBlock Text="{loc:Loc UI.Hd2ClMmdIdleHint}" Classes="muted" TextWrapping="Wrap" />
+
+    <TextBlock Text="{Binding NoteHint}" Classes="caption-text" TextWrapping="Wrap" Margin="0,4,0,0" />
+    <Border Classes="card" Padding="12,10">
+      <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+        <TextBlock x:Name="MmdNotesText" Text="{Binding Notes}" TextWrapping="Wrap" />
+      </ScrollViewer>
+    </Border>
+
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+      <TextBlock x:Name="MmdStatusText" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <Button x:Name="MmdCancelButton" Grid.Column="1" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}" />
+      <Button x:Name="MmdCheckButton" Grid.Column="2" Content="{loc:Loc UI.Hd2ClMmdCheck}" Classes="accent" Command="{Binding CheckCommand}" IsEnabled="{Binding !IsBusy}" />
+      <Button x:Name="MmdExportButton" Grid.Column="3" Content="{loc:Loc UI.Hd2ClExport}" Click="OnExport" IsEnabled="{Binding CanConvert}" />
+      <Button x:Name="MmdConvertButton" Grid.Column="4" Content="{loc:Loc UI.Hd2ClMmdConvert}" Classes="accent" Command="{Binding ConvertCommand}" IsEnabled="{Binding CanConvert}" />
+    </Grid>
+  </StackPanel>
+</UserControl>

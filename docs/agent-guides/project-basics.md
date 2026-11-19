@@ -36,7 +36,7 @@ dotnet build src/HD2Mimnt.UI/HD2Mimnt.UI.csproj --no-restore
 dotnet run --project src/HD2Mimnt.UI/HD2Mimnt.UI.csproj
 dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore --filter "FullyQualifiedName~ProfileServiceTests"
 dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build --no-restore --filter "FullyQualifiedName~目标用例"
-dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained
+dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained false
 ```
 
 - 单元测试在 `tests/HD2Mimnt.Tests/`，使用 xUnit v2 与 Moq；UI 测试在 `tests/HD2Mimnt.UITests/`，使用 Avalonia Headless 与 xUnit v3，分项目运行。

@@ -49,6 +49,10 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 - [发布流程](docs/RELEASE_PROCESS.md)
 - [协作规则](AGENTS.md)
 
+## AI 声明
+
+本项目在开发过程中使用了多种 AI 辅助工具（涵盖代码编写、重构与文档撰写）。鉴于同时涉及多个 AI 模型，无法逐一列明具体名称，故在此统一说明。所有 AI 参与的产出均经人工审查、构建与测试验证，代码质量与正确性由维护者负责。
+
 ## 许可证
 
 [MIT](LICENSE)

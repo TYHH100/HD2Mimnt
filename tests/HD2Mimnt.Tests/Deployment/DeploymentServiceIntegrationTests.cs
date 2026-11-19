@@ -1743,6 +1743,37 @@ public class DeploymentServiceIntegrationTests : IDisposable
         Assert.Contains(legacy.Id, deployed);
     }
 
+    [Fact]
+    public async Task GetSummary_ReturnsZerosWithoutGamePath()
+    {
+        var summary = await _deploymentService.GetSummaryAsync();
+
+        Assert.Equal(new DeploymentSummary(0, 0, 0), summary);
+    }
+
+    [Fact]
+    public async Task GetSummary_ReportsDeployedModsManagedFilesAndUnmanagedPatches()
+    {
+        var service = CreateSettingsBackedService((SettingKeys.GamePath, _testTargetDir));
+        var mod = await AddPatchModAsync("managed", "0123456789abcdef.patch_7");
+        var profile = await AddPatchProfileAsync(mod);
+        var result = await service.DeployProfileAsync(profile.Id, DeploymentMethod.Copy,
+            DeploymentOrder.TopToBottom, _testTargetDir);
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+
+        var data = Path.Combine(_testTargetDir, "data");
+        File.WriteAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5"), "unmanaged");
+        File.WriteAllText(Path.Combine(data, "aaaaaaaaaaaaaaaa.patch_5.stream"), "unmanaged-stream");
+        File.WriteAllText(Path.Combine(data, "9ba626afa44a3aa3.stream"), "base");
+        File.WriteAllText(Path.Combine(data, "notes.txt"), "keep");
+
+        var summary = await service.GetSummaryAsync();
+
+        Assert.Equal(1, summary.DeployedModCount);
+        Assert.Equal(1, summary.ManagedFileCount);
+        Assert.Equal(2, summary.UnmanagedFileCount);
+    }
+
     private readonly List<string> _extraCleanupPaths = new();
 
     /// <summary>构造带设置开关的部署服务；独立设置库避免与主 DbContext 抢占同一 SQLite 文件。</summary>

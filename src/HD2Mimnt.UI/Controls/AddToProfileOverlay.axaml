@@ -1,7 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:vm="using:HD2Mimnt.UI.ViewModels"
+             xmlns:motion="using:HD2Mimnt.UI.Services"
              x:Class="HD2Mimnt.UI.Controls.AddToProfileOverlay" x:DataType="vm:LibraryViewModel"
-             IsVisible="{Binding IsAddToProfileDialogOpen, FallbackValue=False}">
+             IsVisible="{Binding IsAddToProfileDialogOpen, FallbackValue=False}" motion:MotionEffects.Entrance="True">
     <!-- 加入配置文件弹窗：勾选目标配置文件，可多选批量加入 -->
     <Grid IsVisible="{Binding IsAddToProfileDialogOpen}" ZIndex="110">
         <Border Background="{DynamicResource OverlayScrimBrush}" PointerPressed="OnAddToProfileBackgroundPressed"/>

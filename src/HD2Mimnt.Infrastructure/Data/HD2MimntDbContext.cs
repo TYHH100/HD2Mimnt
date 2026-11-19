@@ -20,7 +20,7 @@ public class HD2MimntDbContext : IDisposable
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath, Mode = SqliteOpenMode.ReadWriteCreate,
-            Pooling = false, DefaultTimeout = 5
+            Pooling = true, DefaultTimeout = 5
         }.ToString();
     }
 
@@ -32,6 +32,9 @@ public class HD2MimntDbContext : IDisposable
         try
         {
             await connection.OpenAsync(cancellationToken);
+            using var timeout = connection.CreateCommand();
+            timeout.CommandText = "PRAGMA busy_timeout=5000;";
+            await timeout.ExecuteNonQueryAsync(cancellationToken);
             return connection;
         }
         catch { connection.Dispose(); throw; }
@@ -59,6 +62,24 @@ public class HD2MimntDbContext : IDisposable
         source.BackupDatabase(target);
     }
 
+    // 老库的 Mods 可能缺少 FTS 内容列，rebuild 会直接读这两列并报 no such column。
+    private static async Task EnsureLegacyModsColumnsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        using var exists = connection.CreateCommand();
+        exists.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'Mods'";
+        if (Convert.ToInt64(await exists.ExecuteScalarAsync(cancellationToken)) == 0) return;
+        foreach (var column in new[] { "Author", "Description" })
+        {
+            using var check = connection.CreateCommand();
+            check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = @Column";
+            check.Parameters.AddWithValue("@Column", column);
+            if (Convert.ToInt64(await check.ExecuteScalarAsync(cancellationToken)) != 0) continue;
+            using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE Mods ADD COLUMN {column} TEXT";
+            await alter.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
     private async Task InitializeSchemaAsync(CancellationToken cancellationToken)
     {
         using var connection = await OpenConnectionAsync(cancellationToken);
@@ -67,6 +88,7 @@ public class HD2MimntDbContext : IDisposable
             journal.CommandText = "PRAGMA journal_mode=WAL;";
             await journal.ExecuteNonQueryAsync(cancellationToken);
         }
+        await EnsureLegacyModsColumnsAsync(connection, cancellationToken);
 
         var sql = @"
             CREATE TABLE IF NOT EXISTS Mods (
@@ -78,6 +100,7 @@ public class HD2MimntDbContext : IDisposable
                 Path TEXT NOT NULL,
                 Category INTEGER NOT NULL DEFAULT 0,
                 Tags TEXT,
+                UserTags TEXT,
                 ResourceTypeIds TEXT,
                 BslRole INTEGER,
                 BslDetectionVersion INTEGER NOT NULL DEFAULT 0,
@@ -582,6 +605,7 @@ public class HD2MimntDbContext : IDisposable
             ("Mods", "Hash", "TEXT"),
             ("Mods", "ContentFingerprint", "TEXT"),
             ("Mods", "Notice", "INTEGER NOT NULL DEFAULT 0"),
+            ("Mods", "UserTags", "TEXT"),
             ("ProfileSeparators", "Color", "TEXT NOT NULL DEFAULT ''"),
             ("ProfileSeparators", "MemberCount", "INTEGER"),
             ("Profiles", "IsLuaGroupCollapsed", "INTEGER NOT NULL DEFAULT 0"),
@@ -716,6 +740,10 @@ public class HD2MimntDbContext : IDisposable
         }
     }
 
-    // 短连接由各操作释放，结束上下文不触碰其它上下文的池和 GC。
-    public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
+    // 连接池按连接串隔离，Dispose 只清理本库的池，避免临时库文件被池中连接占用。
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            SqliteConnection.ClearPool(new SqliteConnection(_connectionString));
+    }
 }

@@ -10,12 +10,31 @@ public static class SevenZipArchiveWriter
     public static async Task CreateAsync(string archivePath, string source, string? sourceList,
         string metadataDirectory, ModArchiveCompression compression, CancellationToken token, string? password = null, string format = "7z")
     {
-        var executable = Path.Combine(AppContext.BaseDirectory, "Tools", "7zip", "7za.exe");
-        if (!File.Exists(executable)) throw new FileNotFoundException("Creator.SevenZipMissing", executable);
+        var executable = ResolveExecutable();
         if (sourceList != null)
             await AddAsync(executable, archivePath, source, ["@" + sourceList], compression, token, password, format);
         // 新增两份清单形成独立的小块，无需重压源文件的固实块，也不复制源模组。
         await AddAsync(executable, archivePath, metadataDirectory, ["manifest.json", "hd2mimnt.json"], compression, token, password, format);
+    }
+
+    /// <summary>把目录内容原样打包：压缩包根层直接是目录内容，不额外套一层目录名。</summary>
+    public static async Task CreateFromDirectoryAsync(string archivePath, string directory,
+        ModArchiveCompression compression, CancellationToken token, string format = "7z")
+    {
+        token.ThrowIfCancellationRequested();
+        var inputs = Directory.GetFileSystemEntries(directory)
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .ToArray();
+        if (inputs.Length == 0) throw new InvalidDataException("目录为空，无法导出压缩包：" + directory);
+        await AddAsync(ResolveExecutable(), archivePath, directory, inputs!, compression, token, null, format);
+    }
+
+    private static string ResolveExecutable()
+    {
+        var executable = Path.Combine(AppContext.BaseDirectory, "Tools", "7zip", "7za.exe");
+        if (!File.Exists(executable)) throw new FileNotFoundException("Creator.SevenZipMissing", executable);
+        return executable;
     }
 
     private static async Task AddAsync(string executable, string archivePath, string workingDirectory,

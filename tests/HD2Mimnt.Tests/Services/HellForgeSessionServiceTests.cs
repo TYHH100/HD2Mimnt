@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HD2Mimnt.Application.Services;
 
 namespace HD2Mimnt.Tests.Services;
@@ -91,6 +92,44 @@ public sealed class HellForgeSessionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ModSyncEnded_WithoutSyncFile_ShouldReportRestartIssue()
+    {
+        var result = WriteResult(new { status = "observed", restart = "mod-sync" });
+        _fixture.SetPlayStream(PlayStream("run4", result));
+
+        await _service.StartAsync();
+        await WaitForAsync(() => _service.State.RestartIssue == HellForgeRestartIssue.MissingSyncFile);
+
+        Assert.Equal(HellForgeSessionPhase.Ended, _service.State.Phase);
+        Assert.False(_service.State.Restarting);
+        Assert.Contains("mod-sync", _service.State.RestartIssueDetail);
+    }
+
+    [Fact]
+    public async Task ModSyncEnded_ShouldRestartThroughSessionRunnerWithModSync()
+    {
+        var syncDir = Path.Combine(_fixture.Root, "temp", "mod-sync");
+        Directory.CreateDirectory(syncDir);
+        var syncFile = Path.Combine(syncDir, "session.json");
+        File.WriteAllText(syncFile, """{"format":1,"host":"h","hostName":"Host","connection":"c","digest":"d","mods":[]}""");
+        var result = WriteResult(new { status = "observed", restart = "mod-sync" });
+        _fixture.SetPlayStream(PlayStream("run5", result));
+
+        await _service.StartAsync();
+        // 重启后的会话由替身的 session-runner 写 result.json（observed），最终回到 Ended 且 RunId 为新 run。
+        await WaitForAsync(() => _service.State.RunId == "restart-1"
+            && _service.State.Phase == HellForgeSessionPhase.Ended
+            && !_service.State.Restarting);
+
+        var args = _fixture.ReadArgs();
+        Assert.Contains("play --dry-run yes", args);
+        Assert.Contains("session-runner", args);
+        Assert.Contains("--mod-sync", args);
+        Assert.Contains(syncFile, args);
+        Assert.Equal(HellForgeRestartIssue.None, _service.State.RestartIssue);
+    }
+
+    [Fact]
     public async Task RefreshAsync_ExternalRunningSession_ShouldShowRunningUntracked()
     {
         _fixture.OverwriteResponse("status", """
@@ -111,6 +150,31 @@ public sealed class HellForgeSessionServiceTests : IDisposable
             timeout.Token.ThrowIfCancellationRequested();
             await Task.Delay(25, timeout.Token);
         }
+    }
+
+    private async Task WaitForAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        while (!condition())
+        {
+            timeout.Token.ThrowIfCancellationRequested();
+            await Task.Delay(25, timeout.Token);
+        }
+    }
+
+    /// <summary>started/observing 后接 ended（result 指向预置的 result.json）。</summary>
+    private static string PlayStream(string runId, string resultPath)
+        => $$"""
+        {"event":"started","runId":"{{runId}}","run":"stub/{{runId}}","pid":1,"profile":"default","war":"live","arguments":""}
+        {"event":"status","status":"observing","failure":null}
+        {{JsonSerializer.Serialize(new { @event = "ended", status = "observed", result = resultPath, logs = resultPath })}}
+        """;
+
+    private string WriteResult(object value)
+    {
+        var path = Path.Combine(_root, $"result-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(value));
+        return path;
     }
 
     public void Dispose()
