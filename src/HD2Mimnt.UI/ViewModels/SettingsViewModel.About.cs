@@ -33,6 +33,8 @@ public partial class SettingsViewModel
             "https://github.com/teutinsa/Helldivers2ModManager"),
         new ThirdPartyLicense("hd2-repatcher (RaidingForPants)", "MIT", "https://github.com/RaidingForPants/hd2-repatcher"),
         new ThirdPartyLicense("HD2SDK-CommunityEdition", "未附上游许可证", "https://github.com/Boxofbiscuits97/HD2SDK-CommunityEdition"),
+        new ThirdPartyLicense("HD2SDK-AQ-Edition", "未附上游许可证", "https://github.com/Estecsky/HD2SDK-AQ-Edition"),
+        new ThirdPartyLicense("hd2-mod-crates (eigeen)", "MIT OR Apache-2.0（上游未附全文）", "https://github.com/eigeen/hd2-mod-crates"),
         new ThirdPartyLicense("潜潜音效修复软件", "未附上游许可证", "https://space.bilibili.com/157681854")
     };
 

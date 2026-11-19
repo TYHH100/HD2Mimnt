@@ -589,6 +589,10 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.False(vm.IsSaveBarVisible);
         Assert.Contains(vm.Licenses, item => item.Name.Contains("hd2-repatcher") && item.License == "MIT"
             && item.Url == "https://github.com/RaidingForPants/hd2-repatcher");
+        Assert.Contains(vm.Licenses, item => item.Name == "HD2SDK-AQ-Edition"
+            && item.Url == "https://github.com/Estecsky/HD2SDK-AQ-Edition");
+        Assert.Contains(vm.Licenses, item => item.Name.Contains("hd2-mod-crates")
+            && item.Url == "https://github.com/eigeen/hd2-mod-crates");
         vm.OpenLinkCommand.Execute("https://example.com/license");
         Assert.Equal("https://example.com/license", Assert.Single(launcher.Urls));
     }
