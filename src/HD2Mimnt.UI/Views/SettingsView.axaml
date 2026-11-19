@@ -436,11 +436,76 @@
             <fa:FASettingsExpanderItem.Footer><Grid ColumnDefinitions="180,48" ColumnSpacing="12"><Slider Minimum="20" Maximum="100" Value="{Binding CardOpacity}"/><TextBlock Grid.Column="1" Text="{Binding CardOpacity, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Classes="muted"/></Grid></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="AboutSettings" Header="{loc:Loc UI.AboutHDMimnt}" IconSource="Setting" IsExpanded="True" IsVisible="{Binding IsAboutCategoryVisible}">
+          <fa:FASettingsExpanderItem>
+            <StackPanel Spacing="10">
+              <TextBlock Text="{loc:LocalizedBinding AppVersion, FormatKey=UI.HelldiversModManagerVersionAlpha}" Classes="muted"/>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{loc:Loc UI.ProjectRepository}" VerticalAlignment="Center"/>
+                <Button x:Name="OpenRepositoryButton" Classes="link" Command="{Binding OpenLinkCommand}" CommandParameter="https://github.com/TYHH100/HD2Mimnt" ToolTip.Tip="{loc:Loc UI.OpenLinkInBrowser}">
+                  <TextBlock Text="https://github.com/TYHH100/HD2Mimnt" TextDecorations="Underline" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"/>
+                </Button>
+              </StackPanel>
+
+              <!-- 应用更新：手动检查始终可用，启动自动检查默认关闭 -->
+              <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding AppUpdate.HasUpdate, Converter={StaticResource InverseBoolConverter}}">
+                <Button Content="{loc:Loc Updates.CheckNow}" Classes="accent" Command="{Binding AppUpdate.CheckCommand}" IsEnabled="{Binding !AppUpdate.IsBusy}" />
+                <CheckBox Content="{loc:Loc Updates.AutoCheckOnStartup}" IsChecked="{Binding AppUpdate.AutoCheckOnStartup, Mode=TwoWay}" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <TextBlock IsVisible="{Binding AppUpdate.IsChecking}" Text="{loc:Loc Updates.Checking}" Classes="muted" />
+              <TextBlock IsVisible="{Binding AppUpdate.IsUpToDate}" Text="{loc:Loc Updates.UpToDate}" Classes="muted" />
+              <TextBlock IsVisible="{Binding AppUpdate.HasError}" Text="{loc:Loc Updates.CheckFailed}" Classes="muted" TextWrapping="Wrap" />
+              <TextBlock IsVisible="{Binding AppUpdate.HasError}" Text="{Binding AppUpdate.ErrorDetail}" Classes="muted" TextWrapping="Wrap" />
+
+              <StackPanel IsVisible="{Binding AppUpdate.HasUpdate}" Spacing="8">
+                <TextBlock Text="{loc:LocalizedBinding AppUpdate.LatestVersion, FormatKey=Updates.NewVersionAvailable}" Classes="muted" FontWeight="SemiBold" />
+                <TextBlock IsVisible="{Binding AppUpdate.Changelog, Converter={StaticResource NotNullConverter}}" Text="{Binding AppUpdate.Changelog}" Classes="muted" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="{loc:Loc Updates.DownloadAndInstall}" Classes="accent" Command="{Binding AppUpdate.DownloadAndInstallCommand}" IsEnabled="{Binding !AppUpdate.IsBusy}" />
+                  <Button Content="{loc:Loc Updates.OpenReleasePage}" Command="{Binding AppUpdate.OpenReleasePageCommand}" />
+                  <Button Content="{loc:Loc Common.Cancel}" Command="{Binding AppUpdate.CancelCommand}" IsVisible="{Binding AppUpdate.IsDownloading}" />
+                </StackPanel>
+                <ProgressBar IsVisible="{Binding AppUpdate.IsDownloading}" Value="{Binding AppUpdate.DownloadPercentage}" Maximum="100" Minimum="0" />
+                <TextBlock IsVisible="{Binding AppUpdate.IsDownloading}" Text="{loc:Loc Updates.Downloading}" Classes="muted" />
+                <TextBlock IsVisible="{Binding AppUpdate.HasDirectAsset, Converter={StaticResource InverseBoolConverter}}" Text="{loc:Loc Updates.ManualDownloadHint}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
+        <fa:FASettingsExpander x:Name="LicenseSettings" Header="{loc:Loc UI.ThirdPartyLicenses}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsAboutCategoryVisible}" Description="{loc:Loc UI.ThirdPartyLicensesHelp}">
+          <fa:FASettingsExpanderItem>
+            <ItemsControl x:Name="ThirdPartyLicenseList" ItemsSource="{Binding Licenses}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ThirdPartyLicense">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,6">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                      <TextBlock Text="{loc:LocalizedBinding License}" Classes="caption-text" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                      <Button Classes="link" HorizontalAlignment="Right"
+                              Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).OpenLinkCommand}"
+                              CommandParameter="{Binding Url}" ToolTip.Tip="{loc:Loc UI.OpenLinkInBrowser}">
+                        <TextBlock Text="{Binding Url}" TextDecorations="Underline" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"/>
+                      </Button>
+                      <Button Classes="link" HorizontalAlignment="Right"
+                              IsVisible="{Binding UpstreamUrl, Converter={StaticResource NotNullConverter}}"
+                              Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).OpenLinkCommand}"
+                              CommandParameter="{Binding UpstreamUrl}" ToolTip.Tip="{loc:Loc UI.OpenLinkInBrowser}">
+                        <TextBlock Text="{Binding UpstreamUrl}" TextDecorations="Underline" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"/>
+                      </Button>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </fa:FASettingsExpanderItem>
+        </fa:FASettingsExpander>
         </StackPanel>
       </ScrollViewer>
       <StackPanel Grid.Row="2" Spacing="8" Margin="0,20,0,0">
         <TextBlock Text="{loc:LocalizedBinding StatusMessage}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding StatusMessage, Converter={StaticResource NotNullConverter}}"/>
-        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsAccountCategoryVisible}">
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSaveBarVisible}">
           <Button x:Name="SaveSettingsButton" Content="{loc:Loc UI.SaveSettings}" Classes="accent" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsLoading}"/>
           <Button Content="{loc:Loc UI.RestoreDefaults}" Command="{Binding ResetCommand}" IsEnabled="{Binding !IsLoading}"/>
         </StackPanel>

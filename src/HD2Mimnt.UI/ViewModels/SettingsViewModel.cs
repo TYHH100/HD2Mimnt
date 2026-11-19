@@ -20,6 +20,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly StorageSettingsService? _storageSettings;
     private readonly UiLocalization? _localization;
     private readonly IConfirmationService? _confirmationService;
+    private readonly IBrowserLauncher _browserLauncher;
     private bool _syncingLanguage;
     private readonly SemaphoreSlim _languageGate = new(1, 1);
     private int _pendingLanguageChanges;
@@ -190,9 +191,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         DownloadSettingsService? downloadSettings = null, UiLocalization? localization = null, StorageSettingsService? storageSettings = null,
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
         IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null,
-        AiTranslationSettingsViewModel? aiTranslation = null)
+        AiTranslationSettingsViewModel? aiTranslation = null, AppUpdateViewModel? appUpdate = null,
+        IBrowserLauncher? browserLauncher = null)
     {
         AiTranslation = aiTranslation;
+        AppUpdate = appUpdate;
+        _browserLauncher = browserLauncher ?? new SystemBrowserLauncher();
         _settingsService = settingsService;
         _gameDetectionService = gameDetectionService;
         _notificationService = notificationService;
@@ -324,6 +328,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsAccountCategoryVisible));
         OnPropertyChanged(nameof(IsAiCategoryVisible));
         OnPropertyChanged(nameof(IsEntriesCategoryVisible));
+        OnPropertyChanged(nameof(IsAboutCategoryVisible));
+        OnPropertyChanged(nameof(IsSaveBarVisible));
     }
 
     partial void OnThemeChanged(string value) => ThemeChanged?.Invoke(this, value);
@@ -419,6 +425,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
             if (category == "账号") return;
+            if (category == "关于") return;
             if (category == "AI 服务")
             {
                 if (AiTranslation == null)
@@ -637,6 +644,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var category = SelectedCategory;
         if (category == "账号") return;
+        if (category == "关于") return;
         if (category == "AI 服务")
         {
             if (AiTranslation != null)

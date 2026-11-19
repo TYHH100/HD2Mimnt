@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -639,8 +639,20 @@
   <data name="UI.HelldiversModManagerVersionAlpha" xml:space="preserve">
     <value>Helldivers 2 mod manager · Version {0}</value>
   </data>
-  <data name="UI.ProjectHttpsGithubComTYHHHDMimnt" xml:space="preserve">
-    <value>Project: https://github.com/TYHH100/HD2Mimnt</value>
+  <data name="UI.ProjectRepository" xml:space="preserve">
+    <value>Project repository</value>
+  </data>
+  <data name="UI.ThirdPartyLicenses" xml:space="preserve">
+    <value>Third-party licenses</value>
+  </data>
+  <data name="UI.ThirdPartyLicensesHelp" xml:space="preserve">
+    <value>Open-source components and external tools used by HD2Mimnt, with their licenses and project links.</value>
+  </data>
+  <data name="UI.OpenLinkInBrowser" xml:space="preserve">
+    <value>Open link in browser</value>
+  </data>
+  <data name="UI.NoUpstreamLicense" xml:space="preserve">
+    <value>No upstream license attached</value>
   </data>
   <data name="Updates.CheckNow" xml:space="preserve">
     <value>Check for app updates</value>

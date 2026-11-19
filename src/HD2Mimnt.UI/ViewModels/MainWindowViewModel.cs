@@ -268,7 +268,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
         {
-            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"工具"页的"关于"分类处理。
+            // 检测到新版本（手动或启动检查）：弹通知，点击跳到"设置"页的"关于"分类处理。
             AppUpdateViewModel.UpdateAvailableDetected += () =>
             {
                 var version = AppUpdateViewModel.LatestVersion ?? string.Empty;
@@ -277,9 +277,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                     UiLocalization.Current["Updates.NotificationAction"],
                     () => Dispatcher.UIThread.Post(() =>
                     {
-                        // 先切换主页面再设置分类，仅改分类在非工具页时无可见效果。
-                        NavigateToToolsCommand.Execute(null);
-                        MoreViewModel.SelectedCategory = "关于";
+                        // 先切换主页面再设置分类，仅改分类在非设置页时无可见效果。
+                        NavigateToSettingsCommand.Execute(null);
+                        if (SettingsViewModel.SettingsCategories.Contains("关于"))
+                            SettingsViewModel.SelectedCategory = "关于";
                     }),
                     UiLocalization.Current["Updates.NotificationTitle"]);
             };

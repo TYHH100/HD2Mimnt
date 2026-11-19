@@ -62,10 +62,10 @@ public sealed partial class FluentAvaloniaUiTests
             Layout(); main.NotificationPanelViewModel.DismissAllToasts(); Layout();
             var more = window.GetVisualDescendants().OfType<MoreView>().Single();
             var categories = more.GetVisualDescendants().OfType<ListBox>().Single(box => ReferenceEquals(box.ItemsSource, main.MoreViewModel.Categories));
-            Assert.Equal("HD2IAS 管理", main.MoreViewModel.Categories[^3]);
+            Assert.Equal("HD2IAS 管理", main.MoreViewModel.Categories[^2]);
             Click((Control)categories.ContainerFromIndex(Array.IndexOf(main.MoreViewModel.Categories, "HD2IAS 管理"))!);
             await vm.RefreshInstallationCommand.ExecutionTask!; Layout();
-            Assert.True(main.MoreViewModel.IsHd2IASVisible); Assert.False(main.MoreViewModel.IsAboutVisible);
+            Assert.True(main.MoreViewModel.IsHd2IASVisible); Assert.False(main.MoreViewModel.IsIasSystemVisible);
             var view = window.GetVisualDescendants().OfType<Hd2IASManagementView>().Single();
             // 页内区块默认全部折叠，测试先展开全部 Expander 再进行点击交互。
             foreach (var expander in view.GetVisualDescendants().OfType<Expander>().ToList()) expander.IsExpanded = true; Layout();

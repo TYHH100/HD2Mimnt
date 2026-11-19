@@ -671,7 +671,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<StorageSettingsService>(),
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
             sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>(),
-            sp.GetRequiredService<AiTranslationSettingsViewModel>()));
+            sp.GetRequiredService<AiTranslationSettingsViewModel>(),
+            sp.GetRequiredService<AppUpdateViewModel>(), sp.GetRequiredService<IBrowserLauncher>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>(),
             sp.GetRequiredService<IConfirmationService>()));
