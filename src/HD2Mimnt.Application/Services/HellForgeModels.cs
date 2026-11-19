@@ -186,6 +186,26 @@ public sealed record HellForgeCrashReportResult
     public string? IssuePage { get; init; }
 }
 
+/// <summary>CLI play --dry-run 的输出：会话运行器路径与完整参数（不启动任何程序）。</summary>
+public sealed record HellForgePlayDryRun
+{
+    public string? SessionRunner { get; init; }
+    public List<string> Arguments { get; init; } = new();
+    public bool CrashDump { get; init; }
+}
+
+/// <summary>MOD SYNC 后自动重启失败的原因；None 表示没有失败。</summary>
+public enum HellForgeRestartIssue
+{
+    None,
+    UnsupportedPlatform,
+    MissingSyncFile,
+    DryRunFailed,
+    StartFailed,
+    NewRunTimeout,
+    TooManyRestarts
+}
+
 /// <summary>会话阶段，映射 CLI play --wait 的 status 事件（docs/external-launchers.md）。</summary>
 public enum HellForgeSessionPhase
 {
@@ -211,6 +231,11 @@ public sealed record HellForgeSessionProgress
     public string? Notice { get; init; }
     /// <summary>是否由本管理器启动并正在观察事件流。</summary>
     public bool Tracked { get; init; }
+    /// <summary>MOD SYNC 要求重启：正在按房主模组重启，或等待重启开始。</summary>
+    public bool Restarting { get; init; }
+    /// <summary>自动重启失败原因；None 表示没有。</summary>
+    public HellForgeRestartIssue RestartIssue { get; init; }
+    public string? RestartIssueDetail { get; init; }
 
     public bool IsActive => Phase is HellForgeSessionPhase.Preparing or HellForgeSessionPhase.AwaitingNetworkBlock
         or HellForgeSessionPhase.AwaitingSteamBroker or HellForgeSessionPhase.Patching or HellForgeSessionPhase.Running;

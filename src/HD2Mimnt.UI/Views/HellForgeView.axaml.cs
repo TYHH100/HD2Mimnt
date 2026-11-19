@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.ViewModels;
@@ -75,6 +76,21 @@ public partial class HellForgeView : UserControl
             });
             var folder = folders.FirstOrDefault()?.Path.LocalPath;
             if (!string.IsNullOrWhiteSpace(folder)) await viewModel.AddModFromFolderAsync(folder);
+        }
+        catch (Exception error)
+        {
+            viewModel.ReportUiError(error.Message);
+        }
+    }
+
+    private async void OnCopyModlistCodeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not HellForgeViewModel viewModel || string.IsNullOrEmpty(viewModel.ModlistCode)) return;
+        try
+        {
+            if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
+            await clipboard.SetTextAsync(viewModel.ModlistCode);
+            viewModel.ReportModlistCopied();
         }
         catch (Exception error)
         {

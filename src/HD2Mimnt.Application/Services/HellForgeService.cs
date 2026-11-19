@@ -56,6 +56,10 @@ public class HellForgeService
     public Task StopSessionAsync(CancellationToken cancellationToken = default)
         => RunJsonAsync<JsonElement>(["stop", "--wait", "yes"], cancellationToken, TimeSpan.FromSeconds(90));
 
+    /// <summary>play --dry-run 的会话运行器命令行（不启动程序）；MOD SYNC 自动重启时补 --mod-sync 用。</summary>
+    public Task<HellForgePlayDryRun> GetPlayDryRunAsync(CancellationToken cancellationToken = default)
+        => RunJsonAsync<HellForgePlayDryRun>(["play", "--dry-run", "yes"], cancellationToken);
+
     /// <summary>Mods 页列表（顶部在前）+ 问题 + modlist code。会话运行中也可读取。</summary>
     public Task<HellForgeModsList> GetModsAsync(CancellationToken cancellationToken = default)
         => RunJsonAsync<HellForgeModsList>(["mods"], cancellationToken);

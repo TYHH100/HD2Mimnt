@@ -72,7 +72,10 @@ public sealed partial class FluentAvaloniaUiTests
             var alpha = hf.HellForgeMods.Single(mod => mod.Id == "custom.alpha");
             alpha.Enabled = false;
             await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            // 共享游戏性模组变化后会在后台重读 mods（联机模组码随之更新），列表行会被重建。
+            await hf.ModsRefresh.WaitAsync(TimeSpan.FromSeconds(30));
             Layout();
+            alpha = hf.HellForgeMods.Single(mod => mod.Id == "custom.alpha");
             Assert.False(alpha.Enabled);
             Assert.Contains("mod-switch --id custom.alpha --on no", fixture.ReadArgs());
 
@@ -83,10 +86,35 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(alphaIndex + 1, hf.HellForgeMods.IndexOf(alpha));
             Assert.Contains("mod-order --ids", fixture.ReadArgs());
 
+            // 联机模组码在分区最上方：可见、可复制，并能与好友的码比对。
+            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            var compareInput = view.FindControl<TextBox>("ModlistCompareInput")!;
+            var modList = view.FindControl<ItemsControl>("HellForgeModList")!;
+            Layout();
+            Assert.True(compareInput.IsEffectivelyVisible);
+            Assert.True(view.FindControl<Button>("CopyModlistCodeButton")!.IsEffectivelyVisible);
+            Assert.False(string.IsNullOrEmpty(hf.ModlistCode));
+            Assert.True(compareInput.TranslatePoint(new Point(0, 0), window)!.Value.Y
+                < modList.TranslatePoint(new Point(0, 0), window)!.Value.Y, "联机模组码输入应在模组列表上方");
+
+            hf.ModlistCompareInput = hf.ModlistCode.ToUpperInvariant();
+            hf.CompareModlistCommand.Execute(null);
+            Assert.True(hf.IsModlistCompareMatch);
+            Assert.False(hf.IsModlistCompareProblem);
+
+            hf.ModlistCompareInput = "00000000";
+            hf.CompareModlistCommand.Execute(null);
+            Assert.True(hf.IsModlistCompareProblem);
+            Assert.False(hf.IsModlistCompareMatch);
+
+            hf.ModlistCompareInput = "nothex";
+            hf.CompareModlistCommand.Execute(null);
+            Assert.True(hf.IsModlistCompareProblem);
+            Assert.Contains("8", hf.ModlistCompareResultText);
+
             // “添加模组…”按钮必须真正触发视图事件（回归：事件曾在 Attached 时机漏订阅）。
             var addRequested = false;
             hf.AddModRequested += (_, _) => addRequested = true;
-            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
             Click(view.FindControl<Button>("AddHellForgeModButton")!);
             Assert.True(addRequested);
 

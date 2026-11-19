@@ -44,6 +44,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     public Task Completion { get; private set; } = Task.CompletedTask;
 
+    /// <summary>共享游戏性模组变化后后台重读 mods 的任务；测试与页面关闭可等待它。</summary>
+    public Task ModsRefresh { get; private set; } = Task.CompletedTask;
+
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _isStartingSession;
     [ObservableProperty] private bool _isCreateDialogOpen;
@@ -87,6 +90,20 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     private bool _modsLoaded;
     private HellForgeModsList? _modsList;
+    private ModlistCompareOutcome _modlistCompareOutcome;
+    private int _modsRefreshVersion;
+
+    [ObservableProperty] private string _modlistCompareInput = string.Empty;
+
+    /// <summary>好友模组码比对的结果；只影响提示文字与可见性。</summary>
+    private enum ModlistCompareOutcome
+    {
+        None,
+        Match,
+        Mismatch,
+        Invalid,
+        NoLocal
+    }
 
     public HellForgeViewModel(HellForgeService service, HellForgeSessionService session,
         HellForgeModSyncService syncService, ProfileService profiles,
@@ -159,10 +176,24 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         : string.Empty;
     /// <summary>联机模组码：好友比对用；没有启用的游戏性模组时 CLI 给 null。</summary>
     public bool HasModlistCode => !string.IsNullOrEmpty(_modsList?.Modlist);
+    public string ModlistCode => _modsList?.Modlist ?? string.Empty;
     public string ModlistText => HasModlistCode
         ? _localization.Format("HellForge.Mods.Modlist", _modsList!.Modlist!,
             HellForgeMods.Count(mod => mod.Enabled && mod.Group == "gameplay"))
-        : string.Empty;
+        : _localization["HellForge.Mods.ModlistEmpty"];
+
+    public bool HasModlistCompareResult => _modlistCompareOutcome != ModlistCompareOutcome.None;
+    public bool IsModlistCompareMatch => _modlistCompareOutcome == ModlistCompareOutcome.Match;
+    public bool IsModlistCompareProblem => _modlistCompareOutcome is ModlistCompareOutcome.Mismatch
+        or ModlistCompareOutcome.Invalid or ModlistCompareOutcome.NoLocal;
+    public string ModlistCompareResultText => _modlistCompareOutcome switch
+    {
+        ModlistCompareOutcome.Match => _localization["HellForge.Mods.CompareMatch"],
+        ModlistCompareOutcome.Mismatch => _localization["HellForge.Mods.CompareMismatch"],
+        ModlistCompareOutcome.Invalid => _localization["HellForge.Mods.CompareInvalid"],
+        ModlistCompareOutcome.NoLocal => _localization["HellForge.Mods.CompareNoLocal"],
+        _ => string.Empty
+    };
     /// <summary>HF 安装根的 mods 目录（打开资源管理器用）；未配置时为空。</summary>
     public string ModsDirectory => _service.TryGetInstallationRoot(out var root)
         ? Path.Combine(root, "mods")
@@ -185,10 +216,27 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     public bool IsSessionActive => _session.State.IsActive;
     public bool HasSessionProblems => _session.State.Problems.Count > 0;
-    public bool HasSessionNotice => !string.IsNullOrEmpty(_session.State.Notice);
+    public bool HasSessionNotice => _session.State.Restarting || !string.IsNullOrEmpty(_session.State.Notice);
     public string SessionProblemsText => _localization["HellForge.ProblemsTitle"] + "\n" +
         string.Join("\n", _session.State.Problems);
-    public string SessionNoticeText => _session.State.Notice ?? string.Empty;
+    public string SessionNoticeText => _session.State.Restarting
+        ? _localization["HellForge.Session.Restarting"]
+        : _session.State.Notice ?? string.Empty;
+    public bool HasRestartIssue => _session.State.RestartIssue != HellForgeRestartIssue.None;
+    public string RestartIssueText => _session.State.RestartIssue switch
+    {
+        HellForgeRestartIssue.None => string.Empty,
+        HellForgeRestartIssue.UnsupportedPlatform => _localization["HellForge.Restart.UnsupportedPlatform"],
+        HellForgeRestartIssue.MissingSyncFile => _localization.Format("HellForge.Restart.MissingSyncFile",
+            _session.State.RestartIssueDetail ?? string.Empty),
+        HellForgeRestartIssue.DryRunFailed => _localization.Format("HellForge.Restart.DryRunFailed",
+            _session.State.RestartIssueDetail ?? string.Empty),
+        HellForgeRestartIssue.StartFailed => _localization.Format("HellForge.Restart.StartFailed",
+            _session.State.RestartIssueDetail ?? string.Empty),
+        HellForgeRestartIssue.NewRunTimeout => _localization["HellForge.Restart.NewRunTimeout"],
+        HellForgeRestartIssue.TooManyRestarts => _localization["HellForge.Restart.TooManyRestarts"],
+        _ => string.Empty
+    };
 
     public string SessionStatusText
     {
@@ -275,6 +323,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(ModlistText));
         });
         if (_error != null) RevertModEnabled(item);
+        else if (item.Group == "gameplay") ModsRefresh = RefreshModlistCodeAsync();
     }
 
     private void RevertModEnabled(HellForgeModItem item)
@@ -296,6 +345,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         HellForgeMods.Remove(item);
         UpdateModMoveFlags();
         OnPropertyChanged(nameof(HasMods));
+        if (item.Group == "gameplay") ModsRefresh = RefreshModlistCodeAsync();
         _notificationService.ShowSuccess(
             _localization.Format("HellForge.Mods.Removed", item.Name), "HellForge");
     });
@@ -352,8 +402,24 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     private async Task LoadModsCoreAsync(CancellationToken token)
     {
+        _modsRefreshVersion++; // 手动刷新优先，丢弃之前启动的后台重读结果
         ApplyMods(await _service.GetModsAsync(token));
         _modsLoaded = true;
+    }
+
+    /// <summary>共享游戏性模组开关/移除后联机模组码会变；后台重读 mods（较慢），只保留最新一次结果。</summary>
+    private async Task RefreshModlistCodeAsync()
+    {
+        var version = ++_modsRefreshVersion;
+        try
+        {
+            var list = await _service.GetModsAsync();
+            if (version == _modsRefreshVersion) ApplyMods(list);
+        }
+        catch (Exception)
+        {
+            // 读取失败时保留旧码；下次刷新列表会更新。
+        }
     }
 
     partial void OnSelectedCategoryChanged(HellForgeCategoryItem? value)
@@ -397,7 +463,8 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         }
     }
 
-    private bool CanStartSession() => !IsBusy && !IsStartingSession && !IsSessionActive && IsInstallationConfigured;
+    private bool CanStartSession() => !IsBusy && !IsStartingSession && !IsSessionActive
+        && !_session.State.Restarting && IsInstallationConfigured;
 
     [RelayCommand(CanExecute = nameof(CanStopSession))]
     private Task StopSessionAsync() => OperateAsync("HellForge.Stopping", token => _session.StopAsync(token));
@@ -634,10 +701,48 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasModProblems));
         OnPropertyChanged(nameof(ModProblemsText));
         OnPropertyChanged(nameof(HasModlistCode));
+        OnPropertyChanged(nameof(ModlistCode));
         OnPropertyChanged(nameof(ModlistText));
         OnPropertyChanged(nameof(ModsDirectory));
+        // 模组变化后旧比对结果不再可信：保留输入，清掉结果。
+        _modlistCompareOutcome = ModlistCompareOutcome.None;
+        NotifyModlistCompareChanged();
         RemoveModCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>比对好友的联机模组码：一致/不一致/输入无效/本机没有可比对的码。</summary>
+    [RelayCommand]
+    private void CompareModlist()
+    {
+        var code = ModlistCompareInput.Trim();
+        _modlistCompareOutcome = code.Length != 8 || !code.All(Uri.IsHexDigit)
+            ? ModlistCompareOutcome.Invalid
+            : !HasModlistCode
+                ? ModlistCompareOutcome.NoLocal
+                : string.Equals(code, ModlistCode, StringComparison.OrdinalIgnoreCase)
+                    ? ModlistCompareOutcome.Match
+                    : ModlistCompareOutcome.Mismatch;
+        NotifyModlistCompareChanged();
+    }
+
+    partial void OnModlistCompareInputChanged(string value)
+    {
+        if (_modlistCompareOutcome == ModlistCompareOutcome.None) return;
+        _modlistCompareOutcome = ModlistCompareOutcome.None;
+        NotifyModlistCompareChanged();
+    }
+
+    private void NotifyModlistCompareChanged()
+    {
+        OnPropertyChanged(nameof(HasModlistCompareResult));
+        OnPropertyChanged(nameof(IsModlistCompareMatch));
+        OnPropertyChanged(nameof(IsModlistCompareProblem));
+        OnPropertyChanged(nameof(ModlistCompareResultText));
+    }
+
+    /// <summary>视图把联机模组码写进剪贴板后的反馈。</summary>
+    public void ReportModlistCopied() =>
+        _notificationService.ShowSuccess(_localization["HellForge.Mods.Copied"], "HellForge");
 
     /// <summary>扁平列表 + 分组标题，整体重建（标题里带该组数量）。</summary>
     private void RebuildModRows()
@@ -869,11 +974,13 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             _sessionEndedNotified = false;
             _lastActiveStep = StepOfPhase(state.Phase);
         }
-        else if (!_sessionEndedNotified && state.Phase is HellForgeSessionPhase.Ended or HellForgeSessionPhase.Failed)
+        else if (!_sessionEndedNotified && !state.Restarting && state.Phase is HellForgeSessionPhase.Ended or HellForgeSessionPhase.Failed)
         {
             _sessionEndedNotified = true;
             IsStartingSession = false;
-            if (state.Phase == HellForgeSessionPhase.Ended)
+            if (state.Phase == HellForgeSessionPhase.Ended && state.RestartIssue != HellForgeRestartIssue.None)
+                _notificationService.ShowError(RestartIssueText, "HellForge");
+            else if (state.Phase == HellForgeSessionPhase.Ended)
                 _notificationService.ShowSuccess(_localization["HellForge.Phase.Ended"], "HellForge");
             else
                 _notificationService.ShowError(
@@ -899,6 +1006,8 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SessionProblemsText));
         OnPropertyChanged(nameof(HasSessionNotice));
         OnPropertyChanged(nameof(SessionNoticeText));
+        OnPropertyChanged(nameof(HasRestartIssue));
+        OnPropertyChanged(nameof(RestartIssueText));
         StartSessionCommand.NotifyCanExecuteChanged();
         StopSessionCommand.NotifyCanExecuteChanged();
         RequestAddModCommand.NotifyCanExecuteChanged();
@@ -968,7 +1077,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             nameof(HasSync), nameof(SyncedModCount), nameof(SyncStatusText), nameof(SyncSourceText),
             nameof(HasSettings), nameof(IsSettingsDirty), nameof(HasLogs),
             nameof(HasMods), nameof(HasModProblems), nameof(ModProblemsText),
-            nameof(HasModlistCode), nameof(ModlistText), nameof(ModsDirectory) })
+            nameof(HasModlistCode), nameof(ModlistCode), nameof(ModlistText), nameof(ModsDirectory),
+            nameof(HasModlistCompareResult), nameof(IsModlistCompareMatch), nameof(IsModlistCompareProblem),
+            nameof(ModlistCompareResultText), nameof(HasRestartIssue), nameof(RestartIssueText) })
             OnPropertyChanged(property);
         SaveSettingsCommand.NotifyCanExecuteChanged();
         RequestExportLogsCommand.NotifyCanExecuteChanged();

@@ -174,6 +174,9 @@
                 <TextBlock x:Name="SessionStatusText" Text="{Binding SessionStatusText}" Classes="muted" TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding SessionProblemsText}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding HasSessionProblems}"/>
+                <TextBlock x:Name="SessionRestartIssueText" Text="{Binding RestartIssueText}"
+                           Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasRestartIssue}"/>
                 <TextBlock Text="{Binding SessionNoticeText}" Classes="caption-text" TextWrapping="Wrap"
                            IsVisible="{Binding HasSessionNotice}"/>
               </StackPanel>
@@ -230,6 +233,29 @@
                             Command="{Binding RequestAddModCommand}"/>
                   </StackPanel>
                 </Grid>
+                <!-- 联机模组码：放在分区最上方，复制/比对都不用滚到底部。 -->
+                <Border Classes="card" Padding="12">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <SelectableTextBlock x:Name="HellForgeModlistCode" Text="{Binding ModlistText}" Classes="caption-text"
+                                           TextWrapping="Wrap" VerticalAlignment="Center"/>
+                      <Button Grid.Column="1" x:Name="CopyModlistCodeButton" Content="{loc:Loc HellForge.Mods.Copy}"
+                              IsEnabled="{Binding HasModlistCode}" Click="OnCopyModlistCodeClick"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBox x:Name="ModlistCompareInput" MaxLength="8"
+                               Text="{Binding ModlistCompareInput, UpdateSourceTrigger=PropertyChanged}"
+                               Watermark="{loc:Loc HellForge.Mods.CompareWatermark}"/>
+                      <Button Grid.Column="1" x:Name="CompareModlistCodeButton" Content="{loc:Loc HellForge.Mods.Compare}"
+                              Command="{Binding CompareModlistCommand}"/>
+                    </Grid>
+                    <TextBlock x:Name="ModlistCompareMatchText" Text="{Binding ModlistCompareResultText}"
+                               TextWrapping="Wrap" Classes="caption-text" IsVisible="{Binding IsModlistCompareMatch}"/>
+                    <TextBlock x:Name="ModlistCompareProblemText" Text="{Binding ModlistCompareResultText}"
+                               Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
+                               IsVisible="{Binding IsModlistCompareProblem}"/>
+                  </StackPanel>
+                </Border>
                 <TextBlock Text="{loc:Loc HellForge.Mods.Hint}" Classes="muted" TextWrapping="Wrap"/>
                 <TextBlock Text="{loc:Loc HellForge.Mods.OrderHint}" Classes="caption-text" TextWrapping="Wrap"/>
                 <TextBlock x:Name="NoHellForgeModsText" Text="{loc:Loc HellForge.Mods.None}" Classes="muted" TextWrapping="Wrap"
@@ -308,8 +334,6 @@
                     </DataTemplate>
                   </ItemsControl.DataTemplates>
                 </ItemsControl>
-                <SelectableTextBlock x:Name="HellForgeModlistCode" Text="{Binding ModlistText}" Classes="caption-text"
-                                     TextWrapping="Wrap" IsVisible="{Binding HasModlistCode}"/>
                 <TextBlock x:Name="HellForgeModProblems" Text="{Binding ModProblemsText}"
                            Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding HasModProblems}"/>

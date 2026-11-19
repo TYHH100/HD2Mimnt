@@ -4545,6 +4545,13 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Phase.Running" xml:space="preserve"><value>游戏运行中。</value></data>
   <data name="HellForge.Phase.Ended" xml:space="preserve"><value>会话已结束。</value></data>
   <data name="HellForge.Phase.Failed" xml:space="preserve"><value>会话失败。</value></data>
+  <data name="HellForge.Session.Restarting" xml:space="preserve"><value>房主模组已就绪，正在自动重启游戏…</value></data>
+  <data name="HellForge.Restart.UnsupportedPlatform" xml:space="preserve"><value>无法自动重启：该功能仅支持 Windows。</value></data>
+  <data name="HellForge.Restart.MissingSyncFile" xml:space="preserve"><value>无法自动重启：没有找到模组同步文件（{0}）。</value></data>
+  <data name="HellForge.Restart.DryRunFailed" xml:space="preserve"><value>无法准备自动重启：{0}</value></data>
+  <data name="HellForge.Restart.StartFailed" xml:space="preserve"><value>无法启动会话运行器：{0}</value></data>
+  <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>自动重启没有开始新的会话，请查看 HellForge 日志。</value></data>
+  <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>模组同步反复要求重启，已停止自动重启。</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
@@ -4574,6 +4581,15 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>列表最上方的模组最后加载并覆盖下方；上移/下移只在同组（游戏性/每玩家/仅本机）内生效。</value></data>
   <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>开关模组；会话运行中 CLI 会拒绝修改。</value></data>
   <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>联机模组码 {0}：好友需要相同的 {1} 个游戏性模组，顺序不限。</value></data>
+  <data name="HellForge.Mods.ModlistEmpty" xml:space="preserve"><value>本机没有启用的游戏性模组，联机模组码为空。</value></data>
+  <data name="HellForge.Mods.Copy" xml:space="preserve"><value>复制</value></data>
+  <data name="HellForge.Mods.Copied" xml:space="preserve"><value>已复制联机模组码。</value></data>
+  <data name="HellForge.Mods.Compare" xml:space="preserve"><value>比对</value></data>
+  <data name="HellForge.Mods.CompareWatermark" xml:space="preserve"><value>粘贴好友的联机模组码</value></data>
+  <data name="HellForge.Mods.CompareMatch" xml:space="preserve"><value>一致：你们的游戏性模组相同，可以一起联机。</value></data>
+  <data name="HellForge.Mods.CompareMismatch" xml:space="preserve"><value>不一致：你们的游戏性模组不同，加入房间会被拒绝或触发模组同步。</value></data>
+  <data name="HellForge.Mods.CompareInvalid" xml:space="preserve"><value>请输入 8 位十六进制联机模组码。</value></data>
+  <data name="HellForge.Mods.CompareNoLocal" xml:space="preserve"><value>本机没有启用的游戏性模组，没有可比的联机模组码。</value></data>
   <data name="HellForge.Mods.Add" xml:space="preserve"><value>添加模组…</value></data>
   <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>刷新列表</value></data>
   <data name="HellForge.Mods.None" xml:space="preserve"><value>HellForge 的 mods 目录中还没有模组。</value></data>

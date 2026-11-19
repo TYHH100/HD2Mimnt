@@ -4545,6 +4545,13 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Phase.Running" xml:space="preserve"><value>The game is running.</value></data>
   <data name="HellForge.Phase.Ended" xml:space="preserve"><value>Session ended.</value></data>
   <data name="HellForge.Phase.Failed" xml:space="preserve"><value>Session failed.</value></data>
+  <data name="HellForge.Session.Restarting" xml:space="preserve"><value>The host's mods are ready; restarting the game for the mod sync…</value></data>
+  <data name="HellForge.Restart.UnsupportedPlatform" xml:space="preserve"><value>Cannot restart automatically for mod sync: this needs Windows.</value></data>
+  <data name="HellForge.Restart.MissingSyncFile" xml:space="preserve"><value>Cannot restart automatically: the mod sync file was not found ({0}).</value></data>
+  <data name="HellForge.Restart.DryRunFailed" xml:space="preserve"><value>Cannot prepare the automatic restart: {0}</value></data>
+  <data name="HellForge.Restart.StartFailed" xml:space="preserve"><value>Cannot start the session runner: {0}</value></data>
+  <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>The automatic restart did not start a new session; check the HellForge logs.</value></data>
+  <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>Mod sync asked for a restart too many times; automatic restart stopped.</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>Mod problems:</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>Mod sync</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>{0} mods synced to HellForge</value></data>
@@ -4574,6 +4581,15 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Mods.OrderHint" xml:space="preserve"><value>The top mod loads last and wins; Move up/down only reorders within the same group.</value></data>
   <data name="HellForge.Mods.SwitchHint" xml:space="preserve"><value>Turn the mod on or off; the CLI refuses changes while a session runs.</value></data>
   <data name="HellForge.Mods.Modlist" xml:space="preserve"><value>Modlist code {0}: friends need the same {1} gameplay mods; the order is up to you.</value></data>
+  <data name="HellForge.Mods.ModlistEmpty" xml:space="preserve"><value>No gameplay mod is on: the co-op modlist code is empty.</value></data>
+  <data name="HellForge.Mods.Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="HellForge.Mods.Copied" xml:space="preserve"><value>Co-op modlist code copied.</value></data>
+  <data name="HellForge.Mods.Compare" xml:space="preserve"><value>Compare</value></data>
+  <data name="HellForge.Mods.CompareWatermark" xml:space="preserve"><value>Paste a friend's co-op modlist code</value></data>
+  <data name="HellForge.Mods.CompareMatch" xml:space="preserve"><value>Match: you play with the same gameplay mods, so you can co-op.</value></data>
+  <data name="HellForge.Mods.CompareMismatch" xml:space="preserve"><value>Mismatch: your gameplay mods differ, so a join is refused or brings mod sync.</value></data>
+  <data name="HellForge.Mods.CompareInvalid" xml:space="preserve"><value>Enter the 8-character hex co-op modlist code.</value></data>
+  <data name="HellForge.Mods.CompareNoLocal" xml:space="preserve"><value>No gameplay mod is on here, so there is no co-op modlist code to compare.</value></data>
   <data name="HellForge.Mods.Add" xml:space="preserve"><value>Add mod…</value></data>
   <data name="HellForge.Mods.Refresh" xml:space="preserve"><value>Refresh list</value></data>
   <data name="HellForge.Mods.None" xml:space="preserve"><value>No mods in HellForge's mods folder yet.</value></data>
