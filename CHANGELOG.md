@@ -2,6 +2,20 @@
 
 本文件记录已发布版本的变更摘要；发布时按版本追加，详细提交记录见对应 GitHub Release。
 
+## 0.3.1-alpha — 2026-11-20
+
+- `feat(tags)`：用户自建标签与 `@标签` 搜索，支持多项取交集、与关键字组合及输入补全；标签颜色按名称全局共享。
+- `feat(ui)`：导航栏显示部署概览（已部署模组、托管文件、未托管补丁数）；界面动效统一受外观设置开关控制。
+- `feat(hellforge)`：专页分区布局与直添模组、联机模组码复制比对、模组同步后自动重启；HD2IAS 与依赖加载器的 Lua 模组参与同步。
+- `feat(hd2cl)`：角色库与 MMD 支持导出 7z 压缩包。
+- `build(release)`：取消单文件发布，托管程序集收进 `lib/`；发布产物不再生成 `deps.json`。
+- `perf`：SQLite 启用连接池、离线快照合并发布、配置行集合就地刷新。
+- `fix`：补丁含 Package 时仍按外观包导出；旧库缺列兼容；默认配置迁移跳过失效成员。
+
+## 0.3.0-alpha — 2026-11-15
+
+- 完整变更见 [`V0.2.2-alpha...V0.3.0-alpha`](https://github.com/TYHH100/HD2Mimnt/compare/V0.2.2-alpha...V0.3.0-alpha)。
+
 ## 0.2.2-alpha — 2026-11-10
 
 - 完整变更见 [`V0.2.1-alpha...V0.2.2-alpha`](https://github.com/TYHH100/HD2Mimnt/compare/V0.2.1-alpha...V0.2.2-alpha)。
