@@ -250,11 +250,11 @@ public class ModRepository : IModRepository
 
         using var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags,
+            INSERT INTO Mods (Id, Name, Version, Author, Description, Path, Category, Tags, UserTags,
                             WorkflowType, ImportedAt, ModifiedAt, Size, Hash, ContentFingerprint, ThumbnailPath, Source, Status, Notice,
                             ManifestJson, ContainsScripts, NexusModId, ResourceTypeIds, BslRole, BslDetectionVersion,
                             PlatformId, PlatformModId, PlatformVersion, LastUpdateCheck, PlatformLinkJson)
-            VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags,
+            VALUES (@Id, @Name, @Version, @Author, @Description, @Path, @Category, @Tags, @UserTags,
                     @WorkflowType, @ImportedAt, @ModifiedAt, @Size, @Hash, @ContentFingerprint, @ThumbnailPath, @Source, @Status, @Notice,
                     @ManifestJson, @ContainsScripts, @NexusModId, @ResourceTypeIds, @BslRole, @BslDetectionVersion,
                     @PlatformId, @PlatformModId, @PlatformVersion, @LastUpdateCheck, @PlatformLinkJson)";
@@ -271,7 +271,7 @@ public class ModRepository : IModRepository
         command.CommandText = @"
             UPDATE Mods
             SET Name = @Name, Version = @Version, Author = @Author, Description = @Description,
-                Path = @Path, Category = @Category, Tags = @Tags, WorkflowType = @WorkflowType,
+                Path = @Path, Category = @Category, Tags = @Tags, UserTags = @UserTags, WorkflowType = @WorkflowType,
                 ModifiedAt = @ModifiedAt, Size = @Size, Hash = @Hash, ContentFingerprint = @ContentFingerprint, ThumbnailPath = @ThumbnailPath,
                 Source = @Source, Status = @Status, Notice = @Notice, ManifestJson = @ManifestJson,
                 ContainsScripts = @ContainsScripts, NexusModId = @NexusModId, ResourceTypeIds = @ResourceTypeIds,
@@ -358,6 +358,7 @@ public class ModRepository : IModRepository
                 : (JsonSerializer.Deserialize<List<string>>(reader.GetString(reader.GetOrdinal("ResourceTypeIds"))) ?? new())
                     .Select(id => Convert.ToUInt64(id, 16)).Distinct().Order().ToList(),
             Tags = tags,
+            UserTags = ReadStringList(reader, "UserTags"),
             WorkflowType = reader.IsDBNull(reader.GetOrdinal("WorkflowType")) ? string.Empty : reader.GetString(reader.GetOrdinal("WorkflowType")),
             ImportedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ImportedAt"))),
             ModifiedAt = DateTime.Parse(reader.GetString(reader.GetOrdinal("ModifiedAt"))),
@@ -384,6 +385,19 @@ public class ModRepository : IModRepository
     private static string? ReadNullableString(SqliteDataReader reader, string column)
         => reader.IsDBNull(reader.GetOrdinal(column)) ? null : reader.GetString(reader.GetOrdinal(column));
 
+    /// <summary>旧库或旧快照可能没有该列，缺列时按空集合处理。</summary>
+    private static List<string> ReadStringList(SqliteDataReader reader, string column)
+    {
+        int ordinal;
+        try { ordinal = reader.GetOrdinal(column); }
+        catch (IndexOutOfRangeException) { return new List<string>(); }
+        if (reader.IsDBNull(ordinal)) return new List<string>();
+        var json = reader.GetString(ordinal);
+        return string.IsNullOrWhiteSpace(json)
+            ? new List<string>()
+            : JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+    }
+
     private static void AddModParameters(SqliteCommand command, Mod mod)
     {
         command.Parameters.AddWithValue("@Id", mod.Id.ToString());
@@ -402,6 +416,7 @@ public class ModRepository : IModRepository
         command.Parameters.AddWithValue("@BslRole", mod.BslRole.HasValue ? (int)mod.BslRole.Value : DBNull.Value);
         command.Parameters.AddWithValue("@BslDetectionVersion", mod.BslDetectionVersion);
         command.Parameters.AddWithValue("@Tags", JsonSerializer.Serialize(mod.Tags));
+        command.Parameters.AddWithValue("@UserTags", JsonSerializer.Serialize(mod.UserTags ?? new List<string>()));
         command.Parameters.AddWithValue("@ResourceTypeIds", mod.ResourceTypeIds is null ? DBNull.Value
             : JsonSerializer.Serialize(mod.ResourceTypeIds.Distinct().Order().Select(id => id.ToString("X16"))));
         command.Parameters.AddWithValue("@WorkflowType", mod.WorkflowType);

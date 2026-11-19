@@ -49,7 +49,7 @@ public sealed class ModSourceMetadataTests : IDisposable
         Assert.Equal(sourceHash, await ModHashService.CalculateAsync(directory));
         var metadata = Assert.Single(Directory.GetFiles(Path.Combine(Library, ".hd2mimnt-metadata"), "*.json"));
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(metadata));
-        Assert.Equal(1, document.RootElement.GetProperty("SchemaVersion").GetInt32());
+        Assert.Equal(2, document.RootElement.GetProperty("SchemaVersion").GetInt32());
         Assert.Equal(id, document.RootElement.GetProperty("ModId").GetGuid());
         Assert.Equal(Source.InstalledVersion, document.RootElement.GetProperty("Source").GetProperty("InstalledVersion").GetString());
         Assert.DoesNotContain("download_url", await File.ReadAllTextAsync(metadata));
@@ -121,6 +121,77 @@ public sealed class ModSourceMetadataTests : IDisposable
         Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(Path.Combine(directory, mod.Id.ToString("N") + ".json"), "broken-json");
         Assert.Equal(Source, (await mods.GetModByIdAsync(mod.Id))!.PlatformLink);
+    }
+
+    [Fact]
+    public async Task UserTags_ShouldPersistInMetadataFileAndSurviveSourceWrites()
+    {
+        var (mods, repository) = await CreateAsync();
+        var mod = new Mod { Id = Guid.NewGuid(), Name = "Local", Path = "missing" };
+        await repository.AddAsync(mod);
+
+        await mods.AddUserTagAsync(mod.Id, "weapon");
+        await mods.AddUserTagAsync(mod.Id, " @meta ");
+        Assert.Equal(new[] { "weapon", "meta" }, (await mods.GetModByIdAsync(mod.Id))!.UserTags);
+
+        var store = new ModMetadataStore(Library);
+        var document = await store.ReadDocumentAsync(mod.Id);
+        Assert.NotNull(document);
+        Assert.Equal(new[] { "weapon", "meta" }, document!.UserTags);
+        Assert.Null(document.Source);
+        Assert.Equal(new[] { "meta", "weapon" }, await mods.GetAllUserTagsAsync());
+
+        // 只写来源的旧调用不能把用户标签冲掉。
+        await mods.SetPlatformLinkAsync(mod.Id, Source);
+        document = await store.ReadDocumentAsync(mod.Id);
+        Assert.Equal(Source, document!.Source);
+        Assert.Equal(new[] { "weapon", "meta" }, document.UserTags);
+
+        await mods.RemoveUserTagAsync(mod.Id, "Weapon");
+        document = await store.ReadDocumentAsync(mod.Id);
+        Assert.Equal(new[] { "meta" }, document!.UserTags);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => mods.AddUserTagAsync(mod.Id, "HD2CL"));
+
+        await mods.DeleteModAsync(mod.Id);
+        Assert.False(File.Exists(Path.Combine(Library, ".hd2mimnt-metadata", mod.Id.ToString("N") + ".json")));
+        _database!.Dispose();
+    }
+
+    [Fact]
+    public async Task TagColors_ShouldPersistSharedFileAndRejectInvalidHex()
+    {
+        var (mods, _) = await CreateAsync();
+
+        await mods.SetTagColorAsync("666", "#4F8DFD");
+        await mods.SetTagColorAsync("Weapon", "#3FB950");
+        var colors = await mods.GetTagColorsAsync();
+        Assert.Equal("#4F8DFD", colors["666"]);
+        Assert.Equal("#3FB950", colors["weapon"]);
+        Assert.True(File.Exists(Path.Combine(Library, ".hd2mimnt-metadata", "tag-colors.json")));
+
+        await mods.SetTagColorAsync("666", null);
+        colors = await mods.GetTagColorsAsync();
+        Assert.False(colors.ContainsKey("666"));
+        Assert.True(colors.ContainsKey("WEAPON"));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => mods.SetTagColorAsync("x", "red"));
+        _database!.Dispose();
+    }
+
+    [Fact]
+    public async Task LegacySchemaV1_ShouldReadAsNoUserTagsField()
+    {
+        var store = new ModMetadataStore(Library);
+        var id = Guid.NewGuid();
+        var directory = Path.Combine(Library, ".hd2mimnt-metadata");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(Path.Combine(directory, id.ToString("N") + ".json"),
+            $$"""{"SchemaVersion":1,"ModId":"{{id}}","Source":null}""");
+
+        var document = await store.ReadDocumentAsync(id);
+        Assert.NotNull(document);
+        Assert.Null(document!.UserTags);
     }
 
     [Fact]

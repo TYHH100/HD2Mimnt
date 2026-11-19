@@ -99,6 +99,15 @@ public partial class ProfileViewModel : ObservableObject
     [ObservableProperty]
     private string _modSearchText = string.Empty;
 
+    private IReadOnlyList<string>? _tagPool;
+    private int _tagSuggestionTokenStart;
+
+    [ObservableProperty]
+    private bool _isTagSuggestionOpen;
+
+    [ObservableProperty]
+    private IReadOnlyList<string> _tagSuggestions = [];
+
     [ObservableProperty]
     private string _newProfileName = string.Empty;
 
@@ -714,7 +723,47 @@ public partial class ProfileViewModel : ObservableObject
         }
     }
 
-    partial void OnModSearchTextChanged(string value) => ApplyModFilter();
+    partial void OnModSearchTextChanged(string value)
+    {
+        UpdateTagSuggestions(value);
+        ApplyModFilter();
+    }
+
+    /// <summary>搜索框末尾输入 @词元时，按前缀/拼音给出当前配置内的标签补全。</summary>
+    private void UpdateTagSuggestions(string? text)
+    {
+        if (!TagSuggestion.TryGetTrailingToken(text, out var token, out var start))
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagPool ??= ProfileMods
+            .Where(row => !row.IsSeparator && row.SourceInfo != null)
+            .SelectMany(row => row.SourceInfo!.SearchableTags)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var matches = TagSuggestion.Rank(_tagPool, token);
+        if (matches.Count == 0)
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagSuggestionTokenStart = start;
+        TagSuggestions = matches;
+        IsTagSuggestionOpen = true;
+    }
+
+    public void ApplyTagSuggestion(string tag)
+    {
+        ModSearchText = TagSuggestion.Apply(ModSearchText, _tagSuggestionTokenStart, tag);
+        CloseTagSuggestions();
+    }
+
+    public void CloseTagSuggestions()
+    {
+        IsTagSuggestionOpen = false;
+        TagSuggestions = [];
+    }
 
     /// <summary>包一层抑制标记：服务端事件触发时不再重复重载本页。</summary>
     private async Task SuppressLocalChangeAsync(Func<Task> mutation)
@@ -842,10 +891,18 @@ public partial class ProfileViewModel : ObservableObject
 
     private void ApplyModFilter()
     {
-        var query = ModSearchText.Trim();
         var options = SearchMatchOptions.FromSettings(_settingsService);
-        bool Matches(ProfileModViewModel row) =>
-            SearchMatcher.MatchAny(query, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
+        var (keyword, tagFilters) = TagQuery.Parse(ModSearchText);
+        bool Matches(ProfileModViewModel row)
+        {
+            if (tagFilters.Count > 0
+                && (row.SourceInfo is not { } info
+                    || !TagQuery.MatchesAllTags(info.SearchableTags, tagFilters)))
+                return false;
+            return keyword.Length == 0
+                || SearchMatcher.MatchAny(keyword, options, row.ModName, row.ModVersion) != SearchMatchKind.None;
+        }
+        var query = ModSearchText.Trim();
         var separator = _luaSeparator;
         var luaMembers = ProfileMods.Where(mod => mod.IsLuaGroupMember).ToList();
         separator.GroupModCount = luaMembers.Count;
@@ -887,7 +944,9 @@ public partial class ProfileViewModel : ObservableObject
             if (query.Length == 0 && separator.IsCollapsed)
                 visibleOrdinary.RemoveAll(row => row.IsLuaGroupMember);
             rows.AddRange(visibleOrdinary);
-            if (luaMembers.Count > 0)
+            var matchedLuaMembers = visibleOrdinary.Count(row => row.IsLuaGroupMember);
+            // 搜索无命中时不再保留空的 Lua 分组占位。
+            if (luaMembers.Count > 0 && (query.Length == 0 || matchedLuaMembers > 0))
             {
                 var visibleMembers = visibleOrdinary.Where(row => row.IsLuaGroupMember).ToList();
                 if (_bottomToTop)
@@ -906,16 +965,17 @@ public partial class ProfileViewModel : ObservableObject
         {
             var fixedRows = ProfileMods.Where(mod => mod.IsFixedGroupMember
                 && (query.Length > 0 ? Matches(separator) || Matches(mod) : !separator.IsCollapsed)).ToList();
+            var showLuaSeparator = separator.GroupModCount > 0 && (query.Length == 0 || fixedRows.Count > 0);
             if (_bottomToTop)
             {
                 rows.AddRange(fixedRows);
-                if (separator.GroupModCount > 0) rows.Add(separator);
+                if (showLuaSeparator) rows.Add(separator);
                 rows.AddRange(visibleOrdinary);
             }
             else
             {
                 rows.AddRange(visibleOrdinary);
-                if (separator.GroupModCount > 0) rows.Add(separator);
+                if (showLuaSeparator) rows.Add(separator);
                 rows.AddRange(fixedRows);
             }
         }
@@ -1255,6 +1315,7 @@ public partial class ProfileViewModel : ObservableObject
                 : await _deploymentService.GetDeployedModIdsAsync(cancellationToken);
             _deployedModIds = deployedModIds;
             var noticeStyle = _settingsService.GetSetting(SettingKeys.ModNoticeStyle, "Badge");
+            var tagColors = await _modService.GetTagColorsAsync(cancellationToken);
             var profileMods = new List<ProfileModViewModel>();
             foreach (var profileMod in profile.Mods.OrderBy(m => m.Order))
             {
@@ -1262,6 +1323,7 @@ public partial class ProfileViewModel : ObservableObject
                 {
                     var sourceInfo = new ModItemViewModel(mod) { CompatibilityBadge = Compatibility?.GetBadge(mod.Id) };
                     sourceInfo.ApplyNoticeStyle(noticeStyle);
+                    sourceInfo.ApplyTagColors(tagColors);
                     var cardVm = new ProfileModViewModel
                     {
                         ProfileId = profileMod.ProfileId,
@@ -1289,6 +1351,7 @@ public partial class ProfileViewModel : ObservableObject
 
             cancellationToken.ThrowIfCancellationRequested();
             ProfileMods = new ObservableCollection<ProfileModViewModel>(profileMods);
+            _tagPool = null;
             _loadedProfileId = profile.Id;
             _loadedProfileContent = ProfileContentSignature(profile);
             _luaSeparator.ProfileId = profile.Id;

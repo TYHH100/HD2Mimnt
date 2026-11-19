@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 using Avalonia.Platform.Storage;
 using HD2Mimnt.UI.Controls;
 using HD2Mimnt.UI.Services;
@@ -18,6 +19,8 @@ public partial class LibraryView : UserControl
     public LibraryView()
     {
         InitializeComponent();
+        SearchTagPopup.PlacementTarget = SearchBox;
+        SearchTagPopup.Opened += (_, _) => TagPopupPlacement.AlignToCaret(SearchBox, SearchTagPopup);
         AddHandler(KeyDownEvent, OnModListKeyDown, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerPressedEvent, OnModListPointerPressed, RoutingStrategies.Tunnel);
         ModList.AddHandler(PointerReleasedEvent, OnModListContextReleased, RoutingStrategies.Bubble, handledEventsToo: true);
@@ -129,12 +132,45 @@ public partial class LibraryView : UserControl
     {
         if (DataContext is not LibraryViewModel vm) return;
 
+        if (vm.IsTagSuggestionOpen)
+        {
+            if (e.Key == Key.Escape)
+            {
+                vm.CloseTagSuggestions();
+                e.Handled = true;
+                return;
+            }
+            if (e.Key is Key.Enter or Key.Tab && vm.TagSuggestions.Count > 0)
+            {
+                vm.ApplyTagSuggestion(vm.TagSuggestions[0]);
+                SearchBox.Focus();
+                SearchBox.CaretIndex = SearchBox.Text?.Length ?? 0;
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Key == Key.Enter)
         {
             await vm.ExecuteSearchCommand.ExecuteAsync(null);
             e.Handled = true;
         }
     }
+
+    private void OnTagSuggestionClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not LibraryViewModel vm || sender is not Button { Tag: string tag }) return;
+        vm.ApplyTagSuggestion(tag);
+        SearchBox.Focus();
+        SearchBox.CaretIndex = SearchBox.Text?.Length ?? 0;
+        e.Handled = true;
+    }
+
+    private void OnSearchBoxTextChanged(object? sender, TextChangedEventArgs e)
+        => Dispatcher.UIThread.Post(() => TagPopupPlacement.AlignToCaret(SearchBox, SearchTagPopup), DispatcherPriority.Render);
+
+    private void OnSearchBoxKeyUp(object? sender, KeyEventArgs e)
+        => Dispatcher.UIThread.Post(() => TagPopupPlacement.AlignToCaret(SearchBox, SearchTagPopup), DispatcherPriority.Render);
 
     /// <summary>提示清除方式为“鼠标悬停”时，指针移入卡片即清除新增/更新提示。</summary>
     private void OnModCardPointerEntered(object? sender, PointerEventArgs e)

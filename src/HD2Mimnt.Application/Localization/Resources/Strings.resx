@@ -106,7 +106,22 @@
     <value>Description</value>
   </data>
   <data name="UI.Tags" xml:space="preserve">
-    <value>Tags</value>
+    <value>Source Tags</value>
+  </data>
+  <data name="UI.MyTags" xml:space="preserve">
+    <value>My Tags</value>
+  </data>
+  <data name="UI.AddTag" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="UI.AddTagHint" xml:space="preserve">
+    <value>Type a tag and press Enter</value>
+  </data>
+  <data name="UI.RemoveTag" xml:space="preserve">
+    <value>Remove tag</value>
+  </data>
+  <data name="UI.TagColor" xml:space="preserve">
+    <value>Tag color</value>
   </data>
   <data name="UI.FileInformation" xml:space="preserve">
     <value>File information</value>
@@ -325,7 +340,7 @@
     <value>Current profile</value>
   </data>
   <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
-    <value>Click to focus; Ctrl-click to select, Shift for a range, Ctrl+Shift to extend; Ctrl+A selects all, Esc clears selection. Search supports tag: filters.</value>
+    <value>Click to focus; Ctrl-click to select, Shift for a range, Ctrl+Shift to extend; Ctrl+A selects all, Esc clears selection. Search supports @tag filters.</value>
   </data>
   <data name="UI.AllCategories" xml:space="preserve">
     <value>All categories</value>
@@ -334,7 +349,7 @@
     <value>Sort</value>
   </data>
   <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
-    <value>Search name, author or description; supports tag: filters…</value>
+    <value>Search name, author or description; supports @tag filters…</value>
   </data>
   <data name="UI.ClearSearch" xml:space="preserve">
     <value>Clear search</value>
@@ -382,7 +397,7 @@
     <value>No search results</value>
   </data>
   <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
-    <value>No mods match your search; tag: filters are supported</value>
+    <value>No mods match your search; @tag filters are supported</value>
   </data>
   <data name="UI.NoFilterResults" xml:space="preserve">
     <value>No filter results</value>
@@ -816,7 +831,7 @@ Deny: do not install this plugin</value>
     <value>Default · Cannot be deleted</value>
   </data>
   <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
-    <value>Search mods in the current profile…</value>
+    <value>Search mods in the current profile; supports @tag filters…</value>
   </data>
   <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
     <value>Remove from profile</value>
@@ -2364,7 +2379,7 @@ See the Conflicts page for details.</value>
     <value>Find and select mods</value>
   </data>
   <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
-    <value>Search matches name, author and description and supports tag: filters. Click to focus, Ctrl-click to select, Shift for a range and Ctrl+A for all. Use batch actions to add selected mods to profiles.</value>
+    <value>Search matches name, author and description and supports @tag filters. Click to focus, Ctrl-click to select, Shift for a range and Ctrl+A for all. Use batch actions to add selected mods to profiles.</value>
   </data>
   <data name="UI.CreateModCombinations" xml:space="preserve">
     <value>Create mod combinations</value>
@@ -2572,6 +2587,24 @@ See the Conflicts page for details.</value>
   </data>
   <data name="Game.Invalid" xml:space="preserve">
     <value>Invalid Path</value>
+  </data>
+  <data name="Game.Summary.DeployedMods" xml:space="preserve">
+    <value>Deployed {0:N0}</value>
+  </data>
+  <data name="Game.Summary.ManagedFiles" xml:space="preserve">
+    <value>Managed {0:N0}</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFiles" xml:space="preserve">
+    <value>Unmanaged {0:N0}</value>
+  </data>
+  <data name="Game.Summary.DeployedModsTip" xml:space="preserve">
+    <value>Mods deployed at their current version for this game installation.</value>
+  </data>
+  <data name="Game.Summary.ManagedFilesTip" xml:space="preserve">
+    <value>Game files tracked by the current deployment records.</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFilesTip" xml:space="preserve">
+    <value>Patch files in the game data folder that no deployment record tracks; removed on the next deploy when cleanup is enabled.</value>
   </data>
   <data name="Game.Detecting" xml:space="preserve">
     <value>Detecting...</value>
@@ -4698,4 +4731,23 @@ Resources read: {3}</value>
   <data name="GpuUsage.ExactTotal" xml:space="preserve">
     <value>Exact payload total: {0} bytes</value>
   </data>
+  <data name="ArmorSwap.Title" xml:space="preserve"><value>Armor Swap</value></data>
+  <data name="ArmorSwap.Description" xml:space="preserve"><value>Migrate an armor appearance patch to another armor and generate an installable patch.</value></data>
+  <data name="ArmorSwap.Patch" xml:space="preserve"><value>Appearance patch</value></data>
+  <data name="ArmorSwap.Browse" xml:space="preserve"><value>Browse</value></data>
+  <data name="ArmorSwap.Target" xml:space="preserve"><value>Target armor</value></data>
+  <data name="ArmorSwap.Output" xml:space="preserve"><value>Output folder</value></data>
+  <data name="ArmorSwap.OutputHint" xml:space="preserve"><value>Leave empty to create a folder next to the patch.</value></data>
+  <data name="ArmorSwap.Pad" xml:space="preserve"><value>Fill target-only slots with empty meshes</value></data>
+  <data name="ArmorSwap.Run" xml:space="preserve"><value>Start swap</value></data>
+  <data name="ArmorSwap.Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="ArmorSwap.PatchPlaceholder" xml:space="preserve"><value>Select .patch_0 or type a path</value></data>
+  <data name="ArmorSwap.Running" xml:space="preserve"><value>Working…</value></data>
+  <data name="ArmorSwap.LibraryMod" xml:space="preserve"><value>Appearance mod</value></data>
+  <data name="ArmorSwap.LibraryModPlaceholder" xml:space="preserve"><value>Pick an appearance mod from the library</value></data>
+  <data name="ArmorSwap.FolderHint" xml:space="preserve"><value>Tick the mod's option folders (base / material / part toggles). Each folder is swapped separately and keeps its folder and patch name, so the imported result can still switch parts; for mutually exclusive variants tick only one.</value></data>
+  <data name="ArmorSwap.SelectAll" xml:space="preserve"><value>Select all</value></data>
+  <data name="ArmorSwap.Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="ArmorSwap.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="ArmorSwap.Import" xml:space="preserve"><value>Import the result into the mod library</value></data>
 </root>

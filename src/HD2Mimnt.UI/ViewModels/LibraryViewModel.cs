@@ -9,6 +9,7 @@ using HD2Mimnt.Core.Resources;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using HD2Mimnt.UI.Localization;
@@ -127,6 +128,15 @@ public partial class LibraryViewModel : ObservableObject
 
     // 数据源
     private List<ModItemViewModel> _allMods = new();
+    private IReadOnlyDictionary<string, string> _tagColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string>? _tagPool;
+    private int _tagSuggestionTokenStart;
+
+    [ObservableProperty]
+    private bool _isTagSuggestionOpen;
+
+    [ObservableProperty]
+    private IReadOnlyList<string> _tagSuggestions = [];
     private bool _selectionSyncInProgress;
     private readonly ModSelection<ModItemViewModel> _modSelection;
     private CancellationTokenSource? _detailHashCts;
@@ -712,6 +722,8 @@ public partial class LibraryViewModel : ObservableObject
                 item.ApplyNoticeStyle(noticeStyle);
                 return item;
             }).ToList());
+            _tagPool = null;
+            await LoadTagColorsAsync();
             foreach (var mod in _allMods) mod.CompatibilityBadge = Compatibility?.GetBadge(mod.Id);
             await ApplyHellForgeMarksAsync();
             RefreshGpuUsage();
@@ -789,6 +801,7 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private async Task ExecuteSearchAsync()
     {
+        CloseTagSuggestions();
         // 取消之前的搜索
         _searchCts?.Cancel();
         _searchCts = new CancellationTokenSource();
@@ -866,6 +879,7 @@ public partial class LibraryViewModel : ObservableObject
     /// </summary>
     partial void OnSearchTextChanged(string value)
     {
+        UpdateTagSuggestions(value);
         _searchDebounceTimer?.Stop();
         _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _searchDebounceTimer.Tick += (_, _) =>
@@ -874,6 +888,39 @@ public partial class LibraryViewModel : ObservableObject
             SafeAsync.Run(ExecuteSearchAsync, "自动搜索");
         };
         _searchDebounceTimer.Start();
+    }
+
+    /// <summary>搜索框末尾输入 @词元时，按前缀/拼音给出标签补全。</summary>
+    private void UpdateTagSuggestions(string? text)
+    {
+        if (!TagSuggestion.TryGetTrailingToken(text, out var token, out var start))
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagPool ??= _allMods.SelectMany(mod => mod.SearchableTags)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var matches = TagSuggestion.Rank(_tagPool, token);
+        if (matches.Count == 0)
+        {
+            CloseTagSuggestions();
+            return;
+        }
+        _tagSuggestionTokenStart = start;
+        TagSuggestions = matches;
+        IsTagSuggestionOpen = true;
+    }
+
+    public void ApplyTagSuggestion(string tag)
+    {
+        SearchText = TagSuggestion.Apply(SearchText, _tagSuggestionTokenStart, tag);
+        CloseTagSuggestions();
+    }
+
+    public void CloseTagSuggestions()
+    {
+        IsTagSuggestionOpen = false;
+        TagSuggestions = [];
     }
 
     private void OnModNoticeDismissed(object? sender, Guid id)
@@ -2089,6 +2136,74 @@ public partial class LibraryViewModel : ObservableObject
         }
     }
 
+    /// <summary>详情面板维护自定义标签：写入库根档案与数据库，并就地更新卡片与搜索索引。</summary>
+    private async Task AddUserTagAsync(ModItemViewModel mod, string tag, Color? color)
+    {
+        if (!_allMods.Contains(mod)) return;
+        try
+        {
+            var saved = await _modService.AddUserTagAsync(mod.Id, tag);
+            if (color.HasValue)
+            {
+                await _modService.SetTagColorAsync(tag, color.Value.ToString());
+                _tagColors = await _modService.GetTagColorsAsync();
+                foreach (var item in _allMods) item.ApplyTagColors(_tagColors);
+            }
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            _searchService.UpdateModIndex(saved);
+            await ApplyFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowWarning(ex.Message, "添加标签");
+        }
+    }
+
+    private async Task RemoveUserTagAsync(ModItemViewModel mod, string tag)
+    {
+        if (!_allMods.Contains(mod)) return;
+        try
+        {
+            var saved = await _modService.RemoveUserTagAsync(mod.Id, tag);
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            _searchService.UpdateModIndex(saved);
+            await ApplyFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"删除标签失败: {ex.Message}", "删除标签");
+        }
+    }
+
+    private async Task LoadUserTagSuggestionsAsync(ModItemViewModel mod)
+    {
+        try { mod.UserTagSuggestions = (await _modService.GetAllUserTagsAsync()).ToArray(); }
+        catch { /* 补全失败不影响手动输入 */ }
+    }
+
+    private async Task LoadTagColorsAsync()
+    {
+        try { _tagColors = await _modService.GetTagColorsAsync(); }
+        catch { _tagColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase); }
+        foreach (var mod in _allMods) mod.ApplyTagColors(_tagColors);
+    }
+
+    private async Task SetTagColorAsync(string tag, Color color)
+    {
+        try
+        {
+            await _modService.SetTagColorAsync(tag, color.ToString());
+            _tagColors = await _modService.GetTagColorsAsync();
+            foreach (var mod in _allMods) mod.ApplyTagColors(_tagColors);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"保存标签颜色失败: {ex.Message}", "标签颜色");
+        }
+    }
+
     public async Task ChangeModImageAsync(ModItemViewModel mod, string imagePath)
     {
         if (mod.IsChangingImage || !_allMods.Contains(mod)) return;
@@ -2155,6 +2270,10 @@ public partial class LibraryViewModel : ObservableObject
         mod.CloseDetailPanelCommand = new RelayCommand(CloseDetailPanel);
         mod.CheckUpdatesCommand = ModOnline == null ? null : new AsyncRelayCommand(() => ModOnline.OpenAsync(mod));
         mod.SaveMetadataHandler = SaveModMetadataAsync;
+        mod.AddUserTagHandler = AddUserTagAsync;
+        mod.RemoveUserTagHandler = RemoveUserTagAsync;
+        mod.SetTagColorHandler = SetTagColorAsync;
+        _ = LoadUserTagSuggestionsAsync(mod);
         mod.IsEditingMetadata = false;
         if (string.IsNullOrWhiteSpace(mod.Hash))
         {

@@ -90,6 +90,14 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal(2, labels.Length);
             Assert.All(labels, label => Assert.True(label.IsVisible));
             Assert.All(labels, label => Assert.Contains("MiB", label.Text));
+            // GPU 统计与大小同排：两块文本的垂直中心必须对齐，不能一上一下。
+            var sizeLabels = libraryView.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.Name == "LibrarySizeLabel").ToArray();
+            Assert.Equal(labels.Length, sizeLabels.Length);
+            for (var index = 0; index < labels.Length; index++)
+                Assert.InRange(Math.Abs(
+                    labels[index].Bounds.Y + labels[index].Bounds.Height / 2
+                    - (sizeLabels[index].Bounds.Y + sizeLabels[index].Bounds.Height / 2)), 0, 2);
             Capture(window, "Dark", "gpu-library");
 
             var emptyId = await profiles.CreateProfileAsync("GPU empty");

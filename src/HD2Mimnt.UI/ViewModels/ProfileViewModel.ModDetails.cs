@@ -67,6 +67,10 @@ public partial class ProfileViewModel
             return Task.CompletedTask;
         });
         detail.SaveMetadataHandler = SaveModMetadataAsync;
+        detail.AddUserTagHandler = AddUserTagAsync;
+        detail.RemoveUserTagHandler = RemoveUserTagAsync;
+        detail.SetTagColorHandler = SetTagColorAsync;
+        _ = LoadUserTagSuggestionsAsync(detail);
         detail.IsEditingMetadata = false;
         SelectedModDetail = detail;
         IsDetailPanelOpen = true;
@@ -139,6 +143,67 @@ public partial class ProfileViewModel
         {
             _notificationService.ShowError($"保存失败: {ex.Message}", "编辑模组");
             return false;
+        }
+    }
+
+    /// <summary>详情面板维护自定义标签：档案与库页共用同一份数据，编辑后联动库页刷新。</summary>
+    private async Task AddUserTagAsync(ModItemViewModel mod, string tag, Avalonia.Media.Color? color)
+    {
+        if (SelectedProfile == null || !ProfileMods.Any(row => row.ModId == mod.Id)) return;
+        try
+        {
+            var saved = await _modService.AddUserTagAsync(mod.Id, tag);
+            if (color.HasValue)
+            {
+                await _modService.SetTagColorAsync(tag, color.Value.ToString());
+                var colors = await _modService.GetTagColorsAsync();
+                foreach (var row in ProfileMods) row.SourceInfo?.ApplyTagColors(colors);
+            }
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            if (ModContentChanged != null) await ModContentChanged();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowWarning(ex.Message, "添加标签");
+        }
+    }
+
+    private async Task RemoveUserTagAsync(ModItemViewModel mod, string tag)
+    {
+        if (SelectedProfile == null || !ProfileMods.Any(row => row.ModId == mod.Id)) return;
+        try
+        {
+            var saved = await _modService.RemoveUserTagAsync(mod.Id, tag);
+            mod.ApplyMetadata(saved);
+            _tagPool = null;
+            if (ModContentChanged != null) await ModContentChanged();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"删除标签失败: {ex.Message}", "删除标签");
+        }
+    }
+
+    private async Task LoadUserTagSuggestionsAsync(ModItemViewModel mod)
+    {
+        try { mod.UserTagSuggestions = (await _modService.GetAllUserTagsAsync()).ToArray(); }
+        catch { /* 补全失败不影响手动输入 */ }
+    }
+
+    private async Task SetTagColorAsync(string tag, Avalonia.Media.Color color)
+    {
+        try
+        {
+            await _modService.SetTagColorAsync(tag, color.ToString());
+            var colors = await _modService.GetTagColorsAsync();
+            foreach (var row in ProfileMods)
+                row.SourceInfo?.ApplyTagColors(colors);
+            if (ModContentChanged != null) await ModContentChanged();
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError($"保存标签颜色失败: {ex.Message}", "标签颜色");
         }
     }
 

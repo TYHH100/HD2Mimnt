@@ -119,7 +119,25 @@
       <Grid ColumnDefinitions="*,Auto,Auto">
         <Grid>
           <controls:UtilityIcon Kind="Search" ZIndex="1" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" IsHitTestVisible="False" Foreground="{DynamicResource TextControlForeground}"/>
-          <TextBox x:Name="ProfileModSearchBox" PlaceholderText="{loc:Loc UI.SearchModsInTheCurrentProfile}" Text="{Binding ModSearchText}" Padding="34,6,12,6" VerticalAlignment="Center"/>
+          <TextBox x:Name="ProfileModSearchBox" PlaceholderText="{loc:Loc UI.SearchModsInTheCurrentProfile}" Text="{Binding ModSearchText}" Padding="34,6,12,6" VerticalAlignment="Center" KeyDown="OnProfileModSearchKeyDown" KeyUp="OnProfileModSearchKeyUp" TextChanged="OnProfileModSearchTextChanged"/>
+          <Popup x:Name="ProfileSearchTagPopup" IsOpen="{Binding IsTagSuggestionOpen, Mode=TwoWay}"
+                 PlacementTarget="{Binding #ProfileModSearchBox}" Placement="BottomEdgeAlignedLeft" VerticalOffset="4"
+                 IsLightDismissEnabled="True">
+            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="4" MinWidth="220" MaxWidth="460">
+              <ItemsControl ItemsSource="{Binding TagSuggestions}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Background="Transparent" Padding="8,5" CornerRadius="4" Cursor="Hand"
+                            Click="OnTagSuggestionClicked" Tag="{Binding}">
+                      <TextBlock Text="{Binding StringFormat='@{0}'}" FontSize="12"/>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </Popup>
         </Grid>
         <Button Grid.Column="1" Classes="icon-button" Command="{Binding ClearModSearchCommand}" ToolTip.Tip="{loc:Loc UI.ClearSearch}" Margin="6,0,0,0" VerticalAlignment="Center">
           <controls:UtilityIcon Kind="BackspaceQWERTY"/>
@@ -277,6 +295,23 @@
                       <Border Classes="chip" IsVisible="{Binding SourceInfo.IsHd2Cl}"><TextBlock Text="HD2CL" FontSize="12" Classes="accent-text"/></Border>
                       <Border Classes="chip" IsVisible="{Binding IsLuaMod}">
                         <TextBlock Text="Lua Mods" FontSize="12" Classes="accent-text"/>
+                      </Border>
+                      <ItemsControl ItemsSource="{Binding SourceInfo.UserTagPreviewChips}" IsVisible="{Binding SourceInfo.HasUserTags}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="6"/>
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:UserTagChipViewModel">
+                            <Border Classes="chip user-tag" BorderBrush="{Binding Brush}" ToolTip.Tip="{Binding Name}">
+                              <TextBlock Text="{Binding Name}" FontSize="12" Foreground="{Binding Brush}"/>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Border Classes="chip user-tag" IsVisible="{Binding SourceInfo.HasUserTagsOverflow}" ToolTip.Tip="{Binding SourceInfo.UserTagsTooltip}" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SourceInfo.UserTagsOverflowText}" FontSize="12" Classes="muted"/>
                       </Border>
                       <TextBlock Text="{loc:Loc UI.Deployed}" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" IsVisible="{Binding IsDeployed}"/>
                       <TextBlock Text="{loc:Loc Shell.NotDeployed}" FontSize="12" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding !IsDeployed}"/>

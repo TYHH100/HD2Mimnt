@@ -106,7 +106,22 @@
     <value>描述</value>
   </data>
   <data name="UI.Tags" xml:space="preserve">
-    <value>标签</value>
+    <value>来源标签</value>
+  </data>
+  <data name="UI.MyTags" xml:space="preserve">
+    <value>我的标签</value>
+  </data>
+  <data name="UI.AddTag" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="UI.AddTagHint" xml:space="preserve">
+    <value>输入标签后回车</value>
+  </data>
+  <data name="UI.RemoveTag" xml:space="preserve">
+    <value>移除标签</value>
+  </data>
+  <data name="UI.TagColor" xml:space="preserve">
+    <value>标签颜色</value>
   </data>
   <data name="UI.FileInformation" xml:space="preserve">
     <value>文件信息</value>
@@ -325,7 +340,7 @@
     <value>当前 Profile</value>
   </data>
   <data name="UI.ClickToFocusCtrlClickToSelectShiftForARangeCtrlShiftToExtendCtrlASelec" xml:space="preserve">
-    <value>单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 tag:标签。</value>
+    <value>单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+Shift 追加范围；Ctrl+A 全选，Esc 清空选择。搜索支持 @标签。</value>
   </data>
   <data name="UI.AllCategories" xml:space="preserve">
     <value>全部分类</value>
@@ -334,7 +349,7 @@
     <value>排序</value>
   </data>
   <data name="UI.SearchNameAuthorOrDescriptionSupportsTagFilters" xml:space="preserve">
-    <value>搜索名称、作者或描述，支持 tag:标签 前缀…</value>
+    <value>搜索名称、作者或描述，用 @标签 筛选…</value>
   </data>
   <data name="UI.ClearSearch" xml:space="preserve">
     <value>清除搜索</value>
@@ -382,7 +397,7 @@
     <value>搜索无结果</value>
   </data>
   <data name="UI.NoModsMatchYourSearchTagFiltersAreSupported" xml:space="preserve">
-    <value>没有匹配当前搜索条件的 Mod，支持 tag:标签 前缀</value>
+    <value>没有匹配当前搜索条件的 Mod，可用 @标签 筛选</value>
   </data>
   <data name="UI.NoFilterResults" xml:space="preserve">
     <value>筛选无结果</value>
@@ -816,7 +831,7 @@
     <value>默认 · 不可删除</value>
   </data>
   <data name="UI.SearchModsInTheCurrentProfile" xml:space="preserve">
-    <value>搜索当前配置的模组…</value>
+    <value>搜索当前配置的模组，支持 @标签…</value>
   </data>
   <data name="UI.RemoveFromProfile.40200d7e" xml:space="preserve">
     <value>移出配置</value>
@@ -2364,7 +2379,7 @@
     <value>查找与选择模组</value>
   </data>
   <data name="UI.SearchMatchesNameAuthorAndDescriptionAndSupportsTagFiltersClickToFocus" xml:space="preserve">
-    <value>搜索可匹配名称、作者、描述，也支持 tag:标签。单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+A 全选。选中后可使用批量操作加入配置文件。</value>
+    <value>搜索可匹配名称、作者、描述，也支持 @标签。单击聚焦；Ctrl 点击增减选择，Shift 选择范围，Ctrl+A 全选。选中后可使用批量操作加入配置文件。</value>
   </data>
   <data name="UI.CreateModCombinations" xml:space="preserve">
     <value>创建模组组合</value>
@@ -2572,6 +2587,24 @@
   </data>
   <data name="Game.Invalid" xml:space="preserve">
     <value>路径无效</value>
+  </data>
+  <data name="Game.Summary.DeployedMods" xml:space="preserve">
+    <value>已部署 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.ManagedFiles" xml:space="preserve">
+    <value>托管 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFiles" xml:space="preserve">
+    <value>未托管 {0:N0}</value>
+  </data>
+  <data name="Game.Summary.DeployedModsTip" xml:space="preserve">
+    <value>当前游戏安装中按现版本部署的模组数量。</value>
+  </data>
+  <data name="Game.Summary.ManagedFilesTip" xml:space="preserve">
+    <value>当前部署记录追踪的游戏文件数量。</value>
+  </data>
+  <data name="Game.Summary.UnmanagedFilesTip" xml:space="preserve">
+    <value>游戏 data 目录中不属于任何部署记录的补丁文件；下次部署时若开启清理会被删除。</value>
   </data>
   <data name="Game.Detecting" xml:space="preserve">
     <value>正在检测…</value>
@@ -4698,4 +4731,23 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="GpuUsage.ExactTotal" xml:space="preserve">
     <value>载荷精确合计：{0} 字节</value>
   </data>
+  <data name="ArmorSwap.Title" xml:space="preserve"><value>换甲</value></data>
+  <data name="ArmorSwap.Description" xml:space="preserve"><value>把护甲外观补丁迁移到其它护甲并生成可安装补丁。</value></data>
+  <data name="ArmorSwap.Patch" xml:space="preserve"><value>外观补丁</value></data>
+  <data name="ArmorSwap.Browse" xml:space="preserve"><value>浏览</value></data>
+  <data name="ArmorSwap.Target" xml:space="preserve"><value>目标护甲</value></data>
+  <data name="ArmorSwap.Output" xml:space="preserve"><value>输出目录</value></data>
+  <data name="ArmorSwap.OutputHint" xml:space="preserve"><value>留空则在补丁旁生成目录。</value></data>
+  <data name="ArmorSwap.Pad" xml:space="preserve"><value>用空网格补齐目标多出的槽位</value></data>
+  <data name="ArmorSwap.Run" xml:space="preserve"><value>开始换甲</value></data>
+  <data name="ArmorSwap.Cancel" xml:space="preserve"><value>取消</value></data>
+  <data name="ArmorSwap.PatchPlaceholder" xml:space="preserve"><value>选择 .patch_0 或输入路径</value></data>
+  <data name="ArmorSwap.Running" xml:space="preserve"><value>处理中…</value></data>
+  <data name="ArmorSwap.LibraryMod" xml:space="preserve"><value>外观模组</value></data>
+  <data name="ArmorSwap.LibraryModPlaceholder" xml:space="preserve"><value>从模组库选择外观模组</value></data>
+  <data name="ArmorSwap.FolderHint" xml:space="preserve"><value>勾选该模组的选项目录（本体 / 材质 / 部件开关）。每个目录单独换甲并保留原目录与补丁名，导入后仍可按选项切换部件；互斥变体只勾其一。</value></data>
+  <data name="ArmorSwap.SelectAll" xml:space="preserve"><value>全选</value></data>
+  <data name="ArmorSwap.Clear" xml:space="preserve"><value>清空</value></data>
+  <data name="ArmorSwap.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="ArmorSwap.Import" xml:space="preserve"><value>生成后导入模组库</value></data>
 </root>
