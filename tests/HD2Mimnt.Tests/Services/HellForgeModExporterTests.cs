@@ -111,6 +111,22 @@ public sealed class HellForgeModExporterTests : IDisposable
     }
 
     [Fact]
+    public async Task ExportFlat_PackageIndexPatch_MarkCosmetic()
+    {
+        // HD2IAS 角色替换的 data 归档是 Package（资源包索引）+ Unit 成对出现：
+        // 纯人物替换不该因为 Package 被判成需要联机同步的数据。
+        var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "IAS Model" });
+        WritePatchWithTypes(mod.Path, BundleX, 0,
+            PatchResourceTypeIds.Package, PatchResourceTypeIds.Unit);
+
+        var export = await HellForgeModExporter.ExportAsync(mod, null, ExportDir(mod));
+
+        var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(export.ManifestPath)).RootElement;
+        Assert.Equal(HellForgeModKind.Flat, export.Kind);
+        Assert.False(manifest.GetProperty("gameplay").GetBoolean());
+    }
+
+    [Fact]
     public async Task ExportFlat_PatchWithGameplayType_StaysShared()
     {
         var mod = CreateMod(Guid.NewGuid(), new ModManifest { Guid = Guid.NewGuid(), Name = "Weapon Stats" });

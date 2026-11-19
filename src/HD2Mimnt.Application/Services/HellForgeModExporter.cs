@@ -154,11 +154,14 @@ internal static class HellForgeModExporter
 
     /// <summary>
     /// 扁平导出可标为 cosmetic 的资源类型：只影响本机画面的模型、材质、贴图、动画与音频。
-    /// 不含 Level / Entity / Prefab / Physics / Config / NetworkConfig / Lua / Package 等会改变玩法、
+    /// 不含 Level / Entity / Prefab / Physics / Config / NetworkConfig / Lua 等会改变玩法、
     /// 关卡或联机行为的类型；未知类型同样不纳入，宁可判 shared 让联机对齐。
+    /// Package 是资源包索引（列出包内资源 id），本身不含玩法逻辑；HD2IAS 角色替换补丁的
+    /// data 归档里 Unit 与 Package 成对出现，不纳入会让纯人物替换包被判成需要联机同步的数据。
     /// </summary>
     private static readonly HashSet<ulong> CosmeticResourceTypes =
     [
+        PatchResourceTypeIds.Package,
         PatchResourceTypeIds.Texture, PatchResourceTypeIds.Material, PatchResourceTypeIds.Unit,
         PatchResourceTypeIds.Bones, PatchResourceTypeIds.Animation, PatchResourceTypeIds.StateMachine,
         PatchResourceTypeIds.Cloth, PatchResourceTypeIds.Particles, PatchResourceTypeIds.RagdollProfile,
@@ -338,7 +341,7 @@ internal static class HellForgeModExporter
     /// 导出布局版本：清单写法/文件组织一改就要 +1，否则已同步过的模组会因指纹未变被跳过，
     /// 旧的（可能不完整的）导出目录会一直留着。旧版本号算出的指纹与新版不同，下次同步会自动重导一次。
     /// </summary>
-    private const int ExportFormat = 4;
+    private const int ExportFormat = 5;
 
     /// <summary>内容指纹（stat 级，廉价）：pack 与选项无关（导出内容恒定），flat 含选项快照。
     /// 与 HellForge ModStaging.Same 一样用 长度+修改时间 判断变化。</summary>
