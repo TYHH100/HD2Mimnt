@@ -38,12 +38,12 @@
 工作流文件：[.github/workflows/release.yml](../.github/workflows/release.yml)。
 
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。工作流同时接受小写 `v` 前缀以兼容旧脚本，版本号推导会去掉 `v`/`V`；仓库标签规范仍使用大写 `V`。
-- 步骤：发布 UI 主程序（自带还原与依赖构建）→ 主包与符号包分离打包 → 创建 Release。
+- 步骤：发布 UI 主程序（自带还原与依赖构建）→ 校验发布布局（四个入口文件齐全、托管依赖在 `lib/`、原生库在根目录）→ 主包与符号包分离打包 → 创建 Release。布局校验不通过时流水线直接失败，防止发布属性回退成单文件或把原生库误收进 `lib/`。
 - Release 更新说明取自标签注释：首行若只是版本号会被去掉，其余正文原样写入 Release；标签没有任何正文时回退到 `--generate-notes` 按提交自动生成。本地可用 `git tag -l -n99 <标签>` 核对。
 - 更新说明写错时无需重打标签：`gh release edit <标签> --notes-file <文件>` 即可修正已发布的 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
 - 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
-- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、单文件；`PluginHost` / `Worker` 子进程 exe 由 UI 工程的 `PublishChildProcessHosts` 目标随包输出。框架依赖单文件不支持 `EnableCompressionInSingleFile`（NETSDK1176，仅自包含发布可用），不要给发布命令添加该属性。
+- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、非单文件。四个入口 exe（`HD2Mimnt.UI`、`HD2Mimnt.Cli`、`HD2Mimnt.PluginHost`、`HD2Mimnt.Worker`）及其入口 dll、各自的 `deps.json`/`runtimeconfig.json` 由项目引用输出到根目录，其余托管程序集由 UI 工程的 `MoveManagedAssembliesToLib` 目标收进 `lib/`；根目录只留入口文件、原生库与内容目录。不要给发布命令加 `-p:PublishSingleFile=true`。
 - 产物为框架依赖发布，运行需安装 [.NET Desktop Runtime 10.0 x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ## 注意事项

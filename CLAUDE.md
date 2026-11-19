@@ -48,8 +48,8 @@ dotnet test --filter "FullyQualifiedName~ProfileServiceTests.CreateProfile_Shoul
 cd tests/HD2Mimnt.StabilityTests
 dotnet test
 
-# Publish for Windows x64 (framework-dependent single file, matches Release.pubxml)
-dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
+# Publish for Windows x64 (framework-dependent, multi-file; managed dlls go to lib/ per Release.pubxml)
+dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained false
 ```
 
 ## Architecture Highlights
