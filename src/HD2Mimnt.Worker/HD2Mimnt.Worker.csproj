@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <!-- 应用以框架依赖方式部署，这里显式固定开关，避免发布参数把子项目误带成自包含 -->
     <PublishSelfContained>false</PublishSelfContained>
+    <!-- 发布不生成 *.deps.json，见 UI 工程同名属性说明。 -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -34,8 +34,9 @@ jobs:
         run: Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$($env:GITHUB_REF_NAME -replace '^[vV]', '')"
 
       # 与 Release.pubxml 一致：win-x64、框架依赖、非单文件。
-      # 四个入口（UI/Cli/PluginHost/Worker）的 exe、入口 dll、deps/runtimeconfig 由项目引用输出到根目录，
-      # 其余托管程序集由 UI csproj 的 MoveManagedAssembliesToLib 收进发布目录的 lib/。
+      # 四个入口（UI/Cli/PluginHost/Worker）的 exe、入口 dll、runtimeconfig 由项目引用输出到根目录，
+      # 其余托管程序集由 UI csproj 的 MoveManagedAssembliesToLib 收进发布目录的 lib/；
+      # 四个宿主都关了 GenerateDependencyFile，发布产物不包含任何 deps.json。
       - name: Publish app
         shell: pwsh
         run: >
@@ -44,42 +45,42 @@ jobs:
           --self-contained false
           -p:Version=$env:VERSION
 
-      # 布局回归防护：四个入口文件必须齐全；根目录只允许入口 dll 与 deps.json 记录的原生库，
-      # 托管依赖必须已进 lib/，原生库不能被误收进 lib/（DllImport 只在应用目录查找）。
+      # 布局回归防护：四个入口文件必须齐全且不包含 deps.json；根目录只允许入口 dll 与原生库，
+      # 托管依赖必须已进 lib/，原生库不能被误收进 lib/（没有 deps.json 后 DllImport 只在应用目录查找）。
+      # 没有 deps 清单可查原生库，改用反射区分：能读出 AssemblyName 的是托管程序集。
       - name: Verify publish layout
         shell: pwsh
         run: |
           $publishDir = 'src/HD2Mimnt.UI/bin/Release/net10.0/win-x64/publish'
           $entries = 'HD2Mimnt.UI', 'HD2Mimnt.Cli', 'HD2Mimnt.PluginHost', 'HD2Mimnt.Worker'
           foreach ($name in $entries) {
-            foreach ($ext in '.exe', '.dll', '.deps.json', '.runtimeconfig.json') {
+            foreach ($ext in '.exe', '.dll', '.runtimeconfig.json') {
               if (-not (Test-Path (Join-Path $publishDir "$name$ext"))) {
                 throw "发布目录缺少入口文件：$name$ext"
               }
             }
           }
+          $depsFiles = @(Get-ChildItem -Path $publishDir -Filter *.deps.json -File -Recurse -ErrorAction SilentlyContinue)
+          if ($depsFiles.Count -gt 0) { throw "发布目录不应包含 deps.json：$($depsFiles.Name -join ', ')" }
+
+          function Test-ManagedAssembly([string]$path) {
+            try { [void][System.Reflection.AssemblyName]::GetAssemblyName($path); return $true }
+            catch { return $false }
+          }
 
           $libDir = Join-Path $publishDir 'lib'
-          $libDlls = @(Get-ChildItem -Path $libDir -Filter *.dll -File -ErrorAction SilentlyContinue | ForEach-Object Name)
+          $libDlls = @(Get-ChildItem -Path $libDir -Filter *.dll -File -ErrorAction SilentlyContinue)
           foreach ($required in 'HD2Mimnt.Core.dll', 'HD2Mimnt.Application.dll', 'Avalonia.Base.dll') {
-            if ($libDlls -notcontains $required) { throw "lib/ 下缺少托管程序集：$required" }
+            if (@($libDlls | ForEach-Object Name) -notcontains $required) { throw "lib/ 下缺少托管程序集：$required" }
           }
-
-          $deps = Get-Content -Raw (Join-Path $publishDir 'HD2Mimnt.UI.deps.json') | ConvertFrom-Json
-          $nativeNames = foreach ($target in $deps.targets.PSObject.Properties.Value) {
-            foreach ($library in $target.PSObject.Properties.Value) {
-              if ($library.native) {
-                $library.native.PSObject.Properties.Name | ForEach-Object { [System.IO.Path]::GetFileName($_) }
-              }
-            }
-          }
+          $misfiledNative = @($libDlls | Where-Object { -not (Test-ManagedAssembly $_.FullName) } | ForEach-Object Name)
+          if ($misfiledNative.Count -gt 0) { throw "原生库被误收进 lib/：$($misfiledNative -join ', ')" }
 
           $entryDlls = $entries | ForEach-Object { "$_.dll" }
-          $rootDlls = @(Get-ChildItem -Path $publishDir -Filter *.dll -File | ForEach-Object Name)
-          $unexpected = @($rootDlls | Where-Object { $entryDlls -notcontains $_ -and $nativeNames -notcontains $_ })
-          if ($unexpected.Count -gt 0) { throw "发布根目录出现未收拢的 dll：$($unexpected -join ', ')" }
-          $misfiledNative = @($libDlls | Where-Object { $nativeNames -contains $_ })
-          if ($misfiledNative.Count -gt 0) { throw "原生库被误收进 lib/：$($misfiledNative -join ', ')" }
+          $unexpected = @(Get-ChildItem -Path $publishDir -Filter *.dll -File |
+            Where-Object { $entryDlls -notcontains $_.Name -and (Test-ManagedAssembly $_.FullName) } |
+            ForEach-Object Name)
+          if ($unexpected.Count -gt 0) { throw "发布根目录出现未收拢的托管 dll：$($unexpected -join ', ')" }
 
       # 主包不含 .pdb；调试符号单独打包，便于事后排查本应用与子进程崩溃
       - name: Package release and symbols
