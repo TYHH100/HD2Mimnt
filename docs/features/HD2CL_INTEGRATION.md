@@ -11,7 +11,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 分支目录里混有 Unit 等非材质资源时无法安全保留选项，退回「只转换当前选中分支」；成品选项的部署与源模组一致，修改成品选项后重新部署即可换色。
 - 模组库与配置页支持多选：选中多个 HD2IAS 模组后点「转为 HD2CL 角色库」批量转换。先逐个确认版本（多版本才弹浮窗），再并发执行，同时最多 2 个 Worker（单个峰值约 1 GB）；取消版本选择只跳过该模组，失败不影响其余模组，完成后统一提示成功/跳过/失败数量。
 - 成品显示名使用模组名或所选版本名，并去掉导入时自动加的「类型 · 」前缀（`Model · `、`HD2IAS · ` 等）；编译出的模型标题（会裁掉“替换 xxx”并追加 `▲`）只保留在游戏内登记信息里。成品入库时打上 `HD2CL` 标签，模组库与配置页显示 `HD2CL` 徽标，用来和 `HD2IAS` 源模组区分。
-- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。如需单独分发压缩包，后续再加导出选项。
+- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。需要单独分发时点「导出压缩包…」：转换后把成品打成 7z 写到所选目录，不导入模组库、不修改当前配置；每次转换前选择目录，并记住上次选择。
 - 材质：源模组自带的可见材质及其贴图沿父链收集后打进 `9ba626afa44a3aa3.patch_2`（含 `.gpu_resources`/`.stream`），因此禁用源模组后成品仍显示原材质；游戏原生材质仍只按资源编号引用，不复制。
 - 转换使用默认选择：全部配套组件、`Slim` 体型、随模型携带的材质与图标；不做交互式部件/材质选择。
 - 扫描、编译、打包与成品写出都在 `HD2Mimnt.Worker` 独立进程执行（进程 Worker 类型 `Hd2ClConversion`），主程序只负责结果入库与配置开关。转换期间的高 CPU 与大内存不进入 UI 进程，并可在任务中心查看进度。
@@ -25,6 +25,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - MDL3 曲包：动作仍是 90 骨骼 Stingray 片段，但关键帧记录改用紧凑布局（无 4 字节通道头，记录直接从 `subtype` 开始）；镜头是烘焙到 30 FPS 的 8 浮点采样行；音轨是 32 kHz 双声道 MS-ADPCM，按微软规范解码后重采样到 48 kHz PCM 再打包。登记表缺少 `rate`/`channels` 时从 WAVEFORMATEX 头读取。
 - 待机播放方式：不修改时沿用原包（旧包默认 `loop` 持续姿势），可改为 `once` 完整演出；检查结果里的方式回填到界面，用户改动后才作为覆盖值。
 - 转换（`MmdAdapter.Convert`）：解码 Stingray 动作关键帧为 `HD2POSE1` 逐帧姿势，提取镜头烘焙表与 48 kHz 双声道 PCM 音轨，按 `mods/hd2cl/mmd/v1/<id>/{catalog,pose,camera,wav,preview}` 打包，成品为 `9ba626afa44a3aa3.patch_0` 三件套加清单；导入模组库并打 `HD2CL` 标记，存在当前配置时自动加入并启用。
+- 导出：与角色模型一致，「导出压缩包…」把成品打成 7z 写到所选目录，不导入模组库、不改当前配置；同样记住上次选择的目录。
 - 缺清单的裸包需要补充名称与稳定来源标识：`Guid = uuid5(NAMESPACE_URL, "HD2ManualMMDSource/" + key)`；成品 Guid 为 `uuid5(NAMESPACE_URL, "HD2CharacterLibrary/MMD/<id>/adapted-mmd")`。
 - 检查与转换都在 `HD2Mimnt.Worker` 的 `MmdAdaptation` 任务中执行（`Action=inspect/convert`），主程序只负责导入与配置开关。
 
@@ -38,7 +39,8 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 | Infrastructure | `ModelConversion/Mmd/MmdAdapter.cs` | `mmd_adapter.inspect/convert` |
 | Infrastructure | `ModelConversion/Mmd/MmdMdl3Reader.cs` | MDL3 注册表/镜头/音轨脚本解析（上游 `mmd_adapter` 不支持） |
 | Infrastructure | `ModelConversion/Mmd/MmdAudio.cs` | MS-ADPCM 解码与 48 kHz 重采样（无上游对应实现） |
-| Application | `src/HD2Mimnt.Application/Services/MmdAdaptationService.cs` | 拉起 Worker、导入成品、加入配置 |
+| Application | `src/HD2Mimnt.Application/Services/MmdAdaptationService.cs` | 拉起 Worker、导入成品、加入配置、导出 7z |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClArchiveExport.cs` | 导出命名清洗与去重、临时包写完再改名 |
 | Worker | `src/HD2Mimnt.Worker/MmdAdaptationWorkerTask.cs` | `Action=inspect/convert` |
 | UI | `MmdAdaptationViewModel.cs`、`MmdSourceInfoPromptService.cs`、`Hd2ClMmdView.axaml`、`MoreView.axaml` | 工具页标签页与来源信息弹窗 |
 
@@ -57,7 +59,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 | Infrastructure | `IasBodyCatalog.cs` + `Data/ias_body_types.json`、`Data/ias_stock_recipes.json` | `ias_body_types`、`ias_stock_recipes` |
 | Infrastructure | `IasCompanionSets.cs` | `companion_sets.read_set` |
 | Infrastructure | `IasUnit.cs` / `IasCompanion.cs` / `IasArchive.cs` 等 | Unit、Rig/物理/共享、Stingray Archive、序列化 |
-| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、版本识别、拉起 Worker、导入成品、配置切换 |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClConversionService.cs` | 候选扫描、版本识别、拉起 Worker、导入成品、配置切换、导出 7z |
 | Worker | `src/HD2Mimnt.Worker/Hd2ClConversionWorkerTask.cs` | 接收参数并驱动 `Hd2ClArtifactBuilder` |
 | UI | `Hd2ClViewModel.cs`、`Hd2ClVariantPromptService.cs`、`Hd2ClBatchConversion.cs`、`MoreView.axaml`、`LibraryView.axaml.cs` | 工具页卡片、版本选择浮窗、多选批量转换与模组右键入口 |
 
@@ -105,7 +107,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 
 - 扫描时只保留配套文件，补丁三元组逐个解析后立即释放，不再把整份模组读入再复制；
 - `IasArchive.Write` 按对齐规则先算精确长度再一次性分配，去掉 `List<byte>` 扩容与 `ToArray` 副本；
-- 成品成员直接写入目录，导入端不再解压；需要分发压缩包时再加单独导出选项；
+- 成品成员直接写入目录，导入端不再解压；需要分发时由「导出压缩包…」另打 7z（不入库）；
 - 顶点通道偏移、蒙皮布局与零蒙皮判定缓存；几何签名改为结构比较，分区掩码写入与校验改为零分配 span；
 - 每个 Unit 的几何分类与视图分区互不共享状态，按 4/3 并行度执行。
 
@@ -122,6 +124,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 - 材质的贴图依赖在 Material TOC 偏移 64 处记录数量（上限 4096），贴图编号从 `136 + 4*count` 起按 `count` 个 `uint64` 排列；打包材质时必须把这些贴图一并写入 `patch_2`，否则禁用源模组后材质贴图丢失。
 - 精确对照时，Lua 目录字面量本身不含代码末尾换行；比较时要显式处理这一字节。
 - 配套成员表不能简单“只保留 companion 后缀”：`mod_group.json` 会按清单核对任意列出文件的摘要，漏掉图片或作者文件会导致摘要不符。当前做法是排除补丁本体与 `.gpu_resources`/`.stream` 边车，其余保留。
+- 导出压缩包必须把成品目录的内容放在压缩包根层（`manifest.json` 直接位于根），不能额外包一层同名目录；否则重新导入时会被当成合集或嵌套清单。
 - 成品目录必须位于本次转换的临时目录内，由服务端 `finally` 统一删除；文件夹导入是复制语义，导入完成前不能提前清理。
 - 成品目录根层必须直接放 `manifest.json`，不要额外包一层同名子目录；否则导入器会把它当成合集或嵌套清单重新定位根目录。
 - 并行 Unit 分类时，每个 Unit 的缓存只能由该 Unit 的任务访问；共享的只有只读 GPU 数组。并行异常要拆掉 `AggregateException`，否则任务中心只剩一句“One or more errors occurred”。
@@ -159,7 +162,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 - 只实现非 bundled 单模型成品：源模组自带的可见材质与其贴图会打进 `patch_2`，但不重打包外部材质包，也不处理形态键私有材质。
 - 形态键（morph）仍需上游手动转换入口；检测到 `HD2Morph1` 会在配套解析阶段直接拒绝。
 - 等价皮肤判断用于旧版部件迁移，按上游可见属性/蒙皮/位置误差 `< 2e-5` 复核；皮肤通道不可访问时会退化为更保守的结果。
-- 成品以文件夹交付并直接入库，不保留中间压缩包；如果以后需要单独分发 `.7z`，再增加显式导出选项。
+- 成品默认以文件夹交付并直接入库；「导出压缩包…」走独立路径，把同一份成品打成 7z 放到所选目录，不导入模组库、不改当前配置。导出包根层直接是成品内容，可直接分发或重新导入。
 - 合集版本按组件文件名编号分组：无法与任何模型组件关联的配套组件会附到每个版本，暂不支持把多个版本合并进一个成品。
 - 成品选项只支持「一级选项 + 一层互斥子选项」的材质分支；多层嵌套或分支含非材质资源时退回单分支转换。选项预览图按清单 `Image` 复制到 `Material/组[/选项]/icon.*` 并改写为成品内相对路径，未声明时退回分支目录的 `icon.*`；源模组没有图就没有缩略图。
 - 不校验作者签名、不做游戏内运行验证；转换结果仍需实机验收。

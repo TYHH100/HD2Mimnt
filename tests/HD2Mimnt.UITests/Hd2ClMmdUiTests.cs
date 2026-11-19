@@ -57,6 +57,8 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.False(view.FindControl<Button>("MmdConvertButton")!.IsEffectivelyEnabled);
             Assert.True(view.FindControl<Button>("MmdCheckButton")!.IsEffectivelyEnabled);
             Assert.Equal("检查内容", view.FindControl<Button>("MmdCheckButton")!.Content);
+            Assert.Equal("导出压缩包…", view.FindControl<Button>("MmdExportButton")!.Content);
+            Assert.False(view.FindControl<Button>("MmdExportButton")!.IsEffectivelyEnabled);
             Assert.Contains("请重新检查", view.FindControl<TextBlock>("MmdStatusText")!.Text);
 
             // 检查结果同步到选项/待机方式/备注与转换按钮。
@@ -67,11 +69,13 @@ public sealed partial class FluentAvaloniaUiTests
             Layout();
             Assert.True(view.FindControl<RadioButton>("MmdIdleOnceButton")!.IsChecked);
             Assert.True(view.FindControl<Button>("MmdConvertButton")!.IsEffectivelyEnabled);
+            Assert.True(view.FindControl<Button>("MmdExportButton")!.IsEffectivelyEnabled);
             Assert.Contains("0:05", view.FindControl<TextBlock>("MmdNotesText")!.Text);
 
             await language.SetLanguageAsync("en-US");
             Layout();
             Assert.Equal("Start conversion", view.FindControl<Button>("MmdConvertButton")!.Content);
+            Assert.Equal("Export .7z…", view.FindControl<Button>("MmdExportButton")!.Content);
             Capture(window, "Current", "hd2cl-mmd");
             await language.SetLanguageAsync("zh-CN");
             Layout();

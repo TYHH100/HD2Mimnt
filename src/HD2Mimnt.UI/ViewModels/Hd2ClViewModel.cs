@@ -12,13 +12,15 @@ public partial class Hd2ClViewModel : ObservableObject
 {
     private readonly IHd2ClConversionService _service;
     private readonly NotificationService _notifications;
+    private readonly SettingsService _settings;
     private readonly IHd2ClVariantPrompt? _variantPrompt;
 
     public Hd2ClViewModel(IHd2ClConversionService service, NotificationService notifications,
-        IHd2ClVariantPrompt? variantPrompt = null)
+        SettingsService settings, IHd2ClVariantPrompt? variantPrompt = null)
     {
         _service = service;
         _notifications = notifications;
+        _settings = settings;
         _variantPrompt = variantPrompt;
     }
 
@@ -34,6 +36,10 @@ public partial class Hd2ClViewModel : ObservableObject
     private string _status = string.Empty;
 
     public event EventHandler? ConversionCompleted;
+
+    /// <summary>上次导出压缩包使用的目录；没有记录时由文件夹选择器使用系统默认位置。</summary>
+    public string SuggestedExportDirectory
+        => _settings.GetSetting(SettingKeys.Hd2ClExportDirectory, string.Empty);
 
     [RelayCommand]
     private async Task RefreshAsync()
@@ -94,6 +100,52 @@ public partial class Hd2ClViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>只导出压缩包（7z）到指定目录：不导入模组库、不改当前配置。</summary>
+    public async Task ExportAsync(Hd2ClCandidateItem? item, string directory)
+    {
+        if (item is null || IsBusy) return;
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            Status = "请选择导出目录。";
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            var (variant, canceled) = await Hd2ClVariantSelection.ResolveAsync(_service, _variantPrompt, item.ModId);
+            if (canceled)
+            {
+                Status = "已取消导出。";
+                return;
+            }
+            var progress = new Progress<string>(message => Status = message);
+            var result = await _service.ExportAsync(item.ModId, directory, variant?.ComponentFolders,
+                variant?.Name, progress);
+            await RememberExportDirectoryAsync(directory);
+            Status = $"已导出「{result.Name}」：{result.ArchivePath}";
+            _notifications.ShowSuccess(Status, "HD2CL");
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "导出已取消。";
+        }
+        catch (Exception ex)
+        {
+            Status = "导出失败：" + ex.Message;
+            _notifications.ShowError(Status, "HD2CL");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task RememberExportDirectoryAsync(string directory)
+    {
+        try { await _settings.SetSettingAsync(SettingKeys.Hd2ClExportDirectory, directory); }
+        catch { }
     }
 }
 

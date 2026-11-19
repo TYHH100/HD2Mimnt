@@ -2,6 +2,7 @@
   <StackPanel Spacing="8">
     <TextBlock Text="{loc:Loc UI.Hd2ClMmdTitle}" Classes="section-title" />
     <TextBlock Text="{loc:Loc UI.Hd2ClMmdDescription}" Classes="muted" TextWrapping="Wrap" />
+    <TextBlock Text="{loc:Loc UI.Hd2ClExportHint}" Classes="muted" TextWrapping="Wrap" />
 
     <TextBlock Text="{loc:Loc UI.Hd2ClMmdSourceLabel}" Classes="muted" Margin="0,6,0,0" />
     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
@@ -40,11 +41,12 @@
       </ScrollViewer>
     </Border>
 
-    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,6,0,0">
       <TextBlock x:Name="MmdStatusText" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
       <Button x:Name="MmdCancelButton" Grid.Column="1" Content="{loc:Loc Common.Cancel}" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}" />
       <Button x:Name="MmdCheckButton" Grid.Column="2" Content="{loc:Loc UI.Hd2ClMmdCheck}" Classes="accent" Command="{Binding CheckCommand}" IsEnabled="{Binding !IsBusy}" />
-      <Button x:Name="MmdConvertButton" Grid.Column="3" Content="{loc:Loc UI.Hd2ClMmdConvert}" Classes="accent" Command="{Binding ConvertCommand}" IsEnabled="{Binding CanConvert}" />
+      <Button x:Name="MmdExportButton" Grid.Column="3" Content="{loc:Loc UI.Hd2ClExport}" Click="OnExport" IsEnabled="{Binding CanConvert}" />
+      <Button x:Name="MmdConvertButton" Grid.Column="4" Content="{loc:Loc UI.Hd2ClMmdConvert}" Classes="accent" Command="{Binding ConvertCommand}" IsEnabled="{Binding CanConvert}" />
     </Grid>
   </StackPanel>
 </UserControl>

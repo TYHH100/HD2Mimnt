@@ -27,6 +27,9 @@ public sealed record MmdAdaptationSourceInfo(string Name, string? Key, string? A
 public sealed record MmdAdaptationResult(
     Guid ModId, string Name, string Identity, int Frames, double Duration, Guid? ProfileId);
 
+/// <summary>MMD 导出结果：成品名与写出的 7z 路径（未导入模组库）。</summary>
+public sealed record MmdAdaptationExportResult(string Name, string ArchivePath);
+
 public interface IMmdAdaptationService
 {
     /// <summary>在独立 Worker 中检查 MMD 原始资源包，返回曲目、媒体与来源选项。</summary>
@@ -38,4 +41,9 @@ public interface IMmdAdaptationService
     Task<MmdAdaptationResult> ConvertAsync(string sourcePath, string? sourceOption,
         MmdAdaptationSourceInfo? sourceInfo, string? idlePlayback, IProgress<string>? progress = null,
         CancellationToken token = default);
+
+    /// <summary>转换并把成品打成 7z 写到 outputDirectory：不导入模组库、不修改当前配置。</summary>
+    Task<MmdAdaptationExportResult> ExportAsync(string sourcePath, string outputDirectory,
+        string? sourceOption, MmdAdaptationSourceInfo? sourceInfo, string? idlePlayback,
+        IProgress<string>? progress = null, CancellationToken token = default);
 }

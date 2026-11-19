@@ -36,4 +36,19 @@ public partial class Hd2ClMmdView : UserControl
         });
         if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) vm.SourcePath = path;
     }
+
+    private async void OnExport(object? sender, RoutedEventArgs args)
+    {
+        if (DataContext is not MmdAdaptationViewModel { IsBusy: false, CanConvert: true } vm ||
+            TopLevel.GetTopLevel(this) is not { } top) return;
+        var folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = UiLocalization.Current["UI.Hd2ClExportPickTitle"],
+            AllowMultiple = false,
+            SuggestedStartLocation = string.IsNullOrWhiteSpace(vm.SuggestedExportDirectory)
+                ? null
+                : await top.StorageProvider.TryGetFolderFromPathAsync(vm.SuggestedExportDirectory)
+        });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path) await vm.ExportAsync(path);
+    }
 }

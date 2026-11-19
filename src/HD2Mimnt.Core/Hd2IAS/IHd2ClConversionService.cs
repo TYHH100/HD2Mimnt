@@ -32,6 +32,9 @@ public sealed record Hd2ClConversionResult(
     Guid? ProfileId,
     bool SourceDisabled);
 
+/// <summary>HD2CL 导出结果：成品名与写出的 7z 路径（未导入模组库）。</summary>
+public sealed record Hd2ClExportResult(string Name, string ArchivePath);
+
 public interface IHd2ClConversionService
 {
     Task<IReadOnlyList<Hd2ClCandidate>> GetCandidatesAsync(CancellationToken token = default);
@@ -42,4 +45,9 @@ public interface IHd2ClConversionService
     /// <summary>把 HD2IAS 模组转换为 HD2CL 角色库模型：导入模组库、加入当前配置并禁用源 IAS 模组（保留文件）。</summary>
     Task<Hd2ClConversionResult> ConvertAsync(Guid modId, IReadOnlyList<string>? componentFolders = null,
         string? productName = null, IProgress<string>? progress = null, CancellationToken token = default);
+
+    /// <summary>把成品打成 7z 写到 outputDirectory：不导入模组库、不修改当前配置。</summary>
+    Task<Hd2ClExportResult> ExportAsync(Guid modId, string outputDirectory,
+        IReadOnlyList<string>? componentFolders = null, string? productName = null,
+        IProgress<string>? progress = null, CancellationToken token = default);
 }

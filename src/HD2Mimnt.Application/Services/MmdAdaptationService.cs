@@ -45,17 +45,12 @@ public sealed class MmdAdaptationService : IMmdAdaptationService
         MmdAdaptationSourceInfo? sourceInfo, string? idlePlayback, IProgress<string>? progress = null,
         CancellationToken token = default)
     {
-        var work = Path.Combine(Path.GetTempPath(), "HD2Mimnt-MMD", Guid.NewGuid().ToString("N"));
+        var work = CreateWorkDirectory();
         var output = Path.Combine(work, "package");
-        Directory.CreateDirectory(work);
         try
         {
-            var arguments = Arguments("convert", sourcePath, sourceOption, sourceInfo, idlePlayback);
-            arguments["OutputDirectory"] = output;
-            var outcome = await _tasks.RunProcessTaskAsync(
-                $"转换「{DisplayName(sourcePath)}」为 HD2CL MMD 资源包", "MmdAdaptation", arguments,
-                new ProgressBridge(progress), cancellationToken: token);
-            var artifact = ReadResult<MmdConvertResult>(outcome, "MMD 转换");
+            var artifact = await BuildArtifactAsync(sourcePath, sourceOption, sourceInfo, idlePlayback,
+                output, progress, token);
             if (!Directory.Exists(artifact.OutputDirectory))
                 throw new InvalidOperationException("MMD 转换没有生成成品目录。");
 
@@ -78,10 +73,58 @@ public sealed class MmdAdaptationService : IMmdAdaptationService
         }
         finally
         {
-            try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            DeleteWorkDirectory(work);
         }
+    }
+
+    /// <summary>只导出压缩包：转换产物打成 7z 写到指定目录，不导入模组库、不改当前配置。</summary>
+    public async Task<MmdAdaptationExportResult> ExportAsync(string sourcePath, string outputDirectory,
+        string? sourceOption, MmdAdaptationSourceInfo? sourceInfo, string? idlePlayback,
+        IProgress<string>? progress = null, CancellationToken token = default)
+    {
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+            throw new ArgumentException("请选择导出目录。", nameof(outputDirectory));
+        var work = CreateWorkDirectory();
+        var output = Path.Combine(work, "package");
+        try
+        {
+            var artifact = await BuildArtifactAsync(sourcePath, sourceOption, sourceInfo, idlePlayback,
+                output, progress, token);
+            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, artifact.Title,
+                artifact.OutputDirectory, progress, token);
+            progress?.Report("已导出压缩包：" + archive);
+            return new MmdAdaptationExportResult(artifact.Title, archive);
+        }
+        finally
+        {
+            DeleteWorkDirectory(work);
+        }
+    }
+
+    private async Task<MmdConvertResult> BuildArtifactAsync(string sourcePath, string? sourceOption,
+        MmdAdaptationSourceInfo? sourceInfo, string? idlePlayback, string output,
+        IProgress<string>? progress, CancellationToken token)
+    {
+        var arguments = Arguments("convert", sourcePath, sourceOption, sourceInfo, idlePlayback);
+        arguments["OutputDirectory"] = output;
+        var outcome = await _tasks.RunProcessTaskAsync(
+            $"转换「{DisplayName(sourcePath)}」为 HD2CL MMD 资源包", "MmdAdaptation", arguments,
+            new ProgressBridge(progress), cancellationToken: token);
+        return ReadResult<MmdConvertResult>(outcome, "MMD 转换");
+    }
+
+    private static string CreateWorkDirectory()
+    {
+        var work = Path.Combine(Path.GetTempPath(), "HD2Mimnt-MMD", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        return work;
+    }
+
+    private static void DeleteWorkDirectory(string work)
+    {
+        try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private static Dictionary<string, string> Arguments(string action, string sourcePath, string? sourceOption,

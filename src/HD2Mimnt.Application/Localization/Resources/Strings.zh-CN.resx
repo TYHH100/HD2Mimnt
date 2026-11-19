@@ -510,6 +510,15 @@
   <data name="UI.Hd2ClConvert" xml:space="preserve">
     <value>转换为 HD2CL</value>
   </data>
+  <data name="UI.Hd2ClExport" xml:space="preserve">
+    <value>导出压缩包…</value>
+  </data>
+  <data name="UI.Hd2ClExportPickTitle" xml:space="preserve">
+    <value>选择导出目录</value>
+  </data>
+  <data name="UI.Hd2ClExportHint" xml:space="preserve">
+    <value>导出只把成品打成 .7z 放到所选目录，不导入模组库，也不修改当前配置。</value>
+  </data>
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>正在扫描 HD2IAS 模组…</value>
   </data>

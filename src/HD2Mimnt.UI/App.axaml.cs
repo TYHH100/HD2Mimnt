@@ -735,6 +735,7 @@ public partial class App : Avalonia.Application
         services.AddTransient(sp => new MmdAdaptationViewModel(
             sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IMmdAdaptationService>(),
             sp.GetRequiredService<NotificationService>(),
+            sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<IHd2ClMmdSourceInfoPrompt>()));
         services.AddTransient<HellForgeViewModel>();
         services.AddTransient(sp => new NotificationPanelViewModel(

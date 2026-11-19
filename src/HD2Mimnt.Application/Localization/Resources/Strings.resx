@@ -510,6 +510,15 @@
   <data name="UI.Hd2ClConvert" xml:space="preserve">
     <value>Convert to HD2CL</value>
   </data>
+  <data name="UI.Hd2ClExport" xml:space="preserve">
+    <value>Export .7z…</value>
+  </data>
+  <data name="UI.Hd2ClExportPickTitle" xml:space="preserve">
+    <value>Choose export folder</value>
+  </data>
+  <data name="UI.Hd2ClExportHint" xml:space="preserve">
+    <value>Export only packs the result into a .7z in the chosen folder; it does not import the mod or change the current profile.</value>
+  </data>
   <data name="UI.Hd2ClLoading" xml:space="preserve">
     <value>Scanning HD2IAS mods…</value>
   </data>

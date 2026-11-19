@@ -7,6 +7,29 @@ public partial class MoreView : UserControl
 {
     public MoreView() => InitializeComponent();
 
+    private async void OnExportCandidateClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: Hd2ClCandidateItem candidate } button ||
+            DataContext is not MainWindowViewModel mainViewModel ||
+            TopLevel.GetTopLevel(button) is not Window owner)
+        {
+            return;
+        }
+
+        var viewModel = mainViewModel.Hd2ClViewModel;
+        if (viewModel is not { IsBusy: false }) return;
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = UiLocalization.Current["UI.Hd2ClExportPickTitle"],
+            AllowMultiple = false,
+            SuggestedStartLocation = string.IsNullOrWhiteSpace(viewModel.SuggestedExportDirectory)
+                ? null
+                : await owner.StorageProvider.TryGetFolderFromPathAsync(viewModel.SuggestedExportDirectory)
+        });
+        if (folders.FirstOrDefault()?.TryGetLocalPath() is { } path)
+            await viewModel.ExportAsync(candidate, path);
+    }
+
     private async void OnLaunchToolClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: ExternalToolItemViewModel tool } button ||

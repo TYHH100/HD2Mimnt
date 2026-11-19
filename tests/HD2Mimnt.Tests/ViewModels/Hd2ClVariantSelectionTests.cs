@@ -78,5 +78,10 @@ public class Hd2ClVariantSelectionTests
         public Task<Hd2ClConversionResult> ConvertAsync(Guid modId, IReadOnlyList<string>? componentFolders = null,
             string? productName = null, IProgress<string>? progress = null, CancellationToken token = default)
             => throw new NotSupportedException();
+
+        public Task<Hd2ClExportResult> ExportAsync(Guid modId, string outputDirectory,
+            IReadOnlyList<string>? componentFolders = null, string? productName = null,
+            IProgress<string>? progress = null, CancellationToken token = default)
+            => throw new NotSupportedException();
     }
 }

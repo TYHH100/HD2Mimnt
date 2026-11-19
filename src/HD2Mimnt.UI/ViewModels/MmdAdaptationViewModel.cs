@@ -18,6 +18,7 @@ public partial class MmdAdaptationViewModel : ObservableObject
 
     private readonly IMmdAdaptationService _service;
     private readonly NotificationService _notifications;
+    private readonly SettingsService _settings;
     private readonly IHd2ClMmdSourceInfoPrompt? _prompt;
     private CancellationTokenSource? _cancellation;
     private string? _idleOverride;
@@ -25,10 +26,11 @@ public partial class MmdAdaptationViewModel : ObservableObject
     private bool _ready;
 
     public MmdAdaptationViewModel(IMmdAdaptationService service, NotificationService notifications,
-        IHd2ClMmdSourceInfoPrompt? prompt = null)
+        SettingsService settings, IHd2ClMmdSourceInfoPrompt? prompt = null)
     {
         _service = service;
         _notifications = notifications;
+        _settings = settings;
         _prompt = prompt;
     }
 
@@ -74,6 +76,10 @@ public partial class MmdAdaptationViewModel : ObservableObject
     private bool _canConvert;
 
     public event EventHandler? ConversionCompleted;
+
+    /// <summary>上次导出压缩包使用的目录；没有记录时由文件夹选择器使用系统默认位置。</summary>
+    public string SuggestedExportDirectory
+        => _settings.GetSetting(SettingKeys.Hd2ClExportDirectory, string.Empty);
 
     partial void OnSourcePathChanged(string value) => Invalidate(sourceChanged: true);
 
@@ -167,6 +173,53 @@ public partial class MmdAdaptationViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => _cancellation?.Cancel();
+
+    /// <summary>只导出压缩包（7z）到指定目录：不导入模组库、不改当前配置。</summary>
+    public async Task ExportAsync(string directory)
+    {
+        if (IsBusy || !CanConvert) return;
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            Status = "请选择导出目录。";
+            return;
+        }
+        var source = SourcePath.Trim().Trim('"');
+        using var cancellation = new CancellationTokenSource();
+        _cancellation = cancellation;
+        IsBusy = true;
+        CanConvert = false;
+        try
+        {
+            Status = "正在导出 MMD 资源包…";
+            var progress = new Progress<string>(message => Status = message);
+            var result = await _service.ExportAsync(source, directory, SelectedOption?.Key, SourceInfo,
+                _idleOverride, progress, cancellation.Token);
+            await RememberExportDirectoryAsync(directory);
+            Status = $"已导出「{result.Name}」：{result.ArchivePath}";
+            _notifications.ShowSuccess(Status, "HD2CL MMD");
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "导出已取消。";
+        }
+        catch (Exception error)
+        {
+            Status = "导出失败：" + error.Message;
+            _notifications.ShowError(Status, "HD2CL MMD");
+        }
+        finally
+        {
+            _cancellation = null;
+            IsBusy = false;
+            CanConvert = _ready;
+        }
+    }
+
+    private async Task RememberExportDirectoryAsync(string directory)
+    {
+        try { await _settings.SetSettingAsync(SettingKeys.Hd2ClExportDirectory, directory); }
+        catch { }
+    }
 
     [RelayCommand]
     private async Task EditSourceInfoAsync()

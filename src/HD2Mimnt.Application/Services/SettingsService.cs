@@ -316,6 +316,9 @@ public static class SettingKeys
     public const string IasInstallLocation = "IAS.InstallLocation";
     public const string IasActiveRuntimeId = "IAS.ActiveRuntimeId";
 
+    // HD2CL 角色库：成品导出压缩包时记住上次选择的目录。
+    public const string Hd2ClExportDirectory = "Hd2Cl.ExportDirectory";
+
     // 配置文件相关
     public const string ProfilesAutoSwitchOnSelect = "Profiles.AutoSwitchOnSelect";
     public const string ProfilesAutoCheckConflicts = "Profiles.AutoCheckConflicts";
