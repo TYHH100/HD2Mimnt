@@ -53,6 +53,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 | 层 | 文件 | 对应上游模块 |
 | --- | --- | --- |
 | Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Hd2ClArtifactBuilder.cs` | 扫描组件 → 合并配套 → 编译 → 打包（可在 Worker 独立进程执行，不访问数据库） |
+| Infrastructure | `ModelConversion/IasPayload.cs` | 资源载荷视图（内存 / 补丁边车文件段），大文件按段读写 |
 | Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/Hd2ClVariantPlanner.cs` | 合集模组按组件文件名编号分组出多个可转换版本 |
 | Infrastructure | `src/HD2Mimnt.Infrastructure/ModelConversion/IasModelCompiler.cs` | `ias_builder.compile_model`（IAS 路径） |
 | Infrastructure | `IasModelPackager.cs` | `manual_backend.package_data`（非 bundled 形态）与成品成员写出 |
@@ -87,6 +88,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 - 成员在写出前由 `IasArchive.VerifyReadback` 逐资源回读校验；成品以文件夹交付，不再生成压缩包。
 - 源模组自带材质时另写出 `9ba626afa44a3aa3.patch_2` 及其 `.gpu_resources`/`.stream`，模型补丁本身仍不含材质与贴图。
 - 合集样例（3 个模型组件 + 3 个配套组件 + 1 个材质组件）能识别出 3 个版本，逐版本转换均成功，材质包自动随每个版本携带。
+- 超二 GB 材质包实测（`VRChat_AIRI_作战服 替换 CM-10`：2.7 GB 独立材质球 + 配套 + 两套模型补丁）：完整转换 19 s、峰值工作集约 1.4 GB，成品 `patch_1` 4,916,832 字节 + GPU 662,864,800 字节，`patch_2` 140,524 字节 + GPU 2,482,658,352 字节（51 个材质、70 张贴图，按模型实际引用筛选，不是整包照抄）；只转模型部分时 `patch_1` 为 4,915,856 字节，与改造前逐字节一致。
 - 含 v3 共享身体与服饰姿态的真实模组（`VRchat_AIRI_CM-09`）此前因指纹按 `double` 拼接报 “clothing pose Rig fingerprint differs”，修正为 float32 后转换通过。
 
 性能改造后另做了一次回归对照（本机真实模组：35 个源 Unit、4 个补丁组、GPU 合计约 181 MB）：
@@ -140,10 +142,12 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 - 部件编号可能只出现在 `hd2author`/`hd2preview` 文件名里，编号提取必须覆盖所有非补丁文件，只认 `rigbin`/`hd2phys` 会漏掉另一部件，导致重新拆成两个版本。
 - 同一版本内补丁按加载顺序覆盖同名资源（材质差分包会以相同编号重复出现），扫描顺序即覆盖顺序，后者生效；不要恢复成“内容不同就报错”。
 - 服饰姿态（`HD2POSE1`）的 Rig 指纹按上游 `TARGET` 布局拼接：名称 64 字节，`parent/source/slot/flags` 各 4 字节，`translation_scale` 与 12 个 `rest_local` 都是 **float32**。C# 内部用 `double` 保存这些值，序列化时漏转 `(float)` 会让每条骨骼多出一半字节，指纹永远不匹配。
+- 蒙皮调色板要按分区行末尾的 `group` 字段取重映射表，不能用分区序号：同一调色板组会被多个分区共用（真实模组里常见 16 个分区只有 8 组），用序号会在分区数大于表数时抛 “Index was out of range”，不越界时则会静默取到别的调色板，蒙皮整体错位。
+- 补丁边车（`.gpu_resources`/`.stream`）不能整块 `ReadAllBytes`：真实材质包单文件可达 2.7 GB，超过 .NET 单数组上限。资源载荷统一走 `IasPayload`（内存或「文件 + 偏移 + 长度」视图），扫描只登记视图，写出用 `IasArchive.WriteTo` 边读边写；需要整块解析的小资源（Unit 顶点）首次访问时缓存，材质/贴图永远不整块载入。
 - 成品清单名应使用用户可见的模组/版本名；编译出的模型标题只是游戏内登记名（上游会裁掉“替换 xxx”并追加 `▲`），不能拿来当成品名。**入库成品**的识别靠 `HD2CL` 标签徽标，不靠名称后缀；**导出压缩包**则靠名字末尾的 `▲` 区分，因为分发包脱离管理器后看不到徽标。两处场景不同，不冲突。
 - 旧版本转换出的入库成品没有 `HD2CL` 标签、名字里带 `▲`，需要删除后重新转换。
 - 批量转换的版本选择必须在启动 Worker 之前全部确认完：并发里再弹模态窗会互相抢占界面；版本浮窗点取消只跳过当前模组。
-- 批量并发上限为 2：每个 Worker 转换完整模型时峰值约 1 GB，放开并发会把内存打满。
+- 批量并发上限为 2：每个 Worker 转换完整模型时峰值约 1 GB，带超大材质包（成品 3 GB 级）时约 1.4 GB，放开并发会把内存打满。
 - MMD 动作片段头部是 24 字节 `<IIfIII`，但骨骼通道从偏移 60 开始（26 字节头 + 2 字节保留 + 34 字节通道标志位）；从 26 直接读会把标志位当成平移，随后报“动作含未支持的缩放通道”。
 - 镜头数据按 Python `splitlines()` 语义切行，尾部换行不产生空行；用 `Split('\n')` 会多出一行导致“MMD 镜头帧数或切点无效”。
 - MMD 登记行与清单的 JSON 键顺序参与哈希：动作行顺序为 `protocol,id,title,fps,duration,stage,origin,idle_playback,delivery,sha256[,preview]`；清单 `json.dumps(indent=2)` 无尾随换行（角色模型清单才带换行）。
@@ -161,6 +165,7 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 
 - 只实现非 bundled 单模型成品：源模组自带的可见材质与其贴图会打进 `patch_2`，但不重打包外部材质包，也不处理形态键私有材质。
 - 形态键（morph）仍需上游手动转换入口；检测到 `HD2Morph1` 会在配套解析阶段直接拒绝。
+- 单个资源载荷上限为 4 GB（归档行用 32 位长度）；单文件超过 4 GB 的补丁仍会拒绝。当前实测最大单文件为 2.7 GB，可正常转换。
 - 等价皮肤判断用于旧版部件迁移，按上游可见属性/蒙皮/位置误差 `< 2e-5` 复核；皮肤通道不可访问时会退化为更保守的结果。
 - 成品默认以文件夹交付并直接入库；「导出压缩包…」走独立路径，把同一份成品打成 7z 放到所选目录，不导入模组库、不改当前配置。导出包根层直接是成品内容，可直接分发或重新导入。
 - 合集版本按组件文件名编号分组：无法与任何模型组件关联的配套组件会附到每个版本，暂不支持把多个版本合并进一个成品。

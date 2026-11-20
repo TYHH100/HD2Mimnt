@@ -76,7 +76,7 @@ public static class Hd2ClArtifactBuilder
         token.ThrowIfCancellationRequested();
 
         progress?.Report(new(85, "导出成品文件", packaged.Name));
-        await IasModelPackager.WriteMembersAsync(request.OutputDirectory, packaged.Members, token);
+        await IasModelPackager.WriteMembersAsync(request.OutputDirectory, packaged, token);
         if (request.OptionGroups is { Count: > 0 })
             CopyOptionPayloads(request.ModPath, request.OutputDirectory, request.OptionGroups, token);
         progress?.Report(new(100, "转换完成", packaged.Name));
@@ -204,6 +204,13 @@ public static class Hd2ClArtifactBuilder
            || name.EndsWith(".stream", StringComparison.OrdinalIgnoreCase)
            || IsPatchFile(name);
 
+    private static IasPayload PayloadOf(string path)
+    {
+        if (!File.Exists(path)) return IasPayload.Empty;
+        var length = new FileInfo(path).Length;
+        return IasPayload.From(path, 0, length);
+    }
+
     /// <summary>合集模组只扫描用户选中的组件；相对路径来自版本规划，必须落在模组目录内。</summary>
     private static IReadOnlyList<string> ResolveFolders(string root, IReadOnlyList<string>? selection)
     {
@@ -263,8 +270,9 @@ public static class Hd2ClArtifactBuilder
                 var toc = File.ReadAllBytes(full);
                 var gpuPath = full + ".gpu_resources";
                 var streamPath = full + ".stream";
-                var gpu = File.Exists(gpuPath) ? File.ReadAllBytes(gpuPath) : [];
-                var stream = File.Exists(streamPath) ? File.ReadAllBytes(streamPath) : [];
+                // 边车只登记为「文件 + 长度」：超过 2 GB 的材质包也能扫描，载荷在写出阶段按段读取。
+                var gpu = PayloadOf(gpuPath);
+                var stream = PayloadOf(streamPath);
                 archives.Add(fileName[..16].ToLowerInvariant());
                 foreach (var (key, value) in IasArchive.ReadEntries(toc, gpu, stream))
                     // 同一模组内的补丁按加载顺序覆盖同名资源，游戏侧同样是后者生效；

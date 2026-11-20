@@ -33,8 +33,8 @@ public sealed class IasGameData : IDisposable
         var rows = Table(archive);
         if (!rows.TryGetValue((type, id), out var row)) throw new KeyNotFoundException($"{type:x16}/{id:x16}");
         var toc = ReadSegment(archive, row.TocOffset, row.TocSize);
-        var gpu = tocOnly ? [] : ReadSegment(archive + ".gpu_resources", row.GpuOffset, row.GpuSize);
-        var stream = tocOnly ? [] : ReadSegment(archive + ".stream", row.StreamOffset, row.StreamSize);
+        var gpu = tocOnly ? IasPayload.Empty : IasPayload.From(ReadSegment(archive + ".gpu_resources", row.GpuOffset, row.GpuSize));
+        var stream = tocOnly ? IasPayload.Empty : IasPayload.From(ReadSegment(archive + ".stream", row.StreamOffset, row.StreamSize));
         return new IasResource(toc, gpu, stream,
             [(int)row.Meta0, (int)row.Meta1, (int)row.Meta2, (int)row.Meta3],
             $"native_archive={archive};type={type:x16};id={id:x16}");

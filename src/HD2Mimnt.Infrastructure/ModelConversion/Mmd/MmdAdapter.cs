@@ -498,8 +498,8 @@ public static class MmdAdapter
 
     private static bool SameEntry(IasResource left, IasResource right)
         => left.Toc.AsSpan().SequenceEqual(right.Toc)
-           && left.Gpu.AsSpan().SequenceEqual(right.Gpu)
-           && left.Stream.AsSpan().SequenceEqual(right.Stream);
+           && left.Gpu.Span.SequenceEqual(right.Gpu.Span)
+           && left.Stream.Span.SequenceEqual(right.Stream.Span);
 
     private static bool SameBlobs(IReadOnlyList<MmdBlob> left, IReadOnlyList<MmdBlob> right)
         => left.Count == right.Count && left.Zip(right).All(pair =>

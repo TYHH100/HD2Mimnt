@@ -17,9 +17,13 @@ public sealed record IasPackageRequest(
     IReadOnlyList<string>? MaterialHints = null,
     IReadOnlyList<Hd2ClOptionGroup>? OptionGroups = null);
 
+/// <summary>成品中的一个补丁归档：成员直接在写出阶段流式落盘，不整块驻留内存。</summary>
+public sealed record IasArchivePlan(string BaseName, IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> Entries);
+
 public sealed record IasPackagedModel(
     string Name,
     IReadOnlyDictionary<string, byte[]> Members,
+    IReadOnlyList<IasArchivePlan> Archives,
     IasValue Manifest,
     IasValue Registration,
     string CatalogCodeSha256);
@@ -106,7 +110,7 @@ public static class IasModelPackager
         var packageToc = packageHeader.Concat(dependencies.SelectMany(pair =>
             BitConverter.GetBytes(pair.Item1).Concat(BitConverter.GetBytes(pair.Item2)))).ToArray();
         owned[(IasResourceTypes.Package, ulong.Parse(RegistrationString(registration, "package"), System.Globalization.NumberStyles.HexNumber))]
-            = new IasResource(packageToc, [], []);
+            = new IasResource(packageToc, IasPayload.Empty, IasPayload.Empty);
         IasBinary.Require(!owned.Keys.Any(pair => pair.Type is IasResourceTypes.Material or IasResourceTypes.Texture),
             "模型补丁混入材质或贴图。");
         var manifest = IasValue.Obj(
@@ -124,20 +128,9 @@ public static class IasModelPackager
         var members = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         if (request.IconPath is not null && request.Icon is not null) members[request.IconPath] = request.Icon;
         members["manifest.json"] = Encoding.UTF8.GetBytes(IasLua.WriteJson(manifest, ensureAscii: false, sortKeys: false, indent: 2));
-        var buffers = IasArchive.Write(owned);
-        IasArchive.VerifyReadback(buffers.Toc, buffers.Gpu, buffers.Stream, owned);
-        members[Patch] = buffers.Toc;
-        members[Patch + ".gpu_resources"] = buffers.Gpu;
-        members[Patch + ".stream"] = buffers.Stream;
-        if (bundledMaterials.Count > 0)
-        {
-            var materialBuffers = IasArchive.Write(bundledMaterials);
-            IasArchive.VerifyReadback(materialBuffers.Toc, materialBuffers.Gpu, materialBuffers.Stream, bundledMaterials);
-            members[MaterialPatch] = materialBuffers.Toc;
-            members[MaterialPatch + ".gpu_resources"] = materialBuffers.Gpu;
-            members[MaterialPatch + ".stream"] = materialBuffers.Stream;
-        }
-        return new IasPackagedModel(request.Name, members, manifest, registration,
+        var archives = new List<IasArchivePlan> { new(Patch, owned) };
+        if (bundledMaterials.Count > 0) archives.Add(new(MaterialPatch, bundledMaterials));
+        return new IasPackagedModel(request.Name, members, archives, manifest, registration,
             IasHash.Sha256Hex(Encoding.UTF8.GetBytes(catalogExpression)));
     }
 
@@ -145,18 +138,42 @@ public static class IasModelPackager
     /// 把成品成员直接写入目录。转换结果最终都会导入管理器，先压成 7z 再解压只会多一轮 I/O 与 CPU；
     /// 需要单独分发压缩包时再另加导出选项。
     /// </summary>
-    public static async Task WriteMembersAsync(string directory, IReadOnlyDictionary<string, byte[]> members,
-        CancellationToken token)
+    public static Task WriteMembersAsync(string directory, IasPackagedModel packaged, CancellationToken token)
     {
         Directory.CreateDirectory(directory);
-        foreach (var (name, raw) in members)
+        foreach (var (name, raw) in packaged.Members)
         {
             token.ThrowIfCancellationRequested();
             var target = Path.Combine(directory, name.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            await File.WriteAllBytesAsync(target, raw, token);
+            File.WriteAllBytes(target, raw);
         }
+        foreach (var archive in packaged.Archives)
+        {
+            token.ThrowIfCancellationRequested();
+            WriteArchive(directory, archive, token);
+        }
+        return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// 归档边算边写：TOC 很小，GPU/Stream 直接从源载荷流式复制，成品超过 2 GB 也不需要整块缓冲区。
+    /// 写完立刻按资源回读校验，避免磁盘写入缺陷带进模组库。
+    /// </summary>
+    private static void WriteArchive(string directory, IasArchivePlan archive, CancellationToken token)
+    {
+        var tocPath = Path.Combine(directory, archive.BaseName);
+        var gpuPath = tocPath + ".gpu_resources";
+        var streamPath = tocPath + ".stream";
+        using (var toc = Create(tocPath))
+        using (var gpu = Create(gpuPath))
+        using (var stream = Create(streamPath))
+            IasArchive.WriteTo(archive.Entries, toc, gpu, stream, token);
+        IasArchive.VerifyReadback(tocPath, gpuPath, streamPath, archive.Entries);
+    }
+
+    private static FileStream Create(string path)
+        => new(path, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20, FileOptions.SequentialScan);
 
     public static string CatalogExpression(IasValue catalog)
     {
@@ -340,7 +357,7 @@ public static class IasModelPackager
     }
 
     private static IasResource LuaResource(byte[] raw)
-        => new(BitConverter.GetBytes((uint)raw.Length).Concat(BitConverter.GetBytes(2u)).Concat(raw).ToArray(), [], []);
+        => new(BitConverter.GetBytes((uint)raw.Length).Concat(BitConverter.GetBytes(2u)).Concat(raw).ToArray(), IasPayload.Empty, IasPayload.Empty);
 
     private static string DetectMime(ReadOnlySpan<byte> icon)
         => icon.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47 }) ? "image/png"

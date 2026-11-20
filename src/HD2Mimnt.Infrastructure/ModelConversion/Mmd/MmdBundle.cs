@@ -256,18 +256,18 @@ public static class MmdBundle
         code.AddRange("\nreturn false\n"u8.ToArray());
         var entries = new Dictionary<(ulong Type, ulong Id), IasResource>
         {
-            [Resource(identity, "catalog")] = new(WrapLua(code.ToArray()), [], [])
+            [Resource(identity, "catalog")] = new(WrapLua(code.ToArray()), IasPayload.Empty, IasPayload.Empty)
         };
         foreach (var blob in blobs)
         {
             var encoded = "return [[" + Convert.ToBase64String(blob.Data) + "]]\n";
-            entries[Resource(identity, blob.Kind)] = new(WrapLua(Encoding.ASCII.GetBytes(encoded)), [], []);
+            entries[Resource(identity, blob.Kind)] = new(WrapLua(Encoding.ASCII.GetBytes(encoded)), IasPayload.Empty, IasPayload.Empty);
         }
         if (preview is not null)
         {
             var raw = PreviewMark.Concat(Encoding.ASCII.GetBytes(Convert.ToBase64String(preview)))
                 .Concat(Encoding.ASCII.GetBytes("]==]\n")).ToArray();
-            entries[Resource(identity, "preview")] = new(WrapLua(raw), [], []);
+            entries[Resource(identity, "preview")] = new(WrapLua(raw), IasPayload.Empty, IasPayload.Empty);
         }
         return new MmdPacked(packed, entries);
     }

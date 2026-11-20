@@ -65,6 +65,40 @@ public static class IasHash
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
+    /// <summary>TOC 与两段载荷一起取摘要；载荷可以是文件视图，按段读取不整块载入。</summary>
+    public static string Sha256Hex(ReadOnlySpan<byte> first, IasPayload second, IasPayload third)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(first);
+        Append(hash, second);
+        Append(hash, third);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    private static void Append(IncrementalHash hash, IasPayload payload)
+    {
+        if (payload.Length == 0) return;
+        if (payload.InMemory)
+        {
+            hash.AppendData(payload.Span);
+            return;
+        }
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(1 << 20);
+        try
+        {
+            for (long position = 0; position < payload.Length; position += buffer.Length)
+            {
+                var count = (int)Math.Min(buffer.Length, payload.Length - position);
+                payload.CopyTo(position, buffer.AsSpan(0, count));
+                hash.AppendData(buffer, 0, count);
+            }
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     public static ulong Fnv1a64(string value)
     {
         var result = 14695981039346656037UL;
