@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.UI.Localization;
 using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
@@ -15,14 +16,22 @@ public partial class AppUpdateViewModel : ObservableObject
 {
     private readonly IAppUpdateService _updateService;
     private readonly IBrowserLauncher _browserLauncher;
+    private readonly BackupService _backupService;
+    private readonly IConfirmationService _confirmationService;
+    private readonly NotificationService _notificationService;
     private readonly SettingsService? _settings;
     private CancellationTokenSource? _operation;
+    // 绑定初始化可能回写控件默认值；只持久化用户真正改变的值，避免把默认值写进设置库。
+    private bool _lastAutoCheckOnStartup;
 
     [ObservableProperty]
     private bool _isChecking;
 
     [ObservableProperty]
     private bool _isDownloading;
+
+    [ObservableProperty]
+    private bool _isBackingUp;
 
     [ObservableProperty]
     private double _downloadPercentage;
@@ -60,23 +69,30 @@ public partial class AppUpdateViewModel : ObservableObject
     /// <summary>安装脚本已启动，应用应立即退出，由主窗口订阅执行关闭。</summary>
     public event Action? InstallLaunched;
 
-    public bool IsBusy => IsChecking || IsDownloading;
+    public bool IsBusy => IsChecking || IsDownloading || IsBackingUp;
 
     public AppUpdateViewModel(IAppUpdateService updateService, IBrowserLauncher browserLauncher,
-        SettingsService? settings = null)
+        BackupService backupService, IConfirmationService confirmationService,
+        NotificationService notificationService, SettingsService? settings = null)
     {
         _updateService = updateService;
         _browserLauncher = browserLauncher;
+        _backupService = backupService;
+        _confirmationService = confirmationService;
+        _notificationService = notificationService;
         _settings = settings;
-        _autoCheckOnStartup = settings?.GetSetting(SettingKeys.UpdatesCheckOnStartup, false) == true;
+        _lastAutoCheckOnStartup = settings?.GetSetting(SettingKeys.UpdatesCheckOnStartup, true) == true;
+        _autoCheckOnStartup = _lastAutoCheckOnStartup;
     }
 
     partial void OnIsCheckingChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
     partial void OnIsDownloadingChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
+    partial void OnIsBackingUpChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
 
     partial void OnAutoCheckOnStartupChanged(bool value)
     {
-        if (_settings == null) return;
+        if (_settings == null || value == _lastAutoCheckOnStartup) return;
+        _lastAutoCheckOnStartup = value;
         _ = _settings.SetSettingAsync(SettingKeys.UpdatesCheckOnStartup, value);
     }
 
@@ -98,15 +114,56 @@ public partial class AppUpdateViewModel : ObservableObject
     private async Task DownloadAndInstallAsync()
     {
         if (IsBusy || _currentInfo is not { } info) return;
+
+        // 更新会替换程序目录，先在动手前确认是否留一份数据库备份。
+        var backupChoice = await _confirmationService.AskAsync(
+            "Updates.BackupBeforeUpdateTitle",
+            "Updates.BackupBeforeUpdateMessage",
+            "Updates.BackupAndUpdate",
+            "Updates.UpdateWithoutBackup");
+        if (backupChoice == ConfirmationChoice.Cancel) return;
+
         HasError = false;
         ErrorDetail = null;
-        _operation = new CancellationTokenSource();
-        IsDownloading = true;
-        DownloadPercentage = 0;
+        var operation = new CancellationTokenSource();
+        _operation = operation;
         try
         {
+            if (backupChoice == ConfirmationChoice.Primary)
+            {
+                IsBackingUp = true;
+                try
+                {
+                    // VACUUM INTO 实际同步执行，放到线程池避免备份大库时冻结界面。
+                    var backup = await Task.Run(() => _backupService.CreateBackupAsync(operation.Token),
+                        operation.Token);
+                    _notificationService.ShowSuccess(
+                        UiLocalization.Current.Format("Updates.BackupCreated", backup.Name),
+                        UiLocalization.Current["Updates.NotificationTitle"]);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception error)
+                {
+                    // 备份失败不继续更新：用户选的是“先备份”，静默跳过会让保险失效。
+                    HasError = true;
+                    ErrorDetail = UiLocalization.Current.Format("Updates.BackupFailed", error.Message);
+                    _notificationService.ShowError(ErrorDetail,
+                        UiLocalization.Current["Updates.NotificationTitle"]);
+                    return;
+                }
+                finally
+                {
+                    IsBackingUp = false;
+                }
+            }
+
+            IsDownloading = true;
+            DownloadPercentage = 0;
             var progress = new Progress<DownloadProgress>(p => DownloadPercentage = p.Percentage);
-            var staging = await _updateService.PrepareAsync(info, progress, _operation.Token);
+            var staging = await _updateService.PrepareAsync(info, progress, operation.Token);
             _updateService.LaunchPendingInstaller(staging);
             InstallLaunched?.Invoke();
         }
@@ -122,8 +179,8 @@ public partial class AppUpdateViewModel : ObservableObject
         finally
         {
             IsDownloading = false;
-            _operation.Dispose();
-            _operation = null;
+            operation.Dispose();
+            if (ReferenceEquals(_operation, operation)) _operation = null;
         }
     }
 

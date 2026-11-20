@@ -465,6 +465,7 @@
                   <Button Content="{loc:Loc Updates.OpenReleasePage}" Command="{Binding AppUpdate.OpenReleasePageCommand}" />
                   <Button Content="{loc:Loc Common.Cancel}" Command="{Binding AppUpdate.CancelCommand}" IsVisible="{Binding AppUpdate.IsDownloading}" />
                 </StackPanel>
+                <TextBlock IsVisible="{Binding AppUpdate.IsBackingUp}" Text="{loc:Loc Updates.BackingUp}" Classes="muted" />
                 <ProgressBar IsVisible="{Binding AppUpdate.IsDownloading}" Value="{Binding AppUpdate.DownloadPercentage}" Maximum="100" Minimum="0" />
                 <TextBlock IsVisible="{Binding AppUpdate.IsDownloading}" Text="{loc:Loc Updates.Downloading}" Classes="muted" />
                 <TextBlock IsVisible="{Binding AppUpdate.HasDirectAsset, Converter={StaticResource InverseBoolConverter}}" Text="{loc:Loc Updates.ManualDownloadHint}" Classes="muted" TextWrapping="Wrap" />

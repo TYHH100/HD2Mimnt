@@ -699,6 +699,27 @@
   <data name="Updates.ManualDownloadHint" xml:space="preserve">
     <value>No automatic installer was found for this release. Please download it from the release page.</value>
   </data>
+  <data name="Updates.BackingUp" xml:space="preserve">
+    <value>Backing up the database…</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateTitle" xml:space="preserve">
+    <value>Back up before update</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateMessage" xml:space="preserve">
+    <value>Back up the current database before downloading and installing the update? You can restore it from Settings - Backup.</value>
+  </data>
+  <data name="Updates.BackupAndUpdate" xml:space="preserve">
+    <value>Back up and update</value>
+  </data>
+  <data name="Updates.UpdateWithoutBackup" xml:space="preserve">
+    <value>Update without backup</value>
+  </data>
+  <data name="Updates.BackupCreated" xml:space="preserve">
+    <value>Pre-update backup created: {0}</value>
+  </data>
+  <data name="Updates.BackupFailed" xml:space="preserve">
+    <value>Pre-update backup failed; update cancelled: {0}</value>
+  </data>
   <data name="Updates.NotificationTitle" xml:space="preserve">
     <value>HD2Mimnt update</value>
   </data>

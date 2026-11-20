@@ -1877,6 +1877,10 @@ public sealed partial class FluentAvaloniaUiTests
             _shown = Pending;
             return Pending?.Task ?? Task.FromResult(true);
         }
+
+        public Task<ConfirmationChoice> AskAsync(string title, string message, string primaryText,
+            string secondaryText, string closeText = "Common.Cancel")
+            => Task.FromResult(ConfirmationChoice.Primary);
     }
 
     [AvaloniaFact]

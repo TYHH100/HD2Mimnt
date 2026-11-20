@@ -699,6 +699,27 @@
   <data name="Updates.ManualDownloadHint" xml:space="preserve">
     <value>該版本未找到自動安裝包，請前往發佈頁手動下載。</value>
   </data>
+  <data name="Updates.BackingUp" xml:space="preserve">
+    <value>正在備份資料庫…</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateTitle" xml:space="preserve">
+    <value>更新前備份</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateMessage" xml:space="preserve">
+    <value>下載並安裝更新前，是否先備份目前資料庫？備份可在「設定 - 備份」中還原。</value>
+  </data>
+  <data name="Updates.BackupAndUpdate" xml:space="preserve">
+    <value>備份並更新</value>
+  </data>
+  <data name="Updates.UpdateWithoutBackup" xml:space="preserve">
+    <value>不備份，直接更新</value>
+  </data>
+  <data name="Updates.BackupCreated" xml:space="preserve">
+    <value>已建立更新前備份：{0}</value>
+  </data>
+  <data name="Updates.BackupFailed" xml:space="preserve">
+    <value>更新前備份失敗，已取消更新：{0}</value>
+  </data>
   <data name="Updates.NotificationTitle" xml:space="preserve">
     <value>HD2Mimnt 更新</value>
   </data>
