@@ -20,6 +20,7 @@
 1. 在 `dev` 上完成开发，本地通过 `dotnet build HD2Mimnt.slnx --no-restore` 与相关测试（UI 测试在本地验证，CI 不跑）。
 2. 把 `dev` 的当前内容压缩为 `master` 上的发布提交并打标签。两边历史独立，`git merge --squash` 会报 unrelated histories，用 `read-tree` 直接把 `dev` 的完整内容读入暂存区（不动 `master` 的提交谱系）：
 
+
    ```bash
    git checkout master
    git read-tree -u --reset dev
@@ -27,9 +28,7 @@
    git tag -a V0.2.0-beta --cleanup=verbatim -F release-notes.md   # 标签注释正文就是 Release 更新说明
    git push origin master V0.2.0-beta
    ```
-
    `release-notes.md` 是临时文件：首行写版本号（可省略），空一行后写更新内容（Markdown 可用）；打完标签即可删除，不要提交进仓库。注意 `git tag` 默认会丢掉以 `#` 开头的行，Markdown 标题需要配合 `--cleanup=verbatim` 才能保留（见[注意事项](#注意事项)）。
-
 3. 推送标签后 GitHub Actions 自动构建并创建 GitHub Release，产物为主包 `HD2Mimnt-<版本>-win-x64.zip`（不含 `.pdb`）与调试符号包 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
 4. 回到 `dev` 继续下一轮开发：`git checkout dev`。
 
