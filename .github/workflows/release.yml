@@ -96,15 +96,27 @@ jobs:
 
       # 发布说明取自标签注解正文：第一行可以是版本号标题（会被去掉），其后为更新内容。
       # 标签正文为空（例如老的轻量标签或只写了一行版本号）时保留自动生成。
+      # 浅克隆按提交取标签，本地标签会退化成轻量引用、注解丢失，因此优先按 API 读注解对象。
       - name: Collect release notes from tag
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
-          if [ -z "$(git tag -l "$tag")" ]; then
-            git fetch --depth=1 origin "+refs/tags/$tag:refs/tags/$tag"
+          notes=""
+          object_type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type' 2>/dev/null || true)"
+          if [ "$object_type" = "tag" ]; then
+            object_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+            notes="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha" --jq '.message' 2>/dev/null || true)"
           fi
-          notes="$(git tag -l --format='%(contents)' "$tag" | tr -d '\r')"
+          if [ -z "$notes" ]; then
+            if [ -z "$(git tag -l "$tag")" ]; then
+              git fetch --depth=1 origin "+refs/tags/$tag:refs/tags/$tag"
+            fi
+            notes="$(git tag -l --format='%(contents)' "$tag" | tr -d '\r')"
+          fi
+          notes="$(printf '%s' "$notes" | tr -d '\r')"
           first_line="$(printf '%s\n' "$notes" | head -n 1)"
           if printf '%s' "$first_line" | grep -Eqx '(v|V)?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)*'; then
             notes="$(printf '%s\n' "$notes" | tail -n +2)"
