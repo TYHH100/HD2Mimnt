@@ -11,7 +11,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - 分支目录里混有 Unit 等非材质资源时无法安全保留选项，退回「只转换当前选中分支」；成品选项的部署与源模组一致，修改成品选项后重新部署即可换色。
 - 模组库与配置页支持多选：选中多个 HD2IAS 模组后点「转为 HD2CL 角色库」批量转换。先逐个确认版本（多版本才弹浮窗），再并发执行，同时最多 2 个 Worker（单个峰值约 1 GB）；取消版本选择只跳过该模组，失败不影响其余模组，完成后统一提示成功/跳过/失败数量。
 - 成品显示名使用模组名或所选版本名，并去掉导入时自动加的「类型 · 」前缀（`Model · `、`HD2IAS · ` 等）；编译出的模型标题（会裁掉“替换 xxx”并追加 `▲`）只保留在游戏内登记信息里。成品入库时打上 `HD2CL` 标签，模组库与配置页显示 `HD2CL` 徽标，用来和 `HD2IAS` 源模组区分。
-- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。需要单独分发时点「导出压缩包…」：转换后把成品打成 7z 写到所选目录，不导入模组库、不修改当前配置；每次转换前选择目录，并记住上次选择。
+- 成品：Worker 直接把成品文件写入临时目录，主程序按文件夹导入管理器库（不再先压 7z 再解压）；若存在当前配置，则把成品加入当前配置并启用，同时把源 IAS 模组在当前配置中禁用。源模组文件不覆盖、不删除。需要单独分发时点「导出压缩包…」：转换后把成品打成 7z 写到所选目录，不导入模组库、不修改当前配置；每次转换前选择目录，并记住上次选择。导出包在名字末尾追加 `▲`（同时改写包内 `manifest.json` 的 `Name` 与 7z 文件名），因为游戏内看不到管理器徽标，靠 ▲ 与同名源 IAS 模组区分；已有 ▲ 结尾时不重复添加。此改写只作用于导出副本，不影响入库成品名。
 - 材质：源模组自带的可见材质及其贴图沿父链收集后打进 `9ba626afa44a3aa3.patch_2`（含 `.gpu_resources`/`.stream`），因此禁用源模组后成品仍显示原材质；游戏原生材质仍只按资源编号引用，不复制。
 - 转换使用默认选择：全部配套组件、`Slim` 体型、随模型携带的材质与图标；不做交互式部件/材质选择。
 - 扫描、编译、打包与成品写出都在 `HD2Mimnt.Worker` 独立进程执行（进程 Worker 类型 `Hd2ClConversion`），主程序只负责结果入库与配置开关。转换期间的高 CPU 与大内存不进入 UI 进程，并可在任务中心查看进度。
@@ -25,7 +25,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 - MDL3 曲包：动作仍是 90 骨骼 Stingray 片段，但关键帧记录改用紧凑布局（无 4 字节通道头，记录直接从 `subtype` 开始）；镜头是烘焙到 30 FPS 的 8 浮点采样行；音轨是 32 kHz 双声道 MS-ADPCM，按微软规范解码后重采样到 48 kHz PCM 再打包。登记表缺少 `rate`/`channels` 时从 WAVEFORMATEX 头读取。
 - 待机播放方式：不修改时沿用原包（旧包默认 `loop` 持续姿势），可改为 `once` 完整演出；检查结果里的方式回填到界面，用户改动后才作为覆盖值。
 - 转换（`MmdAdapter.Convert`）：解码 Stingray 动作关键帧为 `HD2POSE1` 逐帧姿势，提取镜头烘焙表与 48 kHz 双声道 PCM 音轨，按 `mods/hd2cl/mmd/v1/<id>/{catalog,pose,camera,wav,preview}` 打包，成品为 `9ba626afa44a3aa3.patch_0` 三件套加清单；导入模组库并打 `HD2CL` 标记，存在当前配置时自动加入并启用。
-- 导出：与角色模型一致，「导出压缩包…」把成品打成 7z 写到所选目录，不导入模组库、不改当前配置；同样记住上次选择的目录。
+- 导出：与角色模型一致，「导出压缩包…」把成品打成 7z 写到所选目录，不导入模组库、不改当前配置；同样记住上次选择的目录。导出名同样追加 `▲`，并同步改写包内清单 `Name`，以便与同名源 IAS 区分。
 - 缺清单的裸包需要补充名称与稳定来源标识：`Guid = uuid5(NAMESPACE_URL, "HD2ManualMMDSource/" + key)`；成品 Guid 为 `uuid5(NAMESPACE_URL, "HD2CharacterLibrary/MMD/<id>/adapted-mmd")`。
 - 检查与转换都在 `HD2Mimnt.Worker` 的 `MmdAdaptation` 任务中执行（`Action=inspect/convert`），主程序只负责导入与配置开关。
 
@@ -40,7 +40,7 @@ HD2CL 是角色库工具的缩写（CL = Character Library）。本功能把 `Wo
 | Infrastructure | `ModelConversion/Mmd/MmdMdl3Reader.cs` | MDL3 注册表/镜头/音轨脚本解析（上游 `mmd_adapter` 不支持） |
 | Infrastructure | `ModelConversion/Mmd/MmdAudio.cs` | MS-ADPCM 解码与 48 kHz 重采样（无上游对应实现） |
 | Application | `src/HD2Mimnt.Application/Services/MmdAdaptationService.cs` | 拉起 Worker、导入成品、加入配置、导出 7z |
-| Application | `src/HD2Mimnt.Application/Services/Hd2ClArchiveExport.cs` | 导出命名清洗与去重、临时包写完再改名 |
+| Application | `src/HD2Mimnt.Application/Services/Hd2ClArchiveExport.cs` | 导出命名清洗与去重、追加 `▲` 并改写包内清单 `Name`、临时包写完再改名 |
 | Worker | `src/HD2Mimnt.Worker/MmdAdaptationWorkerTask.cs` | `Action=inspect/convert` |
 | UI | `MmdAdaptationViewModel.cs`、`MmdSourceInfoPromptService.cs`、`Hd2ClMmdView.axaml`、`MoreView.axaml` | 工具页标签页与来源信息弹窗 |
 
@@ -140,8 +140,8 @@ MDL3 与合集另外用真实资源核对过：管理器导入的 13 首 MDL3 �
 - 部件编号可能只出现在 `hd2author`/`hd2preview` 文件名里，编号提取必须覆盖所有非补丁文件，只认 `rigbin`/`hd2phys` 会漏掉另一部件，导致重新拆成两个版本。
 - 同一版本内补丁按加载顺序覆盖同名资源（材质差分包会以相同编号重复出现），扫描顺序即覆盖顺序，后者生效；不要恢复成“内容不同就报错”。
 - 服饰姿态（`HD2POSE1`）的 Rig 指纹按上游 `TARGET` 布局拼接：名称 64 字节，`parent/source/slot/flags` 各 4 字节，`translation_scale` 与 12 个 `rest_local` 都是 **float32**。C# 内部用 `double` 保存这些值，序列化时漏转 `(float)` 会让每条骨骼多出一半字节，指纹永远不匹配。
-- 成品清单名应使用用户可见的模组/版本名；编译出的模型标题只是游戏内登记名（上游会裁掉“替换 xxx”并追加 `▲`），不能拿来当成品名。识别成品靠 `HD2CL` 标签徽标，不靠名称后缀。
-- 旧版本转换出的成品没有 `HD2CL` 标签、名字里带 `▲`，需要删除后重新转换。
+- 成品清单名应使用用户可见的模组/版本名；编译出的模型标题只是游戏内登记名（上游会裁掉“替换 xxx”并追加 `▲`），不能拿来当成品名。**入库成品**的识别靠 `HD2CL` 标签徽标，不靠名称后缀；**导出压缩包**则靠名字末尾的 `▲` 区分，因为分发包脱离管理器后看不到徽标。两处场景不同，不冲突。
+- 旧版本转换出的入库成品没有 `HD2CL` 标签、名字里带 `▲`，需要删除后重新转换。
 - 批量转换的版本选择必须在启动 Worker 之前全部确认完：并发里再弹模态窗会互相抢占界面；版本浮窗点取消只跳过当前模组。
 - 批量并发上限为 2：每个 Worker 转换完整模型时峰值约 1 GB，放开并发会把内存打满。
 - MMD 动作片段头部是 24 字节 `<IIfIII`，但骨骼通道从偏移 60 开始（26 字节头 + 2 字节保留 + 34 字节通道标志位）；从 26 直接读会把标志位当成平移，随后报“动作含未支持的缩放通道”。

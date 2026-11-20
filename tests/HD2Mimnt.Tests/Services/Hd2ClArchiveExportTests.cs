@@ -1,3 +1,4 @@
+using System.Text;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Infrastructure.Archive;
 using Xunit;
@@ -65,6 +66,67 @@ public sealed class Hd2ClArchiveExportTests : IDisposable
         Assert.Equal("material patch",
             await File.ReadAllTextAsync(Path.Combine(extracted, "Material", "1", "1", "9ba626afa44a3aa3.patch_2")));
         Assert.Empty(Directory.GetFiles(output, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void WithHd2ClMarker_AppendsOnceAndIsIdempotent()
+    {
+        Assert.Equal("模型 ▲", Hd2ClArchiveExport.WithHd2ClMarker("模型"));
+        Assert.Equal("模型 ▲", Hd2ClArchiveExport.WithHd2ClMarker("模型 ▲"));
+        Assert.Equal("模型 ▲", Hd2ClArchiveExport.WithHd2ClMarker("模型  "));
+        Assert.Equal("HD2CL ▲", Hd2ClArchiveExport.WithHd2ClMarker("   "));
+    }
+
+    [Fact]
+    public async Task WriteAsync_StampsManifestNameWithHd2ClMarkerAndKeepsOtherFields()
+    {
+        var artifact = Path.Combine(_root, "package");
+        Directory.CreateDirectory(artifact);
+        const string manifest = "{\n  \"Name\": \"测试:模组\",\n  \"Guid\": \"abc-123\",\n  \"Options\": [{\"Name\": \"红\"}]\n}";
+        await File.WriteAllTextAsync(Path.Combine(artifact, "manifest.json"), manifest, new UTF8Encoding(false));
+        var output = Path.Combine(_root, "导出 目录");
+
+        var archive = await Hd2ClArchiveExport.WriteAsync(output,
+            Hd2ClArchiveExport.WithHd2ClMarker("测试:模组"), artifact, null, default);
+
+        Assert.Equal(Path.Combine(output, "测试_模组 ▲.7z"), archive);
+        var extracted = Path.Combine(_root, "unpacked-stamped");
+        await new SharpCompressArchiveExtractor().ExtractToDirectoryAsync(archive, extracted);
+        var stamped = await File.ReadAllTextAsync(Path.Combine(extracted, "manifest.json"));
+        Assert.Contains("\"Name\": \"测试:模组 ▲\"", stamped);
+        Assert.Contains("\"Guid\": \"abc-123\"", stamped);
+        Assert.Contains("{\"Name\": \"红\"}", stamped);
+    }
+
+    [Fact]
+    public async Task StampManifestNameAsync_LeavesOtherManifestBytesUntouched()
+    {
+        var artifact = Path.Combine(_root, "package-stamp");
+        Directory.CreateDirectory(artifact);
+        const string manifest = "{\n  \"Name\": \"原名\",\n  \"Guid\": \"g\"\n}";
+        var path = Path.Combine(artifact, "manifest.json");
+        await File.WriteAllTextAsync(path, manifest, new UTF8Encoding(false));
+
+        await Hd2ClArchiveExport.StampManifestNameAsync(artifact, "新名 ▲", default);
+
+        Assert.Equal("{\n  \"Name\": \"新名 ▲\",\n  \"Guid\": \"g\"\n}",
+            await File.ReadAllTextAsync(path));
+    }
+
+    [Fact]
+    public async Task StampManifestNameAsync_QuotesEscapesAndLeavesNestedNameAlone()
+    {
+        var artifact = Path.Combine(_root, "package-quote");
+        Directory.CreateDirectory(artifact);
+        const string manifest = "{\n  \"Name\": \"原名\",\n  \"Options\": [{\"Name\": \"子名\"}]\n}";
+        var path = Path.Combine(artifact, "manifest.json");
+        await File.WriteAllTextAsync(path, manifest, new UTF8Encoding(false));
+
+        await Hd2ClArchiveExport.StampManifestNameAsync(artifact, "含\"引号\" ▲", default);
+
+        var updated = await File.ReadAllTextAsync(path);
+        Assert.Contains("\"Name\": \"含\\\"引号\\\" ▲\"", updated);
+        Assert.Contains("{\"Name\": \"子名\"}", updated);
     }
 
     [Fact]

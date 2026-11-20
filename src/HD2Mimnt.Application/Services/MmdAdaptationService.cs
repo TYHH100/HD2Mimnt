@@ -90,10 +90,11 @@ public sealed class MmdAdaptationService : IMmdAdaptationService
         {
             var artifact = await BuildArtifactAsync(sourcePath, sourceOption, sourceInfo, idlePlayback,
                 output, progress, token);
-            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, artifact.Title,
+            var exportName = Hd2ClArchiveExport.WithHd2ClMarker(artifact.Title);
+            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, exportName,
                 artifact.OutputDirectory, progress, token);
             progress?.Report("已导出压缩包：" + archive);
-            return new MmdAdaptationExportResult(artifact.Title, archive);
+            return new MmdAdaptationExportResult(exportName, archive);
         }
         finally
         {
