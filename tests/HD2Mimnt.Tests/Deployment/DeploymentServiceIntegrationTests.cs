@@ -396,6 +396,52 @@ public class DeploymentServiceIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task CleanupDeployment_Should_Not_Delete_Targets_Outside_GamePath()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var profile = new Profile
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Profile",
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+        var mod = new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Mod",
+            Version = "1.0.0",
+            Path = _testSourceDir,
+            Category = ModCategory.Gameplay,
+            ImportedAt = DateTime.UtcNow
+        };
+
+        await _profileRepository.AddAsync(profile);
+        await _modRepository.AddAsync(mod);
+
+        var outsideFile = Path.Combine(_testSourceDir, "outside.txt");
+        await File.WriteAllTextAsync(outsideFile, "keep content");
+
+        var record = await _deploymentService.CreateDeploymentRecordAsync(
+            sessionId, profile.Id, mod.Id, DeploymentMethod.Copy);
+        await _deploymentService.AddDeploymentFileAsync(
+            record.Id, mod.Id, "outside.txt", outsideFile, DeploymentMethod.Copy);
+        record.GamePath = _testTargetDir;
+        await _deploymentRepository.UpdateAsync(record);
+
+        // Act
+        var (filesDeleted, recordDeleted) = await _deploymentService.CleanupDeploymentAsync(record.Id);
+
+        // Assert
+        Assert.Equal(0, filesDeleted);
+        Assert.False(recordDeleted);
+        Assert.True(File.Exists(outsideFile));
+        var deployments = await _deploymentService.GetDeploymentsBySessionIdAsync(sessionId);
+        Assert.Single(deployments);
+    }
+
+    [Fact]
     public async Task PreDeploymentCleanup_Should_Report_Progress()
     {
         // Arrange

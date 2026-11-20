@@ -56,7 +56,11 @@ internal static class Program
             var services = new ServiceCollection();
             ConfigureServices(services);
             await using var serviceProvider = services.BuildServiceProvider();
-            await serviceProvider.GetRequiredService<HD2MimntDbContext>().InitializeDatabaseAsync();
+            var dbContext = serviceProvider.GetRequiredService<HD2MimntDbContext>();
+            // 主程序可能正在使用同一个数据库，子进程只检测不替换文件；损坏时让任务失败并由主程序下次启动修复。
+            await DatabaseIntegrityGuard.EnsureHealthyAsync(dbContext.DatabasePath,
+                serviceProvider.GetService<ILogger<HD2MimntDbContext>>(), allowRepair: false);
+            await dbContext.InitializeDatabaseAsync();
 
             // 预览是长连接会话：由 PreviewWorkerTask 独占读取后续消息，不能再启动取消监听。
             if (command.WorkerType == "Preview")

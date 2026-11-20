@@ -33,7 +33,8 @@ public class HD2MimntDbContext : IDisposable
         {
             await connection.OpenAsync(cancellationToken);
             using var timeout = connection.CreateCommand();
-            timeout.CommandText = "PRAGMA busy_timeout=5000;";
+            // 外键必须显式开启，不依赖 SQLite 构建时的默认值；与 busy_timeout 共用一次往返。
+            timeout.CommandText = "PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;";
             await timeout.ExecuteNonQueryAsync(cancellationToken);
             return connection;
         }
@@ -528,7 +529,7 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_transactions_starttime ON DeploymentTransactions(StartTime DESC);
 
             -- 兼容性检查结果摘要：跨会话回填角标；ContentStamp 变化即视为模组内容已变更。
-            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            -- 这两张表不设外键：模组删除后的孤儿行由读取时清理；其余关联表仍受外键约束，删除顺序必须满足约束。
             CREATE TABLE IF NOT EXISTS CompatibilityResults (
                 ModId TEXT PRIMARY KEY,
                 Status INTEGER NOT NULL,
@@ -543,7 +544,7 @@ public class HD2MimntDbContext : IDisposable
             );
 
             -- 自动拆包 Lua 处理记录：功能关闭再开启时跳过已处理模组；ContentStamp 变化即重拆。
-            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            -- 这两张表不设外键：模组删除后的孤儿行由读取时清理；其余关联表仍受外键约束，删除顺序必须满足约束。
             CREATE TABLE IF NOT EXISTS LuaExtractionResults (
                 ModId TEXT PRIMARY KEY,
                 ExtractedAtUtc TEXT NOT NULL,

@@ -30,6 +30,11 @@ internal static class HeadlessHost
         await using var provider = services.BuildServiceProvider();
 
         var dbContext = provider.GetRequiredService<HD2MimntDbContext>();
+        // 管理器未运行才会走到这里，允许完整修复；损坏时先备份再重建，避免每条命令都失败。
+        var health = await DatabaseIntegrityGuard.EnsureHealthyAsync(dbContext.DatabasePath,
+            provider.GetService<ILogger<HD2MimntDbContext>>(), cancellationToken);
+        if (health is { Repaired: true, BackupDirectory: { } backupDirectory })
+            Console.Error.WriteLine($"检测到数据库文件损坏，已自动修复（{health.Detail}）。原文件备份于：{backupDirectory}");
         await dbContext.InitializeDatabaseAsync(cancellationToken);
 
         var settings = provider.GetRequiredService<SettingsService>();

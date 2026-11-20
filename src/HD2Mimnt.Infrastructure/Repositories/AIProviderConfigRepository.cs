@@ -164,20 +164,11 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
-        // Disable all providers first
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = 0";
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        // Enable the specified provider
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = 1 WHERE Id = @Id";
-            command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
+        // 单条语句切换，避免取消或异常停在“全部禁用”的中间状态。
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = CASE WHEN Id = @Id THEN 1 ELSE 0 END";
+        command.Parameters.AddWithValue("@Id", id);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async Task SaveCredentialAsync(string providerId, string? apiKey, CancellationToken cancellationToken)

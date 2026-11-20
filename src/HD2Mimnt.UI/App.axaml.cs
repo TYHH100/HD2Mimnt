@@ -124,6 +124,16 @@ public partial class App : Avalonia.Application
                 startupLogger.LogInformation("===== 会话开始 =====");
             }
 
+            // 完整性自检必须先于任何读库服务（SettingsService、本地化）构造：
+            // 损坏时备份现场并尝试重建，否则后续每条读写都会以 SQLite Error 11 失败。
+            var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
+            var health = await DatabaseIntegrityGuard.EnsureHealthyAsync(dbContext.DatabasePath,
+                ServiceProvider.GetService<ILogger<HD2MimntDbContext>>(), cancellation.Token);
+            if (health is { Repaired: true, BackupDirectory: { } backupDirectory })
+                ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(
+                    $"检测到数据库文件损坏，已自动修复（{health.Detail}）。原文件备份于：{backupDirectory}",
+                    "数据库修复");
+
             desktop.ShutdownRequested += (_, _) =>
                 host.Services.GetService<ILoggerFactory>()?.CreateLogger("App")
                     .LogInformation("===== 会话结束 =====");
@@ -142,7 +152,6 @@ public partial class App : Avalonia.Application
             desktop.Exit += (_, _) => localization.Dispose();
 
             // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
-            var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
 
             // 旧会话式部署记录先收养为当前安装状态，再做离线快照/UI 读取。

@@ -377,6 +377,8 @@ public class DeploymentService
         var filesDeleted = 0;
         var filesPreserved = 0;
         var allFilesCleaned = true;
+        var gameRoot = ResolveGameRoot(deployment.GamePath);
+        var hasGamePath = !string.IsNullOrWhiteSpace(deployment.GamePath);
         foreach (var file in fileList)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -384,6 +386,16 @@ public class DeploymentService
             if (preserveSet != null && preserveSet.Contains(Path.GetFullPath(file.TargetPath)))
             {
                 filesPreserved++;
+                fileProcessed?.Invoke();
+                continue;
+            }
+
+            // 记录损坏或路径被篡改时绝不删除游戏目录外的文件；保留记录供人工核对。
+            if (hasGamePath && (gameRoot == null || !IsUnderRoot(gameRoot, file.TargetPath)))
+            {
+                allFilesCleaned = false;
+                _logger?.LogError("拒绝清理游戏目录之外的目标文件: {TargetPath}, GamePath={GamePath}",
+                    file.TargetPath, deployment.GamePath);
                 fileProcessed?.Invoke();
                 continue;
             }
@@ -565,6 +577,29 @@ public class DeploymentService
         if (overwriteConflicts && DeploymentTargetExists(targetPath))
             File.Delete(targetPath);
         File.Move(sourcePath, targetPath);
+    }
+
+    private static string? ResolveGameRoot(string? gamePath)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return null;
+        try { return Path.TrimEndingDirectorySeparator(Path.GetFullPath(gamePath)); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsUnderRoot(string root, string path)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     // 与 DeploymentReconciler 的存在判断一致：悬空符号链接仍算存在，交给物理移动抛出真实异常。

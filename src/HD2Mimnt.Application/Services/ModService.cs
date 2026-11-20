@@ -518,31 +518,13 @@ public partial class ModService
             return false;
         }
 
-        // 先解除游戏中的部署，再删除库内源文件；失败时保留模组供用户重试。
+        // 先解除游戏中的部署；失败时保留模组和源文件供用户重试。
         if (_deploymentService != null)
             await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
-        await DeleteSavedVersionsCoreAsync(id, cancellationToken);
-
-        // 删除物理文件
-        if (Directory.Exists(mod.Path))
-        {
-            try
-            {
-                Directory.Delete(mod.Path, true);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "删除 Mod 文件失败: {Path}", mod.Path);
-            }
-        }
-
-        // 删除缩略图
-        await _thumbnailService.DeleteThumbnailAsync(id, cancellationToken);
-        await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, cancellationToken);
-
-        // 先通过配置服务移除引用并调整分组边界；数据库级联删除不会更新分隔符位置和成员数。
+        // 先移除配置引用（纯数据库操作）；失败时源文件仍然完整。
+        // 数据库级联删除不会更新分隔符位置和成员数，所以仍需走配置服务。
         if (_profileService != null)
         {
             var profiles = await _profileService.GetAllProfilesAsync(cancellationToken);
@@ -550,13 +532,51 @@ public partial class ModService
                 await _profileService.RemoveModFromProfileAsync(profile.Id, id, cancellationToken);
         }
 
-        // 从数据库删除
+        // 数据库行是“模组存在”的唯一依据：先删库，再清理文件。
+        // 任何后续清理失败都只会留下可恢复的孤儿文件，不会出现“模组还在但源文件/版本已丢”。
         await _modRepository.DeleteAsync(id, cancellationToken);
-        await _metadata.DeleteAsync(id);
+
+        // 以下均为派生物或已确认要删除的用户文件；不再受取消影响，失败只记录日志。
+        await DeleteSavedVersionsBestEffortAsync(id);
+        DeleteModDirectoryBestEffort(mod.Path);
+        try { await _metadata.DeleteAsync(id); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "删除 Mod 元数据失败: {ModId}", id);
+        }
+        await _thumbnailService.DeleteThumbnailAsync(id, CancellationToken.None);
+        await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, CancellationToken.None);
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
         RaiseModsChanged();
         return true;
+    }
+
+    private async Task DeleteSavedVersionsBestEffortAsync(Guid id)
+    {
+        try { await DeleteSavedVersionsCoreAsync(id, CancellationToken.None); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(ex, "清理本地版本失败，保留文件供手动处理: {ModId}", id);
+        }
+    }
+
+    private void DeleteModDirectoryBestEffort(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var libraryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_storageDirectory));
+        // 只允许删除模组库内的子目录：损坏的 Path 可能指向库根或任意目录，不能整树删除。
+        if (!fullPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger?.LogWarning("拒绝删除模组库之外的目录: {Path}", path);
+            return;
+        }
+        try { Directory.Delete(fullPath, true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "删除 Mod 文件失败: {Path}", path);
+        }
     }
 
     #endregion

@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Infrastructure.Storage;
+using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -252,10 +253,26 @@ public partial class ModService
     private async Task DeleteSavedVersionsCoreAsync(Guid id, CancellationToken token)
     {
         var store = new ModVersionStore(_storageDirectory);
+        var libraryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_storageDirectory));
         foreach (var version in await store.ReadAsync(id, token))
         {
             token.ThrowIfCancellationRequested();
-            if (Directory.Exists(version.Content.Path)) Directory.Delete(version.Content.Path, true);
+            var versionPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(version.Content.Path));
+            if (!versionPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                // 版本索引损坏时路径可能逃逸库目录，绝不递归删除库外内容。
+                _logger?.LogWarning("拒绝删除模组库之外的本地版本: {Path}", versionPath);
+                continue;
+            }
+            if (Directory.Exists(versionPath))
+            {
+                try { Directory.Delete(versionPath, true); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger?.LogWarning(ex, "删除本地版本失败: {Path}", versionPath);
+                }
+            }
             await _thumbnailService.DeleteThumbnailFileAsync(version.Content.ThumbnailPath, CancellationToken.None);
         }
         await store.WriteAsync(id, Array.Empty<LocalModVersion>(), CancellationToken.None);
