@@ -11,6 +11,7 @@ public sealed record IasUnitStream(
     IReadOnlyList<(uint Kind, uint Format, uint Index, int Offset)> Components,
     int Vertices, int Stride, int VertexBase, int VertexBytes, int IndexBase, int IndexBytes, int Indices, int IndexStride);
 
+/// <summary>网格分区：<c>Group</c> 是骨骼调色板重映射表的下标，多个分区可以共用同一组。</summary>
 public sealed record IasUnitSection(int Index, uint Id, ulong? Material, uint VertexOffset, uint VerticesDeclared,
     int IndexOffset, uint Indices, uint Group, IReadOnlyList<(uint A, uint B, uint C)> Faces);
 
@@ -35,6 +36,8 @@ public sealed class IasUnit
         Resource = resource;
         AllowUnnamed = allowUnnamed;
         var toc = resource.Toc;
+        // 顶点解析密集读取同一段载荷：这里取一次连续视图，文件载荷由 IasPayload 自行缓存。
+        var gpu = resource.Gpu.Span;
         Refs = [ReadULong(toc, 0), ReadULong(toc, 8), ReadULong(toc, 16), ReadULong(toc, 24), ReadULong(toc, 32)];
         IasBinary.Require(Refs[0] == 0 && Refs[2] == 0, id + ": external Unit/Composite reference needs an adapter");
         if (Refs[1] != 0)
@@ -119,7 +122,7 @@ public sealed class IasUnit
             var indexBase = (int)ReadU(toc, baseOffset + 424);
             var indexBytes = (int)ReadU(toc, baseOffset + 428);
             IasBinary.Require(cursor <= stride && indexType is 0 or 1, "vertex/index stream schema");
-            IasBinary.Require(vertexBase + vertexBytes <= resource.Gpu.Length && indexBase + indexBytes <= resource.Gpu.Length, "GPU stream out of bounds");
+            IasBinary.Require(vertexBase + vertexBytes <= gpu.Length && indexBase + indexBytes <= gpu.Length, "GPU stream out of bounds");
             Streams.Add(new IasUnitStream(components, vertexCount, stride, vertexBase, vertexBytes, indexBase, indexBytes,
                 indexCount, indexType == 1 ? 4 : 2));
         }
@@ -168,10 +171,10 @@ public sealed class IasUnit
                 for (var face = 0; face < indexCount / 3; face++)
                 {
                     var faceOffset = gpuOffset + face * 3 * descriptor.IndexStride;
-                    IasBinary.Require(faceOffset + 3 * descriptor.IndexStride <= resource.Gpu.Length, "mesh index stream truncated");
+                    IasBinary.Require(faceOffset + 3 * descriptor.IndexStride <= gpu.Length, "mesh index stream truncated");
                     faces.Add(descriptor.IndexStride == 4
-                        ? (ReadU(resource.Gpu, faceOffset), ReadU(resource.Gpu, faceOffset + 4), ReadU(resource.Gpu, faceOffset + 8))
-                        : (ReadU16(resource.Gpu, faceOffset), ReadU16(resource.Gpu, faceOffset + 2), ReadU16(resource.Gpu, faceOffset + 4)));
+                        ? (ReadU(gpu, faceOffset), ReadU(gpu, faceOffset + 4), ReadU(gpu, faceOffset + 8))
+                        : (ReadU16(gpu, faceOffset), ReadU16(gpu, faceOffset + 2), ReadU16(gpu, faceOffset + 4)));
                 }
                 sectionRows.Add(new IasUnitSection(sectionIndex, meshMaterials[materialIndex],
                     MaterialMap.TryGetValue(meshMaterials[materialIndex], out var material) ? material : null,
@@ -313,7 +316,7 @@ public sealed class IasUnit
     public static HashSet<ulong> IndexedMaterials(IasResource resource)
     {
         var toc = resource.Toc;
-        var gpu = resource.Gpu;
+        var gpu = resource.Gpu.Span;
         var materialStart = (int)ReadU(toc, 112);
         var materialCount = (int)ReadU(toc, materialStart);
         var materialSections = new uint[materialCount];
@@ -421,14 +424,19 @@ public sealed class IasUnit
         }
         IasBinary.Require(mesh.Lod >= 0 && mesh.Lod < Bones.Count, "mesh palette LOD");
         var bones = Bones[mesh.Lod];
+        // 分区行末尾的 group 才是骨骼重映射表下标：同一组可以被多个分区共用（例如两种材质共用一套调色板），
+        // 用分区序号索引会在分区数大于重映射表数时越界，或静默取到别的调色板。
+        IasBinary.Require(section.Group < bones.Remaps.Count,
+            $"{Id}: mesh {mesh.Index} section {section.Index} palette group {section.Group} is out of range");
+        var remap = bones.Remaps[(int)section.Group];
         var result = new List<(int Scene, double Weight, int? Internal, int Palette)>();
         for (var index = 0; index < Math.Min(indexValues.Length, weightValues.Length); index++)
         {
             var weight = weightValues[index];
             if (weight <= 0) continue;
             var palette = indexValues[index];
-            IasBinary.Require(palette == Math.Floor(palette) && (int)palette < bones.Remaps[section.Index].Count, "weighted palette index");
-            var internalIndex = (int)bones.Remaps[section.Index][(int)palette];
+            IasBinary.Require(palette == Math.Floor(palette) && (int)palette < remap.Count, "weighted palette index");
+            var internalIndex = (int)remap[(int)palette];
             var scene = (int)bones.Real[internalIndex];
             IasBinary.Require(Graph[scene].Name is not null || AllowUnnamed,
                 $"{Id}: unknown weighted name hash {Graph[scene].Hash:x8}");
@@ -620,7 +628,7 @@ public sealed class IasUnit
         var sceneLabels = labelSets.Select(labels => Graph.Select(node => (labels ?? original).GetValueOrDefault(node.Hash)).ToList()).ToList();
         IasBinary.Require(sceneLabels.Count > 0, "partition needs at least one label map");
         var buffers = buildBuffers
-            ? new Dictionary<string, byte[]> { ["body"] = (byte[])Resource.Gpu.Clone(), ["arms"] = (byte[])Resource.Gpu.Clone() }
+            ? new Dictionary<string, byte[]> { ["body"] = Resource.Gpu.Span.ToArray(), ["arms"] = Resource.Gpu.Span.ToArray() }
             : new Dictionary<string, byte[]>();
         var stats = sceneLabels.Select(_ => new Dictionary<string, Dictionary<string, int>>()).ToList();
         var faceRoles = new List<(int Offset, int Stride, string Role)>();
@@ -732,7 +740,7 @@ public sealed class IasUnit
                         {
                             // 未分配给该角色的三角形整体塌缩到首索引；直接从 GPU 读首索引写后两个索引，避免每面复制整面。
                             var stride = Streams[(int)mesh.Stream].IndexStride;
-                            var first = Resource.Gpu.AsSpan(offset, stride);
+                            var first = Resource.Gpu.Span.Slice(offset, stride);
                             foreach (var (bufferName, buffer) in buffers)
                             {
                                 if (bufferName == role) continue;
@@ -750,16 +758,16 @@ public sealed class IasUnit
         {
             foreach (var stream in Streams)
             {
-                IasBinary.Require(raw.AsSpan(stream.VertexBase, stream.VertexBytes).SequenceEqual(Resource.Gpu.AsSpan(stream.VertexBase, stream.VertexBytes)),
+                IasBinary.Require(raw.AsSpan(stream.VertexBase, stream.VertexBytes).SequenceEqual(Resource.Gpu.Span.Slice(stream.VertexBase, stream.VertexBytes)),
                     "mask changed vertex bytes");
             }
             foreach (var (offset, stride, assigned) in faceRoles)
             {
                 var actual = raw.AsSpan(offset, 3 * stride);
-                var first = Resource.Gpu.AsSpan(offset, stride);
+                var first = Resource.Gpu.Span.Slice(offset, stride);
                 if (assigned == "helper" || assigned == role)
                 {
-                    IasBinary.Require(actual.SequenceEqual(Resource.Gpu.AsSpan(offset, 3 * stride)), "mask face mismatch");
+                    IasBinary.Require(actual.SequenceEqual(Resource.Gpu.Span.Slice(offset, 3 * stride)), "mask face mismatch");
                 }
                 else
                 {
@@ -773,9 +781,12 @@ public sealed class IasUnit
     }
 
     private static uint ReadU(byte[] raw, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(offset));
+    private static uint ReadU(ReadOnlySpan<byte> raw, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(raw[offset..]);
     private static ulong ReadULong(byte[] raw, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(raw.AsSpan(offset));
+    private static ulong ReadULong(ReadOnlySpan<byte> raw, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(raw[offset..]);
     private static int ReadI(byte[] raw, int offset) => BinaryPrimitives.ReadInt32LittleEndian(raw.AsSpan(offset));
     private static uint ReadU16(byte[] raw, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(offset));
+    private static uint ReadU16(ReadOnlySpan<byte> raw, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(raw[offset..]);
 }
 
 public sealed record IasRigidGeometry(int TransformSceneIndex, int AffineDegenerateTriangles, bool AllFacesAffineDegenerate);
@@ -796,14 +807,14 @@ public sealed record IasGeometryStats(
 }
 
 /// <summary>按 Unit 流声明读取 GPU 顶点通道；只为几何分类提供只读值。</summary>
-public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> streams)
+public sealed class IasVertexReader(IasPayload gpu, IReadOnlyList<IasUnitStream> streams)
 {
     // 同一 Unit 的通道布局固定：顶点级读取非常密集，缓存组件偏移避免每次线性查找。
     private readonly Dictionary<(uint Stream, uint Kind, uint Index), (int Offset, uint Format)> _components = new();
 
     public uint FormatOf(IasUnitMesh mesh, uint kind, uint index) => Component(mesh, kind, index).Format;
 
-    public double[] Read(byte[] _, IasUnitMesh mesh, uint vertex, uint kind, uint index) => Read(mesh, vertex, kind, index);
+    public double[] Read(IasPayload _, IasUnitMesh mesh, uint vertex, uint kind, uint index) => Read(mesh, vertex, kind, index);
 
     public double[] ReadStatic(IasUnitMesh mesh, uint vertex, uint kind, uint index) => Read(mesh, vertex, kind, index);
 
@@ -826,57 +837,57 @@ public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> str
         var stream = streams[(int)mesh.Stream];
         var component = Component(mesh, kind, index);
         var offset = mesh.VertexStart + (int)vertex * stream.Stride + component.Offset;
-        return Decode(gpu, offset, component.Format);
+        return Decode(gpu.Span, offset, component.Format);
     }
 
-    private static double[] Decode(byte[] gpu, int offset, uint format)
+    private static double[] Decode(ReadOnlySpan<byte> gpu, int offset, uint format)
     {
         switch (format)
         {
-            case 0: return [BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset))];
+            case 0: return [BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset))];
             case 1:
                 return
                 [
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4))
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 4))
                 ];
             case 2:
                 return
                 [
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 8))
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 4)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 8))
                 ];
             case 3:
                 return
                 [
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 4)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 8)),
-                    BinaryPrimitives.ReadSingleLittleEndian(gpu.AsSpan(offset + 12))
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 4)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 8)),
+                    BinaryPrimitives.ReadSingleLittleEndian(gpu.Slice(offset + 12))
                 ];
-            case 4: return gpu.AsSpan(offset, 4).ToArray().Select(value => value / 255.0).ToArray();
-            case 21: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset))];
+            case 4: return gpu.Slice(offset, 4).ToArray().Select(value => value / 255.0).ToArray();
+            case 21: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset))];
             case 22:
                 return
                 [
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4))
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 4))
                 ];
             case 23:
                 return
                 [
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 8))
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 4)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 8))
                 ];
             case 24:
                 return
                 [
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 4)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 8)),
-                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset + 12))
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 4)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 8)),
+                    BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset + 12))
                 ];
             case 25: return [gpu[offset]];
             case 26: return [gpu[offset], gpu[offset + 1]];
@@ -884,31 +895,31 @@ public sealed class IasVertexReader(byte[] gpu, IReadOnlyList<IasUnitStream> str
             case 28: return [gpu[offset], gpu[offset + 1], gpu[offset + 2], gpu[offset + 3]];
             case 29:
             {
-                var packed = BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset));
+                var packed = BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset));
                 return [(packed & 1023) / 1023.0, (packed >> 10 & 1023) / 1023.0, (packed >> 20 & 1023) / 1023.0, 0.0];
             }
-            case 30: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.AsSpan(offset))];
-            case 32: return [(double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset)))];
+            case 30: return [BinaryPrimitives.ReadUInt32LittleEndian(gpu.Slice(offset))];
+            case 32: return [(double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset)))];
             case 33:
                 return
                 [
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2)))
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 2)))
                 ];
             case 34:
                 return
                 [
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 4)))
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 2))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 4)))
                 ];
             case 35:
                 return
                 [
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 2))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 4))),
-                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.AsSpan(offset + 6)))
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 2))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 4))),
+                    (double)BitConverter.UInt16BitsToHalf(BinaryPrimitives.ReadUInt16LittleEndian(gpu.Slice(offset + 6)))
                 ];
             default: throw new InvalidDataException("模型数据检查：unsupported vertex format " + format);
         }

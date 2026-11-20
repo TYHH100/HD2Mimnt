@@ -100,9 +100,9 @@ public class IasBinaryLayerTests
         var buffers = IasArchive.Write(entries);
         var parsed = IasArchive.ReadEntries(buffers.Toc, buffers.Gpu, buffers.Stream);
         Assert.Equal(entries[(IasResourceTypes.Unit, 7)].Toc, parsed[(IasResourceTypes.Unit, 7)].Toc);
-        Assert.Equal(entries[(IasResourceTypes.Unit, 7)].Gpu, parsed[(IasResourceTypes.Unit, 7)].Gpu);
+        Assert.Equal(entries[(IasResourceTypes.Unit, 7)].Gpu.Span.ToArray(), parsed[(IasResourceTypes.Unit, 7)].Gpu.Span.ToArray());
         Assert.Equal(entries[(IasResourceTypes.Lua, 9)].Toc, parsed[(IasResourceTypes.Lua, 9)].Toc);
-        Assert.Equal(entries[(IasResourceTypes.Lua, 9)].Stream, parsed[(IasResourceTypes.Lua, 9)].Stream);
+        Assert.Equal(entries[(IasResourceTypes.Lua, 9)].Stream.Span.ToArray(), parsed[(IasResourceTypes.Lua, 9)].Stream.Span.ToArray());
         Assert.Equal(new[] { 1, 2, 16, 64 }, parsed[(IasResourceTypes.Unit, 7)].Metadata);
     }
 

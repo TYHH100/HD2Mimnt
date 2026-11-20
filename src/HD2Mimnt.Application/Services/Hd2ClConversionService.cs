@@ -120,10 +120,11 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
         try
         {
             var artifact = await BuildArtifactAsync(plan, output, productName, progress, token);
-            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, artifact.Name,
+            var exportName = Hd2ClArchiveExport.WithHd2ClMarker(artifact.Name);
+            var archive = await Hd2ClArchiveExport.WriteAsync(outputDirectory, exportName,
                 artifact.OutputDirectory, progress, token);
             progress?.Report("已导出压缩包：" + archive);
-            return new Hd2ClExportResult(artifact.Name, archive);
+            return new Hd2ClExportResult(exportName, archive);
         }
         finally
         {
