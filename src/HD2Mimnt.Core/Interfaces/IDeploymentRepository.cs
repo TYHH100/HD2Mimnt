@@ -85,6 +85,13 @@ public interface IDeploymentRepository
     Task DeleteByModIdAsync(Guid modId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 把引用某个配置的部署记录重指向另一个配置（删除配置时保持安装状态追踪）；
+    /// 返回受影响的行数
+    /// </summary>
+    Task<int> RepointProfileRecordsAsync(Guid fromProfileId, Guid toProfileId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 添加部署文件记录
     /// </summary>
     Task AddDeploymentFileAsync(DeploymentFile file, CancellationToken cancellationToken = default);

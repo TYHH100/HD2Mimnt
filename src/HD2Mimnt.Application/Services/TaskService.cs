@@ -356,8 +356,8 @@ public class TaskService
                     _taskStateGates.TryRemove(taskId, out _);
                     _forceTerminatedTasks.TryRemove(taskId, out _);
                     completion.TrySetResult();
-                    if (completion.Task.IsCompletedSuccessfully)
-                        _executions.TryRemove(new KeyValuePair<Guid, Task>(taskId, completion.Task));
+                    // 无条件移除：只按“成功完成”清理会让落库失败分支的句柄与 CTS 留到进程结束
+                    _executions.TryRemove(new KeyValuePair<Guid, Task>(taskId, completion.Task));
                 }
             }
         }, CancellationToken.None);

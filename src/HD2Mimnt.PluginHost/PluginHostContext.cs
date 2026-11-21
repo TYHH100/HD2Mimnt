@@ -37,14 +37,17 @@ public class PluginHostLogger : IPluginLogger
 }
 
 /// <summary>
-/// Implementation of IPluginStorage with sandbox restrictions
+/// Implementation of IPluginStorage with sandbox restrictions。
+/// 权限以随 LoadPluginCommand 下发的快照本地判定（<paramref name="permissionCheck"/>）。
 /// </summary>
 public class PluginHostStorage : IPluginStorage
 {
     private readonly string _pluginDataDirectory;
+    private readonly Func<string, bool>? _permissionCheck;
 
-    public PluginHostStorage(string pluginId)
+    public PluginHostStorage(string pluginId, Func<string, bool>? permissionCheck = null)
     {
+        _permissionCheck = permissionCheck;
         var baseDir = Path.Combine(
             Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ?? RuntimeDataPaths.GetDefaultApplicationDataPath(),
             "Plugins",
@@ -54,28 +57,40 @@ public class PluginHostStorage : IPluginStorage
         _pluginDataDirectory = baseDir;
     }
 
+    private void EnsurePermission(string permission)
+    {
+        if (_permissionCheck is { } check && !check(permission))
+        {
+            throw new UnauthorizedAccessException($"插件没有 '{permission}' 权限");
+        }
+    }
+
     public string GetDataDirectory() => _pluginDataDirectory;
 
     public async Task<string> ReadFileAsync(string fileName, CancellationToken cancellationToken = default)
     {
+        EnsurePermission("storage.read");
         var filePath = GetSafePath(fileName);
         return await File.ReadAllTextAsync(filePath, cancellationToken);
     }
 
     public async Task WriteFileAsync(string fileName, string content, CancellationToken cancellationToken = default)
     {
+        EnsurePermission("storage.write");
         var filePath = GetSafePath(fileName);
         await File.WriteAllTextAsync(filePath, content, cancellationToken);
     }
 
     public bool FileExists(string fileName)
     {
+        EnsurePermission("storage.read");
         var filePath = GetSafePath(fileName);
         return File.Exists(filePath);
     }
 
     public Task DeleteFileAsync(string fileName, CancellationToken cancellationToken = default)
     {
+        EnsurePermission("storage.write");
         var filePath = GetSafePath(fileName);
         File.Delete(filePath);
         return Task.CompletedTask;
@@ -92,8 +107,18 @@ public class PluginHostStorage : IPluginStorage
 /// <summary>
 /// Implementation of IPluginModAccess (read-only, via IPC)
 /// </summary>
-public class PluginHostModAccess : IPluginModAccess
+public class PluginHostModAccess(Func<string, bool>? permissionCheck = null) : IPluginModAccess
 {
+    private readonly Func<string, bool>? _permissionCheck = permissionCheck;
+
+    private void EnsureReadPermission()
+    {
+        if (_permissionCheck is { } check && !check("mods.read"))
+        {
+            throw new UnauthorizedAccessException("插件没有 'mods.read' 权限");
+        }
+    }
+
     // TODO: Implement via IPC calls to main application
     // For now, throw not implemented
 
@@ -125,9 +150,11 @@ public class PluginHostConfiguration : IPluginConfiguration
 {
     private readonly Dictionary<string, string> _config = new();
     private readonly string _configFilePath;
+    private readonly Func<string, bool>? _permissionCheck;
 
-    public PluginHostConfiguration(string pluginId)
+    public PluginHostConfiguration(string pluginId, Func<string, bool>? permissionCheck = null)
     {
+        _permissionCheck = permissionCheck;
         var baseDir = Path.Combine(
             Environment.GetEnvironmentVariable("HD2MIMNT_RUNTIME_DATA_PATH") ?? RuntimeDataPaths.GetDefaultApplicationDataPath(),
             "Plugins",
@@ -139,6 +166,14 @@ public class PluginHostConfiguration : IPluginConfiguration
         LoadConfig();
     }
 
+    private void EnsureWritePermission()
+    {
+        if (_permissionCheck is { } check && !check("config.write"))
+        {
+            throw new UnauthorizedAccessException("插件没有 'config.write' 权限");
+        }
+    }
+
     public string? Get(string key)
     {
         return _config.GetValueOrDefault(key);
@@ -146,6 +181,7 @@ public class PluginHostConfiguration : IPluginConfiguration
 
     public async Task SetAsync(string key, string value, CancellationToken cancellationToken = default)
     {
+        EnsureWritePermission();
         _config[key] = value;
         await SaveConfigAsync(cancellationToken);
     }
@@ -157,6 +193,7 @@ public class PluginHostConfiguration : IPluginConfiguration
 
     public async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
+        EnsureWritePermission();
         _config.Remove(key);
         await SaveConfigAsync(cancellationToken);
     }

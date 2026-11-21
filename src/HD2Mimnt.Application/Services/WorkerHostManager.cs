@@ -103,6 +103,11 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
             var worker = new WorkerProcess(id, process, pipeServer, progress, promptHandler,
                 standardError, standardErrorCapture);
             // 结果缓存与进程生命周期解耦：Worker 可能在调用方取结果前就崩溃并清理完毕。
+            // 已完成条目不再有新等待者；启动新任务时顺手清理，防长会话下逐任务累积
+            foreach (var pair in _completions)
+            {
+                if (pair.Value.IsCompleted) _completions.TryRemove(pair);
+            }
             _completions[id] = worker.CompletionTask;
             if (!_runningWorkers.TryAdd(id, worker))
             {

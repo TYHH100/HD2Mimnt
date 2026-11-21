@@ -519,8 +519,10 @@ public partial class ModService
         }
 
         // 先解除游戏中的部署；失败时保留模组和源文件供用户重试。
+        // 部署清理含逐文件删除、编号改名与 IAS 配套重生成（外部进程）：UI 直接调用的删除
+        // 全程在 UI 线程续体上执行，必须移到线程池，否则界面冻结数秒到数十秒。
         if (_deploymentService != null)
-            await _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken);
+            await Task.Run(() => _deploymentService.DeleteModDeploymentRecordsAsync(id, cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
 
         // 先移除配置引用（纯数据库操作）；失败时源文件仍然完整。
@@ -537,15 +539,19 @@ public partial class ModService
         await _modRepository.DeleteAsync(id, cancellationToken);
 
         // 以下均为派生物或已确认要删除的用户文件；不再受取消影响，失败只记录日志。
-        await DeleteSavedVersionsBestEffortAsync(id);
-        DeleteModDirectoryBestEffort(mod.Path);
-        try { await _metadata.DeleteAsync(id); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        // 递归删除整棵模组目录与全部历史版本可达数秒到数十秒，保持在 UI 线程会冻结界面。
+        await Task.Run(async () =>
         {
-            _logger?.LogWarning(ex, "删除 Mod 元数据失败: {ModId}", id);
-        }
-        await _thumbnailService.DeleteThumbnailAsync(id, CancellationToken.None);
-        await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, CancellationToken.None);
+            await DeleteSavedVersionsBestEffortAsync(id);
+            DeleteModDirectoryBestEffort(mod.Path);
+            try { await _metadata.DeleteAsync(id); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "删除 Mod 元数据失败: {ModId}", id);
+            }
+            await _thumbnailService.DeleteThumbnailAsync(id, CancellationToken.None);
+            await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, CancellationToken.None);
+        });
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
         RaiseModsChanged();

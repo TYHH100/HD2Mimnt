@@ -26,15 +26,16 @@ public sealed class RemoteModelPreviewReader(IPreviewWorkerSession session) : IM
         if (response is null || string.IsNullOrEmpty(response.PackPath))
             throw new InvalidDataException("Preview worker returned no model pack.");
 
+        var packPath = PreviewPayloadGuard.Resolve(response.PackPath);
         try
         {
-            using var stream = new FileStream(response.PackPath, FileMode.Open, FileAccess.Read,
+            using var stream = new FileStream(packPath, FileMode.Open, FileAccess.Read,
                 FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
             return ModelPreviewPack.Read(stream);
         }
         finally
         {
-            TryDelete(response.PackPath);
+            TryDelete(packPath);
         }
     }
 
@@ -54,9 +55,10 @@ public sealed class RemoteModelPreviewReader(IPreviewWorkerSession session) : IM
         if (response is null || !response.Found || string.IsNullOrEmpty(response.PayloadPath))
             return null;
 
+        var payloadPath = PreviewPayloadGuard.Resolve(response.PayloadPath);
         try
         {
-            var bytes = File.ReadAllBytes(response.PayloadPath);
+            var bytes = File.ReadAllBytes(payloadPath);
             var isBgra = string.Equals(response.PayloadKind, "bgra", StringComparison.Ordinal);
             return new TexturePreviewData
             {

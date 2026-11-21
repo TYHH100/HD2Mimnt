@@ -66,7 +66,13 @@ public sealed class GitHubAppUpdateClient(HttpClient http, TimeProvider? time = 
                 {
                     continue;
                 }
-                assets.Add(new AppUpdateReleaseAsset(name.GetString()!, url.GetString()!));
+                // digest 由 GitHub 服务端计算（"sha256:<hex>"），旧资产可能缺失
+                string? digest = null;
+                if (asset.TryGetProperty("digest", out var digestProperty) && digestProperty.ValueKind == JsonValueKind.String)
+                {
+                    digest = digestProperty.GetString();
+                }
+                assets.Add(new AppUpdateReleaseAsset(name.GetString()!, url.GetString()!, digest));
             }
         }
 

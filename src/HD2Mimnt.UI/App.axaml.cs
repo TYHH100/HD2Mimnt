@@ -172,6 +172,40 @@ public partial class App : Avalonia.Application
                 taskService.RegisterWorker(worker);
             }
 
+            // 任务历史此前只增不减：启动时清理 90 天前的终态记录，避免 Tasks 表与历史查询随使用无限增长。
+            try
+            {
+                await taskService.CleanupOldTasksAsync(TimeSpan.FromDays(90), cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<TaskService>>()
+                    ?.LogWarning(ex, "启动清理旧任务记录失败");
+            }
+
+            // AI 旧明文密钥无条件迁移：懒迁移依赖打开 AI 设置页，从不打开则备份库仍带明文。
+            try
+            {
+                var migratedKeys = await ServiceProvider.GetRequiredService<AIProviderConfigRepository>()
+                    .MigrateAllPlainKeysAsync(cancellation.Token);
+                if (migratedKeys > 0)
+                {
+                    ServiceProvider.GetService<ILogger<AIProviderConfigRepository>>()
+                        ?.LogInformation("已把 {Count} 条 AI 供应商明文密钥迁移到加密存储", migratedKeys);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<AIProviderConfigRepository>>()
+                    ?.LogWarning(ex, "AI 明文密钥迁移失败，将在下次启动重试");
+            }
+
+            // 进程被杀残留的导入/转换工作区按前缀清扫（超过一天的残留）
+            await Task.Run(
+                () => ModImportService.CleanupStaleWorkspaces(
+                    ServiceProvider.GetRequiredService<StorageSettingsService>().Current.TempPath),
+                cancellation.Token);
+
             // 上次进程异常退出会留下没有执行句柄的“运行中”记录，启动时先收尾，任务中心才不会出现取消不掉的僵尸任务。
             try
             {
@@ -360,19 +394,28 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginAiBroker, PluginAiBroker>();
         // 会话级授权：安装时选“仅本次允许”的权限只留在内存，重启失效
         services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginGrantSession, HD2Mimnt.Core.Interfaces.PluginGrantSession>();
+        // 权限统一判定：PluginService 的权限检查与宿主启动快照共用
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker, HD2Mimnt.Application.Services.PluginPermissionChecker>();
         services.AddSingleton<IPluginSecurityReporter, PluginSecurityReporter>();
-        services.AddSingleton<IPluginHostManager, PluginHostManager>();
+        services.AddSingleton<IPluginHostManager>(sp => new PluginHostManager(
+            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>()));
         services.AddSingleton<OptionTranslationService>();
 
         // 图片服务
         services.AddSingleton<IImageCacheService>(sp =>
             new ImageCacheService(imageCachePath, memoryCacheSize: 100));
-        services.AddSingleton<IImageLoaderService, ImageLoaderService>();
 
         // Dedicated archive client: do not share platform API authentication headers.
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("downloads", (_, _) =>
         {
-            var client = new System.Net.Http.HttpClient();
+            // HttpClient.Timeout 是“整个响应周期”的总上限（含流式读取响应体），
+            // 默认 100 秒会让慢速网络的自更新分段请求必然超时：改为无限总时长，
+            // 由 HttpDownloadService 内部的响应头死线与读取空闲看门狗负责超时。
+            var client = new System.Net.Http.HttpClient(new System.Net.Http.SocketsHttpHandler
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(30)
+            })
+            { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("HD2Mimnt-ModManager");
             return client;
         });
@@ -456,7 +499,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<IDeploymentRepository>()));
 
         // 外部管理器迁移：读取器只读源数据，实际复制和落库由 Application 服务完成。
         services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
@@ -496,7 +540,12 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
             sp.GetRequiredService<ILogger<ExternalToolService>>()));
-        services.AddSingleton<IPluginService, PluginService>();
+        services.AddSingleton<IPluginService>(sp => new PluginService(
+            sp.GetRequiredService<IPluginRepository>(),
+            sp.GetRequiredService<IPluginPermissionRepository>(),
+            sp.GetRequiredService<IPluginExecutionRepository>(),
+            sp.GetRequiredService<IPluginHostManager>(),
+            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>()));
 
         services.AddSingleton(sp => new SearchService(
             sp.GetRequiredService<IModRepository>(),

@@ -235,7 +235,7 @@ public static class DatabaseIntegrityGuard
         // FTS5 外部内容表的影子表不参与复制，按内容表重建索引。
         foreach (var name in virtualTables)
         {
-            try { await ExecuteAsync(target, $"INSERT INTO \"{name}\"(\"{name}\") VALUES('rebuild')", cancellationToken); }
+            try { await ExecuteAsync(target, $"INSERT INTO \"{name.Replace("\"", "\"\"")}\"(\"{name.Replace("\"", "\"\"")}\") VALUES('rebuild')", cancellationToken); }
             catch (SqliteException ex) { logger?.LogWarning(ex, "重建全文索引 {Name} 失败", name); }
         }
 
@@ -260,9 +260,9 @@ public static class DatabaseIntegrityGuard
         if (maxRowId > 0 && maxRowId <= cap && maxRowId >= count) cap = maxRowId;
         cap = Math.Min(cap, 60000);
 
-        var quoted = string.Join(",", columns.Select(c => $"\"{c}\""));
+        var quoted = string.Join(",", columns.Select(c => $"\"{c.Replace("\"", "\"\"")}\""));
         var placeholders = string.Join(",", columns.Select((_, i) => $"@p{i}"));
-        var insertSql = $"INSERT OR REPLACE INTO \"{table}\" ({quoted}) VALUES ({placeholders})";
+        var insertSql = $"INSERT OR REPLACE INTO \"{table.Replace("\"", "\"\"")}\" ({quoted}) VALUES ({placeholders})";
         var firstIsId = columns[0].Equals("Id", StringComparison.OrdinalIgnoreCase) ||
                         columns[0].Equals("ModId", StringComparison.OrdinalIgnoreCase) ||
                         columns[0].Equals("ProfileId", StringComparison.OrdinalIgnoreCase);

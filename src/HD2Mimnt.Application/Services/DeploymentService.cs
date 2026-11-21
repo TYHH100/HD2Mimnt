@@ -553,6 +553,10 @@ public class DeploymentService
             // 移动阶段不接受半途取消；按升序填补空位，链接移动不触碰源文件。
             foreach (var rename in renames)
             {
+                // 移动源与目标分别来自 DB 记录/本地推导：越出游戏目录（记录被篡改）一律拒绝，
+                // 与清理链路防护一致。
+                if (!IsUnderRoot(gamePath, rename.File.TargetPath) || !IsUnderRoot(gamePath, rename.TargetPath))
+                    throw new InvalidDataException($"编号压缩目标越出游戏目录，已中止：{rename.TargetPath}");
                 // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
                 if (!DeploymentTargetExists(rename.File.TargetPath))
                     continue;

@@ -526,8 +526,21 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
             return false;
         }
 
+        // API 密钥随请求头出网：明文 http 只留给本地模型端点（Ollama 等回环地址），
+        // 远端 http 端点会让密钥明文出网，与下载链路的 HTTPS 基线不一致。
+        if (endpoint.Scheme == Uri.UriSchemeHttp && !IsLoopbackHost(endpoint.Host))
+        {
+            StatusMessage = UiLocalization.Current["Settings.AiTranslation.InvalidEndpoint"];
+            return false;
+        }
+
         return true;
     }
+
+    private static bool IsLoopbackHost(string host) =>
+        host is "localhost" or "127.0.0.1" or "::1" or "[::1]"
+        || (System.Net.IPAddress.TryParse(host, out var ip) &&
+            (System.Net.IPAddress.Loopback.Equals(ip) || System.Net.IPAddress.IPv6Loopback.Equals(ip)));
 
     private void UpdateThinkingChoices()
     {

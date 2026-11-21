@@ -372,7 +372,15 @@ public static class MmdSourceReader
                 if (total > 4L * 1024 * 1024 * 1024) throw new InvalidDataException("原包解压后超过 4 GB，已拒绝。");
                 using var source = entry.OpenEntryStream();
                 using var buffer = new MemoryStream(size > 0 ? (int)size : 0);
-                source.CopyTo(buffer);
+                // CopyTo 计数实际解压字节：声明 size 可被伪造，预算按实际字节算防内存放大
+                var copyBuffer = new byte[81920];
+                int copied;
+                while ((copied = source.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    total += copied;
+                    if (total > 4L * 1024 * 1024 * 1024) throw new InvalidDataException("原包解压后超过 4 GB，已拒绝。");
+                    buffer.Write(copyBuffer, 0, copied);
+                }
                 Add(result, seen, key, buffer.ToArray());
             }
         }

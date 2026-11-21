@@ -11,6 +11,9 @@ public class DownloadManagerService
 {
     private readonly IPlatformRegistry _platformRegistry;
     private readonly ConcurrentDictionary<Guid, DownloadTask> _downloadTasks = new();
+    // 全局并发闸：批量入队不排队时 N 个任务 × 各自分段并发会同时打开大量连接，
+    // 带宽与句柄都无保护；任务本身仍可取消，排队中取消立即让位。
+    private readonly SemaphoreSlim _concurrencyGate = new(3, 3);
 
     public DownloadManagerService(IPlatformRegistry platformRegistry)
     {
@@ -50,7 +53,7 @@ public class DownloadManagerService
 
         _downloadTasks[taskId] = downloadTask;
 
-        // Start download in background
+        // Start download in background；并发受 _concurrencyGate 全局限流
         // 临时授权只保存在执行闭包中，不写入任务历史或数据库。
         _ = Task.Run(async () => await ExecuteDownloadAsync(downloadTask, platform, progress, protocolLink));
 
@@ -135,6 +138,7 @@ public class DownloadManagerService
         string? protocolLink)
     {
         string? temporaryPath = null;
+        var gateAcquired = false;
         try
         {
             lock (task)
@@ -146,9 +150,21 @@ public class DownloadManagerService
                     return;
                 }
 
+                // CTS 在拿全局闸之前创建：排队中的任务也能被取消并立即让位。
+                task.CancellationTokenSource = new CancellationTokenSource();
+            }
+
+            await _concurrencyGate.WaitAsync(task.CancellationTokenSource.Token).ConfigureAwait(false);
+            gateAcquired = true;
+            lock (task)
+            {
+                if (task.Status != DownloadStatus.Queued)
+                {
+                    return;
+                }
+
                 task.Status = DownloadStatus.Downloading;
                 task.StartedAt = DateTime.UtcNow;
-                task.CancellationTokenSource = new CancellationTokenSource();
             }
 
             // Get mod info first
@@ -226,6 +242,7 @@ public class DownloadManagerService
         }
         finally
         {
+            if (gateAcquired) _concurrencyGate.Release();
             try
             {
                 if (temporaryPath is not null) File.Delete(temporaryPath);

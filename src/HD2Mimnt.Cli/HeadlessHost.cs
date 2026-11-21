@@ -71,7 +71,8 @@ internal static class HeadlessHost
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<IDeploymentRepository>()));
         services.AddSingleton<DeploymentStateMigrationService>();
 
         services.AddSingleton<IDeploymentMethod, CopyDeploymentMethod>();

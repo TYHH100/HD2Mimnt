@@ -346,25 +346,6 @@ public sealed class StorageMigration(StorageLocationStore store)
                 }
             }
         }
-        // 设置现存于 SQLite，路径类设置仍是 JSON 字符串；只映射本应用管理的根目录。
-        if (await HasColumnAsync(connection, "Settings", "Value", token, transaction))
-        {
-            using var read = connection.CreateCommand();
-            read.Transaction = transaction;
-            read.CommandText = "SELECT Value FROM Settings WHERE Key = 'UI.BackgroundImagePath'";
-            if (await read.ExecuteScalarAsync(token).ConfigureAwait(false) is string json)
-            {
-                var value = JsonSerializer.Deserialize<string>(json);
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    using var write = connection.CreateCommand();
-                    write.Transaction = transaction;
-                    write.CommandText = "UPDATE Settings SET Value = $value WHERE Key = 'UI.BackgroundImagePath'";
-                    write.Parameters.AddWithValue("$value", JsonSerializer.Serialize(Map(value, moves)));
-                    await write.ExecuteNonQueryAsync(token).ConfigureAwait(false);
-                }
-            }
-        }
         transaction.Commit();
     }
 

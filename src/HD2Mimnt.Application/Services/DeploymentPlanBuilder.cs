@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 
 namespace HD2Mimnt.Application.Services;
 
@@ -247,9 +248,10 @@ internal sealed class DeploymentPlanBuilder
             // 交给部署差异清理移除，armor 配套由 IasCompanionService 重新生成。
             if (record.Workflow == Hd2IrIntegrationService.Workflow)
                 continue;
-            var relative = Path.GetRelativePath(gamePath, file.TargetPath);
-            if (relative.StartsWith("..", StringComparison.Ordinal))
+            // StartsWith("..") 拦不住跨盘绝对路径（GetRelativePath 对 "D:\x" 返回原路径），统一用 PathGuard 校验
+            if (!PathGuard.IsInsideRoot(gamePath, file.TargetPath))
                 throw new InvalidDataException($"部署目标不在当前游戏目录：{file.TargetPath}，请手动部署。");
+            var relative = Path.GetRelativePath(gamePath, file.TargetPath);
             sourceKey ??= PatchDeploymentPlanner.MakeNativeSourceKey(relative);
             fixedFiles.Add(new PlannedFixedFile(relative.Replace('\\', '/'), file.SourcePath,
                 file.SourceRelativePath ?? relative, sourceKey, method, file.Id, true));

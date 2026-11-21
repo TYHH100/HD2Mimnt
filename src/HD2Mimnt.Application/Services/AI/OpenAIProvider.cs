@@ -19,11 +19,13 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
     private readonly HttpClient _httpClient;
     private readonly ILogger<OpenAIProvider> _logger;
 
-    public OpenAIProvider(AIProviderConfig config, ILogger<OpenAIProvider> logger)
+    public OpenAIProvider(AIProviderConfig config, ILogger<OpenAIProvider> logger, HttpClient? httpClient = null)
     {
         _config = config;
         _logger = logger;
-        _httpClient = new HttpClient
+        // 允许注入共享实例：AIService 每次请求都会构造 Provider，
+        // 自建实例不 Dispose 会累积 socket/TIME_WAIT 直到 GC 终结。
+        _httpClient = httpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(60)
         };

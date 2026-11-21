@@ -142,13 +142,16 @@ public sealed class DeploymentStateMigrationService(
             }
 
             // 4. 当前状态唯一约束；老库若仍有异常重复只记录警告，不阻断启动。
+            // NOCASE 与 Upsert 查重（GamePath = @GamePath COLLATE NOCASE）一致：
+            // 游戏路径大小写变化时不会再因 BINARY 索引漏查而插入两行“当前状态”。
             try
             {
                 using var index = connection.CreateCommand();
                 index.Transaction = transaction;
                 index.CommandText = @"
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_deployment_gamepath_mod_unique
-                    ON DeploymentRecords(GamePath, ModId) WHERE GamePath IS NOT NULL";
+                    DROP INDEX IF EXISTS idx_deployment_gamepath_mod_unique;
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_deployment_gamepath_mod_unique_nocase
+                    ON DeploymentRecords(GamePath COLLATE NOCASE, ModId) WHERE GamePath IS NOT NULL";
                 await index.ExecuteNonQueryAsync(cancellationToken);
             }
             catch (SqliteException ex)

@@ -119,7 +119,23 @@ public partial class AudioPreviewViewModel : ObservableObject, IAsyncDisposable
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(Summary));
     partial void OnErrorChanged(string value) => OnPropertyChanged(nameof(HasError));
     partial void OnAudioMessageTextChanged(string value) => OnPropertyChanged(nameof(HasAudioMessage));
-    partial void OnAudioFilterTextChanged(string value) => RebuildRows();
+    // 过滤文本防抖：语音包可达数千条目，每键击整表重建会拖慢连续输入
+    private DispatcherTimer? _audioFilterDebounce;
+
+    partial void OnAudioFilterTextChanged(string value)
+    {
+        _audioFilterDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _audioFilterDebounce.Tick -= OnAudioFilterDebounceTick;
+        _audioFilterDebounce.Tick += OnAudioFilterDebounceTick;
+        _audioFilterDebounce.Stop();
+        _audioFilterDebounce.Start();
+    }
+
+    private void OnAudioFilterDebounceTick(object? sender, EventArgs e)
+    {
+        _audioFilterDebounce?.Stop();
+        RebuildRows();
+    }
     partial void OnOnlyShowModifiedChanged(bool value) => RebuildRows();
 
     partial void OnIsAudioPlayingChanged(bool value)

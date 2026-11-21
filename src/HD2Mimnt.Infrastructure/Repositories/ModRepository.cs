@@ -122,6 +122,12 @@ public class ModRepository : IModRepository
         return mods;
     }
 
+    /// <summary>转义 LIKE 通配符：用户/插件输入的 % 与 _ 按字面匹配，防止匹配范围被放大。</summary>
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+             .Replace("%", "\\%", StringComparison.Ordinal)
+             .Replace("_", "\\_", StringComparison.Ordinal);
+
     /// <summary>清单 GUID 直接存在 ManifestJson 列，交给 SQLite JSON 函数过滤，避免逐行反序列化清单。</summary>
     public async Task<IEnumerable<Mod>> FindByManifestGuidAsync(Guid manifestGuid, CancellationToken cancellationToken = default)
     {
@@ -131,32 +137,9 @@ public class ModRepository : IModRepository
         command.CommandText = @"
             SELECT * FROM Mods
             WHERE ManifestJson IS NOT NULL AND ManifestJson <> '' AND json_valid(ManifestJson)
-              AND json_extract(ManifestJson, '$.Guid') = @Guid COLLATE NOCASE
+              AND json_extract(ManifestJson, '$.Guid') COLLATE NOCASE = @Guid
             ORDER BY ImportedAt";
         command.Parameters.AddWithValue("@Guid", manifestGuid.ToString());
-
-        var mods = new List<Mod>();
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            mods.Add(MapToMod(reader));
-        }
-
-        return mods;
-    }
-
-    public async Task<IEnumerable<Mod>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
-    {
-        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
-
-        using var command = connection.CreateCommand();
-        // 使用 FTS5 全文搜索索引以提高性能
-        command.CommandText = @"
-            SELECT m.* FROM Mods m
-            INNER JOIN ModsFTS fts ON m.rowid = fts.rowid
-            WHERE ModsFTS MATCH @Keyword
-            ORDER BY m.Name";
-        command.Parameters.AddWithValue("@Keyword", keyword);
 
         var mods = new List<Mod>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -173,8 +156,8 @@ public class ModRepository : IModRepository
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Mods WHERE Tags LIKE @Tag ORDER BY Name";
-        command.Parameters.AddWithValue("@Tag", $"%{tag}%");
+        command.CommandText = @"SELECT * FROM Mods WHERE Tags LIKE @Tag ESCAPE '' ORDER BY Name";
+        command.Parameters.AddWithValue("@Tag", $"%{EscapeLikePattern(tag)}%");
 
         var mods = new List<Mod>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

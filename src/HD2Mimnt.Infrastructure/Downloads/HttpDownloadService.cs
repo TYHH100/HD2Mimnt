@@ -13,6 +13,11 @@ namespace HD2Mimnt.Infrastructure.Downloads;
 /// <summary>Bounded concurrent HTTP range downloads backed by a temporary file.</summary>
 public sealed class HttpDownloadService : IHttpDownloadService
 {
+    /// <summary>宿主通常把 HttpClient.Timeout 设为 Infinite；响应头阶段单独设死线防服务器挂起。</summary>
+    private static readonly TimeSpan ResponseHeadersTimeout = TimeSpan.FromSeconds(120);
+    /// <summary>响应体连续无字节到达的空闲上限，超时按瞬时故障处理以触发重试。</summary>
+    private static readonly TimeSpan ReadIdleTimeout = TimeSpan.FromSeconds(60);
+
     private readonly HttpClient _httpClient;
     private readonly IDownloadOptionsProvider? _optionsProvider;
     private readonly string _resumeDirectory;
@@ -298,7 +303,8 @@ public sealed class HttpDownloadService : IHttpDownloadService
                     response.Content.Headers.ContentEncoding.Count != 0)
                     throw new InvalidDataException("服务器返回的分段范围、长度或文件版本不匹配。");
 
-                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var source = new IdleWatchdogStream(
+                    await response.Content.ReadAsStreamAsync(cancellationToken), ReadIdleTimeout);
                 var buffer = new byte[81920];
                 var offset = start;
                 int read;
@@ -329,7 +335,18 @@ public sealed class HttpDownloadService : IHttpDownloadService
         request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("identity"));
         request.Headers.Range = range;
         request.Headers.IfRange = condition;
-        return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        // HttpClient.Timeout 由宿主设为 Infinite（分段响应体不能被总时长截断），
+        // 响应头阶段单独设死线：连接建立后服务器不发头时按瞬时故障重试而不是永久挂起。
+        using var headerTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        headerTimeout.CancelAfter(ResponseHeadersTimeout);
+        try
+        {
+            return await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headerTimeout.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new IOException("下载服务器长时间未返回响应头，已中止本次请求。");
+        }
     }
 
     private static void EnsureFullResponse(HttpResponseMessage response)
@@ -342,7 +359,8 @@ public sealed class HttpDownloadService : IHttpDownloadService
     private static async Task CopyFullAsync(HttpResponseMessage response, FileStream file,
         DownloadReporter reporter, CancellationToken cancellationToken)
     {
-        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var source = new IdleWatchdogStream(
+            await response.Content.ReadAsStreamAsync(cancellationToken), ReadIdleTimeout);
         var buffer = new byte[81920];
         long received = 0;
         int read;
@@ -380,6 +398,59 @@ public sealed class HttpDownloadService : IHttpDownloadService
 
     private sealed class RangeIgnoredException : Exception { }
 
+    /// <summary>
+    /// 响应体读取空闲看门狗：HttpClient.Timeout 为 Infinite 时，连接建立后服务器停发数据
+    /// （不发 FIN、不限速挂起）不会触发任何异常。包装器在 <paramref name="idleTimeout"/>
+    /// 内没有字节到达时抛 IOException——在 <see cref="IsTransient"/> 视角下属于可重试的瞬时故障。
+    /// </summary>
+    private sealed class IdleWatchdogStream(Stream inner, TimeSpan idleTimeout) : Stream
+    {
+        private readonly CancellationTokenSource _idle = new();
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _idle.Token);
+            int read;
+            try
+            {
+                _idle.CancelAfter(idleTimeout);
+                read = await inner.ReadAsync(buffer, linked.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && _idle.IsCancellationRequested)
+            {
+                throw new IOException("下载空闲超时：服务器长时间未继续发送数据。");
+            }
+
+            if (read != 0)
+            {
+                _idle.CancelAfter(idleTimeout);
+            }
+            return read;
+        }
+
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _idle.Dispose();
+                inner.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
+
     private sealed class DownloadReporter(IProgress<DownloadProgress>? progress, long total)
     {
         private readonly object _gate = new();
@@ -399,6 +470,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
                 _segments.Clear();
                 _layout = null;
                 _clock.Restart();
+                _lastReported = TimeSpan.Zero;
             }
         }
 
@@ -407,7 +479,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
             lock (_gate)
             {
                 _layout = segments.Select(s => (s.Start, s.End)).ToList();
-                if (_restored > 0) Report("正在续传");
+                if (_restored > 0) Report("正在续传", force: true);
             }
         }
 
@@ -422,7 +494,7 @@ public sealed class HttpDownloadService : IHttpDownloadService
                 }
                 _restored = _downloaded;
                 _clock.Restart();
-                if (_restored > 0) Report("正在续传");
+                if (_restored > 0) Report("正在续传", force: true);
             }
         }
 
@@ -453,31 +525,50 @@ public sealed class HttpDownloadService : IHttpDownloadService
             lock (_gate)
             {
                 TotalBytes = bytes;
-                Report("下载完成");
+                Report("下载完成", force: true);
             }
         }
 
-        private void Report(string message)
+        /// <summary>
+        /// 100ms 时间节流：主循环每 80KB 就调一次进度，千兆带宽下每秒上万次回调
+        /// 会灌满 UI 消息队列（消费端每条都 Dispatcher.Post）。节流只影响上报频率，
+        /// 累计值始终是最新的；终态与低频状态消息用 force 直通，
+        /// 首条必须直通——调用方可能依赖第一份进度立即到达（如以进度触发取消），
+        /// 与 Worker 进度“首条必须送达”的约定一致。
+        /// </summary>
+        private static readonly TimeSpan MinReportInterval = TimeSpan.FromMilliseconds(100);
+        private TimeSpan _lastReported;
+        private bool _reportedAny;
+
+        private void Report(string message, bool force = false)
         {
-            IReadOnlyList<DownloadSegmentProgress>? segments = null;
-            if (_layout is { } layout)
+            lock (_gate)
             {
-                var snapshot = new DownloadSegmentProgress[layout.Count];
-                for (var index = 0; index < layout.Count; index++)
+                var elapsed = _clock.Elapsed;
+                if (!force && _reportedAny && elapsed - _lastReported < MinReportInterval) return;
+                _reportedAny = true;
+                _lastReported = elapsed;
+
+                IReadOnlyList<DownloadSegmentProgress>? segments = null;
+                if (_layout is { } layout)
                 {
-                    var (start, end) = layout[index];
-                    snapshot[index] = new DownloadSegmentProgress(start, end, _segments.GetValueOrDefault(start));
+                    var snapshot = new DownloadSegmentProgress[layout.Count];
+                    for (var index = 0; index < layout.Count; index++)
+                    {
+                        var (start, end) = layout[index];
+                        snapshot[index] = new DownloadSegmentProgress(start, end, _segments.GetValueOrDefault(start));
+                    }
+                    segments = snapshot;
                 }
-                segments = snapshot;
+                progress?.Report(new DownloadProgress
+                {
+                    TotalBytes = TotalBytes,
+                    DownloadedBytes = _downloaded,
+                    BytesPerSecond = (long)((_downloaded - _restored) / Math.Max(_clock.Elapsed.TotalSeconds, 0.001)),
+                    StatusMessage = message,
+                    Segments = segments
+                });
             }
-            progress?.Report(new DownloadProgress
-            {
-                TotalBytes = TotalBytes,
-                DownloadedBytes = _downloaded,
-                BytesPerSecond = (long)((_downloaded - _restored) / Math.Max(_clock.Elapsed.TotalSeconds, 0.001)),
-                StatusMessage = message,
-                Segments = segments
-            });
         }
     }
 }

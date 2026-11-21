@@ -53,7 +53,8 @@ public sealed class AppUpdateService(
 
         var asset = FindInstallerAsset(release, candidateVersion);
         var info = new AppUpdateInfo(candidateVersion, release.Body, string.IsNullOrEmpty(release.HtmlUrl)
-            ? AppUpdateConstants.ReleasePageUrl : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt);
+            ? AppUpdateConstants.ReleasePageUrl : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt,
+            asset?.Digest);
         return new AppUpdateCheckResult(AppUpdateVersion.IsNewer(currentVersion, candidateVersion), currentVersion, info);
     }
 
@@ -78,8 +79,16 @@ public sealed class AppUpdateService(
 
         try
         {
+            // api.github.com（digest 来源）与安装包 CDN（objects.githubusercontent.com）分属不同主机：
+            // 带上资产摘要后，下载引擎在落盘前做流式哈希校验，MITM/CDN 劫持伪造的安装包在此被拦截。
+            var downloadOptions = new DownloadOptions { EnableResume = true, ExpectedHash = NormalizeDigest(update.AssetDigest) };
+            if (downloadOptions.ExpectedHash is null)
+            {
+                logger?.LogInformation("更新包 {Version} 未提供可校验的资产摘要，跳过完整性校验。", update.Version);
+            }
+
             await _downloader.DownloadToFileAsync(new Uri(update.AssetUrl), archivePath,
-                new DownloadOptions { EnableResume = true }, progress, cancellationToken, resumeKey: $"app-update-{update.Version}");
+                downloadOptions, progress, cancellationToken, resumeKey: $"app-update-{update.Version}");
             cancellationToken.ThrowIfCancellationRequested();
 
             if (Directory.Exists(stagedDirectory)) Directory.Delete(stagedDirectory, recursive: true);
@@ -92,11 +101,25 @@ public sealed class AppUpdateService(
             var scriptPath = WriteInstallerScript(versionDirectory, installDirectory, stagedDirectory);
             return new AppUpdateStaging(update.Version, installDirectory, stagedDirectory, scriptPath);
         }
-        catch
+        catch (InvalidDataException)
         {
+            // 哈希不匹配或包结构损坏：暂存内容不可信，整体清理后报错
             TryCleanup(versionDirectory);
             throw;
         }
+        // 网络/IO/取消：HttpDownloadService 已把断点与 .part 落盘，保留 versionDirectory 供下次续传
+    }
+
+    /// <summary>仅接受下载引擎支持的摘要格式（与 DownloadOptions 校验正则一致）；缺失或异常格式返回 null 跳过校验。</summary>
+    private static string? NormalizeDigest(string? digest)
+    {
+        if (string.IsNullOrEmpty(digest))
+        {
+            return null;
+        }
+        return System.Text.RegularExpressions.Regex.IsMatch(digest, "^(sha256:[0-9a-fA-F]{64}|md5:[0-9a-fA-F]{32})$")
+            ? digest
+            : null;
     }
 
     public void LaunchPendingInstaller(AppUpdateStaging staging)
@@ -104,9 +127,13 @@ public sealed class AppUpdateService(
         if (!File.Exists(staging.InstallerScriptPath))
             throw new FileNotFoundException("安装脚本不存在，请重新下载更新。", staging.InstallerScriptPath);
         logger?.LogInformation("启动应用更新安装脚本：{Script}", staging.InstallerScriptPath);
+        // 绝对路径解析系统 PowerShell，不依赖 PATH 查找
+        var powershell = Path.Combine(
+            Environment.SystemDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
         Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = File.Exists(powershell) ? powershell : "powershell.exe",
             Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{staging.InstallerScriptPath}\"",
             UseShellExecute = true,
             CreateNoWindow = true

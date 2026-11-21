@@ -133,6 +133,53 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAsync_ExposesAssetDigest()
+    {
+        var digest = "sha256:" + new string('6', 64);
+        var release = CreateRelease("V99.0.0", CreateAsset("V99.0.0") with { Digest = digest });
+
+        var result = await CreateService(release).CheckAsync();
+
+        Assert.Equal(digest, result.Info!.AssetDigest);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_AssetDigest_PassedAsDownloadExpectedHash()
+    {
+        var digest = "sha256:" + new string('a', 64);
+        var downloader = new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target,
+            CreateZipBytes(("HD2Mimnt.UI.exe", "payload"))));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = digest });
+
+        Assert.Equal(digest, downloader.LastOptions!.ExpectedHash);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_UnrecognizedDigestShape_SkipsVerification()
+    {
+        var downloader = new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target,
+            CreateZipBytes(("HD2Mimnt.UI.exe", "payload"))));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = "sha1:deadbeef" });
+
+        Assert.Null(downloader.LastOptions!.ExpectedHash);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_NetworkFailure_KeepsStagingForResume()
+    {
+        var downloader = new FakeDownloadService((_, _) => throw new IOException("网络中断"));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await Assert.ThrowsAsync<IOException>(() => service.PrepareAsync(CreateUpdate("99.0.0")));
+        // 网络失败保留版本暂存目录：HttpDownloadService 已把断点与 .part 落盘，下次续传
+        Assert.True(Directory.Exists(Path.Combine(_stagingRoot, "99.0.0")));
+    }
+
+    [Fact]
     public void LaunchPendingInstaller_MissingScript_Throws()
     {
         var service = CreateService(CreateRelease("V99.0.0"));
@@ -143,12 +190,13 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     private AppUpdateService CreateService(AppUpdateRelease? release, byte[]? downloadBytes = null,
-        int? pid = null, string? installDirectory = null)
+        int? pid = null, string? installDirectory = null, FakeDownloadService? downloader = null)
     {
         downloadBytes ??= CreateZipBytes(("HD2Mimnt.UI.exe", "payload"), ("Assets/extra.dll", "extra"));
+        downloader ??= new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes));
         return new AppUpdateService(
             new FakeReleaseClient(release),
-            new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes)),
+            downloader,
             stagingRootOverride: _stagingRoot,
             currentProcessId: pid,
             installDirectoryOverride: installDirectory ?? _installDirectory);
@@ -194,12 +242,17 @@ public sealed class AppUpdateServiceTests : IDisposable
 
     private sealed class FakeDownloadService(Func<Uri, string, Task> onDownload) : IHttpDownloadService
     {
+        public DownloadOptions? LastOptions { get; private set; }
+
         public Task<Stream> DownloadAsync(Uri uri, DownloadOptions? options = null,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default, string? resumeKey = null)
             => throw new NotSupportedException();
 
         public Task DownloadToFileAsync(Uri uri, string targetPath, DownloadOptions? options = null,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default, string? resumeKey = null)
-            => onDownload(uri, targetPath);
+        {
+            LastOptions = options;
+            return onDownload(uri, targetPath);
+        }
     }
 }

@@ -1,5 +1,6 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using System.Text.Json;
 
 namespace HD2Mimnt.Application.Services;
@@ -14,19 +15,23 @@ public class PluginService : IPluginService
     private readonly IPluginExecutionRepository _pluginExecutionRepository;
     private readonly IPluginHostManager _pluginHostManager;
     private readonly IPluginGrantSession _grantSession;
+    private readonly IPluginPermissionChecker _permissionChecker;
 
     public PluginService(
         IPluginRepository pluginRepository,
         IPluginPermissionRepository pluginPermissionRepository,
         IPluginExecutionRepository pluginExecutionRepository,
         IPluginHostManager pluginHostManager,
-        IPluginGrantSession? grantSession = null)
+        IPluginGrantSession? grantSession = null,
+        IPluginPermissionChecker? permissionChecker = null)
     {
         _pluginRepository = pluginRepository;
         _pluginPermissionRepository = pluginPermissionRepository;
         _pluginExecutionRepository = pluginExecutionRepository;
         _pluginHostManager = pluginHostManager;
         _grantSession = grantSession ?? new PluginGrantSession();
+        // 权限判定与宿主启动快照共用同一实现；未注入时按现有依赖就地构造
+        _permissionChecker = permissionChecker ?? new PluginPermissionChecker(pluginRepository, pluginPermissionRepository, _grantSession);
     }
 
     public Task<PluginOperationResult> InstallPluginAsync(string manifestPath, CancellationToken cancellationToken = default)
@@ -73,7 +78,18 @@ public class PluginService : IPluginService
             // 入口文件按类型解析：编译型是程序集，脚本型是 .lua；
             // 混合插件（脚本 + DLL）以脚本为入口，DLL 由宿主在脚本进程内挂载
             var entryFile = manifest.EntryFile;
-            var entryPath = Path.Combine(manifestDirectory, entryFile);
+            string entryPath;
+            try
+            {
+                // EntryFile 拼进完整性锚点与宿主加载路径：绝对路径/.. 一律拒绝安装
+                entryPath = PathGuard.ResolveInsideRoot(manifestDirectory,
+                    Path.Combine(manifestDirectory, entryFile ?? string.Empty),
+                    "插件清单 EntryFile 越出插件目录，已拒绝安装。");
+            }
+            catch (InvalidDataException ex)
+            {
+                return PluginOperationResult.ErrorResult(ex.Message, manifestDirectory);
+            }
             if (!File.Exists(entryPath))
             {
                 return PluginOperationResult.ErrorResult(
@@ -91,8 +107,11 @@ public class PluginService : IPluginService
                 ManifestPath = manifestPath,
                 // 对脚本型插件，这里记录脚本路径；完整性校验锚定的就是它
                 AssemblyPath = entryPath,
-                // 完整性锚点：安装时固定入口文件内容，启动前比对防替换
+                // 完整性锚点：安装时固定入口文件、清单与混合 DLL 内容，启动前比对防替换。
+                // 命令权限门控运行时重读清单（RequiredPermission），清单不在锚点内则门控可被摘除。
                 AssemblySha256 = await ComputeFileSha256Async(entryPath, cancellationToken),
+                ManifestSha256 = await ComputeFileSha256Async(manifestPath, cancellationToken),
+                HybridAssemblySha256 = await ComputeHybridAssemblySha256Async(manifest, manifestDirectory, cancellationToken),
                 InstalledAt = DateTime.UtcNow,
                 Enabled = true,
                 PermissionMode = manifest.PermissionMode.ToString()
@@ -174,7 +193,90 @@ public class PluginService : IPluginService
             await _pluginRepository.UpdateAsync(plugin, cancellationToken);
         }
 
+        // 清单锚点：权限门控（RequiredPermission）、命令声明、脚本/DLL 路径全部来自清单内容，
+        // 清单被改即拒绝启动（旧数据无哈希时首查信任并补录）
+        if (!File.Exists(plugin.ManifestPath))
+        {
+            return PluginOperationResult.ErrorResult("插件清单文件不存在", plugin.ManifestPath);
+        }
+        var currentManifestSha = await ComputeFileSha256Async(plugin.ManifestPath, cancellationToken);
+        if (plugin.ManifestSha256 is { } manifestRecorded)
+        {
+            if (!string.Equals(manifestRecorded, currentManifestSha, StringComparison.OrdinalIgnoreCase))
+            {
+                return PluginOperationResult.ErrorResult(
+                    "插件清单与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+            }
+        }
+        else
+        {
+            plugin.ManifestSha256 = currentManifestSha;
+            await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+        }
+
+        // 混合插件 DLL 锚点：路径取自已被锚定的清单，哈希与安装时不符即拒绝
+        if (!await VerifyHybridAssemblyAsync(plugin, cancellationToken))
+        {
+            return PluginOperationResult.ErrorResult(
+                "混合插件命令库与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+        }
+
         return await _pluginHostManager.StartPluginAsync(plugin.Id, plugin.AssemblyPath, plugin.ManifestPath, cancellationToken);
+    }
+
+    /// <summary>
+    /// 混合插件（kind=lua 且填 assembly）的命令库 DLL 锚点校验。
+    /// 非混合插件恒通过；清单解析失败按不一致处理（清单锚点先行，此为防御深度）。
+    /// </summary>
+    private async Task<bool> VerifyHybridAssemblyAsync(Plugin plugin, CancellationToken cancellationToken)
+    {
+        string? currentSha;
+        try
+        {
+            currentSha = await ReadHybridAssemblySha256Async(plugin, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
+        {
+            return false;
+        }
+
+        if (currentSha is null) return true; // 非混合插件
+        if (plugin.HybridAssemblySha256 is { } recorded)
+        {
+            return string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // 旧数据无哈希：首查信任并补录
+        plugin.HybridAssemblySha256 = currentSha;
+        await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+        return true;
+    }
+
+    /// <summary>按清单 Assembly 字段解析命令库 DLL 并计算哈希；非混合插件返回 null。</summary>
+    private async Task<string?> ReadHybridAssemblySha256Async(Plugin plugin, CancellationToken cancellationToken)
+    {
+        var manifestJson = await File.ReadAllTextAsync(plugin.ManifestPath, cancellationToken);
+        var manifest = PluginSDK.PluginManifestJson.Deserialize(manifestJson);
+        if (manifest?.IsHybrid != true || string.IsNullOrWhiteSpace(manifest.Assembly)) return null;
+
+        var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(plugin.ManifestPath))!;
+        var assemblyPath = PathGuard.ResolveInsideRoot(manifestDirectory,
+            Path.Combine(manifestDirectory, manifest.Assembly),
+            "插件清单 Assembly 越出插件目录，已拒绝启动。");
+        if (!File.Exists(assemblyPath)) return null;
+        return await ComputeFileSha256Async(assemblyPath, cancellationToken);
+    }
+
+    /// <summary>安装时计算混合插件命令库 DLL 的锚点哈希；非混合或 DLL 缺失返回 null。</summary>
+    private static async Task<string?> ComputeHybridAssemblySha256Async(
+        PluginSDK.PluginManifest manifest, string manifestDirectory, CancellationToken cancellationToken)
+    {
+        if (!manifest.IsHybrid || string.IsNullOrWhiteSpace(manifest.Assembly)) return null;
+        var assemblyPath = PathGuard.ResolveInsideRoot(manifestDirectory,
+            Path.Combine(manifestDirectory, manifest.Assembly),
+            "插件清单 Assembly 越出插件目录，已拒绝安装。");
+        if (!File.Exists(assemblyPath)) return null;
+        return await ComputeFileSha256Async(assemblyPath, cancellationToken);
     }
 
     private static async Task<string> ComputeFileSha256Async(string path, CancellationToken cancellationToken)
@@ -307,6 +409,11 @@ public class PluginService : IPluginService
             {
                 result.Errors.Add("Plugin Id is required");
             }
+            else if (!PluginSDK.PluginId.IsValid(manifest.Id))
+            {
+                // Id 会拼进宿主数据目录路径，字符集不安全（含路径分隔符/遍历序列）直接拒绝安装
+                result.Errors.Add($"Invalid plugin Id (allowed: ASCII letters, digits, '.', '_', '-'): {manifest.Id}");
+            }
 
             if (string.IsNullOrWhiteSpace(manifest.Name))
             {
@@ -424,30 +531,8 @@ public class PluginService : IPluginService
         }
     }
 
-    public async Task<bool> CheckPermissionAsync(string pluginId, string permission, CancellationToken cancellationToken = default)
-    {
-        var plugin = await _pluginRepository.GetByIdAsync(pluginId, cancellationToken);
-        if (plugin == null)
-        {
-            return false;
-        }
-
-        if (plugin.PermissionMode == "FullAccess")
-        {
-            return true;
-        }
-
-        // “仅本次允许”的授权只存在于本进程，优先于数据库判断
-        if (_grantSession.IsGranted(pluginId, permission))
-        {
-            return true;
-        }
-
-        var permissions = await _pluginPermissionRepository.GetByPluginIdAsync(pluginId, cancellationToken);
-        var pluginPermission = permissions.FirstOrDefault(p => p.Permission == permission);
-
-        return pluginPermission?.Granted ?? false;
-    }
+    public Task<bool> CheckPermissionAsync(string pluginId, string permission, CancellationToken cancellationToken = default)
+        => _permissionChecker.CheckAsync(pluginId, permission, cancellationToken);
 
     public async Task<PluginOperationResult> GrantPermissionAsync(string pluginId, string permission, CancellationToken cancellationToken = default)
     {
@@ -487,6 +572,9 @@ public class PluginService : IPluginService
                 await _pluginPermissionRepository.AddAsync(newPermission, cancellationToken);
             }
 
+            // 权限快照在宿主启动时下发：授予后停宿主，下次命令以新快照重启
+            await _pluginHostManager.StopPluginAsync(pluginId, cancellationToken);
+
             return PluginOperationResult.SuccessResult("Permission granted successfully");
         }
         catch (Exception ex)
@@ -521,6 +609,9 @@ public class PluginService : IPluginService
             existingPermission.Granted = false;
             existingPermission.GrantedAt = null;
             await _pluginPermissionRepository.UpdateAsync(existingPermission, cancellationToken);
+
+            // 长驻宿主持有启动时的权限快照：撤销后停宿主，下次命令以新快照重启
+            await _pluginHostManager.StopPluginAsync(pluginId, cancellationToken);
 
             return PluginOperationResult.SuccessResult("Permission revoked successfully");
         }

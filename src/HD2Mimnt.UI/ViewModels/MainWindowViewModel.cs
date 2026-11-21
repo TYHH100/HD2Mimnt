@@ -670,11 +670,15 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly Services.AsyncOperationQueue _refreshes = new();
 
     private bool _disposed;
+    // CanCloseAsync 通过后、DisposeAsync 排空前到达的刷新没有执行机会，不再排队防挂住退出
+    private bool _shutdownStarted;
 
     private void QueueUiRefresh(Func<Task> refresh) => _ = QueueUiRefreshAsync(refresh);
 
     private Task QueueUiRefreshAsync(Func<Task> refresh)
-        => _disposed ? Task.CompletedTask : _refreshes.Enqueue(async () =>
+        => _disposed || _shutdownStarted
+            ? Task.CompletedTask // 退出序列排空后再到达的刷新没有执行机会，等待它会挂住进程退出
+            : _refreshes.Enqueue(async () =>
         {
             try
             {
@@ -1262,6 +1266,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _taskCenterViewModel.StopAutoRefresh();
             await StopPlatformDownloadsAsync();
             await _taskService.CancelAllAndWaitAsync();
+            _shutdownStarted = true;
             await WaitForRefreshesAsync();
             return true;
         }
@@ -1276,6 +1281,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _taskCenterViewModel.StopAutoRefresh();
             await StopPlatformDownloadsAsync();
             await _taskService.CancelAllAndWaitAsync();
+            _shutdownStarted = true;
             await WaitForRefreshesAsync();
         }
 

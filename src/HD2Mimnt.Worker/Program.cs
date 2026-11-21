@@ -147,7 +147,8 @@ internal static class Program
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<IDeploymentRepository>()));
         services.AddSingleton(sp => new HellForgeService(
             sp.GetRequiredService<SettingsService>(),
             sp.GetService<ILogger<HellForgeService>>()));

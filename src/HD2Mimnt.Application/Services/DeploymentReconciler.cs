@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -57,6 +58,19 @@ internal sealed class DeploymentReconciler
                 .ToList();
             CleanupStaleTemps(plan);
             var currentFiles = currentRecords.SelectMany(record => record.Files).ToList();
+            // DB 记录是唯一可能被外部篡改的输入：对账会按记录删除/移动/覆盖文件，
+            // 所有目标必须位于本次计划的游戏目录内（与清理链路防护一致）；
+            // 越界记录中止对账并保留现场，不做任何文件操作。
+            if (string.IsNullOrWhiteSpace(plan.GamePath))
+                throw new InvalidDataException("部署计划缺少游戏目录，无法对账。");
+            foreach (var file in currentFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(file.TargetPath) &&
+                    !PathGuard.IsInsideRoot(plan.GamePath, file.TargetPath))
+                {
+                    throw new InvalidDataException($"部署记录目标越出游戏目录，已中止对账：{file.TargetPath}");
+                }
+            }
             var byId = currentFiles.ToDictionary(file => file.Id);
             var byKey = new Dictionary<(Guid ModId, string Key), DeploymentFile>();
             var byTarget = new Dictionary<(Guid ModId, string Target), DeploymentFile>();

@@ -16,6 +16,7 @@ public class ProfileService
 {
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
+    private readonly IDeploymentRepository? _deploymentRepository;
     private readonly SettingsService? _settingsService;
     private bool LoaderOrderLocked => _settingsService?.IsLoaderOrderLocked() ?? true;
 
@@ -63,10 +64,12 @@ public class ProfileService
     /// </summary>
     public event EventHandler<ProfilesChangedEventArgs>? ProfilesChanged;
 
-    public ProfileService(IProfileRepository profileRepository, IModRepository modRepository, SettingsService? settingsService = null)
+    public ProfileService(IProfileRepository profileRepository, IModRepository modRepository,
+        SettingsService? settingsService = null, IDeploymentRepository? deploymentRepository = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
+        _deploymentRepository = deploymentRepository;
         _settingsService = settingsService;
     }
 
@@ -347,6 +350,17 @@ public class ProfileService
             if (profile.IsActive)
             {
                 throw new InvalidOperationException("不能删除当前激活的配置文件，请先切换到其他配置文件");
+            }
+
+            // 部署记录表示当前安装状态，不能随配置删除：否则已部署文件失去追踪，
+            // 会被“未管理补丁清理”当作外部残留删除。外键也不允许悬空引用——
+            // 先把引用重指向默认配置（读路径按配置成员关系过滤不受影响，
+            // 下次部署对账会按真实归属重写 ProfileId），再删除配置本身。
+            var defaultProfile = (await _profileRepository.GetAllAsync(cancellationToken))
+                .FirstOrDefault(candidate => candidate.IsDefault);
+            if (_deploymentRepository != null && defaultProfile != null)
+            {
+                await _deploymentRepository.RepointProfileRecordsAsync(id, defaultProfile.Id, cancellationToken);
             }
 
             await _profileRepository.DeleteAsync(id, cancellationToken);

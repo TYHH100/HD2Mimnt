@@ -19,6 +19,7 @@ public class AIService : IAIService
     private readonly ILogger<ClaudeProvider> _claudeLogger;
     private readonly ILogger<LocalLLMProvider> _localLLMLogger;
     private readonly ILogger<DeepSeekProvider> _deepSeekLogger;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<AIProviderType, HttpClient> _sharedHttpClients = new();
 
     public AIService(
         IAIProviderConfigRepository configRepository,
@@ -422,13 +423,26 @@ public class AIService : IAIService
     {
         return config.Type switch
         {
-            AIProviderType.OpenAI => new OpenAIProvider(config, _openAILogger),
-            AIProviderType.Claude => new ClaudeProvider(config, _claudeLogger),
-            AIProviderType.DeepSeek => new DeepSeekProvider(config, _deepSeekLogger),
-            AIProviderType.LocalLLM => new LocalLLMProvider(config, _localLLMLogger),
+            AIProviderType.OpenAI => new OpenAIProvider(config, _openAILogger, GetSharedHttpClient(config.Type)),
+            AIProviderType.Claude => new ClaudeProvider(config, _claudeLogger, GetSharedHttpClient(config.Type)),
+            AIProviderType.DeepSeek => new DeepSeekProvider(config, _deepSeekLogger, GetSharedHttpClient(config.Type)),
+            AIProviderType.LocalLLM => new LocalLLMProvider(config, _localLLMLogger, GetSharedHttpClient(config.Type)),
             // 自定义端点通常兼容 OpenAI Chat Completions；Ollama 专用格式只留给 LocalLLM。
-            AIProviderType.Custom => new OpenAIProvider(config, _openAILogger),
+            AIProviderType.Custom => new OpenAIProvider(config, _openAILogger, GetSharedHttpClient(config.Type)),
             _ => throw new NotSupportedException($"AI provider type not supported: {config.Type}")
         };
     }
+
+    /// <summary>
+    /// 按供应商类型复用 HttpClient：每次请求都会构造 Provider，
+    /// 自建实例不 Dispose 会累积 socket/TIME_WAIT 直到 GC 终结（批量翻译一轮即数十个）。
+    /// 密钥与端点都写在每条请求消息上，不在实例默认头里，实例可安全共享。
+    /// </summary>
+    private HttpClient GetSharedHttpClient(AIProviderType type) =>
+        _sharedHttpClients.GetOrAdd(type, static t => new HttpClient
+        {
+            Timeout = t is AIProviderType.DeepSeek or AIProviderType.LocalLLM
+                ? TimeSpan.FromSeconds(120)
+                : TimeSpan.FromSeconds(60)
+        });
 }

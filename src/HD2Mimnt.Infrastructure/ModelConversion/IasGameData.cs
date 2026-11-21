@@ -199,7 +199,9 @@ internal sealed class IasDsar : IDisposable
                       && chunk.StoredOffset >= 32UL + (ulong)count * 32UL
                       && chunk.StoredOffset <= (ulong)_stream.Length
                       && (ulong)chunk.StoredSize <= (ulong)_stream.Length - chunk.StoredOffset
-                      && (index == 0 || _chunks[index - 1].Offset + (ulong)_chunks[index - 1].Size <= chunk.Offset)))
+                      // 前一块的 Offset+Size 防回绕（对齐 GameUnitReferenceReader 的显式检查）
+                      && (index == 0 || (ulong)_chunks[index - 1].Size <= ulong.MaxValue - _chunks[index - 1].Offset
+                          && _chunks[index - 1].Offset + (ulong)_chunks[index - 1].Size <= chunk.Offset)))
                     throw new InvalidDataException("DSAR 块表无效。");
                 _chunks[index] = chunk;
             }
@@ -274,10 +276,18 @@ internal sealed class IasDsar : IDisposable
             if (LZ4Codec.Decode(encoded, decoded) != decoded.Length) throw new InvalidDataException("DSAR LZ4 解压长度不一致。");
         }
         else throw new InvalidDataException("unsupported DSAR codec");
-        if (_cache.Count > 8) _cache.Remove(_cache.Keys.First());
-        _cache[index] = decoded;
+        // 合法 DSAR 存在数百 MB 的未压缩块：超过 128MB 的块直接返回不进缓存，
+        // 8 条缓存叠加不会堆出数 GB 峰值
+        if (decoded.LongLength <= MaxCachedChunkBytes)
+        {
+            if (_cache.Count > 8) _cache.Remove(_cache.Keys.First());
+            _cache[index] = decoded;
+        }
         return decoded;
     }
 
     public void Dispose() => _stream.Dispose();
+
+    /// <summary>解码缓存单块上限：合法 DSAR 未压缩块可达数百 MB，超限块不缓存只按需解码。</summary>
+    private const long MaxCachedChunkBytes = 128L * 1024 * 1024;
 }

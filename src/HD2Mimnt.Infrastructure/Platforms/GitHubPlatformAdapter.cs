@@ -84,24 +84,36 @@ public class GitHubPlatformAdapter : BasePlatformAdapter
             };
         }
 
-        var mods = new List<PlatformModInfo>();
-        foreach (var repo in searchResult.Items)
+        // 逐仓库拉 latest release：全串行时每次搜索烧掉 N 个匿名配额请求且慢；
+        // 受限并行（4）+ 结果按原顺序聚合。release 缺失/无效的仓库跳过。
+        var repos = searchResult.Items;
+        var results = new PlatformModInfo?[repos.Count];
+        using var gate = new SemaphoreSlim(4, 4);
+        await Task.WhenAll(repos.Select(async (repo, index) =>
         {
-            // Get the latest release for each repository
             try
             {
-                var modInfo = await GetModInfoFromRepo(repo, cancellationToken);
-                if (modInfo != null)
+                await gate.WaitAsync(cancellationToken);
+                try
                 {
-                    mods.Add(modInfo);
+                    results[index] = await GetModInfoFromRepo(repo, cancellationToken);
                 }
+                finally
+                {
+                    gate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch
             {
                 // Skip repositories without valid releases
-                continue;
             }
-        }
+        })).ConfigureAwait(false);
+
+        var mods = results.OfType<PlatformModInfo>().ToList();
 
         // Apply additional sorting if needed
         mods = query.SortBy switch

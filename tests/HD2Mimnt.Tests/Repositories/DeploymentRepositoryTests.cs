@@ -186,7 +186,9 @@ public class DeploymentRepositoryTests : IDisposable
             using var command = connection.CreateCommand();
             command.CommandText = """
                 DROP INDEX IF EXISTS idx_deployment_gamepath_mod;
+                DROP INDEX IF EXISTS idx_deployment_gamepath_mod_nocase;
                 DROP INDEX IF EXISTS idx_deploymentfiles_gamepath_target;
+                DROP INDEX IF EXISTS idx_deploymentfiles_gamepath_target_nocase;
                 DROP INDEX IF EXISTS idx_deploymentfiles_sourcekey;
                 ALTER TABLE DeploymentRecords DROP COLUMN GamePath;
                 ALTER TABLE DeploymentRecords DROP COLUMN DeploymentOrder;

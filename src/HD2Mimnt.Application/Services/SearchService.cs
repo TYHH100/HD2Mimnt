@@ -39,51 +39,56 @@ public class SearchService
         // 异步续体被投递到 Avalonia 调度器后会形成启动死锁
         var mods = (await _modRepository.GetAllAsync(cancellationToken)).ToList();
 
-        lock (_indexLock)
+        // 全库索引重建与库大小成正比（归一化 + 前缀展开），构建在 UI 线程续体上执行
+        // 会让每次导入/修改后的刷新都出现一段与库大小成正比的 UI 冻结，移到线程池执行。
+        await Task.Run(() =>
         {
-            _logger?.LogDebug("开始构建搜索索引");
-            var startTime = DateTime.UtcNow;
-
-            // 清空现有索引
-            _exactIndex.Clear();
-            _prefixIndex.Clear();
-            _tagIndex.Clear();
-            _normalizedIndex.Clear();
-            _allMods = mods;
-
-            foreach (var mod in _allMods)
+            lock (_indexLock)
             {
-                // Exact Index - 完整名称
-                var exactKey = mod.Name.ToLowerInvariant();
-                _exactIndex[exactKey] = mod;
+                _logger?.LogDebug("开始构建搜索索引");
+                var startTime = DateTime.UtcNow;
 
-                // Normalized Index - 去除空格和特殊字符的名称
-                var normalized = NormalizeName(mod.Name);
-                if (!_normalizedIndex.ContainsKey(normalized))
+                // 清空现有索引
+                _exactIndex.Clear();
+                _prefixIndex.Clear();
+                _tagIndex.Clear();
+                _normalizedIndex.Clear();
+                _allMods = mods;
+
+                foreach (var mod in _allMods)
                 {
-                    _normalizedIndex[normalized] = new List<Mod>();
-                }
-                _normalizedIndex[normalized].Add(mod);
+                    // Exact Index - 完整名称
+                    var exactKey = mod.Name.ToLowerInvariant();
+                    _exactIndex[exactKey] = mod;
 
-                // Prefix Index - 前缀索引
-                BuildPrefixIndex(mod);
-
-                // Tag Index - 标签索引（来源/系统标签与用户自建标签一起进入）
-                foreach (var tag in IndexedTags(mod))
-                {
-                    var tagKey = tag.ToLowerInvariant();
-                    if (!_tagIndex.ContainsKey(tagKey))
+                    // Normalized Index - 去除空格和特殊字符的名称
+                    var normalized = NormalizeName(mod.Name);
+                    if (!_normalizedIndex.ContainsKey(normalized))
                     {
-                        _tagIndex[tagKey] = new HashSet<Mod>();
+                        _normalizedIndex[normalized] = new List<Mod>();
                     }
-                    _tagIndex[tagKey].Add(mod);
-                }
-            }
+                    _normalizedIndex[normalized].Add(mod);
 
-            _indexBuilt = true;
-            var duration = DateTime.UtcNow - startTime;
-            _logger?.LogDebug("搜索索引构建完成，耗时 {ElapsedMs:0.00} ms，条目数 {ModCount}", duration.TotalMilliseconds, _allMods.Count);
-        }
+                    // Prefix Index - 前缀索引
+                    BuildPrefixIndex(mod);
+
+                    // Tag Index - 标签索引（来源/系统标签与用户自建标签一起进入）
+                    foreach (var tag in IndexedTags(mod))
+                    {
+                        var tagKey = tag.ToLowerInvariant();
+                        if (!_tagIndex.ContainsKey(tagKey))
+                        {
+                            _tagIndex[tagKey] = new HashSet<Mod>();
+                        }
+                        _tagIndex[tagKey].Add(mod);
+                    }
+                }
+
+                _indexBuilt = true;
+                var duration = DateTime.UtcNow - startTime;
+                _logger?.LogDebug("搜索索引构建完成，耗时 {ElapsedMs:0.00} ms，条目数 {ModCount}", duration.TotalMilliseconds, _allMods.Count);
+            }
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -185,7 +190,11 @@ public class SearchService
     {
         if (string.IsNullOrWhiteSpace(query))
         {
-            return _allMods;
+            // 返回快照而非活动集合引用：调用方枚举期间后台重建索引会抛 InvalidOperationException
+            lock (_indexLock)
+            {
+                return _allMods.ToArray();
+            }
         }
 
         // 确保索引已构建

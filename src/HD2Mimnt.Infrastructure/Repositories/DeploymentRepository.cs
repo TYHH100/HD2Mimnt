@@ -317,6 +317,18 @@ public class DeploymentRepository : IDeploymentRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<int> RepointProfileRecordsAsync(Guid fromProfileId, Guid toProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE DeploymentRecords SET ProfileId = @ToProfileId WHERE ProfileId = @FromProfileId";
+        command.Parameters.AddWithValue("@ToProfileId", toProfileId.ToString());
+        command.Parameters.AddWithValue("@FromProfileId", fromProfileId.ToString());
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task AddDeploymentFileAsync(DeploymentFile file, CancellationToken cancellationToken = default)
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);

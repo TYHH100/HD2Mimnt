@@ -17,11 +17,12 @@ public class ClaudeProvider : IAIProvider
     private readonly HttpClient _httpClient;
     private readonly ILogger<ClaudeProvider> _logger;
 
-    public ClaudeProvider(AIProviderConfig config, ILogger<ClaudeProvider> logger)
+    public ClaudeProvider(AIProviderConfig config, ILogger<ClaudeProvider> logger, HttpClient? httpClient = null)
     {
         _config = config;
         _logger = logger;
-        _httpClient = new HttpClient
+        // 允许注入共享实例（同 OpenAIProvider：避免每请求自建 HttpClient 泄漏连接）。
+        _httpClient = httpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(60)
         };
