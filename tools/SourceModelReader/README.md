@@ -510,7 +510,7 @@ Run the built-in test suite:
 py -3 -m unittest discover -s tests -v
 ```
 
-See [`GLB_TEST_REPORT.md`](GLB_TEST_REPORT.md), [`DIAGNOSTICS_TEST_REPORT.md`](DIAGNOSTICS_TEST_REPORT.md), [`BONE_MATRIX_TEST_REPORT.md`](BONE_MATRIX_TEST_REPORT.md), [`SMD_AUDIT_TEST_REPORT.md`](SMD_AUDIT_TEST_REPORT.md), and [`HD2_RESOURCE_TEST_REPORT.md`](HD2_RESOURCE_TEST_REPORT.md) for validation details. `run_bone_matrix.bat` and `run_hd2_inspect.bat` are included as optional Windows helpers.
+See [`reports-archive/`](reports-archive/README.md) (GLB, diagnostics, bone matrix, SMD audit, HD2 resource reports) for historical validation details. `run_bone_matrix.bat` and `run_hd2_inspect.bat` are included as optional Windows helpers.
 
 ## Known alpha limitations
 

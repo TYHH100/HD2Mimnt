@@ -501,15 +501,6 @@
   <data name="UI.Loading" xml:space="preserve">
     <value>正在載入...</value>
   </data>
-  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
-    <value>跟著引導認識游戲目錄、模組庫、設定檔、沖突檢查和部署。教程會自動切換頁面，用藍色邊框標記當前功能。</value>
-  </data>
-  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
-    <value>使用上一步或下一步瀏覽，隨時按 Esc 或點擊退出結束；教程不會執行導入、部署或啟動游戲。</value>
-  </data>
-  <data name="UI.StartTutorial" xml:space="preserve">
-    <value>開始教程</value>
-  </data>
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>外部工具</value>
   </data>
@@ -1977,9 +1968,6 @@
   </data>
   <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
     <value>正在取消并清理…</value>
-  </data>
-  <data name="UI.Tutorial" xml:space="preserve">
-    <value>教程</value>
   </data>
   <data name="UI.BackupAndRestore" xml:space="preserve">
     <value>備份與恢復</value>

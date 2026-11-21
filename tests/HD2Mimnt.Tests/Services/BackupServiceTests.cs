@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace HD2Mimnt.Tests.Services;
 
+[Trait("Category", "Slow")]
 public sealed class BackupServiceTests
 {
     [Fact]

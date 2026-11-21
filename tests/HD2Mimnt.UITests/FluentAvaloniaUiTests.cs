@@ -822,147 +822,6 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
-    public async Task Tutorial_ShouldNavigateHighlightAndBlockActionsThroughActualControls()
-    {
-        await using var scope = await UiScope.CreateAsync(seedMods: true);
-        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
-        await main.LibraryViewModel.InitializeAsync();
-        await main.ProfileViewModel.LoadProfilesAsync();
-        main.SettingsViewModel.SelectedCategory = "外观";
-        main.MoreViewModel.SelectedCategory = "教程";
-        main.NavigateToToolsCommand.Execute(null);
-        var originalProfile = main.ProfileViewModel.SelectedProfile!.Id;
-        var profileService = scope.Services.GetRequiredService<ProfileService>();
-        string Snapshot(Profile p) => string.Join("|", p.Mods.Select(m => $"{m.ModId}:{m.Enabled}:{m.Order}:{m.OptionsJson}"));
-        var originalMods = Snapshot((await profileService.GetProfileByIdAsync(originalProfile))!);
-        var app = Avalonia.Application.Current!;
-        var originalOpacity = app.Resources["CardSurfaceOpacity"];
-        var window = new MainWindow { DataContext = main };
-        try
-        {
-            window.Show();
-            void Layout()
-            {
-                Dispatcher.UIThread.RunJobs();
-                window.UpdateLayout();
-                Dispatcher.UIThread.RunJobs();
-                window.UpdateLayout();
-            }
-            void Click(Control control)
-            {
-                var p = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)!.Value;
-                window.MouseDown(p, MouseButton.Left);
-                window.MouseUp(p, MouseButton.Left);
-                Layout();
-            }
-            Layout();
-            Click(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "开始教程"));
-            var guide = window.FindControl<HD2Mimnt.UI.Controls.TutorialOverlay>("TutorialGuide")!;
-            var next = guide.FindControl<Button>("NextButton")!;
-            var previous = guide.FindControl<Button>("PreviousButton")!;
-            var frame = guide.FindControl<Border>("TargetFrame")!;
-            var card = guide.FindControl<Border>("ExplanationCard")!;
-            Assert.True(main.Tutorial.IsOpen);
-            Assert.False(previous.IsEnabled);
-            Assert.Equal("游戏", main.SettingsViewModel.SelectedCategory);
-            Click(next);
-            Assert.Equal("配置文件", main.SettingsViewModel.SelectedCategory);
-            Click(previous);
-            Assert.Equal(0, main.Tutorial.CurrentStepIndex);
-
-            foreach (var size in new[] { new Size(1280, 800), new Size(960, 600) })
-            foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
-            {
-                window.Width = size.Width;
-                window.Height = size.Height;
-                app.RequestedThemeVariant = theme;
-                app.Resources["CardSurfaceOpacity"] = theme == ThemeVariant.Dark ? 0.05 : 0.6;
-                Layout();
-                for (var index = 0; index < main.Tutorial.Steps.Count; index++)
-                {
-                    var step = main.Tutorial.CurrentStep;
-                    Assert.Equal(index, main.Tutorial.CurrentStepIndex);
-                    Assert.Equal(step.PageIndex, main.SelectedTabIndex);
-                    Assert.Same(window.FindControl<FANavigationView>("NavigationView")!.MenuItems.OfType<FANavigationViewItem>()
-                            .Single(item => item.Tag?.ToString() == step.PageIndex.ToString()),
-                        window.FindControl<FANavigationView>("NavigationView")!.SelectedItem);
-                    Assert.True(frame.IsEffectivelyVisible, $"Missing target: {step.TargetKey}");
-                    var target = window.GetVisualDescendants().OfType<Control>()
-                        .First(c => c.Name == step.TargetKey && c.IsEffectivelyVisible);
-                    var p = target.TranslatePoint(default, guide)!.Value;
-                    Assert.Equal(p.X - 6, Canvas.GetLeft(frame), 1);
-                    Assert.Equal(p.Y - 6, Canvas.GetTop(frame), 1);
-                    Assert.Equal(target.Bounds.Width + 12, frame.Bounds.Width, 1);
-                    Assert.True(card.Bounds.Width > 300 && card.Bounds.Height > 120);
-                    Assert.True(Canvas.GetLeft(card) >= 0 && Canvas.GetLeft(card) + card.Bounds.Width <= guide.Bounds.Width);
-                    Assert.True(Canvas.GetTop(card) >= 0 && Canvas.GetTop(card) + card.Bounds.Height <= guide.Bounds.Height);
-                    Assert.False(new Rect(Canvas.GetLeft(card), Canvas.GetTop(card), card.Bounds.Width, card.Bounds.Height)
-                        .Intersects(new Rect(p, target.Bounds.Size)), $"Card covers target: {step.TargetKey}");
-                    Assert.IsType<BlurEffect>(guide.FindControl<Border>("BlurredPage")!.Effect);
-                    Assert.IsType<VisualBrush>(guide.FindControl<Border>("BlurredPage")!.Background);
-                    Assert.False(window.FindControl<Grid>("ApplicationSurface")!.IsHitTestVisible);
-                    var cardBackground = Assert.IsAssignableFrom<ISolidColorBrush>(card.Background);
-                    Assert.Equal(byte.MaxValue, cardBackground.Color.A);
-                    Assert.Equal(1, cardBackground.Opacity);
-                    if (step.TargetKey is "DeployCurrentProfileButton" or "ImportModButton" or "OfficialGameSourceRadio")
-                    {
-                        Capture(window, theme.ToString(), $"tutorial-{size.Width}-{index}");
-                        var previewPath = Environment.GetEnvironmentVariable("HD2MIMNT_UI_PREVIEW_PATH");
-                        if (!string.IsNullOrWhiteSpace(previewPath))
-                        {
-                            using var rendered = window.CaptureRenderedFrame();
-                            rendered?.Save(Path.Combine(previewPath, $"{theme}-tutorial-rendered-{size.Width}-{index}.png"));
-                        }
-                    }
-                    if (step.TargetKey is "ScanProfileConflictsButton" or "DeployCurrentProfileButton" or "CleanupDeploymentButton" or "LaunchHd2Button")
-                    {
-                        Click(target);
-                        Assert.False(main.ConflictsViewModel.IsScanning);
-                        Assert.False(main.ConflictsViewModel.HasScanned);
-                        Assert.False(main.LibraryViewModel.IsDeploying);
-                    }
-                    if (index == main.Tutorial.Steps.Count - 1) Assert.Equal("完成", next.Content);
-                    Click(next);
-                }
-                Assert.False(main.Tutorial.IsOpen);
-                Assert.False(guide.IsEffectivelyVisible);
-                Assert.Null(guide.FindControl<Border>("BlurredPage")!.Background);
-                Assert.True(window.FindControl<Grid>("ApplicationSurface")!.IsHitTestVisible);
-                Assert.Equal(3, main.SelectedTabIndex);
-                Assert.Equal("外观", main.SettingsViewModel.SelectedCategory);
-                Assert.Equal("教程", main.MoreViewModel.SelectedCategory);
-                main.Tutorial.StartCommand.Execute(null);
-                Layout();
-            }
-            window.KeyPress(Key.D1, RawInputModifiers.Control, PhysicalKey.Digit1, null);
-            Assert.Equal(4, main.SelectedTabIndex);
-            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            Layout();
-            Assert.False(main.Tutorial.IsOpen);
-            Assert.Equal(3, main.SelectedTabIndex);
-            Assert.Equal(originalProfile, main.ProfileViewModel.SelectedProfile!.Id);
-            Assert.Equal(originalMods, Snapshot((await profileService.GetProfileByIdAsync(originalProfile))!));
-
-            // 没有模组卡片时不保留上一步的高亮，说明及下一步仍可用。
-            var emptyId = await profileService.CreateProfileAsync("教程空配置");
-            await main.ProfileViewModel.LoadProfilesAsync();
-            main.ProfileViewModel.SelectedProfile = main.ProfileViewModel.Profiles.Single(p => p.Id == emptyId);
-            using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
-                while (main.ProfileViewModel.IsProfileModsLoading) await Task.Delay(10, timeout.Token);
-            Click(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "开始教程"));
-            while (main.Tutorial.CurrentStep.TargetKey != "ProfileTutorialCard") Click(next);
-            Assert.False(frame.IsVisible);
-            Assert.True(guide.FindControl<TextBlock>("TargetUnavailable")!.IsVisible);
-            Click(next);
-            Assert.True(frame.IsVisible);
-            Click(guide.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "退出"));
-            Assert.False(main.Tutorial.IsOpen);
-            Assert.Equal(3, main.SelectedTabIndex);
-        }
-        finally { app.Resources["CardSurfaceOpacity"] = originalOpacity; window.Close(); }
-    }
-
-    [AvaloniaFact]
     public async Task LibraryDeleteCommand_ShouldCleanupAndCompactUsingRegisteredServices()
     {
         await using var scope = await UiScope.CreateAsync(confirmation: new RecordingConfirmation());
@@ -2371,7 +2230,6 @@ public sealed partial class FluentAvaloniaUiTests
         await using var scope = await UiScope.CreateAsync(seedMods: true);
         var main = scope.Services.GetRequiredService<MainWindowViewModel>();
         await main.InitializeAsync();
-        main.Tutorial.CloseCommand.Execute(null);
         var vm = main.ProfileViewModel;
         var mods = vm.VisibleProfileMods.ToArray();
         var window = new MainWindow { DataContext = main };
@@ -2457,8 +2315,8 @@ public sealed partial class FluentAvaloniaUiTests
             Click(2, RawInputModifiers.Control);
             Assert.Equal(mods.Skip(2), mods.Where(mod => mod.IsSelected));
             Assert.True(list.IsFocused, $"Focus: {window.FocusManager?.GetFocusedElement()?.GetType().Name}");
-            Assert.False(vm.IsModOptionsDialogOpen || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen || main.Tutorial.IsOpen,
-                $"Options={vm.IsModOptionsDialogOpen}, Move={vm.IsMoveToPositionDialogOpen}, Add={vm.IsAddModOpen}, Tutorial={main.Tutorial.IsOpen}");
+            Assert.False(vm.IsModOptionsDialogOpen || vm.IsMoveToPositionDialogOpen || vm.IsAddModOpen,
+                $"Options={vm.IsModOptionsDialogOpen}, Move={vm.IsMoveToPositionDialogOpen}, Add={vm.IsAddModOpen}");
             Keys(Key.Escape);
             Assert.False(vm.HasSelectedMods);
             Assert.All(mods, mod => Assert.False(mod.IsHighlighted));

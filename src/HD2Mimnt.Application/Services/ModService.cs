@@ -136,11 +136,11 @@ public partial class ModService
     private async Task<ModReplacementResult> ReplaceArchiveCoreAsync(Guid id, string archivePath,
         ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
         IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement = false,
-        IProgress<DeploymentProgress>? deploymentProgress = null)
+        IProgress<DeploymentProgress>? deploymentProgress = null, string? explicitVersion = null)
     {
         var prepared = await _importService.PrepareModAsync(archivePath, cancellationToken, progress);
         return await CommitPreparedReplacementAsync(id, prepared, expectedLink, file, cancellationToken, progress,
-            installedWebsiteFileId, forceReplacement, deploymentProgress);
+            installedWebsiteFileId, forceReplacement, deploymentProgress, explicitVersion: explicitVersion);
     }
 
     /// <summary>导入命中同 GUID 时提交更新：保留原 ID、配置引用、版本历史和部署对账。</summary>
@@ -172,7 +172,7 @@ public partial class ModService
     private async Task<ModReplacementResult> CommitPreparedReplacementAsync(Guid id, Mod prepared,
         ModPlatformLink? expectedLink, PlatformModFile? file, CancellationToken cancellationToken,
         IProgress<ModImportProgress>? progress, string? installedWebsiteFileId, bool forceReplacement,
-        IProgress<DeploymentProgress>? deploymentProgress, bool requirePatch = true)
+        IProgress<DeploymentProgress>? deploymentProgress, bool requirePatch = true, string? explicitVersion = null)
     {
         var committed = false;
         string? newThumbnail = null;
@@ -217,8 +217,9 @@ public partial class ModService
                     && (string.IsNullOrWhiteSpace(original.Manifest?.Name)
                         || string.Equals(original.Name, original.Manifest.Name, StringComparison.Ordinal)))
                     original.Name = prepared.Manifest.Name;
-                // 本地模组的版本由管理器维护；平台下载更新仍使用网站文件版本。
-                original.Version = file?.Version ?? (original.PlatformLink == null
+                // 本地模组的版本由管理器维护；平台下载更新仍使用网站文件版本；
+                // HD2IAS 等 self-managed 流程显式传入包版本，不参与递增。
+                original.Version = file?.Version ?? explicitVersion ?? (original.PlatformLink == null
                     ? ModVersionNumber.BumpMinor(original.Version)
                     : prepared.Version);
                 original.Manifest = prepared.Manifest;

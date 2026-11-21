@@ -11,13 +11,6 @@
     </Grid>
     <ScrollViewer Grid.Column="1" IsVisible="{Binding !MoreViewModel.IsLogsVisible}">
       <StackPanel MaxWidth="880" Spacing="0">
-        <StackPanel IsVisible="{Binding MoreViewModel.IsTutorialVisible}" Classes="section" Spacing="12">
-          <TextBlock Text="{loc:Loc UI.FeatureTutorial}" Classes="section-title"/>
-          <TextBlock Text="{loc:Loc UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh}" Classes="muted" TextWrapping="Wrap"/>
-          <TextBlock Text="{loc:Loc UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN}" Classes="muted" TextWrapping="Wrap"/>
-          <Button Content="{loc:Loc UI.StartTutorial}" Classes="accent" Command="{Binding Tutorial.StartCommand}" HorizontalAlignment="Left"/>
-        </StackPanel>
-
         <StackPanel IsVisible="{Binding MoreViewModel.IsPluginsVisible}">
           <views:PluginManagementView DataContext="{Binding PluginManagementViewModel}" />
         </StackPanel>

@@ -8,6 +8,7 @@ namespace HD2Mimnt.Tests.Services;
 /// 会话进程读取 HD2MIMNT_DATA_PATH，整组禁用并行。
 /// </summary>
 [Collection(WorkerProcessCollection.Name)]
+[Trait("Category", "Slow")]
 public sealed class PreviewWorkerProcessIntegrationTests : IDisposable
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(90);

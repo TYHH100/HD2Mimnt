@@ -8,6 +8,7 @@ using Moq;
 namespace HD2Mimnt.Tests.Services;
 
 /// <summary>TaskService 与进程 Worker 的桥接语义：终态映射、TaskId 复用、强杀转发。</summary>
+[Trait("Category", "Slow")]
 public sealed class ProcessWorkerBridgeTests : IDisposable
 {
     private readonly string _testDbPath;

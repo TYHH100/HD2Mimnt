@@ -41,7 +41,7 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 | `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | 插件 SDK、隔离宿主进程与 Lua 脚本运行时 |
 | `HD2Mimnt.Worker` | 后台工作进程 |
 
-`tests/` 下分为单元测试（Tests）、UI 测试（UITests）、稳定性（StabilityTests）与性能（PerformanceTests）四个测试项目。
+`tests/` 下分为单元测试（Tests）、UI 测试（UITests）与性能（PerformanceTests）三个测试项目。
 
 ## 文档
 

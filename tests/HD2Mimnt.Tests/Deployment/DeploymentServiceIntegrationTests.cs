@@ -14,6 +14,7 @@ namespace HD2Mimnt.Tests.Deployment;
 /// DeploymentService 集成测试
 /// 测试 Phase 11 的功能：Pre-Deployment Cleanup 和 Profile Deployment
 /// </summary>
+[Trait("Category", "Slow")]
 public class DeploymentServiceIntegrationTests : IDisposable
 {
     private readonly HD2MimntDbContext _dbContext;

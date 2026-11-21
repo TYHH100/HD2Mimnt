@@ -9,6 +9,7 @@ namespace HD2Mimnt.Tests.Infrastructure;
 /// <summary>
 /// 存储迁移提交后，只有新位置数据库通过完整性校验才允许删除旧文件。
 /// </summary>
+[Trait("Category", "Slow")]
 public sealed class StorageMigrationSafetyTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HD2MimntMigrationSafety",

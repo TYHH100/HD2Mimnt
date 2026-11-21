@@ -27,9 +27,9 @@ public partial class ModService
         return (hasMod, false);
     }
 
-    /// <summary>生成的系统 data 与普通模组共用导入、原位更新及配置引用语义。</summary>
+    /// <summary>生成的系统 data 与普通模组共用导入、原位更新及配置引用语义；version 保持与 IAS 包一致，不做本地递增。</summary>
     public async Task<Mod> UpsertHd2IASDataAsync(string directory, string module, string resourceId,
-        CancellationToken token = default)
+        string? version = null, CancellationToken token = default)
     {
         await _hd2IASDataGate.WaitAsync(token);
         try
@@ -41,7 +41,8 @@ public partial class ModService
                 throw new InvalidOperationException("模组库存在多份相同模块的 HD2IAS data，请先保留一份后再更新。");
             if (matches.Count == 1)
                 return (await ReplaceArchiveCoreAsync(matches[0].Id, directory, null, null, token, null, null,
-                    forceReplacement: !await HasHd2IASPatchAsync(matches[0].Path, module, resourceId, token))).Mod;
+                    forceReplacement: !await HasHd2IASPatchAsync(matches[0].Path, module, resourceId, token),
+                    explicitVersion: version)).Mod;
             var id = await ImportModAsync(directory, token);
             return await GetModByIdAsync(id, CancellationToken.None)
                 ?? throw new InvalidOperationException("HD2IAS data 保存后无法读取。");

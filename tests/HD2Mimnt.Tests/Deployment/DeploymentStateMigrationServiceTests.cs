@@ -7,6 +7,7 @@ using Xunit;
 
 namespace HD2Mimnt.Tests.Deployment;
 
+[Trait("Category", "Slow")]
 public class DeploymentStateMigrationServiceTests : IDisposable
 {
     private readonly HD2MimntDbContext _dbContext;

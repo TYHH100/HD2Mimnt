@@ -4,6 +4,7 @@ using Xunit;
 
 namespace HD2Mimnt.Tests.Infrastructure;
 
+[Trait("Category", "Slow")]
 public sealed class SqlForeignKeysTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"sql_probe_{Guid.NewGuid():N}");

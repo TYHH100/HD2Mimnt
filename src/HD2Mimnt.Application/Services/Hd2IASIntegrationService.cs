@@ -62,7 +62,8 @@ public sealed class Hd2IASIntegrationService(IHd2IASPackageReader packages, IHd2
         progress?.Report("将系统 data 添加或更新到模组库");
         try
         {
-            var mod = await library.UpsertHd2IASDataAsync(generated.Path, generated.Module, manifest.IndependentLua.ResourceId, cancellationToken);
+            var mod = await library.UpsertHd2IASDataAsync(generated.Path, generated.Module,
+                manifest.IndependentLua.ResourceId, package.Version, cancellationToken);
             return generated with { Path = mod.Path, ModId = mod.Id };
         }
         catch (Exception error)

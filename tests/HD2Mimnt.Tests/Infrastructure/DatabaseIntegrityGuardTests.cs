@@ -8,6 +8,7 @@ namespace HD2Mimnt.Tests.Infrastructure;
 /// 数据库完整性自检的回归测试：健康库不能被改写，损坏库必须修复到可校验一致。
 /// 索引损坏（SQLite Error 11）曾让整个界面刷新/部署链路失效，这里用真实页损坏复现该场景。
 /// </summary>
+[Trait("Category", "Slow")]
 public class DatabaseIntegrityGuardTests : IDisposable
 {
     // 每个用例独立根目录，避免清理时误删共享的 %TEMP%\Backups。

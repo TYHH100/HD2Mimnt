@@ -6,6 +6,7 @@ using Xunit;
 namespace HD2Mimnt.Tests.Services;
 
 /// <summary>恢复写入数据库的失败时机：当前数据必须保留，且恢复前快照可回退。</summary>
+[Trait("Category", "Slow")]
 public sealed class SqlRestoreTimingTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HD2MimntRestoreTiming",

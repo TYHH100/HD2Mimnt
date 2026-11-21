@@ -320,8 +320,8 @@ public sealed class ProfileViewModelTests : IDisposable
         Assert.Equal(bottomToTop ? new[] { second.Id, first.Id, Guid.Empty } : new[] { Guid.Empty, first.Id, second.Id },
             vm.ProfileRows.Select(row => row.ModId));
         vm.ModSearchText = "Normal";
-        Assert.Equal(bottomToTop ? new[] { Guid.Empty, normal.Id } : new[] { normal.Id, Guid.Empty },
-            vm.ProfileRows.Select(row => row.ModId));
+        // 搜索无 Lua 组员命中时不再保留空的分组占位，分隔符随组员一起隐藏。
+        Assert.Equal(new[] { normal.Id }, vm.ProfileRows.Select(row => row.ModId));
         vm.ModSearchText = "";
         var systemGroup = vm.ProfileRows.Single(row => row.IsSeparator);
         Assert.Equal(4, systemGroup.GroupModCount);

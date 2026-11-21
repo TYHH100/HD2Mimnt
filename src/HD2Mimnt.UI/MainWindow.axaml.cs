@@ -48,7 +48,6 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnFileDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DragLeaveEvent, OnFileDragLeave, RoutingStrategies.Bubble, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, OnFileDrop, RoutingStrategies.Bubble, handledEventsToo: true);
-        AddHandler(KeyDownEvent, OnTutorialShortcut, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) => AttachNavigation();
         // 实时玻璃每帧换一张位图，直接喂给图层，避免为每帧改动绑定。
         GlassMaterialService.LiveFrameUpdated += OnGlassFrameUpdated;
@@ -255,7 +254,7 @@ public partial class MainWindow : Window
 
     private void OnFileDragOver(object? sender, DragEventArgs e)
     {
-        if (_viewModel?.ModelPreview?.IsOpen == true || _viewModel?.Compatibility?.IsOpen == true || _viewModel?.Tutorial.IsOpen == true)
+        if (_viewModel?.ModelPreview?.IsOpen == true || _viewModel?.Compatibility?.IsOpen == true)
         {
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
@@ -286,7 +285,7 @@ public partial class MainWindow : Window
         var paths = GetDroppedPaths(e);
         if (paths.Count == 0) return;
         e.Handled = true;
-        if (_viewModel == null || _viewModel.Tutorial.IsOpen || _viewModel.ModelPreview?.IsOpen == true || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
+        if (_viewModel == null || _viewModel.ModelPreview?.IsOpen == true || _viewModel.Compatibility?.IsOpen == true || _importingDrop || !_viewModel.LibraryViewModel.ImportCompletion.IsCompleted)
         {
             e.DragEffects = DragDropEffects.None;
             return;
@@ -327,8 +326,6 @@ public partial class MainWindow : Window
     private void PlayPageTransition(int previous, int current)
     {
         if (!UiMotion.IsEnabled || previous == current) return;
-        // 教程覆盖层按切换前的页面截图定位，切页动画会让高亮与底层错位。
-        if (_viewModel?.Tutorial.IsOpen == true) return;
 
         var visual = ElementComposition.GetElementVisual(PageContentSurface);
         if (visual is null || visual.IsDisposed) return;
@@ -338,18 +335,6 @@ public partial class MainWindow : Window
         opacity.InsertKeyFrame(0f, 0.72f);
         opacity.InsertKeyFrame(1f, 1f, new CubicEaseOut());
         visual.StartAnimation("Opacity", opacity);
-    }
-
-    private void OnTutorialShortcut(object? sender, KeyEventArgs e)
-    {
-        if (_viewModel?.Tutorial.IsOpen != true) return;
-        if (e.Key == Key.Escape)
-        {
-            _viewModel.Tutorial.CloseCommand.Execute(null);
-            e.Handled = true;
-        }
-        else if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key is >= Key.D1 and <= Key.D8)
-            e.Handled = true;
     }
 
     private void UpdateNavigationSelection()

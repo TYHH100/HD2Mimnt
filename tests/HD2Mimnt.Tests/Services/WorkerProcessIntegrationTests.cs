@@ -17,6 +17,7 @@ public sealed class WorkerProcessCollection
 }
 
 [Collection(WorkerProcessCollection.Name)]
+[Trait("Category", "Slow")]
 public sealed class WorkerProcessIntegrationTests : IDisposable
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);

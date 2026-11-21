@@ -49,9 +49,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly IPluginService? _pluginService;
     private readonly HellForgeSessionService? _hellForgeSessionService;
     private string? _pluginUiSignature;
-    private int _tutorialOriginPage;
-    private string? _tutorialOriginSettingsCategory;
-    private string? _tutorialOriginToolsCategory;
     private Avalonia.Controls.Window? _ownerWindow;
 
     /// <summary>
@@ -168,7 +165,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
     public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
-    public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
     public HellForgeViewModel? HellForgeViewModel { get; }
@@ -341,41 +337,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
                 await _profileViewModel.RefreshAfterProfilesChangedAsync();
             };
-        Tutorial.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
-            {
-                NavigateToProfilesCommand.NotifyCanExecuteChanged();
-                NavigateToLibraryCommand.NotifyCanExecuteChanged();
-                NavigateToConflictsCommand.NotifyCanExecuteChanged();
-                NavigateToToolsCommand.NotifyCanExecuteChanged();
-                NavigateToSettingsCommand.NotifyCanExecuteChanged();
-                NavigateToBrowseCommand.NotifyCanExecuteChanged();
-                NavigateToModCreationCommand.NotifyCanExecuteChanged();
-                NavigateToHellForgeCommand.NotifyCanExecuteChanged();
-                if (Tutorial.IsOpen)
-                {
-                    _tutorialOriginPage = SelectedTabIndex;
-                    _tutorialOriginSettingsCategory = SettingsViewModel.SelectedCategory;
-                    _tutorialOriginToolsCategory = MoreViewModel.SelectedCategory;
-                }
-                else
-                {
-                    SettingsViewModel.SelectedCategory = _tutorialOriginSettingsCategory ?? "游戏";
-                    MoreViewModel.SelectedCategory = _tutorialOriginToolsCategory ?? "插件";
-                    NavigateToPage(_tutorialOriginPage);
-                    return;
-                }
-            }
-            if (Tutorial.IsOpen && (args.PropertyName == nameof(TutorialViewModel.CurrentStep)
-                || args.PropertyName == nameof(TutorialViewModel.IsOpen)))
-            {
-                CloseTaskCenter();
-                CloseNotifications();
-                NavigateForTutorialStep();
-            }
-        };
-
         NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
@@ -589,14 +550,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             PluginName = entry.PluginName,
             Content = result.Message
         };
-    }
-
-    private void NavigateForTutorialStep()
-    {        if (Tutorial.CurrentStep.PageIndex == 3)
-            MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
-        if (Tutorial.CurrentStep.PageIndex == 4)
-            SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
-        NavigateToPage(Tutorial.CurrentStep.PageIndex);
     }
 
     private void NavigateToPage(int pageIndex)
@@ -956,7 +909,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NavigateToHellForgeCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
+    private bool CanNavigate() => Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -1099,11 +1052,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         if (_libraryViewModel.ModOnline?.IsOpen == true)
         {
             _libraryViewModel.ModOnline.CloseCommand.Execute(null);
-            return;
-        }
-        if (Tutorial.IsOpen)
-        {
-            Tutorial.CloseCommand.Execute(null);
             return;
         }
         if (_libraryViewModel.Import.IsOpen)

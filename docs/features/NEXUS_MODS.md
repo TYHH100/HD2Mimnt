@@ -143,7 +143,7 @@ Rate Limiting 从最近一次认证 API 响应解析 `X-RL-Hourly-Limit/Remainin
 
 ## 应用内浏览模组
 
-顶部“浏览模组”位于模组库右侧，使用 FluentAvalonia 列表和详情面板；`Ctrl+6` 打开，原有快捷键保留。首次进入读取公开热门列表，后续切换保留搜索结果和详情，点击“加载列表”刷新当前来源。三个来源的范围明确显示：热门为 v3 `trending-mods` 前 5 项；最新发布和最近更新为 v1 `latest_added.json` / `latest_updated.json` 各 10 项。输入模组名或作者后点击“搜索”或按 Enter，调用官方 v2 GraphQL `mods` 搜索；限定 `gameDomainName=helldivers2`，名称与作者以 OR 匹配。每页 20 项，按服务器 `totalCount` 提供上一页/下一页；编辑输入不会本地过滤列表，也不改变已提交的翻页关键词。“加载列表”回到所选来源。公开搜索允许未配置密钥时使用；旧 `IModPlatform.SearchAsync` 的有限热门兼容行为保留。
+顶部“浏览模组”位于模组库右侧，使用 FluentAvalonia 列表和详情面板；`Ctrl+D6` 打开，原有快捷键保留。首次进入读取公开热门列表，后续切换保留搜索结果和详情，点击“加载列表”刷新当前来源。三个来源的范围明确显示：热门为 v3 `trending-mods` 前 5 项；最新发布和最近更新为 v1 `latest_added.json` / `latest_updated.json` 各 10 项。输入模组名或作者后点击“搜索”或按 Enter，调用官方 v2 GraphQL `mods` 搜索；限定 `gameDomainName=helldivers2`，名称与作者以 OR 匹配。每页 20 项，按服务器 `totalCount` 提供上一页/下一页；编辑输入不会本地过滤列表，也不改变已提交的翻页关键词。“加载列表”回到所选来源。公开搜索允许未配置密钥时使用；旧 `IModPlatform.SearchAsync` 的有限热门兼容行为保留。
 
 最新发布、最近更新、v1 `{id}.json` 完整详情及文件列表共用“设置 → 账号”的 OAuth 登录；开发工具个人 Key 仅用于测试。可以从卡片查看详情，也可以直接输入 Helldivers 2 模组链接或正整数编号。API 模型仍留在 Nexus 模块，通过 `IModBrowsePlatform` 和 Application 的 `ModBrowseService` 返回通用模型；图片加载使用独立无认证 HTTP 客户端，不阻塞列表交互。
 

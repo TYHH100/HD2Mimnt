@@ -6,7 +6,7 @@
 
 - Core 的 `ILocalizationService` 定义应用级语言状态、资源查找、格式化和变更通知；`ISystemLanguageProvider` 隔离系统检测。
 - Application 的 `LocalizationService` 管理 `UI.Language`，默认值为 `auto`；手动选项为 `zh-CN`、`zh-TW`、`en-US`。`SupportedLanguages` 中只包含实际语言，自动选项通过 `LanguageCodes.Automatic` 单独表示。
-- `TranslationCatalog` 使用内置 resx：`Strings.resx` 是英语回退资源，`Strings.zh-CN.resx` 与 `Strings.zh-TW.resx` 是简繁中文。资源覆盖导航、设置、各页、菜单、弹窗、教程、任务/通知状态和资源类型标签。
+- `TranslationCatalog` 使用内置 resx：`Strings.resx` 是英语回退资源，`Strings.zh-CN.resx` 与 `Strings.zh-TW.resx` 是简繁中文。资源覆盖导航、设置、各页、菜单、弹窗、任务/通知状态和资源类型标签。
 - Infrastructure 的 `SystemLanguageProvider` 在 Windows 使用 `GetUserDefaultUILanguage` 读取用户显示语言，不以区域格式或安装语言代替；其他系统使用 `CurrentUICulture`。
 - 自动匹配先查具体 Culture，再查父 Culture/语言：香港、澳门及 `zh-Hant` 归繁体，`zh-Hans`、新加坡及中性中文归简体，英语地区归英语，其他语言回退英语。检测失败同样回退英语并记录日志。
 - App 在创建 ViewModel/窗口前解析单例服务，立即应用已保存的选择并启动检测；自动模式每 3 秒复查一次，手动模式保持用户选择。退出时释放服务并等待检测循环清理。

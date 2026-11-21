@@ -501,15 +501,6 @@
   <data name="UI.Loading" xml:space="preserve">
     <value>Loading…</value>
   </data>
-  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
-    <value>Learn about the game directory, library, profiles, conflict checks and deployment. The tutorial changes pages and marks each feature with a blue border.</value>
-  </data>
-  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
-    <value>Use Previous and Next to browse. Press Esc or click Exit at any time. The tutorial does not import, deploy or launch the game.</value>
-  </data>
-  <data name="UI.StartTutorial" xml:space="preserve">
-    <value>Start tutorial</value>
-  </data>
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>External tools</value>
   </data>
@@ -1977,9 +1968,6 @@ Still waiting for valid authorization for the selected file.</value>
   </data>
   <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
     <value>Cancelling and cleaning up…</value>
-  </data>
-  <data name="UI.Tutorial" xml:space="preserve">
-    <value>Tutorial</value>
   </data>
   <data name="UI.BackupAndRestore" xml:space="preserve">
     <value>Backup and restore</value>

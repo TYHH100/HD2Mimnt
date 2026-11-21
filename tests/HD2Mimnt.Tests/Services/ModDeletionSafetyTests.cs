@@ -9,6 +9,7 @@ namespace HD2Mimnt.Tests.Services;
 /// <summary>
 /// 模组删除必须“先删库、后删文件”：数据库删除失败时源文件必须完整保留，供用户重试。
 /// </summary>
+[Trait("Category", "Slow")]
 public sealed class ModDeletionSafetyTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HD2MimntDeleteSafety",

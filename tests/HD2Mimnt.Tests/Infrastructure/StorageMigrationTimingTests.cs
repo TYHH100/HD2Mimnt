@@ -7,6 +7,7 @@ using Xunit;
 namespace HD2Mimnt.Tests.Infrastructure;
 
 /// <summary>迁移提交前候选库损坏：不得覆盖当前库，也不得丢失当前数据。</summary>
+[Trait("Category", "Slow")]
 public sealed class StorageMigrationTimingTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HD2MimntMigrationTiming",

@@ -9,13 +9,16 @@ using System.Text.Json;
 namespace HD2Mimnt.Application.Services.AI;
 
 /// <summary>
-/// OpenAI provider implementation
+/// OpenAI provider implementation。Agnes 等 OpenAI 兼容端点通过子类覆写采样参数与名称。
 /// </summary>
 public class OpenAIProvider : IAIProvider, IAIProviderProbe
 {
-    private const string ProviderName = "OpenAI";
+    protected virtual string ProviderName => "OpenAI";
 
-    private readonly AIProviderConfig _config;
+    /// <summary>配置未填模型时的兜底；子类替换为自己的默认模型。</summary>
+    protected virtual string FallbackModel => "gpt-3.5-turbo";
+
+    protected readonly AIProviderConfig _config;
     private readonly HttpClient _httpClient;
     private readonly ILogger<OpenAIProvider> _logger;
 
@@ -48,7 +51,7 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
 
             var payload = new
             {
-                model = _config.Model ?? "gpt-3.5-turbo",
+                model = _config.Model ?? FallbackModel,
                 messages = new[]
                 {
                     new { role = "user", content = "test" }
@@ -153,7 +156,7 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
 
             var payload = new Dictionary<string, object?>
             {
-                ["model"] = _config.Model ?? "gpt-3.5-turbo",
+                ["model"] = _config.Model ?? FallbackModel,
                 ["messages"] = new object[]
                 {
                     new { role = "system", content = prompt.System },
@@ -162,15 +165,7 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
                 ["max_tokens"] = _config.MaxTokens
             };
 
-            // 推理模型不接受温度参数；非推理模型沿用原有温度。
-            if (_config.EnableThinking)
-            {
-                payload["reasoning_effort"] = NormalizeEffort(_config.ThinkingEffort);
-            }
-            else
-            {
-                payload["temperature"] = _config.Temperature;
-            }
+            ApplySamplingOptions(payload);
 
             request.Content = new StringContent(
                 JsonSerializer.Serialize(payload),
@@ -206,7 +201,7 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
             // 兼容部分不返回 usage 的 OpenAI 兼容网关。
             var usage = AIUsageParser.ParseOpenAiCompatible(responseJson);
             var elapsedMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
-            using (_logger.BeginScope(AIUsageParser.LogFields(_config.Model ?? "gpt-3.5-turbo", usage.InputTokens,
+            using (_logger.BeginScope(AIUsageParser.LogFields(_config.Model ?? FallbackModel, usage.InputTokens,
                        usage.CachedInputTokens, Math.Max(0, usage.TotalTokens - usage.InputTokens),
                        usage.TotalTokens, elapsedMs)))
             {
@@ -234,6 +229,19 @@ public class OpenAIProvider : IAIProvider, IAIProviderProbe
                 Success = false,
                 Error = $"Request failed: {ex.Message}"
             };
+        }
+    }
+
+    /// <summary>推理模型不接受温度参数；非推理模型沿用原有温度。子类可换成各端点的思考开关格式。</summary>
+    protected virtual void ApplySamplingOptions(Dictionary<string, object?> payload)
+    {
+        if (_config.EnableThinking)
+        {
+            payload["reasoning_effort"] = NormalizeEffort(_config.ThinkingEffort);
+        }
+        else
+        {
+            payload["temperature"] = _config.Temperature;
         }
     }
 

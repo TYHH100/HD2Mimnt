@@ -8,6 +8,7 @@ using Xunit;
 namespace HD2Mimnt.Tests.Infrastructure;
 
 /// <summary>SQL 安全时序：外键顺序、并发删除、数据库已提交后的文件清理失败。</summary>
+[Trait("Category", "Slow")]
 public sealed class SqlSafetyTimingTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "HD2MimntSqlSafety",

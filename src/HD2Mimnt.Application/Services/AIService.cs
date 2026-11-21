@@ -426,6 +426,7 @@ public class AIService : IAIService
             AIProviderType.OpenAI => new OpenAIProvider(config, _openAILogger, GetSharedHttpClient(config.Type)),
             AIProviderType.Claude => new ClaudeProvider(config, _claudeLogger, GetSharedHttpClient(config.Type)),
             AIProviderType.DeepSeek => new DeepSeekProvider(config, _deepSeekLogger, GetSharedHttpClient(config.Type)),
+            AIProviderType.Agnes => new AgnesProvider(config, _openAILogger, GetSharedHttpClient(config.Type)),
             AIProviderType.LocalLLM => new LocalLLMProvider(config, _localLLMLogger, GetSharedHttpClient(config.Type)),
             // 自定义端点通常兼容 OpenAI Chat Completions；Ollama 专用格式只留给 LocalLLM。
             AIProviderType.Custom => new OpenAIProvider(config, _openAILogger, GetSharedHttpClient(config.Type)),
@@ -441,7 +442,7 @@ public class AIService : IAIService
     private HttpClient GetSharedHttpClient(AIProviderType type) =>
         _sharedHttpClients.GetOrAdd(type, static t => new HttpClient
         {
-            Timeout = t is AIProviderType.DeepSeek or AIProviderType.LocalLLM
+            Timeout = t is AIProviderType.DeepSeek or AIProviderType.LocalLLM or AIProviderType.Agnes
                 ? TimeSpan.FromSeconds(120)
                 : TimeSpan.FromSeconds(60)
         });
