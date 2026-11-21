@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/HD2Mimnt.Agent/HD2Mimnt.Agent.csproj" />
     <Project Path="src/HD2Mimnt.Application/HD2Mimnt.Application.csproj" />
     <Project Path="src/HD2Mimnt.Cli/HD2Mimnt.Cli.csproj" />
     <Project Path="src/HD2Mimnt.Core/HD2Mimnt.Core.csproj" />

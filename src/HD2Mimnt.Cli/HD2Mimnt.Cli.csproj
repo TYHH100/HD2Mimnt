@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,6 +6,8 @@
     <PublishSelfContained>false</PublishSelfContained>
     <!-- 发布不生成 *.deps.json，见 UI 工程同名属性说明。 -->
     <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- 薄客户端只做解析/转发，不引用 Application/Infrastructure；
+         NativeAOT 版本由发布流水线单独产出（AOT 项目被 UI 引用会把自包含产物带进 lib/ 闭包，见 docs/cli/README.md）。 -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,12 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <InternalsVisibleTo Include="HD2Mimnt.Tests" />
   </ItemGroup>
 
 </Project>

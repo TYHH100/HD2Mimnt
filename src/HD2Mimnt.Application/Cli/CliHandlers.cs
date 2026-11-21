@@ -6,7 +6,7 @@ using HD2Mimnt.Core.Interfaces;
 namespace HD2Mimnt.Application.Cli;
 
 /// <summary>CLI 命令 handler 集合；只编排现有 Application 服务，不新增业务逻辑。</summary>
-internal static class CliHandlers
+internal static partial class CliHandlers
 {
     internal static class Status
     {
@@ -145,7 +145,20 @@ internal static class CliHandlers
             var missing = paths.Where(path => !File.Exists(path) && !Directory.Exists(path)).ToList();
             if (missing.Count > 0) return CliCommandResponse.Fail("路径不存在: " + string.Join(", ", missing));
 
+            // --async：与 GUI 同链路提交为 Worker 后台任务，立即返回任务 ID 供 task wait 跟进。
+            if (context.Request.Async)
+            {
+                var taskService = CliResolve.RequireTaskService(context);
+                var arguments = new Dictionary<string, string> { ["Paths"] = System.Text.Json.JsonSerializer.Serialize(paths) };
+                var taskId = await taskService.CreateTaskAsync("导入模组", "Import", arguments, ct);
+                await taskService.StartTaskAsync(taskId, ct);
+                return CliCommandResponse.Ok(
+                    $"已提交后台导入任务 {taskId}（{paths.Count} 个路径）。用 task wait {taskId} 等待完成，或 task list 查看。",
+                    new { taskId, type = "Import", paths });
+            }
+
             var mods = context.Get<ModService>();
+            var progress = CliResolve.ImportProgressBridge(context.Session);
             var results = new List<object>();
             var lines = new List<string>();
             var succeeded = 0;
@@ -153,7 +166,7 @@ internal static class CliHandlers
             {
                 try
                 {
-                    var modId = await mods.ImportModAsync(path, ct);
+                    var modId = await mods.ImportModAsync(path, ct, progress);
                     results.Add(new { path, ok = true, modId });
                     lines.Add($"  ✓ {path} → {modId}");
                     succeeded++;
@@ -347,8 +360,26 @@ internal static class CliHandlers
             if (string.IsNullOrWhiteSpace(gamePath) || !Directory.Exists(gamePath))
                 return CliCommandResponse.Fail($"游戏目录无效：{gamePath ?? "(未设置)"}。请先用 settings set Game.Path <目录> 配置。");
 
+            // --async：提交为 Worker 部署任务（与 GUI 部署同链路），立即返回任务 ID。
+            if (context.Request.Async)
+            {
+                var taskService = CliResolve.RequireTaskService(context);
+                var arguments = new Dictionary<string, string>
+                {
+                    ["ProfileId"] = profile.Id.ToString(),
+                    ["Method"] = method.ToString(),
+                    ["Order"] = order.ToString(),
+                    ["GamePath"] = gamePath
+                };
+                var taskId = await taskService.CreateTaskAsync("部署模组", "Deployment", arguments, ct);
+                await taskService.StartTaskAsync(taskId, ct);
+                return CliCommandResponse.Ok(
+                    $"已提交后台部署任务 {taskId}（配置 {profile.Name}，{method}）。用 task wait {taskId} 等待完成，或 task list 查看。",
+                    new { taskId, type = "Deployment", profileId = profile.Id, profileName = profile.Name, method = method.ToString() });
+            }
+
             var result = await deployments.DeployProfileAsync(profile.Id, method, order, gamePath,
-                new Progress<DeploymentProgress> { }, ct);
+                CliResolve.DeploymentProgressBridge(context.Session), ct);
             var data = new
             {
                 sessionId = result.SessionId,
@@ -403,6 +434,15 @@ internal static class CliHandlers
 
         public static async Task<CliCommandResponse> UndeployAsync(CliCommandContext context, CancellationToken ct)
         {
+            if (context.Request.Async)
+            {
+                var taskService = CliResolve.RequireTaskService(context);
+                var taskId = await taskService.CreateTaskAsync("清理部署", "Cleanup", null, ct);
+                await taskService.StartTaskAsync(taskId, ct);
+                return CliCommandResponse.Ok(
+                    $"已提交后台清理任务 {taskId}。用 task wait {taskId} 等待完成，或 task list 查看。",
+                    new { taskId, type = "Cleanup" });
+            }
             var (filesDeleted, recordsDeleted) = await context.Get<DeploymentService>().PreDeploymentCleanupAsync(cancellationToken: ct);
             return CliCommandResponse.Ok($"已清除 {filesDeleted} 个已部署文件、{recordsDeleted} 条记录。",
                 new { filesDeleted, recordsDeleted });

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- 应用以框架依赖方式部署，这里显式固定开关，避免发布参数把子项目误带成自包含 -->
+    <PublishSelfContained>false</PublishSelfContained>
+    <!-- 发布不生成 *.deps.json，见 UI 工程同名属性说明。 -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- 与 UI 相同的 RID：无 deps.json 时原生库（e_sqlite3 等）按 RID 平铺到输出根目录，DllImport 才能找到 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 发布版托管依赖在应用目录的 lib/ 下，入口程序集自带模块初始化器完成解析 -->
+    <Compile Include="..\Shared\LibAssemblyResolver.cs" Link="LibAssemblyResolver.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+</Project>

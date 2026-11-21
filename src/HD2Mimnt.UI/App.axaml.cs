@@ -95,6 +95,9 @@ public partial class App : Avalonia.Application
 
         try
         {
+            // UI 启动早期先让 CLI 的 Agent 守护进程退出，避免与 UI 并发写 SQLite 或产生内存状态分歧。
+            await AgentHandoff.RequestAgentExitAsync();
+
             _startupStorage = new StorageSettingsService(new StorageLocationStore());
             if (_startupStorage.HasPendingMigration) ShowStorageStartupWindow();
             await _startupStorage.InitializeAsync(cancellation.Token);
