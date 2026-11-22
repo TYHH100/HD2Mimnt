@@ -283,11 +283,26 @@ public sealed class DigestCommand : IPluginCommand
 | `facts` | 键值对列表 | `facts: [{ label, value }]` |
 | `list` | 条目列表 | `items: [{ text, detail, icon }]` |
 | `input` | 输入框 | `input: { id, label, placeholder, value, multiline, rows }` |
+| `switch` | 开关行：名称与说明在左，开关在右 | `title`、`text`、`input: { id, value: "true"/"false" }`、`actions` |
+| `slider` | 滑条行：名称与说明在左，滑条与数字框在右 | `title`、`text`、`input: { id, value, min, max, step }`、`actions` |
 | `actions` | 按钮组 | `actions: [{ id, label, icon, style, command, dialog, requiredPermission, submitInputs }]` |
 
 ### 交互与增量更新
 
 按钮点击后，管理器调用 `action.command`，并把输入框内容一起放进参数：
+
+```json
+{
+  "ui": { "pluginId": "...", "surfaceId": "ai-tools", "actionId": "run", "values": { "text": "用户输入" } }
+}
+```
+
+`switch` 与 `slider` 的值也作为输入参与回传（开关是 `"true"/"false"`，滑条是数字文本）。
+这两类区块带 `actions` 时，管理器会在**值变化时自动执行其中第一个带 `command` 的动作**
+（开关立即执行；滑条在停止变化约 0.4 秒后执行），实现"值一改就落盘"：
+滑动滑条、拨动开关都会以同样的 JSON 调用插件，不需要插件轮询。
+
+`action.arguments` 里的静态参数会先铺底，`ui` 节点覆盖同名键。插件返回 `PluginResult.Ok(null, uiUpdate)` 即可刷新界面：
 
 ```json
 {

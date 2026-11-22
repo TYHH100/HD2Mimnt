@@ -172,6 +172,11 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
 
                     case "Error":
                         var errorData = JsonSerializer.Deserialize<WorkerErrorResponse>(message.Payload ?? "{}");
+                        // Worker 是无窗口短命进程，stderr 无人收集；堆栈只随回执传到这里，
+                        // 必须落日志，否则部署等失败只剩一行 message 可看、无法提交排查。
+                        _logger?.LogError("Worker 任务失败 {TaskId}: {Message}\n{StackTrace}",
+                            worker.TaskId, errorData?.ErrorMessage ?? "Unknown worker error",
+                            string.IsNullOrEmpty(errorData?.StackTrace) ? "<无堆栈>" : errorData!.StackTrace);
                         worker.SetError(errorData?.ErrorMessage ?? "Unknown worker error");
                         return;
                 }
@@ -185,8 +190,10 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
                 // 退出瞬间 stderr 可能还有末尾几行未读完，短暂等待后拼进错误信息
                 try { await worker.StandardErrorCapture.WaitAsync(TimeSpan.FromSeconds(2)); }
                 catch (TimeoutException) { }
-                worker.SetCrashed(
-                    $"Worker process exited unexpectedly (exit code {worker.Process.ExitCode}){worker.StandardErrorTail}");
+                var crashDetail =
+                    $"Worker process exited unexpectedly (exit code {worker.Process.ExitCode}){worker.StandardErrorTail}";
+                _logger?.LogError("Worker {TaskId} 崩溃：{Detail}", worker.TaskId, crashDetail);
+                worker.SetCrashed(crashDetail);
             }
         }
         catch (OperationCanceledException)

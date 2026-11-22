@@ -198,7 +198,7 @@ public sealed class AppUpdateService(
     }
 
     /// <summary>
-    /// 安装脚本：等应用退出 → 带重试覆盖安装目录 → 重启应用 → 清理暂存目录与自身。
+    /// 安装脚本：等应用退出 → 停止残留子进程 → 带重试覆盖安装目录 → 校验完整 → 重启应用 → 清理暂存目录与自身。
     /// 占位符依次为：等待退出的 PID、安装目录、暂存目录、主程序名。
     /// </summary>
     private const string ScriptTemplate = """
@@ -214,6 +214,18 @@ public sealed class AppUpdateService(
             Start-Sleep -Seconds 1
         }
 
+        # 残留的应用子进程（部署 Worker、CLI Agent 常驻服务、插件宿主）会锁定安装目录的 exe，
+        # 让覆盖复制在中途失败，留下新旧混杂的目录（表现为运行期 Method not found）。
+        # 先等 5 秒让任务自然收尾，仍在运行的本目录进程强制结束。
+        $leftover = @()
+        for ($i = 0; $i -lt 5; $i++) {
+            $leftover = @(Get-Process | Where-Object { $_.Path -and $_.Id -ne $waitingPid -and $_.Path.StartsWith($target + '\', [StringComparison]::OrdinalIgnoreCase) })
+            if ($leftover.Count -eq 0) { break }
+            Start-Sleep -Seconds 1
+        }
+        foreach ($proc in $leftover) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 1
+
         $copied = $false
         for ($attempt = 1; $attempt -le 5 -and -not $copied; $attempt++) {
             try {
@@ -223,6 +235,14 @@ public sealed class AppUpdateService(
                 if ($attempt -ge 5) { throw }
                 Start-Sleep -Seconds 2
             }
+        }
+
+        # 完整性校验：暂存包里的每个文件都必须落到安装目录，缺文件就中止重启；
+        # 否则启动的是版本混杂的应用（部分 exe 旧、依赖 dll 新），只会在运行期报 Method not found。
+        $sourceLen = $source.Length + 1
+        $missing = @(Get-ChildItem $source -Recurse -File | Where-Object { -not (Test-Path -LiteralPath (Join-Path $target $_.FullName.Substring($sourceLen))) })
+        if ($missing.Count -gt 0) {
+            throw ('Update incomplete: {0} file(s) missing from install directory, first missing: {1}' -f $missing.Count, $missing[0].FullName)
         }
 
         Start-Process -FilePath (Join-Path $target $exeName) -WorkingDirectory $target

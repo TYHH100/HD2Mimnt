@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>
@@ -11,6 +13,12 @@ public class NotificationService
     private readonly object _lock = new();
     private const int MaxNotifications = 100;
     private const int DuplicateWindowMs = 5000;
+    private readonly ILogger<NotificationService>? _logger;
+
+    public NotificationService(ILogger<NotificationService>? logger = null)
+    {
+        _logger = logger;
+    }
 
     public event EventHandler<Notification>? NotificationAdded;
     public event EventHandler<Guid>? NotificationRemoved;
@@ -212,6 +220,25 @@ public class NotificationService
         AddNotificationInternal(notification);
     }
 
+    private void WriteLog(Notification notification)
+    {
+        if (_logger == null || notification.Level is not (NotificationLevel.Warning or NotificationLevel.Error))
+            return;
+
+        var title = string.IsNullOrWhiteSpace(notification.Title) ? string.Empty : $"{notification.Title}：";
+        try
+        {
+            if (notification.Level == NotificationLevel.Error)
+                _logger.LogError("{Title}{Message}", title, notification.Message);
+            else
+                _logger.LogWarning("{Title}{Message}", title, notification.Message);
+        }
+        catch
+        {
+            // 日志写入失败不影响通知本身。
+        }
+    }
+
     private void AddNotificationInternal(Notification notification)
     {
         // 检查是否为重复消息
@@ -236,6 +263,10 @@ public class NotificationService
                 }
             });
         }
+
+        // 警告/错误通知同步落日志：通知面板只在内存里，应用重启即丢失，
+        // 不落日志的话这类问题无法通过日志提交给开发者。
+        WriteLog(notification);
 
         lock (_lock)
         {
