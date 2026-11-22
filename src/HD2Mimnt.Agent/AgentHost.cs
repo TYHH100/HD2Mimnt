@@ -85,8 +85,8 @@ internal static class AgentHost
 
         try
         {
-            // MigrateAllPlainKeysAsync 只在具体仓库上；懒迁移在 UI 是静默失败的同款缺陷，这里按实现类型判别。
-            if (provider.GetService<IAIProviderConfigRepository>() is AIProviderConfigRepository repository)
+            var repository = provider.GetService<IAIProviderConfigRepository>();
+            if (repository is not null)
             {
                 var migratedKeys = await repository.MigrateAllPlainKeysAsync(cancellationToken);
                 if (migratedKeys > 0) AgentLog.Write($"已迁移 {migratedKeys} 条 AI 供应商明文密钥");

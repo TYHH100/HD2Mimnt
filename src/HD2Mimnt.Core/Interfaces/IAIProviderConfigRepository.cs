@@ -46,4 +46,9 @@ public interface IAIProviderConfigRepository
     /// Set a provider as active (disables all others)
     /// </summary>
     Task SetActiveProviderAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Migrate all legacy plaintext API keys to encrypted storage (idempotent)
+    /// </summary>
+    Task<int> MigrateAllPlainKeysAsync(CancellationToken cancellationToken = default);
 }

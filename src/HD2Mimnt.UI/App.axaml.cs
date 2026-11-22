@@ -189,7 +189,7 @@ public partial class App : Avalonia.Application
             // AI 旧明文密钥无条件迁移：懒迁移依赖打开 AI 设置页，从不打开则备份库仍带明文。
             try
             {
-                var migratedKeys = await ServiceProvider.GetRequiredService<AIProviderConfigRepository>()
+                var migratedKeys = await ServiceProvider.GetRequiredService<IAIProviderConfigRepository>()
                     .MigrateAllPlainKeysAsync(cancellation.Token);
                 if (migratedKeys > 0)
                 {
