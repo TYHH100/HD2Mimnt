@@ -312,6 +312,14 @@ public static class SettingKeys
     public const string GameMode = "Game.Mode";
     public const string HellForgePath = "Game.HellForgePath";
 
+    // 游戏运行时 CPU 调度：默认全部关闭，旧配置缺键时按默认值处理。
+    public const string CpuSchedulingEnabled = "Game.CpuScheduling.Enabled";
+    public const string CpuSchedulingMode = "Game.CpuScheduling.Mode";
+    public const string CpuSchedulingApplyOnLaunch = "Game.CpuScheduling.ApplyOnLaunch";
+    public const string CpuSchedulingReapplyOnRestart = "Game.CpuScheduling.ReapplyOnRestart";
+    public const string CpuSchedulingMonitorChanges = "Game.CpuScheduling.MonitorChanges";
+    public const string CpuSchedulingRestoreOriginal = "Game.CpuScheduling.RestoreOriginal";
+
     // IAS 系统（HD2IntegratedArmorSystem）相关
     public const string IasInstallLocation = "IAS.InstallLocation";
     public const string IasActiveRuntimeId = "IAS.ActiveRuntimeId";

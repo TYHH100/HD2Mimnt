@@ -4759,4 +4759,44 @@ Resources read: {3}</value>
   <data name="ArmorSwap.Clear" xml:space="preserve"><value>Clear</value></data>
   <data name="ArmorSwap.Refresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="ArmorSwap.Import" xml:space="preserve"><value>Import the result into the mod library</value></data>
+<data name="CpuScheduling.Title" xml:space="preserve"><value>CPU core scheduling</value></data>
+  <data name="CpuScheduling.Description" xml:space="preserve"><value>Prefer or restrict the game to performance cores while the manager is running.</value></data>
+  <data name="CpuScheduling.Enable" xml:space="preserve"><value>Enable scheduling</value></data>
+  <data name="CpuScheduling.Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="CpuScheduling.Mode.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="CpuScheduling.Mode.Prefer" xml:space="preserve"><value>Performance cores preferred (CPU Sets)</value></data>
+  <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>Performance cores only (affinity)</value></data>
+  <data name="CpuScheduling.HintOff" xml:space="preserve"><value>Scheduling is off.</value></data>
+  <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>Soft affinity: Windows prefers performance cores but does not hard-lock the game. Keep the manager running for monitoring.</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>Strict affinity: only performance cores are allowed and child processes inherit the mask. This can affect stability.</value></data>
+  <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="CpuScheduling.PCores" xml:space="preserve"><value>P-Core (physical / logical)</value></data>
+  <data name="CpuScheduling.ECores" xml:space="preserve"><value>E-Core (physical / logical)</value></data>
+  <data name="CpuScheduling.Logical" xml:space="preserve"><value>Logical processors</value></data>
+  <data name="CpuScheduling.Method" xml:space="preserve"><value>Scheduling method</value></data>
+  <data name="CpuScheduling.Support" xml:space="preserve"><value>Topology</value></data>
+  <data name="CpuScheduling.Support.NotLoaded" xml:space="preserve"><value>Not loaded</value></data>
+  <data name="CpuScheduling.Support.Supported" xml:space="preserve"><value>Heterogeneous cores detected</value></data>
+  <data name="CpuScheduling.Support.NoHeterogeneous" xml:space="preserve"><value>No heterogeneous cores detected</value></data>
+  <data name="CpuScheduling.Support.Unsupported" xml:space="preserve"><value>Unsupported CPU topology</value></data>
+  <data name="CpuScheduling.Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="CpuScheduling.StatusLabel" xml:space="preserve"><value>Current status</value></data>
+  <data name="CpuScheduling.Status.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="CpuScheduling.Status.WaitingForGame" xml:space="preserve"><value>Waiting for the game</value></data>
+  <data name="CpuScheduling.Status.Applying" xml:space="preserve"><value>Applying</value></data>
+  <data name="CpuScheduling.Status.Applied" xml:space="preserve"><value>Applied (configuration verified; thread distribution not measured)</value></data>
+  <data name="CpuScheduling.Status.Changed" xml:space="preserve"><value>Scheduling changed</value></data>
+  <data name="CpuScheduling.Status.PermissionDenied" xml:space="preserve"><value>Access denied</value></data>
+  <data name="CpuScheduling.Status.Unsupported" xml:space="preserve"><value>Unsupported topology or mode</value></data>
+  <data name="CpuScheduling.Status.Ineffective" xml:space="preserve"><value>Scheduling not effective</value></data>
+  <data name="CpuScheduling.Status.Restored" xml:space="preserve"><value>Original scheduling restored</value></data>
+  <data name="CpuScheduling.Status.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="CpuScheduling.ApplyOnLaunch" xml:space="preserve"><value>Apply when the game starts</value></data>
+  <data name="CpuScheduling.ReapplyOnRestart" xml:space="preserve"><value>Reapply after a game restart</value></data>
+  <data name="CpuScheduling.MonitorChanges" xml:space="preserve"><value>Check for changes while running</value></data>
+  <data name="CpuScheduling.RestoreOriginal" xml:space="preserve"><value>Restore original scheduling when disabled or exiting</value></data>
+  <data name="CpuScheduling.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="CpuScheduling.Restore" xml:space="preserve"><value>Restore now</value></data>
+  <data name="CpuScheduling.RestoreDone" xml:space="preserve"><value>Original scheduling restored.</value></data>
+  <data name="CpuScheduling.RestoreFailed" xml:space="preserve"><value>Could not restore the original scheduling; see the status detail.</value></data>
 </root>

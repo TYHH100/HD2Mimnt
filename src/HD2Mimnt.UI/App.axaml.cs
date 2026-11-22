@@ -13,6 +13,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
+using HD2Mimnt.Infrastructure.Scheduling;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Analysis;
@@ -31,6 +32,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,6 +129,18 @@ public partial class App : Avalonia.Application
                 startupLogger.LogInformation("===== 会话开始 =====");
             }
 
+            // 版本一致性自检：更新可能只覆盖了部分文件（Worker/Agent 等子进程锁定 exe 被跳过），
+            // 留下新旧混杂的安装目录，表现为部署等后台任务报 Method not found。
+            // 启动时明确告警并落日志，避免用户面对难懂的运行期异常。
+            try
+            {
+                CheckAssemblyVersionConsistency(startupLogger);
+            }
+            catch (Exception versionCheckError)
+            {
+                startupLogger.LogWarning(versionCheckError, "版本一致性自检失败");
+            }
+
             // 完整性自检必须先于任何读库服务（SettingsService、本地化）构造：
             // 损坏时备份现场并尝试重建，否则后续每条读写都会以 SQLite Error 11 失败。
             var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
@@ -153,6 +167,19 @@ public partial class App : Avalonia.Application
             ServiceProvider.GetRequiredService<UiLocalization>();
             localization.StartMonitoring();
             desktop.Exit += (_, _) => localization.Dispose();
+
+            // CPU 调度观察器只依赖 Application 服务；启动失败不影响主界面。
+            var cpuScheduling = ServiceProvider.GetRequiredService<IGameCpuSchedulingService>();
+            cpuScheduling.Start();
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                try { cpuScheduling.StopAsync().Wait(TimeSpan.FromSeconds(2)); }
+                catch (Exception ex)
+                {
+                    ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("CpuScheduling")
+                        .LogWarning(ex, "CPU 调度停止时恢复原始设置失败");
+                }
+            };
 
             // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
@@ -293,6 +320,34 @@ public partial class App : Avalonia.Application
                 : ex.Message;
             startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", detail));
         }
+    }
+
+    /// <summary>扫描安装目录与 lib 的 HD2Mimnt 程序集版本，与主 exe 不一致即告警（安装目录新旧混杂的信号）。</summary>
+    private static void CheckAssemblyVersionConsistency(ILogger startupLogger)
+    {
+        var mainVersion = FileVersionInfo.GetVersionInfo(Environment.ProcessPath ?? string.Empty).FileVersion;
+        if (string.IsNullOrEmpty(mainVersion))
+            return;
+
+        var libDirectory = Path.Combine(AppContext.BaseDirectory, "lib");
+        IEnumerable<string> files = Directory.EnumerateFiles(AppContext.BaseDirectory, "HD2Mimnt.*");
+        if (Directory.Exists(libDirectory))
+            files = files.Concat(Directory.EnumerateFiles(libDirectory, "HD2Mimnt.*.dll"));
+
+        var mismatched = files
+            .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                || f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !string.Equals(FileVersionInfo.GetVersionInfo(f).FileVersion, mainVersion, StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetFileName)
+            .ToList();
+        if (mismatched.Count == 0)
+            return;
+
+        var detail = string.Join(", ", mismatched);
+        startupLogger.LogError("程序集版本混杂（期望 {Expected}）：{Files}", mainVersion, detail);
+        ServiceProvider!.GetRequiredService<NotificationService>().ShowError(
+            $"检测到程序文件版本不一致（{detail}），部署等后台任务可能报 Method not found。请重新安装或完整更新应用。",
+            "版本混杂");
     }
 
     private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
@@ -639,6 +694,19 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetService<ILogger<GameDetectionService>>()));
+
+        // 游戏运行时 CPU 调度：拓扑/控制器/观察器都在 Infrastructure，UI 只经过 Application 服务。
+        services.AddSingleton<ICpuTopologyProvider, Win32CpuTopologyProvider>();
+        services.AddSingleton<IProcessSchedulingNativeApi, Win32ProcessSchedulingNativeApi>();
+        services.AddSingleton<IProcessSchedulingController>(sp => new Win32ProcessSchedulingController(
+            sp.GetRequiredService<IProcessSchedulingNativeApi>()));
+        services.AddSingleton<IGameProcessLocator, GameProcessLocator>();
+        services.AddSingleton<IGameCpuSchedulingService>(sp => new GameCpuSchedulingService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ICpuTopologyProvider>(),
+            sp.GetRequiredService<IProcessSchedulingController>(),
+            sp.GetRequiredService<IGameProcessLocator>(),
+            sp.GetService<ILogger<GameCpuSchedulingService>>()));
         services.AddSingleton(sp => new HellForgeService(
             sp.GetRequiredService<SettingsService>(),
             sp.GetService<ILogger<HellForgeService>>()));
@@ -733,7 +801,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
             sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>(),
             sp.GetRequiredService<AiTranslationSettingsViewModel>(),
-            sp.GetRequiredService<AppUpdateViewModel>(), sp.GetRequiredService<IBrowserLauncher>()));
+            sp.GetRequiredService<AppUpdateViewModel>(), sp.GetRequiredService<IBrowserLauncher>(),
+            sp.GetRequiredService<IGameCpuSchedulingService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>(),
             sp.GetRequiredService<IConfirmationService>()));

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Core.Localization;
 using HD2Mimnt.UI.Localization;
@@ -192,7 +193,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         NexusModsAccountViewModel? nexusAccount = null, AyakaModsAccountViewModel? ayakaAccount = null,
         IConfirmationService? confirmationService = null, ModCompatibilityService? compatibilityService = null,
         AiTranslationSettingsViewModel? aiTranslation = null, AppUpdateViewModel? appUpdate = null,
-        IBrowserLauncher? browserLauncher = null)
+        IBrowserLauncher? browserLauncher = null, IGameCpuSchedulingService? cpuScheduling = null)
     {
         AiTranslation = aiTranslation;
         AppUpdate = appUpdate;
@@ -218,6 +219,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LoadLogSettings();
         // 「跟随系统」时系统深浅色切换会改变毛玻璃滑块的可见性。
         if (global::Avalonia.Application.Current is { } app) app.ActualThemeVariantChanged += OnActualThemeVariantChanged;
+        InitializeCpuScheduling(cpuScheduling);
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e)
@@ -265,6 +267,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CurrentLanguageText));
         OnPropertyChanged(nameof(ActiveStoragePaths));
         OnPropertyChanged(nameof(CompatibilityDataStatusText));
+        RefreshCpuSchedulingLocalizedText();
     }
 
     private void SynchronizeLanguage()
@@ -278,6 +281,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _compatibilityDataOperation?.Cancel();
+        DisposeCpuScheduling();
         if (_localization != null) _localization.PropertyChanged -= OnUiLanguageChanged;
         if (global::Avalonia.Application.Current is { } app) app.ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         NexusAccount?.Dispose();
@@ -358,6 +362,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
             HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
             AutoDetectGame = await _settingsService.GetSettingAsync(SettingKeys.GameAutoDetect, true);
+            LoadCpuScheduling();
             AutoSwitchProfileOnSelect = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoSwitchOnSelect, true);
             AutoCheckConflicts = await _settingsService.GetSettingAsync(SettingKeys.ProfilesAutoCheckConflicts, false);
             FreeLoaderOrder = await _settingsService.GetSettingAsync(SettingKeys.ProfilesFreeLoaderOrder, false);
@@ -486,6 +491,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 GamePath = await _settingsService.GetSettingAsync(SettingKeys.GamePath, string.Empty);
                 HellForgePath = await _settingsService.GetSettingAsync(SettingKeys.HellForgePath, string.Empty);
                 OnPropertyChanged(nameof(ShowHellForgeEntry));
+                await SaveCpuSchedulingAsync();
                 if (previousMode != mode) GameSourceChanged?.Invoke(this, mode == GameInstallationMode.HellForge);
                 StatusMessage = "设置已保存";
             }

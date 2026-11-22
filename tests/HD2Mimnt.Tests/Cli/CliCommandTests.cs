@@ -39,6 +39,9 @@ public class CliCommandCatalogTests
             new[] { "undeploy" },
             new[] { "compat", "repair", "某个模组" },
             new[] { "settings", "set", "Game.Path", @"C:\Temp" },
+            new[] { "game", "scheduling", "set", "--mode", "prefer" },
+            new[] { "game", "scheduling", "apply", "--mode", "prefer" },
+            new[] { "game", "scheduling", "restore" },
         };
         foreach (var tokens in destructive)
         {
@@ -64,6 +67,18 @@ public class CliCommandCatalogTests
         var help = CliCommandCatalog.Build().BuildHelpText();
         foreach (var group in new[] { "status", "mod ", "profile ", "deploy", "undeploy", "compat ", "settings ", "loader ", "ias " })
             Assert.Contains(group, help);
+    }
+
+    [Fact]
+    public void SchedulingCommands_AreRegisteredWithReadOnlyAndDestructiveSplits()
+    {
+        var commands = CliCommandCatalog.Build().Commands.ToDictionary(command => command.Name);
+
+        Assert.False(commands["game scheduling status"].RequiresYes);
+        Assert.False(commands["game scheduling topology"].RequiresYes);
+        Assert.True(commands["game scheduling set"].RequiresYes);
+        Assert.True(commands["game scheduling apply"].RequiresYes);
+        Assert.True(commands["game scheduling restore"].RequiresYes);
     }
 }
 

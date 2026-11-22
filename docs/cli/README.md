@@ -97,6 +97,8 @@ HD2Mimnt.Cli schema --json
 ### 游戏与备份
 
 - `game launch` ✱ / `game detect` / `game validate <目录>` / `game version`。
+- `game scheduling status|topology` — 只读查看 CPU 调度设置、拓扑与当前状态。
+- `game scheduling set [--mode off|prefer|strict] [--enabled true|false] [...]` ✱ / `apply [--mode prefer|strict]` ✱ / `restore` ✱ — 保存、应用或恢复游戏 CPU 调度。
 - `backup list` / `backup create` / `backup restore <路径>` ✱ / `backup delete <路径>` ✱。
 
 ### 应用更新

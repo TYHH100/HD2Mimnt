@@ -4759,4 +4759,44 @@ TOC 有效：{2} · 資料範圍有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ArmorSwap.Clear" xml:space="preserve"><value>清除</value></data>
   <data name="ArmorSwap.Refresh" xml:space="preserve"><value>重新整理</value></data>
   <data name="ArmorSwap.Import" xml:space="preserve"><value>產生後匯入模組庫</value></data>
+<data name="CpuScheduling.Title" xml:space="preserve"><value>遊戲 CPU 核心調度</value></data>
+  <data name="CpuScheduling.Description" xml:space="preserve"><value>管理器執行期間優先或限制遊戲使用效能核。</value></data>
+  <data name="CpuScheduling.Enable" xml:space="preserve"><value>啟用調度</value></data>
+  <data name="CpuScheduling.Mode" xml:space="preserve"><value>調度模式</value></data>
+  <data name="CpuScheduling.Mode.Off" xml:space="preserve"><value>關閉</value></data>
+  <data name="CpuScheduling.Mode.Prefer" xml:space="preserve"><value>效能核優先（CPU Sets）</value></data>
+  <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>僅使用效能核（Affinity）</value></data>
+  <data name="CpuScheduling.HintOff" xml:space="preserve"><value>調度已關閉。</value></data>
+  <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>軟親和性：Windows 會優先把遊戲調度到效能核，但不會硬性鎖定。保持管理器執行才能持續監測。</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>嚴格親和：僅允許效能核，子程序會繼承遮罩，可能影響遊戲穩定性。</value></data>
+  <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="CpuScheduling.PCores" xml:space="preserve"><value>效能核（實體 / 邏輯）</value></data>
+  <data name="CpuScheduling.ECores" xml:space="preserve"><value>能效核（實體 / 邏輯）</value></data>
+  <data name="CpuScheduling.Logical" xml:space="preserve"><value>邏輯處理器</value></data>
+  <data name="CpuScheduling.Method" xml:space="preserve"><value>調度方式</value></data>
+  <data name="CpuScheduling.Support" xml:space="preserve"><value>拓撲</value></data>
+  <data name="CpuScheduling.Support.NotLoaded" xml:space="preserve"><value>未讀取</value></data>
+  <data name="CpuScheduling.Support.Supported" xml:space="preserve"><value>已識別異構核心</value></data>
+  <data name="CpuScheduling.Support.NoHeterogeneous" xml:space="preserve"><value>未偵測到異構核心</value></data>
+  <data name="CpuScheduling.Support.Unsupported" xml:space="preserve"><value>不支援目前 CPU 拓撲</value></data>
+  <data name="CpuScheduling.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="CpuScheduling.StatusLabel" xml:space="preserve"><value>目前狀態</value></data>
+  <data name="CpuScheduling.Status.Disabled" xml:space="preserve"><value>已關閉</value></data>
+  <data name="CpuScheduling.Status.WaitingForGame" xml:space="preserve"><value>等待遊戲啟動</value></data>
+  <data name="CpuScheduling.Status.Applying" xml:space="preserve"><value>正在套用設定</value></data>
+  <data name="CpuScheduling.Status.Applied" xml:space="preserve"><value>已套用（設定已驗證，未統計執行緒實際分佈）</value></data>
+  <data name="CpuScheduling.Status.Changed" xml:space="preserve"><value>調度設定發生變化</value></data>
+  <data name="CpuScheduling.Status.PermissionDenied" xml:space="preserve"><value>權限不足</value></data>
+  <data name="CpuScheduling.Status.Unsupported" xml:space="preserve"><value>不支援目前拓撲或模式</value></data>
+  <data name="CpuScheduling.Status.Ineffective" xml:space="preserve"><value>調度功能未生效</value></data>
+  <data name="CpuScheduling.Status.Restored" xml:space="preserve"><value>已恢復原始調度</value></data>
+  <data name="CpuScheduling.Status.Error" xml:space="preserve"><value>發生錯誤</value></data>
+  <data name="CpuScheduling.ApplyOnLaunch" xml:space="preserve"><value>遊戲啟動後自動套用</value></data>
+  <data name="CpuScheduling.ReapplyOnRestart" xml:space="preserve"><value>遊戲重新啟動後自動重新套用</value></data>
+  <data name="CpuScheduling.MonitorChanges" xml:space="preserve"><value>執行期間檢查設定變化</value></data>
+  <data name="CpuScheduling.RestoreOriginal" xml:space="preserve"><value>關閉或結束時恢復原始調度</value></data>
+  <data name="CpuScheduling.Refresh" xml:space="preserve"><value>重新整理</value></data>
+  <data name="CpuScheduling.Restore" xml:space="preserve"><value>立即恢復</value></data>
+  <data name="CpuScheduling.RestoreDone" xml:space="preserve"><value>已恢復原始調度。</value></data>
+  <data name="CpuScheduling.RestoreFailed" xml:space="preserve"><value>無法恢復原始調度，請查看狀態詳情。</value></data>
 </root>

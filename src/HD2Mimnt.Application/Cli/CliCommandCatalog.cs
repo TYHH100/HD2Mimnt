@@ -101,6 +101,17 @@ public sealed class CliCommandCatalog
         Add(new CliCommandDescriptor("game detect", "game detect", "自动检测游戏目录。"), CliHandlers.Game.DetectAsync);
         Add(new CliCommandDescriptor("game validate", "game validate <目录>", "校验游戏目录有效性。"), CliHandlers.Game.ValidateAsync);
         Add(new CliCommandDescriptor("game version", "game version", "查询游戏版本。"), CliHandlers.Game.VersionAsync);
+        Add(new CliCommandDescriptor("game scheduling status", "game scheduling status",
+            "查看 CPU 调度设置、拓扑与当前状态（只读）。"), CliHandlers.Game.SchedulingStatusAsync);
+        Add(new CliCommandDescriptor("game scheduling topology", "game scheduling topology",
+            "查看 CPU 拓扑与可用 Set（只读）。"), CliHandlers.Game.SchedulingTopologyAsync);
+        Add(new CliCommandDescriptor("game scheduling set",
+            "game scheduling set [--mode off|prefer|strict] [--enabled true|false] [--apply-on-launch true|false] [--reapply-on-restart true|false] [--monitor-changes true|false] [--restore-original true|false]",
+            "保存 CPU 调度设置并立即刷新。", RequiresYes: true), CliHandlers.Game.SchedulingSetAsync);
+        Add(new CliCommandDescriptor("game scheduling apply", "game scheduling apply [--mode prefer|strict]",
+            "对当前游戏进程应用调度并持久化启用状态。", RequiresYes: true), CliHandlers.Game.SchedulingApplyAsync);
+        Add(new CliCommandDescriptor("game scheduling restore", "game scheduling restore",
+            "恢复原始调度并关闭自动应用。", RequiresYes: true), CliHandlers.Game.SchedulingRestoreAsync);
 
         Add(new CliCommandDescriptor("backup list", "backup list", "列出数据库备份。"), CliHandlers.Backup.ListAsync);
         Add(new CliCommandDescriptor("backup create", "backup create", "创建数据库备份。"), CliHandlers.Backup.CreateAsync);

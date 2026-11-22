@@ -11,6 +11,7 @@
    - `compat repair` / `compat repair-batch` / `compat restore-backup` — 修改模组文件结构
    - `settings set` / `settings reset` — 修改设置
    - `game launch` — 启动游戏
+   - `game scheduling set|apply|restore` — 修改并应用游戏进程 CPU 调度（可能影响正在运行的游戏）
    - `ias install` / `ias uninstall` / `ias generate` / `ias companion-regenerate` — HD2IAS 包管理
    - `hellforge profile create|select` / `hellforge session` / `hellforge mods` / `hellforge settings` / `hellforge sync` — HellForge 侧写操作
    - `hd2cl convert` / `mmd convert` / `mmd export` — Worker 编译转换（改动库内容）

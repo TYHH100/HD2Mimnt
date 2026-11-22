@@ -17,6 +17,12 @@ internal static partial class CliHandlers
         {
             ["Game.Path"] = "path", ["Game.AutoDetect"] = "bool", ["Game.Mode"] = "enum:Official,HellForge",
             ["Game.HellForgePath"] = "path", ["IAS.InstallLocation"] = "path",
+            ["Game.CpuScheduling.Enabled"] = "bool",
+            ["Game.CpuScheduling.Mode"] = "enum:Off,PreferPerformanceCores,PerformanceCoresOnly",
+            ["Game.CpuScheduling.ApplyOnLaunch"] = "bool",
+            ["Game.CpuScheduling.ReapplyOnRestart"] = "bool",
+            ["Game.CpuScheduling.MonitorChanges"] = "bool",
+            ["Game.CpuScheduling.RestoreOriginal"] = "bool",
             ["ProfilesAutoSwitchOnSelect"] = "bool", ["ProfilesAutoCheckConflicts"] = "bool",
             ["ProfilesLockLoaders"] = "bool", ["ProfilesFreeLoaderOrder"] = "bool",
             ["ProfilesAutoAddImportedMods"] = "bool", ["ProfilesChooseGroupWhenAdding"] = "bool",
@@ -189,6 +195,214 @@ internal static partial class CliHandlers
             var version = await context.Get<GameDetectionService>().GetGameVersionAsync(gamePath, ct);
             return CliCommandResponse.Ok($"游戏版本：{version ?? "(未知)"}", new { gamePath, version });
         }
+
+        public static async Task<CliCommandResponse> SchedulingStatusAsync(
+            CliCommandContext context, CancellationToken ct)
+        {
+            var service = context.Get<IGameCpuSchedulingService>();
+            await service.RefreshTopologyAsync();
+            var settings = await service.LoadSettingsAsync();
+            var topology = service.Topology;
+            var data = new
+            {
+                status = service.Status.ToString(),
+                detail = service.StatusDetail,
+                processId = service.CurrentProcessId,
+                enabled = settings.Enabled,
+                mode = settings.Mode.ToString(),
+                applyOnLaunch = settings.ApplyOnLaunch,
+                reapplyOnRestart = settings.ReapplyOnRestart,
+                monitorChanges = settings.MonitorChanges,
+                restoreOriginal = settings.RestoreOriginal,
+                topology = DescribeTopology(topology)
+            };
+            return CliCommandResponse.Ok(
+                $"调度状态：{service.Status}（{settings.Mode}，启用={settings.Enabled}）", data);
+        }
+
+        public static async Task<CliCommandResponse> SchedulingTopologyAsync(
+            CliCommandContext context, CancellationToken ct)
+        {
+            var service = context.Get<IGameCpuSchedulingService>();
+            await service.RefreshTopologyAsync();
+            var topology = service.Topology;
+            if (topology is null)
+                return CliCommandResponse.Fail("无法读取 CPU 拓扑。");
+
+            var data = new
+            {
+                cpu = topology.CpuName,
+                supported = topology.Supported,
+                reason = topology.Reason,
+                groups = topology.UsableSets.GroupBy(set => set.Group).Select(group => new
+                {
+                    group = group.Key,
+                    logicalProcessors = group.Count()
+                }).ToArray(),
+                pCores = topology.PerformanceCoreCount,
+                pLogical = topology.PerformanceLogicalProcessorCount,
+                eCores = topology.EfficiencyCoreCount,
+                eLogical = topology.EfficiencyLogicalProcessorCount,
+                logicalProcessors = topology.UsableSets.Count,
+                totalLogicalProcessors = topology.AllSets.Count,
+                parked = topology.ParkedCount,
+                hasSmt = topology.HasSmt,
+                strictAvailable = topology.StrictAffinityMask is not null,
+                sets = topology.AllSets.Select(set => new
+                {
+                    id = set.Id,
+                    group = set.Group,
+                    logicalProcessor = set.LogicalProcessorIndex,
+                    core = set.CoreIndex,
+                    efficiencyClass = set.EfficiencyClass,
+                    parked = set.Parked
+                }).ToArray()
+            };
+            return CliCommandResponse.Ok(
+                $"CPU：{topology.CpuName}；P-Core {topology.PerformanceCoreCount}，E-Core {topology.EfficiencyCoreCount}，"
+                + $"可用逻辑处理器 {topology.UsableSets.Count}/{topology.AllSets.Count}；支持：{topology.Supported}。", data);
+        }
+
+        public static async Task<CliCommandResponse> SchedulingSetAsync(
+            CliCommandContext context, CancellationToken ct)
+        {
+            var service = context.Get<IGameCpuSchedulingService>();
+            var current = await service.LoadSettingsAsync();
+            var args = new CliArgs(context.Request.Arguments);
+
+            CpuSchedulingSettings next;
+            try
+            {
+                var mode = args.Option("--mode") is { } modeText
+                    ? ParseSchedulingMode(modeText)
+                    : current.Mode;
+                var enabled = ReadBoolOption(args, "--enabled", mode != CpuSchedulingMode.Off);
+                next = current with
+                {
+                    Enabled = enabled,
+                    Mode = mode,
+                    ApplyOnLaunch = ReadBoolOption(args, "--apply-on-launch", current.ApplyOnLaunch),
+                    ReapplyOnRestart = ReadBoolOption(args, "--reapply-on-restart", current.ReapplyOnRestart),
+                    MonitorChanges = ReadBoolOption(args, "--monitor-changes", current.MonitorChanges),
+                    RestoreOriginal = ReadBoolOption(args, "--restore-original", current.RestoreOriginal)
+                };
+            }
+            catch (ArgumentException ex)
+            {
+                return CliCommandResponse.Fail(ex.Message);
+            }
+
+            await service.SaveSettingsAsync(next, ct);
+            await service.RefreshAsync(ct);
+            return CliCommandResponse.Ok(
+                $"CPU 调度已{(next.Enabled ? "启用" : "关闭")}，模式 {next.Mode}；当前状态 {service.Status}。",
+                new
+                {
+                    enabled = next.Enabled,
+                    mode = next.Mode.ToString(),
+                    status = service.Status.ToString(),
+                    detail = service.StatusDetail
+                });
+        }
+
+        public static async Task<CliCommandResponse> SchedulingApplyAsync(
+            CliCommandContext context, CancellationToken ct)
+        {
+            var service = context.Get<IGameCpuSchedulingService>();
+            var args = new CliArgs(context.Request.Arguments);
+            var current = await service.LoadSettingsAsync();
+
+            CpuSchedulingMode mode;
+            try
+            {
+                mode = args.Option("--mode") is { } modeText
+                    ? ParseSchedulingMode(modeText)
+                    : current.Mode;
+            }
+            catch (ArgumentException ex)
+            {
+                return CliCommandResponse.Fail(ex.Message);
+            }
+
+            if (mode == CpuSchedulingMode.Off)
+                return CliCommandResponse.Fail("请先用 --mode prefer|strict 指定调度模式。");
+
+            await service.SaveSettingsAsync(current with { Enabled = true, Mode = mode }, ct);
+            var result = await service.ApplyToCurrentGameAsync(mode, ct);
+            return result.Success
+                ? CliCommandResponse.Ok($"已对当前游戏应用 {mode}。", new
+                {
+                    mode = mode.ToString(),
+                    status = service.Status.ToString(),
+                    processId = service.CurrentProcessId
+                })
+                : CliCommandResponse.Fail($"{result.Message}（Win32 {(result.Win32Error?.ToString() ?? "-")}）", new
+                {
+                    mode = mode.ToString(),
+                    status = service.Status.ToString(),
+                    failure = result.Failure.ToString(),
+                    win32Error = result.Win32Error
+                });
+        }
+
+        public static async Task<CliCommandResponse> SchedulingRestoreAsync(
+            CliCommandContext context, CancellationToken ct)
+        {
+            var service = context.Get<IGameCpuSchedulingService>();
+            var current = await service.LoadSettingsAsync();
+            await service.SaveSettingsAsync(
+                current with { Enabled = false, Mode = CpuSchedulingMode.Off }, ct);
+            var result = await service.RestoreCurrentGameAsync(ct);
+            return result.Success
+                ? CliCommandResponse.Ok("已恢复原始调度并关闭自动应用。", new
+                {
+                    status = service.Status.ToString()
+                })
+                : CliCommandResponse.Fail($"恢复失败：{result.Message}", new
+                {
+                    status = service.Status.ToString(),
+                    failure = result.Failure.ToString(),
+                    win32Error = result.Win32Error
+                });
+        }
+
+        private static CpuSchedulingMode ParseSchedulingMode(string raw) => raw.ToLowerInvariant() switch
+        {
+            "off" => CpuSchedulingMode.Off,
+            "prefer" or "preferred" or "performance" => CpuSchedulingMode.PreferPerformanceCores,
+            "strict" or "only" => CpuSchedulingMode.PerformanceCoresOnly,
+            _ => throw new ArgumentException("--mode 可选值：off / prefer / strict。")
+        };
+
+        private static bool ReadBoolOption(CliArgs args, string name, bool fallback)
+        {
+            var raw = args.Option(name);
+            if (raw is null)
+                return fallback;
+            return raw.ToLowerInvariant() switch
+            {
+                "true" or "1" or "yes" or "on" => true,
+                "false" or "0" or "no" or "off" => false,
+                _ => throw new ArgumentException($"{name} 需要布尔值（true/false）。")
+            };
+        }
+
+        private static object? DescribeTopology(CpuTopology? topology) => topology is null
+            ? null
+            : new
+            {
+                cpu = topology.CpuName,
+                supported = topology.Supported,
+                reason = topology.Reason,
+                pCores = topology.PerformanceCoreCount,
+                pLogical = topology.PerformanceLogicalProcessorCount,
+                eCores = topology.EfficiencyCoreCount,
+                eLogical = topology.EfficiencyLogicalProcessorCount,
+                logicalProcessors = topology.UsableSets.Count,
+                totalLogicalProcessors = topology.AllSets.Count,
+                parked = topology.ParkedCount,
+                strictAvailable = topology.StrictAffinityMask is not null
+            };
     }
 
     /// <summary>backup 域：数据库备份的创建、列出、恢复与删除。</summary>

@@ -19,6 +19,7 @@ using HD2Mimnt.Infrastructure.Migration;
 using HD2Mimnt.Infrastructure.NativeCompanion;
 using HD2Mimnt.Infrastructure.Platforms;
 using HD2Mimnt.Infrastructure.Repositories;
+using HD2Mimnt.Infrastructure.Scheduling;
 using HD2Mimnt.Infrastructure.SoundFix;
 using HD2Mimnt.Infrastructure.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -355,6 +356,19 @@ internal static class AgentHost
         services.AddSingleton(sp => new HellForgeSessionService(
             sp.GetRequiredService<HellForgeService>(),
             sp.GetService<ILogger<HellForgeSessionService>>()));
+
+        // CPU 调度：CLI 与 GUI 共用同一套服务图，命令与界面读取同一份状态。
+        services.AddSingleton<ICpuTopologyProvider, Win32CpuTopologyProvider>();
+        services.AddSingleton<IProcessSchedulingNativeApi, Win32ProcessSchedulingNativeApi>();
+        services.AddSingleton<IProcessSchedulingController>(sp => new Win32ProcessSchedulingController(
+            sp.GetRequiredService<IProcessSchedulingNativeApi>()));
+        services.AddSingleton<IGameProcessLocator, GameProcessLocator>();
+        services.AddSingleton<IGameCpuSchedulingService>(sp => new GameCpuSchedulingService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ICpuTopologyProvider>(),
+            sp.GetRequiredService<IProcessSchedulingController>(),
+            sp.GetRequiredService<IGameProcessLocator>(),
+            sp.GetService<ILogger<GameCpuSchedulingService>>()));
         services.AddSingleton(sp => new HellForgeModSyncService(
             sp.GetRequiredService<HellForgeService>(),
             sp.GetRequiredService<IProfileRepository>(),

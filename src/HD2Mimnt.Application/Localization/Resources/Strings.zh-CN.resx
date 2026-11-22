@@ -4759,4 +4759,44 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ArmorSwap.Clear" xml:space="preserve"><value>清空</value></data>
   <data name="ArmorSwap.Refresh" xml:space="preserve"><value>刷新</value></data>
   <data name="ArmorSwap.Import" xml:space="preserve"><value>生成后导入模组库</value></data>
+<data name="CpuScheduling.Title" xml:space="preserve"><value>游戏 CPU 核心调度</value></data>
+  <data name="CpuScheduling.Description" xml:space="preserve"><value>管理器运行期间优先或限制游戏使用性能核。</value></data>
+  <data name="CpuScheduling.Enable" xml:space="preserve"><value>启用调度</value></data>
+  <data name="CpuScheduling.Mode" xml:space="preserve"><value>调度模式</value></data>
+  <data name="CpuScheduling.Mode.Off" xml:space="preserve"><value>关闭</value></data>
+  <data name="CpuScheduling.Mode.Prefer" xml:space="preserve"><value>性能核优先（CPU Sets）</value></data>
+  <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>仅使用性能核（Affinity）</value></data>
+  <data name="CpuScheduling.HintOff" xml:space="preserve"><value>调度已关闭。</value></data>
+  <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>软亲和性：Windows 会优先把游戏调度到性能核，但不会硬性锁定。保持管理器运行才能持续监测。</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>严格亲和：仅允许性能核，子进程会继承掩码，可能影响游戏稳定性。</value></data>
+  <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="CpuScheduling.PCores" xml:space="preserve"><value>性能核（物理 / 逻辑）</value></data>
+  <data name="CpuScheduling.ECores" xml:space="preserve"><value>能效核（物理 / 逻辑）</value></data>
+  <data name="CpuScheduling.Logical" xml:space="preserve"><value>逻辑处理器</value></data>
+  <data name="CpuScheduling.Method" xml:space="preserve"><value>调度方式</value></data>
+  <data name="CpuScheduling.Support" xml:space="preserve"><value>拓扑</value></data>
+  <data name="CpuScheduling.Support.NotLoaded" xml:space="preserve"><value>未读取</value></data>
+  <data name="CpuScheduling.Support.Supported" xml:space="preserve"><value>已识别异构核心</value></data>
+  <data name="CpuScheduling.Support.NoHeterogeneous" xml:space="preserve"><value>未检测到异构核心</value></data>
+  <data name="CpuScheduling.Support.Unsupported" xml:space="preserve"><value>不支持当前 CPU 拓扑</value></data>
+  <data name="CpuScheduling.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="CpuScheduling.StatusLabel" xml:space="preserve"><value>当前状态</value></data>
+  <data name="CpuScheduling.Status.Disabled" xml:space="preserve"><value>已关闭</value></data>
+  <data name="CpuScheduling.Status.WaitingForGame" xml:space="preserve"><value>等待游戏启动</value></data>
+  <data name="CpuScheduling.Status.Applying" xml:space="preserve"><value>正在应用设置</value></data>
+  <data name="CpuScheduling.Status.Applied" xml:space="preserve"><value>已应用（配置已验证，未统计线程实际分布）</value></data>
+  <data name="CpuScheduling.Status.Changed" xml:space="preserve"><value>调度设置发生变化</value></data>
+  <data name="CpuScheduling.Status.PermissionDenied" xml:space="preserve"><value>权限不足</value></data>
+  <data name="CpuScheduling.Status.Unsupported" xml:space="preserve"><value>不支持当前拓扑或模式</value></data>
+  <data name="CpuScheduling.Status.Ineffective" xml:space="preserve"><value>调度功能未生效</value></data>
+  <data name="CpuScheduling.Status.Restored" xml:space="preserve"><value>已恢复原始调度</value></data>
+  <data name="CpuScheduling.Status.Error" xml:space="preserve"><value>发生错误</value></data>
+  <data name="CpuScheduling.ApplyOnLaunch" xml:space="preserve"><value>游戏启动后自动应用</value></data>
+  <data name="CpuScheduling.ReapplyOnRestart" xml:space="preserve"><value>游戏重启后自动重新应用</value></data>
+  <data name="CpuScheduling.MonitorChanges" xml:space="preserve"><value>运行过程中检查设置变化</value></data>
+  <data name="CpuScheduling.RestoreOriginal" xml:space="preserve"><value>关闭或退出时恢复原始调度</value></data>
+  <data name="CpuScheduling.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="CpuScheduling.Restore" xml:space="preserve"><value>立即恢复</value></data>
+  <data name="CpuScheduling.RestoreDone" xml:space="preserve"><value>已恢复原始调度。</value></data>
+  <data name="CpuScheduling.RestoreFailed" xml:space="preserve"><value>无法恢复原始调度，请查看状态详情。</value></data>
 </root>
