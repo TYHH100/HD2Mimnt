@@ -83,11 +83,26 @@ internal sealed class DeploymentReconciler
             }
 
             var consumed = new HashSet<Guid>();
-            var operations = new List<FileOperation>();
+            var pairings = new List<(PlannedFile Desired, DeploymentFile? Current)>();
             progress?.Report(new DeploymentProgress
             {
                 Stage = "Comparing", Message = "检查未变更文件...", TotalMods = plan.TotalMods
             });
+
+            // 一个现有文件只能被一个期望文件消费。选项变更会重排补丁编号：新文件的目标可能
+            // 正好是现有文件的当前目标，若弱身份（目标路径）匹配先抢走它，持有其 SourceKey 的
+            // 期望文件会再次匹配同一行——matchedIds 把同一个文件 Id 发给两个计划文件，
+            // 写库时记录文件主键重复（UNIQUE constraint failed: DeploymentFiles.Id）。
+            // 因此分两轮：先按强身份（ExistingFileId / SourceKey）全局占用，再按目标路径补配余量。
+            void ConsumeCurrent(DeploymentFile current)
+            {
+                consumed.Add(current.Id);
+                byId.Remove(current.Id);
+                if (!string.IsNullOrWhiteSpace(current.SourceKey))
+                    byKey.Remove((current.ModId, current.SourceKey));
+                var currentTarget = DeploymentPlanBuilder.NormalizePath(current.TargetPath);
+                if (currentTarget != null) byTarget.Remove((current.ModId, currentTarget));
+            }
 
             foreach (var desired in plan.Files)
             {
@@ -96,10 +111,24 @@ internal sealed class DeploymentReconciler
                 if (desired.ExistingFileId is { } id) byId.TryGetValue(id, out current);
                 if (current == null && !string.IsNullOrWhiteSpace(desired.SourceKey))
                     byKey.TryGetValue((desired.ModId, desired.SourceKey), out current);
-                if (current == null && byTarget.TryGetValue((desired.ModId, desired.TargetPath), out var targetMatch))
-                    current = targetMatch;
-                if (current != null) consumed.Add(current.Id);
+                if (current != null) ConsumeCurrent(current);
+                pairings.Add((desired, current));
+            }
 
+            for (var i = 0; i < pairings.Count; i++)
+            {
+                var (desired, current) = pairings[i];
+                if (current != null) continue;
+                if (byTarget.TryGetValue((desired.ModId, desired.TargetPath), out var targetMatch))
+                {
+                    ConsumeCurrent(targetMatch);
+                    pairings[i] = (desired, targetMatch);
+                }
+            }
+
+            var operations = new List<FileOperation>();
+            foreach (var (desired, current) in pairings)
+            {
                 var kind = await ClassifyAsync(desired, current, cancellationToken);
                 operations.Add(new FileOperation(desired, current, kind));
             }
