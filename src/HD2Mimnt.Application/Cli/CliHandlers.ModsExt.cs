@@ -34,8 +34,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> TagColorSetAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var color = args.Option("--color");
+            var positional = args.Positionals();
             if (positional.Count != 1 || string.IsNullOrWhiteSpace(positional[0]))
                 return CliCommandResponse.Usage("用法: mod tag color <标签> [--color #RRGGBB]（缺省 --color 清除颜色）");
             await context.Get<ModService>().SetTagColorAsync(positional[0], color, ct);
@@ -90,9 +90,9 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> ThumbnailAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var generate = args.Flag("--generate");
             var outputPath = args.Option("--out");
+            var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: mod thumbnail <ID|名称> [--generate | --out 导出路径]");
             var mod = await FindModAsync(context, positional[0], ct);
             var mods = context.Get<ModService>();
@@ -224,11 +224,11 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> RepairBatchAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var dryRun = args.Flag("--dry-run");
             var positional = args.Positionals();
             if (positional.Count == 0) return CliCommandResponse.Usage("用法: compat repair-batch <ID|名称|all> [--dry-run]");
             var compat = context.Get<ModCompatibilityService>();
             var ids = await ResolveIdsAsync(context, positional[0], ct);
-            var dryRun = args.Flag("--dry-run");
 
             var session = context.Session;
             var progress = new Progress<CompatibilityBatchProgress>(value =>

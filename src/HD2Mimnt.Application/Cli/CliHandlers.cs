@@ -280,10 +280,11 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> CreateAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var description = args.Option("--description");
             var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: profile create <名称>");
             var id = await context.Get<ProfileService>().CreateProfileAsync(positional[0],
-                args.Option("--description") ?? "", ct);
+                description ?? "", ct);
             return CliCommandResponse.Ok($"已创建配置 {positional[0]}（{id}）。", new { id, name = positional[0] });
         }
 
@@ -454,10 +455,11 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> CheckAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var referenceValue = args.Option("--reference");
             var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: compat check <ID|名称|all> [--reference 版本]");
             uint? reference = null;
-            if (args.Option("--reference") is { } raw)
+            if (referenceValue is { } raw)
             {
                 if (!uint.TryParse(raw, out var parsed))
                     return CliCommandResponse.Usage($"--reference 需要数字版本号，收到“{raw}”。");

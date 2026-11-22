@@ -31,8 +31,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> SearchAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var page = int.TryParse(args.Option("--page"), out var parsedPage) ? Math.Max(1, parsedPage) : 1;
+            var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: browse search <关键字> [--page 页码]");
             var result = await context.Get<ModBrowseService>().SearchAsync(positional[0], page, ct);
             var data = result.Mods.Select(mod => new
@@ -75,8 +75,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> DownloadAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var fileIndex = int.TryParse(args.Option("--file"), out var parsedFile) ? parsedFile : 0;
+            var positional = args.Positionals();
             if (positional.Count != 1)
                 return CliCommandResponse.Usage("用法: browse download <平台模组ID或链接> [--file 文件序号]（下载并导入）");
             var browse = context.Get<ModBrowseService>();
@@ -102,6 +102,7 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> DirectAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var outDir = args.Option("--out");
             var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: download direct <URL> [--out 目标目录]");
             var link = positional[0];
@@ -110,7 +111,7 @@ internal static partial class CliHandlers
             var downloads = context.Get<DirectDownloadService>();
             var fileName = DirectDownloadService.SanitizeFileName(Path.GetFileName(uri.AbsolutePath));
             if (string.IsNullOrWhiteSpace(fileName)) fileName = "download.bin";
-            var destination = args.Option("--out") ?? downloads.GetDestination();
+            var destination = outDir ?? downloads.GetDestination();
             if (string.IsNullOrWhiteSpace(destination))
                 return CliCommandResponse.Fail("没有下载目标目录：用 --out 指定，或先在 GUI 直链下载页保存偏好。");
             var session = context.Session;
@@ -135,51 +136,40 @@ internal static partial class CliHandlers
             return CliCommandResponse.Ok("Nexus API 凭据有效。");
         }
 
-        public static async Task<CliCommandResponse> NexusLoginAsync(CliCommandContext context, CancellationToken ct)
+        public static async Task<CliCommandResponse> NexusApiKeyAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
-            var auth = context.Get<NexusModsAuthService>();
-            if (positional.Count == 1 && positional[0].Equals("logout", StringComparison.OrdinalIgnoreCase))
-            {
-                await auth.LogoutAsync(ct);
-                return CliCommandResponse.Ok("已退出 Nexus 登录。");
-            }
-            if (positional.Count == 1 && positional[0].Equals("api-key", StringComparison.OrdinalIgnoreCase))
-            {
-                var key = args.Option("--key") ?? ReadStdin("粘贴 Nexus API Key：");
-                if (string.IsNullOrWhiteSpace(key)) return CliCommandResponse.Fail("未提供 API Key。");
-                await auth.ApplyApiKeyAsync(key, ct);
-                return CliCommandResponse.Ok("Nexus API Key 已保存。");
-            }
-            return CliCommandResponse.Usage(
-                "用法: account nexus api-key [--key APIKEY] | account nexus logout | account nexus status\n" +
-                "OAuth 浏览器授权请用 GUI 账号页（hd2mimnt:// 回调），CLI 走 API Key 路径。");
+            var key = args.Option("--key") ?? ReadStdin("粘贴 Nexus API Key：");
+            if (string.IsNullOrWhiteSpace(key)) return CliCommandResponse.Fail("未提供 API Key。");
+            await context.Get<NexusModsAuthService>().ApplyApiKeyAsync(key, ct);
+            return CliCommandResponse.Ok("Nexus API Key 已保存。");
         }
 
-        public static async Task<CliCommandResponse> AyakaAsync(CliCommandContext context, CancellationToken ct)
+        public static async Task<CliCommandResponse> NexusLogoutAsync(CliCommandContext context, CancellationToken ct)
+        {
+            await context.Get<NexusModsAuthService>().LogoutAsync(ct);
+            return CliCommandResponse.Ok("已退出 Nexus 登录。");
+        }
+
+                public static async Task<CliCommandResponse> AyakaStatusAsync(CliCommandContext context, CancellationToken ct)
+            => CliCommandResponse.Ok("Ayaka 凭据状态见 settings/账号页；CLI 支持 api-key 路径。");
+
+        public static async Task<CliCommandResponse> AyakaApiKeyAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
-            var auth = context.Get<AyakaModsAuthService>();
-            if (positional.Count == 1 && positional[0].Equals("status", StringComparison.OrdinalIgnoreCase))
-                return CliCommandResponse.Ok("Ayaka 凭据状态见 settings/账号页；CLI 支持 api-key 路径。");
-            if (positional.Count == 1 && positional[0].Equals("logout", StringComparison.OrdinalIgnoreCase))
-            {
-                await auth.ClearApiKeyAsync(ct);
-                return CliCommandResponse.Ok("已清除 Ayaka API Key。");
-            }
-            if (positional.Count == 1 && positional[0].Equals("api-key", StringComparison.OrdinalIgnoreCase))
-            {
-                var key = args.Option("--key") ?? ReadStdin("粘贴 Ayaka API Key：");
-                if (string.IsNullOrWhiteSpace(key)) return CliCommandResponse.Fail("未提供 API Key。");
-                await auth.ApplyApiKeyAsync(key, ct);
-                return CliCommandResponse.Ok("Ayaka API Key 已保存。");
-            }
-            return CliCommandResponse.Usage("用法: account ayaka api-key [--key APIKEY] | account ayaka logout | account ayaka status");
+            var key = args.Option("--key") ?? ReadStdin("粘贴 Ayaka API Key：");
+            if (string.IsNullOrWhiteSpace(key)) return CliCommandResponse.Fail("未提供 API Key。");
+            await context.Get<AyakaModsAuthService>().ApplyApiKeyAsync(key, ct);
+            return CliCommandResponse.Ok("Ayaka API Key 已保存。");
         }
 
-        private static string? ReadStdin(string prompt)
+        public static async Task<CliCommandResponse> AyakaLogoutAsync(CliCommandContext context, CancellationToken ct)
+        {
+            await context.Get<AyakaModsAuthService>().ClearApiKeyAsync(ct);
+            return CliCommandResponse.Ok("已清除 Ayaka API Key。");
+        }
+
+                private static string? ReadStdin(string prompt)
         {
             Console.Error.Write(prompt);
             var line = Console.ReadLine();
@@ -333,8 +323,8 @@ internal static partial class CliHandlers
         private static ExternalMigrationSource ResolveSource(CliCommandContext context, string usage)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var managerValue = args.Option("--manager");
+            var positional = args.Positionals();
             if (positional.Count != 1 || managerValue == null)
                 throw new ArgumentException("用法: " + usage);
             var kind = managerValue.ToLowerInvariant() switch
@@ -358,32 +348,44 @@ internal static partial class CliHandlers
     {
         public static async Task<CliCommandResponse> FromDirAsync(CliCommandContext context, CancellationToken ct)
         {
-            var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
-            if (positional.Count != 2 || !Directory.Exists(positional[0]))
-                return CliCommandResponse.Fail("用法: mod create from-dir <模组目录> <输出 manifest 路径>（目录需存在）");
+            // SaveAsync 的约束：manifest 必须写到 <源目录>/manifest.json，不接受外部输出路径。
+            var result = await BuildFromDirAsync(context, "mod create from-dir <模组目录> [--name 名称] [--author 作者]", ct);
+            if (result.Response != null) return result.Response;
             var creation = context.Get<ModCreationService>();
-            var directory = await creation.ReadDirectoryAsync(positional[0], ct);
-            var document = creation.Create();
-            document.Manifest.Options = creation.CreateDirectoryOptions(directory, directory.Name ?? "mod");
-            creation.Validate(document);
-            await creation.SaveAsync(document, positional[1], ct);
-            return CliCommandResponse.Ok($"已生成并保存 manifest：{positional[1]}", new { path = positional[1] });
+            creation.Validate(result.Document!);
+            var outputPath = Path.Combine(result.SourceDir!, "manifest.json");
+            await creation.SaveAsync(result.Document!, outputPath, ct);
+            return CliCommandResponse.Ok($"已生成并保存 manifest：{outputPath}", new { path = outputPath, name = result.Document!.Manifest.Name });
         }
 
         public static async Task<CliCommandResponse> PackAsync(CliCommandContext context, CancellationToken ct)
         {
+            var result = await BuildFromDirAsync(context, "mod create pack <模组目录> <输出压缩包路径> [--name 名称] [--author 作者]", ct);
+            if (result.Response != null) return result.Response;
+            var creation = context.Get<ModCreationService>();
+            creation.Validate(result.Document!);
+            await creation.ExportArchiveAsync(result.Document!, result.OutputPath!, ct);
+            return CliCommandResponse.Ok($"已打包：{result.OutputPath}", new { path = result.OutputPath, name = result.Document!.Manifest.Name });
+        }
+
+        /// <summary>from-dir/pack 共用：读目录 → 组装文档（--name/--author 填充元数据，缺省用目录名）。</summary>
+        private static async Task<(ModCreationDocument? Document, string? SourceDir, string? OutputPath, CliCommandResponse? Response)>
+            BuildFromDirAsync(CliCommandContext context, string usage, CancellationToken ct)
+        {
             var args = new CliArgs(context.Request.Arguments);
+            var name = args.Option("--name");
+            var author = args.Option("--author");
             var positional = args.Positionals();
-            if (positional.Count != 2 || !Directory.Exists(positional[0]))
-                return CliCommandResponse.Fail("用法: mod create pack <模组目录> <输出压缩包路径>（目录需存在）");
+            if (positional.Count != 1 || !Directory.Exists(positional[0]))
+                return (null, null, null, CliCommandResponse.Usage("用法: " + usage + "（目录需存在）"));
             var creation = context.Get<ModCreationService>();
             var directory = await creation.ReadDirectoryAsync(positional[0], ct);
             var document = creation.Create();
+            document.Manifest.Name = name ?? directory.Name ?? "未命名模组";
+            document.Manifest.Author = author ?? "";
+            document.SourceDirectory = positional[0];
             document.Manifest.Options = creation.CreateDirectoryOptions(directory, directory.Name ?? "mod");
-            creation.Validate(document);
-            await creation.ExportArchiveAsync(document, positional[1], ct);
-            return CliCommandResponse.Ok($"已打包：{positional[1]}", new { path = positional[1] });
+            return (document, positional[0], null, null);
         }
     }
 }

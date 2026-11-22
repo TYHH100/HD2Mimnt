@@ -83,12 +83,12 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> WaitAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var timeoutValue = args.Option("--timeout");
             var positional = args.Positionals();
             if (positional.Count != 1 || !Guid.TryParse(positional[0], out var taskId))
                 return CliCommandResponse.Usage("用法: task wait <任务ID> [--timeout 秒]");
             if (args.UnknownFlags() is { Count: > 0 } unknown)
                 return CliCommandResponse.Usage("未知选项: " + string.Join(' ', unknown));
-            var timeoutValue = args.Option("--timeout");
             var timeout = int.TryParse(timeoutValue, out var parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 600;
 
             var taskService = context.Get<TaskService>();

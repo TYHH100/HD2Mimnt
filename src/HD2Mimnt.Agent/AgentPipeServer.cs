@@ -48,8 +48,16 @@ public sealed class AgentPipeServer : IDisposable
     {
         await _shutdown.Task.ConfigureAwait(false);
         await _listener.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        // 正在执行的命令已在监听循环内等待完成；关闭容器归还数据库句柄。
-        await _services.DisposeAsync().ConfigureAwait(false);
+        // 关闭容器归还数据库句柄；容器释放被某个服务卡住时超时强制退出，绝不让 daemon 变成无监听的孤儿进程。
+        try
+        {
+            await _services.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            AgentLog.Write("容器释放超时（5 秒），强制退出");
+            Environment.Exit(0);
+        }
         return 0;
     }
 

@@ -19,6 +19,8 @@
     <ProjectReference Include="..\HD2Mimnt.Core\HD2Mimnt.Core.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <!-- Worker 由 Agent 经 WorkerHostManager 拉起（后台长任务），必须随 Agent 输出/发布带上入口文件 -->
+    <ProjectReference Include="..\HD2Mimnt.Worker\HD2Mimnt.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

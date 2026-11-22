@@ -124,6 +124,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> SyncAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var order = args.Option("--order");
+            var remove = args.Flag("--remove");
             var positional = args.Positionals();
             if (positional.Count < 1) return CliCommandResponse.Usage("用法: hellforge sync <配置ID|名称> [--order top|bottom] [--remove]");
             var profiles = context.Get<ProfileService>();
@@ -136,12 +138,11 @@ internal static partial class CliHandlers
                 double? percent = value.TotalMods > 0 ? value.CompletedMods * 100.0 / value.TotalMods : null;
                 session.Progress.Report(new CliProgressEvent(value.Stage, percent, null, value.Message));
             });
-            if (args.Flag("--remove"))
+            if (remove)
             {
                 var removed = await sync.RemoveSyncedAsync(progress, ct);
                 return CliCommandResponse.Ok($"已从 HellForge 移除 {removed.RemovedCount} 个同步模组。", new { removed = removed.RemovedCount });
             }
-            var order = args.Option("--order");
             var result = await sync.SyncProfileAsync(profile.Id, CliResolve.ParseOrder(order), progress, ct);
             return CliCommandResponse.Ok(
                 $"配置 {profile.Name} 已同步到 HellForge：同步 {result.SyncedCount}、更新 {result.UpdatedCount}、未变 {result.UnchangedCount}。",
@@ -232,14 +233,15 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> ConvertAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var variantName = args.Option("--variant");
+            var rawFolders = args.Option("--folders");
             var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: hd2cl convert <ID|名称> [--variant 变体名] [--folders 文件夹1,文件夹2]");
             var mod = await CliResolve.FindModAsync(context.Get<ModService>(), positional[0], ct)
                 ?? throw new KeyNotFoundException($"找不到模组“{positional[0]}”。");
             var conversion = context.Get<IHd2ClConversionService>();
             IReadOnlyList<string>? folders = null;
-            var variantName = args.Option("--variant");
-            if (args.Option("--folders") is { } rawFolders)
+            if (rawFolders != null)
                 folders = rawFolders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (variantName != null && folders == null)
             {
@@ -288,20 +290,22 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> InspectAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var sourceOption = args.Option("--source");
             var positional = args.Positionals();
             if (positional.Count < 1) return CliCommandResponse.Usage("用法: mmd inspect <资源包路径> [--source 选项]");
             var inspection = await context.Get<IMmdAdaptationService>()
-                .InspectAsync(positional[0], args.Option("--source"), null, null, ToStringProgress(context.Session, "MMD 检视"), ct);
+                .InspectAsync(positional[0], sourceOption, null, null, ToStringProgress(context.Session, "MMD 检视"), ct);
             return CliCommandResponse.Ok("检视完成（结果见 --json 的 data）。", inspection);
         }
 
         public static async Task<CliCommandResponse> ConvertAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var sourceOption = args.Option("--source");
             var positional = args.Positionals();
             if (positional.Count < 1) return CliCommandResponse.Usage("用法: mmd convert <资源包路径> [--source 选项]");
             var result = await context.Get<IMmdAdaptationService>()
-                .ConvertAsync(positional[0], args.Option("--source"), null, null,
+                .ConvertAsync(positional[0], sourceOption, null, null,
                     ToStringProgress(context.Session, "MMD 适配"), ct);
             return CliCommandResponse.Ok("适配完成（结果见 --json 的 data）。", result);
         }
@@ -309,10 +313,11 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> ExportAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var sourceOption = args.Option("--source");
             var positional = args.Positionals();
             if (positional.Count < 2) return CliCommandResponse.Usage("用法: mmd export <资源包路径> <输出目录> [--source 选项]");
             var result = await context.Get<IMmdAdaptationService>()
-                .ExportAsync(positional[0], positional[1], args.Option("--source"), null, null,
+                .ExportAsync(positional[0], positional[1], sourceOption, null, null,
                     ToStringProgress(context.Session, "MMD 导出"), ct);
             return CliCommandResponse.Ok("导出完成（结果见 --json 的 data）。", result);
         }
@@ -333,8 +338,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> InstallAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var route = ParseRoute(args.Option("--route"));
+            var positional = args.Positionals();
             if (positional.Count != 1) return CliCommandResponse.Usage("用法: ias install <HD2IAS 包路径> [--route lua|native]");
             var gamePath = context.Get<SettingsService>().GetEffectiveGamePath();
             var package = await context.Get<Hd2IASIntegrationService>()
@@ -357,8 +362,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> GenerateAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var route = ParseRoute(args.Option("--route"));
+            var positional = args.Positionals();
             if (positional.Count != 2)
                 return CliCommandResponse.Usage("用法: ias generate <HD2IAS 包路径> <输出路径> [--route lua|native]");
             var gamePath = context.Get<SettingsService>().GetEffectiveGamePath();
@@ -380,11 +385,14 @@ internal static partial class CliHandlers
         {
             var system = context.Get<IIasSystemService>();
             var location = await system.GetInstallLocationAsync(ct);
-            var runtimes = await system.DiscoverRuntimeIdsAsync(location ?? "", ct);
+            if (string.IsNullOrWhiteSpace(location))
+                return CliCommandResponse.Fail(
+                    "IAS 安装位置未设置。先用 GUI 设置页或 settings set IAS.InstallLocation <目录> 配置后重试。");
+            var runtimes = await system.DiscoverRuntimeIdsAsync(location, ct);
             var active = await system.GetActiveRuntimeIdAsync(ct);
             var data = runtimes.Select(id => new { runtimeId = id, isActive = id == active }).ToList();
             return CliCommandResponse.Ok(
-                $"IAS 位置 {location ?? "(未设置)"}：{runtimes.Count} 个运行时（当前 {active ?? "(未设置)"}）。\n  " +
+                $"IAS 位置 {location}：{runtimes.Count} 个运行时（当前 {active ?? "(未设置)"}）。\n  " +
                 string.Join("\n  ", runtimes), data);
         }
 
@@ -508,8 +516,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> ExecAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var argumentsJson = args.Option("--args");
+            var positional = args.Positionals();
             if (positional.Count < 2)
                 return CliCommandResponse.Usage("用法: plugin exec <插件ID> <命令名> [--args JSON]");
             if (argumentsJson != null)

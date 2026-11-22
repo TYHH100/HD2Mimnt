@@ -146,8 +146,12 @@ public sealed class CliCommandCatalog
         Add(new CliCommandDescriptor("browse details", "browse details <平台模组ID|链接>", "查看平台模组详情与文件。"), CliHandlers.Browse.DetailsAsync);
         Add(new CliCommandDescriptor("browse download", "browse download <平台模组ID|链接> [--file 序号]", "下载并导入（Worker 任务）。", RequiresYes: true), CliHandlers.Browse.DownloadAsync);
         Add(new CliCommandDescriptor("download direct", "download direct <URL> [--out 目录]", "直链下载。", RequiresYes: true), CliHandlers.Download.DirectAsync);
-        Add(new CliCommandDescriptor("account nexus", "account nexus api-key [--key KEY] | logout | status", "Nexus 登录态管理（CLI 走 API Key）。", RequiresYes: true), CliHandlers.Account.NexusLoginAsync);
-        Add(new CliCommandDescriptor("account ayaka", "account ayaka api-key [--key KEY] | logout | status", "Ayaka 登录态管理。", RequiresYes: true), CliHandlers.Account.AyakaAsync);
+        Add(new CliCommandDescriptor("account nexus status", "account nexus status", "检查 Nexus 凭据与限流状态（只读）。"), CliHandlers.Account.NexusStatusAsync);
+        Add(new CliCommandDescriptor("account nexus api-key", "account nexus api-key [--key KEY]", "保存 Nexus API Key（CLI 授权路径）。", RequiresYes: true), CliHandlers.Account.NexusApiKeyAsync);
+        Add(new CliCommandDescriptor("account nexus logout", "account nexus logout", "退出 Nexus 登录。", RequiresYes: true), CliHandlers.Account.NexusLogoutAsync);
+        Add(new CliCommandDescriptor("account ayaka status", "account ayaka status", "查看 Ayaka 凭据状态（只读）。"), CliHandlers.Account.AyakaStatusAsync);
+        Add(new CliCommandDescriptor("account ayaka api-key", "account ayaka api-key [--key KEY]", "保存 Ayaka API Key。", RequiresYes: true), CliHandlers.Account.AyakaApiKeyAsync);
+        Add(new CliCommandDescriptor("account ayaka logout", "account ayaka logout", "清除 Ayaka API Key。", RequiresYes: true), CliHandlers.Account.AyakaLogoutAsync);
 
         Add(new CliCommandDescriptor("tool list", "tool list", "列出注册的外部工具。"), CliHandlers.Tools.ListAsync);
         Add(new CliCommandDescriptor("tool register", "tool register <名称> <exe 路径>", "注册外部工具。", RequiresYes: true), CliHandlers.Tools.RegisterAsync);
@@ -176,19 +180,19 @@ public sealed class CliCommandCatalog
         return new CliCommandCatalog(commands);
     }
 
-    /// <summary>解析 token（首个为命令名，支持 "mod list" 两段式）；返回 null 表示未注册。</summary>
+    /// <summary>解析 token：最长前缀匹配命令名（支持 "mod list" 两段与 "mod tag add" 三段式）。</summary>
     public (CliCommandDescriptor Descriptor, CliCommandHandler Handler, CliCommandRequest Request)? Resolve(
         IReadOnlyList<string> tokens, bool json, bool yes, bool async = false)
     {
         if (tokens.Count == 0) return null;
-        var first = tokens[0];
-        // 先查两段式（"deploy status"），再退回单词（"deploy"），避免子命令被宿主命令抢先命中。
-        if (tokens.Count >= 2 && _commands.TryGetValue(first + " " + tokens[1], out var twoPart))
-            return (twoPart.Descriptor, twoPart.Handler,
-                new CliCommandRequest(twoPart.Descriptor.Name, tokens.Skip(2).ToList(), json, yes, async));
-        if (_commands.TryGetValue(first, out var single))
-            return (single.Descriptor, single.Handler,
-                new CliCommandRequest(single.Descriptor.Name, tokens.Skip(1).ToList(), json, yes, async));
+        // 从最长（3 段）到最短（1 段）尝试命中，保证 "deploy status" 不被单词 "deploy" 抢先。
+        for (var take = Math.Min(3, tokens.Count); take >= 1; take--)
+        {
+            var name = string.Join(' ', tokens.Take(take));
+            if (_commands.TryGetValue(name, out var entry))
+                return (entry.Descriptor, entry.Handler,
+                    new CliCommandRequest(entry.Descriptor.Name, tokens.Skip(take).ToList(), json, yes, async));
+        }
         return null;
     }
 

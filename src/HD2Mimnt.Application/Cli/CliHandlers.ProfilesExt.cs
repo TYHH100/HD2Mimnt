@@ -29,8 +29,8 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> DuplicateAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var newName = args.Option("--name");
+            var positional = args.Positionals();
             if (positional.Count != 1 || string.IsNullOrWhiteSpace(newName))
                 return CliCommandResponse.Usage("用法: profile duplicate <ID|名称> --name 新名称");
             var profile = await FindAsync(context, positional[0], ct);
@@ -41,9 +41,9 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> SeparatorAddAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var color = args.Option("--color") ?? "#808080";
             var atValue = args.Option("--at");
+            var positional = args.Positionals();
             if (positional.Count != 2)
                 return CliCommandResponse.Usage("用法: profile separator add <配置> <名称> [--color #RRGGBB] [--at 位置序号]");
             var profile = await FindAsync(context, positional[0], ct);
@@ -57,9 +57,9 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> SeparatorUpdateAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
-            var positional = args.Positionals();
             var color = args.Option("--color");
             var name = args.Option("--name");
+            var positional = args.Positionals();
             if (positional.Count != 2 || (name == null && color == null))
                 return CliCommandResponse.Usage("用法: profile separator update <配置> <分隔符ID|名称> [--name 新名] [--color #RRGGBB]");
             var profile = await FindAsync(context, positional[0], ct);
@@ -83,9 +83,9 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> SeparatorCollapseAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var collapsed = !args.Flag("--open");
             var positional = args.Positionals();
             if (positional.Count != 2) return CliCommandResponse.Usage("用法: profile separator collapse <配置> <分隔符ID|名称> [--open]");
-            var collapsed = !args.Flag("--open");
             var profile = await FindAsync(context, positional[0], ct);
             var separator = FindSeparatorAsync(profile, positional[1]);
             await context.Get<ProfileService>().SetSeparatorCollapsedAsync(profile.Id, separator.Id, collapsed, ct);
@@ -251,12 +251,12 @@ internal static partial class CliHandlers
         public static async Task<CliCommandResponse> QueryAsync(CliCommandContext context, CancellationToken ct)
         {
             var args = new CliArgs(context.Request.Arguments);
+            var fuzzy = args.Flag("--fuzzy");
+            var pinyin = args.Flag("--pinyin");
             var positional = args.Positionals();
             if (positional.Count == 0) return CliCommandResponse.Usage("用法: search <关键字> [--fuzzy] [--pinyin]");
             if (args.UnknownFlags() is { Count: > 0 } unknown)
                 return CliCommandResponse.Usage("未知选项: " + string.Join(' ', unknown));
-            var fuzzy = args.Flag("--fuzzy");
-            var pinyin = args.Flag("--pinyin");
 
             var search = context.Get<SearchService>();
             await search.BuildIndexAsync(ct); // 幂等：索引缺失或库有变化时重建，已建时为低成本校验
