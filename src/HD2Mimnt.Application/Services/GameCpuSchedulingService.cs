@@ -149,7 +149,7 @@ public sealed class GameCpuSchedulingService : IGameCpuSchedulingService, IDispo
                 return;
             }
 
-            if (!topology.Supported || topology.PerformanceSets.Count == 0)
+            if (!topology.Supported || topology.UsablePerformanceSets.Count == 0)
             {
                 var restored = RestoreOrForget(settings.RestoreOriginal, setRestoredStatus: false);
                 if (!restored.Success)
@@ -294,7 +294,7 @@ public sealed class GameCpuSchedulingService : IGameCpuSchedulingService, IDispo
             cancellationToken.ThrowIfCancellationRequested();
             var topology = _topologyProvider.GetTopology();
             lock (_stateGate) { _topology = topology; }
-            if (!topology.Supported || topology.PerformanceSets.Count == 0)
+            if (!topology.Supported || topology.UsablePerformanceSets.Count == 0)
             {
                 SetStatus(CpuSchedulingStatus.Unsupported, topology.Reason);
                 return CpuSchedulingOperationResult.Fail(CpuSchedulingFailureKind.Unsupported, topology.Reason);

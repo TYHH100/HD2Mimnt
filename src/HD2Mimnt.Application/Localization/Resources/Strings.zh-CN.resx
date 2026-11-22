@@ -4768,7 +4768,7 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>仅使用性能核（Affinity）</value></data>
   <data name="CpuScheduling.HintOff" xml:space="preserve"><value>调度已关闭。</value></data>
   <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>软亲和性：Windows 会优先把游戏调度到性能核，但不会硬性锁定。保持管理器运行才能持续监测。</value></data>
-  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>严格亲和：仅允许性能核，子进程会继承掩码，可能影响游戏稳定性。</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>严格限制：仅允许性能核，子进程会继承限制。单组时为硬亲和；性能核跨处理器组时按 CPU Set 掩码软限制（需 Windows 11+），可能影响游戏稳定性。</value></data>
   <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
   <data name="CpuScheduling.PCores" xml:space="preserve"><value>性能核（物理 / 逻辑）</value></data>
   <data name="CpuScheduling.ECores" xml:space="preserve"><value>能效核（物理 / 逻辑）</value></data>

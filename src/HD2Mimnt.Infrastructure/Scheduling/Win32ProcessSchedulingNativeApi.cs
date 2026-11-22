@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Interop;
 
 namespace HD2Mimnt.Infrastructure.Scheduling;
@@ -14,6 +15,12 @@ public sealed class Win32ProcessSchedulingNativeApi : IProcessSchedulingNativeAp
 
     public void SetProcessDefaultCpuSets(IntPtr handle, IReadOnlyCollection<uint> cpuSetIds)
         => CpuSetNativeApi.SetProcessDefaultCpuSets(handle, cpuSetIds);
+
+    public bool TryGetProcessDefaultCpuSetMasks(IntPtr handle, out ProcessorGroupMask[] masks, out int error)
+        => CpuSetNativeApi.TryGetProcessDefaultCpuSetMasks(handle, out masks, out error);
+
+    public bool TrySetProcessDefaultCpuSetMasks(IntPtr handle, ProcessorGroupMask[] masks, out int error)
+        => CpuSetNativeApi.TrySetProcessDefaultCpuSetMasks(handle, masks, out error);
 
     public (ulong ProcessMask, ulong SystemMask) GetProcessAffinityMask(IntPtr handle)
         => ProcessNativeApi.GetAffinity(handle);

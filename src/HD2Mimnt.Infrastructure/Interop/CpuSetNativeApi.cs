@@ -40,6 +40,14 @@ internal static class CpuSetNativeApi
     private static extern bool SetProcessDefaultCpuSets(
         IntPtr process, uint[]? cpuSetIds, uint cpuSetIdCount);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetProcessDefaultCpuSetMasks(
+        IntPtr process, [Out] GroupAffinityNative[]? cpuSetMasks, ushort cpuSetMaskCount, out ushort requiredMaskCount);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetProcessDefaultCpuSetMasks(
+        IntPtr process, GroupAffinityNative[]? cpuSetMasks, ushort cpuSetMaskCount);
+
     public static IReadOnlyList<CpuSetSnapshot> Enumerate()
     {
         _ = GetSystemCpuSetInformation(IntPtr.Zero, 0, out var requiredLength, IntPtr.Zero, 0);
@@ -104,5 +112,78 @@ internal static class CpuSetNativeApi
         var ids = cpuSetIds.Count == 0 ? null : cpuSetIds.ToArray();
         if (!SetProcessDefaultCpuSets(process, ids, (uint)cpuSetIds.Count))
             throw new Win32Exception(Marshal.GetLastWin32Error(), "SetProcessDefaultCpuSets failed.");
+    }
+
+    /// <summary>
+    /// 按处理器组掩码读写进程默认 CPU Sets（Windows 11 / Server 2022+）。
+    /// 旧系统没有该导出函数，返回 false 且 error=127（ERROR_PROC_NOT_FOUND）。
+    /// </summary>
+    public static bool TryGetProcessDefaultCpuSetMasks(IntPtr process, out ProcessorGroupMask[] masks, out int error)
+    {
+        masks = [];
+        error = 0;
+        try
+        {
+            if (!GetProcessDefaultCpuSetMasks(process, null, 0, out var required))
+            {
+                error = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            if (required == 0)
+                return true;
+
+            var buffer = new GroupAffinityNative[required];
+            if (!GetProcessDefaultCpuSetMasks(process, buffer, required, out _))
+            {
+                error = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            masks = buffer.Select(ToMask).ToArray();
+            return true;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = 127; // ERROR_PROC_NOT_FOUND
+            return false;
+        }
+    }
+
+    public static bool TrySetProcessDefaultCpuSetMasks(IntPtr process, ProcessorGroupMask[] masks, out int error)
+    {
+        error = 0;
+        try
+        {
+            var native = masks.Length == 0 ? null : masks.Select(ToNative).ToArray();
+            if (!SetProcessDefaultCpuSetMasks(process, native, (ushort)masks.Length))
+            {
+                error = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            return true;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            error = 127;
+            return false;
+        }
+    }
+
+    private static ProcessorGroupMask ToMask(GroupAffinityNative native)
+        => new(native.Group, native.Mask.ToUInt64());
+
+    private static GroupAffinityNative ToNative(ProcessorGroupMask mask)
+        => new() { Mask = new UIntPtr(mask.Mask), Group = mask.Group };
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct GroupAffinityNative
+    {
+        public UIntPtr Mask;
+        public ushort Group;
+        public ushort Reserved0;
+        public ushort Reserved1;
+        public ushort Reserved2;
     }
 }

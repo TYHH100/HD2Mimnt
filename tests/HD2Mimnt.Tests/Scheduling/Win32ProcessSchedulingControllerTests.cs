@@ -97,22 +97,55 @@ public sealed class Win32ProcessSchedulingControllerTests
     }
 
     [Fact]
-    public void ApplyStrict_WhenPerformanceCoresCrossGroups_DoesNotOpenProcess()
+    public void ApplyStrict_WhenPerformanceCoresCrossGroups_AndMasksApiExists_AppliesGroupMasks()
     {
-        var native = new FakeNativeApi { Affinity = 0xFFF, SystemMask = 0xFFF };
+        var native = new FakeNativeApi { Affinity = 0xFFF, SystemMask = 0xFFF, MasksAvailable = true };
         var controller = new Win32ProcessSchedulingController(native);
-        var topology = CpuTopology.Analyze(new[]
-        {
-            new CpuSetSnapshot(256, 0, 0, 0, 2, false),
-            new CpuSetSnapshot(400, 1, 0, 0, 2, false),
-            new CpuSetSnapshot(300, 0, 4, 4, 1, false)
-        });
+        var topology = CrossGroupTopology();
 
         var result = controller.Apply(Pid, topology, CpuSchedulingMode.PerformanceCoresOnly);
 
+        Assert.True(result.Success);
+        var masks = Assert.IsType<ProcessorGroupMask[]>(native.DefaultMasks);
+        Assert.Equal(2, masks.Length);
+        Assert.Equal(3UL, Assert.Single(masks, mask => mask.Group == 0).Mask);
+        Assert.Equal(1UL, Assert.Single(masks, mask => mask.Group == 1).Mask);
+        Assert.True(controller.Verify(Pid, CpuSchedulingMode.PerformanceCoresOnly).Matches);
+
+        var restored = controller.Restore(Pid);
+        Assert.True(restored.Success);
+        Assert.Empty(native.DefaultMasks);
+    }
+
+    [Fact]
+    public void ApplyStrict_WhenPerformanceCoresCrossGroups_AndMasksApiMissing_ReportsUnsupported()
+    {
+        var native = new FakeNativeApi { Affinity = 0xFFF, SystemMask = 0xFFF, MasksAvailable = false };
+        var controller = new Win32ProcessSchedulingController(native);
+
+        var result = controller.Apply(Pid, CrossGroupTopology(), CpuSchedulingMode.PerformanceCoresOnly);
+
         Assert.False(result.Success);
         Assert.Equal(CpuSchedulingFailureKind.Unsupported, result.Failure);
-        Assert.False(native.Opened);
+        Assert.Equal(127, result.Win32Error);
+    }
+
+    [Fact]
+    public void StrictMasks_WhenChangedExternally_RestoreRefusesUnlessForced()
+    {
+        var native = new FakeNativeApi { MasksAvailable = true };
+        var controller = new Win32ProcessSchedulingController(native);
+        controller.Apply(Pid, CrossGroupTopology(), CpuSchedulingMode.PerformanceCoresOnly);
+
+        native.DefaultMasks = [new ProcessorGroupMask(0, 0xFFFUL)];
+
+        var refused = controller.Restore(Pid);
+        Assert.False(refused.Success);
+        Assert.Equal(CpuSchedulingFailureKind.Changed, refused.Failure);
+
+        var forced = controller.Restore(Pid, force: true);
+        Assert.True(forced.Success);
+        Assert.Empty(native.DefaultMasks);
     }
 
     [Fact]
@@ -138,6 +171,14 @@ public sealed class Win32ProcessSchedulingControllerTests
         new CpuSetSnapshot(302, 0, 5, 6, 1, false)
     });
 
+    private static CpuTopology CrossGroupTopology() => CpuTopology.Analyze(new[]
+    {
+        new CpuSetSnapshot(256, 0, 0, 0, 2, false),
+        new CpuSetSnapshot(257, 0, 1, 0, 2, false),
+        new CpuSetSnapshot(400, 1, 0, 0, 2, false),
+        new CpuSetSnapshot(300, 0, 4, 4, 1, false)
+    });
+
     private sealed class FakeNativeApi : IProcessSchedulingNativeApi
     {
         public uint[] DefaultSets { get; set; } = [];
@@ -147,6 +188,10 @@ public sealed class Win32ProcessSchedulingControllerTests
         public bool IgnoreSetDefaultSets { get; init; }
         public bool Opened { get; private set; }
         public long StartTicks { get; set; } = 123;
+
+        // MasksAvailable=false 模拟 Win10 缺少掩码 API（error=127）。
+        public bool MasksAvailable { get; init; } = true;
+        public ProcessorGroupMask[] DefaultMasks { get; set; } = [];
 
         public bool TryOpenProcess(int processId, out IntPtr handle, out int error)
         {
@@ -179,6 +224,33 @@ public sealed class Win32ProcessSchedulingControllerTests
             => (Affinity, SystemMask);
 
         public void SetProcessAffinityMask(IntPtr handle, ulong mask) => Affinity = mask;
+
+        public bool TryGetProcessDefaultCpuSetMasks(IntPtr handle, out ProcessorGroupMask[] masks, out int error)
+        {
+            if (!MasksAvailable)
+            {
+                masks = [];
+                error = 127;
+                return false;
+            }
+
+            masks = DefaultMasks.ToArray();
+            error = 0;
+            return true;
+        }
+
+        public bool TrySetProcessDefaultCpuSetMasks(IntPtr handle, ProcessorGroupMask[] masks, out int error)
+        {
+            if (!MasksAvailable)
+            {
+                error = 127;
+                return false;
+            }
+
+            DefaultMasks = masks.ToArray();
+            error = 0;
+            return true;
+        }
 
         public long TryGetStartTimeUtcTicks(int processId) => StartTicks;
     }

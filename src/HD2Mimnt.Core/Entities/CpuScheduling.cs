@@ -11,6 +11,9 @@ public sealed record CpuSetSnapshot(
     byte EfficiencyClass,
     bool Parked);
 
+/// <summary>处理器组亲和掩码（GROUP_AFFINITY 的语义投影）；Mask 是组内逻辑处理器位图。</summary>
+public readonly record struct ProcessorGroupMask(ushort Group, ulong Mask);
+
 /// <summary>物理核心快照；同一 CoreIndex 的多个 Set 是 SMT 兄弟线程。</summary>
 public sealed record CpuCoreSnapshot(
     ushort Group,
@@ -73,6 +76,25 @@ public sealed class CpuTopology
     public IReadOnlyList<CpuSetSnapshot> EfficiencySets =>
         EfficiencyCores.SelectMany(core => core.Sets).OrderBy(set => set.LogicalProcessorIndex).ToArray();
 
+    /// <summary>未停车的性能核集合；是实际可用的应用目标，停车集合不参与应用。</summary>
+    public IReadOnlyList<CpuSetSnapshot> UsablePerformanceSets =>
+        PerformanceSets.Where(set => !set.Parked).ToArray();
+
+    /// <summary>
+    /// 可用性能核按处理器组聚合的亲和掩码（GROUP_AFFINITY 语义）。
+    /// 跨组时单掩码不可用，但 Windows 11+ 可用它逐组设置进程默认 CPU Set 掩码；
+    /// 编号 ≥64 的集合无法用掩码表达，直接排除。
+    /// </summary>
+    public IReadOnlyList<ProcessorGroupMask> UsablePerformanceGroupMasks =>
+        UsablePerformanceSets
+            .Where(set => set.LogicalProcessorIndex < 64)
+            .GroupBy(set => set.Group)
+            .Select(group => new ProcessorGroupMask(
+                group.Key,
+                group.Aggregate(0UL, (mask, set) => mask | (1UL << set.LogicalProcessorIndex))))
+            .OrderBy(mask => mask.Group)
+            .ToArray();
+
     /// <summary>
     /// 严格模式的组内掩码。只有性能核全部位于组 0 且编号小于 64 时可用；
     /// 跨组或高编号返回 null，由调用方明确降级，不产生错误掩码。
@@ -81,13 +103,13 @@ public sealed class CpuTopology
     {
         get
         {
-            if (!Supported || PerformanceCores.Count == 0)
+            if (!Supported || PerformanceCores.Count == 0 || UsablePerformanceSets.Count == 0)
                 return null;
             if (UsableSets.Any(set => set.Group != 0))
                 return null;
 
             ulong mask = 0;
-            foreach (var set in PerformanceSets)
+            foreach (var set in UsablePerformanceSets)
             {
                 if (set.LogicalProcessorIndex >= 64)
                     return null;
@@ -107,7 +129,9 @@ public sealed class CpuTopology
         if (usableSets.Length == 0)
             return new CpuTopology(name, allSets, usableSets, [], [], [], null, false, "no usable CPU sets");
 
-        var cores = usableSets
+        // 分类必须覆盖全部集合：Windows 可能停车大量核心（笔记本上常见 E-Core 全部停车），
+        // Parked 集合的 EfficiencyClass 仍然有效；只用可用集合分类会把大小核误判为同构。
+        var cores = allSets
             .GroupBy(set => (set.Group, set.CoreIndex))
             .Select(group => new CpuCoreSnapshot(
                 group.Key.Group,
@@ -122,8 +146,11 @@ public sealed class CpuTopology
         if (classes.Length <= 1)
         {
             var value = classes.Length == 0 ? 0 : classes[0];
+            // 同档位（无大小核之分）：全部核心按性能核展示，保持 Supported=false——
+            // 全部核心都是性能核时，"优先/仅性能核"都等价于无操作，调度没有意义；
+            // 展示计数让用户看到识别结果而不是 0/0。
             return new CpuTopology(
-                name, allSets, usableSets, cores, [], [], null, false,
+                name, allSets, usableSets, cores, cores, [], null, false,
                 $"no heterogeneous cores (all EfficiencyClass = {value})");
         }
 

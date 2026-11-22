@@ -56,6 +56,9 @@ public partial class SettingsViewModel
     public string CpuSchedulingMethodText => CpuSchedulingMode switch
     {
         CpuSchedulingMode.PreferPerformanceCores => "CPU Sets",
+        CpuSchedulingMode.PerformanceCoresOnly when _cpuSchedulingTopology is { } topology
+            && topology.StrictAffinityMask is null
+            && topology.UsablePerformanceGroupMasks.Count > 0 => "CPU Set Masks",
         CpuSchedulingMode.PerformanceCoresOnly => "Process Affinity",
         _ => "-"
     };

@@ -6,7 +6,7 @@
 | 目标平台 | Windows 10 / Windows 11 x64 |
 | 技术栈 | C# / .NET 10 / Avalonia / Win32 P/Invoke |
 | 集成位置 | 设置 → 游戏 → CPU 核心调度 |
-| 文档版本 | v2.2（2026-11-22，Phase 0–5 实现完成，Phase 6 部分受环境限制） |
+| 文档版本 | v2.3（2026-11-22，Phase 0–5 实现完成；停车核心分类修复与跨组严格模式落地；Phase 6 部分受环境限制） |
 | 当前状态 | 可构建、可运行；单元 / CLI / Headless UI 验证通过；异构真机与反作弊实测待外部环境 |
 | 适用分支 | `dev` |
 
@@ -202,6 +202,7 @@ Phase 0 实测结果（2026-11-22，见附录 A）：
   - `SetProcessAffinityMask` 在跨组场景返回 `ERROR_INVALID_PARAMETER`；
   - Windows 11 / Server 2022 放宽了默认跨组行为，但仍在显式跨主组设置线程亲和性时失败。
   - 结论：严格模式暂不支持跨组，UI 明确提示，只提供模式 A；Win11 可评估 `SetProcessDefaultCpuSetMasks`（按 `GROUP_AFFINITY` 表达，最低 Windows 11）。
+  - 2026-11-22 v2.3：已落地 `SetProcessDefaultCpuSetMasks` 路径——性能核跨组时，Windows 11 / Server 2022+ 按 `UsablePerformanceGroupMasks` 逐组设置进程默认 CPU Set 掩码（软限制），校验与恢复走 `GetProcessDefaultCpuSetMasks`；旧系统返回 `ERROR_PROC_NOT_FOUND`（127）时明确报告"需要 Windows 11"，不静默失败。UI「调度方式」在该场景显示 `CPU Set Masks`。
 - Process Affinity 会被子进程继承。游戏派生的子进程也会受限，这是该模式的固有效果，需在提示中说明。
 - 严格模式需要明确告知用户可能影响游戏性能或稳定性；不要为了强制绑定而关闭 SMT。
 
@@ -686,7 +687,7 @@ dotnet run --project tools/CpuSchedulingProbe -- denied --pid <受保护进程 P
 
 ### Phase 3 — Process Affinity（模式 B）
 
-状态：已完成（2026-11-22）。只要存在组 0 之外的可用集合（包括 E 核在其他组），严格模式即不可用并明确降级为 Unsupported。
+状态：已完成（2026-11-22）。单组走硬亲和；v2.3 起性能核跨组时在 Windows 11 / Server 2022+ 按 CPU Set 组掩码软限制（`UsesMasks` 分支），旧系统明确降级为 Unsupported。
 
 交付：
 
@@ -768,6 +769,13 @@ dotnet run --project tools/CpuSchedulingProbe -- denied --pid <受保护进程 P
 - 未执行：异构 P/E 真机分类、SMT 完整保留的实机复核、游戏反作弊在线环境、帧率 / ETW 统计。
   这些项目只由 fixture 与静态路径覆盖，不能据此宣称真实游戏运行分布。
 
+### 实现与验证记录（2026-11-22 v2.3 追加）
+
+- 停车核心分类修复：i7-14650HX 笔记本（用户代他人反馈）截图显示 24 集合仅 6 个可用且全为 `EfficiencyClass=1`，被误判"未检测到异构核心"。根因是 `Analyze` 只用非停车集合分类，而 Windows 停车了全部 E-Core。修复后分类覆盖全部集合，应用目标仍只用未停车集合（`UsablePerformanceSets`）；新增回归 fixture「E-Core 全部停车仍识别大小核」。
+- 同构机器展示修正：全 P-Core 机器（如 i5-12400F）`EfficiencyClass` 单档位时，保持 `Supported=false`（调度为无操作），但拓扑展示按"全部核心为性能核"计数，不再显示 0/0。
+- 跨组严格模式落地：`SetProcessDefaultCpuSetMasks` / `GetProcessDefaultCpuSetMasks`（kernel32，Win11 / Server 2022+）按 `GROUP_AFFINITY` 逐组应用与回查；旧系统返回 127 时降级为明确的不支持提示。控制器 `AppliedState` 增加 `UsesMasks` 分支，恢复语义与其他模式一致（回查当前值、不覆盖他方修改）。
+- 验证：构建 0 错误；调度域 37/37 通过；Headless UI 1/1 通过。跨组与 Win10 缺 API 路径由 fixture 覆盖，异构真机复验仍为外部验收项。
+
 ---
 
 ## 11. 最终验收
@@ -799,7 +807,7 @@ dotnet run --project tools/CpuSchedulingProbe -- denied --pid <受保护进程 P
 | --- | --- |
 | 设置作用域 | v1 全局一份，作用于当前活动游戏来源；不按 Profile 保存 |
 | 模式 A 已有线程 | 已实测覆盖已有线程（2026-11-22，两组实验），v1 不逐线程补设；其他系统保留复查 |
-| 多组严格模式 | 不支持跨组，主动降级为模式 A 并提示 |
+| 多组严格模式 | 单组硬亲和；跨组在 Win11+ 按 CPU Set 组掩码软限制（明确提示），旧系统降级为不支持 |
 | 实际运行分布 | v1 不统计，只验证配置；UI 明示 |
 | 管理器关闭 | 停止监测；已应用的设置保留，重启游戏后不再自动应用 |
 | 进程识别 | 完整映像路径匹配，不使用 `MainModule`，不按进程名单独判定 |

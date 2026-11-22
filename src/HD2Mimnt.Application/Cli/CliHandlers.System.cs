@@ -247,7 +247,9 @@ internal static partial class CliHandlers
                 totalLogicalProcessors = topology.AllSets.Count,
                 parked = topology.ParkedCount,
                 hasSmt = topology.HasSmt,
-                strictAvailable = topology.StrictAffinityMask is not null,
+                strictAvailable = topology.Supported && (topology.StrictAffinityMask is not null || topology.UsablePerformanceGroupMasks.Count > 0),
+                strictAffinityAvailable = topology.StrictAffinityMask is not null,
+                strictGroupMasksAvailable = topology.UsablePerformanceGroupMasks.Count > 0,
                 sets = topology.AllSets.Select(set => new
                 {
                     id = set.Id,
@@ -401,7 +403,9 @@ internal static partial class CliHandlers
                 logicalProcessors = topology.UsableSets.Count,
                 totalLogicalProcessors = topology.AllSets.Count,
                 parked = topology.ParkedCount,
-                strictAvailable = topology.StrictAffinityMask is not null
+                strictAvailable = topology.Supported && (topology.StrictAffinityMask is not null || topology.UsablePerformanceGroupMasks.Count > 0),
+                strictAffinityAvailable = topology.StrictAffinityMask is not null,
+                strictGroupMasksAvailable = topology.UsablePerformanceGroupMasks.Count > 0
             };
     }
 

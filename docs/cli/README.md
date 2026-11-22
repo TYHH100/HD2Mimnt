@@ -97,8 +97,8 @@ HD2Mimnt.Cli schema --json
 ### 游戏与备份
 
 - `game launch` ✱ / `game detect` / `game validate <目录>` / `game version`。
-- `game scheduling status|topology` — 只读查看 CPU 调度设置、拓扑与当前状态。
-- `game scheduling set [--mode off|prefer|strict] [--enabled true|false] [...]` ✱ / `apply [--mode prefer|strict]` ✱ / `restore` ✱ — 保存、应用或恢复游戏 CPU 调度。
+- `game scheduling status|topology` — 只读查看 CPU 调度设置、拓扑与当前状态；`strictAffinityAvailable`/`strictGroupMasksAvailable` 分别表示硬亲和（单组）与组掩码（跨组，需 Windows 11+）可用性。
+- `game scheduling set [--mode off|prefer|strict] [--enabled true|false] [...]` ✱ / `apply [--mode prefer|strict]` ✱ / `restore` ✱ — 保存、应用或恢复游戏 CPU 调度；性能核跨处理器组时 `strict` 自动按 CPU Set 组掩码软限制。
 - `backup list` / `backup create` / `backup restore <路径>` ✱ / `backup delete <路径>` ✱。
 
 ### 应用更新

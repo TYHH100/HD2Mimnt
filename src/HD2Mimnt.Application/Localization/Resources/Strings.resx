@@ -4768,7 +4768,7 @@ Resources read: {3}</value>
   <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>Performance cores only (affinity)</value></data>
   <data name="CpuScheduling.HintOff" xml:space="preserve"><value>Scheduling is off.</value></data>
   <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>Soft affinity: Windows prefers performance cores but does not hard-lock the game. Keep the manager running for monitoring.</value></data>
-  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>Strict affinity: only performance cores are allowed and child processes inherit the mask. This can affect stability.</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>Strict restriction: only performance cores are allowed and child processes inherit it. Single group uses hard affinity; across processor groups it falls back to CPU set masks (soft, Windows 11+). This can affect stability.</value></data>
   <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
   <data name="CpuScheduling.PCores" xml:space="preserve"><value>P-Core (physical / logical)</value></data>
   <data name="CpuScheduling.ECores" xml:space="preserve"><value>E-Core (physical / logical)</value></data>

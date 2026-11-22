@@ -19,6 +19,11 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
         public uint[] AppliedCpuSets { get; init; } = [];
         public ulong? OriginalAffinity { get; init; }
         public ulong? AppliedAffinity { get; init; }
+
+        // 性能核跨组时，严格模式退化为按组掩码的进程默认 CPU Sets（Win11+，软限制）。
+        public bool UsesMasks { get; init; }
+        public ProcessorGroupMask[] OriginalMasks { get; init; } = [];
+        public ProcessorGroupMask[] AppliedMasks { get; init; } = [];
     }
 
     private readonly IProcessSchedulingNativeApi _native;
@@ -40,8 +45,9 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
             return CpuSchedulingOperationResult.Fail(CpuSchedulingFailureKind.Unsupported, "no performance CPU sets");
         if (mode == CpuSchedulingMode.PerformanceCoresOnly)
         {
-            var mask = topology.StrictAffinityMask;
-            if (mask is null or 0)
+            var strictAvailable = topology.StrictAffinityMask is not (null or 0)
+                                  || topology.UsablePerformanceGroupMasks.Count > 0;
+            if (!strictAvailable)
             {
                 return CpuSchedulingOperationResult.Fail(
                     CpuSchedulingFailureKind.Unsupported,
@@ -106,6 +112,14 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
                 return new CpuSchedulingVerification(true, SetEquals(current, state.AppliedCpuSets));
             }
 
+            if (state.UsesMasks)
+            {
+                if (!_native.TryGetProcessDefaultCpuSetMasks(handle, out var currentMasks, out var masksError))
+                    return new CpuSchedulingVerification(true, false, "GetProcessDefaultCpuSetMasks failed", masksError);
+
+                return new CpuSchedulingVerification(true, MasksEquals(currentMasks, state.AppliedMasks));
+            }
+
             var (processMask, _) = _native.GetProcessAffinityMask(handle);
             return new CpuSchedulingVerification(true, processMask == state.AppliedAffinity);
         }
@@ -167,6 +181,31 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
                         "restored CPU sets do not match the original sets");
                 }
             }
+            else if (state.UsesMasks)
+            {
+                if (!_native.TryGetProcessDefaultCpuSetMasks(handle, out var currentMasks, out _)
+                    || !MasksEquals(currentMasks, state.AppliedMasks))
+                {
+                    if (!force)
+                    {
+                        return CpuSchedulingOperationResult.Fail(
+                            CpuSchedulingFailureKind.Changed,
+                            "current CPU set masks differ from the applied masks; refusing to overwrite");
+                    }
+                }
+
+                // 原始默认集合可能是按 Set ID 设置的；GetProcessDefaultCpuSetMasks 会把
+                // 它映射到宿主处理器，因此按掩码写回等价于恢复原状。
+                if (!_native.TrySetProcessDefaultCpuSetMasks(handle, state.OriginalMasks, out var restoreError)
+                    || !_native.TryGetProcessDefaultCpuSetMasks(handle, out var restoredMasks, out _)
+                    || !MasksEquals(restoredMasks, state.OriginalMasks))
+                {
+                    return CpuSchedulingOperationResult.Fail(
+                        CpuSchedulingFailureKind.VerificationFailed,
+                        "restored CPU set masks do not match the original masks",
+                        restoreError == 0 ? null : restoreError);
+                }
+            }
             else
             {
                 var (currentMask, _) = _native.GetProcessAffinityMask(handle);
@@ -211,7 +250,7 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
     private CpuSchedulingOperationResult ApplyCpuSets(
         int processId, IntPtr handle, CpuTopology topology, long startTicks)
     {
-        var target = topology.PerformanceSets.Select(set => set.Id).Distinct().ToArray();
+        var target = topology.UsablePerformanceSets.Select(set => set.Id).Distinct().ToArray();
         if (target.Length == 0)
             return CpuSchedulingOperationResult.Fail(CpuSchedulingFailureKind.Unsupported, "no performance CPU sets");
 
@@ -240,13 +279,17 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
     private CpuSchedulingOperationResult ApplyAffinity(
         int processId, IntPtr handle, CpuTopology topology, long startTicks)
     {
-        if (topology.StrictAffinityMask is not { } target || target == 0)
-        {
-            return CpuSchedulingOperationResult.Fail(
-                CpuSchedulingFailureKind.Unsupported,
-                "strict mode is unavailable for this topology or processor group");
-        }
+        // 单组（或 P 核都在组 0 且编号 <64）走硬亲和；跨组时 Win11+ 退化为
+        // 按组掩码的进程默认 CPU Sets（软限制），旧系统明确报告不支持。
+        if (topology.StrictAffinityMask is { } target && target != 0)
+            return ApplyHardAffinity(processId, handle, target, startTicks);
 
+        return ApplyDefaultCpuSetMasks(processId, handle, topology, startTicks);
+    }
+
+    private CpuSchedulingOperationResult ApplyHardAffinity(
+        int processId, IntPtr handle, ulong target, long startTicks)
+    {
         var (original, systemMask) = _native.GetProcessAffinityMask(handle);
         if ((target & ~systemMask) != 0)
         {
@@ -276,9 +319,66 @@ public sealed class Win32ProcessSchedulingController : IProcessSchedulingControl
                 "applied affinity does not match the requested mask");
     }
 
+    private CpuSchedulingOperationResult ApplyDefaultCpuSetMasks(
+        int processId, IntPtr handle, CpuTopology topology, long startTicks)
+    {
+        var target = topology.UsablePerformanceGroupMasks.ToArray();
+        if (target.Length == 0)
+        {
+            return CpuSchedulingOperationResult.Fail(
+                CpuSchedulingFailureKind.Unsupported,
+                "no expressible performance-core group masks");
+        }
+
+        if (!_native.TryGetProcessDefaultCpuSetMasks(handle, out var original, out var error))
+        {
+            return error == 127
+                ? CpuSchedulingOperationResult.Fail(
+                    CpuSchedulingFailureKind.Unsupported,
+                    "strict mode across processor groups requires Windows 11 or Server 2022+", error)
+                : CpuSchedulingOperationResult.Fail(
+                    MapFailure(new Win32Exception(error)), "GetProcessDefaultCpuSetMasks failed", error);
+        }
+
+        if (!_native.TrySetProcessDefaultCpuSetMasks(handle, target, out error))
+        {
+            return CpuSchedulingOperationResult.Fail(
+                MapFailure(new Win32Exception(error)), "SetProcessDefaultCpuSetMasks failed", error);
+        }
+
+        if (!_native.TryGetProcessDefaultCpuSetMasks(handle, out var applied, out _))
+        {
+            return CpuSchedulingOperationResult.Fail(
+                CpuSchedulingFailureKind.VerificationFailed, "GetProcessDefaultCpuSetMasks failed after set");
+        }
+
+        lock (_gate)
+        {
+            _states[processId] = new AppliedState
+            {
+                StartTimeUtcTicks = startTicks,
+                Mode = CpuSchedulingMode.PerformanceCoresOnly,
+                UsesMasks = true,
+                OriginalMasks = original,
+                AppliedMasks = applied
+            };
+        }
+
+        return MasksEquals(applied, target)
+            ? CpuSchedulingOperationResult.Ok("performance-core CPU set masks applied (soft affinity)")
+            : CpuSchedulingOperationResult.Fail(
+                CpuSchedulingFailureKind.VerificationFailed,
+                "applied CPU set masks do not match the requested masks");
+    }
+
     private static bool SetEquals(IReadOnlyCollection<uint> left, IReadOnlyCollection<uint> right)
         => left.Count == right.Count
            && left.OrderBy(value => value).SequenceEqual(right.OrderBy(value => value));
+
+    private static bool MasksEquals(IReadOnlyCollection<ProcessorGroupMask> left, IReadOnlyCollection<ProcessorGroupMask> right)
+        => left.Count == right.Count
+           && left.OrderBy(mask => mask.Group)
+               .SequenceEqual(right.OrderBy(mask => mask.Group));
 
     private static CpuSchedulingFailureKind MapOpenFailure(int error) => error switch
     {
