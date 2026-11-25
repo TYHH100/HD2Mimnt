@@ -30,6 +30,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private readonly IConfirmationService _confirmation;
     private CancellationTokenSource? _cancellation;
     private HellForgeStatus? _status;
+    private HellForgeVersions? _versions;
     private HellForgeSyncStatus? _syncStatus;
     private HellForgeLauncherSettings? _settingsSnapshot;
     private HellForgeLogsResult? _logs;
@@ -41,6 +42,11 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private bool _sessionEndedNotified;
     private bool _suppressPackEvents;
     private bool _suppressModEvents;
+    private bool _supportsModernWar;
+    private bool _supportsPlanets;
+    private bool _planetsLoaded;
+    private HellForgePlanetsResult? _planets;
+    private HellForgePlanetEditor? _observedPlanetEditor;
 
     public Task Completion { get; private set; } = Task.CompletedTask;
 
@@ -66,10 +72,20 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _settingLiveChanges;
     [ObservableProperty] private decimal _forgeCreditChance = 30;
     [ObservableProperty] private string _gameOptions = string.Empty;
+    [ObservableProperty] private string _warServer = string.Empty;
+    [ObservableProperty] private bool _settingDealSubfactions;
+    [ObservableProperty] private bool _settingDealSeaf;
+    [ObservableProperty] private decimal _warSeed;
+    [ObservableProperty] private bool _settingShareMods;
+    [ObservableProperty] private bool _settingListPublic;
+    [ObservableProperty] private bool _settingShowEditedStats;
+    [ObservableProperty] private bool _settingHostStats;
 
     [ObservableProperty] private HellForgeLogRunItem? _selectedLogRun;
     [ObservableProperty] private bool _includeCrashDump;
     [ObservableProperty] private HellForgeCategoryItem? _selectedCategory;
+    [ObservableProperty] private HellForgePlanetEditor? _planetEditor;
+    [ObservableProperty] private string _planetQuery = string.Empty;
 
     public ObservableCollection<HellForgeCategoryItem> Categories { get; } = new();
     public ObservableCollection<HellForgeProfileItem> Profiles { get; } = new();
@@ -79,6 +95,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     public ObservableCollection<HellForgeChoice> StrangersOptions { get; } = new();
     public ObservableCollection<HellForgeLogRunItem> LogRuns { get; } = new();
     public ObservableCollection<HellForgeModItem> HellForgeMods { get; } = new();
+    public ObservableCollection<HellForgePlanetItem> Planets { get; } = new();
     /// <summary>展示用：模组行与分组标题混排（分组标题按 group 变化插入）。</summary>
     public ObservableCollection<object> ModRows { get; } = new();
 
@@ -128,6 +145,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     public bool IsSessionCategoryVisible => CategoryIs("Session");
     public bool IsProfilesCategoryVisible => CategoryIs("Profiles");
     public bool IsModsCategoryVisible => CategoryIs("Mods");
+    public bool IsPlanetsCategoryVisible => CategoryIs("Planets");
     public bool IsSettingsCategoryVisible => CategoryIs("Settings");
     public bool IsLogsCategoryVisible => CategoryIs("Logs");
 
@@ -135,6 +153,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     public string SessionLabel => CategoryLabel("Session");
     public string ProfilesLabel => CategoryLabel("Profiles");
     public string ModsLabel => CategoryLabel("Mods");
+    public string PlanetsLabel => CategoryLabel("Planets");
     public string SettingsLabel => CategoryLabel("Settings");
     public string LogsLabel => CategoryLabel("Logs");
     public string SelectedCategoryLabel => SelectedCategory?.Label ?? string.Empty;
@@ -149,6 +168,10 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     public string GameBuild => _status?.GameBuild ?? string.Empty;
     public string EngineVersion => _status?.Engine ?? string.Empty;
     public string ModSdkVersion => _status?.ModSdk?.ToString() ?? string.Empty;
+    public string PlayingVersionText => _versions?.Playing?.Version is { Length: > 0 } version
+        ? $"{version} ({_versions.Playing.Commit})"
+        : string.Empty;
+    public string LanguagesText => _status?.Languages.Count > 0 ? string.Join(", ", _status.Languages) : string.Empty;
     public string NetworkBlock => _status?.NetworkBlock ?? string.Empty;
     public string CurrentProfile => _status?.Settings.Profile ?? string.Empty;
     public bool IsSessionRunning => _session.State.Phase == HellForgeSessionPhase.Running;
@@ -199,8 +222,13 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         ? Path.Combine(root, "mods")
         : string.Empty;
 
+    public bool HasWarSettings => _settingsSnapshot is { } saved &&
+        (saved.WarServer != null || saved.DealSubfactions.HasValue || saved.DealSeaf.HasValue || saved.WarSeed.HasValue);
+    public bool HasSharingSettings => _settingsSnapshot is { } saved &&
+        (saved.ShareMods.HasValue || saved.ListPublic.HasValue || saved.ShowEditedStats.HasValue || saved.HostStats.HasValue);
+
     public bool IsSettingsDirty => _settingsSnapshot is { } saved && (
-        (SelectedWar?.Value ?? "live") != (saved.War ?? "live")
+        (SelectedWar?.Value ?? saved.War ?? "live") != (saved.War ?? "live")
         || SettingLocalPlayFab != saved.LocalPlayFab
         || SettingMultiplayer != saved.Multiplayer
         || SettingEngineLog != saved.EngineLog
@@ -210,9 +238,38 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         || SettingLiveChanges != saved.LiveChanges
         || (SelectedStrangers?.Value ?? "default") != StrangersValue(saved.PlayWithStrangersChosen)
         || (int)ForgeCreditChance != saved.ForgeCreditChance
-        || (GameOptions ?? string.Empty) != (saved.GameOptions ?? string.Empty));
+        || (GameOptions ?? string.Empty) != (saved.GameOptions ?? string.Empty)
+        || (HasWarSettings && ((WarServer ?? string.Empty) != (saved.WarServer ?? string.Empty)
+            || SettingDealSubfactions != (saved.DealSubfactions ?? true)
+            || SettingDealSeaf != (saved.DealSeaf ?? true)
+            || (int)WarSeed != (saved.WarSeed ?? 0)))
+        || (HasSharingSettings && (SettingShareMods != (saved.ShareMods ?? true)
+            || SettingListPublic != (saved.ListPublic ?? true)
+            || SettingShowEditedStats != (saved.ShowEditedStats ?? false)
+            || SettingHostStats != (saved.HostStats ?? false))));
 
     public bool HasLogs => LogRuns.Count > 0;
+
+    public bool SupportsPlanets => _supportsPlanets;
+    public bool IsCustomWarSelected => SelectedWar?.Value == "custom" && SupportsPlanets;
+    public bool HasPlanets => Planets.Count > 0;
+    public bool HasPlanetEditor => PlanetEditor != null;
+    public bool IsPlanetDirty => PlanetEditor?.IsDirty == true;
+    public bool CanSavePlanet => !IsBusy && HasPlanetEditor && IsPlanetDirty;
+    public bool CanResetPlanet => !IsBusy && HasPlanetEditor && PlanetEditor?.HasOverride == true;
+    public bool CanResetAllPlanets => !IsBusy && HasPlanets;
+    public bool CanOpenPlanet => !IsBusy && SupportsPlanets && _planets != null && !string.IsNullOrWhiteSpace(PlanetQuery);
+    public bool HasPlanetProblems => _planets?.Problems.Count > 0;
+    public string PlanetProblemsText => HasPlanetProblems
+        ? _localization["HellForge.Planets.Problems"] + "\n" + string.Join("\n", _planets!.Problems)
+        : string.Empty;
+    public string PlanetActiveText => _planets?.Active == true
+        ? _localization["HellForge.Planets.Active"]
+        : _localization["HellForge.Planets.Inactive"];
+    public string PlanetWarText => _localization.Format("HellForge.Planets.War", _planets?.War ?? string.Empty);
+    public string PlanetSessionText => _planets?.SessionRunning == true
+        ? _localization["HellForge.Planets.SessionRunning"]
+        : _localization["HellForge.Planets.SessionIdle"];
 
     public bool IsSessionActive => _session.State.IsActive;
     public bool HasSessionProblems => _session.State.Problems.Count > 0;
@@ -222,6 +279,23 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     public string SessionNoticeText => _session.State.Restarting
         ? _localization["HellForge.Session.Restarting"]
         : _session.State.Notice ?? string.Empty;
+    public HellForgeModSyncOffer? ModSyncOffer => _session.State.ModSyncOffer;
+    public bool HasModSyncOffer => ModSyncOffer != null;
+    public string ModSyncTrustNote => ModSyncOffer?.TrustNote ?? string.Empty;
+    public bool HasModSyncTrustNote => !string.IsNullOrWhiteSpace(ModSyncTrustNote);
+    public bool CanAcceptModSync => ModSyncOffer?.Answers.Contains("accept") == true && !IsBusy;
+    public bool CanRestartModSync => ModSyncOffer?.Answers.Contains("restart") == true && !IsBusy;
+    public bool CanDeclineModSync => ModSyncOffer?.Answers.Contains("decline") == true && !IsBusy;
+    public string ModSyncSizeText => ModSyncOffer == null
+        ? string.Empty
+        : _localization.Format("HellForge.ModSync.Size", FormatBytes(ModSyncOffer.Bytes));
+    public string ModSyncProgressText => ModSyncOffer == null || ModSyncOffer.Bytes == 0
+        ? string.Empty
+        : _localization.Format("HellForge.ModSync.Progress", FormatBytes(ModSyncOffer.Done), FormatBytes(ModSyncOffer.Bytes));
+    public string ModSyncHostText => ModSyncOffer == null
+        ? string.Empty
+        : _localization.Format("HellForge.ModSync.Host", ModSyncOffer.Host ?? string.Empty,
+            ModSyncOffer.Stranger ? _localization["HellForge.ModSync.Stranger"] : _localization["HellForge.ModSync.Friend"]);
     public bool HasRestartIssue => _session.State.RestartIssue != HellForgeRestartIssue.None;
     public string RestartIssueText => _session.State.RestartIssue switch
     {
@@ -266,6 +340,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         await LoadAsync(token);
         await _session.RefreshAsync(token);
         if (_modsLoaded) await LoadModsCoreAsync(token);
+        if (_planetsLoaded) await LoadPlanetsCoreAsync(token);
     }
 
     /// <summary>模组分区首次进入时按需读取；CLI mods 会扫描整个 mods\，不放进页面初始化。</summary>
@@ -297,7 +372,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     /// <summary>行内开关：开关变化经 mod-switch 落盘，失败或忙碌/会话中时回滚。</summary>
     private void OnModEnabledChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (_suppressModEvents || sender is not HellForgeModItem item) return;
+        if (_suppressModEvents || sender is not HellForgeModItem item || !item.CanToggle) return;
         if (args.PropertyName != nameof(HellForgeModItem.Enabled)) return;
         if (IsBusy || IsSessionActive)
         {
@@ -428,10 +503,12 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsSessionCategoryVisible));
         OnPropertyChanged(nameof(IsProfilesCategoryVisible));
         OnPropertyChanged(nameof(IsModsCategoryVisible));
+        OnPropertyChanged(nameof(IsPlanetsCategoryVisible));
         OnPropertyChanged(nameof(IsSettingsCategoryVisible));
         OnPropertyChanged(nameof(IsLogsCategoryVisible));
         OnPropertyChanged(nameof(SelectedCategoryLabel));
         if (value?.Key == "Mods") _ = EnsureModsLoadedAsync();
+        if (value?.Key == "Planets") _ = EnsurePlanetsLoadedAsync();
     }
 
     [RelayCommand]
@@ -470,6 +547,42 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private Task StopSessionAsync() => OperateAsync("HellForge.Stopping", token => _session.StopAsync(token));
 
     private bool CanStopSession() => !IsBusy && IsSessionActive;
+
+    [RelayCommand(CanExecute = nameof(CanAnswerModSync))]
+    private Task AnswerModSync(string? answer)
+    {
+        var offer = ModSyncOffer;
+        if (answer == null || offer == null || !offer.Answers.Contains(answer)) return Task.CompletedTask;
+        return OperateAsync("HellForge.ModSync.Answering", token => _session.AnswerModSyncOfferAsync(answer, null, token));
+    }
+
+    private bool CanAnswerModSync() => !IsBusy && HasModSyncOffer;
+
+    [RelayCommand(CanExecute = nameof(CanOperate))]
+    private Task TrustModSyncMod(HellForgeModSyncMod? mod)
+    {
+        if (mod == null || !mod.CanTrust) return Task.CompletedTask;
+        return TrustModSyncCoreAsync(mod);
+    }
+
+    private async Task TrustModSyncCoreAsync(HellForgeModSyncMod mod)
+    {
+        var warning = string.Join("\n\n", new[] { mod.TrustWarning, ModSyncOffer?.TrustNote }
+            .Where(text => !string.IsNullOrWhiteSpace(text)));
+        var confirmed = await _confirmation.ConfirmAsync(_localization["HellForge.ModSync.TrustTitle"], warning);
+        if (confirmed) await AnswerModSyncModCore("trust", mod.Id);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOperate))]
+    private Task BlockModSyncMod(HellForgeModSyncMod? mod) =>
+        mod != null && mod.CanBlock ? AnswerModSyncModCore("block", mod.Id) : Task.CompletedTask;
+
+    [RelayCommand(CanExecute = nameof(CanOperate))]
+    private Task OpenModSyncMod(HellForgeModSyncMod? mod) =>
+        mod != null && mod.CanOpen ? AnswerModSyncModCore("open", mod.Id) : Task.CompletedTask;
+
+    private Task AnswerModSyncModCore(string answer, string modId) =>
+        OperateAsync("HellForge.ModSync.Answering", token => _session.AnswerModSyncOfferAsync(answer, modId, token));
 
     [RelayCommand(CanExecute = nameof(CanOperate))]
     private Task SwitchProfileAsync(HellForgeProfileItem? item)
@@ -559,6 +672,23 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             changes["forge-credits"] = ((int)ForgeCreditChance).ToString(CultureInfo.InvariantCulture);
         if ((GameOptions ?? string.Empty) != (saved.GameOptions ?? string.Empty))
             changes["game-options"] = GameOptions ?? string.Empty;
+        if (saved.WarServer != null || saved.DealSubfactions.HasValue || saved.DealSeaf.HasValue || saved.WarSeed.HasValue)
+        {
+            var warServer = (WarServer ?? string.Empty).Trim();
+            var savedServer = saved.WarServer ?? string.Empty;
+            if (warServer != savedServer) changes["war-server"] = warServer.Length == 0 ? "default" : warServer;
+            AddSwitch(changes, "deal-subfactions", SettingDealSubfactions, saved.DealSubfactions ?? true);
+            AddSwitch(changes, "deal-seaf", SettingDealSeaf, saved.DealSeaf ?? true);
+            if ((int)WarSeed != (saved.WarSeed ?? 0))
+                changes["war-seed"] = ((int)WarSeed).ToString(CultureInfo.InvariantCulture);
+        }
+        if (saved.ShareMods.HasValue || saved.ListPublic.HasValue || saved.ShowEditedStats.HasValue || saved.HostStats.HasValue)
+        {
+            AddSwitch(changes, "share-mods", SettingShareMods, saved.ShareMods ?? true);
+            AddSwitch(changes, "list-public", SettingListPublic, saved.ListPublic ?? true);
+            AddSwitch(changes, "show-edited-stats", SettingShowEditedStats, saved.ShowEditedStats ?? false);
+            AddSwitch(changes, "host-stats", SettingHostStats, saved.HostStats ?? false);
+        }
         if (changes.Count == 0) return Task.CompletedTask;
         return OperateAsync("HellForge.Settings.Saving", async token =>
         {
@@ -573,6 +703,176 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private static void AddSwitch(Dictionary<string, string> changes, string key, bool value, bool saved)
     {
         if (value != saved) changes[key] = value ? "yes" : "no";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRefreshPlanets))]
+    private Task RefreshPlanetsAsync() => OperateAsync("HellForge.Planets.Loading", LoadPlanetsCoreAsync);
+
+    private bool CanRefreshPlanets() => !IsBusy && SupportsPlanets && IsInstallationConfigured;
+
+    private async Task EnsurePlanetsLoadedAsync()
+    {
+        if (_planetsLoaded || IsBusy || !SupportsPlanets) return;
+        await OperateAsync("HellForge.Planets.Loading", LoadPlanetsCoreAsync);
+    }
+
+    private async Task LoadPlanetsCoreAsync(CancellationToken token)
+    {
+        var result = await _service.GetPlanetsAsync(token);
+        if (result == null)
+        {
+            _supportsPlanets = false;
+            RebuildCategories();
+            return;
+        }
+        ApplyPlanets(result);
+        _planetsLoaded = true;
+    }
+
+    private void ApplyPlanets(HellForgePlanetsResult result, string? selectSelector = null, bool clearEditor = false)
+    {
+        _planets = result;
+        Planets.Clear();
+        foreach (var planet in result.Planets)
+            Planets.Add(new HellForgePlanetItem(planet, PlanetDisplayName(planet), PlanetDetail(planet)));
+        if (clearEditor)
+        {
+            PlanetEditor = null;
+        }
+        else if (PlanetEditor != null)
+        {
+            var selector = selectSelector ?? PlanetEditor.Selector;
+            if (selectSelector != null || !IsPlanetDirty)
+            {
+                var selected = result.Planets.FirstOrDefault(planet =>
+                    string.Equals(planet.Index.ToString(), selector, StringComparison.Ordinal)
+                    || string.Equals(planet.Name, selector, StringComparison.OrdinalIgnoreCase));
+                PlanetEditor = selected == null ? null : CreatePlanetEditor(selected);
+            }
+        }
+        NotifyPlanetsState();
+    }
+
+    private static string PlanetDisplayName(HellForgePlanetInfo planet) => planet.Name ?? $"#{planet.Index}";
+
+    private string PlanetDetail(HellForgePlanetInfo planet)
+    {
+        var parts = new List<string> { $"#{planet.Index}", PlanetFactionLabel(planet.Faction) };
+        parts.Add(planet.UsesWarSubfactions
+            ? _localization["HellForge.Planets.SubfactionsWarShort"]
+            : _localization.Format("HellForge.Planets.SubfactionCount", planet.SubfactionKeys.Count));
+        if (planet.Enemies.Count > 0)
+            parts.Add(_localization.Format("HellForge.Planets.EnemyOverrideCount", planet.Enemies.Count));
+        return string.Join(" · ", parts);
+    }
+
+    private HellForgePlanetEditor CreatePlanetEditor(HellForgePlanetInfo planet) =>
+        new(planet, _planets?.Catalogue ?? new HellForgePlanetCatalogue(), planet.Index.ToString(), _localization);
+
+    [RelayCommand(CanExecute = nameof(CanOpenPlanet))]
+    private Task OpenPlanetAsync() => OperateAsync("HellForge.Planets.Loading", _ =>
+    {
+        var query = PlanetQuery.Trim();
+        if (query.Length == 0 || _planets == null) return Task.CompletedTask;
+        var existing = Planets.FirstOrDefault(planet =>
+            string.Equals(planet.Info.Index.ToString(), query, StringComparison.Ordinal)
+            || string.Equals(planet.Info.Name, query, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            PlanetEditor = CreatePlanetEditor(existing.Info);
+            return Task.CompletedTask;
+        }
+        PlanetEditor = new HellForgePlanetEditor(null, _planets.Catalogue ?? new HellForgePlanetCatalogue(), query, _localization);
+        NotifyPlanetsState();
+        return Task.CompletedTask;
+    });
+
+    [RelayCommand(CanExecute = nameof(CanOperate))]
+    private void SelectPlanet(HellForgePlanetItem? planet)
+    {
+        if (planet == null || IsBusy) return;
+        PlanetEditor = CreatePlanetEditor(planet.Info);
+        PlanetQuery = PlanetDisplayName(planet.Info);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSavePlanet))]
+    private Task SavePlanetAsync() => OperateAsync("HellForge.Planets.Saving", async token =>
+    {
+        var editor = PlanetEditor;
+        if (editor == null) return;
+        var result = await _service.UpdatePlanetAsync(editor.Selector, editor.SelectedFaction!.Value,
+            editor.SelectedSubfactions, editor.EnemyOverrides, cancellationToken: token);
+        ApplyPlanets(result, editor.Selector);
+        _notificationService.ShowSuccess(_localization["HellForge.Planets.Saved"], "HellForge");
+    });
+
+    [RelayCommand(CanExecute = nameof(CanResetPlanet))]
+    private Task ResetPlanetAsync() => OperateAsync("HellForge.Planets.Resetting", async token =>
+    {
+        var editor = PlanetEditor;
+        if (editor == null) return;
+        var confirmed = await _confirmation.ConfirmAsync(_localization["HellForge.Planets.ResetTitle"],
+            _localization.Format("HellForge.Planets.ResetConfirm", editor.Name));
+        if (!confirmed) return;
+        var result = await _service.UpdatePlanetAsync(editor.Selector, "war", null, new Dictionary<string, string>(),
+            reset: true, cancellationToken: token);
+        ApplyPlanets(result, clearEditor: true);
+        _notificationService.ShowSuccess(_localization["HellForge.Planets.ResetDone"], "HellForge");
+    });
+
+    [RelayCommand(CanExecute = nameof(CanResetAllPlanets))]
+    private Task ResetAllPlanetsAsync() => OperateAsync("HellForge.Planets.Resetting", async token =>
+    {
+        var confirmed = await _confirmation.ConfirmAsync(_localization["HellForge.Planets.ResetAllTitle"],
+            _localization["HellForge.Planets.ResetAllConfirm"]);
+        if (!confirmed) return;
+        var result = await _service.ResetAllPlanetsAsync(token);
+        ApplyPlanets(result, clearEditor: true);
+        _notificationService.ShowSuccess(_localization["HellForge.Planets.ResetAllDone"], "HellForge");
+    });
+
+    private string PlanetFactionLabel(string? faction) => faction switch
+    {
+        null or "war" => _localization["HellForge.Planets.Faction.War"],
+        "terminids" => _localization["HellForge.Planets.Faction.Terminids"],
+        "automatons" => _localization["HellForge.Planets.Faction.Automatons"],
+        "illuminate" => _localization["HellForge.Planets.Faction.Illuminate"],
+        _ => faction
+    };
+
+    partial void OnPlanetEditorChanged(HellForgePlanetEditor? value)
+    {
+        if (_observedPlanetEditor != null) _observedPlanetEditor.DirtyChanged -= OnPlanetEditorDirtyChanged;
+        _observedPlanetEditor = value;
+        if (value != null) value.DirtyChanged += OnPlanetEditorDirtyChanged;
+        NotifyPlanetsState();
+    }
+
+    partial void OnPlanetQueryChanged(string value) => OpenPlanetCommand.NotifyCanExecuteChanged();
+
+    private void OnPlanetEditorDirtyChanged(object? sender, EventArgs e) => NotifyPlanetsState();
+
+    private void NotifyPlanetsState()
+    {
+        OnPropertyChanged(nameof(SupportsPlanets));
+        OnPropertyChanged(nameof(IsCustomWarSelected));
+        OnPropertyChanged(nameof(HasPlanets));
+        OnPropertyChanged(nameof(HasPlanetEditor));
+        OnPropertyChanged(nameof(IsPlanetDirty));
+        OnPropertyChanged(nameof(CanSavePlanet));
+        OnPropertyChanged(nameof(CanResetPlanet));
+        OnPropertyChanged(nameof(CanResetAllPlanets));
+        OnPropertyChanged(nameof(CanOpenPlanet));
+        OnPropertyChanged(nameof(HasPlanetProblems));
+        OnPropertyChanged(nameof(PlanetProblemsText));
+        OnPropertyChanged(nameof(PlanetActiveText));
+        OnPropertyChanged(nameof(PlanetWarText));
+        OnPropertyChanged(nameof(PlanetSessionText));
+        SavePlanetCommand.NotifyCanExecuteChanged();
+        ResetPlanetCommand.NotifyCanExecuteChanged();
+        ResetAllPlanetsCommand.NotifyCanExecuteChanged();
+        OpenPlanetCommand.NotifyCanExecuteChanged();
+        RefreshPlanetsCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanUseLogs))]
@@ -606,6 +906,10 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         var settings = await _service.GetSettingsAsync(token);
         var logs = await _service.GetLogsAsync(cancellationToken: token);
         _status = status;
+        try { _versions = await _service.GetVersionsAsync(token); }
+        catch (InvalidOperationException) { _versions = null; }
+        _supportsPlanets = await _service.SupportsCommandAsync("planets", token);
+        RebuildCategories();
         Profiles.Clear();
         foreach (var profile in profiles.Profiles)
             Profiles.Add(new HellForgeProfileItem(profile.Name, profile.Template, profile.Selected));
@@ -640,6 +944,17 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         SettingLiveChanges = settings.LiveChanges;
         ForgeCreditChance = settings.ForgeCreditChance;
         GameOptions = settings.GameOptions ?? string.Empty;
+        WarServer = settings.WarServer ?? string.Empty;
+        SettingDealSubfactions = settings.DealSubfactions ?? true;
+        SettingDealSeaf = settings.DealSeaf ?? true;
+        WarSeed = settings.WarSeed ?? 0;
+        SettingShareMods = settings.ShareMods ?? true;
+        SettingListPublic = settings.ListPublic ?? true;
+        SettingShowEditedStats = settings.ShowEditedStats ?? false;
+        SettingHostStats = settings.HostStats ?? false;
+        _supportsModernWar = settings.WarServer != null || settings.DealSubfactions.HasValue
+            || settings.DealSeaf.HasValue || settings.WarSeed.HasValue || settings.War is "hellforge" or "custom";
+        RebuildChoiceLabels();
         SelectedWar = WarOptions.FirstOrDefault(o => o.Value == (settings.War ?? "live")) ?? WarOptions.FirstOrDefault();
         SelectedStrangers = StrangersOptions.FirstOrDefault(o => o.Value == StrangersValue(settings.PlayWithStrangersChosen))
             ?? StrangersOptions.FirstOrDefault();
@@ -652,8 +967,13 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         var war = SelectedWar?.Value ?? _settingsSnapshot?.War ?? "live";
         var strangers = SelectedStrangers?.Value ?? StrangersValue(_settingsSnapshot?.PlayWithStrangersChosen);
         WarOptions.Clear();
-        foreach (var value in new[] { "live", "frozen", "open" })
+        var wars = _supportsModernWar
+            ? new[] { "hellforge", "live", "frozen", "open", "custom" }
+            : new[] { "live", "frozen", "open" };
+        foreach (var value in wars)
             WarOptions.Add(new HellForgeChoice(value, _localization["HellForge.War." + Capitalize(value)]));
+        if (!string.IsNullOrEmpty(war) && WarOptions.All(option => option.Value != war))
+            WarOptions.Add(new HellForgeChoice(war, war));
         StrangersOptions.Clear();
         foreach (var value in new[] { "default", "yes", "no" })
             StrangersOptions.Add(new HellForgeChoice(value, _localization["HellForge.Strangers." + Capitalize(value)]));
@@ -663,20 +983,30 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
 
     private static string Capitalize(string value) => char.ToUpperInvariant(value[0]) + value[1..];
 
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        >= 1024L * 1024 * 1024 => $"{bytes / (1024d * 1024 * 1024):0.##} GiB",
+        >= 1024L * 1024 => $"{bytes / (1024d * 1024):0.##} MiB",
+        >= 1024L => $"{bytes / 1024d:0.##} KiB",
+        _ => $"{bytes} B"
+    };
+
     /// <summary>重建分类标签并保留当前分类（语言切换时调用）。</summary>
     private void RebuildCategories()
     {
         var key = SelectedCategory?.Key ?? "Profiles";
         Categories.Clear();
-        foreach (var (categoryKey, resource) in new[]
-                 {
-                     ("Overview", "HellForge.Category.Overview"),
-                     ("Session", "HellForge.Category.Session"),
-                     ("Profiles", "HellForge.Category.Profiles"),
-                     ("Mods", "HellForge.Category.Mods"),
-                     ("Settings", "HellForge.Category.Settings"),
-                     ("Logs", "HellForge.Category.Logs")
-                 })
+        var categories = new List<(string Key, string Resource)>
+        {
+            ("Overview", "HellForge.Category.Overview"),
+            ("Session", "HellForge.Category.Session"),
+            ("Profiles", "HellForge.Category.Profiles"),
+            ("Mods", "HellForge.Category.Mods")
+        };
+        if (_supportsPlanets) categories.Add(("Planets", "HellForge.Category.Planets"));
+        categories.Add(("Settings", "HellForge.Category.Settings"));
+        categories.Add(("Logs", "HellForge.Category.Logs"));
+        foreach (var (categoryKey, resource) in categories)
             Categories.Add(new HellForgeCategoryItem(categoryKey, _localization[resource]));
         SelectedCategory = Categories.FirstOrDefault(category => category.Key == key)
             ?? Categories.First(category => category.Key == "Profiles");
@@ -684,6 +1014,7 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SessionLabel));
         OnPropertyChanged(nameof(ProfilesLabel));
         OnPropertyChanged(nameof(ModsLabel));
+        OnPropertyChanged(nameof(PlanetsLabel));
         OnPropertyChanged(nameof(SettingsLabel));
         OnPropertyChanged(nameof(LogsLabel));
     }
@@ -693,7 +1024,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     {
         _modsList = list;
         HellForgeMods.Clear();
-        foreach (var mod in list.Mods.OrderBy(mod => GroupRank(mod.Group)))
+        foreach (var mod in list.Mods
+                     .Where(mod => !mod.Tags.Contains("local-stats", StringComparer.OrdinalIgnoreCase))
+                     .OrderBy(mod => GroupRank(mod.Group)))
             HellForgeMods.Add(CreateModItem(mod));
         RebuildModRows();
         UpdateModMoveFlags();
@@ -765,8 +1098,18 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     {
         var detail = new List<string> { mod.Id };
         if (!string.IsNullOrEmpty(mod.Version)) detail.Add($"v{mod.Version}");
+        var warnings = new List<string>();
+        if (!string.IsNullOrWhiteSpace(mod.Unsupported))
+            warnings.Add(_localization.Format("HellForge.Mods.Unsupported", mod.Unsupported));
+        if (mod.Premium?.Count > 0)
+            warnings.Add(_localization.Format("HellForge.Mods.Premium",
+                string.Join(", ", mod.Premium.Select(item => item.Name ?? item.Requirement).Where(name => !string.IsNullOrEmpty(name)))));
+        var build = mod.Build == null ? string.Empty : _localization.Format("HellForge.Mods.Build",
+            _localization["HellForge.Mods.BuildState." + BuildStateKey(mod.Build.State)],
+            mod.Build.Error ?? string.Empty);
         var item = new HellForgeModItem(mod.Id, mod.Name, mod.Group ?? string.Empty, mod.Removable,
-            mod.Enabled, string.Join(" · ", detail), mod.Tags);
+            mod.Enabled, string.Join(" · ", detail), mod.Tags, mod.Description ?? string.Empty,
+            string.Join("\n", warnings), build, string.IsNullOrWhiteSpace(mod.Unsupported));
         item.PropertyChanged += OnModEnabledChanged;
         foreach (var option in mod.Options ?? [])
         {
@@ -848,6 +1191,17 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         RemoveModCommand.NotifyCanExecuteChanged();
     }
 
+    private static string BuildStateKey(string? state) => state switch
+    {
+        "not-built" => "NotBuilt",
+        "built" => "Built",
+        "did-not-compile" => "DidNotCompile",
+        "tools-failed" => "ToolsFailed",
+        "changed" => "Changed",
+        "unreadable" => "Unreadable",
+        _ => "Unknown"
+    };
+
     private static int GroupRank(string? group) => group switch
     {
         "gameplay" => 0,
@@ -907,7 +1261,10 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
     private void NotifySettingsState()
     {
         SaveSettingsCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(HasWarSettings));
+        OnPropertyChanged(nameof(HasSharingSettings));
         OnPropertyChanged(nameof(IsSettingsDirty));
+        OnPropertyChanged(nameof(IsCustomWarSelected));
     }
 
     partial void OnIsBusyChanged(bool value)
@@ -918,6 +1275,10 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         CreateProfileCommand.NotifyCanExecuteChanged();
         StartSessionCommand.NotifyCanExecuteChanged();
         StopSessionCommand.NotifyCanExecuteChanged();
+        AnswerModSyncCommand.NotifyCanExecuteChanged();
+        TrustModSyncModCommand.NotifyCanExecuteChanged();
+        BlockModSyncModCommand.NotifyCanExecuteChanged();
+        OpenModSyncModCommand.NotifyCanExecuteChanged();
         SaveSettingsCommand.NotifyCanExecuteChanged();
         RequestExportLogsCommand.NotifyCanExecuteChanged();
         RequestCrashReportCommand.NotifyCanExecuteChanged();
@@ -926,6 +1287,11 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         RemoveModCommand.NotifyCanExecuteChanged();
         MoveModUpCommand.NotifyCanExecuteChanged();
         MoveModDownCommand.NotifyCanExecuteChanged();
+        SavePlanetCommand.NotifyCanExecuteChanged();
+        ResetPlanetCommand.NotifyCanExecuteChanged();
+        ResetAllPlanetsCommand.NotifyCanExecuteChanged();
+        OpenPlanetCommand.NotifyCanExecuteChanged();
+        RefreshPlanetsCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
         Refresh();
     }
@@ -949,6 +1315,14 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             case nameof(SettingLiveChanges):
             case nameof(ForgeCreditChance):
             case nameof(GameOptions):
+            case nameof(WarServer):
+            case nameof(SettingDealSubfactions):
+            case nameof(SettingDealSeaf):
+            case nameof(WarSeed):
+            case nameof(SettingShareMods):
+            case nameof(SettingListPublic):
+            case nameof(SettingShowEditedStats):
+            case nameof(SettingHostStats):
                 NotifySettingsState();
                 break;
             case nameof(SelectedLogRun):
@@ -1008,8 +1382,22 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SessionNoticeText));
         OnPropertyChanged(nameof(HasRestartIssue));
         OnPropertyChanged(nameof(RestartIssueText));
+        OnPropertyChanged(nameof(HasModSyncOffer));
+        OnPropertyChanged(nameof(ModSyncOffer));
+        OnPropertyChanged(nameof(ModSyncTrustNote));
+        OnPropertyChanged(nameof(HasModSyncTrustNote));
+        OnPropertyChanged(nameof(CanAcceptModSync));
+        OnPropertyChanged(nameof(CanRestartModSync));
+        OnPropertyChanged(nameof(CanDeclineModSync));
+        OnPropertyChanged(nameof(ModSyncSizeText));
+        OnPropertyChanged(nameof(ModSyncProgressText));
+        OnPropertyChanged(nameof(ModSyncHostText));
         StartSessionCommand.NotifyCanExecuteChanged();
         StopSessionCommand.NotifyCanExecuteChanged();
+        AnswerModSyncCommand.NotifyCanExecuteChanged();
+        TrustModSyncModCommand.NotifyCanExecuteChanged();
+        BlockModSyncModCommand.NotifyCanExecuteChanged();
+        OpenModSyncModCommand.NotifyCanExecuteChanged();
         RequestAddModCommand.NotifyCanExecuteChanged();
         RemoveModCommand.NotifyCanExecuteChanged();
         MoveModUpCommand.NotifyCanExecuteChanged();
@@ -1052,8 +1440,9 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
             _cancellation = null;
             IsBusy = false;
             completion.TrySetResult();
-            // 页面加载期间切到模组分区会被忙碌拦截，这里补一次按需加载；失败不再自动重试（避免循环）。
+            // 页面加载期间切到模组/星球分区会被忙碌拦截，这里补一次按需加载；失败不再自动重试（避免循环）。
             if (_error == null && SelectedCategory?.Key == "Mods" && !_modsLoaded) _ = EnsureModsLoadedAsync();
+            if (_error == null && SelectedCategory?.Key == "Planets" && !_planetsLoaded) _ = EnsurePlanetsLoadedAsync();
         }
     }
 
@@ -1066,16 +1455,26 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         RebuildCategories();
         if (_logs != null) ApplyLogs(_logs);
         if (_modsList != null) ApplyMods(_modsList);
+        if (_planets != null)
+        {
+            Planets.Clear();
+            foreach (var planet in _planets.Planets)
+                Planets.Add(new HellForgePlanetItem(planet, PlanetDisplayName(planet), PlanetDetail(planet)));
+            PlanetEditor?.RebuildLabels(_localization);
+            NotifyPlanetsState();
+        }
     }
 
     private void Refresh()
     {
         foreach (var property in new[] { nameof(StatusMessage), nameof(IsInstallationConfigured), nameof(HasStatus),
-            nameof(HasProfiles), nameof(HellForgeVersion), nameof(GameBuild), nameof(EngineVersion),
-            nameof(ModSdkVersion), nameof(NetworkBlock), nameof(CurrentProfile), nameof(IsSessionRunning),
+            nameof(HasProfiles), nameof(HellForgeVersion), nameof(PlayingVersionText), nameof(LanguagesText),
+            nameof(GameBuild), nameof(EngineVersion), nameof(ModSdkVersion), nameof(NetworkBlock), nameof(CurrentProfile), nameof(IsSessionRunning),
             nameof(IsGameCopyReady), nameof(GameCopyText), nameof(SessionText),
             nameof(HasSync), nameof(SyncedModCount), nameof(SyncStatusText), nameof(SyncSourceText),
             nameof(HasSettings), nameof(IsSettingsDirty), nameof(HasLogs),
+            nameof(SupportsPlanets), nameof(HasPlanets), nameof(HasPlanetEditor), nameof(IsPlanetDirty),
+            nameof(HasPlanetProblems), nameof(PlanetProblemsText), nameof(PlanetActiveText), nameof(PlanetWarText), nameof(PlanetSessionText),
             nameof(HasMods), nameof(HasModProblems), nameof(ModProblemsText),
             nameof(HasModlistCode), nameof(ModlistCode), nameof(ModlistText), nameof(ModsDirectory),
             nameof(HasModlistCompareResult), nameof(IsModlistCompareMatch), nameof(IsModlistCompareProblem),
@@ -1091,8 +1490,203 @@ public partial class HellForgeViewModel : ObservableObject, IDisposable
         _cancellation?.Cancel();
         _localization.PropertyChanged -= OnLanguageChanged;
         _session.StateChanged -= OnSessionStateChanged;
+        if (_observedPlanetEditor != null) _observedPlanetEditor.DirtyChanged -= OnPlanetEditorDirtyChanged;
     }
 }
+
+public sealed partial class HellForgePlanetEditor : ObservableObject
+{
+    private readonly string _originalFaction;
+    private readonly bool _originalUseWarSubfactions;
+    private readonly HashSet<string> _originalSubfactions;
+    private readonly Dictionary<string, string> _originalEnemies;
+    private readonly string? _servedEnemy;
+    private readonly bool _isHomeWorld;
+    private readonly bool _isSuperEarth;
+    private bool _suppressDirty;
+
+    public event EventHandler? DirtyChanged;
+
+    public HellForgePlanetEditor(HellForgePlanetInfo? original, HellForgePlanetCatalogue catalogue,
+        string selector, UiLocalization localization)
+    {
+        Selector = selector;
+        Name = original?.Name ?? selector;
+        Index = original?.Index ?? (int.TryParse(selector, out var parsed) ? parsed : null);
+        _isSuperEarth = Index == 0 || string.Equals(Name, "Super Earth", StringComparison.OrdinalIgnoreCase);
+        _isHomeWorld = _isSuperEarth || string.Equals(Name, "Cyberstan", StringComparison.OrdinalIgnoreCase);
+        HasOverride = original != null;
+        _originalFaction = original?.Faction ?? "war";
+        _originalUseWarSubfactions = original?.UsesWarSubfactions ?? true;
+        _originalSubfactions = original?.SubfactionKeys.ToHashSet() ?? new HashSet<string>();
+        _originalEnemies = original?.Enemies.ToDictionary(pair => pair.Key, pair => pair.Value) ?? new Dictionary<string, string>();
+        _servedEnemy = original?.Served?.Enemy;
+        foreach (var entry in catalogue.Subfactions)
+        {
+            var item = new HellForgePlanetSubfactionItem(entry.Key, entry.Name ?? entry.Key, entry.Faction ?? "any",
+                _originalSubfactions.Contains(entry.Key));
+            item.PropertyChanged += OnSubfactionChanged;
+            Subfactions.Add(item);
+        }
+        foreach (var entry in catalogue.Enemies)
+        {
+            var item = new HellForgePlanetEnemyItem(entry.Key, entry.Name ?? entry.Key, entry.Faction ?? "any");
+            item.PropertyChanged += OnEnemyChanged;
+            Enemies.Add(item);
+        }
+        RebuildLabels(localization);
+        UseWarSubfactions = _originalUseWarSubfactions;
+        UpdateVisibility();
+    }
+
+    public string Selector { get; }
+    public string Name { get; }
+    public int? Index { get; }
+    public bool HasOverride { get; }
+    public ObservableCollection<HellForgeChoice> FactionOptions { get; } = new();
+    public ObservableCollection<HellForgeChoice> EnemyModeOptions { get; } = new();
+    public ObservableCollection<HellForgePlanetSubfactionItem> Subfactions { get; } = new();
+    public ObservableCollection<HellForgePlanetEnemyItem> Enemies { get; } = new();
+    [ObservableProperty] private HellForgeChoice? _selectedFaction;
+    [ObservableProperty] private bool _useWarSubfactions;
+
+    public bool CanEditFaction => !_isHomeWorld;
+    public bool CanEditSubfactions => !_isSuperEarth;
+    public bool CanEditEnemies => !_isSuperEarth;
+    public string? EffectiveFaction => SelectedFaction?.Value is { } faction && faction != "war" ? faction : _servedEnemy;
+    public bool HasSubfactionChoices => CanEditSubfactions && !UseWarSubfactions && !string.IsNullOrEmpty(EffectiveFaction)
+        && Subfactions.Any(item => item.IsVisible);
+    public bool HasEnemyChoices => CanEditEnemies && !string.IsNullOrEmpty(EffectiveFaction)
+        && Enemies.Any(item => item.IsVisible);
+    public bool ShowChooseFactionHint => CanEditSubfactions && string.IsNullOrEmpty(EffectiveFaction);
+
+    public bool IsDirty => SelectedFaction != null && (
+        SelectedFaction.Value != _originalFaction
+        || UseWarSubfactions != _originalUseWarSubfactions
+        || (!UseWarSubfactions && !_originalSubfactions.SetEquals(Subfactions.Where(item => item.IsVisible && item.IsChecked).Select(item => item.Key)))
+        || Enemies.Where(item => item.IsVisible).Any(item => item.SelectedMode?.Value != _originalEnemies.GetValueOrDefault(item.Key, "normal")));
+
+    public IReadOnlyList<string>? SelectedSubfactions => !CanEditSubfactions || UseWarSubfactions
+        ? null
+        : Subfactions.Where(item => item.IsVisible && item.IsChecked).Select(item => item.Key).ToArray();
+
+    public IReadOnlyDictionary<string, string> EnemyOverrides
+    {
+        get
+        {
+            var result = new Dictionary<string, string>(_originalEnemies);
+            if (!CanEditEnemies) return result;
+            foreach (var item in Enemies.Where(item => item.IsVisible))
+            {
+                result[item.Key] = item.SelectedMode?.Value ?? "normal";
+            }
+            return result;
+        }
+    }
+
+    public void RebuildLabels(UiLocalization localization)
+    {
+        var faction = SelectedFaction?.Value ?? _originalFaction;
+        var modes = Enemies.Select(item => item.SelectedMode?.Value).ToArray();
+        _suppressDirty = true;
+        try
+        {
+            FactionOptions.Clear();
+            FactionOptions.Add(new HellForgeChoice("war", localization["HellForge.Planets.Faction.War"]));
+            foreach (var key in new[] { "terminids", "automatons", "illuminate" })
+                FactionOptions.Add(new HellForgeChoice(key, localization["HellForge.Planets.Faction." + Capitalize(key)]));
+            EnemyModeOptions.Clear();
+            foreach (var value in new[] { "normal", "surge", "none" })
+                EnemyModeOptions.Add(new HellForgeChoice(value, localization["HellForge.Planets.EnemyMode." + Capitalize(value)]));
+            SelectedFaction = FactionOptions.FirstOrDefault(option => option.Value == faction) ?? FactionOptions[0];
+            for (var i = 0; i < Enemies.Count; i++)
+                Enemies[i].SelectedMode = EnemyModeOptions.FirstOrDefault(option => option.Value == modes[i])
+                    ?? EnemyModeOptions.FirstOrDefault(option => option.Value == _originalEnemies.GetValueOrDefault(Enemies[i].Key, "normal"))
+                    ?? EnemyModeOptions[0];
+        }
+        finally { _suppressDirty = false; }
+        UpdateVisibility();
+    }
+
+    partial void OnSelectedFactionChanged(HellForgeChoice? value)
+    {
+        UpdateVisibility();
+        RaiseDirtyChanged();
+    }
+
+    partial void OnUseWarSubfactionsChanged(bool value)
+    {
+        OnPropertyChanged(nameof(HasSubfactionChoices));
+        RaiseDirtyChanged();
+    }
+
+    private void OnSubfactionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(HellForgePlanetSubfactionItem.IsChecked)) RaiseDirtyChanged();
+    }
+
+    private void OnEnemyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(HellForgePlanetEnemyItem.SelectedMode)) RaiseDirtyChanged();
+    }
+
+    private void UpdateVisibility()
+    {
+        var faction = EffectiveFaction;
+        foreach (var item in Subfactions)
+            item.IsVisible = !string.IsNullOrEmpty(faction) && (item.Faction == faction || item.Faction == "any");
+        foreach (var item in Enemies)
+            item.IsVisible = !string.IsNullOrEmpty(faction) && item.Faction == faction;
+        OnPropertyChanged(nameof(HasSubfactionChoices));
+        OnPropertyChanged(nameof(HasEnemyChoices));
+        OnPropertyChanged(nameof(ShowChooseFactionHint));
+        OnPropertyChanged(nameof(CanEditFaction));
+        OnPropertyChanged(nameof(CanEditSubfactions));
+        OnPropertyChanged(nameof(CanEditEnemies));
+    }
+
+    private void RaiseDirtyChanged()
+    {
+        if (!_suppressDirty) DirtyChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static string Capitalize(string value) => char.ToUpperInvariant(value[0]) + value[1..];
+}
+
+public sealed partial class HellForgePlanetSubfactionItem : ObservableObject
+{
+    public HellForgePlanetSubfactionItem(string key, string name, string faction, bool isChecked)
+    {
+        Key = key;
+        Name = name;
+        Faction = faction;
+        _isChecked = isChecked;
+    }
+
+    public string Key { get; }
+    public string Name { get; }
+    public string Faction { get; }
+    public bool IsVisible { get; set; }
+    [ObservableProperty] private bool _isChecked;
+}
+
+public sealed partial class HellForgePlanetEnemyItem : ObservableObject
+{
+    public HellForgePlanetEnemyItem(string key, string name, string faction)
+    {
+        Key = key;
+        Name = name;
+        Faction = faction;
+    }
+
+    public string Key { get; }
+    public string Name { get; }
+    public string Faction { get; }
+    public bool IsVisible { get; set; }
+    [ObservableProperty] private HellForgeChoice? _selectedMode;
+}
+
+public sealed record HellForgePlanetItem(HellForgePlanetInfo Info, string DisplayName, string DetailText);
 
 /// <summary>档案列表行；列表整体重建，行本身无需通知。</summary>
 public sealed class HellForgeProfileItem(string name, string? template, bool isSelected)
@@ -1125,13 +1719,18 @@ public sealed record HellForgeModGroupHeader(string Title, int Count);
 public sealed partial class HellForgeModItem : ObservableObject
 {
     public HellForgeModItem(string id, string name, string group, bool removable, bool enabled,
-        string detailText, IReadOnlyList<string> tags)
+        string detailText, IReadOnlyList<string> tags, string description = "", string warningText = "", string buildText = "",
+        bool canToggle = true)
     {
         Id = id;
         Name = name;
         Group = group;
         Removable = removable;
         DetailText = detailText;
+        Description = description;
+        WarningText = warningText;
+        BuildText = buildText;
+        CanToggle = canToggle;
         Tags = tags.Select(tag => tag.ToUpperInvariant()).ToArray();
         _enabled = enabled;
         AppliedEnabled = enabled;
@@ -1143,6 +1742,13 @@ public sealed partial class HellForgeModItem : ObservableObject
     public string Group { get; }
     public bool Removable { get; }
     public string DetailText { get; }
+    public string Description { get; }
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+    public string WarningText { get; }
+    public bool HasWarning => !string.IsNullOrWhiteSpace(WarningText);
+    public string BuildText { get; }
+    public bool HasBuild => !string.IsNullOrWhiteSpace(BuildText);
+    public bool CanToggle { get; }
     /// <summary>CLI tags（大写，如 BUNDLED / CODE / DATA / ZIP / PACK / LUA）。</summary>
     public IReadOnlyList<string> Tags { get; }
     public bool HasTags => Tags.Count > 0;

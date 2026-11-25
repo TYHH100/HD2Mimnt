@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +18,7 @@ public class HellForgeService
 
     private readonly SettingsService _settingsService;
     private readonly ILogger<HellForgeService>? _logger;
+    private readonly ConcurrentDictionary<string, bool> _commandSupport = new();
 
     public HellForgeService(SettingsService settingsService, ILogger<HellForgeService>? logger = null)
     {
@@ -108,6 +111,63 @@ public class HellForgeService
         return RunJsonAsync<HellForgeLauncherSettings>(command.ToArray(), cancellationToken);
     }
 
+    /// <summary>读取当前会话的 MOD SYNC 提示；CLI 不支持时返回 null，供旧版保留版本兼容。</summary>
+    public async Task<HellForgeModSyncOfferResult?> GetModSyncOfferAsync(CancellationToken cancellationToken = default)
+        => await SupportsCommandAsync("mod-sync-offer", cancellationToken)
+            ? await RunJsonAsync<HellForgeModSyncOfferResult>(["mod-sync-offer"], cancellationToken)
+            : null;
+
+    /// <summary>应答当前 MOD SYNC 提示；version 必须与刚显示的提示一致，trust/block/open 还需 modId。</summary>
+    public async Task<HellForgeModSyncOfferResult> AnswerModSyncOfferAsync(string answer, int version,
+        string? modId = null, CancellationToken cancellationToken = default)
+    {
+        var command = new List<string> { "mod-sync-offer", "--answer", answer, "--version", version.ToString(CultureInfo.InvariantCulture) };
+        if (modId != null) { command.Add("--mod"); command.Add(modId); }
+        return await RunJsonAsync<HellForgeModSyncOfferResult>(command.ToArray(), cancellationToken);
+    }
+
+    /// <summary>读取安装版本与当前实际使用的保留版本；旧版 CLI 不支持时返回 null。</summary>
+    public async Task<HellForgeVersions?> GetVersionsAsync(CancellationToken cancellationToken = default)
+        => await SupportsCommandAsync("versions", cancellationToken)
+            ? await RunJsonAsync<HellForgeVersions>(["versions"], cancellationToken)
+            : null;
+
+    /// <summary>读取自定义星球覆盖与完整阵营目录；旧版 CLI 不支持时返回 null。</summary>
+    public async Task<HellForgePlanetsResult?> GetPlanetsAsync(CancellationToken cancellationToken = default)
+        => await SupportsCommandAsync("planets", cancellationToken)
+            ? await RunJsonAsync<HellForgePlanetsResult>(["planets", "--catalogue", "yes"], cancellationToken)
+            : null;
+
+    /// <summary>修改一个星球；subfactions 为 null 表示沿用战争，空集合表示无子阵营，enemies 会与现有覆盖合并。</summary>
+    public Task<HellForgePlanetsResult> UpdatePlanetAsync(string planet, string faction,
+        IReadOnlyList<string>? subfactions, IReadOnlyDictionary<string, string> enemies,
+        bool reset = false, CancellationToken cancellationToken = default)
+    {
+        var command = new List<string> { "planets", "--planet", planet, "--catalogue", "yes" };
+        if (reset)
+        {
+            command.Add("--reset");
+            command.Add("yes");
+        }
+        else
+        {
+            command.Add("--faction");
+            command.Add(faction);
+            command.Add("--subfactions");
+            command.Add(subfactions == null ? "war" : subfactions.Count == 0 ? "none" : string.Join(",", subfactions));
+            if (enemies.Count > 0)
+            {
+                command.Add("--enemies");
+                command.Add(string.Join(",", enemies.Select(pair => $"{pair.Key}={pair.Value}")));
+            }
+        }
+        return RunJsonAsync<HellForgePlanetsResult>(command.ToArray(), cancellationToken);
+    }
+
+    /// <summary>清空所有自定义星球覆盖。</summary>
+    public Task<HellForgePlanetsResult> ResetAllPlanetsAsync(CancellationToken cancellationToken = default)
+        => RunJsonAsync<HellForgePlanetsResult>(["planets", "--reset-all", "yes", "--catalogue", "yes"], cancellationToken);
+
     /// <summary>会话日志列表（logs）：运行目录，最新在前；可选地列出某个运行目录下的文件。</summary>
     public Task<HellForgeLogsResult> GetLogsAsync(string? runId = null, CancellationToken cancellationToken = default)
     {
@@ -170,6 +230,41 @@ public class HellForgeService
         startInfo.ArgumentList.Add("--install");
         startInfo.ArgumentList.Add(root);
         return startInfo;
+    }
+
+    public async Task<bool> SupportsCommandAsync(string command, CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCliPath(out var cli)) return false;
+        var key = $"{cli}\n{File.GetLastWriteTimeUtc(cli).Ticks}";
+        if (_commandSupport.TryGetValue(key, out var supported)) return supported;
+
+        var startInfo = CreateCliStartInfo("--help");
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("无法启动 HellForge CLI 进程。");
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(TimeSpan.FromSeconds(10));
+        try
+        {
+            await process.WaitForExitAsync(timeoutSource.Token);
+            var output = await outputTask;
+            await errorTask;
+            supported = process.ExitCode == 0 && output.Split('\n')
+                .Any(line => line.TrimStart().StartsWith(command + " ", StringComparison.Ordinal)
+                    || string.Equals(line.Trim(), command, StringComparison.Ordinal));
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(entireProcessTree: true); }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException) { }
+            try { await process.WaitForExitAsync(CancellationToken.None); }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            if (cancellationToken.IsCancellationRequested) throw;
+            supported = false;
+        }
+        _commandSupport[key] = supported;
+        return supported;
     }
 
     private async Task<T> RunJsonAsync<T>(string[] command, CancellationToken cancellationToken, TimeSpan? timeout = null)

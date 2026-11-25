@@ -68,6 +68,57 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task HellForge_Settings_ShouldHandleModernWarAndSharingWithoutFalseDirtyState()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        using var fixture = HellForgeCliFixture.Create();
+        fixture.EnableModernCli();
+        File.WriteAllText(Path.Combine(fixture.Root, "launcher-settings.json"), """
+            {"profile":"default","war":"hellforge","warServer":"https://war.hf-mod.com","localPlayFab":true,
+             "multiplayer":true,"engineLog":true,"crashDump":false,"sandbox":true,"steamUdp":true,"liveChanges":false,
+             "dealSubfactions":true,"dealSeaf":true,"warSeed":0,"shareMods":true,"listPublic":true,
+             "showEditedStats":false,"hostStats":false}
+            """);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            Layout();
+            main.SettingsViewModel.HellForgePath = fixture.Root;
+            main.SettingsViewModel.IsOfficialGameSource = false;
+            main.SettingsViewModel.SelectedCategory = "游戏";
+            await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+            var hf = main.HellForgeViewModel!;
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            hf.SelectedCategory = hf.Categories.Single(category => category.Key == "Settings");
+            Layout();
+            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+
+            Assert.Equal("hellforge", hf.SelectedWar!.Value);
+            Assert.Contains(hf.WarOptions, option => option.Value == "custom");
+            Assert.False(hf.IsSettingsDirty);
+            Assert.StartsWith("0.5.0-beta", hf.PlayingVersionText);
+            Assert.Contains("chinese", hf.LanguagesText);
+            Assert.True(view.FindControl<TextBox>("WarServerInput")!.IsEffectivelyVisible);
+            view.FindControl<Expander>("HellForgeAdvancedExpander")!.IsExpanded = true;
+            Layout();
+            Assert.True(view.FindControl<ToggleSwitch>("ShareModsToggle")!.IsEffectivelyVisible);
+
+            hf.SettingShareMods = false;
+            hf.WarSeed = 42;
+            Layout();
+            await hf.SaveSettingsCommand.ExecuteAsync(null);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.Contains("--war-seed 42", fixture.ReadArgs());
+            Assert.Contains("--share-mods no", fixture.ReadArgs());
+            Assert.False(hf.IsSettingsDirty);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
     public async Task HellForge_Logs_ShouldListRunsAndExportZipWithOptionalDump()
     {
         await using var scope = await UiScope.CreateAsync();

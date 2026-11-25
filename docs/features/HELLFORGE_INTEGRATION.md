@@ -12,10 +12,12 @@
 | ③ | 会话管理：`play --wait yes` 事件流进度、停止、库页启动接线 | 已完成（2026-11-11） |
 | ② | 模组同步：HellForge 模式下部署改走 `mods\` + CLI 模组命令 | 已完成（2026-11-12） |
 | ④ | 更多设置（war/multiplayer/sandbox 等）、日志页 | 已完成（2026-11-12，设置留在专页、日志为专页内卡片） |
+| ⑦ | HellForge 0.5 兼容：新战争/分享设置、版本与语言状态、源码模组状态、外部 MOD SYNC 提示 | 已完成（2026-11-25） |
+| ⑧ | 自定义星球专页：按名称/编号打开，编辑阵营、子阵营与敌人组，支持单星球/全部重置 | 已完成（2026-11-26） |
 
 阶段编号保留最初规划顺序；实际先做了 ③，因为用户反馈“点启动没反应”实为约 3 分钟准备期无进度显示。
 
-真实验证环境：`G:\App\Game\HellForge`（0.4.0-beta，`ready.gameCopy=true`）；参考源码仓库 `G:\Temp\Githud\HellForge`（只读参考，不复制代码）。
+真实验证环境：`G:\App\Game\HellForge`（2026-11-25 实测 `0.5.0-beta (806685d)`、Engine `0.1.58`、Mod SDK `20`，`ready.gameCopy=true`）；参考源码仓库 `G:\Temp\Githud\HellForge`（只读参考，不复制代码）。0.5 新增能力并未全部接入本管理器，范围与残留见阶段⑦与阶段⑧。
 
 ## GPL 边界（必须遵守）
 
@@ -33,13 +35,13 @@ UI 只经 Application 服务访问业务（仓库常驻规则）。
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/HD2Mimnt.Application/Services/HellForgeService.cs` | CLI 封装：`TryGetInstallationRoot` / `TryGetCliPath` / `CreateCliStartInfo`（自动附 `--install`）、`GetPlayDryRunAsync`（`play --dry-run yes`，返回会话运行器与完整参数且不启动程序；MOD SYNC 自动重启用）、`GetStatusAsync`、`GetProfilesAsync`、`CreateProfileAsync`、`SelectProfileAsync`（`settings --profile`）、`StopSessionAsync`（`stop --wait yes`，90 秒超时）；模组命令 `GetModsAsync` / `AddModAsync`（`mod-add --file`，10 分钟超时）/ `RemoveModAsync` / `SwitchModAsync` / `OrderModsAsync` / `SetPackOptionAsync`；设置与日志 `GetSettingsAsync` / `UpdateSettingsAsync`（键不带 `--`，自动拼 `settings --key value`）/ `GetLogsAsync` / `ExportLogsAsync`（导出前删同路径旧文件，CLI 拒绝覆盖；5 分钟）/ `CreateCrashReportAsync`（同上；`--dump yes` 可选；10 分钟）。常规命令 30 秒超时，超时杀进程树；stderr 作为错误信息抛出。 |
+| `src/HD2Mimnt.Application/Services/HellForgeService.cs` | CLI 封装：`TryGetInstallationRoot` / `TryGetCliPath` / `CreateCliStartInfo`（自动附 `--install`）、`GetPlayDryRunAsync`（`play --dry-run yes`，返回会话运行器与完整参数且不启动程序；MOD SYNC 自动重启用）、`GetStatusAsync`、`GetProfilesAsync`、`CreateProfileAsync`、`SelectProfileAsync`（`settings --profile`）、`StopSessionAsync`（`stop --wait yes`，90 秒超时）；模组命令 `GetModsAsync` / `AddModAsync`（`mod-add --file`，10 分钟超时）/ `RemoveModAsync` / `SwitchModAsync` / `OrderModsAsync` / `SetPackOptionAsync`；设置与日志 `GetSettingsAsync` / `UpdateSettingsAsync`（键不带 `--`，自动拼 `settings --key value`）/ `GetLogsAsync` / `ExportLogsAsync`（导出前删同路径旧文件，CLI 拒绝覆盖；5 分钟）/ `CreateCrashReportAsync`（同上；`--dump yes` 可选；10 分钟）。0.5 增补 `GetVersionsAsync`、`GetModSyncOfferAsync` / `AnswerModSyncOfferAsync`、`GetPlanetsAsync` / `UpdatePlanetAsync` / `ResetAllPlanetsAsync`，并用 `--help` 能力探测兼容保留的旧版 CLI；探测缓存按 CLI 路径与文件时间失效。常规命令 30 秒超时，超时杀进程树；stderr 作为错误信息抛出。 |
 | `src/HD2Mimnt.Application/Services/HellForgeModExporter.cs` | 库模组→HellForge 形态导出（直接写入调用方给的目标目录，不写 `game\data`）。`TryQualifyAsPack`：干净 V1（完整 Include 映射、无根补丁、Include 目录齐全）透传为 cosmetic pack（**按 HD2Mimnt 清单合成** `manifest.json`（`Guid`/`Name`/`Options`/`SubOptions`/`Include`/`Image`，只写导出目录里真实存在的图片）+ 全部 Include 目录 + 预览图，剔除 LuaExtracted/备份）；其余扁平化为 `hellforge-mod.json`（id=`hd2mimnt.<modId N>`、name≤80、version≤32、`gameplay` 按已选补丁的资源类型判定：全为视觉资源才 `false`，否则 `true`）+ `data/`，用 `CollectSelectedFiles`+`BuildFiles` 按 bundle 从 0 重编号保住有效顺序。文件写入经可插拔的 `HellForgeFilePlace`（默认流式复制，同步传入按部署方式的写入器）；`ComputeFingerprint`（stat 级：pack 与选项无关、flat 含选项快照）供跳过未变化；`ResolveModId` 复现 HellForge 的 id 规则（`hd2mimnt.<N>` / `pack.<Guid>` / `pack.<slug>`）用于目录命名。 |
 | `src/HD2Mimnt.Application/Services/HellForgeModFilePlacer.cs` | 按设置中的部署方式把库文件放进 `mods\`：Copy=流式复制（只复制一次），HardLink/SymbolicLink 调 `IDeploymentMethod`；写入前 `CheckCompatibilityAsync` 预检，不可用（跨卷、无建链权限）回退复制并给出警告；单个文件建链失败同样回退并只提示一次。 |
 | `src/HD2Mimnt.Application/Services/HellForgeModSyncService.cs` | 同步编排：`SyncProfileAsync`（会话运行拦截；加载器/IAS 跳过并记录原因；仅启用集；指纹跳过未变化；**按部署方式直接写 `<安装根>\mods\<id>\`，不调 `mod-add`**：点前缀临时目录导出→整体改名（目录名=模组 id，目录内 `.hd2mimnt-mod.json` 记录归属；同 id 旧目录与历史 `id-N` 遗留副本先清；开局清点前缀临时目录；同 Guid 的两个外观包后一个降级扁平导出，避免 HellForge 判重复）；**开关/选项/顺序本地读 `mods\hellforge-mods.json` 比对**，启用与 pack 选项一次原子写入该文件，仅 `order` 走 `mod-order`；只有真的导入了才跑一次 `mods` 校验识别并按目录校正 id）、`RemoveSyncedAsync`（清理=删本管理器目录 + 清状态条目，不跑 `mod-remove`）、`GetStatusAsync`。归属与指纹存 AppData `hellforge-sync.json`（按安装根，原子写），顺带清理旧版导出缓存 `Cache\HellForgeSync`。 |
 | `src/HD2Mimnt.Application/Services/HellForgeModsFile.cs` | `mods\hellforge-mods.json` 的本地读写（上游 `docs/external-launchers.md` 明确允许外部启动器写，临时文件+改名）：`disabled`/`order`/`packs.off`/`packs.sub`，大小写不敏感读取、未知字段原样保留、内容没变不落盘；`HellForgeLocalMods.Scan` 不启 CLI 就从 `mods\` 读 id（`hellforge-mod.json` 的 `id` 或 `manifest.json` 的 `Guid`/slug）。 |
-| `src/HD2Mimnt.Application/Services/HellForgeSessionService.cs` | 单例会话观察：`StartAsync` 启动 `play --wait yes`，等到 `started` 事件返回，后台逐行解析事件流；`State`（锁保护快照）、`StateChanged`、`SessionStarted` 事件；`StopAsync` = stop + 校准（并抑制自动重启）；`RefreshAsync` 用 `status` 校准外部启动的会话（本管理器观察中的会话以事件流为准）；**MOD SYNC 自动重启**：ended 事件的 `result.json` 含 `restart=mod-sync` 时，用 `play --dry-run` 的命令行启动会话运行器并追加 `--mod-sync`，轮询 `logs\play-session.json` 找到新 run，再按 `result.json` 更新进度；新一轮仍要求重启则继续，最多 2 次；失败原因写入 `RestartIssue`/`RestartIssueDetail`。`Dispose` 只杀 play 观察进程，**不停止游戏**（重启的会话运行器同样保持运行）。 |
-| `src/HD2Mimnt.Application/Services/HellForgeModels.cs` | CLI DTO（`HellForgeStatus`、`HellForgeModsList`/`HellForgeModInfo`/`HellForgeModOption` 及 mod-add/remove/switch/order/pack 结果、启动设置 `HellForgeLauncherSettings`、日志 `HellForgeLogsResult`/`HellForgeLogRun`/`HellForgeLogFile`/`HellForgeLogExportResult`/`HellForgeCrashReportResult`）+ 进度快照 `HellForgeSessionProgress` / 枚举 `HellForgeSessionPhase`（Idle/Preparing/AwaitingNetworkBlock/AwaitingSteamBroker/Patching/Running/Ended/Failed）。注意 DTO `HellForgeSessionState`（status.session）与进度快照同名不同义，勿混淆。 |
+| `src/HD2Mimnt.Application/Services/HellForgeSessionService.cs` | 单例会话观察：`StartAsync` 启动 `play --wait yes`，等到 `started` 事件返回，后台逐行解析事件流；`State`（锁保护快照）、`StateChanged`、`SessionStarted` 事件；`StopAsync` = stop + 校准（并抑制自动重启）；`RefreshAsync` 用 `status` 校准外部启动的会话（本管理器观察中的会话以事件流为准）；**MOD SYNC 自动重启**：ended 事件的 `result.json` 含 `restart=mod-sync` 时，用 `play --dry-run` 的命令行启动会话运行器并追加 `--mod-sync`，轮询 `logs\play-session.json` 找到新 run，再按 `result.json` 更新进度；新一轮仍要求重启则继续，最多 2 次；失败原因写入 `RestartIssue`/`RestartIssueDetail`。0.5 起后台轮询 `mod-sync-offer`，把游戏外置提示放进 `State.ModSyncOffer`，`AnswerModSyncOfferAsync` 带提示版本与模组 id 应答；游戏内编辑器自己显示时不展示外部提示。`Dispose` 只杀 play 观察进程，**不停止游戏**（重启的会话运行器同样保持运行）。 |
+| `src/HD2Mimnt.Application/Services/HellForgeModels.cs` | CLI DTO（`HellForgeStatus`、`HellForgeModsList`/`HellForgeModInfo`/`HellForgeModOption` 及 mod-add/remove/switch/order/pack 结果、启动设置 `HellForgeLauncherSettings`、日志 `HellForgeLogsResult`/`HellForgeLogRun`/`HellForgeLogFile`/`HellForgeLogExportResult`/`HellForgeCrashReportResult`）+ 进度快照 `HellForgeSessionProgress` / 枚举 `HellForgeSessionPhase`（Idle/Preparing/AwaitingNetworkBlock/AwaitingSteamBroker/Patching/Running/Ended/Failed）。0.5 增补 `languages`/`linuxNamespace`、`warServer`/战争生成/分享设置、模组 `unsupported`/`premium`/`url`/`icon`/`build`、`versions`、`mod-sync-offer` 与 `planets` DTO（`subfactions` 用 `JsonElement` 兼容字符串 `war` 与数组）。注意 DTO `HellForgeSessionState`（status.session）与进度快照同名不同义，勿混淆。 |
 | `src/HD2Mimnt.Application/Services/GameDetectionService.cs` | `LaunchGameAsync`：HF 模式先 `--help` 探测 CLI 是否支持 `play`（输出含以 `play ` 开头的行）；支持则 `_sessionService.StartAsync`，否则回退打开 `HellForge.exe` 启动器。官方模式仍走 `steam://rungameid/553850`。 |
 | `src/HD2Mimnt.Application/Services/GameInstallationPaths.cs` | `TryResolveHellForgeRoot`（识别 `hellforge-install.json` 标记）、`ResolveHellForgeGameDirectory`（`<root>\game`）。 |
 | `src/HD2Mimnt.Application/Services/SettingsService.cs` | `GetGameInstallationMode()`（键 `SettingKeys.GameMode`，缺省 Official）、`GetEffectiveGamePath()`：HF 模式解析为 `<root>\game`。HF 模式下部署不再走此路径写 `game\data`，而由 `LibraryViewModel` 改路由到 `HellForgeModSyncService`（见下）。 |
@@ -49,15 +51,15 @@ UI 只经 Application 服务访问业务（仓库常驻规则）。
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/HD2Mimnt.UI/ViewModels/HellForgeViewModel.cs` | 专页 VM：左侧分类（概览/会话/档案/模组/设置/日志，默认档案）与分区显隐；状态卡片、档案列表/切换/创建（名称规则 `^[a-z0-9-]{1,32}$`）、会话进度（`SessionSteps` 5 步、`StartSessionCommand` / `StopSessionCommand`、问题与提示文本）、模组同步只读状态（`HasSync`/`SyncedModCount`/`SyncStatusText`/`SyncSourceText`，注入 `HellForgeModSyncService`/`ProfileService`，随 `LoadAsync` 刷新）、模组分区（首次进入按需读 CLI `mods`，`HellForgeMods` 列表 + `AddModAsync` 经 `mod-add` 直写 HF `mods\`，会话运行中禁用）、启动设置编辑（`WarOptions`/`StrangersOptions` 本地化选项、各开关、`ForgeCreditChance`、`GameOptions`；`IsSettingsDirty` 与快照比较，`SaveSettingsCommand` 只发差异键，成功后用返回的 settings 重建快照）、日志（`LogRuns`/`HasLogs`/`SelectedLogRun`，`ExportLogsRequested`/`CrashReportRequested` 事件交给视图选路径，`ExportLogsAsync`/`CreateCrashReportAsync` 完成后弹通知）。`OperateAsync` + `Completion` TCS 支持取消与关闭等待；`StateChanged` 经 Dispatcher marshalling 更新步骤。联机模组码：`ModlistCompareInput` + `CompareModlistCommand` 只做 8 位十六进制码的一致性比对（一致/不一致/无效/本机无码），`ReportModlistCopied` 给剪贴板反馈；共享游戏性模组开关/移除后 `ModsRefresh` 后台重读 `mods` 更新码（版本号只保留最新结果）。会话卡显示 `Restarting`（自动重启提示）与 `RestartIssue`（失败原因）；自动重启期间抑制“会话已结束”吐司、禁用启动按钮。 |
-| `src/HD2Mimnt.UI/Views/HellForgeView.axaml(.cs)` | 配置文件页形式的两栏布局：左侧 240px 整高卡片（标题 + `side-nav` 图标分类按钮 + 页面说明），右侧页头卡片（分类名/刷新/取消）+ 进度 + 各分类面板。概览/会话/档案/模组/设置/日志各自成区：状态卡、`SessionStepBar` 步骤条（`step-circle` 样式类 done/active/failed）、档案列表与新建对话框覆盖层、模组分区（`HellForgeModList` 按分组标题混排、行内开关/上下移/移除、tags 徽标、外观包选项 Expander、联机模组码；“打开 mods 目录”“添加文件夹…”“添加模组…”“刷新列表”，问题目录警告）、启动设置卡（war ComboBox、启动参数、6 个 ToggleSwitch、高级 Expander：陌生人联机/会话中改模组/Forge Credits）、日志卡（`LogRunList`、保存日志/崩溃报告按钮、包含转储勾选）。代码后置用 `DataContextChanged` + Attached 订阅导出与添加模组事件，用 `StorageProvider` 选 zip 路径或模组文件后回调 VM（与 `LogView` 同一模式）；联机模组码卡在模组分区**最上方**（码 + 复制 + 输入好友码比对），复制经视图剪贴板。 |
+| `src/HD2Mimnt.UI/ViewModels/HellForgeViewModel.cs` | 专页 VM：左侧分类（概览/会话/档案/模组/自定义星球/设置/日志，默认档案；星球分类仅当前 CLI 支持 `planets` 时出现）与分区显隐；状态卡片、档案列表/切换/创建（名称规则 `^[a-z0-9-]{1,32}$`）、会话进度（`SessionSteps` 5 步、`StartSessionCommand` / `StopSessionCommand`、问题与提示文本）、模组同步只读状态（`HasSync`/`SyncedModCount`/`SyncStatusText`/`SyncSourceText`，注入 `HellForgeModSyncService`/`ProfileService`，随 `LoadAsync` 刷新）、模组分区（首次进入按需读 CLI `mods`，`HellForgeMods` 列表 + `AddModAsync` 经 `mod-add` 直写 HF `mods\`，会话运行中禁用）、启动设置编辑（`WarOptions`/`StrangersOptions` 本地化选项、各开关、`ForgeCreditChance`、`GameOptions`；`IsSettingsDirty` 与快照比较，`SaveSettingsCommand` 只发差异键，成功后用返回的 settings 重建快照）、日志（`LogRuns`/`HasLogs`/`SelectedLogRun`，`ExportLogsRequested`/`CrashReportRequested` 事件交给视图选路径，`ExportLogsAsync`/`CreateCrashReportAsync` 完成后弹通知）。`OperateAsync` + `Completion` TCS 支持取消与关闭等待；`StateChanged` 经 Dispatcher marshalling 更新步骤。联机模组码：`ModlistCompareInput` + `CompareModlistCommand` 只做 8 位十六进制码的一致性比对（一致/不一致/无效/本机无码），`ReportModlistCopied` 给剪贴板反馈；共享游戏性模组开关/移除后 `ModsRefresh` 后台重读 `mods` 更新码（版本号只保留最新结果）。会话卡显示 `Restarting`（自动重启提示）与 `RestartIssue`（失败原因）；自动重启期间抑制“会话已结束”吐司、禁用启动按钮。0.5 增补：概览显示 `versions.playing` 与 `status.languages`；战争选项支持 `hellforge`/`custom`（仅 CLI 返回新设置字段时显示），设置卡编辑 `warServer`/`dealSubfactions`/`dealSeaf`/`warSeed` 与 `shareMods`/`listPublic`/`showEditedStats`/`hostStats`；模组列表隐藏 `local-stats`，显示 `unsupported`/高级内容/源码构建状态与错误；会话卡显示外部 MOD SYNC 提示、下载进度和逐模组信任/阻止/打开操作，信任前必须确认完整 `trustWarning` 与 `trustNote`。自定义星球分区首次进入按需读取 `planets --catalogue yes`，以名称/编号打开草稿或已修改星球，编辑阵营/子阵营/敌人组并经 CLI 保存、重置。 |
+| `src/HD2Mimnt.UI/Views/HellForgeView.axaml(.cs)` | 配置文件页形式的两栏布局：左侧 240px 整高卡片（标题 + `side-nav` 图标分类按钮 + 页面说明），右侧页头卡片（分类名/刷新/取消）+ 进度 + 各分类面板。概览/会话/档案/模组/自定义星球/设置/日志各自成区：状态卡、`SessionStepBar` 步骤条（`step-circle` 样式类 done/active/failed）、档案列表与新建对话框覆盖层、模组分区（`HellForgeModList` 按分组标题混排、行内开关/上下移/移除、tags 徽标、外观包选项 Expander、联机模组码；“打开 mods 目录”“添加文件夹…”“添加模组…”“刷新列表”，问题目录警告）、启动设置卡（war ComboBox、启动参数、6 个 ToggleSwitch、高级 Expander：陌生人联机/会话中改模组/Forge Credits）、日志卡（`LogRunList`、保存日志/崩溃报告按钮、包含转储勾选）。代码后置用 `DataContextChanged` + Attached 订阅导出与添加模组事件，用 `StorageProvider` 选 zip 路径或模组文件后回调 VM（与 `LogView` 同一模式）；联机模组码卡在模组分区**最上方**（码 + 复制 + 输入好友码比对），复制经视图剪贴板。 |
 | `src/HD2Mimnt.UI/ViewModels/MainWindowViewModel.cs` | `HellForgeTabIndex=7`、`PluginPageOffset=8`（插件页 Tag 从 100 起）；`NavigateToHellForgeAsync`；订阅 `SettingsViewModel.GameSourceChanged`（HF→自动导航，官方→离开 tab 7）与 `HellForgeSessionService.SessionStarted`（库页启动后自动跳专页）；`CanCloseAsync` 等待 HF 页 `CancelAndWaitAsync`。 |
 | `src/HD2Mimnt.UI/ViewModels/SettingsViewModel.cs` | `ShowHellForgeEntry`（按已保存模式）、`GameSourceChanged` 事件（仅在保存成功且模式实际变化后触发）。 |
 | `src/HD2Mimnt.UI/ViewModels/LibraryViewModel.cs` | `IsHellForgeMode` 时 `DeployAsync` 改走 `RunHellForgeSyncTaskAsync`（`HellForgeSync` Worker，Mode=Sync，确认弹窗/任务中心进度复用），`CleanupAsync` 改走 Mode=Remove。文案沿用部署流程的硬编码中文约定（非 resx）。官方模式分支不变。 |
 | `src/HD2Mimnt.UI/MainWindow.axaml(.cs)` | 导航项 Tag 7（`IsVisible` 绑 `ShowHellForgeEntry`）、Ctrl+D8、TabItem 索引 7（`IsVisible="False"`，隐藏页必须本地设 False）。 |
 | `src/HD2Mimnt.UI/App.axaml.cs` | DI：`HellForgeService`、`HellForgeSessionService` 单例，`HellForgeViewModel` 瞬态，`GameDetectionService` 注入会话服务。 |
 
-本地化：`src/HD2Mimnt.Application/Localization/Resources/Strings*.resx` 三份的 `HellForge.*` 键（含 `HellForge.Phase.*`、`HellForge.Step.*`、`HellForge.Sync.*`、`HellForge.Settings.*`、`HellForge.War.*`、`HellForge.Strangers.*`、`HellForge.Logs.*`、`HellForge.LogStatus.*`）。`TranslationCatalogTests` 校验三语键集合与格式参数一致（值可重复）。
+本地化：`src/HD2Mimnt.Application/Localization/Resources/Strings*.resx` 三份的 `HellForge.*` 键（含 `HellForge.Phase.*`、`HellForge.Step.*`、`HellForge.Sync.*`、`HellForge.Settings.*`、`HellForge.War.*`、`HellForge.Strangers.*`、`HellForge.Planets.*`、`HellForge.Logs.*`、`HellForge.LogStatus.*`）。`TranslationCatalogTests` 校验三语键集合与格式参数一致（值可重复）。
 
 ## CLI 接口要点（摘要，全文见上游文档）
 
@@ -67,13 +69,20 @@ UI 只经 Application 服务访问业务（仓库常驻规则）。
 | --- | --- |
 | `status` | 版本（hellforge/engine/modSdk/gameBuild）、`ready.gameCopy`/`ready.sessionRunner`、`networkBlock`（wfp/firewall/linux-netns）、`settings`、`session`（running/lastRun/lastStatus/lastFailure）。 |
 | `profiles` | 档案列表（name/template/folder/used/selected）+ 模板；`--create <name> --template <t>` 创建。 |
-| `settings [--profile <name>] [--war ...] ...` | 保存并打印启动设置；`play` 默认读它，`play` 自身不改它。可控项：`--profile`、`--war live\|frozen\|open`、`--local-playfab`、`--multiplayer`、`--engine-log`、`--crash-dump`、`--sandbox`、`--steam-udp`、`--game-options`、`--strangers yes\|no\|default`、`--live-changes`、`--forge-credits 0-100\|default`。 |
-| `mods` | Mods 页列表（id/name/version/enabled/group/tags/folder/archive/pack 选项）+ modlist code。 |
+| `settings [--profile <name>] [--war ...] ...` | 保存并打印启动设置；`play` 默认读它，`play` 自身不改它。0.4 可控项：`--profile`、`--war live\|frozen\|open`、`--local-playfab`、`--multiplayer`、`--engine-log`、`--crash-dump`、`--sandbox`、`--steam-udp`、`--game-options`、`--strangers yes\|no\|default`、`--live-changes`、`--forge-credits 0-100\|default`。0.5 增加 `--war hellforge\|custom`、`--war-server`、`--deal-subfactions`、`--deal-seaf`、`--war-seed`、`--share-mods`、`--list-public`、`--show-edited-stats`、`--host-stats`。 |
+| `mods` | Mods 页列表（id/name/version/description/enabled/group/tags/folder/archive/removable/pack 选项）+ modlist code。0.5 起还有 `unsupported`、`premium`、`url`、`icon`、源码模组 `build`；`local-stats` 仍列出但客户端 Mods 页隐藏，本管理器同步隐藏。支持一次多个 `--file` / `--ids`。 |
 | `mod-add --file <path>` | 添加 zip/rar/7z、文件夹模组的 `hellforge-mod.json` 或外观包 `manifest.json`；同 id 视为更新替换。 |
 | `mod-remove --id` / `mod-switch --id --on yes\|no` / `mod-order --ids a,b,c` / `mod-pack --id --option ...` | 删除（bundled 会自愈，应改用关闭）、开关、置顶排序、外观包选项。 |
-| `play [--wait yes] [...]` | 启动会话；`--wait yes` 逐行输出事件直到 `ended`，仅正常结束（observed）退出码 0。 |
+| `play [--wait yes] [...]` | 启动会话；`--wait yes` 逐行输出事件直到 `ended`，仅正常结束（observed）退出码 0。0.5 的 `--war` 增加 `hellforge`/`custom`，并支持 `--war-server`；保留旧版时以该版 CLI 帮助与 `status` 为准。 |
 | `stop [--wait yes] [--now yes]` | 请游戏自行关闭（30 秒后才强杀，自行关闭才保存 shader cache）；`--wait yes` 等清理完成。 |
 | `logs [--run <id>] [--export <zip>] [--crash-report <zip>] [--dump yes]` | 会话日志列表/导出/崩溃报告（阶段④已用）。`--export`/`--crash-report` 拒绝覆盖已存在文件；`--dump yes` 才把崩溃转储放进报告；报告文本会脱敏（Steam id/IP/玩家名）。 |
+| `mod-sync` | 读取/修改 MOD SYNC 的信任、阻止与已下载列表（0.5；本管理器尚未接列表管理页）。 |
+| `mod-sync-offer [--answer ... --version ... [--mod ...]]` | 读取当前运行会话的 MOD SYNC 提示或发送应答；`inGamePrompt=true` 时游戏内编辑器自己显示，CLI 拒绝外部应答（阶段⑦已接）。 |
+| `versions` / `versions-switch` | 列出安装/当前使用/保留版本；切换会话实际使用的版本（阶段⑦只读 `versions`，未接切换）。 |
+| `planets [--planet <名称或编号>] [--faction ...] [--subfactions ...] [--enemies ...] [--reset yes] [--reset-all yes] [--catalogue yes]` | 自定义星球覆盖与阵营目录（阶段⑧已接）。只返回已修改星球；全部星球名称不在 CLI 输出中，因此页面用名称/编号打开草稿，由 CLI 在保存时校验。`active` 仅 `custom` 战争为 true；会话中修改会在一分钟内被游戏读取。 |
+| `weapon-levels` | 档案武器熟练度读取与设置（0.5；尚未接入）。 |
+| `languages` / `language-add` | 列出固定构建支持的语言包、从 Steam 下载目录复制进游戏副本（尚未接入；概览只显示 `status.languages`）。 |
+| `installer` / `installer-copy` | 读取/复制安装时保留的离线安装包，校验 SHA-256（尚未接入）。 |
 
 **会话事件流**（`play --wait yes`，每行一个 JSON）：
 
@@ -169,17 +178,49 @@ UI 只经 Application 服务访问业务（仓库常驻规则）。
 6. **UI 时序**：`ended` 判定要重启时状态为 `Ended + Restarting`，会话卡显示“正在自动重启游戏…”，不弹“会话已结束”吐司、禁用启动按钮；重启成功后回到 Preparing/后续阶段，最终结束才弹完成吐司；失败用 `HellForge.Restart.*` 显示警告并弹错误吐司。
 7. **关闭与停止**：`Dispose` 只杀 `play` 观察进程，重启后的会话运行器保持运行（关闭管理器不终止游戏）；`StopAsync` 的 CLI `stop` 以“最新会话”为目标，能停掉重启后的会话。
 
+## 阶段⑦：HellForge 0.5 兼容与外部 MOD SYNC（2026-11-25）
+
+**同步依据**：真实安装 `0.5.0-beta (806685d)` 的 `status`/`settings`/`mods`/`versions`/`languages`/`mod-sync-offer` 只读输出，以及上游最新 `docs/external-launchers.md`。0.5 默认战争从 `open` 改为 `hellforge`，旧管理器只有 `live/frozen/open`，会把新默认值错误回退成 `live` 并持续显示“设置已修改”。
+
+**已接入**：
+
+1. **版本与语言状态**：`status.languages` 与 `versions.playing` 显示在概览。`versions` 是可升级能力，旧 CLI 没有该命令时返回 null，不阻塞专页。只读展示，不执行版本切换。
+2. **战争与分享设置**：`war=hellforge/custom`、`warServer`、`dealSubfactions`、`dealSeaf`、`warSeed`、`shareMods`、`listPublic`、`showEditedStats`、`hostStats` 全部进入现有设置卡；保存仍只发差异项。是否显示新控件由 `settings` 是否返回这些字段判断，不按版本号硬编码，避免给保留的 0.3/0.4 CLI 发送不认识的参数。
+3. **模组状态**：解析并显示 `unsupported`、`premium`、源码模组 `build.state/error`；`unsupported` 模组禁用开关。与客户端一致隐藏 `local-stats`。`url`/`icon` 已进入 DTO，但尚未做图标加载与网页按钮。
+4. **外部 MOD SYNC 提示**：会话运行期间每秒轮询 `mod-sync-offer`，显示房主、陌生人标记、下载大小/进度、逐模组动作和可用按钮。`accept/restart/decline` 带 `offer.version` 发送；`trust/block/open` 还必须带模组 id。`trust` 在发送前展示并确认完整 `trustWarning` 与 `trustNote`。`inGamePrompt=true` 时不显示外部提示，也不尝试应答。轮询随会话结束、停止、 dispose 取消；应答使用代次号，避免进行中的旧轮询把已清除的提示重新写回。
+5. **测试替身**：可用 `cli-help.txt` 模拟新版命令表、`cli-modern-settings.txt` 模拟 0.5 设置字段、`cli-versions.json` / `cli-mod-sync-offer.json` / `cli-mod-sync-answer-result.json` 预置响应；`mods` 可用 `cli-mods.json` 预置含新字段的列表。
+
+**0.5 使用前置**：HellForge 不再随程序分发游戏物品/战争债券目录，玩家需要在 `HellForge.exe` 的 Profile > Account sync 运行一次 Sync Inventory。从未同步的安装仍可用内置的 0.4 目录启动，高级内容只来自同步；本管理器不代替该向导，也不直接写 `app\` 或账户快照。
+
+**尚未接入（不要误报为已完成）**：大厅浏览器 HTTP API、`weapon-levels`、`mod-sync` 信任/阻止列表管理、`language-add`、`versions-switch`/`versions-keep`、`installer-copy`、批量 mod-add/remove/switch、模组作者工具与源码构建主动操作。新增这些能力应继续走官方 CLI/会话自身 API，不复制 HellForge 实现。
+
+**保留版本约束**：更新后 `app\cli\` 可能是当前实际使用的旧版 CLI，安装版 CLI 在 `app-versions\.installed\app\cli\`。因此命令能力以当前 CLI 的 `--help` 与返回字段为准；`status.hellforge` 也可能带提交号，不能只按字符串前缀猜功能。
+
+## 阶段⑧：自定义星球专页（2026-11-26）
+
+**用户反馈**：选择 Custom planets 后只能改战争选项，没有原客户端那样的星球编辑页。
+
+**实现**：
+
+1. 新增“自定义星球”分类，仅在当前 CLI `--help` 支持 `planets` 时显示；首次进入才执行 `planets --catalogue yes`。设置页选择 Custom planets 后显示“编辑自定义星球”直达按钮。
+2. 左侧显示已修改星球与名称/编号输入框。CLI 不返回全部星球名称，因此未修改星球先建草稿，保存时由官方 CLI 校验名称/编号；不读取安装目录私有 `data\planets.json`。
+3. 右侧编辑敌人阵营、子阵营与敌人组。阵营选择会过滤目录；`UseWarSubfactions=true` 发送 `--subfactions war`，关闭后不勾选发送 `none`，显式勾选发送 key 列表。敌人组可选 `normal/surge/none`，保存时把当前阵营可见组全部传给 CLI，`normal` 能清除旧覆盖。
+4. 支持单星球“恢复战争设置”和“全部重置”，均经确认；会话中允许保存并提示游戏会在一分钟内读取。
+5. Super Earth 禁用敌人编辑；Cyberstan 锁定阵营但允许子阵营/敌人组。其它 home world 规则由 CLI 最终校验。
+
+**测试替身**：`StubPlanets` 真实维护 `planet-modifiers.json`，支持名称/编号解析、`war/none/显式子阵营`、敌人组合并、`normal` 删除、单星球与全部重置，并提供 factions/subfactions/enemies catalogue。
+
 ## 测试与验证
 
 ### 测试替身与夹具
 
-- `tests/HD2Mimnt.HellForgeCliStub/`：程序集名 `HellForge.Cli` 的控制台替身。`--help` 分支**必须在 `--install` 校验之前**（探测不带 `--install`）；按命令输出安装根目录预置的 `cli-<command>.json`；参数记录到 `cli-args.txt`；`cli-fail.txt` 模拟失败；`play` 逐行输出 `cli-play.jsonl`（20ms 间隔），`cli-play-hold.txt` 存在时等待 `stop` 写入的 `cli-stop-signal.txt` 再输出 `ended observed`（模拟运行中→停止）；退出码可用 `cli-play-exit.txt` 指定。**模组命令（`mods`/`mod-add`/`mod-remove`/`mod-switch`/`mod-order`/`mod-pack`）真实维护 `mods\` 文件夹与 `hellforge-mods.json`**（disabled/order/packs），`mods` 列表反映增删/开关/排序/选项，供同步与 UI 测试断言实际落位。**`settings` 真实维护 `launcher-settings.json`**（首次按 profiles 的 selected 播种，支持 profile/war/yes-no/strangers/forge-credits 校验，strangers 与 forge-credits 落在 `mods\hellforge-mods.json`）；**`logs` 真实扫描 `logs\sessions\<id>\`**（`run.json` 提供 status/failure/gameExitCode/crashed/startedUtc），`--export`/`--crash-report` 生成 zip（目标已存在则拒绝，`--dump yes` 才收转储）。另有 **`play --dry-run yes`**（输出自身路径为 `sessionRunner` 与 `session-runner --install <root>` 参数）和 **`session-runner`** 命令（写 `logs\play-session.json` 与新 run 的 `result.json` 后退出，result 可用 `cli-restart-result.json` 预置），供 MOD SYNC 自动重启端到端测试；`mods` 在存在启用游戏性模组时返回稳定 8 位 `modlist` 摘要，供比对 UI 测试。
+- `tests/HD2Mimnt.HellForgeCliStub/`：程序集名 `HellForge.Cli` 的控制台替身。`--help` 分支**必须在 `--install` 校验之前**（探测不带 `--install`）；按命令输出安装根目录预置的 `cli-<command>.json`；参数记录到 `cli-args.txt`；`cli-fail.txt` 模拟失败；`play` 逐行输出 `cli-play.jsonl`（20ms 间隔），`cli-play-hold.txt` 存在时等待 `stop` 写入的 `cli-stop-signal.txt` 再输出 `ended observed`（模拟运行中→停止）；退出码可用 `cli-play-exit.txt` 指定。**模组命令（`mods`/`mod-add`/`mod-remove`/`mod-switch`/`mod-order`/`mod-pack`）真实维护 `mods\` 文件夹与 `hellforge-mods.json`**（disabled/order/packs），`mods` 列表反映增删/开关/排序/选项，供同步与 UI 测试断言实际落位。**`settings` 真实维护 `launcher-settings.json`**（首次按 profiles 的 selected 播种，支持 profile/war/yes-no/strangers/forge-credits 校验，strangers 与 forge-credits 落在 `mods\hellforge-mods.json`）；**`logs` 真实扫描 `logs\sessions\<id>\`**（`run.json` 提供 status/failure/gameExitCode/crashed/startedUtc），`--export`/`--crash-report` 生成 zip（目标已存在则拒绝，`--dump yes` 才收转储）。另有 **`play --dry-run yes`**（输出自身路径为 `sessionRunner` 与 `session-runner --install <root>` 参数）和 **`session-runner`** 命令（写 `logs\play-session.json` 与新 run 的 `result.json` 后退出，result 可用 `cli-restart-result.json` 预置），供 MOD SYNC 自动重启端到端测试；`mods` 在存在启用游戏性模组时返回稳定 8 位 `modlist` 摘要，供比对 UI 测试。0.5 替身还支持 `cli-help.txt` 能力探测、`cli-modern-settings.txt` 新设置字段、`cli-versions.json`、`cli-mod-sync-offer.json` / `cli-mod-sync-answer-result.json` 与 `cli-mods.json` 新字段列表；`StubPlanets` 维护真实 `planet-modifiers.json` 与 catalogue。
 - `tests/HD2Mimnt.Tests/Services/HellForgeCliFixture.cs`（链接进 UITests）：搭建假安装（`hellforge-install.json`、`game\{data,tools,bin}`、复制替身到 `app\cli`）、预置 status/profiles 响应；`SetPlayStream(jsonl, hold, exitCode)`、`SetFailure()`、`OverwriteResponse()`、`ReadArgs()`。
 
 ### 现有测试
 
-- 单元：`HellForgeServiceTests`（13，状态/档案/失败与超时；settings 解析与保存参数、logs 列表与单次文件、导出 zip 覆盖旧文件、崩溃报告 `--dump yes`、无会话导出报错）、`HellForgeSessionServiceTests`（8，事件流/失败/停止/外部校准；MOD SYNC 无同步文件时报 `MissingSyncFile`；带同步文件时经替身 `session-runner` 走完 `play --dry-run` + `--mod-sync` 重启并回到 Ended）、`HellForgeModExporterTests`（19，pack 判定/扁平化重编号/legacy 选择/多 bundle/透传内容与垃圾剔除/合成根清单（含根目录无 manifest 的复合包）/重名选项与变体改名/禁用选项目录仍导出/指纹/空补丁/名称版本截断/纯视觉补丁标 cosmetic/含 package 的 IAS 归档标 cosmetic/含 entity 保持 shared/补丁不可读保持 shared）、`PatchResourceTypeReaderTests`（4，跳过类型表只取文件条目类型/类型表越界返回 false/空补丁返回 false/头不完整返回 false）、`HellForgeModSyncServiceTests`（21，未变化同步只跑 status 且不重写状态文件/状态文件保留他人条目与未知字段/复合包重名选项按索引各自开关/导入与取反排序/禁用跳过/加载器与 IAS 跳过/会话拦截/未变化跳过（按落盘文件时间戳断言未重写）/陈旧移除/pack 选项与变体/清理/状态/game\data 零写入/复制方式落真实文件/硬链接与库文件同一份（`FileIdentity.IsSameFile`）/建链失败回退复制并警告/内容变化替换目录不留重复/同 id pack 后一个降级扁平/复合包（根目录无 manifest）被识别/遗留 `id-N` 副本清理/旧导出缓存清理）。
-- UI：`HellForgeUiTests`（2：档案管理与自动导航；库页启动→进度→停止全流程）、`HellForgeGameSourceUiTests`（设置单选切换）、`HellForgeModSyncUiTests`（1：配置页部署→按部署方式直接写 `mods\hd2mimnt.<N>\`（断言不含 `mod-add`）→未变化不重写→专页同步状态卡显示来源配置→清理移除→状态卡回到未同步，经真实 DI + LoopbackWorkerHost + CLI 替身）、`HellForgeSettingsLogsUiTests`（2：设置卡显示 CLI 值→改动两项→只发差异参数→按钮状态回正；日志列表最新在前→导出 zip→勾选转储后崩溃报告含 dump，断言通知文案）、`HellForgeModsUiTests`（1：专页模组分区空列表→添加两个文件夹模组→`mod-add` 落位→`mod-switch` 禁用（等待 `ModsRefresh`，行实例会重建）→`mod-order` 同组下移→联机模组码在列表上方且可见→与自己/错误/非法码比对→点击添加按钮触发事件）。分区后涉及可见性的既有 UI 测试会先切到对应分类。
+- 单元：`HellForgeServiceTests`（21，状态/档案/失败与超时；settings 解析与保存参数、logs 列表与单次文件、导出 zip 覆盖旧文件、崩溃报告 `--dump yes`、无会话导出报错；0.5 战争/分享设置、versions、模组新字段、MOD SYNC 读取与版本化应答；planets catalogue/显式子阵营/war 与 none 区别/normal 清除/单星球与全部重置/旧 CLI 隐藏）、`HellForgeSessionServiceTests`（9，事件流/失败/停止/外部校准；MOD SYNC 无同步文件时报 `MissingSyncFile`；带同步文件时经替身 `session-runner` 走完 `play --dry-run` + `--mod-sync` 重启并回到 Ended；运行中轮询并应答游戏外置 MOD SYNC 提示）、`HellForgeModExporterTests`（19，pack 判定/扁平化重编号/legacy 选择/多 bundle/透传内容与垃圾剔除/合成根清单（含根目录无 manifest 的复合包）/重名选项与变体改名/禁用选项目录仍导出/指纹/空补丁/名称版本截断/纯视觉补丁标 cosmetic/含 package 的 IAS 归档标 cosmetic/含 entity 保持 shared/补丁不可读保持 shared）、`PatchResourceTypeReaderTests`（4，跳过类型表只取文件条目类型/类型表越界返回 false/空补丁返回 false/头不完整返回 false）、`HellForgeModSyncServiceTests`（21，未变化同步只跑 status 且不重写状态文件/状态文件保留他人条目与未知字段/复合包重名选项按索引各自开关/导入与取反排序/禁用跳过/加载器与 IAS 跳过/会话拦截/未变化跳过（按落盘文件时间戳断言未重写）/陈旧移除/pack 选项与变体/清理/状态/game\data 零写入/复制方式落真实文件/硬链接与库文件同一份（`FileIdentity.IsSameFile`）/建链失败回退复制并警告/内容变化替换目录不留重复/同 id pack 后一个降级扁平/复合包（根目录无 manifest）被识别/遗留 `id-N` 副本清理/旧导出缓存清理）。
+- UI：`HellForgeUiTests`（5：档案管理与自动导航；库页启动→进度→停止全流程；外部 MOD SYNC 提示渲染并实际点击接受；设置页直达星球分类→名称打开→阵营/子阵营/敌人组编辑→保存→重置；旧 CLI 隐藏星球分类）、`HellForgeGameSourceUiTests`（1：设置单选切换）、`HellForgeModSyncUiTests`（1：配置页部署→按部署方式直接写 `mods\hd2mimnt.<N>\`（断言不含 `mod-add`）→未变化不重写→专页同步状态卡显示来源配置→清理移除→状态卡回到未同步，经真实 DI + LoopbackWorkerHost + CLI 替身）、`HellForgeSettingsLogsUiTests`（3：设置卡显示 CLI 值→改动两项→只发差异参数→按钮状态回正；0.5 HellForge 战争不误判脏设置→展开高级并保存分享/种子；日志列表最新在前→导出 zip→勾选转储后崩溃报告含 dump，断言通知文案）、`HellForgeModsUiTests`（2：专页模组分区空列表→添加两个文件夹模组→`mod-add` 落位→`mod-switch` 禁用（等待 `ModsRefresh`，行实例会重建）→`mod-order` 同组下移→联机模组码在列表上方且可见→与自己/错误/非法码比对→点击添加按钮触发事件；0.5 隐藏 `local-stats`、显示 unsupported 与源码构建错误）。分区后涉及可见性的既有 UI 测试会先切到对应分类。
 
 ### 运行方式（重要）
 
@@ -192,6 +233,10 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build --no-resto
 dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore \
   --filter "FullyQualifiedName~HellForge|FullyQualifiedName~GameDetection|FullyQualifiedName~SettingsViewModel|FullyQualifiedName~TranslationCatalog"
 ```
+
+2026-11-25 阶段⑦实测：解决方案构建 0 错误；`FullyQualifiedName~HellForge` 单元测试 83/83 通过；新增 3 个 UI 用例与既有设置/模组/会话 3 个 UI 用例分别独立进程通过。构建仍有仓库既有的 33 个警告，与本轮 HellForge 文件无关。
+
+2026-11-26 阶段⑧实测：最终构建 0 错误；HellForge 单元测试 87/87，HellForge + TranslationCatalog 合计 89/89；12 个 HellForge UI 用例分别独立进程通过，其中新增星球编辑/重置与旧 CLI 隐藏 2 个。
 
 ## 易错点与正确做法
 
@@ -210,7 +255,7 @@ dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore \
 13. **专页新增卡片会下推交互内容致无头点击错位**：HF 页同步状态卡最初放在档案列表前，把档案行“切换”按钮推到视口边缘，`Click` 命中 TextBlock 而非按钮。只读状态卡应置于档案列表**之后**，不位移主要交互内容；新增页面区块后须重跑既有点击类 UI 测试。
 14. **`--strangers` 只收 `yes|no|default`**：不是 `on/off`；`on/off` 是 `hellforge-mods.json` 里的存储值。UI 侧 `StrangersValue` 已做 true→yes、false→no、null→default 映射，改保存逻辑时勿把存储值直接发给 CLI。
 15. **导出日志/崩溃报告前必须先删目标**：CLI 对已存在的 zip 直接报错；`HellForgeService.PrepareExportTarget` 先删再调用，保存对话框的“覆盖”确认因此可用。导出 5 分钟、崩溃报告 10 分钟超时（含转储时文件很大）。
-16. **全量单元测试有与 HF 无关的既有失败**：2026-11-12 本机全量 `HD2Mimnt.Tests` 失败 15 个（`LibraryViewModelSelectionTests` 7、`Hd2IASIntegrationTests` 5、`PluginContributionRefreshTests` 1、`SameGuidImportUpdateTests` 2），单独复跑仍失败且堆栈都在对应模块；HF 回归只认 `--filter "FullyQualifiedName~HellForge"`（单元 86，UI 6）。
+16. **全量单元测试有与 HF 无关的既有失败**：2026-11-12 本机全量 `HD2Mimnt.Tests` 失败 15 个（`LibraryViewModelSelectionTests` 7、`Hd2IASIntegrationTests` 5、`PluginContributionRefreshTests` 1、`SameGuidImportUpdateTests` 2），单独复跑仍失败且堆栈都在对应模块；HF 回归只认 `--filter "FullyQualifiedName~HellForge"`（2026-11-26 单元 87，UI 12）。
 17. **`mod-add` 恒为文件复制，落盘必须自己写**：上游 `ModInstaller.Add` → `CopyFolder` 全是 `File.Copy`，CLI 没有“链接导入”选项；同时 `ModInstaller.Delete` 走 `LocalInstall.NoLinks`，路径上任何一级是链接都会拒绝删除。因此部署方式只能在 HD2Mimnt 侧实现，且**链接必须是文件级**——把整个模组目录做成目录链接会让 `mod-remove`/清理失败。
 18. **pack 的 id 由清单 `Guid` 推导**：上游 `CosmeticPacks.Parse` 从 `manifest.json` 的 `Guid` 推导 `pack.<Guid>`（无 Guid 时 `pack.<名称 slug>`），清单里没有 `id` 字段。我们合成的清单写的就是 `mod.Manifest.Guid`，所以 `ResolveModId` 的预计算值与实际 id 一致，可直接用于目录命名；写完后仍重查 `mods` **按目录路径校正 id** 并以实际 id 做启用/排序/选项与状态记录，避免上游规则变化时错位。
 19. **写入必须经点前缀临时目录**：`ModCatalog.Load` 跳过 `.` 开头的目录，导出先写 `mods\.hd2mimnt-xxxxxxxx` 再 `Directory.Move` 整体改名，会话与 Mods 页就不会读到半个模组；临时目录与最终目录同卷，硬链接与改名都成立。同步失败时删掉临时目录，不留垃圾。
@@ -233,10 +278,22 @@ dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore \
 37. **`modlist` 是 8 位摘要，不是指纹列表**：输入好友的码只能判断“一致/不一致”，无法列出差异或据此下载；做过类似承诺前先确认 CLI 接口。
 38. **共享游戏性模组变化会让码过期**：`mod-switch`/`mod-remove` 后要后台重读 `mods`（一次约几秒）；每玩家/仅本机模组不影响码，不要每次都重读。重读会重建列表行，测试里旧 `HellForgeModItem` 实例随即失效，要按 id 重新取。
 39. **重启判定的时序**：`result.json` 的 `restart` 可能晚于 `status` 落盘；读失败要短暂重试，终态要等运行器退出后再判定，期间保持 `Restarting`，否则会先弹“会话已结束”再启动。
+40. **0.5 默认战争不是 `live`**：`settings.war=hellforge` 时必须原样回显，不能回退到枚举首项。新战争/分享参数是否可用由返回字段与 CLI `--help` 判断，不按版本号硬编码；保留的旧版 CLI 不认识新参数。
+41. **MOD SYNC 提示必须带版本**：`--answer` 必须带刚显示的 `offer.version`，逐模组 `trust/block/open` 还要 `--mod`。`inGamePrompt=true` 时只能由游戏内编辑器应答；`trust` 前必须展示完整警告并由玩家确认，不能一键自动信任。
+42. **MOD SYNC 轮询不能覆盖应答结果**：读取与应答可能重叠。应答前后推进轮询代次，终态先清 `ModSyncOffer`，旧读取结果不得重新写回；会话结束/停止/释放时取消轮询。
+43. **`local-stats` 不显示**：0.5 的 `mods` 会列出本地编辑器数值修改，但客户端 Mods 页隐藏它，本管理器也必须隐藏，否则会出现永远开启、不可移除的伪模组行。
+44. **保留版本会替换当前 CLI**：`app\cli\` 是实际使用版本的 CLI，不一定是安装版；`status.hellforge` 也可能带提交号。功能探测以当前 CLI 帮助和返回字段为准。
+45. **Sync Inventory 是 0.5 的前置向导**：未同步仍可用内置 0.4 目录启动，但高级内容缺失；管理器不直接复制账户目录，也不代替 `HellForge.exe` 的 Sync Inventory。
+46. **`planets` 不返回全部星球名称**：它只返回已修改覆盖与 catalogue。页面用名称/编号打开草稿，由 CLI 在保存时校验；不要直接读取安装目录私有 `data\planets.json`。
+47. **子阵营有三种语义**：JSON 字符串 `war`=沿用战争，数组=显式选择，空数组=无子阵营。DTO 用 `JsonElement` 保留区别；CLI 参数分别是 `war` / key 列表 / `none`，不能把空数组误当 war。
+48. **敌人组 `normal` 是删除覆盖**：`--enemies` 与现有覆盖合并，保存当前阵营可见组时要把未选择的组显式传 `normal`，否则旧 `surge/none` 会残留。跨阵营隐藏覆盖保留，单星球重置可彻底清空。
+49. **未知星球编号必须可空**：按名称打开的新草稿在 CLI 校验前没有编号，不能临时填 0，否则会被误判为 Super Earth 并禁用编辑。home world 的最终规则仍以 CLI 校验为准。
+50. **星球修改不拒绝运行中会话**：与模组变更不同，`planets` 允许会话中保存，游戏约一分钟内读取；UI 应提示这一时序，不要套用模组区的会话拦截。
 
 ## 外部参考
 
 - HellForge 上游仓库：<https://github.com/SkyeShade/HellForge>（GPL-3.0，许可证见仓库 `LICENSE`；本地参考副本 `G:\Temp\Githud\HellForge`）。
-- 外部管理器接口全文：HellForge 仓库 `docs/external-launchers.md`（命令、JSON、事件、日志、大厅浏览器 API）。
+- 外部管理器接口全文：HellForge 仓库 `docs/external-launchers.md`（命令、JSON、事件、日志、大厅浏览器 API、保留版本）。
+- 0.5 专题：`docs/multiplayer-mod-sync.md`（MOD SYNC 提示与信任）、`docs/hellforge-war.md`（HellForge 战争）、`docs/planet-modifiers.md`（自定义星球）、`docs/supported-languages.json`（固定构建语言包）。
 - 模组形态与补丁规则：HellForge 仓库 `docs/modding/data.md`、`docs/first-mod.md`、`docs/mods.md`。
 - 本项目相关指南：[`ui-and-avalonia.md`](../agent-guides/ui-and-avalonia.md)（导航/无头测试）、[`deployment-and-loaders.md`](../agent-guides/deployment-and-loaders.md)（部署语义）、[`testing-and-lifecycle.md`](../agent-guides/testing-and-lifecycle.md)。

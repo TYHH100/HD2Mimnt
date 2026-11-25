@@ -130,6 +130,32 @@ public sealed class HellForgeSessionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RunningSession_ShouldPollAndAnswerExternalModSyncOffer()
+    {
+        _fixture.EnableModernCli();
+        _fixture.OverwriteResponse("mod-sync-offer", """
+            {"run":"stub/logs/sessions/run-offer","inGamePrompt":false,"sent":null,
+             "offer":{"version":2,"state":"offer","host":"Host","stranger":false,"live":false,"bytes":2048,"done":0,
+                      "message":"Join with the host's mods?","answers":["accept","decline"],"mods":[],"trustNote":null}}
+            """);
+        _fixture.OverwriteResponse("mod-sync-answer-result", """
+            {"run":"stub/logs/sessions/run-offer","inGamePrompt":false,"sent":"accept","offer":null}
+            """);
+        _fixture.SetPlayStream("""
+            {"event":"started","runId":"run-offer","run":"stub/run-offer","pid":1,"profile":"default","war":"hellforge","arguments":""}
+            {"event":"status","status":"observing","failure":null}
+            """, hold: true);
+        await _service.StartAsync();
+        await WaitForAsync(() => _service.State.ModSyncOffer != null);
+        Assert.Equal(2, _service.State.ModSyncOffer!.Version);
+
+        await _service.AnswerModSyncOfferAsync("accept");
+        Assert.Null(_service.State.ModSyncOffer);
+        Assert.Contains("mod-sync-offer --answer accept --version 2", _fixture.ReadArgs());
+        await _service.StopAsync();
+    }
+
+    [Fact]
     public async Task RefreshAsync_ExternalRunningSession_ShouldShowRunningUntracked()
     {
         _fixture.OverwriteResponse("status", """

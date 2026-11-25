@@ -4595,6 +4595,22 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>The automatic restart did not start a new session; check the HellForge logs.</value></data>
   <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>Mod sync asked for a restart too many times; automatic restart stopped.</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>Mod problems:</value></data>
+  <data name="HellForge.PlayingVersion" xml:space="preserve"><value>Version in use</value></data>
+  <data name="HellForge.Languages" xml:space="preserve"><value>Installed languages</value></data>
+  <data name="HellForge.ModSync.Title" xml:space="preserve"><value>MOD SYNC prompt</value></data>
+  <data name="HellForge.ModSync.Answering" xml:space="preserve"><value>Sending the MOD SYNC answer…</value></data>
+  <data name="HellForge.ModSync.Host" xml:space="preserve"><value>Host: {0} · {1}</value></data>
+  <data name="HellForge.ModSync.Stranger" xml:space="preserve"><value>not a Steam friend</value></data>
+  <data name="HellForge.ModSync.Friend" xml:space="preserve"><value>Steam friend</value></data>
+  <data name="HellForge.ModSync.Size" xml:space="preserve"><value>Download size: {0}</value></data>
+  <data name="HellForge.ModSync.Progress" xml:space="preserve"><value>Downloaded: {0} / {1}</value></data>
+  <data name="HellForge.ModSync.TrustTitle" xml:space="preserve"><value>Trust this mod?</value></data>
+  <data name="HellForge.ModSync.Trust" xml:space="preserve"><value>Trust</value></data>
+  <data name="HellForge.ModSync.Block" xml:space="preserve"><value>Block</value></data>
+  <data name="HellForge.ModSync.Open" xml:space="preserve"><value>Open page</value></data>
+  <data name="HellForge.ModSync.Accept" xml:space="preserve"><value>Accept and join</value></data>
+  <data name="HellForge.ModSync.Restart" xml:space="preserve"><value>Restart and join</value></data>
+  <data name="HellForge.ModSync.Decline" xml:space="preserve"><value>Decline</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>Mod sync</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>{0} mods synced to HellForge</value></data>
   <data name="HellForge.Sync.None" xml:space="preserve"><value>No mods synced yet.</value></data>
@@ -4646,12 +4662,68 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>Per-player</value></data>
   <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>Client-only</value></data>
   <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge reported problems with these mod folders:</value></data>
+  <data name="HellForge.Category.Planets" xml:space="preserve"><value>Custom planets</value></data>
+  <data name="HellForge.Planets.Title" xml:space="preserve"><value>Custom planets</value></data>
+  <data name="HellForge.Planets.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="HellForge.Planets.ResetAll" xml:space="preserve"><value>Reset all</value></data>
+  <data name="HellForge.Planets.Active" xml:space="preserve"><value>Custom planets are active for the next session.</value></data>
+  <data name="HellForge.Planets.Inactive" xml:space="preserve"><value>These edits are saved, but only the Custom planets war uses them.</value></data>
+  <data name="HellForge.Planets.War" xml:space="preserve"><value>Current war: {0}</value></data>
+  <data name="HellForge.Planets.SessionRunning" xml:space="preserve"><value>A session is running; changes reach the game within a minute.</value></data>
+  <data name="HellForge.Planets.SessionIdle" xml:space="preserve"><value>Changes apply to the next session.</value></data>
+  <data name="HellForge.Planets.Problems" xml:space="preserve"><value>HellForge reported planet problems:</value></data>
+  <data name="HellForge.Planets.Open" xml:space="preserve"><value>Open a planet</value></data>
+  <data name="HellForge.Planets.QueryPlaceholder" xml:space="preserve"><value>Planet name or index</value></data>
+  <data name="HellForge.Planets.OpenButton" xml:space="preserve"><value>Open</value></data>
+  <data name="HellForge.Planets.None" xml:space="preserve"><value>No planet is modified yet. Enter a name or index to start.</value></data>
+  <data name="HellForge.Planets.EditorHint" xml:space="preserve"><value>Select a modified planet, or enter any planet name or index.</value></data>
+  <data name="HellForge.Planets.Faction" xml:space="preserve"><value>Enemy faction</value></data>
+  <data name="HellForge.Planets.Faction.War" xml:space="preserve"><value>As the war has it</value></data>
+  <data name="HellForge.Planets.Faction.Terminids" xml:space="preserve"><value>Terminids</value></data>
+  <data name="HellForge.Planets.Faction.Automatons" xml:space="preserve"><value>Automatons</value></data>
+  <data name="HellForge.Planets.Faction.Illuminate" xml:space="preserve"><value>Illuminate</value></data>
+  <data name="HellForge.Planets.Subfactions" xml:space="preserve"><value>Subfactions</value></data>
+  <data name="HellForge.Planets.SubfactionsWar" xml:space="preserve"><value>As the war has it</value></data>
+  <data name="HellForge.Planets.SubfactionsPick" xml:space="preserve"><value>Choose</value></data>
+  <data name="HellForge.Planets.SubfactionsWarShort" xml:space="preserve"><value>War subfactions</value></data>
+  <data name="HellForge.Planets.SubfactionCount" xml:space="preserve"><value>{0} subfactions</value></data>
+  <data name="HellForge.Planets.ChooseFaction" xml:space="preserve"><value>Choose an enemy faction to edit its subfactions and enemy groups.</value></data>
+  <data name="HellForge.Planets.Enemies" xml:space="preserve"><value>Enemy groups</value></data>
+  <data name="HellForge.Planets.EnemyMode.Normal" xml:space="preserve"><value>As usual</value></data>
+  <data name="HellForge.Planets.EnemyMode.Surge" xml:space="preserve"><value>Surge (x10)</value></data>
+  <data name="HellForge.Planets.EnemyMode.None" xml:space="preserve"><value>None</value></data>
+  <data name="HellForge.Planets.EnemyOverrideCount" xml:space="preserve"><value>{0} enemy overrides</value></data>
+  <data name="HellForge.Planets.Save" xml:space="preserve"><value>Save planet</value></data>
+  <data name="HellForge.Planets.Saving" xml:space="preserve"><value>Saving planet…</value></data>
+  <data name="HellForge.Planets.Saved" xml:space="preserve"><value>Planet saved.</value></data>
+  <data name="HellForge.Planets.Reset" xml:space="preserve"><value>Back to war's own</value></data>
+  <data name="HellForge.Planets.Resetting" xml:space="preserve"><value>Resetting planets…</value></data>
+  <data name="HellForge.Planets.ResetTitle" xml:space="preserve"><value>Reset this planet?</value></data>
+  <data name="HellForge.Planets.ResetConfirm" xml:space="preserve"><value>Remove every custom choice for {0}?</value></data>
+  <data name="HellForge.Planets.ResetDone" xml:space="preserve"><value>Planet reset.</value></data>
+  <data name="HellForge.Planets.ResetAllTitle" xml:space="preserve"><value>Reset all planets?</value></data>
+  <data name="HellForge.Planets.ResetAllConfirm" xml:space="preserve"><value>Remove every custom planet choice?</value></data>
+  <data name="HellForge.Planets.ResetAllDone" xml:space="preserve"><value>All planets reset.</value></data>
+  <data name="HellForge.Planets.Loading" xml:space="preserve"><value>Reading custom planets…</value></data>
+  <data name="HellForge.Mods.Unsupported" xml:space="preserve"><value>Unsupported: {0}</value></data>
+  <data name="HellForge.Mods.Premium" xml:space="preserve"><value>Premium content: {0}</value></data>
+  <data name="HellForge.Mods.Build" xml:space="preserve"><value>Source build: {0} {1}</value></data>
+  <data name="HellForge.Mods.BuildState.NotBuilt" xml:space="preserve"><value>not built yet</value></data>
+  <data name="HellForge.Mods.BuildState.Built" xml:space="preserve"><value>built</value></data>
+  <data name="HellForge.Mods.BuildState.DidNotCompile" xml:space="preserve"><value>did not compile</value></data>
+  <data name="HellForge.Mods.BuildState.ToolsFailed" xml:space="preserve"><value>build tools failed</value></data>
+  <data name="HellForge.Mods.BuildState.Changed" xml:space="preserve"><value>changed; rebuild needed</value></data>
+  <data name="HellForge.Mods.BuildState.Unreadable" xml:space="preserve"><value>sources unreadable</value></data>
+  <data name="HellForge.Mods.BuildState.Unknown" xml:space="preserve"><value>unknown state</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>Launch settings</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>Saved settings apply to the next session; the CLI refuses changes while a session runs. Strangers and Forge Credits are saved in the mods settings.</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>Galactic war</value></data>
+  <data name="HellForge.Settings.EditPlanets" xml:space="preserve"><value>Edit custom planets</value></data>
   <data name="HellForge.War.Live" xml:space="preserve"><value>Live war</value></data>
   <data name="HellForge.War.Frozen" xml:space="preserve"><value>Frozen war</value></data>
   <data name="HellForge.War.Open" xml:space="preserve"><value>All planets open</value></data>
+  <data name="HellForge.War.Hellforge" xml:space="preserve"><value>HellForge war</value></data>
+  <data name="HellForge.War.Custom" xml:space="preserve"><value>Custom planets</value></data>
   <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>Local PlayFab backend</value></data>
   <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>Co-op with Steam friends</value></data>
   <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>Collect the game's log</value></data>
@@ -4666,6 +4738,16 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Strangers.No" xml:space="preserve"><value>Off</value></data>
   <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>Allow changing mods during a session (experimental)</value></data>
   <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>Loot caches with Forge Credits (%)</value></data>
+  <data name="HellForge.Settings.WarServer" xml:space="preserve"><value>HellForge war server (empty = default)</value></data>
+  <data name="HellForge.Settings.WarOptions" xml:space="preserve"><value>War dealing</value></data>
+  <data name="HellForge.Settings.DealSubfactions" xml:space="preserve"><value>Deal subfactions from the war seed</value></data>
+  <data name="HellForge.Settings.DealSeaf" xml:space="preserve"><value>Deal SEAF allies from the war seed</value></data>
+  <data name="HellForge.Settings.WarSeed" xml:space="preserve"><value>War seed (0 = not set)</value></data>
+  <data name="HellForge.Settings.Sharing" xml:space="preserve"><value>Sharing and public lobbies</value></data>
+  <data name="HellForge.Settings.ShareMods" xml:space="preserve"><value>Let players who join me download gameplay mods</value></data>
+  <data name="HellForge.Settings.ListPublic" xml:space="preserve"><value>List my public lobbies on the Galactic Map</value></data>
+  <data name="HellForge.Settings.ShowEditedStats" xml:space="preserve"><value>Show public lobbies with host-enforced stat changes</value></data>
+  <data name="HellForge.Settings.HostStats" xml:space="preserve"><value>Friends use my editor stat changes</value></data>
   <data name="HellForge.Settings.Save" xml:space="preserve"><value>Save settings</value></data>
   <data name="HellForge.Settings.Saving" xml:space="preserve"><value>Saving settings…</value></data>
   <data name="HellForge.Settings.Saved" xml:space="preserve"><value>Settings saved for the next session.</value></data>

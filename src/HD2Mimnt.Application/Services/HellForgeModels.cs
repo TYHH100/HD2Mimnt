@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace HD2Mimnt.Application.Services;
 
 /// <summary>HellForge CLI <c>status</c> 命令的输出（camelCase JSON）。</summary>
@@ -12,18 +14,21 @@ public sealed record HellForgeStatus
     public string? NetworkBlock { get; init; }
     public HellForgeLauncherSettings Settings { get; init; } = new();
     public HellForgeSessionState Session { get; init; } = new();
+    public List<string> Languages { get; init; } = new();
 }
 
 public sealed record HellForgeReadiness
 {
     public bool GameCopy { get; init; }
     public bool SessionRunner { get; init; }
+    public bool LinuxNamespace { get; init; }
 }
 
 public sealed record HellForgeLauncherSettings
 {
     public string? Profile { get; init; }
     public string? War { get; init; }
+    public string? WarServer { get; init; }
     public bool LocalPlayFab { get; init; }
     public bool Multiplayer { get; init; }
     public bool EngineLog { get; init; }
@@ -37,6 +42,13 @@ public sealed record HellForgeLauncherSettings
     public bool? PlayWithStrangersChosen { get; init; }
     public bool LiveChanges { get; init; }
     public int ForgeCreditChance { get; init; }
+    public bool? DealSubfactions { get; init; }
+    public bool? DealSeaf { get; init; }
+    public int? WarSeed { get; init; }
+    public bool? ShareMods { get; init; }
+    public bool? ListPublic { get; init; }
+    public bool? ShowEditedStats { get; init; }
+    public bool? HostStats { get; init; }
     public string? File { get; init; }
 }
 
@@ -93,8 +105,26 @@ public sealed record HellForgeModInfo
     public string? Folder { get; init; }
     public string? Archive { get; init; }
     public bool Removable { get; init; }
+    public string? Unsupported { get; init; }
+    public List<HellForgeModPremiumItem>? Premium { get; init; }
+    public string? Url { get; init; }
+    public string? Icon { get; init; }
+    public HellForgeModBuild? Build { get; init; }
     /// <summary>仅 cosmetic pack 有选项；其余模组为 null。</summary>
     public List<HellForgeModOption>? Options { get; init; }
+}
+
+public sealed record HellForgeModPremiumItem
+{
+    public string? Requirement { get; init; }
+    public string? Name { get; init; }
+}
+
+public sealed record HellForgeModBuild
+{
+    public string? State { get; init; }
+    public DateTime? Built { get; init; }
+    public string? Error { get; init; }
 }
 
 /// <summary>cosmetic pack 的一个选项：on=启用，variants=子选项名（无则 null），picked=当前选中的子选项名。</summary>
@@ -136,6 +166,131 @@ public sealed record HellForgeModPackResult
 {
     public string Id { get; init; } = string.Empty;
     public List<HellForgeModOption> Options { get; init; } = new();
+}
+
+/// <summary>HellForge CLI <c>mod-sync-offer</c> 的当前提示；inGamePrompt 为 true 时只能由游戏内编辑器应答。</summary>
+public sealed record HellForgeModSyncOfferResult
+{
+    public string? Run { get; init; }
+    public bool InGamePrompt { get; init; }
+    public string? Sent { get; init; }
+    public HellForgeModSyncOffer? Offer { get; init; }
+}
+
+public sealed record HellForgeModSyncOffer
+{
+    public int Version { get; init; }
+    public string? State { get; init; }
+    public string? Host { get; init; }
+    public bool Stranger { get; init; }
+    public bool Live { get; init; }
+    public long Bytes { get; init; }
+    public long Done { get; init; }
+    public string? Message { get; init; }
+    public List<string> Answers { get; init; } = new();
+    public List<HellForgeModSyncMod> Mods { get; init; } = new();
+    public string? TrustNote { get; init; }
+}
+
+public sealed record HellForgeModSyncMod
+{
+    public string Id { get; init; } = string.Empty;
+    public string? Name { get; init; }
+    public string? Version { get; init; }
+    public string? Class { get; init; }
+    public string? Action { get; init; }
+    public long Bytes { get; init; }
+    public string? Url { get; init; }
+    public List<string> Answers { get; init; } = new();
+    public string? TrustWarning { get; init; }
+    public bool CanTrust => Answers.Contains("trust");
+    public bool CanBlock => Answers.Contains("block");
+    public bool CanOpen => Answers.Contains("open");
+}
+
+/// <summary>HellForge CLI <c>versions</c>：安装版本与当前会话实际使用的保留版本。</summary>
+public sealed record HellForgeVersions
+{
+    public HellForgeVersionInfo? Current { get; init; }
+    public HellForgeVersionInfo? Playing { get; init; }
+    public string? Supported { get; init; }
+    public List<HellForgeKeptVersion> Kept { get; init; } = new();
+    public int Keeps { get; init; }
+    public long KeptBytes { get; init; }
+    public string? Log { get; init; }
+}
+
+public record HellForgeVersionInfo
+{
+    public string? Name { get; init; }
+    public string? Version { get; init; }
+    public string? Commit { get; init; }
+    public string? Engine { get; init; }
+    public string? GameBuild { get; init; }
+    public string? Family { get; init; }
+}
+
+public sealed record HellForgeKeptVersion : HellForgeVersionInfo
+{
+    public DateTime? KeptUtc { get; init; }
+    public string? Data { get; init; }
+    public bool Newer { get; init; }
+    public bool Playing { get; init; }
+    public string? Problem { get; init; }
+    public string? GameBuildNote { get; init; }
+}
+
+/// <summary>HellForge CLI <c>planets --catalogue yes</c>：自定义星球覆盖与可用阵营目录。</summary>
+public sealed record HellForgePlanetsResult
+{
+    public string? File { get; init; }
+    public string? War { get; init; }
+    public bool Active { get; init; }
+    public List<string> Problems { get; init; } = new();
+    public bool SessionRunning { get; init; }
+    public List<HellForgePlanetInfo> Planets { get; init; } = new();
+    public HellForgePlanetCatalogue? Catalogue { get; init; }
+}
+
+public sealed record HellForgePlanetInfo
+{
+    public int Index { get; init; }
+    public string? Name { get; init; }
+    public string Faction { get; init; } = "war";
+    /// <summary>CLI 用字符串 <c>war</c> 或字符串数组表示“沿用战争”与显式选择。</summary>
+    public JsonElement Subfactions { get; init; }
+    public Dictionary<string, string> Enemies { get; init; } = new();
+    public HellForgePlanetServed? Served { get; init; }
+
+    public bool UsesWarSubfactions => Subfactions.ValueKind != JsonValueKind.Array;
+    public IReadOnlyList<string> SubfactionKeys => Subfactions.ValueKind == JsonValueKind.Array
+        ? Subfactions.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString()!).ToArray()
+        : Array.Empty<string>();
+}
+
+public sealed record HellForgePlanetServed
+{
+    public string? Owner { get; init; }
+    public string? Enemy { get; init; }
+    public bool Playable { get; init; }
+    public List<string> Subfactions { get; init; } = new();
+    public List<string> Surges { get; init; } = new();
+    public List<string> Left { get; init; } = new();
+}
+
+public sealed record HellForgePlanetCatalogue
+{
+    public List<string> Factions { get; init; } = new();
+    public List<HellForgePlanetCatalogueEntry> Subfactions { get; init; } = new();
+    public List<HellForgePlanetCatalogueEntry> Enemies { get; init; } = new();
+}
+
+public sealed record HellForgePlanetCatalogueEntry
+{
+    public string Key { get; init; } = string.Empty;
+    public string? Name { get; init; }
+    public string? Faction { get; init; }
 }
 
 /// <summary>HellForge CLI <c>logs</c> 命令的输出：会话列表（最新在前）、可选的单会话文件列表与日志路径。</summary>
@@ -229,6 +384,8 @@ public sealed record HellForgeSessionProgress
     public string? Failure { get; init; }
     public IReadOnlyList<string> Problems { get; init; } = Array.Empty<string>();
     public string? Notice { get; init; }
+    /// <summary>当前可由外部启动器应答的 MOD SYNC 提示；游戏内编辑器自己显示时为 null。</summary>
+    public HellForgeModSyncOffer? ModSyncOffer { get; init; }
     /// <summary>是否由本管理器启动并正在观察事件流。</summary>
     public bool Tracked { get; init; }
     /// <summary>MOD SYNC 要求重启：正在按房主模组重启，或等待重启开始。</summary>

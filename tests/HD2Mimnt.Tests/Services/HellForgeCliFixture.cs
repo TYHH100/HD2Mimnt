@@ -60,6 +60,40 @@ public sealed class HellForgeCliFixture : IDisposable
     public void OverwriteResponse(string command, string json)
         => File.WriteAllText(Path.Combine(Root, $"cli-{command}.json"), json);
 
+    public void EnableModernCli()
+    {
+        File.WriteAllText(Path.Combine(Root, "cli-help.txt"), """
+            usage: HellForge.Cli <command> [options]
+            status [--install <folder>]
+            profiles [--install <folder>]
+            play [--install <folder>] [--wait yes]
+            stop [--install <folder>] [--wait yes]
+            settings [--install <folder>] [--war hellforge | live | frozen | open | custom]
+            mods [--install <folder>]
+            mod-sync-offer [--install <folder>] [--answer accept | decline | restart | trust | block | open]
+            planets [--install <folder>] [--planet <name or index>] [--faction <key>] [--subfactions <keys|war|none>] [--enemies <key=surge|none|normal,...>] [--reset yes] [--reset-all yes] [--catalogue yes]
+            versions [--install <folder>]
+            logs [--install <folder>]
+            """);
+        File.WriteAllText(Path.Combine(Root, "cli-modern-settings.txt"), "0.5");
+        OverwriteResponse("status", """
+            {
+              "install": "stub", "gameBuild": "25480438", "hellforge": "0.5.0-beta", "engine": "0.1.58", "modSdk": 20,
+              "ready": { "gameCopy": true, "sessionRunner": true, "linuxNamespace": false },
+              "networkBlock": "wfp",
+              "settings": { "profile": "default", "war": "hellforge", "localPlayFab": true, "multiplayer": true,
+                            "engineLog": true, "crashDump": false, "sandbox": true, "steamUdp": true, "gameOptions": "" },
+              "session": { "running": false, "lastRun": null, "lastStatus": "observed", "lastFailure": null },
+              "languages": [ "english", "chinese" ]
+            }
+            """);
+        OverwriteResponse("versions", """
+            {"current":{"name":"0.5.0-beta-test","version":"0.5.0-beta","commit":"test","engine":"0.1.58","gameBuild":"25480438"},
+             "playing":{"name":"0.5.0-beta-test","version":"0.5.0-beta","commit":"test","family":"current"},
+             "supported":"0.3.0-beta, 0.4.0-beta","kept":[],"keeps":2,"keptBytes":0,"log":"stub/logs/versions.log"}
+            """);
+    }
+
     /// <summary>预置 play 事件流；hold 为 true 时 play 输出完后等待 stop 信号才结束。</summary>
     public void SetPlayStream(string jsonl, bool hold = false, int exitCode = 0)
     {

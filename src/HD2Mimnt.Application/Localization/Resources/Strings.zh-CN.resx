@@ -4595,6 +4595,22 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>自动重启没有开始新的会话，请查看 HellForge 日志。</value></data>
   <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>模组同步反复要求重启，已停止自动重启。</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
+  <data name="HellForge.PlayingVersion" xml:space="preserve"><value>当前使用版本</value></data>
+  <data name="HellForge.Languages" xml:space="preserve"><value>已安装语言</value></data>
+  <data name="HellForge.ModSync.Title" xml:space="preserve"><value>MOD SYNC 提示</value></data>
+  <data name="HellForge.ModSync.Answering" xml:space="preserve"><value>正在发送 MOD SYNC 应答…</value></data>
+  <data name="HellForge.ModSync.Host" xml:space="preserve"><value>房主：{0} · {1}</value></data>
+  <data name="HellForge.ModSync.Stranger" xml:space="preserve"><value>不是 Steam 好友</value></data>
+  <data name="HellForge.ModSync.Friend" xml:space="preserve"><value>Steam 好友</value></data>
+  <data name="HellForge.ModSync.Size" xml:space="preserve"><value>下载大小：{0}</value></data>
+  <data name="HellForge.ModSync.Progress" xml:space="preserve"><value>已下载：{0} / {1}</value></data>
+  <data name="HellForge.ModSync.TrustTitle" xml:space="preserve"><value>信任此模组？</value></data>
+  <data name="HellForge.ModSync.Trust" xml:space="preserve"><value>信任</value></data>
+  <data name="HellForge.ModSync.Block" xml:space="preserve"><value>阻止</value></data>
+  <data name="HellForge.ModSync.Open" xml:space="preserve"><value>打开页面</value></data>
+  <data name="HellForge.ModSync.Accept" xml:space="preserve"><value>接受并加入</value></data>
+  <data name="HellForge.ModSync.Restart" xml:space="preserve"><value>重启并加入</value></data>
+  <data name="HellForge.ModSync.Decline" xml:space="preserve"><value>拒绝</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
   <data name="HellForge.Sync.None" xml:space="preserve"><value>尚未同步模组。</value></data>
@@ -4646,12 +4662,68 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>每玩家</value></data>
   <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>仅本机</value></data>
   <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge 报告以下模组目录有问题：</value></data>
+  <data name="HellForge.Category.Planets" xml:space="preserve"><value>自定义星球</value></data>
+  <data name="HellForge.Planets.Title" xml:space="preserve"><value>自定义星球</value></data>
+  <data name="HellForge.Planets.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="HellForge.Planets.ResetAll" xml:space="preserve"><value>全部重置</value></data>
+  <data name="HellForge.Planets.Active" xml:space="preserve"><value>下次会话将使用自定义星球。</value></data>
+  <data name="HellForge.Planets.Inactive" xml:space="preserve"><value>编辑已保存，但只有“自定义星球”战争会使用。</value></data>
+  <data name="HellForge.Planets.War" xml:space="preserve"><value>当前战争：{0}</value></data>
+  <data name="HellForge.Planets.SessionRunning" xml:space="preserve"><value>会话正在运行，修改会在一分钟内传送到游戏。</value></data>
+  <data name="HellForge.Planets.SessionIdle" xml:space="preserve"><value>修改会在下次会话生效。</value></data>
+  <data name="HellForge.Planets.Problems" xml:space="preserve"><value>HellForge 报告以下星球问题：</value></data>
+  <data name="HellForge.Planets.Open" xml:space="preserve"><value>打开星球</value></data>
+  <data name="HellForge.Planets.QueryPlaceholder" xml:space="preserve"><value>星球名称或编号</value></data>
+  <data name="HellForge.Planets.OpenButton" xml:space="preserve"><value>打开</value></data>
+  <data name="HellForge.Planets.None" xml:space="preserve"><value>还没有修改过星球。输入名称或编号即可开始。</value></data>
+  <data name="HellForge.Planets.EditorHint" xml:space="preserve"><value>选择已修改的星球，或输入任意星球名称/编号。</value></data>
+  <data name="HellForge.Planets.Faction" xml:space="preserve"><value>敌人阵营</value></data>
+  <data name="HellForge.Planets.Faction.War" xml:space="preserve"><value>沿用战争</value></data>
+  <data name="HellForge.Planets.Faction.Terminids" xml:space="preserve"><value>光能族</value></data>
+  <data name="HellForge.Planets.Faction.Automatons" xml:space="preserve"><value>自动机</value></data>
+  <data name="HellForge.Planets.Faction.Illuminate" xml:space="preserve"><value>Illuminate</value></data>
+  <data name="HellForge.Planets.Subfactions" xml:space="preserve"><value>子阵营</value></data>
+  <data name="HellForge.Planets.SubfactionsWar" xml:space="preserve"><value>沿用战争</value></data>
+  <data name="HellForge.Planets.SubfactionsPick" xml:space="preserve"><value>自行选择</value></data>
+  <data name="HellForge.Planets.SubfactionsWarShort" xml:space="preserve"><value>战争子阵营</value></data>
+  <data name="HellForge.Planets.SubfactionCount" xml:space="preserve"><value>{0} 个子阵营</value></data>
+  <data name="HellForge.Planets.ChooseFaction" xml:space="preserve"><value>先选择敌人阵营，才能编辑其子阵营与敌人组。</value></data>
+  <data name="HellForge.Planets.Enemies" xml:space="preserve"><value>敌人组</value></data>
+  <data name="HellForge.Planets.EnemyMode.Normal" xml:space="preserve"><value>照常</value></data>
+  <data name="HellForge.Planets.EnemyMode.Surge" xml:space="preserve"><value>激增（x10）</value></data>
+  <data name="HellForge.Planets.EnemyMode.None" xml:space="preserve"><value>无</value></data>
+  <data name="HellForge.Planets.EnemyOverrideCount" xml:space="preserve"><value>{0} 个敌人组覆盖</value></data>
+  <data name="HellForge.Planets.Save" xml:space="preserve"><value>保存星球</value></data>
+  <data name="HellForge.Planets.Saving" xml:space="preserve"><value>正在保存星球…</value></data>
+  <data name="HellForge.Planets.Saved" xml:space="preserve"><value>星球已保存。</value></data>
+  <data name="HellForge.Planets.Reset" xml:space="preserve"><value>恢复战争设置</value></data>
+  <data name="HellForge.Planets.Resetting" xml:space="preserve"><value>正在重置星球…</value></data>
+  <data name="HellForge.Planets.ResetTitle" xml:space="preserve"><value>重置这个星球？</value></data>
+  <data name="HellForge.Planets.ResetConfirm" xml:space="preserve"><value>移除 {0} 的所有自定义选择？</value></data>
+  <data name="HellForge.Planets.ResetDone" xml:space="preserve"><value>星球已重置。</value></data>
+  <data name="HellForge.Planets.ResetAllTitle" xml:space="preserve"><value>重置全部星球？</value></data>
+  <data name="HellForge.Planets.ResetAllConfirm" xml:space="preserve"><value>移除所有自定义星球选择？</value></data>
+  <data name="HellForge.Planets.ResetAllDone" xml:space="preserve"><value>全部星球已重置。</value></data>
+  <data name="HellForge.Planets.Loading" xml:space="preserve"><value>正在读取自定义星球…</value></data>
+  <data name="HellForge.Mods.Unsupported" xml:space="preserve"><value>不受支持：{0}</value></data>
+  <data name="HellForge.Mods.Premium" xml:space="preserve"><value>高级内容：{0}</value></data>
+  <data name="HellForge.Mods.Build" xml:space="preserve"><value>源码构建：{0} {1}</value></data>
+  <data name="HellForge.Mods.BuildState.NotBuilt" xml:space="preserve"><value>尚未构建</value></data>
+  <data name="HellForge.Mods.BuildState.Built" xml:space="preserve"><value>已构建</value></data>
+  <data name="HellForge.Mods.BuildState.DidNotCompile" xml:space="preserve"><value>编译失败</value></data>
+  <data name="HellForge.Mods.BuildState.ToolsFailed" xml:space="preserve"><value>构建工具失败</value></data>
+  <data name="HellForge.Mods.BuildState.Changed" xml:space="preserve"><value>已变化，需要重新构建</value></data>
+  <data name="HellForge.Mods.BuildState.Unreadable" xml:space="preserve"><value>源码无法读取</value></data>
+  <data name="HellForge.Mods.BuildState.Unknown" xml:space="preserve"><value>状态未知</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>
+  <data name="HellForge.Settings.EditPlanets" xml:space="preserve"><value>编辑自定义星球</value></data>
   <data name="HellForge.War.Live" xml:space="preserve"><value>实时战争</value></data>
   <data name="HellForge.War.Frozen" xml:space="preserve"><value>冻结战争</value></data>
   <data name="HellForge.War.Open" xml:space="preserve"><value>全部星球开放</value></data>
+  <data name="HellForge.War.Hellforge" xml:space="preserve"><value>HellForge 战争</value></data>
+  <data name="HellForge.War.Custom" xml:space="preserve"><value>自定义星球</value></data>
   <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>本地 PlayFab 后端</value></data>
   <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>与 Steam 好友联机</value></data>
   <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>收集游戏日志</value></data>
@@ -4666,6 +4738,16 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Strangers.No" xml:space="preserve"><value>关闭</value></data>
   <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>允许会话中更改模组（实验性）</value></data>
   <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>战利品含 Forge Credits 的比例（%）</value></data>
+  <data name="HellForge.Settings.WarServer" xml:space="preserve"><value>HellForge 战争服务器（留空为默认）</value></data>
+  <data name="HellForge.Settings.WarOptions" xml:space="preserve"><value>战争生成选项</value></data>
+  <data name="HellForge.Settings.DealSubfactions" xml:space="preserve"><value>按战争种子生成子阵营</value></data>
+  <data name="HellForge.Settings.DealSeaf" xml:space="preserve"><value>按战争种子生成 SEAF 盟友</value></data>
+  <data name="HellForge.Settings.WarSeed" xml:space="preserve"><value>战争种子（0 表示未设置）</value></data>
+  <data name="HellForge.Settings.Sharing" xml:space="preserve"><value>模组分享与公开大厅</value></data>
+  <data name="HellForge.Settings.ShareMods" xml:space="preserve"><value>允许加入我的玩家下载游戏性模组</value></data>
+  <data name="HellForge.Settings.ListPublic" xml:space="preserve"><value>在银河地图列出我的公开大厅</value></data>
+  <data name="HellForge.Settings.ShowEditedStats" xml:space="preserve"><value>显示房主强制应用数值修改的公开大厅</value></data>
+  <data name="HellForge.Settings.HostStats" xml:space="preserve"><value>好友使用我的编辑器数值修改</value></data>
   <data name="HellForge.Settings.Save" xml:space="preserve"><value>保存设置</value></data>
   <data name="HellForge.Settings.Saving" xml:space="preserve"><value>正在保存设置…</value></data>
   <data name="HellForge.Settings.Saved" xml:space="preserve"><value>设置已保存，下次会话生效。</value></data>
