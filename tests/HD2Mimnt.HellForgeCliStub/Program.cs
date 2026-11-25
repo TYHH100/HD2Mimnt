@@ -192,7 +192,7 @@ internal static partial class StubMods
                     Optional(args, "--on"), Optional(args, "--variant")),
                 _ => List(modsDir, settings)
             };
-            SaveSettings(settingsFile, settings);
+            if (command != "mods") SaveSettings(settingsFile, settings);
             Console.Write(JsonSerializer.Serialize(result));
             return 0;
         }

@@ -181,6 +181,93 @@ public sealed class HellForgeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Mods_WhenFolderIsUnchanged_ShouldReuseCachedResultWithoutCli()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        var first = await _service.GetModsAsync();
+        var second = await _service.GetModsAsync();
+
+        Assert.Same(first, second);
+        Assert.Equal(1, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenManifestOrNestedPayloadChanges_ShouldReload()
+    {
+        var folder = CreateMod("custom.cached", "Cached Mod");
+        await _service.GetModsAsync();
+
+        File.WriteAllText(Path.Combine(folder, "hellforge-mod.json"),
+            """{"id":"custom.cached","name":"Renamed Mod","version":"1.0.0","gameplay":true}""");
+        var renamed = await _service.GetModsAsync();
+        Assert.Equal("Renamed Mod", Assert.Single(renamed.Mods).Name);
+        Assert.Equal(2, CountModCommands());
+
+        var payload = Path.Combine(folder, "data", "payload.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(payload)!);
+        File.WriteAllBytes(payload, [1, 2, 3]);
+        await _service.GetModsAsync();
+        Assert.Equal(3, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenSettingsOrFolderSetChanges_ShouldReload()
+    {
+        var folder = CreateMod("custom.cached", "Cached Mod");
+        var first = await _service.GetModsAsync();
+        Assert.True(Assert.Single(first.Mods).Enabled);
+
+        var settingsFile = Path.Combine(_fixture.Root, "mods", "hellforge-mods.json");
+        File.WriteAllText(settingsFile, """{"disabled":["custom.cached"]}""");
+        var disabled = await _service.GetModsAsync();
+        Assert.False(Assert.Single(disabled.Mods).Enabled);
+        Assert.Equal(2, CountModCommands());
+
+        Directory.Delete(folder, recursive: true);
+        var removed = await _service.GetModsAsync();
+        Assert.Empty(removed.Mods);
+        Assert.Equal(3, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenCliFails_ShouldNotCacheFailure()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        _fixture.OverwriteResponse("mods", "{ not json");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.GetModsAsync());
+
+        File.Delete(Path.Combine(_fixture.Root, "cli-mods.json"));
+        var recovered = await _service.GetModsAsync();
+        Assert.Single(recovered.Mods);
+        Assert.Equal(2, CountModCommands());
+    }
+
+    [Fact]
+    public async Task ModMutation_ShouldInvalidateCachedList()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        await _service.GetModsAsync();
+        await _service.SwitchModAsync("custom.cached", false);
+
+        var refreshed = await _service.GetModsAsync();
+        Assert.False(Assert.Single(refreshed.Mods).Enabled);
+        Assert.Equal(2, CountModCommands());
+    }
+
+    private string CreateMod(string id, string name)
+    {
+        var folder = Path.Combine(_fixture.Root, "mods", id);
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "hellforge-mod.json"),
+            $$"""{"id":"{{id}}","name":"{{name}}","version":"1.0.0","gameplay":true}""");
+        return folder;
+    }
+
+    private int CountModCommands() => _fixture.ReadArgs()
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Count(line => line.StartsWith("mods ", StringComparison.Ordinal));
+
+    [Fact]
     public async Task ModSyncOffer_ShouldReadAndAnswerWithOfferVersion()
     {
         _fixture.EnableModernCli();
