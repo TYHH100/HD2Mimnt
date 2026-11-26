@@ -46,7 +46,7 @@ jobs:
 
           GITHUB_REPOSITORY: ${{ github.repository }}
 
-          CODEBERG_OWNER: YOUR_CODEBERG_USERNAME
+          CODEBERG_OWNER: TYHH10
           CODEBERG_REPO: HD2Mimnt
           CODEBERG_URL: https://codeberg.org
 
