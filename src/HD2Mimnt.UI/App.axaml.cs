@@ -559,6 +559,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IModRepository>(),
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<IDeploymentRepository>()));
+        services.AddSingleton<ModBinarySearchService>();
 
         // 外部管理器迁移：读取器只读源数据，实际复制和落库由 Application 服务完成。
         services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
@@ -591,6 +592,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HD2Mimnt.Infrastructure.SoundFix.SoundFixInspector>(), sp.GetRequiredService<SettingsService>(),
             Path.Combine(storageLocations.AppDataPath, "SoundFixBackups")));
         services.AddTransient<SoundFixViewModel>();
+        services.AddTransient<ModBinarySearchViewModel>();
         services.AddSingleton<ModCompatibilityService>();
         services.AddSingleton<ILuaExtractionStore, LuaExtractionRepository>();
         services.AddSingleton<LuaExtractionService>();
@@ -921,6 +923,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<Hd2ClViewModel>(),
             sp.GetRequiredService<Hd2ClVariantPromptService>(),
             sp.GetRequiredService<MmdAdaptationViewModel>(),
-            sp.GetRequiredService<MmdSourceInfoPromptService>()));
+            sp.GetRequiredService<MmdSourceInfoPromptService>(),
+            sp.GetRequiredService<ModBinarySearchViewModel>()));
     }
 }

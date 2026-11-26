@@ -7,7 +7,7 @@ namespace HD2Mimnt.UI.ViewModels;
 /// </summary>
 public partial class MoreViewModel : ObservableObject
 {
-    public string[] Categories { get; } = { "直链下载", "插件", "备份与恢复", "管理器迁移", "音效修复", "日志", "外部工具", "HD2CL 角色库", "开发工具", "HD2IAS 管理", "HD2IAS 系统" };
+    public string[] Categories { get; } = { "直链下载", "插件", "备份与恢复", "管理器迁移", "音效修复", "模组二分排查", "日志", "外部工具", "HD2CL 角色库", "开发工具", "HD2IAS 管理", "HD2IAS 系统" };
 
     [ObservableProperty]
     private string _selectedCategory = "插件";
@@ -23,6 +23,7 @@ public partial class MoreViewModel : ObservableObject
     public bool IsHd2IASVisible => SelectedCategory == "HD2IAS 管理";
     public bool IsIasSystemVisible => SelectedCategory == "HD2IAS 系统";
     public bool IsSoundFixVisible => SelectedCategory == "音效修复";
+    public bool IsModBinarySearchVisible => SelectedCategory == "模组二分排查";
 
     partial void OnSelectedCategoryChanged(string value)
     {
@@ -37,5 +38,6 @@ public partial class MoreViewModel : ObservableObject
         OnPropertyChanged(nameof(IsHd2IASVisible));
         OnPropertyChanged(nameof(IsIasSystemVisible));
         OnPropertyChanged(nameof(IsSoundFixVisible));
+        OnPropertyChanged(nameof(IsModBinarySearchVisible));
     }
 }

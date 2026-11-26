@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:views="using:HD2Mimnt.UI.Views" x:Class="HD2Mimnt.UI.Views.MoreView" x:DataType="vm:MainWindowViewModel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:loc="using:HD2Mimnt.UI.Localization" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:HD2Mimnt.UI.ViewModels" xmlns:views="using:HD2Mimnt.UI.Views" xmlns:services="using:HD2Mimnt.Application.Services" x:Class="HD2Mimnt.UI.Views.MoreView" x:DataType="vm:MainWindowViewModel">
   <Grid ColumnDefinitions="180,*" Margin="24,16,24,20" ColumnSpacing="24">
     <StackPanel Grid.Column="0" Spacing="4">
       <TextBlock Text="{loc:Loc UI.Tools}" Classes="page-title" Margin="0,0,0,12" />
@@ -24,6 +24,62 @@
         <StackPanel IsVisible="{Binding MoreViewModel.IsHd2IASVisible}"><views:Hd2IASManagementView DataContext="{Binding Hd2IASManagementViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsIasSystemVisible}"><views:IasSystemView DataContext="{Binding IasSystemViewModel}"/></StackPanel>
         <StackPanel IsVisible="{Binding MoreViewModel.IsSoundFixVisible}"><views:SoundFixView DataContext="{Binding SoundFixViewModel}"/></StackPanel>
+
+        <StackPanel IsVisible="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).MoreViewModel.IsModBinarySearchVisible}" DataContext="{Binding ModBinarySearchViewModel}" Classes="section" Spacing="12">
+          <TextBlock Text="{loc:Loc ModBinarySearch.Title}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc ModBinarySearch.Description}" Classes="muted" TextWrapping="Wrap" />
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{loc:Loc ModBinarySearch.Isolation}" TextWrapping="Wrap" />
+              <StackPanel IsVisible="{Binding ShowStart}" Spacing="8">
+                <Button Name="StartModBinarySearchButton" Content="{loc:Loc ModBinarySearch.Start}" Classes="accent" Command="{Binding StartCommand}" HorizontalAlignment="Left" />
+              </StackPanel>
+              <StackPanel IsVisible="{Binding HasSession}" Spacing="8">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto">
+                  <TextBlock Text="{loc:Loc ModBinarySearch.SourceProfile}" Classes="muted" /><TextBlock Grid.Column="1" Text="{Binding SourceProfileName}" TextWrapping="Wrap" />
+                  <TextBlock Grid.Row="1" Text="{loc:Loc ModBinarySearch.TemporaryProfile}" Classes="muted" /><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TemporaryProfileName}" TextWrapping="Wrap" />
+                  <TextBlock Grid.Row="2" Text="{loc:Loc ModBinarySearch.ModCount}" Classes="muted" /><TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TotalModCount}" />
+                  <TextBlock Grid.Row="3" Text="{loc:Loc ModBinarySearch.CandidateCount}" Classes="muted" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CandidateCount}" />
+                </Grid>
+                <StackPanel IsVisible="{Binding ShowExcluded}" Spacing="4">
+                  <TextBlock Text="{loc:Loc ModBinarySearch.ExcludedHint}" Classes="muted" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding ExcludedModNames}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Name="ModBinarySearchStatus" Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+              <StackPanel IsVisible="{Binding IsBusy}" Spacing="6"><ProgressBar IsIndeterminate="True" /><TextBlock Text="{Binding ProgressMessage}" Classes="muted" TextWrapping="Wrap" /></StackPanel>
+              <StackPanel IsVisible="{Binding ShowTest}" Spacing="8">
+                <TextBlock Text="{Binding StepHeading}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{loc:Loc ModBinarySearch.DeployHint}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{loc:Loc ModBinarySearch.DisabledThisRound}" FontWeight="SemiBold" />
+                <ListBox ItemsSource="{Binding DisabledCandidates}" MaxHeight="220" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                  <ListBox.ItemTemplate><DataTemplate x:DataType="services:ModBinarySearchCandidate"><TextBlock Text="{Binding Name}" TextWrapping="Wrap" /></DataTemplate></ListBox.ItemTemplate>
+                </ListBox>
+                <WrapPanel Orientation="Horizontal">
+                  <Button Name="DeployModBinarySearchTestButton" Content="{loc:Loc ModBinarySearch.Deploy}" Classes="accent" Command="{Binding DeployCurrentTestCommand}" IsVisible="{Binding CanDeploy}" Margin="0,0,8,8" />
+                  <Button Content="{loc:Loc UI.LaunchHD}" Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).LibraryViewModel.LaunchGameCommand}" IsVisible="{Binding CanObserve}" Margin="0,0,8,8" />
+                </WrapPanel>
+                <TextBlock IsVisible="{Binding CanObserve}" Text="{loc:Loc ModBinarySearch.ObserveHint}" Classes="muted" TextWrapping="Wrap" />
+                <WrapPanel IsVisible="{Binding CanObserve}" Orientation="Horizontal">
+                  <Button Name="ModBinarySearchProblemRemainsButton" Content="{loc:Loc ModBinarySearch.ProblemRemains}" Command="{Binding ProblemRemainsCommand}" Margin="0,0,8,8" />
+                  <Button Name="ModBinarySearchProblemGoneButton" Content="{loc:Loc ModBinarySearch.ProblemGone}" Classes="accent" Command="{Binding ProblemGoneCommand}" Margin="0,0,8,8" />
+                </WrapPanel>
+              </StackPanel>
+              <StackPanel IsVisible="{Binding ShowResult}" Spacing="8">
+                <TextBlock Text="{Binding ResultMessage}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock IsVisible="{Binding CanCleanup}" Text="{loc:Loc ModBinarySearch.CleanupConfirm}" Classes="muted" TextWrapping="Wrap" />
+                <Button Name="FinishModBinarySearchButton" Content="{loc:Loc ModBinarySearch.FinishCleanup}" Classes="accent" Command="{Binding FinishCleanupCommand}" IsVisible="{Binding CanCleanup}" HorizontalAlignment="Left" />
+                <Button Name="DisableVerifiedModButton" Content="{loc:Loc ModBinarySearch.DisableSuspect}" Command="{Binding DisableSuspectCommand}" IsVisible="{Binding CanDisableSuspect}" HorizontalAlignment="Left" />
+                <TextBlock IsVisible="{Binding ShowResult}" Text="{loc:Loc ModBinarySearch.UserDecision}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Content="{loc:Loc ModBinarySearch.Cancel}" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" HorizontalAlignment="Left" />
+              <StackPanel IsVisible="{Binding ShowHistory}" Spacing="4">
+                <TextBlock Text="{loc:Loc ModBinarySearch.History}" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding History}"><ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:ModBinarySearchHistoryItem"><TextBlock Text="{Binding Summary}" TextWrapping="Wrap" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
 
         <StackPanel IsVisible="{Binding MoreViewModel.IsExternalToolsVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.ExternalTools}" Classes="section-title" />

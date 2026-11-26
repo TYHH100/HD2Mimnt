@@ -4358,6 +4358,57 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>Game reference index built and saved</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>Names updated: {0:N0} resources, {1:N0} archives</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>Failed to restore settings: {0}</value></data>
+  <data name="ModBinarySearch.NavItem" xml:space="preserve"><value>Mod binary search</value></data>
+  <data name="ModBinarySearch.Title" xml:space="preserve"><value>Mod binary-search troubleshooting</value></data>
+  <data name="ModBinarySearch.Description" xml:space="preserve"><value>Copy only enabled mods, then narrow down a suspect by disabling half of the remaining candidates each round and verifying the last candidate alone.</value></data>
+  <data name="ModBinarySearch.Isolation" xml:space="preserve"><value>The temporary profile contains only mods enabled in the source profile, preserving their relative order, options and group boundaries. Disabled mods are not copied. Only the temporary profile is toggled and deployed; the source profile is never edited. The original deployment is restored before the temporary profile is deleted.</value></data>
+  <data name="ModBinarySearch.Start" xml:space="preserve"><value>Start binary search</value></data>
+  <data name="ModBinarySearch.StartConfirm" xml:space="preserve"><value>Create a temporary profile containing only the active profile's enabled mods and begin troubleshooting? Close the game before each deployment. The source profile will not be modified.</value></data>
+  <data name="ModBinarySearch.Ready" xml:space="preserve"><value>Start with a problem that reproduces in the active profile.</value></data>
+  <data name="ModBinarySearch.NoSource" xml:space="preserve"><value>No active profile is available.</value></data>
+  <data name="ModBinarySearch.BusyTask" xml:space="preserve"><value>A deployment, cleanup or HellForge sync is already running. Wait for it to finish first.</value></data>
+  <data name="ModBinarySearch.Preparing" xml:space="preserve"><value>Preparing the temporary profile and the next test…</value></data>
+  <data name="ModBinarySearch.CloneReady" xml:space="preserve"><value>The temporary profile is ready. Close the game, deploy this round, then launch the game and reproduce the problem.</value></data>
+  <data name="ModBinarySearch.SourceProfile" xml:space="preserve"><value>Source profile</value></data>
+  <data name="ModBinarySearch.TemporaryProfile" xml:space="preserve"><value>Temporary profile</value></data>
+  <data name="ModBinarySearch.ModCount" xml:space="preserve"><value>Enabled mods in temporary profile</value></data>
+  <data name="ModBinarySearch.CandidateCount" xml:space="preserve"><value>Initial ordinary candidates</value></data>
+  <data name="ModBinarySearch.ExcludedHint" xml:space="preserve"><value>Enabled loaders, dependencies and SmoothBoot are excluded from automatic toggling and keep their original state:</value></data>
+  <data name="ModBinarySearch.RoundHeading" xml:space="preserve"><value>Round {0}: disable {1} of {2} remaining candidates</value></data>
+  <data name="ModBinarySearch.FinalHeading" xml:space="preserve"><value>Final verification: disable the last suspect while keeping every other originally enabled ordinary mod enabled</value></data>
+  <data name="ModBinarySearch.DeployHint" xml:space="preserve"><value>Close the game before deploying. A failed or partial deployment cannot be used as a test result.</value></data>
+  <data name="ModBinarySearch.DisabledThisRound" xml:space="preserve"><value>Disabled in this round</value></data>
+  <data name="ModBinarySearch.Deploy" xml:space="preserve"><value>Deploy this round</value></data>
+  <data name="ModBinarySearch.Deploying" xml:space="preserve"><value>Deploying the temporary profile…</value></data>
+  <data name="ModBinarySearch.Deployed" xml:space="preserve"><value>Deployment completed. Launch the game, reproduce the problem, then report whether it remains.</value></data>
+  <data name="ModBinarySearch.DeployCancelled" xml:space="preserve"><value>Deployment was cancelled. Retry before recording an observation.</value></data>
+  <data name="ModBinarySearch.DeployFailed" xml:space="preserve"><value>Test deployment failed: {0}</value></data>
+  <data name="ModBinarySearch.ObserveHint" xml:space="preserve"><value>After reproducing the problem in-game, choose the matching result. Do not run another deployment while the game is running.</value></data>
+  <data name="ModBinarySearch.ProblemRemains" xml:space="preserve"><value>Problem remains</value></data>
+  <data name="ModBinarySearch.ProblemGone" xml:space="preserve"><value>Problem is gone</value></data>
+  <data name="ModBinarySearch.OutcomeRemains" xml:space="preserve"><value>Problem remains</value></data>
+  <data name="ModBinarySearch.OutcomeGone" xml:space="preserve"><value>Problem is gone</value></data>
+  <data name="ModBinarySearch.History" xml:space="preserve"><value>Test history</value></data>
+  <data name="ModBinarySearch.HistoryLine" xml:space="preserve"><value>Round {0}: {1}. Disabled: {2}. Remaining suspects: {3}.</value></data>
+  <data name="ModBinarySearch.ResultConfirmed" xml:space="preserve"><value>Verified suspect: {0}. The problem disappeared when only this mod was disabled relative to the original enabled set.</value></data>
+  <data name="ModBinarySearch.ResultNotIsolated" xml:space="preserve"><value>No single suspect was verified. The problem still occurred with the last candidate disabled, so multiple mods, interactions or a non-mod cause may be involved.</value></data>
+  <data name="ModBinarySearch.ResultCancelled" xml:space="preserve"><value>Troubleshooting was cancelled; no suspect was confirmed.</value></data>
+  <data name="ModBinarySearch.CleanupHint" xml:space="preserve"><value>Close the game, then restore the source profile deployment and delete the temporary profile.</value></data>
+  <data name="ModBinarySearch.CleanupConfirm" xml:space="preserve"><value>Cleanup restores the source profile deployment before deleting the temporary profile. The source profile content is not changed.</value></data>
+  <data name="ModBinarySearch.FinishCleanup" xml:space="preserve"><value>Restore and finish</value></data>
+  <data name="ModBinarySearch.Cleaning" xml:space="preserve"><value>Restoring the source deployment and deleting the temporary profile…</value></data>
+  <data name="ModBinarySearch.CleanupFailed" xml:space="preserve"><value>Cleanup did not finish: {0}. The temporary profile was kept; retry after checking the source profile and game state.</value></data>
+  <data name="ModBinarySearch.Completed" xml:space="preserve"><value>Troubleshooting complete. The source deployment was restored, the temporary profile was deleted, and the source profile was not modified.</value></data>
+  <data name="ModBinarySearch.UserDecision" xml:space="preserve"><value>You can disable the verified suspect directly with the button below. This tool never disables or deploys it automatically.</value></data>
+  <data name="ModBinarySearch.DisableSuspect" xml:space="preserve"><value>Disable this mod</value></data>
+  <data name="ModBinarySearch.DisableSuspectConfirm" xml:space="preserve"><value>Disable “{0}” in the source profile? This only changes the profile; deployment is not automatic.</value></data>
+  <data name="ModBinarySearch.SuspectDisabled" xml:space="preserve"><value>“{0}” has been disabled in the source profile. Redeploy when ready.</value></data>
+  <data name="ModBinarySearch.Cancel" xml:space="preserve"><value>Cancel and clean up</value></data>
+  <data name="ModBinarySearch.CancelConfirm" xml:space="preserve"><value>Cancel troubleshooting, restore the source profile deployment and delete the temporary profile?</value></data>
+  <data name="ModBinarySearch.Cancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+  <data name="ModBinarySearch.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="ModBinarySearch.TaskName" xml:space="preserve"><value>Binary-search deployment</value></data>
+  <data name="ModBinarySearch.ShutdownConfirm" xml:space="preserve"><value>A binary-search session is active. Exit will cancel it, restore the source profile deployment and delete the temporary profile. Continue?</value></data>
   <data name="SoundFix.Title" xml:space="preserve"><value>Sound repair</value></data>
   <data name="SoundFix.Description" xml:space="preserve"><value>Scan the mod library and rebuild outdated sound banks from the current game while preserving replaced embedded audio.</value></data>
   <data name="SoundFix.Scope" xml:space="preserve"><value>Configure the game directory first. Banks with many custom entries or new non-weapon events, initialization banks, and streamed banks are skipped by default. Library files are backed up before repair. Redeploy and restart the game afterward.</value></data>

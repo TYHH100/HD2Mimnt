@@ -162,6 +162,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
+    public ModBinarySearchViewModel? ModBinarySearchViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
     public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
@@ -204,7 +205,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2ClViewModel? hd2ClViewModel = null,
         Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
         MmdAdaptationViewModel? mmdAdaptationViewModel = null,
-        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null)
+        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null,
+        ModBinarySearchViewModel? modBinarySearchViewModel = null)
     {
         _pluginService = pluginService;
         Hd2ClViewModel = hd2ClViewModel;
@@ -273,6 +275,17 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
+        ModBinarySearchViewModel = modBinarySearchViewModel;
+        if (ModBinarySearchViewModel != null)
+        {
+            Func<Task> refresh = async () =>
+            {
+                await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
+                await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
+            ModBinarySearchViewModel.RefreshAfterDeploymentAsync = refresh;
+            ModBinarySearchViewModel.RefreshAfterProfileChangeAsync = refresh;
+        }
         IasSystemViewModel = iasSystemViewModel;
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
@@ -1171,6 +1184,12 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     public async Task<bool> CanCloseAsync()
     {
+        if (ModBinarySearchViewModel != null && !await ModBinarySearchViewModel.PrepareShutdownAsync())
+        {
+            if (ModBinarySearchViewModel.Stage == ModBinarySearchStage.CleanupFailed)
+                _notificationService.ShowWarning(ModBinarySearchViewModel.StatusMessage, "模组二分排查");
+            return false;
+        }
         _closingCompatibility = true;
         if (ModelPreview != null) await ModelPreview.StopAsync();
         if (AudioPreview != null) await AudioPreview.StopAsync();

@@ -4358,6 +4358,57 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>游戏参考索引已构建并保存</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>名称数据已更新：{0:N0} 个资源，{1:N0} 个归档</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>恢复设置失败：{0}</value></data>
+  <data name="ModBinarySearch.NavItem" xml:space="preserve"><value>模组二分排查</value></data>
+  <data name="ModBinarySearch.Title" xml:space="preserve"><value>模组二分排查</value></data>
+  <data name="ModBinarySearch.Description" xml:space="preserve"><value>只复制已启用模组，每轮禁用剩余候选的一半逐步缩小范围，最后单独验证最后一个嫌疑模组。</value></data>
+  <data name="ModBinarySearch.Isolation" xml:space="preserve"><value>临时配置只包含源配置中已启用的模组，并保留它们的相对顺序、选项和分组边界；关闭的模组不会复制。之后只启停并部署临时配置，绝不修改源配置；收尾前会恢复原配置部署，再删除临时配置。</value></data>
+  <data name="ModBinarySearch.Start" xml:space="preserve"><value>开始二分排查</value></data>
+  <data name="ModBinarySearch.StartConfirm" xml:space="preserve"><value>确定为当前活动配置创建仅包含已启用模组的临时配置并开始排查吗？每次部署前请关闭游戏，源配置不会被修改。</value></data>
+  <data name="ModBinarySearch.Ready" xml:space="preserve"><value>请先确认问题能在当前活动配置中稳定复现，再开始排查。</value></data>
+  <data name="ModBinarySearch.NoSource" xml:space="preserve"><value>当前没有可用的活动配置。</value></data>
+  <data name="ModBinarySearch.BusyTask" xml:space="preserve"><value>已有部署、清理或 HellForge 同步任务正在运行，请等待完成。</value></data>
+  <data name="ModBinarySearch.Preparing" xml:space="preserve"><value>正在准备临时配置和下一轮测试…</value></data>
+  <data name="ModBinarySearch.CloneReady" xml:space="preserve"><value>临时配置已就绪。请关闭游戏并部署本轮，然后启动游戏复现问题。</value></data>
+  <data name="ModBinarySearch.SourceProfile" xml:space="preserve"><value>源配置</value></data>
+  <data name="ModBinarySearch.TemporaryProfile" xml:space="preserve"><value>临时配置</value></data>
+  <data name="ModBinarySearch.ModCount" xml:space="preserve"><value>临时配置启用模组数</value></data>
+  <data name="ModBinarySearch.CandidateCount" xml:space="preserve"><value>初始普通候选数量</value></data>
+  <data name="ModBinarySearch.ExcludedHint" xml:space="preserve"><value>已启用的加载器、依赖和 SmoothBoot 不参与自动启停，保持原状态：</value></data>
+  <data name="ModBinarySearch.RoundHeading" xml:space="preserve"><value>第 {0} 轮：禁用剩余 {2} 个候选中的 {1} 个</value></data>
+  <data name="ModBinarySearch.FinalHeading" xml:space="preserve"><value>最终验证：只禁用最后一个嫌疑模组，其它原本启用的普通模组全部保持启用</value></data>
+  <data name="ModBinarySearch.DeployHint" xml:space="preserve"><value>部署前请关闭游戏。部署失败或部分失败时不能把本轮当作有效测试结果。</value></data>
+  <data name="ModBinarySearch.DisabledThisRound" xml:space="preserve"><value>本轮禁用</value></data>
+  <data name="ModBinarySearch.Deploy" xml:space="preserve"><value>部署本轮</value></data>
+  <data name="ModBinarySearch.Deploying" xml:space="preserve"><value>正在部署临时配置…</value></data>
+  <data name="ModBinarySearch.Deployed" xml:space="preserve"><value>部署完成。请启动游戏复现问题，然后反馈问题是否仍然存在。</value></data>
+  <data name="ModBinarySearch.DeployCancelled" xml:space="preserve"><value>部署已取消，请重试后再记录测试结果。</value></data>
+  <data name="ModBinarySearch.DeployFailed" xml:space="preserve"><value>本轮部署失败：{0}</value></data>
+  <data name="ModBinarySearch.ObserveHint" xml:space="preserve"><value>请在游戏中实际复现后选择结果。游戏运行期间不要再次部署。</value></data>
+  <data name="ModBinarySearch.ProblemRemains" xml:space="preserve"><value>问题仍然存在</value></data>
+  <data name="ModBinarySearch.ProblemGone" xml:space="preserve"><value>问题已消失</value></data>
+  <data name="ModBinarySearch.OutcomeRemains" xml:space="preserve"><value>问题仍然存在</value></data>
+  <data name="ModBinarySearch.OutcomeGone" xml:space="preserve"><value>问题已消失</value></data>
+  <data name="ModBinarySearch.History" xml:space="preserve"><value>测试记录</value></data>
+  <data name="ModBinarySearch.HistoryLine" xml:space="preserve"><value>第 {0} 轮：{1}。禁用：{2}。剩余嫌疑：{3}。</value></data>
+  <data name="ModBinarySearch.ResultConfirmed" xml:space="preserve"><value>已验证的嫌疑模组：{0}。在其它原本启用的普通模组全部保持启用时，仅禁用此模组后问题消失。</value></data>
+  <data name="ModBinarySearch.ResultNotIsolated" xml:space="preserve"><value>未能验证出单一嫌疑模组。禁用最后一个候选后问题仍然存在，可能涉及多个模组、模组交互或非模组原因。</value></data>
+  <data name="ModBinarySearch.ResultCancelled" xml:space="preserve"><value>排查已取消，没有确认嫌疑模组。</value></data>
+  <data name="ModBinarySearch.CleanupHint" xml:space="preserve"><value>请关闭游戏，然后恢复源配置部署并删除临时配置。</value></data>
+  <data name="ModBinarySearch.CleanupConfirm" xml:space="preserve"><value>收尾会先恢复源配置部署，再删除临时配置；不会修改源配置内容。</value></data>
+  <data name="ModBinarySearch.FinishCleanup" xml:space="preserve"><value>恢复并完成</value></data>
+  <data name="ModBinarySearch.Cleaning" xml:space="preserve"><value>正在恢复源配置部署并删除临时配置…</value></data>
+  <data name="ModBinarySearch.CleanupFailed" xml:space="preserve"><value>收尾未完成：{0}。临时配置已保留，请检查源配置和游戏状态后重试。</value></data>
+  <data name="ModBinarySearch.Completed" xml:space="preserve"><value>排查完成。已恢复源配置部署、删除临时配置，源配置内容未被修改。</value></data>
+  <data name="ModBinarySearch.UserDecision" xml:space="preserve"><value>可通过下方按钮直接禁用已验证的嫌疑模组；本工具不会自动禁用或部署。</value></data>
+  <data name="ModBinarySearch.DisableSuspect" xml:space="preserve"><value>禁用此模组</value></data>
+  <data name="ModBinarySearch.DisableSuspectConfirm" xml:space="preserve"><value>确定在源配置中禁用“{0}”吗？此操作只修改配置，不会自动部署。</value></data>
+  <data name="ModBinarySearch.SuspectDisabled" xml:space="preserve"><value>已在源配置中禁用“{0}”，准备好后可自行重新部署。</value></data>
+  <data name="ModBinarySearch.Cancel" xml:space="preserve"><value>取消并清理</value></data>
+  <data name="ModBinarySearch.CancelConfirm" xml:space="preserve"><value>确定取消排查、恢复源配置部署并删除临时配置吗？</value></data>
+  <data name="ModBinarySearch.Cancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="ModBinarySearch.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="ModBinarySearch.TaskName" xml:space="preserve"><value>二分排查部署</value></data>
+  <data name="ModBinarySearch.ShutdownConfirm" xml:space="preserve"><value>当前正在进行模组二分排查。退出将取消排查、恢复源配置部署并删除临时配置，是否继续？</value></data>
   <data name="SoundFix.Title" xml:space="preserve"><value>音效修复</value></data>
   <data name="SoundFix.Description" xml:space="preserve"><value>直接扫描当前模组库，以当前游戏的官方音库重建过时音效，并保留模组替换过的内嵌音频。</value></data>
   <data name="SoundFix.Scope" xml:space="preserve"><value>先在设置中配置游戏目录。默认跳过含较多自定义内容或新增非武器事件的音库，以及初始化和流式音库。修复会备份库内原文件；完成后需重新部署并重启游戏。</value></data>
