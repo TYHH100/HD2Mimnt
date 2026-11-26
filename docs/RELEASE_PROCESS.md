@@ -43,7 +43,7 @@
 - 更新说明写错时无需重打标签：`gh release edit <标签> --notes-file <文件>` 即可修正已发布的 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
 - 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
-- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、非单文件。四个入口 exe（`HD2Mimnt.UI`、`HD2Mimnt.Cli`、`HD2Mimnt.PluginHost`、`HD2Mimnt.Worker`）及其入口 dll、各自的 `runtimeconfig.json` 由项目引用输出到根目录，其余托管程序集由 UI 工程的 `MoveManagedAssembliesToLib` 目标收进 `lib/`；根目录只留入口文件、原生库与内容目录。四个入口项目的 csproj 都设置了 `GenerateDependencyFile=false`，发布产物不包含 `deps.json`——托管依赖由 `lib/` 的 `LibAssemblyResolver` 解析，宿主缺 deps 时按应用目录探测（2026-11 实测 UI/Cli 无 deps 均可运行）。`runtimeconfig.json` 不能省略：hostfxr 按 `<exe>.runtimeconfig.json` 固定文件名读取，缺失会直接报错。不要给发布命令加 `-p:PublishSingleFile=true`。
+- 发布配置与 `src/HD2Mimnt.UI/Properties/PublishProfiles/Release.pubxml` 一致：win-x64、框架依赖、非单文件。五个入口 exe（`HD2Mimnt.UI`、`HD2Mimnt.Agent`、`HD2Mimnt.Cli`、`HD2Mimnt.PluginHost`、`HD2Mimnt.Worker`）及其入口 dll、各自的 `runtimeconfig.json` 由项目引用输出到根目录，其余托管程序集由 UI 工程的 `MoveManagedAssembliesToLib` 目标收进 `lib/`；根目录只留入口文件、原生库与内容目录。五个入口项目的 csproj 都设置了 `GenerateDependencyFile=false`，发布产物不包含 `deps.json`——托管依赖由 `lib/` 的 `LibAssemblyResolver` 解析，宿主缺 deps 时按应用目录探测（2026-11 实测 UI/Cli 无 deps 均可运行）。`runtimeconfig.json` 不能省略：hostfxr 按 `<exe>.runtimeconfig.json` 固定文件名读取，缺失会直接报错。不要给发布命令加 `-p:PublishSingleFile=true`。
 - 产物为框架依赖发布，运行需安装 [.NET Desktop Runtime 10.0 x64](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ## 注意事项
