@@ -14,11 +14,12 @@ public class NamedPipeClient : IDisposable
 
     public NamedPipeClient(string pipeName)
     {
+        // 服务端全部带 CurrentUserOnly；客户端同守卫，防抢先建管时连上陌生用户的同名管道
         _pipeClient = new NamedPipeClientStream(
             ".",
             pipeName,
             PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 
     public async Task ConnectAsync(int timeoutMilliseconds = 5000, CancellationToken cancellationToken = default)

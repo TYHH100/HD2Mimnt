@@ -13,6 +13,7 @@ using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.AudioPreview;
 using HD2Mimnt.Infrastructure.Data;
 using HD2Mimnt.Infrastructure.Repositories;
+using HD2Mimnt.Infrastructure.Scheduling;
 using HD2Mimnt.Infrastructure.Services;
 using HD2Mimnt.Infrastructure.Deployment;
 using HD2Mimnt.Infrastructure.Analysis;
@@ -31,6 +32,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,6 +97,9 @@ public partial class App : Avalonia.Application
 
         try
         {
+            // UI 启动早期先让 CLI 的 Agent 守护进程退出，避免与 UI 并发写 SQLite 或产生内存状态分歧。
+            await AgentHandoff.RequestAgentExitAsync();
+
             _startupStorage = new StorageSettingsService(new StorageLocationStore());
             if (_startupStorage.HasPendingMigration) ShowStorageStartupWindow();
             await _startupStorage.InitializeAsync(cancellation.Token);
@@ -124,6 +129,28 @@ public partial class App : Avalonia.Application
                 startupLogger.LogInformation("===== 会话开始 =====");
             }
 
+            // 版本一致性自检：更新可能只覆盖了部分文件（Worker/Agent 等子进程锁定 exe 被跳过），
+            // 留下新旧混杂的安装目录，表现为部署等后台任务报 Method not found。
+            // 启动时明确告警并落日志，避免用户面对难懂的运行期异常。
+            try
+            {
+                CheckAssemblyVersionConsistency(startupLogger);
+            }
+            catch (Exception versionCheckError)
+            {
+                startupLogger.LogWarning(versionCheckError, "版本一致性自检失败");
+            }
+
+            // 完整性自检必须先于任何读库服务（SettingsService、本地化）构造：
+            // 损坏时备份现场并尝试重建，否则后续每条读写都会以 SQLite Error 11 失败。
+            var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
+            var health = await DatabaseIntegrityGuard.EnsureHealthyAsync(dbContext.DatabasePath,
+                ServiceProvider.GetService<ILogger<HD2MimntDbContext>>(), cancellation.Token);
+            if (health is { Repaired: true, BackupDirectory: { } backupDirectory })
+                ServiceProvider.GetRequiredService<NotificationService>().ShowWarning(
+                    $"检测到数据库文件损坏，已自动修复（{health.Detail}）。原文件备份于：{backupDirectory}",
+                    "数据库修复");
+
             desktop.ShutdownRequested += (_, _) =>
                 host.Services.GetService<ILoggerFactory>()?.CreateLogger("App")
                     .LogInformation("===== 会话结束 =====");
@@ -141,8 +168,20 @@ public partial class App : Avalonia.Application
             localization.StartMonitoring();
             desktop.Exit += (_, _) => localization.Dispose();
 
+            // CPU 调度观察器只依赖 Application 服务；启动失败不影响主界面。
+            var cpuScheduling = ServiceProvider.GetRequiredService<IGameCpuSchedulingService>();
+            cpuScheduling.Start();
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                try { cpuScheduling.StopAsync().Wait(TimeSpan.FromSeconds(2)); }
+                catch (Exception ex)
+                {
+                    ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("CpuScheduling")
+                        .LogWarning(ex, "CPU 调度停止时恢复原始设置失败");
+                }
+            };
+
             // 初始化数据库与 Worker；异步启动后不能在 UI 上同步等待数据库续体。
-            var dbContext = ServiceProvider.GetRequiredService<HD2MimntDbContext>();
             await dbContext.InitializeDatabaseAsync(cancellation.Token);
 
             // 旧会话式部署记录先收养为当前安装状态，再做离线快照/UI 读取。
@@ -162,6 +201,40 @@ public partial class App : Avalonia.Application
             {
                 taskService.RegisterWorker(worker);
             }
+
+            // 任务历史此前只增不减：启动时清理 90 天前的终态记录，避免 Tasks 表与历史查询随使用无限增长。
+            try
+            {
+                await taskService.CleanupOldTasksAsync(TimeSpan.FromDays(90), cancellation.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<TaskService>>()
+                    ?.LogWarning(ex, "启动清理旧任务记录失败");
+            }
+
+            // AI 旧明文密钥无条件迁移：懒迁移依赖打开 AI 设置页，从不打开则备份库仍带明文。
+            try
+            {
+                var migratedKeys = await ServiceProvider.GetRequiredService<IAIProviderConfigRepository>()
+                    .MigrateAllPlainKeysAsync(cancellation.Token);
+                if (migratedKeys > 0)
+                {
+                    ServiceProvider.GetService<ILogger<AIProviderConfigRepository>>()
+                        ?.LogInformation("已把 {Count} 条 AI 供应商明文密钥迁移到加密存储", migratedKeys);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ServiceProvider.GetService<ILogger<AIProviderConfigRepository>>()
+                    ?.LogWarning(ex, "AI 明文密钥迁移失败，将在下次启动重试");
+            }
+
+            // 进程被杀残留的导入/转换工作区按前缀清扫（超过一天的残留）
+            await Task.Run(
+                () => ModImportService.CleanupStaleWorkspaces(
+                    ServiceProvider.GetRequiredService<StorageSettingsService>().Current.TempPath),
+                cancellation.Token);
 
             // 上次进程异常退出会留下没有执行句柄的“运行中”记录，启动时先收尾，任务中心才不会出现取消不掉的僵尸任务。
             try
@@ -247,6 +320,34 @@ public partial class App : Avalonia.Application
                 : ex.Message;
             startup!.ShowFailure(UiLocalization.Current.Format("Settings.Storage.StartupFailed", detail));
         }
+    }
+
+    /// <summary>扫描安装目录与 lib 的 HD2Mimnt 程序集版本，与主 exe 不一致即告警（安装目录新旧混杂的信号）。</summary>
+    private static void CheckAssemblyVersionConsistency(ILogger startupLogger)
+    {
+        var mainVersion = FileVersionInfo.GetVersionInfo(Environment.ProcessPath ?? string.Empty).FileVersion;
+        if (string.IsNullOrEmpty(mainVersion))
+            return;
+
+        var libDirectory = Path.Combine(AppContext.BaseDirectory, "lib");
+        IEnumerable<string> files = Directory.EnumerateFiles(AppContext.BaseDirectory, "HD2Mimnt.*");
+        if (Directory.Exists(libDirectory))
+            files = files.Concat(Directory.EnumerateFiles(libDirectory, "HD2Mimnt.*.dll"));
+
+        var mismatched = files
+            .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                || f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Where(f => !string.Equals(FileVersionInfo.GetVersionInfo(f).FileVersion, mainVersion, StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetFileName)
+            .ToList();
+        if (mismatched.Count == 0)
+            return;
+
+        var detail = string.Join(", ", mismatched);
+        startupLogger.LogError("程序集版本混杂（期望 {Expected}）：{Files}", mainVersion, detail);
+        ServiceProvider!.GetRequiredService<NotificationService>().ShowError(
+            $"检测到程序文件版本不一致（{detail}），部署等后台任务可能报 Method not found。请重新安装或完整更新应用。",
+            "版本混杂");
     }
 
     private static async Task InitializeMainWindowAsync(MainWindowViewModel main, MainWindow window)
@@ -351,19 +452,28 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IPluginAiBroker, PluginAiBroker>();
         // 会话级授权：安装时选“仅本次允许”的权限只留在内存，重启失效
         services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginGrantSession, HD2Mimnt.Core.Interfaces.PluginGrantSession>();
+        // 权限统一判定：PluginService 的权限检查与宿主启动快照共用
+        services.AddSingleton<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker, HD2Mimnt.Application.Services.PluginPermissionChecker>();
         services.AddSingleton<IPluginSecurityReporter, PluginSecurityReporter>();
-        services.AddSingleton<IPluginHostManager, PluginHostManager>();
+        services.AddSingleton<IPluginHostManager>(sp => new PluginHostManager(
+            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>()));
         services.AddSingleton<OptionTranslationService>();
 
         // 图片服务
         services.AddSingleton<IImageCacheService>(sp =>
             new ImageCacheService(imageCachePath, memoryCacheSize: 100));
-        services.AddSingleton<IImageLoaderService, ImageLoaderService>();
 
         // Dedicated archive client: do not share platform API authentication headers.
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("downloads", (_, _) =>
         {
-            var client = new System.Net.Http.HttpClient();
+            // HttpClient.Timeout 是“整个响应周期”的总上限（含流式读取响应体），
+            // 默认 100 秒会让慢速网络的自更新分段请求必然超时：改为无限总时长，
+            // 由 HttpDownloadService 内部的响应头死线与读取空闲看门狗负责超时。
+            var client = new System.Net.Http.HttpClient(new System.Net.Http.SocketsHttpHandler
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(30)
+            })
+            { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("HD2Mimnt-ModManager");
             return client;
         });
@@ -447,7 +557,9 @@ public partial class App : Avalonia.Application
         services.AddSingleton(sp => new ProfileService(
             sp.GetRequiredService<IProfileRepository>(),
             sp.GetRequiredService<IModRepository>(),
-            sp.GetRequiredService<SettingsService>()));
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<IDeploymentRepository>()));
+        services.AddSingleton<ModBinarySearchService>();
 
         // 外部管理器迁移：读取器只读源数据，实际复制和落库由 Application 服务完成。
         services.AddSingleton<IExternalManagerReader, Helldivers2ModManagerReader>();
@@ -480,6 +592,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HD2Mimnt.Infrastructure.SoundFix.SoundFixInspector>(), sp.GetRequiredService<SettingsService>(),
             Path.Combine(storageLocations.AppDataPath, "SoundFixBackups")));
         services.AddTransient<SoundFixViewModel>();
+        services.AddTransient<ModBinarySearchViewModel>();
         services.AddSingleton<ModCompatibilityService>();
         services.AddSingleton<ILuaExtractionStore, LuaExtractionRepository>();
         services.AddSingleton<LuaExtractionService>();
@@ -487,7 +600,12 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IExternalToolService>(sp => new ExternalToolService(
             sp.GetRequiredService<IExternalToolRepository>(),
             sp.GetRequiredService<ILogger<ExternalToolService>>()));
-        services.AddSingleton<IPluginService, PluginService>();
+        services.AddSingleton<IPluginService>(sp => new PluginService(
+            sp.GetRequiredService<IPluginRepository>(),
+            sp.GetRequiredService<IPluginPermissionRepository>(),
+            sp.GetRequiredService<IPluginExecutionRepository>(),
+            sp.GetRequiredService<IPluginHostManager>(),
+            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>()));
 
         services.AddSingleton(sp => new SearchService(
             sp.GetRequiredService<IModRepository>(),
@@ -578,6 +696,19 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<SettingsService>(),
             sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetService<ILogger<GameDetectionService>>()));
+
+        // 游戏运行时 CPU 调度：拓扑/控制器/观察器都在 Infrastructure，UI 只经过 Application 服务。
+        services.AddSingleton<ICpuTopologyProvider, Win32CpuTopologyProvider>();
+        services.AddSingleton<IProcessSchedulingNativeApi, Win32ProcessSchedulingNativeApi>();
+        services.AddSingleton<IProcessSchedulingController>(sp => new Win32ProcessSchedulingController(
+            sp.GetRequiredService<IProcessSchedulingNativeApi>()));
+        services.AddSingleton<IGameProcessLocator, GameProcessLocator>();
+        services.AddSingleton<IGameCpuSchedulingService>(sp => new GameCpuSchedulingService(
+            sp.GetRequiredService<SettingsService>(),
+            sp.GetRequiredService<ICpuTopologyProvider>(),
+            sp.GetRequiredService<IProcessSchedulingController>(),
+            sp.GetRequiredService<IGameProcessLocator>(),
+            sp.GetService<ILogger<GameCpuSchedulingService>>()));
         services.AddSingleton(sp => new HellForgeService(
             sp.GetRequiredService<SettingsService>(),
             sp.GetService<ILogger<HellForgeService>>()));
@@ -672,7 +803,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<NexusModsAccountViewModel>(), sp.GetRequiredService<AyakaModsAccountViewModel>(),
             sp.GetRequiredService<IConfirmationService>(), sp.GetRequiredService<ModCompatibilityService>(),
             sp.GetRequiredService<AiTranslationSettingsViewModel>(),
-            sp.GetRequiredService<AppUpdateViewModel>(), sp.GetRequiredService<IBrowserLauncher>()));
+            sp.GetRequiredService<AppUpdateViewModel>(), sp.GetRequiredService<IBrowserLauncher>(),
+            sp.GetRequiredService<IGameCpuSchedulingService>()));
         services.AddTransient(sp => new TaskCenterViewModel(
             sp.GetRequiredService<TaskService>(),
             sp.GetRequiredService<IConfirmationService>()));
@@ -744,15 +876,16 @@ public partial class App : Avalonia.Application
 
         // 应用自更新：检查/下载/安装编排 + "关于"页视图模型
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("app-update", (_, _) => new System.Net.Http.HttpClient());
-        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(sp =>
-            new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
-                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")));
         services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateService>(sp =>
             new HD2Mimnt.Application.Services.AppUpdateService(
-                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(),
+                new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
+                    sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")),
                 sp.GetRequiredService<IHttpDownloadService>(),
                 sp.GetRequiredService<StorageSettingsService>(),
-                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>()));
+                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>(),
+                fallbackReleaseClient: new HD2Mimnt.Infrastructure.Updates.CodebergAppUpdateClient(
+                    sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")),
+                settings: sp.GetRequiredService<SettingsService>()));
         services.AddSingleton<AppUpdateViewModel>();
 
         services.AddTransient(sp => new MainWindowViewModel(
@@ -791,6 +924,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<Hd2ClViewModel>(),
             sp.GetRequiredService<Hd2ClVariantPromptService>(),
             sp.GetRequiredService<MmdAdaptationViewModel>(),
-            sp.GetRequiredService<MmdSourceInfoPromptService>()));
+            sp.GetRequiredService<MmdSourceInfoPromptService>(),
+            sp.GetRequiredService<ModBinarySearchViewModel>()));
     }
 }

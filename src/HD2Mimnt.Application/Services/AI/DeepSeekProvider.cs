@@ -21,11 +21,12 @@ public class DeepSeekProvider : IAIProvider, IAIProviderProbe, IAIProviderBalanc
     private readonly HttpClient _httpClient;
     private readonly ILogger<DeepSeekProvider> _logger;
 
-    public DeepSeekProvider(AIProviderConfig config, ILogger<DeepSeekProvider> logger)
+    public DeepSeekProvider(AIProviderConfig config, ILogger<DeepSeekProvider> logger, HttpClient? httpClient = null)
     {
         _config = config;
         _logger = logger;
-        _httpClient = new HttpClient
+        // 允许注入共享实例（同 OpenAIProvider：避免每请求自建 HttpClient 泄漏连接）。
+        _httpClient = httpClient ?? new HttpClient
         {
             // 思考模式下长回答明显更慢，留足时间避免误判为失败。
             Timeout = TimeSpan.FromSeconds(120)

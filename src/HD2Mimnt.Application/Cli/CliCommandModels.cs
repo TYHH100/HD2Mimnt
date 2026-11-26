@@ -1,9 +1,31 @@
+using HD2Mimnt.Core.IPC;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HD2Mimnt.Application.Cli;
 
 /// <summary>CLI 全局选项解析后的命令请求；Arguments 是命令名之后的全部 token。</summary>
-public sealed record CliCommandRequest(string Command, IReadOnlyList<string> Arguments, bool Json, bool Yes);
+public sealed record CliCommandRequest(string Command, IReadOnlyList<string> Arguments, bool Json, bool Yes, bool Async = false);
+
+/// <summary>CLI 进度事件：管道宿主把它转为 progress 帧回传客户端，run-once 宿主直接打印。</summary>
+public sealed record CliProgressEvent(string Stage, double? Percent = null, string? Current = null, string? Message = null);
+
+/// <summary>
+/// 一次命令执行的交互会话：宿主经它接收进度回报、应答 prompt 提问（压缩包密码、导入确认等）。
+/// 无宿主回调时进度丢弃、prompt 返回取消。
+/// </summary>
+public sealed class CliCommandSession
+{
+    public static readonly CliCommandSession None = new();
+
+    public IProgress<CliProgressEvent> Progress { get; init; } = new Progress<CliProgressEvent>();
+
+    public Func<CliPipePrompt, CancellationToken, Task<CliPipePromptResponse?>>? PromptHandler { get; init; }
+
+    public Task<CliPipePromptResponse?> AskAsync(CliPipePrompt prompt, CancellationToken cancellationToken)
+        => PromptHandler == null
+            ? Task.FromResult<CliPipePromptResponse?>(new CliPipePromptResponse(prompt.Id, null, Confirmed: false, Cancelled: true))
+            : PromptHandler(prompt, cancellationToken);
+}
 
 /// <summary>命令执行结果。ExitCode：0 成功，1 业务失败，2 用法/确认问题。</summary>
 public sealed class CliCommandResponse
@@ -33,6 +55,9 @@ public sealed class CliCommandContext
 {
     public required CliCommandRequest Request { get; init; }
     public required IServiceProvider Services { get; init; }
+
+    /// <summary>交互会话（进度回报与 prompt）；默认 None：进度丢弃、prompt 视为取消。</summary>
+    public CliCommandSession Session { get; init; } = CliCommandSession.None;
 
     public T Get<T>() where T : notnull
         => Services.GetRequiredService<T>();

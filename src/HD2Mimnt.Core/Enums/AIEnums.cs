@@ -31,6 +31,12 @@ public enum AIProviderType
     DeepSeek = 4,
 
     /// <summary>
+    /// Agnes AI (apihub.agnes-ai.com, OpenAI-compatible Chat Completions;
+    /// thinking is toggled via chat_template_kwargs.enable_thinking)
+    /// </summary>
+    Agnes = 5,
+
+    /// <summary>
     /// Custom API endpoint
     /// </summary>
     Custom = 99

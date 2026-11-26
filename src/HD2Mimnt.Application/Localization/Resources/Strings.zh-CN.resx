@@ -501,15 +501,6 @@
   <data name="UI.Loading" xml:space="preserve">
     <value>正在加载...</value>
   </data>
-  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
-    <value>跟着引导认识游戏目录、模组库、配置文件、冲突检查和部署。教程会自动切换页面，用蓝色边框标记当前功能。</value>
-  </data>
-  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
-    <value>使用上一步或下一步浏览，随时按 Esc 或点击退出结束；教程不会执行导入、部署或启动游戏。</value>
-  </data>
-  <data name="UI.StartTutorial" xml:space="preserve">
-    <value>开始教程</value>
-  </data>
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>外部工具</value>
   </data>
@@ -678,6 +669,12 @@
   <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
     <value>启动时检查更新</value>
   </data>
+  <data name="Updates.Channel" xml:space="preserve">
+    <value>更新渠道</value>
+  </data>
+  <data name="Updates.ChannelHelp" xml:space="preserve">
+    <value>首选渠道不可用时，会自动改用另一个渠道；Codeberg 是 GitHub 发布页的镜像。</value>
+  </data>
   <data name="Updates.UpToDate" xml:space="preserve">
     <value>已是最新版本。</value>
   </data>
@@ -698,6 +695,27 @@
   </data>
   <data name="Updates.ManualDownloadHint" xml:space="preserve">
     <value>该版本未找到自动安装包，请前往发布页手动下载。</value>
+  </data>
+  <data name="Updates.BackingUp" xml:space="preserve">
+    <value>正在备份数据库…</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateTitle" xml:space="preserve">
+    <value>更新前备份</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateMessage" xml:space="preserve">
+    <value>下载并安装更新前，是否先备份当前数据库？备份可在“设置 - 备份”中恢复。</value>
+  </data>
+  <data name="Updates.BackupAndUpdate" xml:space="preserve">
+    <value>备份并更新</value>
+  </data>
+  <data name="Updates.UpdateWithoutBackup" xml:space="preserve">
+    <value>不备份，直接更新</value>
+  </data>
+  <data name="Updates.BackupCreated" xml:space="preserve">
+    <value>已创建更新前备份：{0}</value>
+  </data>
+  <data name="Updates.BackupFailed" xml:space="preserve">
+    <value>更新前备份失败，已取消更新：{0}</value>
   </data>
   <data name="Updates.NotificationTitle" xml:space="preserve">
     <value>HD2Mimnt 更新</value>
@@ -1956,9 +1974,6 @@
   </data>
   <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
     <value>正在取消并清理…</value>
-  </data>
-  <data name="UI.Tutorial" xml:space="preserve">
-    <value>教程</value>
   </data>
   <data name="UI.BackupAndRestore" xml:space="preserve">
     <value>备份与恢复</value>
@@ -4349,6 +4364,57 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>游戏参考索引已构建并保存</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>名称数据已更新：{0:N0} 个资源，{1:N0} 个归档</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>恢复设置失败：{0}</value></data>
+  <data name="ModBinarySearch.NavItem" xml:space="preserve"><value>模组二分排查</value></data>
+  <data name="ModBinarySearch.Title" xml:space="preserve"><value>模组二分排查</value></data>
+  <data name="ModBinarySearch.Description" xml:space="preserve"><value>只复制已启用模组，每轮禁用剩余候选的一半逐步缩小范围，最后单独验证最后一个嫌疑模组。</value></data>
+  <data name="ModBinarySearch.Isolation" xml:space="preserve"><value>临时配置只包含源配置中已启用的模组，并保留它们的相对顺序、选项和分组边界；关闭的模组不会复制。之后只启停并部署临时配置，绝不修改源配置；收尾前会恢复原配置部署，再删除临时配置。</value></data>
+  <data name="ModBinarySearch.Start" xml:space="preserve"><value>开始二分排查</value></data>
+  <data name="ModBinarySearch.StartConfirm" xml:space="preserve"><value>确定为当前活动配置创建仅包含已启用模组的临时配置并开始排查吗？每次部署前请关闭游戏，源配置不会被修改。</value></data>
+  <data name="ModBinarySearch.Ready" xml:space="preserve"><value>请先确认问题能在当前活动配置中稳定复现，再开始排查。</value></data>
+  <data name="ModBinarySearch.NoSource" xml:space="preserve"><value>当前没有可用的活动配置。</value></data>
+  <data name="ModBinarySearch.BusyTask" xml:space="preserve"><value>已有部署、清理或 HellForge 同步任务正在运行，请等待完成。</value></data>
+  <data name="ModBinarySearch.Preparing" xml:space="preserve"><value>正在准备临时配置和下一轮测试…</value></data>
+  <data name="ModBinarySearch.CloneReady" xml:space="preserve"><value>临时配置已就绪。请关闭游戏并部署本轮，然后启动游戏复现问题。</value></data>
+  <data name="ModBinarySearch.SourceProfile" xml:space="preserve"><value>源配置</value></data>
+  <data name="ModBinarySearch.TemporaryProfile" xml:space="preserve"><value>临时配置</value></data>
+  <data name="ModBinarySearch.ModCount" xml:space="preserve"><value>临时配置启用模组数</value></data>
+  <data name="ModBinarySearch.CandidateCount" xml:space="preserve"><value>初始普通候选数量</value></data>
+  <data name="ModBinarySearch.ExcludedHint" xml:space="preserve"><value>已启用的加载器、依赖和 SmoothBoot 不参与自动启停，保持原状态：</value></data>
+  <data name="ModBinarySearch.RoundHeading" xml:space="preserve"><value>第 {0} 轮：禁用剩余 {2} 个候选中的 {1} 个</value></data>
+  <data name="ModBinarySearch.FinalHeading" xml:space="preserve"><value>最终验证：只禁用最后一个嫌疑模组，其它原本启用的普通模组全部保持启用</value></data>
+  <data name="ModBinarySearch.DeployHint" xml:space="preserve"><value>部署前请关闭游戏。部署失败或部分失败时不能把本轮当作有效测试结果。</value></data>
+  <data name="ModBinarySearch.DisabledThisRound" xml:space="preserve"><value>本轮禁用</value></data>
+  <data name="ModBinarySearch.Deploy" xml:space="preserve"><value>部署本轮</value></data>
+  <data name="ModBinarySearch.Deploying" xml:space="preserve"><value>正在部署临时配置…</value></data>
+  <data name="ModBinarySearch.Deployed" xml:space="preserve"><value>部署完成。请启动游戏复现问题，然后反馈问题是否仍然存在。</value></data>
+  <data name="ModBinarySearch.DeployCancelled" xml:space="preserve"><value>部署已取消，请重试后再记录测试结果。</value></data>
+  <data name="ModBinarySearch.DeployFailed" xml:space="preserve"><value>本轮部署失败：{0}</value></data>
+  <data name="ModBinarySearch.ObserveHint" xml:space="preserve"><value>请在游戏中实际复现后选择结果。游戏运行期间不要再次部署。</value></data>
+  <data name="ModBinarySearch.ProblemRemains" xml:space="preserve"><value>问题仍然存在</value></data>
+  <data name="ModBinarySearch.ProblemGone" xml:space="preserve"><value>问题已消失</value></data>
+  <data name="ModBinarySearch.OutcomeRemains" xml:space="preserve"><value>问题仍然存在</value></data>
+  <data name="ModBinarySearch.OutcomeGone" xml:space="preserve"><value>问题已消失</value></data>
+  <data name="ModBinarySearch.History" xml:space="preserve"><value>测试记录</value></data>
+  <data name="ModBinarySearch.HistoryLine" xml:space="preserve"><value>第 {0} 轮：{1}。禁用：{2}。剩余嫌疑：{3}。</value></data>
+  <data name="ModBinarySearch.ResultConfirmed" xml:space="preserve"><value>已验证的嫌疑模组：{0}。在其它原本启用的普通模组全部保持启用时，仅禁用此模组后问题消失。</value></data>
+  <data name="ModBinarySearch.ResultNotIsolated" xml:space="preserve"><value>未能验证出单一嫌疑模组。禁用最后一个候选后问题仍然存在，可能涉及多个模组、模组交互或非模组原因。</value></data>
+  <data name="ModBinarySearch.ResultCancelled" xml:space="preserve"><value>排查已取消，没有确认嫌疑模组。</value></data>
+  <data name="ModBinarySearch.CleanupHint" xml:space="preserve"><value>请关闭游戏，然后恢复源配置部署并删除临时配置。</value></data>
+  <data name="ModBinarySearch.CleanupConfirm" xml:space="preserve"><value>收尾会先恢复源配置部署，再删除临时配置；不会修改源配置内容。</value></data>
+  <data name="ModBinarySearch.FinishCleanup" xml:space="preserve"><value>恢复并完成</value></data>
+  <data name="ModBinarySearch.Cleaning" xml:space="preserve"><value>正在恢复源配置部署并删除临时配置…</value></data>
+  <data name="ModBinarySearch.CleanupFailed" xml:space="preserve"><value>收尾未完成：{0}。临时配置已保留，请检查源配置和游戏状态后重试。</value></data>
+  <data name="ModBinarySearch.Completed" xml:space="preserve"><value>排查完成。已恢复源配置部署、删除临时配置，源配置内容未被修改。</value></data>
+  <data name="ModBinarySearch.UserDecision" xml:space="preserve"><value>可通过下方按钮直接禁用已验证的嫌疑模组；本工具不会自动禁用或部署。</value></data>
+  <data name="ModBinarySearch.DisableSuspect" xml:space="preserve"><value>禁用此模组</value></data>
+  <data name="ModBinarySearch.DisableSuspectConfirm" xml:space="preserve"><value>确定在源配置中禁用“{0}”吗？此操作只修改配置，不会自动部署。</value></data>
+  <data name="ModBinarySearch.SuspectDisabled" xml:space="preserve"><value>已在源配置中禁用“{0}”，准备好后可自行重新部署。</value></data>
+  <data name="ModBinarySearch.Cancel" xml:space="preserve"><value>取消并清理</value></data>
+  <data name="ModBinarySearch.CancelConfirm" xml:space="preserve"><value>确定取消排查、恢复源配置部署并删除临时配置吗？</value></data>
+  <data name="ModBinarySearch.Cancelled" xml:space="preserve"><value>操作已取消。</value></data>
+  <data name="ModBinarySearch.Failed" xml:space="preserve"><value>操作失败：{0}</value></data>
+  <data name="ModBinarySearch.TaskName" xml:space="preserve"><value>二分排查部署</value></data>
+  <data name="ModBinarySearch.ShutdownConfirm" xml:space="preserve"><value>当前正在进行模组二分排查。退出将取消排查、恢复源配置部署并删除临时配置，是否继续？</value></data>
   <data name="SoundFix.Title" xml:space="preserve"><value>音效修复</value></data>
   <data name="SoundFix.Description" xml:space="preserve"><value>直接扫描当前模组库，以当前游戏的官方音库重建过时音效，并保留模组替换过的内嵌音频。</value></data>
   <data name="SoundFix.Scope" xml:space="preserve"><value>先在设置中配置游戏目录。默认跳过含较多自定义内容或新增非武器事件的音库，以及初始化和流式音库。修复会备份库内原文件；完成后需重新部署并重启游戏。</value></data>
@@ -4586,6 +4652,22 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>自动重启没有开始新的会话，请查看 HellForge 日志。</value></data>
   <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>模组同步反复要求重启，已停止自动重启。</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>模组问题：</value></data>
+  <data name="HellForge.PlayingVersion" xml:space="preserve"><value>当前使用版本</value></data>
+  <data name="HellForge.Languages" xml:space="preserve"><value>已安装语言</value></data>
+  <data name="HellForge.ModSync.Title" xml:space="preserve"><value>MOD SYNC 提示</value></data>
+  <data name="HellForge.ModSync.Answering" xml:space="preserve"><value>正在发送 MOD SYNC 应答…</value></data>
+  <data name="HellForge.ModSync.Host" xml:space="preserve"><value>房主：{0} · {1}</value></data>
+  <data name="HellForge.ModSync.Stranger" xml:space="preserve"><value>不是 Steam 好友</value></data>
+  <data name="HellForge.ModSync.Friend" xml:space="preserve"><value>Steam 好友</value></data>
+  <data name="HellForge.ModSync.Size" xml:space="preserve"><value>下载大小：{0}</value></data>
+  <data name="HellForge.ModSync.Progress" xml:space="preserve"><value>已下载：{0} / {1}</value></data>
+  <data name="HellForge.ModSync.TrustTitle" xml:space="preserve"><value>信任此模组？</value></data>
+  <data name="HellForge.ModSync.Trust" xml:space="preserve"><value>信任</value></data>
+  <data name="HellForge.ModSync.Block" xml:space="preserve"><value>阻止</value></data>
+  <data name="HellForge.ModSync.Open" xml:space="preserve"><value>打开页面</value></data>
+  <data name="HellForge.ModSync.Accept" xml:space="preserve"><value>接受并加入</value></data>
+  <data name="HellForge.ModSync.Restart" xml:space="preserve"><value>重启并加入</value></data>
+  <data name="HellForge.ModSync.Decline" xml:space="preserve"><value>拒绝</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>模组同步</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>已同步 {0} 个模组到 HellForge</value></data>
   <data name="HellForge.Sync.None" xml:space="preserve"><value>尚未同步模组。</value></data>
@@ -4637,12 +4719,68 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>每玩家</value></data>
   <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>仅本机</value></data>
   <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge 报告以下模组目录有问题：</value></data>
+  <data name="HellForge.Category.Planets" xml:space="preserve"><value>自定义星球</value></data>
+  <data name="HellForge.Planets.Title" xml:space="preserve"><value>自定义星球</value></data>
+  <data name="HellForge.Planets.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="HellForge.Planets.ResetAll" xml:space="preserve"><value>全部重置</value></data>
+  <data name="HellForge.Planets.Active" xml:space="preserve"><value>下次会话将使用自定义星球。</value></data>
+  <data name="HellForge.Planets.Inactive" xml:space="preserve"><value>编辑已保存，但只有“自定义星球”战争会使用。</value></data>
+  <data name="HellForge.Planets.War" xml:space="preserve"><value>当前战争：{0}</value></data>
+  <data name="HellForge.Planets.SessionRunning" xml:space="preserve"><value>会话正在运行，修改会在一分钟内传送到游戏。</value></data>
+  <data name="HellForge.Planets.SessionIdle" xml:space="preserve"><value>修改会在下次会话生效。</value></data>
+  <data name="HellForge.Planets.Problems" xml:space="preserve"><value>HellForge 报告以下星球问题：</value></data>
+  <data name="HellForge.Planets.Open" xml:space="preserve"><value>打开星球</value></data>
+  <data name="HellForge.Planets.QueryPlaceholder" xml:space="preserve"><value>星球名称或编号</value></data>
+  <data name="HellForge.Planets.OpenButton" xml:space="preserve"><value>打开</value></data>
+  <data name="HellForge.Planets.None" xml:space="preserve"><value>还没有修改过星球。输入名称或编号即可开始。</value></data>
+  <data name="HellForge.Planets.EditorHint" xml:space="preserve"><value>选择已修改的星球，或输入任意星球名称/编号。</value></data>
+  <data name="HellForge.Planets.Faction" xml:space="preserve"><value>敌人阵营</value></data>
+  <data name="HellForge.Planets.Faction.War" xml:space="preserve"><value>沿用战争</value></data>
+  <data name="HellForge.Planets.Faction.Terminids" xml:space="preserve"><value>光能族</value></data>
+  <data name="HellForge.Planets.Faction.Automatons" xml:space="preserve"><value>自动机</value></data>
+  <data name="HellForge.Planets.Faction.Illuminate" xml:space="preserve"><value>Illuminate</value></data>
+  <data name="HellForge.Planets.Subfactions" xml:space="preserve"><value>子阵营</value></data>
+  <data name="HellForge.Planets.SubfactionsWar" xml:space="preserve"><value>沿用战争</value></data>
+  <data name="HellForge.Planets.SubfactionsPick" xml:space="preserve"><value>自行选择</value></data>
+  <data name="HellForge.Planets.SubfactionsWarShort" xml:space="preserve"><value>战争子阵营</value></data>
+  <data name="HellForge.Planets.SubfactionCount" xml:space="preserve"><value>{0} 个子阵营</value></data>
+  <data name="HellForge.Planets.ChooseFaction" xml:space="preserve"><value>先选择敌人阵营，才能编辑其子阵营与敌人组。</value></data>
+  <data name="HellForge.Planets.Enemies" xml:space="preserve"><value>敌人组</value></data>
+  <data name="HellForge.Planets.EnemyMode.Normal" xml:space="preserve"><value>照常</value></data>
+  <data name="HellForge.Planets.EnemyMode.Surge" xml:space="preserve"><value>激增（x10）</value></data>
+  <data name="HellForge.Planets.EnemyMode.None" xml:space="preserve"><value>无</value></data>
+  <data name="HellForge.Planets.EnemyOverrideCount" xml:space="preserve"><value>{0} 个敌人组覆盖</value></data>
+  <data name="HellForge.Planets.Save" xml:space="preserve"><value>保存星球</value></data>
+  <data name="HellForge.Planets.Saving" xml:space="preserve"><value>正在保存星球…</value></data>
+  <data name="HellForge.Planets.Saved" xml:space="preserve"><value>星球已保存。</value></data>
+  <data name="HellForge.Planets.Reset" xml:space="preserve"><value>恢复战争设置</value></data>
+  <data name="HellForge.Planets.Resetting" xml:space="preserve"><value>正在重置星球…</value></data>
+  <data name="HellForge.Planets.ResetTitle" xml:space="preserve"><value>重置这个星球？</value></data>
+  <data name="HellForge.Planets.ResetConfirm" xml:space="preserve"><value>移除 {0} 的所有自定义选择？</value></data>
+  <data name="HellForge.Planets.ResetDone" xml:space="preserve"><value>星球已重置。</value></data>
+  <data name="HellForge.Planets.ResetAllTitle" xml:space="preserve"><value>重置全部星球？</value></data>
+  <data name="HellForge.Planets.ResetAllConfirm" xml:space="preserve"><value>移除所有自定义星球选择？</value></data>
+  <data name="HellForge.Planets.ResetAllDone" xml:space="preserve"><value>全部星球已重置。</value></data>
+  <data name="HellForge.Planets.Loading" xml:space="preserve"><value>正在读取自定义星球…</value></data>
+  <data name="HellForge.Mods.Unsupported" xml:space="preserve"><value>不受支持：{0}</value></data>
+  <data name="HellForge.Mods.Premium" xml:space="preserve"><value>高级内容：{0}</value></data>
+  <data name="HellForge.Mods.Build" xml:space="preserve"><value>源码构建：{0} {1}</value></data>
+  <data name="HellForge.Mods.BuildState.NotBuilt" xml:space="preserve"><value>尚未构建</value></data>
+  <data name="HellForge.Mods.BuildState.Built" xml:space="preserve"><value>已构建</value></data>
+  <data name="HellForge.Mods.BuildState.DidNotCompile" xml:space="preserve"><value>编译失败</value></data>
+  <data name="HellForge.Mods.BuildState.ToolsFailed" xml:space="preserve"><value>构建工具失败</value></data>
+  <data name="HellForge.Mods.BuildState.Changed" xml:space="preserve"><value>已变化，需要重新构建</value></data>
+  <data name="HellForge.Mods.BuildState.Unreadable" xml:space="preserve"><value>源码无法读取</value></data>
+  <data name="HellForge.Mods.BuildState.Unknown" xml:space="preserve"><value>状态未知</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>启动设置</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>保存后对下一次会话生效；会话运行中 CLI 会拒绝修改。“与陌生人联机”和 Forge Credits 比例保存在模组设置中。</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>银河战争</value></data>
+  <data name="HellForge.Settings.EditPlanets" xml:space="preserve"><value>编辑自定义星球</value></data>
   <data name="HellForge.War.Live" xml:space="preserve"><value>实时战争</value></data>
   <data name="HellForge.War.Frozen" xml:space="preserve"><value>冻结战争</value></data>
   <data name="HellForge.War.Open" xml:space="preserve"><value>全部星球开放</value></data>
+  <data name="HellForge.War.Hellforge" xml:space="preserve"><value>HellForge 战争</value></data>
+  <data name="HellForge.War.Custom" xml:space="preserve"><value>自定义星球</value></data>
   <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>本地 PlayFab 后端</value></data>
   <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>与 Steam 好友联机</value></data>
   <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>收集游戏日志</value></data>
@@ -4657,6 +4795,16 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="HellForge.Strangers.No" xml:space="preserve"><value>关闭</value></data>
   <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>允许会话中更改模组（实验性）</value></data>
   <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>战利品含 Forge Credits 的比例（%）</value></data>
+  <data name="HellForge.Settings.WarServer" xml:space="preserve"><value>HellForge 战争服务器（留空为默认）</value></data>
+  <data name="HellForge.Settings.WarOptions" xml:space="preserve"><value>战争生成选项</value></data>
+  <data name="HellForge.Settings.DealSubfactions" xml:space="preserve"><value>按战争种子生成子阵营</value></data>
+  <data name="HellForge.Settings.DealSeaf" xml:space="preserve"><value>按战争种子生成 SEAF 盟友</value></data>
+  <data name="HellForge.Settings.WarSeed" xml:space="preserve"><value>战争种子（0 表示未设置）</value></data>
+  <data name="HellForge.Settings.Sharing" xml:space="preserve"><value>模组分享与公开大厅</value></data>
+  <data name="HellForge.Settings.ShareMods" xml:space="preserve"><value>允许加入我的玩家下载游戏性模组</value></data>
+  <data name="HellForge.Settings.ListPublic" xml:space="preserve"><value>在银河地图列出我的公开大厅</value></data>
+  <data name="HellForge.Settings.ShowEditedStats" xml:space="preserve"><value>显示房主强制应用数值修改的公开大厅</value></data>
+  <data name="HellForge.Settings.HostStats" xml:space="preserve"><value>好友使用我的编辑器数值修改</value></data>
   <data name="HellForge.Settings.Save" xml:space="preserve"><value>保存设置</value></data>
   <data name="HellForge.Settings.Saving" xml:space="preserve"><value>正在保存设置…</value></data>
   <data name="HellForge.Settings.Saved" xml:space="preserve"><value>设置已保存，下次会话生效。</value></data>
@@ -4750,4 +4898,44 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ArmorSwap.Clear" xml:space="preserve"><value>清空</value></data>
   <data name="ArmorSwap.Refresh" xml:space="preserve"><value>刷新</value></data>
   <data name="ArmorSwap.Import" xml:space="preserve"><value>生成后导入模组库</value></data>
+<data name="CpuScheduling.Title" xml:space="preserve"><value>游戏 CPU 核心调度</value></data>
+  <data name="CpuScheduling.Description" xml:space="preserve"><value>管理器运行期间优先或限制游戏使用性能核。</value></data>
+  <data name="CpuScheduling.Enable" xml:space="preserve"><value>启用调度</value></data>
+  <data name="CpuScheduling.Mode" xml:space="preserve"><value>调度模式</value></data>
+  <data name="CpuScheduling.Mode.Off" xml:space="preserve"><value>关闭</value></data>
+  <data name="CpuScheduling.Mode.Prefer" xml:space="preserve"><value>性能核优先（CPU Sets）</value></data>
+  <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>仅使用性能核（Affinity）</value></data>
+  <data name="CpuScheduling.HintOff" xml:space="preserve"><value>调度已关闭。</value></data>
+  <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>软亲和性：Windows 会优先把游戏调度到性能核，但不会硬性锁定。保持管理器运行才能持续监测。</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>严格限制：仅允许性能核，子进程会继承限制。单组时为硬亲和；性能核跨处理器组时按 CPU Set 掩码软限制（需 Windows 11+），可能影响游戏稳定性。</value></data>
+  <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="CpuScheduling.PCores" xml:space="preserve"><value>性能核（物理 / 逻辑）</value></data>
+  <data name="CpuScheduling.ECores" xml:space="preserve"><value>能效核（物理 / 逻辑）</value></data>
+  <data name="CpuScheduling.Logical" xml:space="preserve"><value>逻辑处理器</value></data>
+  <data name="CpuScheduling.Method" xml:space="preserve"><value>调度方式</value></data>
+  <data name="CpuScheduling.Support" xml:space="preserve"><value>拓扑</value></data>
+  <data name="CpuScheduling.Support.NotLoaded" xml:space="preserve"><value>未读取</value></data>
+  <data name="CpuScheduling.Support.Supported" xml:space="preserve"><value>已识别异构核心</value></data>
+  <data name="CpuScheduling.Support.NoHeterogeneous" xml:space="preserve"><value>未检测到异构核心</value></data>
+  <data name="CpuScheduling.Support.Unsupported" xml:space="preserve"><value>不支持当前 CPU 拓扑</value></data>
+  <data name="CpuScheduling.Unknown" xml:space="preserve"><value>未知</value></data>
+  <data name="CpuScheduling.StatusLabel" xml:space="preserve"><value>当前状态</value></data>
+  <data name="CpuScheduling.Status.Disabled" xml:space="preserve"><value>已关闭</value></data>
+  <data name="CpuScheduling.Status.WaitingForGame" xml:space="preserve"><value>等待游戏启动</value></data>
+  <data name="CpuScheduling.Status.Applying" xml:space="preserve"><value>正在应用设置</value></data>
+  <data name="CpuScheduling.Status.Applied" xml:space="preserve"><value>已应用（配置已验证，未统计线程实际分布）</value></data>
+  <data name="CpuScheduling.Status.Changed" xml:space="preserve"><value>调度设置发生变化</value></data>
+  <data name="CpuScheduling.Status.PermissionDenied" xml:space="preserve"><value>权限不足</value></data>
+  <data name="CpuScheduling.Status.Unsupported" xml:space="preserve"><value>不支持当前拓扑或模式</value></data>
+  <data name="CpuScheduling.Status.Ineffective" xml:space="preserve"><value>调度功能未生效</value></data>
+  <data name="CpuScheduling.Status.Restored" xml:space="preserve"><value>已恢复原始调度</value></data>
+  <data name="CpuScheduling.Status.Error" xml:space="preserve"><value>发生错误</value></data>
+  <data name="CpuScheduling.ApplyOnLaunch" xml:space="preserve"><value>游戏启动后自动应用</value></data>
+  <data name="CpuScheduling.ReapplyOnRestart" xml:space="preserve"><value>游戏重启后自动重新应用</value></data>
+  <data name="CpuScheduling.MonitorChanges" xml:space="preserve"><value>运行过程中检查设置变化</value></data>
+  <data name="CpuScheduling.RestoreOriginal" xml:space="preserve"><value>关闭或退出时恢复原始调度</value></data>
+  <data name="CpuScheduling.Refresh" xml:space="preserve"><value>刷新</value></data>
+  <data name="CpuScheduling.Restore" xml:space="preserve"><value>立即恢复</value></data>
+  <data name="CpuScheduling.RestoreDone" xml:space="preserve"><value>已恢复原始调度。</value></data>
+  <data name="CpuScheduling.RestoreFailed" xml:space="preserve"><value>无法恢复原始调度，请查看状态详情。</value></data>
 </root>

@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
@@ -57,6 +58,19 @@ internal sealed class DeploymentReconciler
                 .ToList();
             CleanupStaleTemps(plan);
             var currentFiles = currentRecords.SelectMany(record => record.Files).ToList();
+            // DB 记录是唯一可能被外部篡改的输入：对账会按记录删除/移动/覆盖文件，
+            // 所有目标必须位于本次计划的游戏目录内（与清理链路防护一致）；
+            // 越界记录中止对账并保留现场，不做任何文件操作。
+            if (string.IsNullOrWhiteSpace(plan.GamePath))
+                throw new InvalidDataException("部署计划缺少游戏目录，无法对账。");
+            foreach (var file in currentFiles)
+            {
+                if (!string.IsNullOrWhiteSpace(file.TargetPath) &&
+                    !PathGuard.IsInsideRoot(plan.GamePath, file.TargetPath))
+                {
+                    throw new InvalidDataException($"部署记录目标越出游戏目录，已中止对账：{file.TargetPath}");
+                }
+            }
             var byId = currentFiles.ToDictionary(file => file.Id);
             var byKey = new Dictionary<(Guid ModId, string Key), DeploymentFile>();
             var byTarget = new Dictionary<(Guid ModId, string Target), DeploymentFile>();
@@ -69,11 +83,26 @@ internal sealed class DeploymentReconciler
             }
 
             var consumed = new HashSet<Guid>();
-            var operations = new List<FileOperation>();
+            var pairings = new List<(PlannedFile Desired, DeploymentFile? Current)>();
             progress?.Report(new DeploymentProgress
             {
                 Stage = "Comparing", Message = "检查未变更文件...", TotalMods = plan.TotalMods
             });
+
+            // 一个现有文件只能被一个期望文件消费。选项变更会重排补丁编号：新文件的目标可能
+            // 正好是现有文件的当前目标，若弱身份（目标路径）匹配先抢走它，持有其 SourceKey 的
+            // 期望文件会再次匹配同一行——matchedIds 把同一个文件 Id 发给两个计划文件，
+            // 写库时记录文件主键重复（UNIQUE constraint failed: DeploymentFiles.Id）。
+            // 因此分两轮：先按强身份（ExistingFileId / SourceKey）全局占用，再按目标路径补配余量。
+            void ConsumeCurrent(DeploymentFile current)
+            {
+                consumed.Add(current.Id);
+                byId.Remove(current.Id);
+                if (!string.IsNullOrWhiteSpace(current.SourceKey))
+                    byKey.Remove((current.ModId, current.SourceKey));
+                var currentTarget = DeploymentPlanBuilder.NormalizePath(current.TargetPath);
+                if (currentTarget != null) byTarget.Remove((current.ModId, currentTarget));
+            }
 
             foreach (var desired in plan.Files)
             {
@@ -82,10 +111,24 @@ internal sealed class DeploymentReconciler
                 if (desired.ExistingFileId is { } id) byId.TryGetValue(id, out current);
                 if (current == null && !string.IsNullOrWhiteSpace(desired.SourceKey))
                     byKey.TryGetValue((desired.ModId, desired.SourceKey), out current);
-                if (current == null && byTarget.TryGetValue((desired.ModId, desired.TargetPath), out var targetMatch))
-                    current = targetMatch;
-                if (current != null) consumed.Add(current.Id);
+                if (current != null) ConsumeCurrent(current);
+                pairings.Add((desired, current));
+            }
 
+            for (var i = 0; i < pairings.Count; i++)
+            {
+                var (desired, current) = pairings[i];
+                if (current != null) continue;
+                if (byTarget.TryGetValue((desired.ModId, desired.TargetPath), out var targetMatch))
+                {
+                    ConsumeCurrent(targetMatch);
+                    pairings[i] = (desired, targetMatch);
+                }
+            }
+
+            var operations = new List<FileOperation>();
+            foreach (var (desired, current) in pairings)
+            {
                 var kind = await ClassifyAsync(desired, current, cancellationToken);
                 operations.Add(new FileOperation(desired, current, kind));
             }

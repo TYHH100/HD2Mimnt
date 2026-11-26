@@ -20,6 +20,7 @@
 1. 在 `dev` 上完成开发，本地通过 `dotnet build HD2Mimnt.slnx --no-restore` 与相关测试（UI 测试在本地验证，CI 不跑）。
 2. 把 `dev` 的当前内容压缩为 `master` 上的发布提交并打标签。两边历史独立，`git merge --squash` 会报 unrelated histories，用 `read-tree` 直接把 `dev` 的完整内容读入暂存区（不动 `master` 的提交谱系）：
 
+
    ```bash
    git checkout master
    git read-tree -u --reset dev
@@ -27,9 +28,7 @@
    git tag -a V0.2.0-beta --cleanup=verbatim -F release-notes.md   # 标签注释正文就是 Release 更新说明
    git push origin master V0.2.0-beta
    ```
-
    `release-notes.md` 是临时文件：首行写版本号（可省略），空一行后写更新内容（Markdown 可用）；打完标签即可删除，不要提交进仓库。注意 `git tag` 默认会丢掉以 `#` 开头的行，Markdown 标题需要配合 `--cleanup=verbatim` 才能保留（见[注意事项](#注意事项)）。
-
 3. 推送标签后 GitHub Actions 自动构建并创建 GitHub Release，产物为主包 `HD2Mimnt-<版本>-win-x64.zip`（不含 `.pdb`）与调试符号包 `HD2Mimnt-<版本>-win-x64-symbols.zip`。
 4. 回到 `dev` 继续下一轮开发：`git checkout dev`。
 
@@ -40,6 +39,7 @@
 - 触发：推送 `V*.*.*` 或 `V*.*.*-*` 形式的标签。工作流同时接受小写 `v` 前缀以兼容旧脚本，版本号推导会去掉 `v`/`V`；仓库标签规范仍使用大写 `V`。
 - 步骤：发布 UI 主程序（自带还原与依赖构建）→ 校验发布布局（四个入口文件齐全、不包含 `deps.json`、托管依赖在 `lib/`、原生库在根目录）→ 主包与符号包分离打包 → 创建 Release。布局校验不通过时流水线直接失败，防止发布属性回退成单文件或把原生库误收进 `lib/`。
 - Release 更新说明取自标签注释：首行若只是版本号会被去掉，其余正文原样写入 Release；标签没有任何正文时回退到 `--generate-notes` 按提交自动生成。本地可用 `git tag -l -n99 <标签>` 核对。
+- 流水线是浅克隆，本地标签可能退化成轻量引用而读不到注解，因此这一步按 GitHub API 读取标签注解对象，取不到才退回本地 `git tag`；注解缺失时仍回退自动生成。
 - 更新说明写错时无需重打标签：`gh release edit <标签> --notes-file <文件>` 即可修正已发布的 Release。
 - 发布流水线不运行测试；测试（单元、UI、性能、稳定性）在开发阶段于本地执行。
 - 主包不含 `.pdb`；调试符号单独打包为 `HD2Mimnt-<版本>-win-x64-symbols.zip`。

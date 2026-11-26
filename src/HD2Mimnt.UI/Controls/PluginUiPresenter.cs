@@ -1,9 +1,13 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
 using HD2Mimnt.PluginSDK;
 using HD2Mimnt.UI.ViewModels;
 
@@ -20,8 +24,12 @@ public sealed class PluginUiPresenter : ContentControl
     public static readonly StyledProperty<PluginUiSurfaceViewModel?> SurfaceProperty =
         AvaloniaProperty.Register<PluginUiPresenter, PluginUiSurfaceViewModel?>(nameof(Surface));
 
-    private readonly Dictionary<string, TextBox> _inputs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Func<string>> _inputs = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Button> _actionButtons = new();
+    /// <summary>开关与滑条控件：忙碌时和按钮一起禁用，Tag=false 表示缺权限。</summary>
+    private readonly List<Control> _valueControls = new();
+    /// <summary>滑条值变化后的提交防抖计时器；整页重画时全部停止。</summary>
+    private readonly List<DispatcherTimer> _commitTimers = new();
     private PluginUiSurfaceViewModel? _surface;
 
     public PluginUiPresenter()
@@ -74,12 +82,19 @@ public sealed class PluginUiPresenter : ContentControl
         {
             button.IsEnabled = enabled && button.Tag is not false;
         }
+        foreach (var control in _valueControls)
+        {
+            control.IsEnabled = enabled && control.Tag is not false;
+        }
     }
 
     private void Rebuild()
     {
+        foreach (var timer in _commitTimers) timer.Stop();
+        _commitTimers.Clear();
         _inputs.Clear();
         _actionButtons.Clear();
+        _valueControls.Clear();
 
         var root = new StackPanel { Spacing = 12 };
         if (_surface is not { } surface)
@@ -148,6 +163,12 @@ public sealed class PluginUiPresenter : ContentControl
 
             case "input":
                 return BuildInput(block);
+
+            case PluginUiBlockTypes.Switch:
+                return BuildSwitch(surface, block);
+
+            case PluginUiBlockTypes.Slider:
+                return BuildSlider(surface, block);
 
             case PluginUiBlockTypes.Actions:
                 return BuildActions(surface, block.Actions);
@@ -333,7 +354,7 @@ public sealed class PluginUiPresenter : ContentControl
             VerticalContentAlignment = input.Multiline ? VerticalAlignment.Top : VerticalAlignment.Center,
         };
 
-        _inputs[id] = textBox;
+        _inputs[id] = () => textBox.Text ?? string.Empty;
 
         var panel = new StackPanel { Spacing = 6 };
         var label = block.Title ?? input.Label;
@@ -349,6 +370,188 @@ public sealed class PluginUiPresenter : ContentControl
         panel.Children.Add(textBox);
         return panel;
     }
+
+    /// <summary>
+    /// 开关行：名称与说明在左，ToggleSwitch 在右。值变化时执行区块的第一个
+    /// 带 command 的动作（当前所有输入的值一并发回），插件借此即时落盘。
+    /// </summary>
+    private Control BuildSwitch(PluginUiSurfaceViewModel surface, PluginUiBlock block)
+    {
+        var input = block.Input ?? new PluginUiInput { Id = block.Id ?? "value" };
+        var id = string.IsNullOrWhiteSpace(input.Id) ? block.Id ?? "value" : input.Id;
+        var action = ChangeAction(surface, block);
+
+        var toggle = new ToggleSwitch
+        {
+            IsChecked = string.Equals((input.Value ?? string.Empty).Trim(), "true", StringComparison.OrdinalIgnoreCase),
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(0),
+        };
+        _inputs[id] = () => toggle.IsChecked == true ? "true" : "false";
+        PrepareValueControl(surface, action, toggle);
+        toggle.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ToggleButton.IsCheckedProperty) FireChangeAction(surface, block);
+        };
+
+        var row = SettingRow(block, toggle);
+        _valueControls.Add(toggle);
+        return row;
+    }
+
+    /// <summary>
+    /// 滑条行：名称与说明在左，Slider + NumberBox 在右，两者互相同步。值停止
+    /// 变化约 0.4 秒后执行区块的第一个带 command 的动作（拖动不逐格触发），
+    /// 当前所有输入的值一并发回。
+    /// </summary>
+    private Control BuildSlider(PluginUiSurfaceViewModel surface, PluginUiBlock block)
+    {
+        var input = block.Input ?? new PluginUiInput { Id = block.Id ?? "value" };
+        var id = string.IsNullOrWhiteSpace(input.Id) ? block.Id ?? "value" : input.Id;
+        var action = ChangeAction(surface, block);
+
+        var min = input.Min ?? 0;
+        var max = input.Max ?? (min + 1);
+        if (max < min) (min, max) = (max, min);
+        var step = input.Step is > 0 ? input.Step.Value : 0;
+        var value = ParseDouble(input.Value) is { } parsed ? Math.Clamp(parsed, min, max) : min;
+
+        var slider = new Slider
+        {
+            Minimum = min,
+            Maximum = max,
+            Value = value,
+            Width = 240,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var numberBox = new FANumberBox
+        {
+            Value = value,
+            Minimum = min,
+            Maximum = max,
+            SmallChange = step > 0 ? step : 1,
+            SpinButtonPlacementMode = FANumberBoxSpinButtonPlacementMode.Compact,
+            Width = 110,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        _inputs[id] = () => slider.Value.ToString(CultureInfo.InvariantCulture);
+        PrepareValueControl(surface, action, slider);
+        PrepareValueControl(surface, action, numberBox);
+
+        // 两个控件互相同步、按步进取整，再一起走防抖提交；计时器整页重画时停止
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            FireChangeAction(surface, block);
+        };
+        _commitTimers.Add(timer);
+
+        var syncing = false;
+        void SetValue(double raw)
+        {
+            if (syncing || surface.IsBusy) return;
+            syncing = true;
+            try
+            {
+                var v = Math.Clamp(raw, min, max);
+                if (step > 0) v = min + Math.Round((v - min) / step) * step;
+                if (Math.Abs(slider.Value - v) > 0.000001) slider.Value = v;
+                if (Math.Abs(numberBox.Value - v) > 0.000001) numberBox.Value = v;
+            }
+            finally
+            {
+                syncing = false;
+            }
+            timer.Stop();
+            timer.Start();
+        }
+
+        slider.ValueChanged += (_, args) => SetValue(args.NewValue);
+        numberBox.ValueChanged += (_, _) =>
+        {
+            if (!double.IsNaN(numberBox.Value)) SetValue(numberBox.Value);
+        };
+
+        var controls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        controls.Children.Add(slider);
+        controls.Children.Add(numberBox);
+
+        var row = SettingRow(block, controls);
+        _valueControls.Add(slider);
+        _valueControls.Add(numberBox);
+        return row;
+    }
+
+    /// <summary>区块的第一个带命令的动作；没有则该控件只是被动输入，不自动提交。</summary>
+    private static PluginUiAction? ChangeAction(PluginUiSurfaceViewModel surface, PluginUiBlock block) =>
+        block.Actions.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Command) && surface.HasPermission(a.RequiredPermission));
+
+    /// <summary>缺权限的控件禁用并提示，与按钮的“（需要授权）”一致。</summary>
+    private void PrepareValueControl(PluginUiSurfaceViewModel surface, PluginUiAction? action, Control control)
+    {
+        var granted = action is null || surface.HasPermission(action.RequiredPermission);
+        if (!granted)
+        {
+            control.Tag = false;
+            ToolTip.SetTip(control, $"需要权限“{action!.RequiredPermission}”，请在设置 → 插件中授权。");
+        }
+        control.IsEnabled = granted && surface.IsBusy == false;
+    }
+
+    private void FireChangeAction(PluginUiSurfaceViewModel surface, PluginUiBlock block)
+    {
+        if (surface.IsBusy) return;
+        var action = ChangeAction(surface, block);
+        if (action is null) return;
+        var values = CollectInputValues();
+        _ = surface.ExecuteAsync(action, values);
+    }
+
+    /// <summary>设置行：名称与说明在左（与原窗口一致），控件在右。</summary>
+    private static Control SettingRow(PluginUiBlock block, Control control)
+    {
+        var left = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        var label = block.Title;
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            left.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = ThemeBrush("TextPrimaryBrush", Colors.White),
+            });
+        }
+        if (!string.IsNullOrWhiteSpace(block.Text))
+        {
+            left.Children.Add(new SelectableTextBlock
+            {
+                Text = block.Text,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 18,
+                Foreground = ThemeBrush("TextMutedBrush", Colors.Gray),
+            });
+        }
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        if (left.Children.Count > 0) Grid.SetColumn(left, 0);
+        grid.Children.Add(left);
+        Grid.SetColumn(control, 1);
+        grid.Children.Add(control);
+        return grid;
+    }
+
+    private static double? ParseDouble(string? text) =>
+        double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : null;
 
     private Control BuildActions(PluginUiSurfaceViewModel surface, List<PluginUiAction> actions)
     {
@@ -403,9 +606,9 @@ public sealed class PluginUiPresenter : ContentControl
     private Dictionary<string, string> CollectInputValues()
     {
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, box) in _inputs)
+        foreach (var (id, read) in _inputs)
         {
-            values[id] = box.Text ?? string.Empty;
+            values[id] = read();
         }
         return values;
     }

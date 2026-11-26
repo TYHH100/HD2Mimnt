@@ -100,10 +100,11 @@ public sealed class PluginUiBlock
     /// <summary>区块标识，用于增量更新时定位（可选）。</summary>
     public string? Id { get; set; }
 
-    /// <summary>正文；markdown 类型按 Markdown 渲染。</summary>
+    /// <summary>正文；markdown 类型按 Markdown 渲染；switch / slider 类型作为
+    /// 名称下方的说明文字渲染。</summary>
     public string? Text { get; set; }
 
-    /// <summary>标题（heading / notice / input 的标签）。</summary>
+    /// <summary>标题（heading / notice / input / switch / slider 的标签）。</summary>
     public string? Title { get; set; }
 
     /// <summary>标题层级（heading 使用，1-4，默认 2）。</summary>
@@ -115,7 +116,9 @@ public sealed class PluginUiBlock
     /// <summary>图标（UtilityIcon 的 Kind 名称，可选）。</summary>
     public string? Icon { get; set; }
 
-    /// <summary>按钮组。</summary>
+    /// <summary>按钮组。switch / slider 类型的第一个带 command 的动作，在控件
+    /// 值变化时由管理器自动执行（开关立即执行；滑条在停止拖动约 0.4 秒后执行），
+    /// 当前所有输入的值随事件一并发回——这就是插件“值一改就落盘”的机制。</summary>
     public List<PluginUiAction> Actions { get; set; } = new();
 
     /// <summary>键值对列表（facts 使用）。</summary>
@@ -124,7 +127,7 @@ public sealed class PluginUiBlock
     /// <summary>条目列表（list 使用）。</summary>
     public List<PluginUiListItem> Items { get; set; } = new();
 
-    /// <summary>输入框（input 使用）。</summary>
+    /// <summary>输入（input / switch / slider 使用）。</summary>
     public PluginUiInput? Input { get; set; }
 }
 
@@ -135,6 +138,10 @@ public static class PluginUiBlockTypes
     public const string Text = "text";
     public const string Heading = "heading";
     public const string Divider = "divider";
+    /// <summary>开关行：名称与说明在左，ToggleSwitch 在右，值随事件回传。</summary>
+    public const string Switch = "switch";
+    /// <summary>滑条行：名称与说明在左，Slider + NumberBox 在右，值随事件回传。</summary>
+    public const string Slider = "slider";
     public const string Notice = "notice";
     public const string Facts = "facts";
     public const string List = "list";
@@ -187,7 +194,8 @@ public sealed class PluginUiAction
     public bool SubmitInputs { get; set; } = true;
 }
 
-/// <summary>输入框定义。</summary>
+/// <summary>输入定义。input 是文本框；switch 是布尔开关（值 "true"/"false"）；
+/// slider 是数值滑条（带 Min/Max/Step，值是数字文本）。</summary>
 public sealed class PluginUiInput
 {
     public string Id { get; set; } = string.Empty;
@@ -196,6 +204,15 @@ public sealed class PluginUiInput
     public string? Value { get; set; }
     public bool Multiline { get; set; } = true;
     public int Rows { get; set; } = 4;
+
+    /// <summary>滑条最小值（slider 使用）。</summary>
+    public double? Min { get; set; }
+
+    /// <summary>滑条最大值（slider 使用）。</summary>
+    public double? Max { get; set; }
+
+    /// <summary>滑条的步进（slider 使用）；大于 0 时滑条与数字框按它取整。</summary>
+    public double? Step { get; set; }
 }
 
 /// <summary>键值对。</summary>

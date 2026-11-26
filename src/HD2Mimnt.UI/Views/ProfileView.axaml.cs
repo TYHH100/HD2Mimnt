@@ -398,7 +398,7 @@ public partial class ProfileView : UserControl
             || vm.IsAddToGroupDialogOpen || vm.IsAddModOpen || vm.IsSeparatorDialogOpen || vm.IsConflictPickerOpen
             || vm.IsDetailPanelOpen) return;
         if (TopLevel.GetTopLevel(this)?.DataContext is MainWindowViewModel main
-            && (main.SelectedTabIndex != 0 || main.Tutorial.IsOpen || main.LibraryViewModel.IsDeploying)) return;
+            && (main.SelectedTabIndex != 0 || main.LibraryViewModel.IsDeploying)) return;
         if (e.Key == Key.Escape)
         {
             vm.ClearModSelectionCommand.Execute(null);

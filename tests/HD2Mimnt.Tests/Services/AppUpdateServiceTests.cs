@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 
@@ -75,6 +76,62 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAsync_FallsBackToSecondaryChannel_WhenPrimaryFails()
+    {
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(null, AppUpdateChannels.GitHub, new HttpRequestException("gh 不可用")),
+            fallback: new FakeReleaseClient(CreateRelease("V99.0.0", CreateAsset("V99.0.0")),
+                AppUpdateChannels.Codeberg));
+
+        var result = await service.CheckAsync();
+
+        Assert.True(result.HasUpdate);
+        Assert.Equal("99.0.0", result.Info!.Version);
+    }
+
+    [Fact]
+    public async Task CheckAsync_UsesConfiguredChannelFirst()
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.UpdatesChannel, AppUpdateChannels.Codeberg);
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(CreateRelease("V1.0.0", CreateAsset("V1.0.0")),
+                AppUpdateChannels.GitHub),
+            fallback: new FakeReleaseClient(CreateRelease("V99.0.0", CreateAsset("V99.0.0")),
+                AppUpdateChannels.Codeberg),
+            settings: settings);
+
+        var result = await service.CheckAsync();
+
+        Assert.Equal("99.0.0", result.Info!.Version);
+    }
+
+    [Fact]
+    public async Task CheckAsync_EmptyReleaseUrl_FallsBackToChannelReleasePage()
+    {
+        var release = new AppUpdateRelease("V99.0.0", "body", string.Empty, null, [CreateAsset("V99.0.0")]);
+        var service = CreateService(release: null,
+            fallback: new FakeReleaseClient(release, AppUpdateChannels.Codeberg));
+
+        var result = await service.CheckAsync();
+
+        Assert.Equal(AppUpdateConstants.CodebergReleasePageUrl, result.Info!.ReleaseUrl);
+    }
+
+    [Fact]
+    public async Task CheckAsync_AllChannelsFail_ReportsEveryChannel()
+    {
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(null, AppUpdateChannels.GitHub, new HttpRequestException("gh")),
+            fallback: new FakeReleaseClient(null, AppUpdateChannels.Codeberg, new HttpRequestException("cb")));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CheckAsync());
+
+        Assert.Contains(AppUpdateChannels.GitHub, error.Message);
+        Assert.Contains(AppUpdateChannels.Codeberg, error.Message);
+    }
+
+    [Fact]
     public async Task PrepareAsync_DownloadsExtractsAndWritesInstallerScript()
     {
         var pid = 4711;
@@ -133,6 +190,53 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAsync_ExposesAssetDigest()
+    {
+        var digest = "sha256:" + new string('6', 64);
+        var release = CreateRelease("V99.0.0", CreateAsset("V99.0.0") with { Digest = digest });
+
+        var result = await CreateService(release).CheckAsync();
+
+        Assert.Equal(digest, result.Info!.AssetDigest);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_AssetDigest_PassedAsDownloadExpectedHash()
+    {
+        var digest = "sha256:" + new string('a', 64);
+        var downloader = new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target,
+            CreateZipBytes(("HD2Mimnt.UI.exe", "payload"))));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = digest });
+
+        Assert.Equal(digest, downloader.LastOptions!.ExpectedHash);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_UnrecognizedDigestShape_SkipsVerification()
+    {
+        var downloader = new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target,
+            CreateZipBytes(("HD2Mimnt.UI.exe", "payload"))));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = "sha1:deadbeef" });
+
+        Assert.Null(downloader.LastOptions!.ExpectedHash);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_NetworkFailure_KeepsStagingForResume()
+    {
+        var downloader = new FakeDownloadService((_, _) => throw new IOException("网络中断"));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")), downloader: downloader);
+
+        await Assert.ThrowsAsync<IOException>(() => service.PrepareAsync(CreateUpdate("99.0.0")));
+        // 网络失败保留版本暂存目录：HttpDownloadService 已把断点与 .part 落盘，下次续传
+        Assert.True(Directory.Exists(Path.Combine(_stagingRoot, "99.0.0")));
+    }
+
+    [Fact]
     public void LaunchPendingInstaller_MissingScript_Throws()
     {
         var service = CreateService(CreateRelease("V99.0.0"));
@@ -143,15 +247,19 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     private AppUpdateService CreateService(AppUpdateRelease? release, byte[]? downloadBytes = null,
-        int? pid = null, string? installDirectory = null)
+        int? pid = null, string? installDirectory = null, FakeDownloadService? downloader = null,
+        FakeReleaseClient? primary = null, FakeReleaseClient? fallback = null, SettingsService? settings = null)
     {
         downloadBytes ??= CreateZipBytes(("HD2Mimnt.UI.exe", "payload"), ("Assets/extra.dll", "extra"));
+        downloader ??= new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes));
         return new AppUpdateService(
-            new FakeReleaseClient(release),
-            new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes)),
+            primary ?? new FakeReleaseClient(release),
+            downloader,
             stagingRootOverride: _stagingRoot,
             currentProcessId: pid,
-            installDirectoryOverride: installDirectory ?? _installDirectory);
+            installDirectoryOverride: installDirectory ?? _installDirectory,
+            fallbackReleaseClient: fallback,
+            settings: settings);
     }
 
     private static AppUpdateInfo CreateUpdate(string version) => new(
@@ -186,20 +294,28 @@ public sealed class AppUpdateServiceTests : IDisposable
 
     private static string ScriptSingleQuoted(string value) => "'" + value.Replace("'", "''") + "'";
 
-    private sealed class FakeReleaseClient(AppUpdateRelease? release) : IAppUpdateReleaseClient
+    private sealed class FakeReleaseClient(AppUpdateRelease? release, string channel = AppUpdateChannels.GitHub,
+        Exception? failure = null) : IAppUpdateReleaseClient
     {
+        public string Channel => channel;
+
         public Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(release);
+            => failure is null ? Task.FromResult(release) : Task.FromException<AppUpdateRelease?>(failure);
     }
 
     private sealed class FakeDownloadService(Func<Uri, string, Task> onDownload) : IHttpDownloadService
     {
+        public DownloadOptions? LastOptions { get; private set; }
+
         public Task<Stream> DownloadAsync(Uri uri, DownloadOptions? options = null,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default, string? resumeKey = null)
             => throw new NotSupportedException();
 
         public Task DownloadToFileAsync(Uri uri, string targetPath, DownloadOptions? options = null,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default, string? resumeKey = null)
-            => onDownload(uri, targetPath);
+        {
+            LastOptions = options;
+            return onDownload(uri, targetPath);
+        }
     }
 }

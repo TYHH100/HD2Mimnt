@@ -14,6 +14,7 @@ namespace HD2Mimnt.Tests.Deployment;
 /// DeploymentService 集成测试
 /// 测试 Phase 11 的功能：Pre-Deployment Cleanup 和 Profile Deployment
 /// </summary>
+[Trait("Category", "Slow")]
 public class DeploymentServiceIntegrationTests : IDisposable
 {
     private readonly HD2MimntDbContext _dbContext;
@@ -393,6 +394,52 @@ public class DeploymentServiceIntegrationTests : IDisposable
         // Verify record is deleted
         var deployments = await _deploymentService.GetDeploymentsBySessionIdAsync(sessionId);
         Assert.Empty(deployments);
+    }
+
+    [Fact]
+    public async Task CleanupDeployment_Should_Not_Delete_Targets_Outside_GamePath()
+    {
+        // Arrange
+        var sessionId = Guid.NewGuid();
+        var profile = new Profile
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Profile",
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+        var mod = new Mod
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Mod",
+            Version = "1.0.0",
+            Path = _testSourceDir,
+            Category = ModCategory.Gameplay,
+            ImportedAt = DateTime.UtcNow
+        };
+
+        await _profileRepository.AddAsync(profile);
+        await _modRepository.AddAsync(mod);
+
+        var outsideFile = Path.Combine(_testSourceDir, "outside.txt");
+        await File.WriteAllTextAsync(outsideFile, "keep content");
+
+        var record = await _deploymentService.CreateDeploymentRecordAsync(
+            sessionId, profile.Id, mod.Id, DeploymentMethod.Copy);
+        await _deploymentService.AddDeploymentFileAsync(
+            record.Id, mod.Id, "outside.txt", outsideFile, DeploymentMethod.Copy);
+        record.GamePath = _testTargetDir;
+        await _deploymentRepository.UpdateAsync(record);
+
+        // Act
+        var (filesDeleted, recordDeleted) = await _deploymentService.CleanupDeploymentAsync(record.Id);
+
+        // Assert
+        Assert.Equal(0, filesDeleted);
+        Assert.False(recordDeleted);
+        Assert.True(File.Exists(outsideFile));
+        var deployments = await _deploymentService.GetDeploymentsBySessionIdAsync(sessionId);
+        Assert.Single(deployments);
     }
 
     [Fact]

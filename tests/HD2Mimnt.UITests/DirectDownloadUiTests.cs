@@ -83,7 +83,7 @@ public sealed partial class FluentAvaloniaUiTests
             var pending = vm.DownloadOnlyCommand.ExecuteAsync(null);
             await factory.Started.Task;
             Assert.True(vm.IsBusy); Assert.False(vm.CanEdit);
-            main.MoreViewModel.SelectedCategory = "教程"; Layout();
+            main.MoreViewModel.SelectedCategory = "日志"; Layout();
             Assert.True(vm.IsBusy); // Downloads continue when navigating elsewhere.
             Assert.True(await main.CanCloseAsync()); await pending;
             Assert.True(factory.Cancelled); Assert.True(factory.Disposed);

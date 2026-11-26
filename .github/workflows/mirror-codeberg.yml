@@ -1,0 +1,83 @@
+
+name: Mirror Repository to Codeberg
+
+on:
+  push:
+  delete:
+
+  schedule:
+    # 每天 UTC 03:17 补偿同步
+    - cron: "17 3 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeberg-git-mirror-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Git Mirror
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CODEBERG_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" \
+            > ~/.ssh/codeberg_mirror
+
+          chmod 600 ~/.ssh/codeberg_mirror
+
+          ssh-keyscan -H codeberg.org \
+            >> ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Clone GitHub mirror
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" \
+            | base64 -w0)
+
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" \
+            clone --mirror \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            mirror.git
+
+      - name: Push mirror to Codeberg
+        env:
+          SSH_KEY: ~/.ssh/codeberg_mirror
+          CODEBERG_OWNER: TYHH10
+          CODEBERG_REPO: HD2Mimnt
+        run: |
+          set -euo pipefail
+
+          export GIT_SSH_COMMAND="ssh \
+            -i $SSH_KEY \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes"
+
+          git -C mirror.git push --mirror \
+            "ssh://git@codeberg.org/${CODEBERG_OWNER}/${CODEBERG_REPO}.git"
+
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Codeberg Git Mirror" >> "$GITHUB_STEP_SUMMARY"
+          echo "Repository: ${GITHUB_REPOSITORY}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Target: Codeberg" >> "$GITHUB_STEP_SUMMARY"

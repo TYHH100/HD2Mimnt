@@ -171,7 +171,10 @@ internal static class LuaUi
                 Placeholder = LuaTables.Str(inputTable, "placeholder"),
                 Value = LuaTables.Str(inputTable, "value"),
                 Multiline = LuaTables.Bool(inputTable, "multiline", true),
-                Rows = LuaTables.Int(inputTable, "rows", 4)
+                Rows = LuaTables.Int(inputTable, "rows", 4),
+                Min = inputTable.Get("min") is { Type: DataType.Number } min ? min.Number : null,
+                Max = inputTable.Get("max") is { Type: DataType.Number } max ? max.Number : null,
+                Step = inputTable.Get("step") is { Type: DataType.Number } step ? step.Number : null
             };
         }
 

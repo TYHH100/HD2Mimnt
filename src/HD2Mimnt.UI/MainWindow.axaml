@@ -21,7 +21,7 @@
     <KeyBinding Gesture="Escape" Command="{Binding CloseOverlaysCommand}"/>
   </Window.KeyBindings>
   <Grid>
-  <Grid x:Name="ApplicationSurface" RowDefinitions="40,*,Auto" Background="Transparent" IsHitTestVisible="{Binding !Tutorial.IsOpen}">
+  <Grid x:Name="ApplicationSurface" RowDefinitions="40,*,Auto" Background="Transparent">
     <!-- 实时玻璃：窗口背后的真实画面（取屏排除自身），模糊半径由「模糊强度」决定。 -->
     <Canvas Grid.RowSpan="3" ClipToBounds="True" IsHitTestVisible="False">
       <Image x:Name="GlassBackdropImage" Stretch="Fill" IsVisible="{Binding IsLiveGlassActive}">
@@ -200,6 +200,5 @@
       </Border>
     </Border>
   </Grid>
-    <controls:TutorialOverlay x:Name="TutorialGuide" DataContext="{Binding Tutorial}" Source="{Binding #ApplicationSurface}" ZIndex="500"/>
   </Grid>
 </Window>

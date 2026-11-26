@@ -35,6 +35,8 @@
 
 - 清单版本检测不能只看 `Version`：`Options` 含对象元素时即使缺失 `Version` 也按 V1 处理（Legacy 的 `Options` 仅字符串数组）。否则作者漏写 `Version` 的对象形选项会被按 Legacy 整体丢弃，部署回退“无选项”只扫根目录，子目录补丁整包静默跳过（2026-11-11 用户“测试 ▲”实测：配置已启用但 0 部署记录，提示却为无需重新部署）。回归见 `ManifestParserTests.ParseFromJson_ObjectOptionsWithoutVersion_TreatedAsV1` 与 `DeploymentServiceIntegrationTests.DeployProfile_ObjectOptionsWithoutVersion_DeploysIncludedDirectories`。
 
+- 导入无清单模组时的生成格式由设置 `Manifest.ForceV1`（`SettingKeys.ForceManifestV1`，默认开启，设置页模组库区有开关）决定：开启按 V1 生成，子目录为可独立启用的选项；关闭按 Legacy 生成，子目录为互斥下拉项。库内既有 Legacy 清单不会自动转换，`ModImportService.UpgradeModManifestToV1Async`/`UpgradeAllModsManifestToV1Async`（单个/批量，批量带进度）也只在设置开启时执行，禁用设置即维持 Legacy 行为；历史数据回填共用同一设置判定。来源：`ModImportService.InferManifestFromDirectory`（`ModImportService.cs:850`）。
+
 - 创建页的格式选择必须贯通打开、预览、保存和 ZIP 导出；Legacy 省略 `Version`，`Options` 写相对目录字符串数组，校验所选目录，不校验隐藏的 V1 草稿。两种格式的内存草稿切换时保留各自内容，打开清单后按真实格式恢复；不能只改 UI 标签或把旧格式写成 V1 对象数组。来源：[旧版创建页面](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/ViewModels/CreatePageViewModel.cs)。
 
 - `manifest.json` 必须保持旧管理器原有标准，自定义作者、网站、模组版本、标签、默认启用和未知扩展字段写到同目录 `hd2mimnt.json`，不得增加扩展引用字段。使用 `ManifestPackage` 分离／合并和双文件保存，文件读取走 `ManifestParser.ParseFromFile[Async]`，不能只解析标准清单字符串而遗漏扩展。创建、导入、迁移、反向导出和开发测试数据共用这一边界；部署／清理排除扩展文件，加载器依赖检测仍读取原扩展声明。来源：[创建说明](../features/MOD_CREATION.md)、[旧版 V1 定义](https://github.com/TYHH100/Helldivers2ModManager/blob/test/src/Helldivers2ModManager/Models/V1ModManifest.cs)。

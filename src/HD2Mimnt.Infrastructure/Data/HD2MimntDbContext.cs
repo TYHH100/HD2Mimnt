@@ -33,7 +33,8 @@ public class HD2MimntDbContext : IDisposable
         {
             await connection.OpenAsync(cancellationToken);
             using var timeout = connection.CreateCommand();
-            timeout.CommandText = "PRAGMA busy_timeout=5000;";
+            // 外键必须显式开启，不依赖 SQLite 构建时的默认值；与 busy_timeout 共用一次往返。
+            timeout.CommandText = "PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;";
             await timeout.ExecuteNonQueryAsync(cancellationToken);
             return connection;
         }
@@ -60,6 +61,68 @@ public class HD2MimntDbContext : IDisposable
         using var target = await OpenConnectionAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         source.BackupDatabase(target);
+    }
+
+    /// <summary>
+    /// 新库升级增强：FTS 一次性 rebuild（SettingsMigrations 标记）、部署 NOCASE 索引换名重建、
+    /// 清单 GUID 表达式索引。全部带表/列存在性防护，老库缺列缺表时跳过而不是阻断初始化。
+    /// </summary>
+    private static async Task EnsureUpgradeEnhancementsAsync(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        // FTS 一次性修复：旧触发器可能已写出不一致词条，rebuild 是全量重扫——
+        // 只在首次升级执行一次并落标记，不再每次启动都扫。
+        using (var settingsMigrationsCheck = connection.CreateCommand())
+        {
+            settingsMigrationsCheck.CommandText =
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'SettingsMigrations'";
+            if (Convert.ToInt64(await settingsMigrationsCheck.ExecuteScalarAsync(cancellationToken)) > 0)
+            {
+                using var ftsMarkerCheck = connection.CreateCommand();
+                ftsMarkerCheck.CommandText = "SELECT COUNT(*) FROM SettingsMigrations WHERE Id = 'ModsFts.RebuildDone'";
+                if (Convert.ToInt64(await ftsMarkerCheck.ExecuteScalarAsync(cancellationToken)) == 0)
+                {
+                    using var ftsRebuild = connection.CreateCommand();
+                    ftsRebuild.CommandText = @"
+                        INSERT INTO ModsFTS(ModsFTS) VALUES('rebuild');
+                        INSERT OR REPLACE INTO SettingsMigrations(Id) VALUES('ModsFts.RebuildDone')";
+                    await ftsRebuild.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+        }
+
+        // 部署查询用 GamePath COLLATE NOCASE 匹配，BINARY 索引无法 seek：换名重建为 NOCASE 索引
+        // （DROP IF EXISTS + 新名 CREATE IF NOT EXISTS 均幂等，只在首次升级时真正重建）。
+        // 极老库可能缺部署表：缺表时跳过，schema 脚本建表后下次启动再建索引。
+        using (var deploymentTablesCheck = connection.CreateCommand())
+        {
+            deploymentTablesCheck.CommandText = @"
+                SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'
+                    AND name IN ('DeploymentRecords', 'DeploymentFiles')";
+            if (Convert.ToInt64(await deploymentTablesCheck.ExecuteScalarAsync(cancellationToken)) == 2)
+            {
+                using var nocaseIndexCommand = connection.CreateCommand();
+                nocaseIndexCommand.CommandText = @"
+                    DROP INDEX IF EXISTS idx_deployment_gamepath_mod;
+                    DROP INDEX IF EXISTS idx_deploymentfiles_gamepath_target;
+                    CREATE INDEX IF NOT EXISTS idx_deployment_gamepath_mod_nocase ON DeploymentRecords(GamePath COLLATE NOCASE, ModId);
+                    CREATE INDEX IF NOT EXISTS idx_deploymentfiles_gamepath_target_nocase ON DeploymentFiles(GamePath COLLATE NOCASE, TargetPath COLLATE NOCASE);";
+                await nocaseIndexCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        // 清单 GUID 判重查询逐行 json_extract 全表扫：表达式索引（COLLATE 与查询左侧一致）。
+        // 老库 Mods 可能还没有 ManifestJson 列（升级补列在别处），缺列时跳过，下次启动再建。
+        using (var manifestColumnCheck = connection.CreateCommand())
+        {
+            manifestColumnCheck.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Mods') WHERE name = 'ManifestJson'";
+            if (Convert.ToInt64(await manifestColumnCheck.ExecuteScalarAsync(cancellationToken)) > 0)
+            {
+                using var manifestGuidIndexCommand = connection.CreateCommand();
+                manifestGuidIndexCommand.CommandText =
+                    "CREATE INDEX IF NOT EXISTS idx_mods_manifest_guid ON Mods(json_extract(ManifestJson, '$.Guid') COLLATE NOCASE)";
+                await manifestGuidIndexCommand.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
     }
 
     // 老库的 Mods 可能缺少 FTS 内容列，rebuild 会直接读这两列并报 no such column。
@@ -377,8 +440,8 @@ public class HD2MimntDbContext : IDisposable
                 VALUES ('delete', old.rowid, old.Id, old.Name, old.Description, old.Author);
             END;
 
-            -- 旧触发器可能已写出不一致的词条，启动时重建索引。
-            INSERT INTO ModsFTS(ModsFTS) VALUES ('rebuild');
+            -- 旧触发器可能已写出不一致的词条：由 InitializeSchemaAsync 的一次性 rebuild
+            -- （SettingsMigrations 标记）修复，不在每次启动做全量重扫。
 
             -- Logical Mods table (HD2IAS nested archive support)
             CREATE TABLE IF NOT EXISTS LogicalMods (
@@ -528,7 +591,7 @@ public class HD2MimntDbContext : IDisposable
             CREATE INDEX IF NOT EXISTS idx_transactions_starttime ON DeploymentTransactions(StartTime DESC);
 
             -- 兼容性检查结果摘要：跨会话回填角标；ContentStamp 变化即视为模组内容已变更。
-            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            -- 这两张表不设外键：模组删除后的孤儿行由读取时清理；其余关联表仍受外键约束，删除顺序必须满足约束。
             CREATE TABLE IF NOT EXISTS CompatibilityResults (
                 ModId TEXT PRIMARY KEY,
                 Status INTEGER NOT NULL,
@@ -543,7 +606,7 @@ public class HD2MimntDbContext : IDisposable
             );
 
             -- 自动拆包 Lua 处理记录：功能关闭再开启时跳过已处理模组；ContentStamp 变化即重拆。
-            -- 不加外键（本库未开启 foreign_keys），模组删除后的孤儿行由读取时清理。
+            -- 这两张表不设外键：模组删除后的孤儿行由读取时清理；其余关联表仍受外键约束，删除顺序必须满足约束。
             CREATE TABLE IF NOT EXISTS LuaExtractionResults (
                 ModId TEXT PRIMARY KEY,
                 ExtractedAtUtc TEXT NOT NULL,
@@ -595,6 +658,20 @@ public class HD2MimntDbContext : IDisposable
                 using var alterPluginHash = connection.CreateCommand();
                 alterPluginHash.CommandText = "ALTER TABLE Plugins ADD COLUMN AssemblySha256 TEXT";
                 await alterPluginHash.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+
+        // 完整性锚点补全：manifest.json（命令权限门控运行时重读清单）与混合插件命令库 DLL
+        foreach (var column in new[] { "ManifestSha256", "HybridAssemblySha256" })
+        {
+            using var check = connection.CreateCommand();
+            check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Plugins') WHERE name = @Column";
+            check.Parameters.AddWithValue("@Column", column);
+            if (Convert.ToInt64(await check.ExecuteScalarAsync(cancellationToken)) == 0)
+            {
+                using var alter = connection.CreateCommand();
+                alter.CommandText = $"ALTER TABLE Plugins ADD COLUMN {column} TEXT";
+                await alter.ExecuteNonQueryAsync(cancellationToken);
             }
         }
 
@@ -656,6 +733,10 @@ public class HD2MimntDbContext : IDisposable
                 """;
             await deploymentIndexes.ExecuteNonQueryAsync(cancellationToken);
         }
+
+        // FTS 一次性修复、NOCASE 索引换名与清单 GUID 表达式索引同样依赖上面的补列，
+        // 必须在补列之后执行（段内保留表/列存在性防护，老库缺件时自愈跳过）。
+        await EnsureUpgradeEnhancementsAsync(connection, cancellationToken);
 
         using (var checkDefault = connection.CreateCommand())
         {

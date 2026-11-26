@@ -3,6 +3,7 @@ using HD2Mimnt.Core.IPC;
 
 namespace HD2Mimnt.Tests.Services;
 
+[Trait("Category", "Slow")]
 public sealed class PreviewWorkerSessionTests
 {
     private static string StubPath => Path.Combine(AppContext.BaseDirectory, "HD2Mimnt.WorkerStub.exe");

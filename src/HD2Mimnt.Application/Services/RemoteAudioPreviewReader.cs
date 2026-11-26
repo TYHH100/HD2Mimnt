@@ -27,15 +27,16 @@ public sealed class RemoteAudioPreviewReader(IPreviewWorkerSession session) : IA
         if (response is null || string.IsNullOrEmpty(response.InventoryPath))
             throw new InvalidDataException("Preview worker returned no audio inventory.");
 
+        var inventoryPath = PreviewPayloadGuard.Resolve(response.InventoryPath);
         try
         {
-            var json = File.ReadAllText(response.InventoryPath);
+            var json = File.ReadAllText(inventoryPath);
             return JsonSerializer.Deserialize<AudioInventoryResult>(json)
                 ?? throw new InvalidDataException("Preview worker returned an empty audio inventory.");
         }
         finally
         {
-            try { File.Delete(response.InventoryPath); }
+            try { File.Delete(inventoryPath); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
         }

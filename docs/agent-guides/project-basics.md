@@ -24,7 +24,7 @@ HD2Mimnt 是基于 .NET 10、Avalonia 和 SQLite 的 Helldivers 2 模组管理�
 - 业务服务：`src/HD2Mimnt.Application/Services/`；实体在 `src/HD2Mimnt.Core/Entities/`，枚举在 `HD2Mimnt.Core.Enums`。
 - 数据访问通过 `IModRepository`、`IProfileRepository`、`ITaskRepository`、`IDeploymentRepository` 等接口完成。
 - `ModService` 管理模组，`ProfileService` 管理配置及成员，`DeploymentService` 编排部署/清理，`TaskService` 管理任务，搜索与资源分析由各自服务负责。
-- 图片加载、缓存、缩略图分别由 `ImageLoaderService`、`ImageCacheService`、`ThumbnailService` 负责。
+- 图片相关：Infrastructure 的 `ImageCacheService`（LRU 缓存）、Application 的 `ThumbnailService`（缩略图生成）、UI 的 `ImagePreviewService`/`ModImageCache`（预览加载与按模组缓存）。
 
 ## 命令与测试项目
 

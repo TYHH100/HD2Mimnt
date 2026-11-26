@@ -21,7 +21,7 @@
 | `id` | string | 是 | 配置内唯一标识（不区分大小写），供 `guestOf` 引用和日志定位。只在本文件内使用，不进 UI。 |
 | `displayName` | string | 是 | UI 显示名。主互斥组成员按配置顺序拼接为 “BSL / MDL / Boot Mod Loader” 等聚合文案，本地化走 `{0}` 占位模板键，此处写英文基础名。 |
 | `role` | string | 是 | 部署槽位，固定映射到 `BslModRole` 枚举：`loader`（主加载器，BSL 用）、`mdl`、`bml`、`csl`、`smoothboot`。**不能自造值**，解析到未知值直接抛异常；新加载器默认用 `loader`，特殊部署位置需在代码中加新枚举槽位。配置移除的历史角色按主加载器段兜底排序。 |
-| `priority` | int | 否，默认 `2` | 部署排序分段权重，数值越小越先部署。同 `role` 多个加载器取最小值。现值：依赖 1 < CSL 2 < BSL/MDL/MDL3/BML 3 < SmoothBoot 4。 |
+| `priority` | int | 否，默认 `2` | 部署排序分段权重，数值越小越先部署。同 `role` 多个加载器取最小值。现值：依赖 1 < CSL/MDL3 2 < BSL/MDL/BML 3 < SmoothBoot 4。 |
 | `mutexGroup` | string | 否 | 主互斥组名。**非 null 即视为主加载器**：同组（实际只用 `primary`）成员只能启用一个，启用一个时自动停用同组其它成员；同时进入配置页末段固定分组。省略该字段的加载器仍是识别目标，但按普通模组排序。 |
 | `guestOf` | string | 否 | 从属加载器声明：需由该 `id` 的**主互斥组**加载器托管才能共存（如 CSL 由 BML 启动）。代码校验指向必须存在且为互斥组成员，否则整个配置解析失败。从属加载器固定部署在托管者之前，与 BSL/MDL 仍互斥；启停按组合闭包处理。 |
 | `guids` | string[] | 是 | 加载器包的清单 GUID（`Guid.Parse` 解析，格式错抛异常）。最强识别锚点：模组 manifest 的 Guid 或 provenance `*manifest.json` 的 `Guid` 字段命中即认定，不再扫描资源。同时自动加入依赖 GUID 名单——其它包以 GUID 字符串声明依赖也能识别。 |
@@ -44,7 +44,7 @@
 
 ### 部署排序（配置页 → 部署序列）
 
-分段按 `priority` 数值升序：普通模组（0）→ 依赖（`dependencyPriority`）→ 从属加载器 CSL（2，须在托管者 BML 之前）→ 主互斥组 BSL/MDL/MDL3/BML（3）→ SmoothBoot 类末位（4，始终最后部署）。同段保持配置页顺序；反向部署时固定区域反转置顶。互斥/托管行为只看 `mutexGroup` 与 `guestOf`，不看 `priority`。
+分段按 `priority` 数值升序：普通模组（0）→ 依赖（`dependencyPriority`）→ 从属加载器 CSL/MDL3（2，须在托管者 BML 之前）→ 主互斥组 BSL/MDL/BML（3）→ SmoothBoot 类末位（4，始终最后部署）。同段保持配置页顺序；反向部署时固定区域反转置顶。互斥/托管行为只看 `mutexGroup` 与 `guestOf`，不看 `priority`。
 
 ## 手动新增加载器的步骤
 

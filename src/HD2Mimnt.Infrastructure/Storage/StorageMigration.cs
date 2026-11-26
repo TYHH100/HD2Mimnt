@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Infrastructure.Data;
 using Microsoft.Data.Sqlite;
 using static HD2Mimnt.Infrastructure.Storage.StorageLocationStore;
 
@@ -115,6 +116,8 @@ public sealed class StorageMigration(StorageLocationStore store)
                     {
                         var snapshot = Path.Combine(scratch, "hd2mimnt.db");
                         await SnapshotAsync(Current.DatabasePath, snapshot, token).ConfigureAwait(false);
+                        // 快照必须可校验一致，否则不能进入提交阶段替换旧库。
+                        await EnsureDatabaseUsableAsync(snapshot, token).ConfigureAwait(false);
                         await RewriteDatabaseAsync(snapshot, references, token).ConfigureAwait(false);
                         if (!Same(Current.AppDataPath, next.AppDataPath))
                         {
@@ -141,11 +144,48 @@ public sealed class StorageMigration(StorageLocationStore store)
             var candidate = Path.Combine(Scratch(next, store.State.MigrationId!), "hd2mimnt.db");
             if (File.Exists(candidate))
             {
+                // 改写后的候选库先自检，坏库不能覆盖目标位置。
+                if (!await IsDatabaseUsableAsync(candidate, CancellationToken.None).ConfigureAwait(false))
+                    return "存储位置迁移失败，改写后的新位置数据库未通过完整性校验，仍使用原位置。";
                 Directory.CreateDirectory(next.AppDataPath);
-                File.Copy(candidate, next.DatabasePath + ".storage-new", true);
-                File.Move(next.DatabasePath + ".storage-new", next.DatabasePath, true);
-                File.Delete(next.DatabasePath + "-wal");
-                File.Delete(next.DatabasePath + "-shm");
+                var sameDatabasePath = string.Equals(Path.GetFullPath(Current.DatabasePath),
+                    Path.GetFullPath(next.DatabasePath), StringComparison.OrdinalIgnoreCase);
+                var rollbackCopy = sameDatabasePath && File.Exists(next.DatabasePath)
+                    ? next.DatabasePath + ".storage-old" : null;
+                if (rollbackCopy != null)
+                {
+                    try { File.Copy(next.DatabasePath, rollbackCopy, true); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        return "存储位置迁移失败，无法创建原库副本，仍使用原位置：" + ex.Message;
+                    }
+                }
+                try
+                {
+                    File.Copy(candidate, next.DatabasePath + ".storage-new", true);
+                    File.Move(next.DatabasePath + ".storage-new", next.DatabasePath, true);
+                    File.Delete(next.DatabasePath + "-wal");
+                    File.Delete(next.DatabasePath + "-shm");
+                    // 提交前确认新位置库可用；失败时恢复原库并保留迁移日志供下次启动重试。
+                    if (!await IsDatabaseUsableAsync(next.DatabasePath, CancellationToken.None).ConfigureAwait(false))
+                    {
+                        if (rollbackCopy != null && TryRestoreDatabase(rollbackCopy, next.DatabasePath))
+                        {
+                            File.Delete(rollbackCopy);
+                            return "存储位置迁移失败，新位置数据库未通过完整性校验，仍使用原位置。";
+                        }
+                        return rollbackCopy != null
+                            ? "存储位置迁移失败，新位置数据库未通过完整性校验，原库副本保留在：" + rollbackCopy
+                            : "存储位置迁移失败，新位置数据库未通过完整性校验，仍使用原位置。";
+                    }
+                    if (rollbackCopy != null) File.Delete(rollbackCopy);
+                }
+                catch
+                {
+                    if (rollbackCopy != null && TryRestoreDatabase(rollbackCopy, next.DatabasePath))
+                        File.Delete(rollbackCopy);
+                    throw;
+                }
             }
             var candidateSettings = Path.Combine(Scratch(next, store.State.MigrationId!), "settings.json");
             if (File.Exists(candidateSettings))
@@ -159,11 +199,11 @@ public sealed class StorageMigration(StorageLocationStore store)
         Directory.CreateDirectory(Current.AppDataPath);
         Directory.CreateDirectory(Current.ModsPath);
         Directory.CreateDirectory(Current.TempPath);
-        return await CleanupCommittedAsync().ConfigureAwait(false);
+        return await CleanupCommittedAsync(token).ConfigureAwait(false);
     }
 
     /// <summary>仅恢复已提交搬迁留下的清理，不创建目录或执行新的搬迁。</summary>
-    public async Task<string?> CleanupCommittedAsync()
+    public async Task<string?> CleanupCommittedAsync(CancellationToken token = default)
     {
         if (store.State.Pending != null ||
             (store.State.MigrationId == null && store.State.CleanupFiles.Count == 0)) return null;
@@ -173,6 +213,11 @@ public sealed class StorageMigration(StorageLocationStore store)
                 if (Owns(move.Target, migrationId)) File.Delete(Path.Combine(move.Target, Marker));
             DeleteScratch(Current, migrationId);
         }
+        // 旧库只在确认新库可用后才删除；数据库损坏时保留旧文件，交给启动守卫修复后再清理。
+        var expectsDatabase = store.State.CleanupFiles.Any(file =>
+            string.Equals(Path.GetFileName(file), Path.GetFileName(Current.DatabasePath), StringComparison.OrdinalIgnoreCase));
+        if (expectsDatabase && !await IsDatabaseUsableAsync(Current.DatabasePath, token).ConfigureAwait(false))
+            return "存储位置已切换，但新位置数据库未通过完整性校验，已保留旧文件。";
         var remaining = new List<string>();
         foreach (var file in store.State.CleanupFiles)
         {
@@ -301,25 +346,6 @@ public sealed class StorageMigration(StorageLocationStore store)
                 }
             }
         }
-        // 设置现存于 SQLite，路径类设置仍是 JSON 字符串；只映射本应用管理的根目录。
-        if (await HasColumnAsync(connection, "Settings", "Value", token, transaction))
-        {
-            using var read = connection.CreateCommand();
-            read.Transaction = transaction;
-            read.CommandText = "SELECT Value FROM Settings WHERE Key = 'UI.BackgroundImagePath'";
-            if (await read.ExecuteScalarAsync(token).ConfigureAwait(false) is string json)
-            {
-                var value = JsonSerializer.Deserialize<string>(json);
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    using var write = connection.CreateCommand();
-                    write.Transaction = transaction;
-                    write.CommandText = "UPDATE Settings SET Value = $value WHERE Key = 'UI.BackgroundImagePath'";
-                    write.Parameters.AddWithValue("$value", JsonSerializer.Serialize(Map(value, moves)));
-                    await write.ExecuteNonQueryAsync(token).ConfigureAwait(false);
-                }
-            }
-        }
         transaction.Commit();
     }
 
@@ -360,6 +386,22 @@ public sealed class StorageMigration(StorageLocationStore store)
             if (parent.Exists && (parent.Attributes & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("请直接选择实际目录，不能使用符号链接或目录联接。");
     }
+    private static async Task<bool> IsDatabaseUsableAsync(string path, CancellationToken token)
+        => File.Exists(path) && new FileInfo(path).Length > 0 &&
+           await DatabaseIntegrityGuard.IsHealthyAsync(path, token).ConfigureAwait(false);
+
+    private static async Task EnsureDatabaseUsableAsync(string path, CancellationToken token)
+    {
+        if (!await IsDatabaseUsableAsync(path, token).ConfigureAwait(false))
+            throw new InvalidDataException("数据库快照未通过完整性校验，已取消存储迁移。");
+    }
+
+    private static bool TryRestoreDatabase(string backup, string target)
+    {
+        try { File.Copy(backup, target, true); return true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+    }
+
     private static string Scratch(StorageLocations next, string id) => Path.Combine(next.TempPath, ".migration-" + id);
     private static bool Owns(string target, string id) => File.Exists(Path.Combine(target, Marker)) && File.ReadAllText(Path.Combine(target, Marker)) == id;
     private void RollbackCopies(List<StorageMove> moves, string id)

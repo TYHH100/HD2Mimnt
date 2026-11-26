@@ -32,12 +32,16 @@ internal static class PluginRuntimeFactory
         var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(command.ManifestPath)) ?? ".";
         var scriptPath = string.IsNullOrWhiteSpace(manifest.Script)
             ? command.PluginPath
-            : Path.GetFullPath(Path.Combine(manifestDirectory, manifest.Script));
+            : Core.IO.PathGuard.ResolveInsideRoot(manifestDirectory,
+                Path.Combine(manifestDirectory, manifest.Script),
+                "插件清单 Script 越出插件目录，已拒绝加载。");
 
         ILuaDllBridge dll = NullLuaDllBridge.Instance;
         if (manifest.IsHybrid)
         {
-            var assemblyPath = Path.GetFullPath(Path.Combine(manifestDirectory, manifest.Assembly));
+            var assemblyPath = Core.IO.PathGuard.ResolveInsideRoot(manifestDirectory,
+                Path.Combine(manifestDirectory, manifest.Assembly),
+                "插件清单 Assembly 越出插件目录，已拒绝加载。");
             dll = new PluginAssemblyBridge(pluginId, assemblyPath);
         }
 

@@ -3,6 +3,8 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using HD2Mimnt.Application.Cli;
+using HD2Mimnt.Core.IPC;
+using CliProtocol = HD2Mimnt.Core.IPC.CliPipeProtocol;
 
 namespace HD2Mimnt.UI.Services;
 
@@ -29,7 +31,7 @@ public sealed class CliCommandPipeHost : IDisposable
     public CliCommandPipeHost(IServiceProvider services)
     {
         _services = services;
-        _pipeName = CliProtocol.GetPipeName();
+        _pipeName = CliProtocol.GetUiPipeName();
         _listener = ListenAsync();
     }
 
@@ -50,7 +52,7 @@ public sealed class CliCommandPipeHost : IDisposable
                 if (packet == null)
                     response = CliCommandResponse.Usage("请求不是合法的 CLI 包。");
                 else
-                    response = await DispatchAsync(packet, perConnection.Token).ConfigureAwait(false);
+                    response = await DispatchAsync(packet, server, perConnection.Token).ConfigureAwait(false);
                 await WriteResultAsync(server, ToResult(response), perConnection.Token).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException or OperationCanceledException or UnauthorizedAccessException
@@ -83,11 +85,20 @@ public sealed class CliCommandPipeHost : IDisposable
         await server.FlushAsync(token).ConfigureAwait(false);
     }
 
-    private async Task<CliCommandResponse> DispatchAsync(CliPipePacket packet, CancellationToken token)
+    private async Task<CliCommandResponse> DispatchAsync(CliPipePacket packet, NamedPipeServerStream server, CancellationToken token)
     {
         try
         {
-            return await _catalog.DispatchAsync(packet.Tokens, _services, packet.Json, packet.Yes, token).ConfigureAwait(false);
+            CliCommandSession? session = null;
+            if (packet.Stream)
+            {
+                session = new CliCommandSession
+                {
+                    Progress = new FrameProgressReporter(server, token)
+                };
+            }
+            return await _catalog.DispatchAsync(packet.Tokens, _services, packet.Json, packet.Yes, token, session, packet.Async)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
         {
@@ -96,6 +107,28 @@ public sealed class CliCommandPipeHost : IDisposable
         catch (Exception ex)
         {
             return CliCommandResponse.Fail("命令执行出现未处理异常：" + ex.Message);
+        }
+    }
+
+    /// <summary>UI 宿主的流式进度帧写出：同步回调直发，客户端断开不中断命令。</summary>
+    private sealed class FrameProgressReporter(NamedPipeServerStream server, CancellationToken token) : IProgress<CliProgressEvent>
+    {
+        public void Report(CliProgressEvent value)
+        {
+            try
+            {
+                var payload = JsonSerializer.SerializeToUtf8Bytes(
+                    new CliPipeProgress(value.Stage, value.Percent, value.Current, value.Message ?? ""), ResultOptions);
+                var size = new byte[4];
+                System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(size, payload.Length);
+                server.WriteAsync(size, token).GetAwaiter().GetResult();
+                server.WriteAsync(payload, token).GetAwaiter().GetResult();
+                server.FlushAsync(token).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // 客户端断开时进度写失败不应中断命令本身。
+            }
         }
     }
 

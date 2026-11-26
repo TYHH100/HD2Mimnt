@@ -1,3 +1,4 @@
+using System.Globalization;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Infrastructure.Data;
 using Microsoft.Data.Sqlite;
@@ -15,7 +16,8 @@ public sealed class DeploymentStateMigrationService(
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public sealed record Result(int AdoptedRecords, int MergedRecords, int RemovedOrphanFiles, int AmbiguousRecords);
+    public sealed record Result(int AdoptedRecords, int MergedRecords, int RemovedOrphanFiles, int AmbiguousRecords,
+        int RemovedCorruptRows);
 
     public async Task<Result> EnsureMigratedAsync(string? effectiveGamePath = null,
         CancellationToken cancellationToken = default)
@@ -26,8 +28,8 @@ public sealed class DeploymentStateMigrationService(
             using var connection = await dbContext.OpenConnectionAsync(cancellationToken);
             using var transaction = connection.BeginTransaction();
 
-            var records = await ReadRecordsAsync(connection, transaction, cancellationToken);
-            var files = await ReadFilesAsync(connection, transaction, cancellationToken);
+            var (records, removedRecordRows) = await ReadRecordsAsync(connection, transaction, logger, cancellationToken);
+            var (files, removedFileRows) = await ReadFilesAsync(connection, transaction, logger, cancellationToken);
             var filesByDeployment = files.GroupBy(file => file.DeploymentId)
                 .ToDictionary(group => group.Key, group => group.ToList());
 
@@ -140,13 +142,16 @@ public sealed class DeploymentStateMigrationService(
             }
 
             // 4. 当前状态唯一约束；老库若仍有异常重复只记录警告，不阻断启动。
+            // NOCASE 与 Upsert 查重（GamePath = @GamePath COLLATE NOCASE）一致：
+            // 游戏路径大小写变化时不会再因 BINARY 索引漏查而插入两行“当前状态”。
             try
             {
                 using var index = connection.CreateCommand();
                 index.Transaction = transaction;
                 index.CommandText = @"
-                    CREATE UNIQUE INDEX IF NOT EXISTS idx_deployment_gamepath_mod_unique
-                    ON DeploymentRecords(GamePath, ModId) WHERE GamePath IS NOT NULL";
+                    DROP INDEX IF EXISTS idx_deployment_gamepath_mod_unique;
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_deployment_gamepath_mod_unique_nocase
+                    ON DeploymentRecords(GamePath COLLATE NOCASE, ModId) WHERE GamePath IS NOT NULL";
                 await index.ExecuteNonQueryAsync(cancellationToken);
             }
             catch (SqliteException ex)
@@ -155,10 +160,10 @@ public sealed class DeploymentStateMigrationService(
             }
 
             await transaction.CommitAsync(cancellationToken);
-            var result = new Result(adopted, merged, orphans, ambiguous);
-            if (adopted + merged + orphans + ambiguous > 0)
-                logger?.LogInformation("部署状态迁移完成: 归属 {Adopted}, 合并 {Merged}, 孤儿文件 {Orphans}, 未识别 {Ambiguous}",
-                    adopted, merged, orphans, ambiguous);
+            var result = new Result(adopted, merged, orphans, ambiguous, removedRecordRows + removedFileRows);
+            if (adopted + merged + orphans + ambiguous + result.RemovedCorruptRows > 0)
+                logger?.LogInformation("部署状态迁移完成: 归属 {Adopted}, 合并 {Merged}, 孤儿文件 {Orphans}, 未识别 {Ambiguous}, 清理坏行 {Corrupt}",
+                    adopted, merged, orphans, ambiguous, result.RemovedCorruptRows);
             return result;
         }
         finally
@@ -167,53 +172,117 @@ public sealed class DeploymentStateMigrationService(
         }
     }
 
-    private static async Task<List<DeploymentRecord>> ReadRecordsAsync(SqliteConnection connection,
-        SqliteTransaction transaction, CancellationToken cancellationToken)
+    private static async Task<(List<DeploymentRecord> Items, int Removed)> ReadRecordsAsync(SqliteConnection connection,
+        SqliteTransaction transaction, ILogger? logger, CancellationToken cancellationToken)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = @"
-            SELECT Id, SessionId, ProfileId, ModId, GamePath, StartTime, EndTime, AppliedAt
+            SELECT rowid, Id, SessionId, ProfileId, ModId, GamePath, StartTime, EndTime, AppliedAt
             FROM DeploymentRecords";
         var records = new List<DeploymentRecord>();
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        var brokenRowIds = new List<long>();
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            records.Add(new DeploymentRecord
+            while (await reader.ReadAsync(cancellationToken))
             {
-                Id = Guid.Parse(reader.GetString(0)),
-                SessionId = Guid.Parse(reader.GetString(1)),
-                ProfileId = Guid.Parse(reader.GetString(2)),
-                ModId = Guid.Parse(reader.GetString(3)),
-                GamePath = reader.IsDBNull(4) ? null : reader.GetString(4),
-                StartTime = DateTime.Parse(reader.GetString(5)),
-                EndTime = reader.IsDBNull(6) ? null : DateTime.Parse(reader.GetString(6)),
-                AppliedAt = reader.IsDBNull(7) ? null : DateTime.Parse(reader.GetString(7))
-            });
+                // 库文件受损时列会错位，读到的不一定是合法 GUID/时间；坏行无法按 Id 寻址，直接清理。
+                if (!TryGuid(reader, 1, out var id) || !TryGuid(reader, 2, out var sessionId) ||
+                    !TryGuid(reader, 3, out var profileId) || !TryGuid(reader, 4, out var modId) ||
+                    !TryTimestamp(reader, 6, out var startTime))
+                {
+                    brokenRowIds.Add(reader.GetInt64(0));
+                    continue;
+                }
+
+                records.Add(new DeploymentRecord
+                {
+                    Id = id,
+                    SessionId = sessionId,
+                    ProfileId = profileId,
+                    ModId = modId,
+                    GamePath = reader.IsDBNull(5) ? null : reader.GetValue(5) as string,
+                    StartTime = startTime,
+                    EndTime = TryTimestamp(reader, 7, out var endTime) ? endTime : null,
+                    AppliedAt = TryTimestamp(reader, 8, out var appliedAt) ? appliedAt : null
+                });
+            }
         }
-        return records;
+
+        var removed = await DeleteBrokenRowsAsync(connection, transaction, "DeploymentRecords", brokenRowIds,
+            cancellationToken);
+        if (removed > 0)
+            logger?.LogWarning("已清理 {Count} 条无法解析的部署记录（主键或时间字段异常，疑似数据库损坏）", removed);
+        return (records, removed);
     }
 
-    private static async Task<List<DeploymentFile>> ReadFilesAsync(SqliteConnection connection,
-        SqliteTransaction transaction, CancellationToken cancellationToken)
+    private static async Task<(List<DeploymentFile> Items, int Removed)> ReadFilesAsync(SqliteConnection connection,
+        SqliteTransaction transaction, ILogger? logger, CancellationToken cancellationToken)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT Id, DeploymentId, ModId, TargetPath, GamePath FROM DeploymentFiles";
+        command.CommandText = "SELECT rowid, Id, DeploymentId, ModId, TargetPath, GamePath FROM DeploymentFiles";
         var files = new List<DeploymentFile>();
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        var brokenRowIds = new List<long>();
+        using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            files.Add(new DeploymentFile
+            while (await reader.ReadAsync(cancellationToken))
             {
-                Id = Guid.Parse(reader.GetString(0)),
-                DeploymentId = Guid.Parse(reader.GetString(1)),
-                ModId = Guid.Parse(reader.GetString(2)),
-                TargetPath = reader.GetString(3),
-                GamePath = reader.IsDBNull(4) ? null : reader.GetString(4)
-            });
+                if (!TryGuid(reader, 1, out var id) || !TryGuid(reader, 2, out var deploymentId) ||
+                    !TryGuid(reader, 3, out var modId) || reader.GetValue(4) is not string targetPath)
+                {
+                    brokenRowIds.Add(reader.GetInt64(0));
+                    continue;
+                }
+
+                files.Add(new DeploymentFile
+                {
+                    Id = id,
+                    DeploymentId = deploymentId,
+                    ModId = modId,
+                    TargetPath = targetPath,
+                    GamePath = reader.IsDBNull(5) ? null : reader.GetValue(5) as string
+                });
+            }
         }
-        return files;
+
+        var removed = await DeleteBrokenRowsAsync(connection, transaction, "DeploymentFiles", brokenRowIds,
+            cancellationToken);
+        if (removed > 0)
+            logger?.LogWarning("已清理 {Count} 条无法解析的部署文件行（主键或路径字段异常，疑似数据库损坏）", removed);
+        return (files, removed);
+    }
+
+    /// <summary>坏行主键不可解析，按 Id 的读写永远无法命中；留在表里只会反复让严格读取失败。</summary>
+    private static async Task<int> DeleteBrokenRowsAsync(SqliteConnection connection, SqliteTransaction transaction,
+        string table, IReadOnlyList<long> rowIds, CancellationToken cancellationToken)
+    {
+        var removed = 0;
+        foreach (var chunk in rowIds.Chunk(400))
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            var placeholders = string.Join(",", chunk.Select((_, index) => $"@p{index}"));
+            command.CommandText = $"DELETE FROM {table} WHERE rowid IN ({placeholders})";
+            for (var i = 0; i < chunk.Length; i++) command.Parameters.AddWithValue($"@p{i}", chunk[i]);
+            removed += await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        return removed;
+    }
+
+    private static bool TryGuid(SqliteDataReader reader, int ordinal, out Guid value)
+    {
+        value = default;
+        if (reader.IsDBNull(ordinal)) return false;
+        return reader.GetValue(ordinal) is string text && Guid.TryParse(text, out value);
+    }
+
+    private static bool TryTimestamp(SqliteDataReader reader, int ordinal, out DateTime value)
+    {
+        value = default;
+        if (reader.IsDBNull(ordinal)) return false;
+        return reader.GetValue(ordinal) is string text &&
+               DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out value);
     }
 
     /// <summary>所有目标必须归属同一个安装根目录；混合安装的旧记录保持未归属。</summary>

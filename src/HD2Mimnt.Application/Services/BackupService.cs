@@ -110,17 +110,63 @@ public sealed class BackupService
                 settingsEntry?.ExtractToFile(temporarySettingsPath, overwrite: true);
             }
 
+            // 覆盖当前库之前先校验备份库：坏备份不能把损坏带进在线数据库。
+            var restoredDatabase = new FileInfo(temporaryDatabasePath);
+            if (!restoredDatabase.Exists || restoredDatabase.Length == 0 ||
+                !await DatabaseIntegrityGuard.IsHealthyAsync(temporaryDatabasePath, cancellationToken))
+                throw new InvalidDataException("备份数据库未通过完整性校验，已取消恢复。");
+
             // 在覆盖当前数据前完成旧备份设置的迁移及 JSON 校验。
             // 恢复无 JSON 的新备份时，不得导入当前目录里残留的旧设置。
             _ = new SettingsService(new SettingsRepository(temporaryDatabasePath), temporaryDirectory);
-            await _settingsService.ReloadAfterRestoreAsync(async () =>
+
+            // 覆盖在线库前保留一份当前状态快照：恢复中途失败时还能回到恢复前。
+            var safetySnapshotPath = Path.Combine(_backupDirectory,
+                $"pre-restore-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.db");
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                // SQLite 在线备份以事务替换内容；不关闭其它操作的连接，也不删除活动 WAL。
-                await _dbContext.ImportFromAsync(temporaryDatabasePath, cancellationToken);
-                await _dbContext.InitializeDatabaseAsync(CancellationToken.None);
-            });
-            Restored?.Invoke(this, EventArgs.Empty);
+                await CreateDatabaseSnapshotAsync(safetySnapshotPath, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                DeleteIfExists(safetySnapshotPath);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                DeleteIfExists(safetySnapshotPath);
+                throw new InvalidOperationException($"无法创建恢复前安全快照，已取消恢复：{ex.Message}", ex);
+            }
+
+            var restored = false;
+            var databaseTouched = false;
+            try
+            {
+                await _settingsService.ReloadAfterRestoreAsync(async () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    databaseTouched = true;
+                    try
+                    {
+                        // SQLite 在线备份以事务替换内容；不关闭其它操作的连接，也不删除活动 WAL。
+                        await _dbContext.ImportFromAsync(temporaryDatabasePath, cancellationToken);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        throw new IOException($"恢复数据库失败，当前库可能不完整；恢复前快照保留在：{safetySnapshotPath}", ex);
+                    }
+                    if (!await DatabaseIntegrityGuard.IsHealthyAsync(_dbContext.DatabasePath, CancellationToken.None))
+                        throw new IOException($"恢复后的数据库未通过完整性校验；恢复前快照保留在：{safetySnapshotPath}");
+                    await _dbContext.InitializeDatabaseAsync(CancellationToken.None);
+                });
+                restored = true;
+                Restored?.Invoke(this, EventArgs.Empty);
+            }
+            finally
+            {
+                // 只在真正开始覆盖数据库后保留失败快照；前置校验失败时删除，避免堆积。
+                if (restored || !databaseTouched) DeleteIfExists(safetySnapshotPath);
+            }
         }
         finally
         {
@@ -161,6 +207,15 @@ public sealed class BackupService
         {
             throw new FileNotFoundException("备份文件不存在。", fullPath);
         }
+    }
+
+    private async Task CreateDatabaseSnapshotAsync(string destinationPath, CancellationToken cancellationToken)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "VACUUM INTO @destination";
+        command.Parameters.AddWithValue("@destination", destinationPath);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task AddFileAsync(ZipArchive archive, string sourcePath, string entryName, CancellationToken cancellationToken)

@@ -62,7 +62,8 @@ public sealed partial class FluentAvaloniaUiTests
             Layout(); main.NotificationPanelViewModel.DismissAllToasts(); Layout();
             var more = window.GetVisualDescendants().OfType<MoreView>().Single();
             var categories = more.GetVisualDescendants().OfType<ListBox>().Single(box => ReferenceEquals(box.ItemsSource, main.MoreViewModel.Categories));
-            Assert.Equal("HD2IAS 管理", main.MoreViewModel.Categories[^2]);
+            Assert.Equal("HD2IAS 系统", main.MoreViewModel.Categories[^1]);
+            Assert.Contains("HD2IAS 管理", main.MoreViewModel.Categories);
             Click((Control)categories.ContainerFromIndex(Array.IndexOf(main.MoreViewModel.Categories, "HD2IAS 管理"))!);
             await vm.RefreshInstallationCommand.ExecutionTask!; Layout();
             Assert.True(main.MoreViewModel.IsHd2IASVisible); Assert.False(main.MoreViewModel.IsIasSystemVisible);

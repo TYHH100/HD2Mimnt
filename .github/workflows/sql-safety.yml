@@ -1,0 +1,37 @@
+name: SQL Safety
+
+# 数据库回归门禁：外键/级联、删除顺序、并发删除、恢复与迁移失败时机。
+# 仅在 dev/master 有新的提交时执行一次；发布流水线不跑测试。
+on:
+  push:
+    branches:
+      - dev
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sql-safety-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sql-safety:
+    name: sql-safety-gate
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run SQL safety gate
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-sql-safety-tests.ps1

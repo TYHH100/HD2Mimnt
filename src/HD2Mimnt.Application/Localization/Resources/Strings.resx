@@ -501,15 +501,6 @@
   <data name="UI.Loading" xml:space="preserve">
     <value>Loading…</value>
   </data>
-  <data name="UI.LearnAboutTheGameDirectoryLibraryProfilesConflictChecksAndDeploymentTh" xml:space="preserve">
-    <value>Learn about the game directory, library, profiles, conflict checks and deployment. The tutorial changes pages and marks each feature with a blue border.</value>
-  </data>
-  <data name="UI.UsePreviousAndNextToBrowsePressEscOrClickExitAtAnyTimeTheTutorialDoesN" xml:space="preserve">
-    <value>Use Previous and Next to browse. Press Esc or click Exit at any time. The tutorial does not import, deploy or launch the game.</value>
-  </data>
-  <data name="UI.StartTutorial" xml:space="preserve">
-    <value>Start tutorial</value>
-  </data>
   <data name="UI.ExternalTools" xml:space="preserve">
     <value>External tools</value>
   </data>
@@ -678,6 +669,12 @@
   <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
     <value>Check for updates on startup</value>
   </data>
+  <data name="Updates.Channel" xml:space="preserve">
+    <value>Update channel</value>
+  </data>
+  <data name="Updates.ChannelHelp" xml:space="preserve">
+    <value>If the preferred channel is unavailable, the other one is tried automatically. Codeberg is a mirror of the GitHub releases.</value>
+  </data>
   <data name="Updates.UpToDate" xml:space="preserve">
     <value>You're on the latest version.</value>
   </data>
@@ -698,6 +695,27 @@
   </data>
   <data name="Updates.ManualDownloadHint" xml:space="preserve">
     <value>No automatic installer was found for this release. Please download it from the release page.</value>
+  </data>
+  <data name="Updates.BackingUp" xml:space="preserve">
+    <value>Backing up the database…</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateTitle" xml:space="preserve">
+    <value>Back up before update</value>
+  </data>
+  <data name="Updates.BackupBeforeUpdateMessage" xml:space="preserve">
+    <value>Back up the current database before downloading and installing the update? You can restore it from Settings - Backup.</value>
+  </data>
+  <data name="Updates.BackupAndUpdate" xml:space="preserve">
+    <value>Back up and update</value>
+  </data>
+  <data name="Updates.UpdateWithoutBackup" xml:space="preserve">
+    <value>Update without backup</value>
+  </data>
+  <data name="Updates.BackupCreated" xml:space="preserve">
+    <value>Pre-update backup created: {0}</value>
+  </data>
+  <data name="Updates.BackupFailed" xml:space="preserve">
+    <value>Pre-update backup failed; update cancelled: {0}</value>
   </data>
   <data name="Updates.NotificationTitle" xml:space="preserve">
     <value>HD2Mimnt update</value>
@@ -1956,9 +1974,6 @@ Still waiting for valid authorization for the selected file.</value>
   </data>
   <data name="UI.CancellingAndCleaningUp" xml:space="preserve">
     <value>Cancelling and cleaning up…</value>
-  </data>
-  <data name="UI.Tutorial" xml:space="preserve">
-    <value>Tutorial</value>
   </data>
   <data name="UI.BackupAndRestore" xml:space="preserve">
     <value>Backup and restore</value>
@@ -4349,6 +4364,57 @@ Main: {4:N0} B · stream: {5:N0} B · GPU: {6:N0} B</value></data>
   <data name="Settings.Compatibility.Data.Built" xml:space="preserve"><value>Game reference index built and saved</value></data>
   <data name="Settings.Compatibility.Data.NamesUpdated" xml:space="preserve"><value>Names updated: {0:N0} resources, {1:N0} archives</value></data>
   <data name="Settings.ResetFailed" xml:space="preserve"><value>Failed to restore settings: {0}</value></data>
+  <data name="ModBinarySearch.NavItem" xml:space="preserve"><value>Mod binary search</value></data>
+  <data name="ModBinarySearch.Title" xml:space="preserve"><value>Mod binary-search troubleshooting</value></data>
+  <data name="ModBinarySearch.Description" xml:space="preserve"><value>Copy only enabled mods, then narrow down a suspect by disabling half of the remaining candidates each round and verifying the last candidate alone.</value></data>
+  <data name="ModBinarySearch.Isolation" xml:space="preserve"><value>The temporary profile contains only mods enabled in the source profile, preserving their relative order, options and group boundaries. Disabled mods are not copied. Only the temporary profile is toggled and deployed; the source profile is never edited. The original deployment is restored before the temporary profile is deleted.</value></data>
+  <data name="ModBinarySearch.Start" xml:space="preserve"><value>Start binary search</value></data>
+  <data name="ModBinarySearch.StartConfirm" xml:space="preserve"><value>Create a temporary profile containing only the active profile's enabled mods and begin troubleshooting? Close the game before each deployment. The source profile will not be modified.</value></data>
+  <data name="ModBinarySearch.Ready" xml:space="preserve"><value>Start with a problem that reproduces in the active profile.</value></data>
+  <data name="ModBinarySearch.NoSource" xml:space="preserve"><value>No active profile is available.</value></data>
+  <data name="ModBinarySearch.BusyTask" xml:space="preserve"><value>A deployment, cleanup or HellForge sync is already running. Wait for it to finish first.</value></data>
+  <data name="ModBinarySearch.Preparing" xml:space="preserve"><value>Preparing the temporary profile and the next test…</value></data>
+  <data name="ModBinarySearch.CloneReady" xml:space="preserve"><value>The temporary profile is ready. Close the game, deploy this round, then launch the game and reproduce the problem.</value></data>
+  <data name="ModBinarySearch.SourceProfile" xml:space="preserve"><value>Source profile</value></data>
+  <data name="ModBinarySearch.TemporaryProfile" xml:space="preserve"><value>Temporary profile</value></data>
+  <data name="ModBinarySearch.ModCount" xml:space="preserve"><value>Enabled mods in temporary profile</value></data>
+  <data name="ModBinarySearch.CandidateCount" xml:space="preserve"><value>Initial ordinary candidates</value></data>
+  <data name="ModBinarySearch.ExcludedHint" xml:space="preserve"><value>Enabled loaders, dependencies and SmoothBoot are excluded from automatic toggling and keep their original state:</value></data>
+  <data name="ModBinarySearch.RoundHeading" xml:space="preserve"><value>Round {0}: disable {1} of {2} remaining candidates</value></data>
+  <data name="ModBinarySearch.FinalHeading" xml:space="preserve"><value>Final verification: disable the last suspect while keeping every other originally enabled ordinary mod enabled</value></data>
+  <data name="ModBinarySearch.DeployHint" xml:space="preserve"><value>Close the game before deploying. A failed or partial deployment cannot be used as a test result.</value></data>
+  <data name="ModBinarySearch.DisabledThisRound" xml:space="preserve"><value>Disabled in this round</value></data>
+  <data name="ModBinarySearch.Deploy" xml:space="preserve"><value>Deploy this round</value></data>
+  <data name="ModBinarySearch.Deploying" xml:space="preserve"><value>Deploying the temporary profile…</value></data>
+  <data name="ModBinarySearch.Deployed" xml:space="preserve"><value>Deployment completed. Launch the game, reproduce the problem, then report whether it remains.</value></data>
+  <data name="ModBinarySearch.DeployCancelled" xml:space="preserve"><value>Deployment was cancelled. Retry before recording an observation.</value></data>
+  <data name="ModBinarySearch.DeployFailed" xml:space="preserve"><value>Test deployment failed: {0}</value></data>
+  <data name="ModBinarySearch.ObserveHint" xml:space="preserve"><value>After reproducing the problem in-game, choose the matching result. Do not run another deployment while the game is running.</value></data>
+  <data name="ModBinarySearch.ProblemRemains" xml:space="preserve"><value>Problem remains</value></data>
+  <data name="ModBinarySearch.ProblemGone" xml:space="preserve"><value>Problem is gone</value></data>
+  <data name="ModBinarySearch.OutcomeRemains" xml:space="preserve"><value>Problem remains</value></data>
+  <data name="ModBinarySearch.OutcomeGone" xml:space="preserve"><value>Problem is gone</value></data>
+  <data name="ModBinarySearch.History" xml:space="preserve"><value>Test history</value></data>
+  <data name="ModBinarySearch.HistoryLine" xml:space="preserve"><value>Round {0}: {1}. Disabled: {2}. Remaining suspects: {3}.</value></data>
+  <data name="ModBinarySearch.ResultConfirmed" xml:space="preserve"><value>Verified suspect: {0}. The problem disappeared when only this mod was disabled relative to the original enabled set.</value></data>
+  <data name="ModBinarySearch.ResultNotIsolated" xml:space="preserve"><value>No single suspect was verified. The problem still occurred with the last candidate disabled, so multiple mods, interactions or a non-mod cause may be involved.</value></data>
+  <data name="ModBinarySearch.ResultCancelled" xml:space="preserve"><value>Troubleshooting was cancelled; no suspect was confirmed.</value></data>
+  <data name="ModBinarySearch.CleanupHint" xml:space="preserve"><value>Close the game, then restore the source profile deployment and delete the temporary profile.</value></data>
+  <data name="ModBinarySearch.CleanupConfirm" xml:space="preserve"><value>Cleanup restores the source profile deployment before deleting the temporary profile. The source profile content is not changed.</value></data>
+  <data name="ModBinarySearch.FinishCleanup" xml:space="preserve"><value>Restore and finish</value></data>
+  <data name="ModBinarySearch.Cleaning" xml:space="preserve"><value>Restoring the source deployment and deleting the temporary profile…</value></data>
+  <data name="ModBinarySearch.CleanupFailed" xml:space="preserve"><value>Cleanup did not finish: {0}. The temporary profile was kept; retry after checking the source profile and game state.</value></data>
+  <data name="ModBinarySearch.Completed" xml:space="preserve"><value>Troubleshooting complete. The source deployment was restored, the temporary profile was deleted, and the source profile was not modified.</value></data>
+  <data name="ModBinarySearch.UserDecision" xml:space="preserve"><value>You can disable the verified suspect directly with the button below. This tool never disables or deploys it automatically.</value></data>
+  <data name="ModBinarySearch.DisableSuspect" xml:space="preserve"><value>Disable this mod</value></data>
+  <data name="ModBinarySearch.DisableSuspectConfirm" xml:space="preserve"><value>Disable “{0}” in the source profile? This only changes the profile; deployment is not automatic.</value></data>
+  <data name="ModBinarySearch.SuspectDisabled" xml:space="preserve"><value>“{0}” has been disabled in the source profile. Redeploy when ready.</value></data>
+  <data name="ModBinarySearch.Cancel" xml:space="preserve"><value>Cancel and clean up</value></data>
+  <data name="ModBinarySearch.CancelConfirm" xml:space="preserve"><value>Cancel troubleshooting, restore the source profile deployment and delete the temporary profile?</value></data>
+  <data name="ModBinarySearch.Cancelled" xml:space="preserve"><value>Operation cancelled.</value></data>
+  <data name="ModBinarySearch.Failed" xml:space="preserve"><value>Operation failed: {0}</value></data>
+  <data name="ModBinarySearch.TaskName" xml:space="preserve"><value>Binary-search deployment</value></data>
+  <data name="ModBinarySearch.ShutdownConfirm" xml:space="preserve"><value>A binary-search session is active. Exit will cancel it, restore the source profile deployment and delete the temporary profile. Continue?</value></data>
   <data name="SoundFix.Title" xml:space="preserve"><value>Sound repair</value></data>
   <data name="SoundFix.Description" xml:space="preserve"><value>Scan the mod library and rebuild outdated sound banks from the current game while preserving replaced embedded audio.</value></data>
   <data name="SoundFix.Scope" xml:space="preserve"><value>Configure the game directory first. Banks with many custom entries or new non-weapon events, initialization banks, and streamed banks are skipped by default. Library files are backed up before repair. Redeploy and restart the game afterward.</value></data>
@@ -4586,6 +4652,22 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Restart.NewRunTimeout" xml:space="preserve"><value>The automatic restart did not start a new session; check the HellForge logs.</value></data>
   <data name="HellForge.Restart.TooManyRestarts" xml:space="preserve"><value>Mod sync asked for a restart too many times; automatic restart stopped.</value></data>
   <data name="HellForge.ProblemsTitle" xml:space="preserve"><value>Mod problems:</value></data>
+  <data name="HellForge.PlayingVersion" xml:space="preserve"><value>Version in use</value></data>
+  <data name="HellForge.Languages" xml:space="preserve"><value>Installed languages</value></data>
+  <data name="HellForge.ModSync.Title" xml:space="preserve"><value>MOD SYNC prompt</value></data>
+  <data name="HellForge.ModSync.Answering" xml:space="preserve"><value>Sending the MOD SYNC answer…</value></data>
+  <data name="HellForge.ModSync.Host" xml:space="preserve"><value>Host: {0} · {1}</value></data>
+  <data name="HellForge.ModSync.Stranger" xml:space="preserve"><value>not a Steam friend</value></data>
+  <data name="HellForge.ModSync.Friend" xml:space="preserve"><value>Steam friend</value></data>
+  <data name="HellForge.ModSync.Size" xml:space="preserve"><value>Download size: {0}</value></data>
+  <data name="HellForge.ModSync.Progress" xml:space="preserve"><value>Downloaded: {0} / {1}</value></data>
+  <data name="HellForge.ModSync.TrustTitle" xml:space="preserve"><value>Trust this mod?</value></data>
+  <data name="HellForge.ModSync.Trust" xml:space="preserve"><value>Trust</value></data>
+  <data name="HellForge.ModSync.Block" xml:space="preserve"><value>Block</value></data>
+  <data name="HellForge.ModSync.Open" xml:space="preserve"><value>Open page</value></data>
+  <data name="HellForge.ModSync.Accept" xml:space="preserve"><value>Accept and join</value></data>
+  <data name="HellForge.ModSync.Restart" xml:space="preserve"><value>Restart and join</value></data>
+  <data name="HellForge.ModSync.Decline" xml:space="preserve"><value>Decline</value></data>
   <data name="HellForge.SyncTitle" xml:space="preserve"><value>Mod sync</value></data>
   <data name="HellForge.Sync.Synced" xml:space="preserve"><value>{0} mods synced to HellForge</value></data>
   <data name="HellForge.Sync.None" xml:space="preserve"><value>No mods synced yet.</value></data>
@@ -4637,12 +4719,68 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Mods.Group.PerPlayer" xml:space="preserve"><value>Per-player</value></data>
   <data name="HellForge.Mods.Group.Cosmetic" xml:space="preserve"><value>Client-only</value></data>
   <data name="HellForge.Mods.Problems" xml:space="preserve"><value>HellForge reported problems with these mod folders:</value></data>
+  <data name="HellForge.Category.Planets" xml:space="preserve"><value>Custom planets</value></data>
+  <data name="HellForge.Planets.Title" xml:space="preserve"><value>Custom planets</value></data>
+  <data name="HellForge.Planets.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="HellForge.Planets.ResetAll" xml:space="preserve"><value>Reset all</value></data>
+  <data name="HellForge.Planets.Active" xml:space="preserve"><value>Custom planets are active for the next session.</value></data>
+  <data name="HellForge.Planets.Inactive" xml:space="preserve"><value>These edits are saved, but only the Custom planets war uses them.</value></data>
+  <data name="HellForge.Planets.War" xml:space="preserve"><value>Current war: {0}</value></data>
+  <data name="HellForge.Planets.SessionRunning" xml:space="preserve"><value>A session is running; changes reach the game within a minute.</value></data>
+  <data name="HellForge.Planets.SessionIdle" xml:space="preserve"><value>Changes apply to the next session.</value></data>
+  <data name="HellForge.Planets.Problems" xml:space="preserve"><value>HellForge reported planet problems:</value></data>
+  <data name="HellForge.Planets.Open" xml:space="preserve"><value>Open a planet</value></data>
+  <data name="HellForge.Planets.QueryPlaceholder" xml:space="preserve"><value>Planet name or index</value></data>
+  <data name="HellForge.Planets.OpenButton" xml:space="preserve"><value>Open</value></data>
+  <data name="HellForge.Planets.None" xml:space="preserve"><value>No planet is modified yet. Enter a name or index to start.</value></data>
+  <data name="HellForge.Planets.EditorHint" xml:space="preserve"><value>Select a modified planet, or enter any planet name or index.</value></data>
+  <data name="HellForge.Planets.Faction" xml:space="preserve"><value>Enemy faction</value></data>
+  <data name="HellForge.Planets.Faction.War" xml:space="preserve"><value>As the war has it</value></data>
+  <data name="HellForge.Planets.Faction.Terminids" xml:space="preserve"><value>Terminids</value></data>
+  <data name="HellForge.Planets.Faction.Automatons" xml:space="preserve"><value>Automatons</value></data>
+  <data name="HellForge.Planets.Faction.Illuminate" xml:space="preserve"><value>Illuminate</value></data>
+  <data name="HellForge.Planets.Subfactions" xml:space="preserve"><value>Subfactions</value></data>
+  <data name="HellForge.Planets.SubfactionsWar" xml:space="preserve"><value>As the war has it</value></data>
+  <data name="HellForge.Planets.SubfactionsPick" xml:space="preserve"><value>Choose</value></data>
+  <data name="HellForge.Planets.SubfactionsWarShort" xml:space="preserve"><value>War subfactions</value></data>
+  <data name="HellForge.Planets.SubfactionCount" xml:space="preserve"><value>{0} subfactions</value></data>
+  <data name="HellForge.Planets.ChooseFaction" xml:space="preserve"><value>Choose an enemy faction to edit its subfactions and enemy groups.</value></data>
+  <data name="HellForge.Planets.Enemies" xml:space="preserve"><value>Enemy groups</value></data>
+  <data name="HellForge.Planets.EnemyMode.Normal" xml:space="preserve"><value>As usual</value></data>
+  <data name="HellForge.Planets.EnemyMode.Surge" xml:space="preserve"><value>Surge (x10)</value></data>
+  <data name="HellForge.Planets.EnemyMode.None" xml:space="preserve"><value>None</value></data>
+  <data name="HellForge.Planets.EnemyOverrideCount" xml:space="preserve"><value>{0} enemy overrides</value></data>
+  <data name="HellForge.Planets.Save" xml:space="preserve"><value>Save planet</value></data>
+  <data name="HellForge.Planets.Saving" xml:space="preserve"><value>Saving planet…</value></data>
+  <data name="HellForge.Planets.Saved" xml:space="preserve"><value>Planet saved.</value></data>
+  <data name="HellForge.Planets.Reset" xml:space="preserve"><value>Back to war's own</value></data>
+  <data name="HellForge.Planets.Resetting" xml:space="preserve"><value>Resetting planets…</value></data>
+  <data name="HellForge.Planets.ResetTitle" xml:space="preserve"><value>Reset this planet?</value></data>
+  <data name="HellForge.Planets.ResetConfirm" xml:space="preserve"><value>Remove every custom choice for {0}?</value></data>
+  <data name="HellForge.Planets.ResetDone" xml:space="preserve"><value>Planet reset.</value></data>
+  <data name="HellForge.Planets.ResetAllTitle" xml:space="preserve"><value>Reset all planets?</value></data>
+  <data name="HellForge.Planets.ResetAllConfirm" xml:space="preserve"><value>Remove every custom planet choice?</value></data>
+  <data name="HellForge.Planets.ResetAllDone" xml:space="preserve"><value>All planets reset.</value></data>
+  <data name="HellForge.Planets.Loading" xml:space="preserve"><value>Reading custom planets…</value></data>
+  <data name="HellForge.Mods.Unsupported" xml:space="preserve"><value>Unsupported: {0}</value></data>
+  <data name="HellForge.Mods.Premium" xml:space="preserve"><value>Premium content: {0}</value></data>
+  <data name="HellForge.Mods.Build" xml:space="preserve"><value>Source build: {0} {1}</value></data>
+  <data name="HellForge.Mods.BuildState.NotBuilt" xml:space="preserve"><value>not built yet</value></data>
+  <data name="HellForge.Mods.BuildState.Built" xml:space="preserve"><value>built</value></data>
+  <data name="HellForge.Mods.BuildState.DidNotCompile" xml:space="preserve"><value>did not compile</value></data>
+  <data name="HellForge.Mods.BuildState.ToolsFailed" xml:space="preserve"><value>build tools failed</value></data>
+  <data name="HellForge.Mods.BuildState.Changed" xml:space="preserve"><value>changed; rebuild needed</value></data>
+  <data name="HellForge.Mods.BuildState.Unreadable" xml:space="preserve"><value>sources unreadable</value></data>
+  <data name="HellForge.Mods.BuildState.Unknown" xml:space="preserve"><value>unknown state</value></data>
   <data name="HellForge.Settings.Title" xml:space="preserve"><value>Launch settings</value></data>
   <data name="HellForge.Settings.Hint" xml:space="preserve"><value>Saved settings apply to the next session; the CLI refuses changes while a session runs. Strangers and Forge Credits are saved in the mods settings.</value></data>
   <data name="HellForge.Settings.War" xml:space="preserve"><value>Galactic war</value></data>
+  <data name="HellForge.Settings.EditPlanets" xml:space="preserve"><value>Edit custom planets</value></data>
   <data name="HellForge.War.Live" xml:space="preserve"><value>Live war</value></data>
   <data name="HellForge.War.Frozen" xml:space="preserve"><value>Frozen war</value></data>
   <data name="HellForge.War.Open" xml:space="preserve"><value>All planets open</value></data>
+  <data name="HellForge.War.Hellforge" xml:space="preserve"><value>HellForge war</value></data>
+  <data name="HellForge.War.Custom" xml:space="preserve"><value>Custom planets</value></data>
   <data name="HellForge.Settings.LocalPlayFab" xml:space="preserve"><value>Local PlayFab backend</value></data>
   <data name="HellForge.Settings.Multiplayer" xml:space="preserve"><value>Co-op with Steam friends</value></data>
   <data name="HellForge.Settings.EngineLog" xml:space="preserve"><value>Collect the game's log</value></data>
@@ -4657,6 +4795,16 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="HellForge.Strangers.No" xml:space="preserve"><value>Off</value></data>
   <data name="HellForge.Settings.LiveChanges" xml:space="preserve"><value>Allow changing mods during a session (experimental)</value></data>
   <data name="HellForge.Settings.ForgeCredits" xml:space="preserve"><value>Loot caches with Forge Credits (%)</value></data>
+  <data name="HellForge.Settings.WarServer" xml:space="preserve"><value>HellForge war server (empty = default)</value></data>
+  <data name="HellForge.Settings.WarOptions" xml:space="preserve"><value>War dealing</value></data>
+  <data name="HellForge.Settings.DealSubfactions" xml:space="preserve"><value>Deal subfactions from the war seed</value></data>
+  <data name="HellForge.Settings.DealSeaf" xml:space="preserve"><value>Deal SEAF allies from the war seed</value></data>
+  <data name="HellForge.Settings.WarSeed" xml:space="preserve"><value>War seed (0 = not set)</value></data>
+  <data name="HellForge.Settings.Sharing" xml:space="preserve"><value>Sharing and public lobbies</value></data>
+  <data name="HellForge.Settings.ShareMods" xml:space="preserve"><value>Let players who join me download gameplay mods</value></data>
+  <data name="HellForge.Settings.ListPublic" xml:space="preserve"><value>List my public lobbies on the Galactic Map</value></data>
+  <data name="HellForge.Settings.ShowEditedStats" xml:space="preserve"><value>Show public lobbies with host-enforced stat changes</value></data>
+  <data name="HellForge.Settings.HostStats" xml:space="preserve"><value>Friends use my editor stat changes</value></data>
   <data name="HellForge.Settings.Save" xml:space="preserve"><value>Save settings</value></data>
   <data name="HellForge.Settings.Saving" xml:space="preserve"><value>Saving settings…</value></data>
   <data name="HellForge.Settings.Saved" xml:space="preserve"><value>Settings saved for the next session.</value></data>
@@ -4750,4 +4898,44 @@ Resources read: {3}</value>
   <data name="ArmorSwap.Clear" xml:space="preserve"><value>Clear</value></data>
   <data name="ArmorSwap.Refresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="ArmorSwap.Import" xml:space="preserve"><value>Import the result into the mod library</value></data>
+<data name="CpuScheduling.Title" xml:space="preserve"><value>CPU core scheduling</value></data>
+  <data name="CpuScheduling.Description" xml:space="preserve"><value>Prefer or restrict the game to performance cores while the manager is running.</value></data>
+  <data name="CpuScheduling.Enable" xml:space="preserve"><value>Enable scheduling</value></data>
+  <data name="CpuScheduling.Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="CpuScheduling.Mode.Off" xml:space="preserve"><value>Off</value></data>
+  <data name="CpuScheduling.Mode.Prefer" xml:space="preserve"><value>Performance cores preferred (CPU Sets)</value></data>
+  <data name="CpuScheduling.Mode.Strict" xml:space="preserve"><value>Performance cores only (affinity)</value></data>
+  <data name="CpuScheduling.HintOff" xml:space="preserve"><value>Scheduling is off.</value></data>
+  <data name="CpuScheduling.HintPrefer" xml:space="preserve"><value>Soft affinity: Windows prefers performance cores but does not hard-lock the game. Keep the manager running for monitoring.</value></data>
+  <data name="CpuScheduling.HintStrict" xml:space="preserve"><value>Strict restriction: only performance cores are allowed and child processes inherit it. Single group uses hard affinity; across processor groups it falls back to CPU set masks (soft, Windows 11+). This can affect stability.</value></data>
+  <data name="CpuScheduling.Cpu" xml:space="preserve"><value>CPU</value></data>
+  <data name="CpuScheduling.PCores" xml:space="preserve"><value>P-Core (physical / logical)</value></data>
+  <data name="CpuScheduling.ECores" xml:space="preserve"><value>E-Core (physical / logical)</value></data>
+  <data name="CpuScheduling.Logical" xml:space="preserve"><value>Logical processors</value></data>
+  <data name="CpuScheduling.Method" xml:space="preserve"><value>Scheduling method</value></data>
+  <data name="CpuScheduling.Support" xml:space="preserve"><value>Topology</value></data>
+  <data name="CpuScheduling.Support.NotLoaded" xml:space="preserve"><value>Not loaded</value></data>
+  <data name="CpuScheduling.Support.Supported" xml:space="preserve"><value>Heterogeneous cores detected</value></data>
+  <data name="CpuScheduling.Support.NoHeterogeneous" xml:space="preserve"><value>No heterogeneous cores detected</value></data>
+  <data name="CpuScheduling.Support.Unsupported" xml:space="preserve"><value>Unsupported CPU topology</value></data>
+  <data name="CpuScheduling.Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="CpuScheduling.StatusLabel" xml:space="preserve"><value>Current status</value></data>
+  <data name="CpuScheduling.Status.Disabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="CpuScheduling.Status.WaitingForGame" xml:space="preserve"><value>Waiting for the game</value></data>
+  <data name="CpuScheduling.Status.Applying" xml:space="preserve"><value>Applying</value></data>
+  <data name="CpuScheduling.Status.Applied" xml:space="preserve"><value>Applied (configuration verified; thread distribution not measured)</value></data>
+  <data name="CpuScheduling.Status.Changed" xml:space="preserve"><value>Scheduling changed</value></data>
+  <data name="CpuScheduling.Status.PermissionDenied" xml:space="preserve"><value>Access denied</value></data>
+  <data name="CpuScheduling.Status.Unsupported" xml:space="preserve"><value>Unsupported topology or mode</value></data>
+  <data name="CpuScheduling.Status.Ineffective" xml:space="preserve"><value>Scheduling not effective</value></data>
+  <data name="CpuScheduling.Status.Restored" xml:space="preserve"><value>Original scheduling restored</value></data>
+  <data name="CpuScheduling.Status.Error" xml:space="preserve"><value>Error</value></data>
+  <data name="CpuScheduling.ApplyOnLaunch" xml:space="preserve"><value>Apply when the game starts</value></data>
+  <data name="CpuScheduling.ReapplyOnRestart" xml:space="preserve"><value>Reapply after a game restart</value></data>
+  <data name="CpuScheduling.MonitorChanges" xml:space="preserve"><value>Check for changes while running</value></data>
+  <data name="CpuScheduling.RestoreOriginal" xml:space="preserve"><value>Restore original scheduling when disabled or exiting</value></data>
+  <data name="CpuScheduling.Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="CpuScheduling.Restore" xml:space="preserve"><value>Restore now</value></data>
+  <data name="CpuScheduling.RestoreDone" xml:space="preserve"><value>Original scheduling restored.</value></data>
+  <data name="CpuScheduling.RestoreFailed" xml:space="preserve"><value>Could not restore the original scheduling; see the status detail.</value></data>
 </root>

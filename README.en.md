@@ -41,7 +41,7 @@ dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build
 | `HD2Mimnt.PluginSDK` / `PluginHost` / `PluginLua` | Plugin SDK, isolated host process and Lua script runtime |
 | `HD2Mimnt.Worker` | Background worker process |
 
-Under `tests/` there are four test projects: unit tests (Tests), UI tests (UITests), stability tests (StabilityTests) and performance tests (PerformanceTests).
+Under `tests/` there are three test projects: unit tests (Tests), UI tests (UITests) and performance tests (PerformanceTests).
 
 ## Documentation
 

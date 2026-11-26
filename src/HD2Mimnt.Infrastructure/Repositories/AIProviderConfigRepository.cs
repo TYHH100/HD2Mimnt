@@ -26,6 +26,37 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
 
     private static string CredentialId(string providerId) => CredentialPrefix + providerId;
 
+    /// <summary>
+    /// 启动时无条件迁移所有旧明文密钥。懒迁移只在读取对应 provider 时触发，
+    /// 升级后从不打开 AI 设置页的话，数据库备份里仍会携带明文密钥。
+    /// </summary>
+    public async Task<int> MigrateAllPlainKeysAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
+
+        var pending = new List<(string Id, string PlainKey)>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT Id, ApiKey FROM AIProviderConfigs WHERE ApiKey IS NOT NULL AND ApiKey <> ''";
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                pending.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        foreach (var (id, plainKey) in pending)
+        {
+            await _credentialStore.SaveApiKeyAsync(CredentialId(id), plainKey, cancellationToken);
+            using var update = connection.CreateCommand();
+            update.CommandText = "UPDATE AIProviderConfigs SET ApiKey = NULL WHERE Id = @Id";
+            update.Parameters.AddWithValue("@Id", id);
+            await update.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return pending.Count;
+    }
+
     public async Task<AIProviderConfig?> GetActiveProviderAsync(CancellationToken cancellationToken = default)
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
@@ -164,20 +195,11 @@ public class AIProviderConfigRepository : IAIProviderConfigRepository
     {
         using var connection = await _dbContext.OpenConnectionAsync(cancellationToken);
 
-        // Disable all providers first
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = 0";
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        // Enable the specified provider
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = 1 WHERE Id = @Id";
-            command.Parameters.AddWithValue("@Id", id);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
+        // 单条语句切换，避免取消或异常停在“全部禁用”的中间状态。
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE AIProviderConfigs SET IsEnabled = CASE WHEN Id = @Id THEN 1 ELSE 0 END";
+        command.Parameters.AddWithValue("@Id", id);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async Task SaveCredentialAsync(string providerId, string? apiKey, CancellationToken cancellationToken)

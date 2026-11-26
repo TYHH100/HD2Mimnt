@@ -19,6 +19,9 @@ public class LoadPluginCommand : PluginHostMessage
     public string PluginPath { get; set; } = string.Empty;
     public string ManifestPath { get; set; } = string.Empty;
     public Dictionary<string, string> Arguments { get; set; } = new();
+    /// <summary>宿主生命周期内的权限快照（与主进程侧字段一一对应）。</summary>
+    public string PermissionMode { get; set; } = string.Empty;
+    public List<string> GrantedPermissions { get; set; } = new();
 }
 
 /// <summary>

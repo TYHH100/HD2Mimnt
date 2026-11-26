@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. For up-to-date gotchas and per-domain conventions, follow the topical guides in `docs/agent-guides/` (indexed from `AGENTS.md`); this file is a high-level map only.
 
 ## Project Overview
 
@@ -43,10 +43,6 @@ dotnet test --filter "FullyQualifiedName~ProfileServiceTests"
 
 # Run single test method
 dotnet test --filter "FullyQualifiedName~ProfileServiceTests.CreateProfile_ShouldSucceed"
-
-# Run stability tests
-cd tests/HD2Mimnt.StabilityTests
-dotnet test
 
 # Publish for Windows x64 (framework-dependent, multi-file; managed dlls go to lib/ per Release.pubxml)
 dotnet publish src/HD2Mimnt.UI/HD2Mimnt.UI.csproj -c Release -r win-x64 --self-contained false
@@ -93,7 +89,7 @@ External mod platforms (Nexus Mods, etc.) are abstracted via `IModPlatform`:
 - Search, download, version checking
 - Platform-specific metadata
 - `PlatformRegistry` manages available adapters
-- The UI registers Nexus Mods and Ayaka Mods adapters; `MockPlatformAdapter` remains only as a test fixture
+- The UI registers Nexus Mods, GitHub, and Ayaka Mods adapters; `MockPlatformAdapter` remains only as a test fixture
 
 ## Key Design Patterns
 
@@ -116,9 +112,9 @@ Business logic lives in Application services:
 The application uses Microsoft.Extensions.DependencyInjection. Services are registered in the UI project's Program.cs or App.axaml.cs.
 
 ### Image Handling
-- `ImageLoaderService`: Loads images from disk/resources
-- `ImageCacheService`: LRU cache for thumbnail optimization
-- `ThumbnailService`: Generates thumbnails from mod icons
+- `ImageCacheService` (Infrastructure): LRU cache for thumbnail optimization
+- `ThumbnailService` (Application): Generates thumbnails from mod icons
+- `ImagePreviewService` / `ModImageCache` (UI): preview loading and per-mod image caching
 
 ## Database Schema
 
@@ -136,7 +132,6 @@ Test framework: xUnit with Moq for mocking
 - Unit tests: `tests/HD2Mimnt.Tests/`
 - UI tests: `tests/HD2Mimnt.UITests/` (Avalonia Headless, xUnit v3)
 - Performance tests: `tests/HD2Mimnt.PerformanceTests/`
-- Stability tests: `tests/HD2Mimnt.StabilityTests/` (long-running scenarios)
 
 When writing tests:
 - Use InMemory database for repository tests

@@ -401,6 +401,10 @@ public partial class PluginManagementViewModel : ObservableObject
     private sealed class TestConfirmationService : IConfirmationService
     {
         public Task<bool> ConfirmAsync(string title, string message) => Task.FromResult(true);
+
+        public Task<ConfirmationChoice> AskAsync(string title, string message, string primaryText,
+            string secondaryText, string closeText = "Common.Cancel")
+            => Task.FromResult(ConfirmationChoice.Primary);
     }
 }
 

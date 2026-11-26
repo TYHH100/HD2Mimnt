@@ -34,6 +34,14 @@ class Program
             return 1;
         }
 
+        // Id 会拼进数据目录路径（Plugins/<id>），非法字符集（路径分隔符/遍历序列）直接拒绝，
+        // 不进入任何目录创建与存储初始化
+        if (!PluginSDK.PluginId.IsValid(pluginId))
+        {
+            Console.Error.WriteLine($"Invalid plugin id: {pluginId}");
+            return 2;
+        }
+
         PluginHostPipeClient? pipeClient = null;
         IPluginRuntime? runtime = null;
 
@@ -67,10 +75,15 @@ class Program
             // 按 manifest 的 kind 选择运行时：程序集插件或 Lua 脚本插件
             runtime = await PluginRuntimeFactory.CreateAsync(pluginId, loadCommand, logger);
 
+            // 权限快照本地判定：FullAccess 全放行，其余按 GrantedPermissions 大小写不敏感匹配
+            bool HasPermission(string permission) =>
+                string.Equals(loadCommand.PermissionMode, "FullAccess", StringComparison.OrdinalIgnoreCase)
+                || loadCommand.GrantedPermissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
+
             // Create plugin context
-            var storage = new PluginHostStorage(pluginId);
-            var modAccess = new PluginHostModAccess();
-            var configuration = new PluginHostConfiguration(pluginId);
+            var storage = new PluginHostStorage(pluginId, HasPermission);
+            var modAccess = new PluginHostModAccess(HasPermission);
+            var configuration = new PluginHostConfiguration(pluginId, HasPermission);
             var ai = new PluginHostAiClient(pipeClient, pluginId);
             var context = new PluginHostContext(logger, storage, modAccess, configuration, ai);
 

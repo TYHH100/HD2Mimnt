@@ -28,6 +28,8 @@ public sealed class HellForgeServiceTests : IDisposable
         Assert.Equal(16, status.ModSdk);
         Assert.True(status.Ready.GameCopy);
         Assert.True(status.Ready.SessionRunner);
+        Assert.False(status.Ready.LinuxNamespace);
+        Assert.Equal(new[] { "English" }, status.Languages);
         Assert.Equal("wfp", status.NetworkBlock);
         Assert.Equal("default", status.Settings.Profile);
         Assert.False(status.Session.Running);
@@ -118,6 +120,241 @@ public sealed class HellForgeServiceTests : IDisposable
         Assert.False(saved.PlayWithStrangersChosen);
         Assert.False(saved.PlayWithStrangers);
         Assert.Equal(45, saved.ForgeCreditChance);
+    }
+
+    [Fact]
+    public async Task ModernSettings_ShouldParseAndSaveWarAndSharingOptions()
+    {
+        _fixture.EnableModernCli();
+        var saved = await _service.UpdateSettingsAsync(new Dictionary<string, string>
+        {
+            ["war"] = "hellforge",
+            ["war-server"] = "https://war.example.test",
+            ["deal-subfactions"] = "no",
+            ["deal-seaf"] = "yes",
+            ["war-seed"] = "12345",
+            ["share-mods"] = "no",
+            ["list-public"] = "yes",
+            ["show-edited-stats"] = "yes",
+            ["host-stats"] = "no"
+        });
+        Assert.Contains("settings --war hellforge --war-server https://war.example.test --deal-subfactions no", _fixture.ReadArgs());
+        Assert.Contains("--war-seed 12345 --share-mods no --list-public yes --show-edited-stats yes --host-stats no", _fixture.ReadArgs());
+        Assert.Equal("hellforge", saved.War);
+        Assert.Equal("https://war.example.test", saved.WarServer);
+        Assert.False(saved.DealSubfactions);
+        Assert.True(saved.DealSeaf);
+        Assert.Equal(12345, saved.WarSeed);
+        Assert.False(saved.ShareMods);
+        Assert.True(saved.ListPublic);
+        Assert.True(saved.ShowEditedStats);
+        Assert.False(saved.HostStats);
+    }
+
+    [Fact]
+    public async Task Versions_ShouldParseInstalledAndPlayingVersion()
+    {
+        _fixture.EnableModernCli();
+        var versions = await _service.GetVersionsAsync();
+        Assert.NotNull(versions);
+        Assert.Equal("0.5.0-beta", versions!.Current!.Version);
+        Assert.Equal("0.5.0-beta", versions.Playing!.Version);
+        Assert.Equal("test", versions.Playing.Commit);
+    }
+
+    [Fact]
+    public async Task Mods_ShouldParseUnsupportedPremiumAndSourceBuild()
+    {
+        _fixture.OverwriteResponse("mods", """
+            {"mods":[{"id":"owner.source","name":"Source mod","version":"1.2.3","enabled":false,"group":"gameplay",
+                      "tags":["source","code"],"removable":true,"unsupported":"needs a newer engine",
+                      "premium":[{"requirement":"owns_dlc","name":"Premium armour"}],"url":"https://example.test/mod",
+                      "icon":"icon.png","build":{"state":"did-not-compile","built":null,"error":"compile failed"}}],
+             "problems":[],"modlist":null,"settings":"stub/mods/hellforge-mods.json"}
+            """);
+        var mod = Assert.Single((await _service.GetModsAsync()).Mods);
+        Assert.Equal("needs a newer engine", mod.Unsupported);
+        Assert.Equal("Premium armour", Assert.Single(mod.Premium!).Name);
+        Assert.Equal("https://example.test/mod", mod.Url);
+        Assert.Equal("did-not-compile", mod.Build!.State);
+        Assert.Equal("compile failed", mod.Build.Error);
+    }
+
+    [Fact]
+    public async Task Mods_WhenFolderIsUnchanged_ShouldReuseCachedResultWithoutCli()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        var first = await _service.GetModsAsync();
+        var second = await _service.GetModsAsync();
+
+        Assert.Same(first, second);
+        Assert.Equal(1, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenManifestOrNestedPayloadChanges_ShouldReload()
+    {
+        var folder = CreateMod("custom.cached", "Cached Mod");
+        await _service.GetModsAsync();
+
+        File.WriteAllText(Path.Combine(folder, "hellforge-mod.json"),
+            """{"id":"custom.cached","name":"Renamed Mod","version":"1.0.0","gameplay":true}""");
+        var renamed = await _service.GetModsAsync();
+        Assert.Equal("Renamed Mod", Assert.Single(renamed.Mods).Name);
+        Assert.Equal(2, CountModCommands());
+
+        var payload = Path.Combine(folder, "data", "payload.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(payload)!);
+        File.WriteAllBytes(payload, [1, 2, 3]);
+        await _service.GetModsAsync();
+        Assert.Equal(3, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenSettingsOrFolderSetChanges_ShouldReload()
+    {
+        var folder = CreateMod("custom.cached", "Cached Mod");
+        var first = await _service.GetModsAsync();
+        Assert.True(Assert.Single(first.Mods).Enabled);
+
+        var settingsFile = Path.Combine(_fixture.Root, "mods", "hellforge-mods.json");
+        File.WriteAllText(settingsFile, """{"disabled":["custom.cached"]}""");
+        var disabled = await _service.GetModsAsync();
+        Assert.False(Assert.Single(disabled.Mods).Enabled);
+        Assert.Equal(2, CountModCommands());
+
+        Directory.Delete(folder, recursive: true);
+        var removed = await _service.GetModsAsync();
+        Assert.Empty(removed.Mods);
+        Assert.Equal(3, CountModCommands());
+    }
+
+    [Fact]
+    public async Task Mods_WhenCliFails_ShouldNotCacheFailure()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        _fixture.OverwriteResponse("mods", "{ not json");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.GetModsAsync());
+
+        File.Delete(Path.Combine(_fixture.Root, "cli-mods.json"));
+        var recovered = await _service.GetModsAsync();
+        Assert.Single(recovered.Mods);
+        Assert.Equal(2, CountModCommands());
+    }
+
+    [Fact]
+    public async Task ModMutation_ShouldInvalidateCachedList()
+    {
+        CreateMod("custom.cached", "Cached Mod");
+        await _service.GetModsAsync();
+        await _service.SwitchModAsync("custom.cached", false);
+
+        var refreshed = await _service.GetModsAsync();
+        Assert.False(Assert.Single(refreshed.Mods).Enabled);
+        Assert.Equal(2, CountModCommands());
+    }
+
+    private string CreateMod(string id, string name)
+    {
+        var folder = Path.Combine(_fixture.Root, "mods", id);
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "hellforge-mod.json"),
+            $$"""{"id":"{{id}}","name":"{{name}}","version":"1.0.0","gameplay":true}""");
+        return folder;
+    }
+
+    private int CountModCommands() => _fixture.ReadArgs()
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Count(line => line.StartsWith("mods ", StringComparison.Ordinal));
+
+    [Fact]
+    public async Task ModSyncOffer_ShouldReadAndAnswerWithOfferVersion()
+    {
+        _fixture.EnableModernCli();
+        _fixture.OverwriteResponse("mod-sync-offer", """
+            {"run":"stub/logs/sessions/run1","inGamePrompt":false,"sent":null,
+             "offer":{"version":3,"state":"offer","host":"Host","stranger":true,"live":false,"bytes":1024,"done":0,
+                      "message":"Host plays with a mod you do not have.","answers":["accept","decline"],
+                      "mods":[{"id":"owner.mod","name":"Mod","version":"1.0","class":"code","action":"trust",
+                               "bytes":1024,"url":"https://example.test/mod","answers":["trust","open"],
+                               "trustWarning":"Runs code on your PC."}],"trustNote":"Files are checked."}}
+            """);
+        var current = await _service.GetModSyncOfferAsync();
+        Assert.NotNull(current);
+        Assert.Equal(3, current!.Offer!.Version);
+        Assert.True(Assert.Single(current.Offer.Mods).CanTrust);
+
+        _fixture.OverwriteResponse("mod-sync-answer-result", """
+            {"run":"stub/logs/sessions/run1","inGamePrompt":false,"sent":"trust","offer":null}
+            """);
+        var answered = await _service.AnswerModSyncOfferAsync("trust", 3, "owner.mod");
+        Assert.Equal("trust", answered.Sent);
+        Assert.Null(answered.Offer);
+        Assert.Contains("mod-sync-offer --answer trust --version 3 --mod owner.mod", _fixture.ReadArgs());
+    }
+
+    [Fact]
+    public async Task Planets_ShouldParseCatalogueAndExplicitSubfactions()
+    {
+        _fixture.EnableModernCli();
+        var result = await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", ["jet-brigade"],
+            new Dictionary<string, string> { ["hulks"] = "surge", ["tanks"] = "none" });
+        Assert.Contains("planets --planet Malevelon Creek --catalogue yes --faction automatons --subfactions jet-brigade", _fixture.ReadArgs());
+        Assert.Contains("--enemies hulks=surge,tanks=none", _fixture.ReadArgs());
+        var planet = Assert.Single(result.Planets);
+        Assert.Equal(196, planet.Index);
+        Assert.Equal("automatons", planet.Faction);
+        Assert.Equal(new[] { "jet-brigade" }, planet.SubfactionKeys);
+        Assert.Equal("surge", planet.Enemies["hulks"]);
+        Assert.Equal("none", planet.Enemies["tanks"]);
+        Assert.Contains(result.Catalogue!.Factions, faction => faction == "illuminate");
+        Assert.Contains(result.Catalogue.Enemies, enemy => enemy.Key == "hulks");
+    }
+
+    [Fact]
+    public async Task Planets_ShouldDistinguishWarSubfactionsFromNoneAndClearEnemyOverride()
+    {
+        _fixture.EnableModernCli();
+        await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", ["jet-brigade"],
+            new Dictionary<string, string> { ["hulks"] = "surge" });
+        var result = await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", null,
+            new Dictionary<string, string> { ["hulks"] = "normal" });
+        Assert.Contains("--subfactions war", _fixture.ReadArgs());
+        Assert.Contains("--enemies hulks=normal", _fixture.ReadArgs());
+        var planet = Assert.Single(result.Planets);
+        Assert.True(planet.UsesWarSubfactions);
+        Assert.Empty(planet.SubfactionKeys);
+        Assert.False(planet.Enemies.ContainsKey("hulks"));
+
+        result = await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", [],
+            new Dictionary<string, string>());
+        Assert.Contains("--subfactions none", _fixture.ReadArgs());
+        Assert.False(Assert.Single(result.Planets).UsesWarSubfactions);
+        Assert.Empty(Assert.Single(result.Planets).SubfactionKeys);
+    }
+
+    [Fact]
+    public async Task Planets_ShouldResetOneAndAllOverrides()
+    {
+        _fixture.EnableModernCli();
+        await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", ["jet-brigade"],
+            new Dictionary<string, string> { ["hulks"] = "surge" });
+        await _service.UpdatePlanetAsync("196", "automatons", null, new Dictionary<string, string>(), reset: true);
+        Assert.Contains("planets --planet 196 --catalogue yes --reset yes", _fixture.ReadArgs());
+        Assert.Empty((await _service.GetPlanetsAsync())!.Planets);
+
+        await _service.UpdatePlanetAsync("Malevelon Creek", "automatons", ["jet-brigade"],
+            new Dictionary<string, string> { ["hulks"] = "surge" });
+        var cleared = await _service.ResetAllPlanetsAsync();
+        Assert.Contains("planets --reset-all yes", _fixture.ReadArgs());
+        Assert.Empty(cleared.Planets);
+    }
+
+    [Fact]
+    public async Task Planets_WhenOldCliHasNoCommand_ShouldReturnNull()
+    {
+        Assert.Null(await _service.GetPlanetsAsync());
+        Assert.DoesNotContain("planets ", _fixture.ReadArgs());
     }
 
     [Fact]

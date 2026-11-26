@@ -173,6 +173,71 @@
           <fa:FASettingsExpanderItem x:Name="AutoDetectGameItem" Content="{loc:Loc UI.AutoDetectGameAtStartup}" IsVisible="{Binding IsOfficialGameSource}">
             <fa:FASettingsExpanderItem.Footer><ToggleSwitch IsChecked="{Binding AutoDetectGame}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
+          <fa:FASettingsExpanderItem x:Name="CpuSchedulingItem" Content="{loc:Loc CpuScheduling.Title}" Description="{loc:Loc CpuScheduling.Description}">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.Enable}" VerticalAlignment="Center"/>
+                <ToggleSwitch x:Name="CpuSchedulingEnabledToggle" Grid.Column="1" HorizontalAlignment="Left"
+                              IsChecked="{Binding CpuSchedulingEnabled}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.Mode}" VerticalAlignment="Center"/>
+                <ComboBox x:Name="CpuSchedulingModeInput" Grid.Column="1" HorizontalAlignment="Left" MinWidth="240"
+                          SelectedIndex="{Binding CpuSchedulingModeIndex, Mode=TwoWay}">
+                  <ComboBoxItem Content="{loc:Loc CpuScheduling.Mode.Off}"/>
+                  <ComboBoxItem Content="{loc:Loc CpuScheduling.Mode.Prefer}"/>
+                  <ComboBoxItem Content="{loc:Loc CpuScheduling.Mode.Strict}"/>
+                </ComboBox>
+              </Grid>
+              <TextBlock Text="{Binding CpuSchedulingHintText}" Classes="caption-text" TextWrapping="Wrap"/>
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+                <TextBlock Text="{loc:Loc CpuScheduling.Cpu}"/>
+                <TextBlock Grid.Column="1" Text="{Binding CpuSchedulingCpuName}" TextWrapping="Wrap"/>
+                <TextBlock Grid.Row="1" Text="{loc:Loc CpuScheduling.PCores}"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding CpuSchedulingPCoreText}"/>
+                <TextBlock Grid.Row="2" Text="{loc:Loc CpuScheduling.ECores}"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CpuSchedulingECoreText}"/>
+                <TextBlock Grid.Row="3" Text="{loc:Loc CpuScheduling.Logical}"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CpuSchedulingLogicalText}"/>
+                <TextBlock Grid.Row="4" Text="{loc:Loc CpuScheduling.Method}"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding CpuSchedulingMethodText}"/>
+                <TextBlock Grid.Row="5" Text="{loc:Loc CpuScheduling.Support}"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding CpuSchedulingSupportText}" TextWrapping="Wrap"/>
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.StatusLabel}"/>
+                <TextBlock x:Name="CpuSchedulingStatus" Grid.Column="1" Text="{Binding CpuSchedulingStatusText}"
+                           FontWeight="SemiBold" TextWrapping="Wrap"/>
+              </Grid>
+              <TextBlock Text="{Binding CpuSchedulingDetailText}" Classes="caption-text" TextWrapping="Wrap"/>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.ApplyOnLaunch}" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="CpuSchedulingApplyOnLaunchToggle" Grid.Column="1"
+                              IsChecked="{Binding CpuSchedulingApplyOnLaunch}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.ReapplyOnRestart}" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="CpuSchedulingReapplyOnRestartToggle" Grid.Column="1"
+                              IsChecked="{Binding CpuSchedulingReapplyOnRestart}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.MonitorChanges}" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="CpuSchedulingMonitorChangesToggle" Grid.Column="1"
+                              IsChecked="{Binding CpuSchedulingMonitorChanges}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{loc:Loc CpuScheduling.RestoreOriginal}" TextWrapping="Wrap"/>
+                <ToggleSwitch x:Name="CpuSchedulingRestoreOriginalToggle" Grid.Column="1"
+                              IsChecked="{Binding CpuSchedulingRestoreOriginal}" OnContent="{loc:Loc UI.On}" OffContent="{loc:Loc UI.Off}"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="CpuSchedulingRefreshButton" Content="{loc:Loc CpuScheduling.Refresh}"
+                        Command="{Binding RefreshCpuSchedulingCommand}"/>
+                <Button x:Name="CpuSchedulingRestoreButton" Content="{loc:Loc CpuScheduling.Restore}"
+                        Command="{Binding RestoreCpuSchedulingCommand}"/>
+              </StackPanel>
+            </StackPanel>
+          </fa:FASettingsExpanderItem>
         </fa:FASettingsExpander>
         <fa:FASettingsExpander x:Name="ProfileSettings" Header="{loc:Loc UI.Profiles}" IconSource="Document" IsExpanded="True" IsVisible="{Binding IsProfileCategoryVisible}">
           <fa:FASettingsExpanderItem Content="{loc:Loc Settings.Profiles.AutoAddImportedMods}" Description="{loc:Loc Settings.Profiles.AutoAddImportedModsHelp}">
@@ -448,6 +513,12 @@
               </StackPanel>
 
               <!-- 应用更新：手动检查始终可用，启动自动检查默认关闭 -->
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{loc:Loc Updates.Channel}" VerticalAlignment="Center" />
+                <ComboBox x:Name="UpdateChannelInput" ItemsSource="{Binding AppUpdate.ChannelOptions}"
+                          SelectedItem="{Binding AppUpdate.Channel, Mode=TwoWay}" Width="160" />
+              </StackPanel>
+              <TextBlock Text="{loc:Loc Updates.ChannelHelp}" Classes="muted" TextWrapping="Wrap" />
               <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding AppUpdate.HasUpdate, Converter={StaticResource InverseBoolConverter}}">
                 <Button Content="{loc:Loc Updates.CheckNow}" Classes="accent" Command="{Binding AppUpdate.CheckCommand}" IsEnabled="{Binding !AppUpdate.IsBusy}" />
                 <CheckBox Content="{loc:Loc Updates.AutoCheckOnStartup}" IsChecked="{Binding AppUpdate.AutoCheckOnStartup, Mode=TwoWay}" VerticalAlignment="Center" Margin="8,0,0,0" />
@@ -465,6 +536,7 @@
                   <Button Content="{loc:Loc Updates.OpenReleasePage}" Command="{Binding AppUpdate.OpenReleasePageCommand}" />
                   <Button Content="{loc:Loc Common.Cancel}" Command="{Binding AppUpdate.CancelCommand}" IsVisible="{Binding AppUpdate.IsDownloading}" />
                 </StackPanel>
+                <TextBlock IsVisible="{Binding AppUpdate.IsBackingUp}" Text="{loc:Loc Updates.BackingUp}" Classes="muted" />
                 <ProgressBar IsVisible="{Binding AppUpdate.IsDownloading}" Value="{Binding AppUpdate.DownloadPercentage}" Maximum="100" Minimum="0" />
                 <TextBlock IsVisible="{Binding AppUpdate.IsDownloading}" Text="{loc:Loc Updates.Downloading}" Classes="muted" />
                 <TextBlock IsVisible="{Binding AppUpdate.HasDirectAsset, Converter={StaticResource InverseBoolConverter}}" Text="{loc:Loc Updates.ManualDownloadHint}" Classes="muted" TextWrapping="Wrap" />

@@ -126,6 +126,8 @@ public class PluginServiceTests
     {
         var assemblyPath = Path.Combine(Path.GetDirectoryName(_tempManifestPath)!, "Intact.dll");
         await File.WriteAllTextAsync(assemblyPath, "stable-content");
+        // 清单锚点校验要求 manifest 文件存在；空对象 = 非混合 dotnet 插件
+        await File.WriteAllTextAsync(_tempManifestPath, "{}");
         var sha = Convert.ToHexString(
             System.Security.Cryptography.SHA256.HashData("stable-content"u8.ToArray())).ToLowerInvariant();
         var plugin = new Plugin

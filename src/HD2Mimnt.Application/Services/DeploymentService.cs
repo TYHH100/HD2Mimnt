@@ -377,6 +377,8 @@ public class DeploymentService
         var filesDeleted = 0;
         var filesPreserved = 0;
         var allFilesCleaned = true;
+        var gameRoot = ResolveGameRoot(deployment.GamePath);
+        var hasGamePath = !string.IsNullOrWhiteSpace(deployment.GamePath);
         foreach (var file in fileList)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -384,6 +386,16 @@ public class DeploymentService
             if (preserveSet != null && preserveSet.Contains(Path.GetFullPath(file.TargetPath)))
             {
                 filesPreserved++;
+                fileProcessed?.Invoke();
+                continue;
+            }
+
+            // 记录损坏或路径被篡改时绝不删除游戏目录外的文件；保留记录供人工核对。
+            if (hasGamePath && (gameRoot == null || !IsUnderRoot(gameRoot, file.TargetPath)))
+            {
+                allFilesCleaned = false;
+                _logger?.LogError("拒绝清理游戏目录之外的目标文件: {TargetPath}, GamePath={GamePath}",
+                    file.TargetPath, deployment.GamePath);
                 fileProcessed?.Invoke();
                 continue;
             }
@@ -541,6 +553,10 @@ public class DeploymentService
             // 移动阶段不接受半途取消；按升序填补空位，链接移动不触碰源文件。
             foreach (var rename in renames)
             {
+                // 移动源与目标分别来自 DB 记录/本地推导：越出游戏目录（记录被篡改）一律拒绝，
+                // 与清理链路防护一致。
+                if (!IsUnderRoot(gamePath, rename.File.TargetPath) || !IsUnderRoot(gamePath, rename.TargetPath))
+                    throw new InvalidDataException($"编号压缩目标越出游戏目录，已中止：{rename.TargetPath}");
                 // 目标已被外部删除时跳过物理移动但仍同步记录编号，缺失内容由下次部署对账按内容不匹配重写。
                 if (!DeploymentTargetExists(rename.File.TargetPath))
                     continue;
@@ -565,6 +581,29 @@ public class DeploymentService
         if (overwriteConflicts && DeploymentTargetExists(targetPath))
             File.Delete(targetPath);
         File.Move(sourcePath, targetPath);
+    }
+
+    private static string? ResolveGameRoot(string? gamePath)
+    {
+        if (string.IsNullOrWhiteSpace(gamePath)) return null;
+        try { return Path.TrimEndingDirectorySeparator(Path.GetFullPath(gamePath)); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsUnderRoot(string root, string path)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     // 与 DeploymentReconciler 的存在判断一致：悬空符号链接仍算存在，交给物理移动抛出真实异常。

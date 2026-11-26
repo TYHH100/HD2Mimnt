@@ -54,7 +54,9 @@ public sealed class RemotePreviewComponentsTests
     [Fact]
     public async Task ModelReader_ReadsPackAndDeletesWorkerPayloadFile()
     {
-        var packPath = Path.Combine(Path.GetTempPath(), $"preview-pack-{Guid.NewGuid():N}.bin");
+        // Worker 生产约定只写 %TEMP%\HD2Mimnt.Preview：RemoteModelPreviewReader 的新防线按根校验
+        var packPath = Path.Combine(Path.GetTempPath(), "HD2Mimnt.Preview", $"preview-pack-{Guid.NewGuid():N}.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(packPath)!);
         var source = new ModelPreviewResult();
         source.Meshes.Add(new ModelPreviewMesh
         {
@@ -84,7 +86,8 @@ public sealed class RemotePreviewComponentsTests
     [Fact]
     public async Task TextureReader_ReadsBgraPayloadAndDeletesFile()
     {
-        var payloadPath = Path.Combine(Path.GetTempPath(), $"preview-tex-{Guid.NewGuid():N}.bin");
+        var payloadPath = Path.Combine(Path.GetTempPath(), "HD2Mimnt.Preview", $"preview-tex-{Guid.NewGuid():N}.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
         await File.WriteAllBytesAsync(payloadPath, [1, 2, 3, 4]);
         var session = new FakeSession
         {

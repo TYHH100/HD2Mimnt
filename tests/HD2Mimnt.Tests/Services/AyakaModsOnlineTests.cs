@@ -108,7 +108,8 @@ public sealed class AyakaModsOnlineTests
             {
                 await database.InitializeDatabaseAsync();
                 var saved = (await new ModRepository(database).GetByIdAsync(mod.Id))!;
-                Assert.Equal("Local name", saved.Name);
+                // 无清单包采用回退名：在线更新包存为 update.zip，浏览器附件沿用其文件名。
+                Assert.Equal(fromBrowser ? "download" : "update", saved.Name);
                 Assert.Equal("2.0", saved.Version);
                 Assert.Equal(ModSource.AyakaMods, saved.Source);
                 Assert.Equal(file.Id, saved.PlatformLink!.InstalledFileVersionId);

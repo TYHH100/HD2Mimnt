@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HD2Mimnt.Application\HD2Mimnt.Application.csproj" />
+    <ProjectReference Include="..\HD2Mimnt.Agent\HD2Mimnt.Agent.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Cli\HD2Mimnt.Cli.csproj" />
     <ProjectReference Include="..\HD2Mimnt.Infrastructure\HD2Mimnt.Infrastructure.csproj" />
     <ProjectReference Include="..\HD2Mimnt.PluginHost\HD2Mimnt.PluginHost.csproj" />
@@ -49,6 +50,7 @@
                                          and '%(ResolvedFileToPublish.AssetType)' != 'native'
                                          and '%(ResolvedFileToPublish.CopyToPublishDirectory)' != 'Never'
                                          and '%(Filename)' != 'HD2Mimnt.UI'
+                                         and '%(Filename)' != 'HD2Mimnt.Agent'
                                          and '%(Filename)' != 'HD2Mimnt.Cli'
                                          and '%(Filename)' != 'HD2Mimnt.PluginHost'
                                          and '%(Filename)' != 'HD2Mimnt.Worker'" />

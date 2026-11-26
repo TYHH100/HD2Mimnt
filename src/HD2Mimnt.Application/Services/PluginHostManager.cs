@@ -25,6 +25,9 @@ public class LoadPluginCommand : PluginHostMessage
     public string PluginPath { get; set; } = string.Empty;
     public string ManifestPath { get; set; } = string.Empty;
     public Dictionary<string, string> Arguments { get; set; } = new();
+    /// <summary>宿主生命周期内的权限快照（与 PluginHost 侧字段一一对应）。</summary>
+    public string PermissionMode { get; set; } = string.Empty;
+    public List<string> GrantedPermissions { get; set; } = new();
 }
 
 public class ExecutePluginCommand : PluginHostMessage
@@ -197,6 +200,7 @@ public class PluginHostManager : IPluginHostManager
     private readonly IPluginAiBroker? _aiBroker;
     private readonly IPluginSecurityReporter? _securityReporter;
     private readonly IPluginSecretGuard _secretGuard;
+    private readonly IPluginPermissionChecker? _permissionChecker;
 
     public PluginHostManager(
         StorageSettingsService? storage = null,
@@ -204,7 +208,8 @@ public class PluginHostManager : IPluginHostManager
         IPluginAiBroker? aiBroker = null,
         IPluginSecurityReporter? securityReporter = null,
         IPluginSecretGuard? secretGuard = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        IPluginPermissionChecker? permissionChecker = null)
     {
         _storage = storage;
         _logger = logger;
@@ -212,6 +217,7 @@ public class PluginHostManager : IPluginHostManager
         _aiBroker = aiBroker;
         _securityReporter = securityReporter;
         _secretGuard = secretGuard ?? new PluginSecretGuard();
+        _permissionChecker = permissionChecker;
     }
 
     private readonly ConcurrentDictionary<string, PluginHostProcess> _runningHosts = new();
@@ -277,12 +283,23 @@ public class PluginHostManager : IPluginHostManager
             _ = Task.Run(() => ListenForMessagesAsync(hostProcess, hostProcess.ListenerCts.Token));
 
             // Send load plugin command
+            // 权限快照随加载命令下发：宿主侧 storage/config/mods 按快照本地判定，
+            // 避免宿主在命令执行期间发起权限请求与接收循环死锁。撤销/授予会停宿主刷新快照。
+            string permissionMode = string.Empty;
+            List<string> granted = new();
+            if (_permissionChecker is { } checker)
+            {
+                permissionMode = await checker.GetPermissionModeAsync(pluginId, linkedCts.Token);
+                granted = (await checker.GetGrantedAsync(pluginId, linkedCts.Token)).ToList();
+            }
             var loadCommand = new LoadPluginCommand
             {
                 Type = nameof(LoadPluginCommand),
                 PluginId = pluginId,
                 PluginPath = assemblyPath,
-                ManifestPath = manifestPath
+                ManifestPath = manifestPath,
+                PermissionMode = permissionMode,
+                GrantedPermissions = granted
             };
             await pipeServer.SendMessageAsync(loadCommand, linkedCts.Token);
 

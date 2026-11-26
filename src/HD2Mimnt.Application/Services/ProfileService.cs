@@ -16,6 +16,7 @@ public class ProfileService
 {
     private readonly IProfileRepository _profileRepository;
     private readonly IModRepository _modRepository;
+    private readonly IDeploymentRepository? _deploymentRepository;
     private readonly SettingsService? _settingsService;
     private bool LoaderOrderLocked => _settingsService?.IsLoaderOrderLocked() ?? true;
 
@@ -63,10 +64,12 @@ public class ProfileService
     /// </summary>
     public event EventHandler<ProfilesChangedEventArgs>? ProfilesChanged;
 
-    public ProfileService(IProfileRepository profileRepository, IModRepository modRepository, SettingsService? settingsService = null)
+    public ProfileService(IProfileRepository profileRepository, IModRepository modRepository,
+        SettingsService? settingsService = null, IDeploymentRepository? deploymentRepository = null)
     {
         _profileRepository = profileRepository;
         _modRepository = modRepository;
+        _deploymentRepository = deploymentRepository;
         _settingsService = settingsService;
     }
 
@@ -349,6 +352,17 @@ public class ProfileService
                 throw new InvalidOperationException("不能删除当前激活的配置文件，请先切换到其他配置文件");
             }
 
+            // 部署记录表示当前安装状态，不能随配置删除：否则已部署文件失去追踪，
+            // 会被“未管理补丁清理”当作外部残留删除。外键也不允许悬空引用——
+            // 先把引用重指向默认配置（读路径按配置成员关系过滤不受影响，
+            // 下次部署对账会按真实归属重写 ProfileId），再删除配置本身。
+            var defaultProfile = (await _profileRepository.GetAllAsync(cancellationToken))
+                .FirstOrDefault(candidate => candidate.IsDefault);
+            if (_deploymentRepository != null && defaultProfile != null)
+            {
+                await _deploymentRepository.RepointProfileRecordsAsync(id, defaultProfile.Id, cancellationToken);
+            }
+
             await _profileRepository.DeleteAsync(id, cancellationToken);
             RaiseProfilesChanged();
         }
@@ -384,6 +398,88 @@ public class ProfileService
             var duplicated = await _profileRepository.DuplicateAsync(id, newName, cancellationToken);
             RaiseProfilesChanged();
             return duplicated;
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    internal async Task<Profile> DuplicateEnabledProfileSnapshotAsync(Guid id, string newName,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var source = await _profileRepository.GetByIdAsync(id, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {id} not found");
+            var mods = (await _modRepository.GetByIdsAsync(source.Mods.Select(item => item.ModId), cancellationToken))
+                .ToDictionary(mod => mod.Id);
+            Profile? duplicated = null;
+            try
+            {
+                duplicated = await _profileRepository.DuplicateAsync(id, newName, cancellationToken);
+                var enabledIds = source.Mods.Where(item => item.Enabled).Select(item => item.ModId).ToHashSet();
+                duplicated.Mods = duplicated.Mods.Where(item => enabledIds.Contains(item.ModId))
+                    .OrderBy(item => item.Order).ToList();
+                for (var index = 0; index < duplicated.Mods.Count; index++)
+                {
+                    duplicated.Mods[index].ProfileId = duplicated.Id;
+                    duplicated.Mods[index].Order = index;
+                }
+
+                bool IsNormal(ProfileMod item) => !LoaderOrderLocked
+                    || !mods.TryGetValue(item.ModId, out var mod)
+                    || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None;
+                var normal = source.Mods.OrderBy(item => item.Order).Where(IsNormal).ToList();
+                var separators = duplicated.Separators.OrderBy(item => item.Order).ToList();
+                for (var index = 0; index < separators.Count; index++)
+                {
+                    var separator = separators[index];
+                    var start = Math.Clamp(separator.Order, 0, normal.Count);
+                    var end = Math.Clamp(index + 1 < separators.Count ? separators[index + 1].Order : normal.Count,
+                        start, normal.Count);
+                    var count = Math.Clamp(separator.MemberCount ?? end - start, 0, end - start);
+                    separator.Order = normal.Take(start).Count(item => item.Enabled);
+                    separator.MemberCount = separator.MemberCount != null || separator.IsCollapsed
+                        ? normal.Skip(start).Take(count).Count(item => item.Enabled)
+                        : null;
+                }
+                duplicated.Separators = separators;
+                duplicated.ModifiedAt = DateTime.UtcNow;
+                await _profileRepository.UpdateAsync(duplicated, cancellationToken);
+                RaiseProfilesChanged();
+                return duplicated;
+            }
+            catch
+            {
+                if (duplicated != null)
+                {
+                    try { await _profileRepository.DeleteAsync(duplicated.Id, CancellationToken.None); } catch { }
+                }
+                throw;
+            }
+        }
+        finally { _mutationGate.Release(); }
+    }
+
+    internal async Task SetProfileModsEnabledWithoutNormalizingAsync(Guid profileId,
+        IReadOnlyCollection<Guid> modIds, bool enabled, CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            var ids = modIds.ToHashSet();
+            var changed = false;
+            foreach (var item in profile.Mods.Where(item => ids.Contains(item.ModId)))
+            {
+                if (item.Enabled == enabled) continue;
+                item.Enabled = enabled;
+                changed = true;
+            }
+            if (!changed) return;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
         }
         finally { _mutationGate.Release(); }
     }

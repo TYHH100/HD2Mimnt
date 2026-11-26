@@ -103,6 +103,11 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
             var worker = new WorkerProcess(id, process, pipeServer, progress, promptHandler,
                 standardError, standardErrorCapture);
             // 结果缓存与进程生命周期解耦：Worker 可能在调用方取结果前就崩溃并清理完毕。
+            // 已完成条目不再有新等待者；启动新任务时顺手清理，防长会话下逐任务累积
+            foreach (var pair in _completions)
+            {
+                if (pair.Value.IsCompleted) _completions.TryRemove(pair);
+            }
             _completions[id] = worker.CompletionTask;
             if (!_runningWorkers.TryAdd(id, worker))
             {
@@ -167,6 +172,11 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
 
                     case "Error":
                         var errorData = JsonSerializer.Deserialize<WorkerErrorResponse>(message.Payload ?? "{}");
+                        // Worker 是无窗口短命进程，stderr 无人收集；堆栈只随回执传到这里，
+                        // 必须落日志，否则部署等失败只剩一行 message 可看、无法提交排查。
+                        _logger?.LogError("Worker 任务失败 {TaskId}: {Message}\n{StackTrace}",
+                            worker.TaskId, errorData?.ErrorMessage ?? "Unknown worker error",
+                            string.IsNullOrEmpty(errorData?.StackTrace) ? "<无堆栈>" : errorData!.StackTrace);
                         worker.SetError(errorData?.ErrorMessage ?? "Unknown worker error");
                         return;
                 }
@@ -180,8 +190,10 @@ public class WorkerHostManager : IWorkerHostManager, IDisposable
                 // 退出瞬间 stderr 可能还有末尾几行未读完，短暂等待后拼进错误信息
                 try { await worker.StandardErrorCapture.WaitAsync(TimeSpan.FromSeconds(2)); }
                 catch (TimeoutException) { }
-                worker.SetCrashed(
-                    $"Worker process exited unexpectedly (exit code {worker.Process.ExitCode}){worker.StandardErrorTail}");
+                var crashDetail =
+                    $"Worker process exited unexpectedly (exit code {worker.Process.ExitCode}){worker.StandardErrorTail}";
+                _logger?.LogError("Worker {TaskId} 崩溃：{Detail}", worker.TaskId, crashDetail);
+                worker.SetCrashed(crashDetail);
             }
         }
         catch (OperationCanceledException)

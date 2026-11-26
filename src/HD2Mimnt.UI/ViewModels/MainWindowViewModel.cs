@@ -49,9 +49,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly IPluginService? _pluginService;
     private readonly HellForgeSessionService? _hellForgeSessionService;
     private string? _pluginUiSignature;
-    private int _tutorialOriginPage;
-    private string? _tutorialOriginSettingsCategory;
-    private string? _tutorialOriginToolsCategory;
     private Avalonia.Controls.Window? _ownerWindow;
 
     /// <summary>
@@ -165,10 +162,10 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModCreationViewModel? ModCreationViewModel { get; }
     public Hd2IASManagementViewModel? Hd2IASManagementViewModel { get; }
     public SoundFixViewModel? SoundFixViewModel { get; }
+    public ModBinarySearchViewModel? ModBinarySearchViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
     public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
-    public TutorialViewModel Tutorial { get; } = new();
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
     public HellForgeViewModel? HellForgeViewModel { get; }
@@ -208,7 +205,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2ClViewModel? hd2ClViewModel = null,
         Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
         MmdAdaptationViewModel? mmdAdaptationViewModel = null,
-        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null)
+        MmdSourceInfoPromptService? mmdSourceInfoPrompt = null,
+        ModBinarySearchViewModel? modBinarySearchViewModel = null)
     {
         _pluginService = pluginService;
         Hd2ClViewModel = hd2ClViewModel;
@@ -277,6 +275,17 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         ModCreationViewModel = modCreationViewModel;
         Hd2IASManagementViewModel = hd2IASManagementViewModel;
         SoundFixViewModel = soundFixViewModel;
+        ModBinarySearchViewModel = modBinarySearchViewModel;
+        if (ModBinarySearchViewModel != null)
+        {
+            Func<Task> refresh = async () =>
+            {
+                await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
+                await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            };
+            ModBinarySearchViewModel.RefreshAfterDeploymentAsync = refresh;
+            ModBinarySearchViewModel.RefreshAfterProfileChangeAsync = refresh;
+        }
         IasSystemViewModel = iasSystemViewModel;
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
@@ -341,41 +350,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
                 await _profileViewModel.RefreshAfterProfilesChangedAsync();
             };
-        Tutorial.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(TutorialViewModel.IsOpen))
-            {
-                NavigateToProfilesCommand.NotifyCanExecuteChanged();
-                NavigateToLibraryCommand.NotifyCanExecuteChanged();
-                NavigateToConflictsCommand.NotifyCanExecuteChanged();
-                NavigateToToolsCommand.NotifyCanExecuteChanged();
-                NavigateToSettingsCommand.NotifyCanExecuteChanged();
-                NavigateToBrowseCommand.NotifyCanExecuteChanged();
-                NavigateToModCreationCommand.NotifyCanExecuteChanged();
-                NavigateToHellForgeCommand.NotifyCanExecuteChanged();
-                if (Tutorial.IsOpen)
-                {
-                    _tutorialOriginPage = SelectedTabIndex;
-                    _tutorialOriginSettingsCategory = SettingsViewModel.SelectedCategory;
-                    _tutorialOriginToolsCategory = MoreViewModel.SelectedCategory;
-                }
-                else
-                {
-                    SettingsViewModel.SelectedCategory = _tutorialOriginSettingsCategory ?? "游戏";
-                    MoreViewModel.SelectedCategory = _tutorialOriginToolsCategory ?? "插件";
-                    NavigateToPage(_tutorialOriginPage);
-                    return;
-                }
-            }
-            if (Tutorial.IsOpen && (args.PropertyName == nameof(TutorialViewModel.CurrentStep)
-                || args.PropertyName == nameof(TutorialViewModel.IsOpen)))
-            {
-                CloseTaskCenter();
-                CloseNotifications();
-                NavigateForTutorialStep();
-            }
-        };
-
         NavigateToProfiles();
         SubscribeToEvents();
         _profileViewModel.ActiveProfileChanged += OnActiveProfileChanged;
@@ -591,14 +565,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         };
     }
 
-    private void NavigateForTutorialStep()
-    {        if (Tutorial.CurrentStep.PageIndex == 3)
-            MoreViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "插件";
-        if (Tutorial.CurrentStep.PageIndex == 4)
-            SettingsViewModel.SelectedCategory = Tutorial.CurrentStep.Category ?? "游戏";
-        NavigateToPage(Tutorial.CurrentStep.PageIndex);
-    }
-
     private void NavigateToPage(int pageIndex)
     {        switch (pageIndex)
         {
@@ -670,11 +636,15 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly Services.AsyncOperationQueue _refreshes = new();
 
     private bool _disposed;
+    // CanCloseAsync 通过后、DisposeAsync 排空前到达的刷新没有执行机会，不再排队防挂住退出
+    private bool _shutdownStarted;
 
     private void QueueUiRefresh(Func<Task> refresh) => _ = QueueUiRefreshAsync(refresh);
 
     private Task QueueUiRefreshAsync(Func<Task> refresh)
-        => _disposed ? Task.CompletedTask : _refreshes.Enqueue(async () =>
+        => _disposed || _shutdownStarted
+            ? Task.CompletedTask // 退出序列排空后再到达的刷新没有执行机会，等待它会挂住进程退出
+            : _refreshes.Enqueue(async () =>
         {
             try
             {
@@ -952,7 +922,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         NavigateToHellForgeCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanNavigate() => !Tutorial.IsOpen && Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
+    private bool CanNavigate() => Compatibility?.IsOpen != true && ModelPreview?.IsOpen != true && AudioPreview?.IsOpen != true;
 
     [RelayCommand(CanExecute = nameof(CanNavigate))]
     private void NavigateToProfiles()
@@ -1097,11 +1067,6 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _libraryViewModel.ModOnline.CloseCommand.Execute(null);
             return;
         }
-        if (Tutorial.IsOpen)
-        {
-            Tutorial.CloseCommand.Execute(null);
-            return;
-        }
         if (_libraryViewModel.Import.IsOpen)
         {
             if (SelectedTabIndex == 5 && _libraryViewModel.Import.IsImporting)
@@ -1219,6 +1184,12 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     public async Task<bool> CanCloseAsync()
     {
+        if (ModBinarySearchViewModel != null && !await ModBinarySearchViewModel.PrepareShutdownAsync())
+        {
+            if (ModBinarySearchViewModel.Stage == ModBinarySearchStage.CleanupFailed)
+                _notificationService.ShowWarning(ModBinarySearchViewModel.StatusMessage, "模组二分排查");
+            return false;
+        }
         _closingCompatibility = true;
         if (ModelPreview != null) await ModelPreview.StopAsync();
         if (AudioPreview != null) await AudioPreview.StopAsync();
@@ -1262,6 +1233,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _taskCenterViewModel.StopAutoRefresh();
             await StopPlatformDownloadsAsync();
             await _taskService.CancelAllAndWaitAsync();
+            _shutdownStarted = true;
             await WaitForRefreshesAsync();
             return true;
         }
@@ -1276,6 +1248,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             _taskCenterViewModel.StopAutoRefresh();
             await StopPlatformDownloadsAsync();
             await _taskService.CancelAllAndWaitAsync();
+            _shutdownStarted = true;
             await WaitForRefreshesAsync();
         }
 

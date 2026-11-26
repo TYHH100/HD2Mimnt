@@ -66,7 +66,7 @@
 1. `dotnet build HD2Mimnt.slnx --no-restore` 通过；共享 `bin/obj` 时不并行构建。
 2. 回归测试：`ThemeSkinUiTests`、`ThemeLayoutUiTests` 及既有外观相关测试全部通过，并为新主题补齐资源覆盖/恢复断言。
 3. 视觉验收用无头截图：临时测试通过 `UiScope.CreateAsync` 启动真实 `MainWindow`，`AppThemeService.Apply` 切到新主题后用 `CaptureRenderedFrame`（实际合成渲染，`RenderTargetBitmap.Render` 不能代替）保存 PNG，与参考图逐状态（Normal / Hover / Focused / Pressed / Disabled）比对。
-4. 截图前关闭教程、排空通知横幅，避免遮挡控件；焦点/悬停等状态用无头鼠标与 `Focus()` 驱动后再次截帧。
+4. 截图前排空通知横幅，避免遮挡控件；焦点/悬停等状态用无头鼠标与 `Focus()` 驱动后再次截帧。
 5. 运行中的正式程序会占用 `bin` 输出：验证用 `dotnet test -p:OutputPath=bin/TempVerify/` 独立构建，结束后删除临时输出目录、临时测试文件与截图，不留在仓库。
 6. 文档同步：皮肤结构或约束变化时更新本文件与 [UI 指南](ui-and-avalonia.md)的对应条目。
 

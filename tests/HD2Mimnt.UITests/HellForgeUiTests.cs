@@ -187,6 +187,165 @@ public sealed partial class FluentAvaloniaUiTests
         finally { window.DataContext = null; window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task HellForge_ShouldShowAndAnswerExternalModSyncPrompt()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        using var fixture = HellForgeCliFixture.Create();
+        fixture.EnableModernCli();
+        fixture.OverwriteResponse("mod-sync-offer", """
+            {"run":"stub/logs/sessions/uirun","inGamePrompt":false,"sent":null,
+             "offer":{"version":4,"state":"offer","host":"Host","stranger":false,"live":false,"bytes":4096,"done":0,
+                      "message":"The host uses a mod you do not have.","answers":["accept","decline"],
+                      "mods":[{"id":"owner.mod","name":"Host Mod","version":"1.0","class":"data","action":"download",
+                               "bytes":4096,"url":null,"answers":[],"trustWarning":null}],"trustNote":null}}
+            """);
+        fixture.OverwriteResponse("mod-sync-answer-result", """
+            {"run":"stub/logs/sessions/uirun","inGamePrompt":false,"sent":"accept","offer":null}
+            """);
+        fixture.SetPlayStream("""
+            {"event":"started","runId":"uirun","run":"stub/uirun","pid":1,"profile":"default","war":"hellforge","arguments":""}
+            {"event":"status","status":"observing","failure":null}
+            """, hold: true);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            Layout();
+            main.SettingsViewModel.HellForgePath = fixture.Root;
+            main.SettingsViewModel.IsOfficialGameSource = false;
+            main.SettingsViewModel.SelectedCategory = "游戏";
+            await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+            var hf = main.HellForgeViewModel!;
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            hf.SelectedCategory = hf.Categories.Single(category => category.Key == "Session");
+            hf.StartSessionCommand.Execute(null);
+            await WaitForAsync(() => hf.HasModSyncOffer);
+            Layout();
+            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            var accept = view.FindControl<Button>("AcceptModSyncButton")!;
+            await WaitForAsync(() => accept.IsEffectivelyVisible && accept.IsEffectivelyEnabled);
+            Layout();
+            Assert.Contains("Host Mod", view.GetVisualDescendants().OfType<TextBlock>().Select(text => text.Text));
+            main.NotificationPanelViewModel.DismissAllToasts();
+            Layout();
+            var point = accept.TranslatePoint(new Point(10, 8), window)!.Value;
+            var hit = window.InputHitTest(point) as Visual;
+            Assert.True(accept.IsVisualAncestorOf(hit) || ReferenceEquals(hit, accept));
+            window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            await WaitForAsync(() => !hf.HasModSyncOffer);
+            Assert.Contains("mod-sync-offer --answer accept --version 4", fixture.ReadArgs());
+            await hf.StopSessionCommand.ExecuteAsync(null);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task HellForge_PlanetsCategory_ShouldOpenEditSaveAndResetPlanet()
+    {
+        await using var scope = await UiScope.CreateAsync(confirmation: new RecordingConfirmation());
+        using var fixture = HellForgeCliFixture.Create();
+        fixture.EnableModernCli();
+        File.WriteAllText(Path.Combine(fixture.Root, "launcher-settings.json"), """{"profile":"default","war":"custom"}""");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            Layout();
+            main.SettingsViewModel.HellForgePath = fixture.Root;
+            main.SettingsViewModel.IsOfficialGameSource = false;
+            main.SettingsViewModel.SelectedCategory = "游戏";
+            await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+            var hf = main.HellForgeViewModel!;
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            hf.SelectedCategory = hf.Categories.Single(category => category.Key == "Settings");
+            Layout();
+            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            var editPlanets = view.FindControl<Button>("EditCustomPlanetsButton")!;
+            Assert.True(editPlanets.IsEffectivelyVisible);
+            Assert.True(editPlanets.IsEffectivelyEnabled);
+            editPlanets.Command!.Execute(editPlanets.CommandParameter);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Layout();
+
+            Assert.True(hf.SupportsPlanets);
+            Assert.True(hf.IsPlanetsCategoryVisible);
+            Assert.Contains("下次会话", hf.PlanetActiveText);
+            Assert.True(view.FindControl<TextBox>("PlanetQueryInput")!.IsEffectivelyVisible);
+            Assert.False(hf.HasPlanets);
+
+            hf.PlanetQuery = "Malevelon Creek";
+            await hf.OpenPlanetCommand.ExecuteAsync(null);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Layout();
+            Assert.True(hf.HasPlanetEditor);
+            Assert.False(hf.IsPlanetDirty);
+            var editor = hf.PlanetEditor!;
+            view.FindControl<ComboBox>("PlanetFactionSelector")!.SelectedItem =
+                editor.FactionOptions.Single(option => option.Value == "automatons");
+            Layout();
+            view.FindControl<ToggleSwitch>("PlanetWarSubfactionsToggle")!.IsChecked = false;
+            Layout();
+            Assert.Equal("automatons", editor.SelectedFaction?.Value);
+            Assert.False(editor.UseWarSubfactions);
+            Assert.True(editor.HasSubfactionChoices, string.Join(",", editor.Subfactions.Select(item => $"{item.Key}:{item.IsVisible}")));
+            var jetBrigade = view.GetVisualDescendants().OfType<CheckBox>()
+                .Single(control => control.DataContext is HellForgePlanetSubfactionItem item && item.Key == "jet-brigade");
+            jetBrigade.IsChecked = true;
+            var hulksMode = view.GetVisualDescendants().OfType<ComboBox>()
+                .Single(control => control.DataContext is HellForgePlanetEnemyItem item && item.Key == "hulks");
+            hulksMode.SelectedItem = editor.EnemyModeOptions.Single(option => option.Value == "surge");
+            Layout();
+            Assert.True(hf.IsPlanetDirty);
+            Assert.True(view.FindControl<Button>("SavePlanetButton")!.IsEffectivelyEnabled);
+
+            await hf.SavePlanetCommand.ExecuteAsync(null);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Layout();
+            Assert.True(fixture.ReadArgs().Contains("planets --planet Malevelon Creek --catalogue yes --faction automatons --subfactions jet-brigade", StringComparison.Ordinal),
+                hf.StatusMessage + "\n" + fixture.ReadArgs());
+            Assert.Contains("--enemies hulks=surge", fixture.ReadArgs());
+            Assert.Single(hf.Planets);
+            Assert.False(hf.IsPlanetDirty);
+            Assert.True(view.FindControl<ItemsControl>("PlanetList")!.IsEffectivelyVisible);
+
+            await hf.ResetPlanetCommand.ExecuteAsync(null);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.Contains("--reset yes", fixture.ReadArgs());
+            Assert.Empty(hf.Planets);
+            Assert.False(hf.HasPlanetEditor);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public async Task HellForge_PlanetsCategory_ShouldStayHiddenForOldCli()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        using var fixture = HellForgeCliFixture.Create();
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            main.SettingsViewModel.HellForgePath = fixture.Root;
+            main.SettingsViewModel.IsOfficialGameSource = false;
+            main.SettingsViewModel.SelectedCategory = "游戏";
+            await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+            var hf = main.HellForgeViewModel!;
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.False(hf.SupportsPlanets);
+            Assert.DoesNotContain(hf.Categories, category => category.Key == "Planets");
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
     private static async Task WaitForAsync(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

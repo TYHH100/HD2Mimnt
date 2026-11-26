@@ -57,6 +57,33 @@ public class ModImportService
     }
 
     /// <summary>
+    /// 启动时清扫进程被杀残留的导入/转换工作区。这些目录命名固定前缀 + GUID、
+    /// 只在正常流程的 finally 中删除，强杀后会留在临时目录持续累积。
+    /// 超过一天的残留视为中断产物；HD2Mimnt.Preview 不在此列（预览会话自管生命周期）。
+    /// </summary>
+    public static void CleanupStaleWorkspaces(string tempPath)
+    {
+        string[] prefixes =
+        {
+            "hd2mimnt_import_", "hd2mimnt_hd2ir_", "HD2Mimnt-HD2CL", "HD2Mimnt-IAS", "HD2Mimnt-MMD"
+        };
+        try
+        {
+            foreach (var directory in Directory.EnumerateDirectories(tempPath))
+            {
+                var name = Path.GetFileName(directory);
+                if (!prefixes.Any(prefix => name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))) continue;
+                if (DateTime.UtcNow - Directory.GetLastWriteTimeUtc(directory) < TimeSpan.FromDays(1)) continue;
+                try { Directory.Delete(directory, recursive: true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    /// <summary>
     /// 从文件夹或 ZIP 文件导入 Mod
     /// </summary>
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,

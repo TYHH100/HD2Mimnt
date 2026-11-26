@@ -88,9 +88,16 @@ public static class AppUpdateVersion
         var rightNumeric = IsNumeric(right);
         if (leftNumeric && rightNumeric)
         {
-            var leftValue = int.Parse(left);
-            var rightValue = int.Parse(right);
-            return leftValue.CompareTo(rightValue);
+            // 远端 tag 的预发布标识符可达任意长度：超出 int 范围按“位数+字符串序”比较，防 OverflowException
+            if (left.Length <= 9 && right.Length <= 9)
+            {
+                var leftValue = int.Parse(left);
+                var rightValue = int.Parse(right);
+                return leftValue.CompareTo(rightValue);
+            }
+            return left.Length == right.Length
+                ? string.CompareOrdinal(left, right)
+                : left.Length.CompareTo(right.Length);
         }
         if (leftNumeric) return -1; // 数字标识符低于字母数字标识符。
         if (rightNumeric) return 1;

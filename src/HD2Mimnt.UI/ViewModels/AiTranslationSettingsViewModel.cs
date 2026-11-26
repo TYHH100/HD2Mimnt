@@ -46,6 +46,7 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
         nameof(AIProviderType.OpenAI),
         nameof(AIProviderType.Claude),
         nameof(AIProviderType.DeepSeek),
+        nameof(AIProviderType.Agnes),
         nameof(AIProviderType.LocalLLM),
         nameof(AIProviderType.Custom)
     ];
@@ -515,7 +516,7 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
         => Enum.TryParse<AIProviderType>(ProviderType, out var parsed) ? parsed : AIProviderType.OpenAI;
 
     private static bool RequiresApiKey(AIProviderType type)
-        => type is AIProviderType.OpenAI or AIProviderType.Claude or AIProviderType.DeepSeek;
+        => type is AIProviderType.OpenAI or AIProviderType.Claude or AIProviderType.DeepSeek or AIProviderType.Agnes;
 
     private bool ValidateEndpoint()
     {
@@ -526,8 +527,21 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
             return false;
         }
 
+        // API 密钥随请求头出网：明文 http 只留给本地模型端点（Ollama 等回环地址），
+        // 远端 http 端点会让密钥明文出网，与下载链路的 HTTPS 基线不一致。
+        if (endpoint.Scheme == Uri.UriSchemeHttp && !IsLoopbackHost(endpoint.Host))
+        {
+            StatusMessage = UiLocalization.Current["Settings.AiTranslation.InvalidEndpoint"];
+            return false;
+        }
+
         return true;
     }
+
+    private static bool IsLoopbackHost(string host) =>
+        host is "localhost" or "127.0.0.1" or "::1" or "[::1]"
+        || (System.Net.IPAddress.TryParse(host, out var ip) &&
+            (System.Net.IPAddress.Loopback.Equals(ip) || System.Net.IPAddress.IPv6Loopback.Equals(ip)));
 
     private void UpdateThinkingChoices()
     {
@@ -535,7 +549,8 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
         var values = provider switch
         {
             AIProviderType.DeepSeek => new[] { "low", "high", "max" },
-            AIProviderType.LocalLLM => Array.Empty<string>(),
+            // Agnes 思考只有开关，文档未定义 effort 档位。
+            AIProviderType.LocalLLM or AIProviderType.Agnes => Array.Empty<string>(),
             _ => new[] { "low", "medium", "high" }
         };
 
@@ -573,7 +588,7 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
                 "max" or "ultra" => "max",
                 _ => "high"
             },
-            AIProviderType.LocalLLM => "medium",
+            AIProviderType.LocalLLM or AIProviderType.Agnes => "medium",
             _ => value switch
             {
                 "low" or "minimal" => "low",
@@ -594,6 +609,10 @@ public partial class AiTranslationSettingsViewModel : ObservableObject
             case nameof(AIProviderType.DeepSeek):
                 Endpoint = "https://api.deepseek.com/chat/completions";
                 Model = "deepseek-flash";
+                break;
+            case nameof(AIProviderType.Agnes):
+                Endpoint = "https://apihub.agnes-ai.com/v1/chat/completions";
+                Model = "agnes-3.0-flash";
                 break;
             case nameof(AIProviderType.LocalLLM):
                 Endpoint = "http://127.0.0.1:11434/api/generate";

@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace HD2Mimnt.Tests.Services;
 
+[Trait("Category", "Slow")]
 public sealed class BackupServiceTests
 {
     [Fact]
@@ -55,6 +56,7 @@ public sealed class BackupServiceTests
             Assert.Equal("\"before\"", (string?)await verify.ExecuteScalarAsync());
             Assert.False(File.Exists(Path.Combine(root, "settings.json")));
             Assert.False(await settings.GetSettingAsync("Test.Extra", false));
+            Assert.Empty(Directory.GetFiles(Path.Combine(root, "Backups"), "pre-restore-*.db"));
         }
         finally
         {
@@ -130,6 +132,36 @@ public sealed class BackupServiceTests
 
             Assert.Equal("en-US", settings.GetSetting(SettingKeys.Language, "auto"));
             Assert.Equal("en-US", new SettingsService(root).GetSetting(SettingKeys.Language, "auto"));
+            Assert.DoesNotContain(Directory.EnumerateDirectories(root), path => Path.GetFileName(path).StartsWith(".restore-"));
+        }
+        finally { db.Dispose(); TryDelete(root); }
+    }
+
+    [Fact]
+    public async Task RestoreBackupAsync_CorruptDatabase_ShouldLeaveCurrentDatabaseIntact()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "HD2MimntBackupTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        using var db = new HD2MimntDbContext(Path.Combine(root, "hd2mimnt.db"));
+        try
+        {
+            await db.InitializeDatabaseAsync();
+            var settings = new SettingsService(root);
+            await settings.SetSettingAsync("Test.Value", "keep");
+            var service = new BackupService(root, db, settings);
+
+            var corruptPath = Path.Combine(root, "corrupt.db");
+            var garbage = new byte[8192];
+            Random.Shared.NextBytes(garbage);
+            await File.WriteAllBytesAsync(corruptPath, garbage);
+            var backupPath = Path.Combine(root, "Backups", "corrupt-db.hd2backup");
+            using (var archive = ZipFile.Open(backupPath, ZipArchiveMode.Create))
+                archive.CreateEntryFromFile(corruptPath, "hd2mimnt.db");
+
+            await Assert.ThrowsAsync<InvalidDataException>(() => service.RestoreBackupAsync(backupPath));
+
+            Assert.Equal("keep", await settings.GetSettingAsync("Test.Value", "missing"));
+            Assert.Equal("keep", new SettingsService(root).GetSetting("Test.Value", "missing"));
             Assert.DoesNotContain(Directory.EnumerateDirectories(root), path => Path.GetFileName(path).StartsWith(".restore-"));
         }
         finally { db.Dispose(); TryDelete(root); }

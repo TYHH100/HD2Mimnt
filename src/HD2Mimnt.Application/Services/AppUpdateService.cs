@@ -16,11 +16,12 @@ public static class AppUpdateConstants
     public const string MainExecutableName = "HD2Mimnt.UI.exe";
     public const string AssetNameTemplate = "HD2Mimnt-{0}-win-x64.zip";
     public const string ReleasePageUrl = "https://github.com/TYHH100/HD2Mimnt/releases/latest";
+    public const string CodebergReleasePageUrl = "https://codeberg.org/TYHH10/HD2Mimnt/releases";
 }
 
 /// <summary>
-/// 应用自更新编排：检查 GitHub Release 新版本，把安装包下载解包到暂存目录并生成
-/// PowerShell 安装脚本；脚本在应用退出后覆盖安装目录并重启。安装目录不可写时提前失败。
+/// 应用自更新编排：检查 GitHub Release（或 Codeberg 镜像）新版本，把安装包下载解包到暂存目录
+/// 并生成 PowerShell 安装脚本；脚本在应用退出后覆盖安装目录并重启。安装目录不可写时提前失败。
 /// </summary>
 public sealed class AppUpdateService(
     IAppUpdateReleaseClient releaseClient,
@@ -29,23 +30,26 @@ public sealed class AppUpdateService(
     string? stagingRootOverride = null,
     int? currentProcessId = null,
     string? installDirectoryOverride = null,
-    ILogger<AppUpdateService>? logger = null) : IAppUpdateService
+    ILogger<AppUpdateService>? logger = null,
+    IAppUpdateReleaseClient? fallbackReleaseClient = null,
+    SettingsService? settings = null) : IAppUpdateService
 {
     private static readonly string InstallerScriptFileName = "apply-update.ps1";
     private static readonly string InstallerArchiveFileName = "update.zip";
     private static readonly string StagedDirectoryName = "staged";
 
     private readonly IAppUpdateReleaseClient _releaseClient = releaseClient;
+    private readonly IAppUpdateReleaseClient? _fallbackReleaseClient = fallbackReleaseClient;
     private readonly IHttpDownloadService _downloader = downloader;
     private readonly StorageSettingsService? _storageSettings = storageSettings;
     private readonly string? _stagingRootOverride = stagingRootOverride;
     private readonly int? _currentProcessId = currentProcessId ?? Environment.ProcessId;
     private readonly string? _installDirectoryOverride = installDirectoryOverride;
+    private readonly SettingsService? _settings = settings;
 
     public async Task<AppUpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
     {
-        var release = await _releaseClient.GetLatestReleaseAsync(cancellationToken)
-            ?? throw new InvalidOperationException("GitHub 未返回可用的最新版本信息。");
+        var (release, channel) = await GetLatestReleaseAsync(cancellationToken);
         var candidateVersion = AppUpdateVersion.TryParse(release.TagName, out var parsed)
             ? AppUpdateVersion.Format(parsed)
             : release.TagName.TrimStart('V', 'v');
@@ -53,9 +57,58 @@ public sealed class AppUpdateService(
 
         var asset = FindInstallerAsset(release, candidateVersion);
         var info = new AppUpdateInfo(candidateVersion, release.Body, string.IsNullOrEmpty(release.HtmlUrl)
-            ? AppUpdateConstants.ReleasePageUrl : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt);
+            ? ReleasePageUrlFor(channel) : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt,
+            asset?.Digest);
         return new AppUpdateCheckResult(AppUpdateVersion.IsNewer(currentVersion, candidateVersion), currentVersion, info);
     }
+
+    /// <summary>按设置把首选渠道排在前面，其余渠道作为网络失败时的回退。</summary>
+    private IReadOnlyList<IAppUpdateReleaseClient> ResolveChannelOrder()
+    {
+        var preferred = AppUpdateChannels.Normalize(
+            _settings?.GetSetting(SettingKeys.UpdatesChannel, AppUpdateChannels.GitHub));
+        IReadOnlyList<IAppUpdateReleaseClient> clients = _fallbackReleaseClient is null
+            ? [_releaseClient]
+            : [_releaseClient, _fallbackReleaseClient];
+        return clients.OrderBy(client =>
+            string.Equals(client.Channel, preferred, StringComparison.OrdinalIgnoreCase) ? 0 : 1).ToArray();
+    }
+
+    private async Task<(AppUpdateRelease Release, string Channel)> GetLatestReleaseAsync(
+        CancellationToken cancellationToken)
+    {
+        var clients = ResolveChannelOrder();
+        Exception? failure = null;
+        foreach (var client in clients)
+        {
+            try
+            {
+                if (await client.GetLatestReleaseAsync(cancellationToken) is { } release)
+                {
+                    return (release, client.Channel);
+                }
+                failure ??= new InvalidOperationException($"更新渠道 {client.Channel} 未返回可用的最新版本信息。");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception error)
+            {
+                failure = error;
+                logger?.LogWarning(error, "从 {Channel} 渠道检查更新失败，尝试下一个渠道。", client.Channel);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"更新渠道（{string.Join(" / ", clients.Select(client => client.Channel))}）均无法获取最新版本" +
+            (failure is null ? "。" : $"：{failure.Message}"), failure);
+    }
+
+    private static string ReleasePageUrlFor(string channel) =>
+        string.Equals(channel, AppUpdateChannels.Codeberg, StringComparison.OrdinalIgnoreCase)
+            ? AppUpdateConstants.CodebergReleasePageUrl
+            : AppUpdateConstants.ReleasePageUrl;
 
     public async Task<AppUpdateStaging> PrepareAsync(AppUpdateInfo update, IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -78,8 +131,16 @@ public sealed class AppUpdateService(
 
         try
         {
+            // api.github.com（digest 来源）与安装包 CDN（objects.githubusercontent.com）分属不同主机：
+            // 带上资产摘要后，下载引擎在落盘前做流式哈希校验，MITM/CDN 劫持伪造的安装包在此被拦截。
+            var downloadOptions = new DownloadOptions { EnableResume = true, ExpectedHash = NormalizeDigest(update.AssetDigest) };
+            if (downloadOptions.ExpectedHash is null)
+            {
+                logger?.LogInformation("更新包 {Version} 未提供可校验的资产摘要，跳过完整性校验。", update.Version);
+            }
+
             await _downloader.DownloadToFileAsync(new Uri(update.AssetUrl), archivePath,
-                new DownloadOptions { EnableResume = true }, progress, cancellationToken, resumeKey: $"app-update-{update.Version}");
+                downloadOptions, progress, cancellationToken, resumeKey: $"app-update-{update.Version}");
             cancellationToken.ThrowIfCancellationRequested();
 
             if (Directory.Exists(stagedDirectory)) Directory.Delete(stagedDirectory, recursive: true);
@@ -92,11 +153,25 @@ public sealed class AppUpdateService(
             var scriptPath = WriteInstallerScript(versionDirectory, installDirectory, stagedDirectory);
             return new AppUpdateStaging(update.Version, installDirectory, stagedDirectory, scriptPath);
         }
-        catch
+        catch (InvalidDataException)
         {
+            // 哈希不匹配或包结构损坏：暂存内容不可信，整体清理后报错
             TryCleanup(versionDirectory);
             throw;
         }
+        // 网络/IO/取消：HttpDownloadService 已把断点与 .part 落盘，保留 versionDirectory 供下次续传
+    }
+
+    /// <summary>仅接受下载引擎支持的摘要格式（与 DownloadOptions 校验正则一致）；缺失或异常格式返回 null 跳过校验。</summary>
+    private static string? NormalizeDigest(string? digest)
+    {
+        if (string.IsNullOrEmpty(digest))
+        {
+            return null;
+        }
+        return System.Text.RegularExpressions.Regex.IsMatch(digest, "^(sha256:[0-9a-fA-F]{64}|md5:[0-9a-fA-F]{32})$")
+            ? digest
+            : null;
     }
 
     public void LaunchPendingInstaller(AppUpdateStaging staging)
@@ -104,9 +179,13 @@ public sealed class AppUpdateService(
         if (!File.Exists(staging.InstallerScriptPath))
             throw new FileNotFoundException("安装脚本不存在，请重新下载更新。", staging.InstallerScriptPath);
         logger?.LogInformation("启动应用更新安装脚本：{Script}", staging.InstallerScriptPath);
+        // 绝对路径解析系统 PowerShell，不依赖 PATH 查找
+        var powershell = Path.Combine(
+            Environment.SystemDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
         Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = File.Exists(powershell) ? powershell : "powershell.exe",
             Arguments = $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{staging.InstallerScriptPath}\"",
             UseShellExecute = true,
             CreateNoWindow = true
@@ -171,7 +250,7 @@ public sealed class AppUpdateService(
     }
 
     /// <summary>
-    /// 安装脚本：等应用退出 → 带重试覆盖安装目录 → 重启应用 → 清理暂存目录与自身。
+    /// 安装脚本：等应用退出 → 停止残留子进程 → 带重试覆盖安装目录 → 校验完整 → 重启应用 → 清理暂存目录与自身。
     /// 占位符依次为：等待退出的 PID、安装目录、暂存目录、主程序名。
     /// </summary>
     private const string ScriptTemplate = """
@@ -187,6 +266,18 @@ public sealed class AppUpdateService(
             Start-Sleep -Seconds 1
         }
 
+        # 残留的应用子进程（部署 Worker、CLI Agent 常驻服务、插件宿主）会锁定安装目录的 exe，
+        # 让覆盖复制在中途失败，留下新旧混杂的目录（表现为运行期 Method not found）。
+        # 先等 5 秒让任务自然收尾，仍在运行的本目录进程强制结束。
+        $leftover = @()
+        for ($i = 0; $i -lt 5; $i++) {
+            $leftover = @(Get-Process | Where-Object { $_.Path -and $_.Id -ne $waitingPid -and $_.Path.StartsWith($target + '\', [StringComparison]::OrdinalIgnoreCase) })
+            if ($leftover.Count -eq 0) { break }
+            Start-Sleep -Seconds 1
+        }
+        foreach ($proc in $leftover) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 1
+
         $copied = $false
         for ($attempt = 1; $attempt -le 5 -and -not $copied; $attempt++) {
             try {
@@ -196,6 +287,14 @@ public sealed class AppUpdateService(
                 if ($attempt -ge 5) { throw }
                 Start-Sleep -Seconds 2
             }
+        }
+
+        # 完整性校验：暂存包里的每个文件都必须落到安装目录，缺文件就中止重启；
+        # 否则启动的是版本混杂的应用（部分 exe 旧、依赖 dll 新），只会在运行期报 Method not found。
+        $sourceLen = $source.Length + 1
+        $missing = @(Get-ChildItem $source -Recurse -File | Where-Object { -not (Test-Path -LiteralPath (Join-Path $target $_.FullName.Substring($sourceLen))) })
+        if ($missing.Count -gt 0) {
+            throw ('Update incomplete: {0} file(s) missing from install directory, first missing: {1}' -f $missing.Count, $missing[0].FullName)
         }
 
         Start-Process -FilePath (Join-Path $target $exeName) -WorkingDirectory $target

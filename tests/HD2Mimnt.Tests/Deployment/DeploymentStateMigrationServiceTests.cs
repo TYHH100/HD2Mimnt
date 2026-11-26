@@ -7,6 +7,7 @@ using Xunit;
 
 namespace HD2Mimnt.Tests.Deployment;
 
+[Trait("Category", "Slow")]
 public class DeploymentStateMigrationServiceTests : IDisposable
 {
     private readonly HD2MimntDbContext _dbContext;
@@ -154,6 +155,39 @@ public class DeploymentStateMigrationServiceTests : IDisposable
 
         var current = Assert.Single(await _repository.GetCurrentDeploymentsAsync(_gameRoot));
         Assert.Equal(_gameRoot, current.GamePath, ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task EnsureMigrated_RemovesUnparsableRowsWithoutBreakingStrictReads()
+    {
+        var record = CreateRecord(_modId, DateTime.UtcNow, PatchTarget("ffffffffffffffff.patch_0"));
+        // 数据库损坏时页错位会让列值串行，主键可能读成路径或空串；
+        // 这类行无法按 Id 寻址，迁移必须清理，而不是只跳过让后续严格读取继续抛 FormatException。
+        await using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+                     {
+                         DataSource = _dbPath, ForeignKeys = false, Pooling = false
+                     }.ToString()))
+        {
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                INSERT INTO DeploymentFiles (Id, DeploymentId, ModId, SourcePath, TargetPath, Method)
+                VALUES (@Id, @DeploymentId, @ModId, @SourcePath, @TargetPath, 'Copy')";
+            command.Parameters.AddWithValue("@Id", "not-a-guid");
+            command.Parameters.AddWithValue("@DeploymentId", record.Id.ToString());
+            command.Parameters.AddWithValue("@ModId", _modId.ToString());
+            command.Parameters.AddWithValue("@SourcePath", @"C:\mods\broken\file.pak");
+            command.Parameters.AddWithValue("@TargetPath", PatchTarget("9999999999999999.patch_0"));
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var result = await _migration.EnsureMigratedAsync();
+
+        Assert.Equal(1, result.AdoptedRecords);
+        Assert.Equal(1, result.RemovedCorruptRows);
+        // 严格读取路径不能再被坏行绊倒。
+        var current = Assert.Single(await _repository.GetCurrentDeploymentsAsync(_gameRoot));
+        Assert.DoesNotContain(current.Files, file => file.TargetPath.Contains("9999999999999999", StringComparison.Ordinal));
     }
 
     private string PatchTarget(string fileName) => Path.Combine(_gameRoot, "data", fileName);

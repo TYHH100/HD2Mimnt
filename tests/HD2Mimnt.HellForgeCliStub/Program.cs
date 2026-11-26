@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 var command = args.Length > 0 ? args[0] : string.Empty;
@@ -10,6 +11,15 @@ var command = args.Length > 0 ? args[0] : string.Empty;
 // 该探测不带 --install，必须在 root 校验之前应答。
 if (command == "--help" || args.Contains("--help"))
 {
+    var helpRoot = string.Empty;
+    for (var i = 0; i < args.Length - 1; i++)
+        if (args[i] == "--install") helpRoot = args[i + 1];
+    var customHelp = helpRoot.Length == 0 ? null : Path.Combine(helpRoot, "cli-help.txt");
+    if (customHelp != null && File.Exists(customHelp))
+    {
+        Console.Write(File.ReadAllText(customHelp));
+        return 0;
+    }
     Console.WriteLine("usage: HellForge.Cli <command> [options]");
     Console.WriteLine("status [--install <folder>]");
     Console.WriteLine("profiles [--install <folder>] [--create <name> --template <template>]");
@@ -106,6 +116,34 @@ if (command == "stop")
     return 0;
 }
 
+if (command == "mod-sync-offer")
+{
+    string? answer = null;
+    for (var i = 0; i < args.Length - 1; i++)
+        if (args[i] == "--answer") answer = args[i + 1];
+    var resultFile = Path.Combine(root, answer == null ? "cli-mod-sync-offer.json" : "cli-mod-sync-answer-result.json");
+    if (File.Exists(resultFile))
+    {
+        Console.Write(File.ReadAllText(resultFile));
+        return 0;
+    }
+    Console.Write(JsonSerializer.Serialize(answer == null
+        ? new { run = (string?)null, inGamePrompt = false, sent = (string?)null, offer = (object?)null }
+        : new { run = (string?)null, inGamePrompt = false, sent = (string?)answer, offer = (object?)null }));
+    return 0;
+}
+
+if (command == "versions")
+{
+    var versions = Path.Combine(root, "cli-versions.json");
+    Console.Write(File.Exists(versions) ? File.ReadAllText(versions) :
+        """{"current":{"name":"0.4.0-beta","version":"0.4.0-beta"},"playing":{"name":"0.4.0-beta","version":"0.4.0-beta","family":"current"},"kept":[],"keeps":2,"keptBytes":0}""");
+    return 0;
+}
+
+if (command == "planets")
+    return StubPlanets.Handle(args, root);
+
 // 模组命令：真实维护 mods\ 文件夹与 hellforge-mods.json，让 mods 列表反映增删/开关/排序/选项，
 // 供同步编排与 UI 测试断言实际落位结果（而非静态应答）。
 if (command is "mods" or "mod-add" or "mod-remove" or "mod-switch" or "mod-order" or "mod-pack")
@@ -133,6 +171,11 @@ internal static partial class StubMods
 
     public static int Handle(string command, string[] args, string root)
     {
+        if (command == "mods" && File.Exists(Path.Combine(root, "cli-mods.json")))
+        {
+            Console.Write(File.ReadAllText(Path.Combine(root, "cli-mods.json")));
+            return 0;
+        }
         var modsDir = Path.Combine(root, "mods");
         Directory.CreateDirectory(modsDir);
         var settingsFile = Path.Combine(modsDir, "hellforge-mods.json");
@@ -149,7 +192,7 @@ internal static partial class StubMods
                     Optional(args, "--on"), Optional(args, "--variant")),
                 _ => List(modsDir, settings)
             };
-            SaveSettings(settingsFile, settings);
+            if (command != "mods") SaveSettings(settingsFile, settings);
             Console.Write(JsonSerializer.Serialize(result));
             return 0;
         }
@@ -230,7 +273,8 @@ internal static partial class StubMods
                 group = mod.IsPack ? "cosmetic" : "gameplay",
                 tags = mod.IsPack ? new[] { "pack" } : new[] { "data" },
                 folder, archive = (string?)null, removable = true,
-                options = mod.IsPack ? PackOptions(mod, choice) : null
+                unsupported = (string?)null, premium = Array.Empty<object>(), url = (string?)null, icon = (string?)null,
+                build = (object?)null, options = mod.IsPack ? PackOptions(mod, choice) : null
             };
         }).ToList();
         var index = settings.Order.Select((id, i) => (id, i)).ToDictionary(t => t.id, t => t.i);
@@ -399,6 +443,7 @@ internal static class StubSettingsAndLogs
     private static object Settings(string[] args, string root)
     {
         var settings = LoadLauncher(root);
+        var modern = File.Exists(Path.Combine(root, "cli-modern-settings.txt"));
         string? strangers = null;
         int? credits = null;
         var strangersGiven = false;
@@ -416,8 +461,9 @@ internal static class StubSettingsAndLogs
                     settings.Profile = value;
                     break;
                 case "--war":
-                    if (value is not ("live" or "frozen" or "open"))
-                        throw new ArgumentException("--war takes live, frozen or open.");
+                    if (value is not ("live" or "frozen" or "open")
+                        && !(modern && value is "hellforge" or "custom"))
+                        throw new ArgumentException("--war takes live, frozen, open or a supported 0.5 war.");
                     settings.War = value;
                     break;
                 case "--local-playfab": settings.LocalPlayFab = YesNo(name, value); break;
@@ -428,6 +474,22 @@ internal static class StubSettingsAndLogs
                 case "--steam-udp": settings.SteamUdp = YesNo(name, value); break;
                 case "--live-changes": settings.LiveChanges = YesNo(name, value); break;
                 case "--game-options": settings.GameOptions = value; break;
+                case "--war-server":
+                    RequireModern();
+                    settings.WarServer = value == "default" ? "https://war.hf-mod.com" : value;
+                    break;
+                case "--deal-subfactions": RequireModern(); settings.DealSubfactions = YesNo(name, value); break;
+                case "--deal-seaf": RequireModern(); settings.DealSeaf = YesNo(name, value); break;
+                case "--war-seed":
+                    RequireModern();
+                    if (value == "random") settings.WarSeed = Random.Shared.Next();
+                    else if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var seed) && seed >= 0) settings.WarSeed = seed;
+                    else throw new ArgumentException("--war-seed takes a non-negative whole number or random.");
+                    break;
+                case "--share-mods": RequireModern(); settings.ShareMods = YesNo(name, value); break;
+                case "--list-public": RequireModern(); settings.ListPublic = YesNo(name, value); break;
+                case "--show-edited-stats": RequireModern(); settings.ShowEditedStats = YesNo(name, value); break;
+                case "--host-stats": RequireModern(); settings.HostStats = YesNo(name, value); break;
                 case "--strangers":
                     strangers = value switch
                     {
@@ -454,24 +516,41 @@ internal static class StubSettingsAndLogs
         if (creditsGiven) StubMods.SetForgeCredits(root, credits);
         var (chosenStrangers, forgeCredits) = StubMods.ReadChoices(root);
         bool? chosen = chosenStrangers switch { "on" => true, "off" => false, _ => null };
-        return new
+        var result = new Dictionary<string, object?>
         {
-            profile = settings.Profile,
-            war = settings.War,
-            localPlayFab = settings.LocalPlayFab,
-            multiplayer = settings.Multiplayer,
-            engineLog = settings.EngineLog,
-            crashDump = settings.CrashDump,
-            gameOptions = settings.GameOptions ?? "",
-            sandbox = settings.Sandbox,
-            steamUdp = settings.SteamUdp,
-            steamBridge = true,
-            playWithStrangers = chosen ?? settings.Sandbox,
-            playWithStrangersChosen = chosen,
-            liveChanges = settings.LiveChanges,
-            forgeCreditChance = forgeCredits ?? DefaultForgeCreditChance,
-            file = Path.Combine(root, "launcher-settings.json")
+            ["profile"] = settings.Profile,
+            ["war"] = settings.War,
+            ["localPlayFab"] = settings.LocalPlayFab,
+            ["multiplayer"] = settings.Multiplayer,
+            ["engineLog"] = settings.EngineLog,
+            ["crashDump"] = settings.CrashDump,
+            ["gameOptions"] = settings.GameOptions ?? "",
+            ["sandbox"] = settings.Sandbox,
+            ["steamUdp"] = settings.SteamUdp,
+            ["steamBridge"] = true,
+            ["playWithStrangers"] = chosen ?? settings.Sandbox,
+            ["playWithStrangersChosen"] = chosen,
+            ["liveChanges"] = settings.LiveChanges,
+            ["forgeCreditChance"] = forgeCredits ?? DefaultForgeCreditChance,
+            ["file"] = Path.Combine(root, "launcher-settings.json")
         };
+        if (modern)
+        {
+            result["warServer"] = settings.WarServer;
+            result["dealSubfactions"] = settings.DealSubfactions;
+            result["dealSeaf"] = settings.DealSeaf;
+            result["warSeed"] = settings.WarSeed;
+            result["shareMods"] = settings.ShareMods;
+            result["listPublic"] = settings.ListPublic;
+            result["showEditedStats"] = settings.ShowEditedStats;
+            result["hostStats"] = settings.HostStats;
+        }
+        return result;
+
+        void RequireModern()
+        {
+            if (!modern) throw new ArgumentException("This option requires HellForge 0.5.");
+        }
     }
 
     private const int DefaultForgeCreditChance = 30;
@@ -678,8 +757,156 @@ internal static class StubSettingsAndLogs
         public bool Sandbox { get; set; } = true;
         public bool SteamUdp { get; set; } = true;
         public bool LiveChanges { get; set; }
+        public string? WarServer { get; set; } = "https://war.hf-mod.com";
+        public bool? DealSubfactions { get; set; } = true;
+        public bool? DealSeaf { get; set; } = true;
+        public int? WarSeed { get; set; }
+        public bool? ShareMods { get; set; } = true;
+        public bool? ListPublic { get; set; } = true;
+        public bool? ShowEditedStats { get; set; }
+        public bool? HostStats { get; set; }
     }
 
     private sealed record RunInfo(string Id, string Folder, DateTime? StartedUtc, string? Status, string? Failure,
         string? GameExitCode, DateTime? CompletedUtc, bool Crashed);
+}
+
+internal static class StubPlanets
+{
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly Dictionary<string, int> Names = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Super Earth"] = 0,
+        ["Cyberstan"] = 1,
+        ["Malevelon Creek"] = 196
+    };
+
+    public static int Handle(string[] args, string root)
+    {
+        var file = Path.Combine(root, "planet-modifiers.json");
+        var planets = Load(file);
+        try
+        {
+            if (Optional(args, "--reset-all") == "yes") planets.Clear();
+            var selector = Optional(args, "--planet");
+            if (selector != null)
+            {
+                var index = Resolve(selector);
+                JsonObject? planet = planets.OfType<JsonObject>().FirstOrDefault(item => Index(item) == index);
+                if (Optional(args, "--reset") == "yes")
+                {
+                    planets.Remove(planet);
+                }
+                else
+                {
+                    planet ??= new JsonObject { ["index"] = index, ["name"] = NameOf(index) };
+                    var faction = Optional(args, "--faction");
+                    if (faction != null)
+                    {
+                        if (faction == "war") planet.Remove("faction");
+                        else planet["faction"] = faction;
+                    }
+                    var subfactions = Optional(args, "--subfactions");
+                    if (subfactions != null)
+                    {
+                        if (subfactions == "war") planet.Remove("subfactions");
+                        else planet["subfactions"] = subfactions switch
+                        {
+                            "none" => new JsonArray(),
+                            _ => new JsonArray(subfactions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                .Select(key => JsonValue.Create(key)).ToArray())
+                        };
+                    }
+                    var enemies = Optional(args, "--enemies");
+                    if (enemies != null)
+                    {
+                        var current = planet["enemies"] as JsonObject ?? new JsonObject();
+                        foreach (var pair in enemies.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        {
+                            var parts = pair.Split('=', 2);
+                            if (parts.Length != 2) throw new ArgumentException("--enemies takes key=surge|none|normal.");
+                            if (parts[1] == "normal") current.Remove(parts[0]);
+                            else current[parts[0]] = parts[1];
+                        }
+                        if (current.Count == 0) planet.Remove("enemies");
+                        else planet["enemies"] = current;
+                    }
+                    if (planet.AsObject().All(pair => pair.Key is "index" or "name")) planets.Remove(planet);
+                    else if (!planets.Contains(planet)) planets.Add(planet);
+                }
+            }
+            Directory.CreateDirectory(root);
+            File.WriteAllText(file, JsonSerializer.Serialize(new { planets }, Json));
+            var active = false;
+            var launcherFile = Path.Combine(root, "launcher-settings.json");
+            if (File.Exists(launcherFile))
+            {
+                using var launcher = JsonDocument.Parse(File.ReadAllText(launcherFile));
+                foreach (var property in launcher.RootElement.EnumerateObject())
+                    if (property.Name.Equals("war", StringComparison.OrdinalIgnoreCase)
+                        && property.Value.ValueKind == JsonValueKind.String
+                        && property.Value.GetString() == "custom")
+                        active = true;
+            }
+            Console.Write(JsonSerializer.Serialize(new
+            {
+                file,
+                war = active ? "Custom planets" : "All planets open",
+                active,
+                problems = Array.Empty<string>(),
+                sessionRunning = false,
+                planets,
+                catalogue = Catalogue
+            }, Json));
+            return 0;
+        }
+        catch (Exception error) when (error is ArgumentException or InvalidOperationException)
+        {
+            Console.Error.WriteLine("HellForge: " + error.Message);
+            return 1;
+        }
+    }
+
+    private static JsonArray Load(string file)
+    {
+        if (!File.Exists(file)) return new JsonArray();
+        using var document = JsonDocument.Parse(File.ReadAllText(file));
+        return document.RootElement.TryGetProperty("planets", out var value) && value.ValueKind == JsonValueKind.Array
+            ? JsonNode.Parse(value.GetRawText()) as JsonArray ?? new JsonArray()
+            : new JsonArray();
+    }
+
+    private static int Resolve(string selector) => int.TryParse(selector, out var index)
+        ? index
+        : Names.TryGetValue(selector, out var named) ? named : throw new ArgumentException($"No planet {selector}.");
+
+    private static string NameOf(int index) => Names.FirstOrDefault(pair => pair.Value == index).Key ?? $"Planet {index}";
+    private static int Index(JsonObject planet) => planet["index"]?.GetValue<int>() ?? 0;
+
+    private static string? Optional(string[] args, string name)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+            if (args[i] == name) return args[i + 1];
+        return null;
+    }
+
+    private static readonly object Catalogue = new
+    {
+        factions = new[] { "terminids", "automatons", "illuminate" },
+        subfactions = new[]
+        {
+            new { key = "predator-strain", name = "Predator Strain", faction = "terminids" },
+            new { key = "jet-brigade", name = "Jet Brigade", faction = "automatons" },
+            new { key = "invasion-fleet", name = "Invasion Fleet", faction = "illuminate" },
+            new { key = "heavy-seaf-presence", name = "Heavy SEAF Presence", faction = "any" }
+        },
+        enemies = new[]
+        {
+            new { key = "hulks", name = "Hulks", faction = "automatons" },
+            new { key = "tanks", name = "Tanks", faction = "automatons" },
+            new { key = "chargers", name = "Chargers", faction = "terminids" },
+            new { key = "bile-titans", name = "Bile Titans", faction = "terminids" },
+            new { key = "harvesters", name = "Harvesters", faction = "illuminate" }
+        }
+    };
 }

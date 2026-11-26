@@ -26,6 +26,8 @@ public sealed class HellForgeSessionService : IDisposable
     private bool _disposed;
     private bool _stopRequested;
     private bool _restartInProgress;
+    private bool _modSyncPollingActive;
+    private int _modSyncGeneration;
     private int _restartCount;
     private string? _pendingRestartResult;
 
@@ -106,7 +108,74 @@ public sealed class HellForgeSessionService : IDisposable
                     Failure = status.Session.LastFailure
                 };
         }
+        CancellationToken pollingToken;
+        lock (_gate)
+        {
+            if (_state.IsActive) _lifetime ??= new CancellationTokenSource();
+            pollingToken = _lifetime?.Token ?? CancellationToken.None;
+        }
+        if (_state.IsActive) BeginModSyncPolling(pollingToken);
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>应答游戏外置编辑器未覆盖的 MOD SYNC 提示；版本号防止把旧提示的单击发到新提示。</summary>
+    public async Task AnswerModSyncOfferAsync(string answer, string? modId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var offer = State.ModSyncOffer;
+        if (offer == null) throw new InvalidOperationException("当前没有可应答的 MOD SYNC 提示。");
+        lock (_gate) _modSyncGeneration++;
+        var result = await _cli.AnswerModSyncOfferAsync(answer, offer.Version, modId, cancellationToken);
+        lock (_gate) _modSyncGeneration++;
+        Update(state => state with
+        {
+            ModSyncOffer = result.InGamePrompt ? null : result.Offer
+        });
+    }
+
+    private void BeginModSyncPolling(CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _modSyncPollingActive || !_state.IsActive) return;
+            _modSyncPollingActive = true;
+        }
+        _ = Task.Run(() => PollModSyncAsync(cancellationToken));
+    }
+
+    private async Task PollModSyncAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (!State.IsActive) return;
+                int generation;
+                lock (_gate) generation = _modSyncGeneration;
+                HellForgeModSyncOfferResult? result;
+                try { result = await _cli.GetModSyncOfferAsync(cancellationToken); }
+                catch (OperationCanceledException) { return; }
+                catch (InvalidOperationException error)
+                {
+                    _logger?.LogDebug(error, "读取 HellForge MOD SYNC 提示失败");
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                    continue;
+                }
+                if (result == null || !State.IsActive) return;
+                lock (_gate) if (generation != _modSyncGeneration) continue;
+                Update(state => state with
+                {
+                    ModSyncOffer = result.InGamePrompt ? null : result.Offer
+                });
+                if (!State.IsActive) return;
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            lock (_gate) _modSyncPollingActive = false;
+        }
     }
 
     private async Task ObserveAsync(Process process, TaskCompletionSource started, CancellationToken cancellationToken)
@@ -181,12 +250,14 @@ public sealed class HellForgeSessionService : IDisposable
                     Failure = null,
                     Problems = Array.Empty<string>(),
                     Notice = null,
+                    ModSyncOffer = null,
                     Restarting = false,
                     RestartIssue = HellForgeRestartIssue.None,
                     RestartIssueDetail = null
                 });
                 SessionStarted?.Invoke(this, EventArgs.Empty);
                 started.TrySetResult();
+                BeginModSyncPolling(cancellationToken);
                 break;
             case "status":
                 var status = Text(element, "status");
@@ -231,6 +302,7 @@ public sealed class HellForgeSessionService : IDisposable
                 {
                     Phase = finalStatus == "observed" ? HellForgeSessionPhase.Ended : HellForgeSessionPhase.Failed,
                     Failure = state.Failure,
+                    ModSyncOffer = null,
                     Restarting = restart
                 });
                 break;
@@ -294,6 +366,7 @@ public sealed class HellForgeSessionService : IDisposable
                     RestartIssue = HellForgeRestartIssue.None,
                     RestartIssueDetail = null
                 });
+                BeginModSyncPolling(cancellationToken);
 
                 var run = await WaitForNewRunAsync(root, previousRunId, process, cancellationToken);
                 if (run == null)
@@ -364,12 +437,13 @@ public sealed class HellForgeSessionService : IDisposable
             {
                 Phase = HellForgeSessionPhase.Failed,
                 Failure = final is { } failed && Text(failed, "failure") is { Length: > 0 } reason ? reason : s.Failure,
+                ModSyncOffer = null,
                 Restarting = false
             });
             return null;
         }
         if (WantsModSyncRestart(resultPath)) return resultPath;
-        Update(s => s with { Phase = HellForgeSessionPhase.Ended, Restarting = false });
+        Update(s => s with { Phase = HellForgeSessionPhase.Ended, ModSyncOffer = null, Restarting = false });
         return null;
     }
 
@@ -500,6 +574,7 @@ public sealed class HellForgeSessionService : IDisposable
         Update(state => state with
         {
             Phase = state.IsActive ? phase : state.Phase,
+            ModSyncOffer = null,
             Restarting = false
         });
         lock (_gate) _restartInProgress = false;
@@ -511,6 +586,7 @@ public sealed class HellForgeSessionService : IDisposable
         {
             Phase = state.IsActive ? HellForgeSessionPhase.Ended : state.Phase,
             Failure = state.Failure,
+            ModSyncOffer = null,
             Restarting = false,
             RestartIssue = issue,
             RestartIssueDetail = detail

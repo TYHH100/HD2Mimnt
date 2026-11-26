@@ -168,6 +168,10 @@ public sealed class PreviewWorkerSession : IPreviewWorkerSession, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_pipe is not null && _process is { HasExited: false }) return;
+            // 会话已无使用者时不能再拉起进程：ExitAsync 收尾与 Post/请求的窗口竞态
+            // 会把这里新启动的 Worker 变成无人调用 ExitAsync 的孤儿进程。
+            if (Volatile.Read(ref _users) <= 0)
+                throw new InvalidOperationException("Preview session has no active users.");
             _startTask ??= StartCoreAsync();
             startTask = _startTask;
         }
@@ -402,12 +406,38 @@ public sealed class PreviewWorkerSession : IPreviewWorkerSession, IDisposable
         Interlocked.Exchange(ref _users, 0);
         try
         {
-            StopAsync().GetAwaiter().GetResult();
+            // Dispose 常发生在 UI 线程（容器释放）：同步等待异步收尾时，StopAsync 的
+            // await 续体会被投递回已阻塞的调用线程，应用退出就此死锁。放到线程池执行
+            // 并限时等待；超时后由 ForceCleanup 强杀残留进程，不依赖优雅收尾完成。
+            Task.Run(StopAsync).Wait(TimeSpan.FromSeconds(5));
         }
         catch (Exception ex)
         {
             _logger?.LogDebug(ex, "Failed to dispose preview worker session");
         }
+        finally
+        {
+            ForceCleanup();
+        }
+    }
+
+    /// <summary>Dispose 限时等待超时后的兜底：终止残留 Worker 并释放管道。</summary>
+    private void ForceCleanup()
+    {
+        Process? process;
+        NamedPipeServer? pipe;
+        lock (_gate)
+        {
+            process = _process;
+            pipe = _pipe;
+            _pipe = null;
+            _process = null;
+            Kill(_startingProcess);
+            _startingProcess = null;
+        }
+
+        Kill(process);
+        pipe?.Dispose();
     }
 
     private static void Kill(Process? process)

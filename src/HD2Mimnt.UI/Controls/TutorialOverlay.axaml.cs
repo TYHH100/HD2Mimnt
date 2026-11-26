@@ -80,8 +80,10 @@ public partial class TutorialOverlay : UserControl
         BlurredPage.Height = Source.Bounds.Height;
         var sourceOrigin = Source.TranslatePoint(default, this) ?? default;
         BlurredPage.Margin = new Thickness(sourceOrigin.X, sourceOrigin.Y, 0, 0);
+        var step = _viewModel.CurrentStep;
+        if (step == null) return;
         var target = Source.GetVisualDescendants().OfType<Control>()
-            .FirstOrDefault(c => c.Name == _viewModel.CurrentStep.TargetKey && c.IsEffectivelyVisible);
+            .FirstOrDefault(c => c.Name == step.TargetKey && c.IsEffectivelyVisible);
         var point = target?.TranslatePoint(default, this);
         var available = target != null && point != null && target.Bounds.Width > 0 && target.Bounds.Height > 0;
         TargetFrame.IsVisible = available;

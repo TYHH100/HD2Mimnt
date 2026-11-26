@@ -482,6 +482,24 @@ public static class MarkdownRenderer
 
     private static InlineUIContainer BuildLinkInline(string text, string? url, double fontSize)
     {
+        // 本渲染器服务的是插件/AI 返回的 Markdown，链接文本完全由第三方提供：
+        // 仅放行 http(s)，file:、盘符路径、UNC 与自定义协议一律退化为纯文本，
+        // 防止插件用伪装链接经 Shell 打开任意程序，绕过 ExecuteProcesses 权限门控。
+        if (url is null ||
+            !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return new InlineUIContainer
+            {
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = fontSize,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+        }
+
         var link = new TextBlock
         {
             Text = text,
@@ -492,22 +510,19 @@ public static class MarkdownRenderer
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        if (!string.IsNullOrWhiteSpace(url))
+        ToolTip.SetTip(link, url);
+        link.PointerPressed += (_, args) =>
         {
-            ToolTip.SetTip(link, url);
-            link.PointerPressed += (_, args) =>
+            try
             {
-                try
-                {
-                    Browser.Open(url);
-                }
-                catch
-                {
-                    // 打不开浏览器时保持文本可选中复制即可，不弹错误打断阅读
-                }
-                args.Handled = true;
-            };
-        }
+                Browser.Open(url);
+            }
+            catch
+            {
+                // 打不开浏览器时保持文本可选中复制即可，不弹错误打断阅读
+            }
+            args.Handled = true;
+        };
 
         return new InlineUIContainer { Child = link };
     }

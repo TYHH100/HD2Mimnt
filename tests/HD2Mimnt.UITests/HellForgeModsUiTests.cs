@@ -125,6 +125,50 @@ public sealed partial class FluentAvaloniaUiTests
         finally { window.DataContext = null; window.Close(); }
     }
 
+    [AvaloniaFact]
+    public async Task HellForge_ModsCategory_ShouldHideLocalStatsAndShowUnsupportedSourceBuilds()
+    {
+        await using var scope = await UiScope.CreateAsync();
+        using var fixture = HellForgeCliFixture.Create();
+        fixture.OverwriteResponse("mods", """
+            {"mods":[
+              {"id":"owner.source","name":"Source Mod","version":"2.0","description":"A source mod","enabled":false,
+               "group":"gameplay","tags":["source","code"],"removable":true,"unsupported":"needs a newer engine",
+               "premium":[],"url":null,"icon":null,"build":{"state":"did-not-compile","built":null,"error":"compile failed"}},
+              {"id":"local-stats","name":"Local Stats","version":"","enabled":true,"group":"gameplay",
+               "tags":["local-stats","stats"],"removable":false,"options":null}],
+             "problems":[],"modlist":null,"settings":"stub/mods/hellforge-mods.json"}
+            """);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var window = new MainWindow { DataContext = main };
+        try
+        {
+            window.Show();
+            void Layout() { Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); using var frame = window.CaptureRenderedFrame(); }
+            Layout();
+            main.SettingsViewModel.HellForgePath = fixture.Root;
+            main.SettingsViewModel.IsOfficialGameSource = false;
+            main.SettingsViewModel.SelectedCategory = "游戏";
+            await main.SettingsViewModel.SaveCommand.ExecuteAsync(null);
+            var hf = main.HellForgeViewModel!;
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            hf.SelectedCategory = hf.Categories.Single(category => category.Key == "Mods");
+            await WaitForAsync(() => hf.HasMods);
+            await hf.Completion.WaitAsync(TimeSpan.FromSeconds(30));
+            Layout();
+
+            var mod = Assert.Single(hf.HellForgeMods);
+            Assert.Equal("owner.source", mod.Id);
+            Assert.False(mod.CanToggle);
+            Assert.Contains("needs a newer engine", mod.WarningText);
+            Assert.Contains("compile failed", mod.BuildText);
+            Assert.True(mod.HasDescription);
+            var view = window.GetVisualDescendants().OfType<HellForgeView>().Single();
+            Assert.True(view.FindControl<ItemsControl>("HellForgeModList")!.IsEffectivelyVisible);
+        }
+        finally { window.DataContext = null; window.Close(); }
+    }
+
     private static string CreateSourceMod(string root, string folder, string id, string name)
     {
         var source = Path.Combine(root, "incoming", folder);

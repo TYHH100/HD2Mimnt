@@ -238,12 +238,15 @@ public static class DxgiTextureFormats
                 return true;
 
             case PreviewTextureFormat.Rgb9E5:
+                // 5 位指数只有 32 种取值：预计算 2^(e-24) 查表，避免每像素一次超越函数
+                Span<float> rgb9e5Scales = stackalloc float[32];
+                for (var e = 0; e < 32; e++) rgb9e5Scales[e] = MathF.Pow(2, e - 24);
                 for (var i = 0; i < pixelCount; i++)
                 {
                     var o = i * 4;
                     var v = MemoryMarshal.Read<uint>(source[(i * 4)..]);
                     // D3D 位域：E 最高 5 位，R 中间 9 位、G 次之、B 低 9 位；输出为 BGRA。
-                    var scale = MathF.Pow(2, ((int)(v >> 27) & 0x1F) - 24);
+                    var scale = rgb9e5Scales[(int)(v >> 27) & 0x1F];
                     destination[o] = FloatToByte((v & 0x1FF) * scale);
                     destination[o + 1] = FloatToByte((v >> 9 & 0x1FF) * scale);
                     destination[o + 2] = FloatToByte((v >> 18 & 0x1FF) * scale);

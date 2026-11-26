@@ -70,7 +70,8 @@ public sealed class ModOnlineServiceTests : IDisposable
         var saved = (await _repository.GetByIdAsync(_original.Id))!;
         Assert.Equal("2.0", saved.Version);
         Assert.Equal(_file.Id, saved.PlatformLink!.InstalledFileVersionId);
-        Assert.Equal(_original.Name, saved.Name);
+        // 无清单包采用回退名（update.zip → "update"），名称同步会覆盖原自动名。
+        Assert.Equal("update", saved.Name);
         Assert.Equal(_original.Author, saved.Author);
         Assert.Equal(_original.Tags, saved.Tags);
         Assert.Equal(_original.ImportedAt, saved.ImportedAt.ToUniversalTime());

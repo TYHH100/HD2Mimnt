@@ -20,7 +20,7 @@ Echelon 明确传入的 `ModsPath` 优先。未传入时先读取 `locations.jso
 
 ## 调用接口
 
-类型位于 `HD2Mimnt.Core.Migration`，读取器接口为 `IExternalManagerReader`，写入器接口为 `IExternalManagerWriter`，业务入口位于 Application 层。
+类型位于 `HD2Mimnt.Core.Migration`，读取器/写入器接口 `IExternalManagerReader`/`IExternalManagerWriter` 位于 `HD2Mimnt.Core.Interfaces`，业务入口位于 Application 层。
 
 ```csharp
 var source = new ExternalMigrationSource(

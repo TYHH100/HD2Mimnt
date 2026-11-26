@@ -52,7 +52,7 @@ public sealed class StorageSettingsService
                 StartupMessage = await Task.Run(() => new StorageMigration(_store).ApplyAsync(cancellationToken), cancellationToken);
             else if (_store.State.MigrationId != null || _store.State.CleanupFiles.Count > 0)
                 // 只重试已提交迁移的清理，不搬目录，也不触发迁移界面。
-                StartupMessage = await Task.Run(() => new StorageMigration(_store).CleanupCommittedAsync(), cancellationToken);
+                StartupMessage = await Task.Run(() => new StorageMigration(_store).CleanupCommittedAsync(cancellationToken), cancellationToken);
         }
         finally { _gate.Release(); }
     }

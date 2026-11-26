@@ -1,4 +1,5 @@
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Enums;
 
@@ -61,5 +62,47 @@ internal static class CliResolve
     {
         var width = rows.Length == 0 ? 0 : rows.Max(row => row.Left.Length);
         return string.Join("\n", rows.Select(row => $"  {row.Left.PadRight(width)}  {row.Right}"));
+    }
+
+    /// <summary>TaskService/Worker 的 TaskProgress 同步桥到 CLI 进度会话（同步回调避免线程池排队乱序）。</summary>
+    public static IProgress<TaskProgress> TaskProgressBridge(CliCommandSession session)
+        => new TaskProgressBridgeImpl(session);
+
+    /// <summary>同步部署进度桥：DeploymentProgress 聚合为阶段 + 百分比 + 当前模组。</summary>
+    public static IProgress<DeploymentProgress> DeploymentProgressBridge(CliCommandSession session)
+        => new DeploymentProgressBridgeImpl(session);
+
+    /// <summary>同步导入进度桥：ModImportProgress（百分比/步骤/明细）映射为 CLI 进度事件。</summary>
+    public static IProgress<ModImportProgress> ImportProgressBridge(CliCommandSession session)
+        => new ImportProgressBridgeImpl(session);
+
+    /// <summary>长任务 --async 的宿主守卫：无 TaskService 的宿主（旧 headless）明确报错而不是静默退化。</summary>
+    public static TaskService RequireTaskService(CliCommandContext context)
+        => context.GetOrDefault<TaskService>()
+           ?? throw new InvalidOperationException("--async 需要 Agent/UI 宿主提供任务中心；当前宿主不支持后台任务。");
+
+    private sealed class TaskProgressBridgeImpl(CliCommandSession session) : IProgress<TaskProgress>
+    {
+        public void Report(TaskProgress value)
+            => session.Progress.Report(new CliProgressEvent(
+                value.Stage, value.Progress, value.CurrentItem, value.Message));
+    }
+
+    private sealed class DeploymentProgressBridgeImpl(CliCommandSession session) : IProgress<DeploymentProgress>
+    {
+        public void Report(DeploymentProgress value)
+        {
+            double? percent = value.TotalMods > 0 ? value.CompletedMods * 100.0 / value.TotalMods : null;
+            session.Progress.Report(new CliProgressEvent(
+                value.Stage, percent,
+                value.CurrentMod is { } current ? $"{current} ({value.CurrentModFiles}/{value.CurrentModTotalFiles})" : null,
+                value.Message));
+        }
+    }
+
+    private sealed class ImportProgressBridgeImpl(CliCommandSession session) : IProgress<ModImportProgress>
+    {
+        public void Report(ModImportProgress value)
+            => session.Progress.Report(new CliProgressEvent(value.Step, value.Percentage, value.Detail, value.Detail));
     }
 }

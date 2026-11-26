@@ -83,9 +83,9 @@ public class ExternalToolRepository : IExternalToolRepository
             SELECT * FROM ExternalTools
             WHERE IsEnabled = 1
             AND SupportedExtensions IS NOT NULL
-            AND SupportedExtensions LIKE @Extension
+            AND SupportedExtensions LIKE @Extension ESCAPE '\'
             ORDER BY DisplayOrder, Name";
-        command.Parameters.AddWithValue("@Extension", $"%{extension}%");
+        command.Parameters.AddWithValue("@Extension", $"%{EscapeLikePattern(extension)}%");
 
         var tools = new List<ExternalTool>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -161,6 +161,12 @@ public class ExternalToolRepository : IExternalToolRepository
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    /// <summary>转义 LIKE 通配符：文件名里的 % 与 _ 按字面匹配，防止匹配范围被放大。</summary>
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+             .Replace("%", "\\%", StringComparison.Ordinal)
+             .Replace("_", "\\_", StringComparison.Ordinal);
 
     private static ExternalTool MapToExternalTool(SqliteDataReader reader)
     {

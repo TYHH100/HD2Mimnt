@@ -873,14 +873,17 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             if (data is null)
                 continue;
 
+            // 同一 Unit 主资源只做一次 ID 扫描（上限 32MB 逐字节），两处 fallback 集合共用结果
+            var matchedMaterialIds = ScanResourceIds(data, materialIds);
+
             var fallbackTextures = new HashSet<ulong>();
-            foreach (var materialId in ScanResourceIds(data, materialIds))
+            foreach (var materialId in matchedMaterialIds)
             {
                 foreach (var textureId in materialTextures[materialId].TextureIds)
                     fallbackTextures.Add(textureId);
             }
 
-            var fallbackColorTextureIds = ScanResourceIds(data, materialIds)
+            var fallbackColorTextureIds = matchedMaterialIds
                 .Select(materialId => materialTextures[materialId].ColorTextureId)
                 .Where(static textureId => textureId.HasValue)
                 .Select(static textureId => textureId!.Value)
@@ -1588,10 +1591,20 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         if (data.Length < sizeof(ulong) || ids.Count == 0)
             return [];
 
+        // 16 位低位前筛表：绝大多数偏移不可能是候选 ID（首个 16 位就对不上），
+        // 只有前筛命中才读完整 8 字节并查哈希集合。扫描仍逐字节步进，
+        // 未对齐引用不会被跳过，语义与直接全量扫描一致。
+        var prefilter = new bool[65536];
+        foreach (var id in ids)
+            prefilter[(ushort)id] = true;
+
         var matches = new HashSet<ulong>();
-        for (var offset = 0; offset <= data.Length - sizeof(ulong); offset++)
+        var span = data;
+        for (var offset = 0; offset <= span.Length - sizeof(ulong); offset++)
         {
-            var value = BinaryPrimitives.ReadUInt64LittleEndian(data.AsSpan(offset, sizeof(ulong)));
+            if (!prefilter[span[offset] | (span[offset + 1] << 8)])
+                continue;
+            var value = BinaryPrimitives.ReadUInt64LittleEndian(span.AsSpan(offset, sizeof(ulong)));
             if (ids.Contains(value))
                 matches.Add(value);
         }

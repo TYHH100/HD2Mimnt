@@ -36,7 +36,8 @@ public sealed class SameGuidImportUpdateTests : IDisposable
 
         Assert.Equal(first, second);
         var updated = (await _mods.GetModByIdAsync(first))!;
-        Assert.Equal("2", updated.Version);
+        // 本地模组版本由管理器递增维护，不再直接采用新包 manifest 版本。
+        Assert.Equal("1.1.0", updated.Version);
         Assert.Equal("content-2", await File.ReadAllTextAsync(Path.Combine(updated.Path, Patch)));
         Assert.False(Directory.Exists(original.Path));
         Assert.Single(await _repository.GetAllAsync());
@@ -84,7 +85,7 @@ public sealed class SameGuidImportUpdateTests : IDisposable
         Assert.Equal("1", saved.Content.Version);
         Assert.Equal(original.Path, saved.Content.Path);
         Assert.True(Directory.Exists(saved.Content.Path));
-        Assert.Equal("2", (await _mods.GetModByIdAsync(id))!.Version);
+        Assert.Equal("1.1.0", (await _mods.GetModByIdAsync(id))!.Version);
     }
 
     private string CreateArchive(string version)

@@ -9,7 +9,9 @@ public sealed record AppUpdateInfo(
     string ReleaseUrl,
     string? AssetUrl,
     string? AssetName,
-    DateTimeOffset? PublishedAt);
+    DateTimeOffset? PublishedAt,
+    /// <summary>安装包的 GitHub 资产摘要（"sha256:&lt;hex&gt;"）；缺失时下载不做完整性校验。</summary>
+    string? AssetDigest = null);
 
 /// <summary>一次应用更新检查的结果；<see cref="HasUpdate"/> 为 true 时 <see cref="Info"/> 非空。</summary>
 public sealed record AppUpdateCheckResult(bool HasUpdate, string CurrentVersion, AppUpdateInfo? Info);
@@ -22,11 +24,14 @@ public sealed record AppUpdateStaging(
     string InstallerScriptPath);
 
 /// <summary>
-/// 读取应用自身最新发布版本（GitHub Release）的客户端；实现位于 Infrastructure，
+/// 读取应用自身最新发布版本（GitHub Release 或其镜像）的客户端；实现位于 Infrastructure，
 /// 接口放 Core 供 Application 服务编排。
 /// </summary>
 public interface IAppUpdateReleaseClient
 {
+    /// <summary>渠道标识（与设置 Updates.Channel 的取值一致，见 <see cref="AppUpdateChannels"/>）。</summary>
+    string Channel { get; }
+
     Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default);
 }
 
@@ -38,8 +43,12 @@ public sealed record AppUpdateRelease(
     DateTimeOffset? PublishedAt,
     IReadOnlyList<AppUpdateReleaseAsset> Assets);
 
-/// <summary>Release 附带的一个可下载资产。</summary>
-public sealed record AppUpdateReleaseAsset(string Name, string DownloadUrl);
+/// <summary>
+/// Release 附带的一个可下载资产。<see cref="Digest"/> 是 GitHub 服务端计算的资产摘要
+/// （"sha256:&lt;hex&gt;"，2024-04 起提供），与安装包 CDN 分属不同主机，可作为下载通道的
+/// 完整性锚点；旧版本资产可能没有该字段。
+/// </summary>
+public sealed record AppUpdateReleaseAsset(string Name, string DownloadUrl, string? Digest = null);
 
 /// <summary>
 /// 应用自更新：检查新版本、下载解包到暂存区并生成安装脚本；
