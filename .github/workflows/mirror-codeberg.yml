@@ -44,6 +44,20 @@ jobs:
 
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Clone GitHub mirror
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" \
+            | base64 -w0)
+
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" \
+            clone --mirror \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            mirror.git
+
       - name: Push mirror to Codeberg
         env:
           SSH_KEY: ~/.ssh/codeberg_mirror
@@ -60,20 +74,6 @@ jobs:
           git -C mirror.git push --mirror \
             "ssh://git@codeberg.org/${CODEBERG_OWNER}/${CODEBERG_REPO}.git"
 
-
-      - name: Push mirror to Codeberg
-        env:
-          SSH_KEY: ~/.ssh/codeberg_mirror
-        run: |
-          set -euo pipefail
-
-          export GIT_SSH_COMMAND="ssh \
-            -i $SSH_KEY \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes"
-
-          git -C mirror.git push --mirror \
-            "ssh://git@codeberg.org/${GITHUB_REPOSITORY}.git"
 
       - name: Summary
         if: always()
