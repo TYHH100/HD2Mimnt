@@ -45,14 +45,14 @@ jobs:
           --self-contained false
           -p:Version=$env:VERSION
 
-      # 布局回归防护：四个入口文件必须齐全且不包含 deps.json；根目录只允许入口 dll 与原生库，
+      # 布局回归防护：五个入口文件必须齐全且不包含 deps.json；根目录只允许入口 dll 与原生库，
       # 托管依赖必须已进 lib/，原生库不能被误收进 lib/（没有 deps.json 后 DllImport 只在应用目录查找）。
       # 没有 deps 清单可查原生库，改用反射区分：能读出 AssemblyName 的是托管程序集。
       - name: Verify publish layout
         shell: pwsh
         run: |
           $publishDir = 'src/HD2Mimnt.UI/bin/Release/net10.0/win-x64/publish'
-          $entries = 'HD2Mimnt.UI', 'HD2Mimnt.Cli', 'HD2Mimnt.PluginHost', 'HD2Mimnt.Worker'
+          $entries = 'HD2Mimnt.UI', 'HD2Mimnt.Agent', 'HD2Mimnt.Cli', 'HD2Mimnt.PluginHost', 'HD2Mimnt.Worker'
           foreach ($name in $entries) {
             foreach ($ext in '.exe', '.dll', '.runtimeconfig.json') {
               if (-not (Test-Path (Join-Path $publishDir "$name$ext"))) {
