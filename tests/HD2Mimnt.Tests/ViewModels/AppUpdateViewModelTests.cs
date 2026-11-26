@@ -1,4 +1,5 @@
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Infrastructure.Data;
@@ -23,6 +24,24 @@ public sealed class AppUpdateViewModelTests : IDisposable
 
         Assert.True(viewModel.AutoCheckOnStartup);
         Assert.False(new SettingsService(_root).GetSetting(SettingKeys.UpdatesCheckOnStartup, false));
+    }
+
+    [Fact]
+    public async Task Channel_DefaultsToGitHub_AndPersistsSelection()
+    {
+        var (viewModel, _) = await CreateAsync(ConfirmationChoice.Cancel);
+
+        Assert.Equal(AppUpdateChannels.GitHub, viewModel.Channel);
+
+        viewModel.Channel = AppUpdateChannels.Codeberg;
+
+        var persisted = string.Empty;
+        for (var i = 0; i < 50 && persisted != AppUpdateChannels.Codeberg; i++)
+        {
+            await Task.Delay(40);
+            persisted = new SettingsService(_root).GetSetting(SettingKeys.UpdatesChannel, string.Empty);
+        }
+        Assert.Equal(AppUpdateChannels.Codeberg, persisted);
     }
 
     [Fact]

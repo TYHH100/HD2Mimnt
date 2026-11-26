@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 
@@ -72,6 +73,62 @@ public sealed class AppUpdateServiceTests : IDisposable
     {
         var service = CreateService(release: null);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CheckAsync());
+    }
+
+    [Fact]
+    public async Task CheckAsync_FallsBackToSecondaryChannel_WhenPrimaryFails()
+    {
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(null, AppUpdateChannels.GitHub, new HttpRequestException("gh 不可用")),
+            fallback: new FakeReleaseClient(CreateRelease("V99.0.0", CreateAsset("V99.0.0")),
+                AppUpdateChannels.Codeberg));
+
+        var result = await service.CheckAsync();
+
+        Assert.True(result.HasUpdate);
+        Assert.Equal("99.0.0", result.Info!.Version);
+    }
+
+    [Fact]
+    public async Task CheckAsync_UsesConfiguredChannelFirst()
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.UpdatesChannel, AppUpdateChannels.Codeberg);
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(CreateRelease("V1.0.0", CreateAsset("V1.0.0")),
+                AppUpdateChannels.GitHub),
+            fallback: new FakeReleaseClient(CreateRelease("V99.0.0", CreateAsset("V99.0.0")),
+                AppUpdateChannels.Codeberg),
+            settings: settings);
+
+        var result = await service.CheckAsync();
+
+        Assert.Equal("99.0.0", result.Info!.Version);
+    }
+
+    [Fact]
+    public async Task CheckAsync_EmptyReleaseUrl_FallsBackToChannelReleasePage()
+    {
+        var release = new AppUpdateRelease("V99.0.0", "body", string.Empty, null, [CreateAsset("V99.0.0")]);
+        var service = CreateService(release: null,
+            fallback: new FakeReleaseClient(release, AppUpdateChannels.Codeberg));
+
+        var result = await service.CheckAsync();
+
+        Assert.Equal(AppUpdateConstants.CodebergReleasePageUrl, result.Info!.ReleaseUrl);
+    }
+
+    [Fact]
+    public async Task CheckAsync_AllChannelsFail_ReportsEveryChannel()
+    {
+        var service = CreateService(release: null,
+            primary: new FakeReleaseClient(null, AppUpdateChannels.GitHub, new HttpRequestException("gh")),
+            fallback: new FakeReleaseClient(null, AppUpdateChannels.Codeberg, new HttpRequestException("cb")));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CheckAsync());
+
+        Assert.Contains(AppUpdateChannels.GitHub, error.Message);
+        Assert.Contains(AppUpdateChannels.Codeberg, error.Message);
     }
 
     [Fact]
@@ -190,16 +247,19 @@ public sealed class AppUpdateServiceTests : IDisposable
     }
 
     private AppUpdateService CreateService(AppUpdateRelease? release, byte[]? downloadBytes = null,
-        int? pid = null, string? installDirectory = null, FakeDownloadService? downloader = null)
+        int? pid = null, string? installDirectory = null, FakeDownloadService? downloader = null,
+        FakeReleaseClient? primary = null, FakeReleaseClient? fallback = null, SettingsService? settings = null)
     {
         downloadBytes ??= CreateZipBytes(("HD2Mimnt.UI.exe", "payload"), ("Assets/extra.dll", "extra"));
         downloader ??= new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes));
         return new AppUpdateService(
-            new FakeReleaseClient(release),
+            primary ?? new FakeReleaseClient(release),
             downloader,
             stagingRootOverride: _stagingRoot,
             currentProcessId: pid,
-            installDirectoryOverride: installDirectory ?? _installDirectory);
+            installDirectoryOverride: installDirectory ?? _installDirectory,
+            fallbackReleaseClient: fallback,
+            settings: settings);
     }
 
     private static AppUpdateInfo CreateUpdate(string version) => new(
@@ -234,10 +294,13 @@ public sealed class AppUpdateServiceTests : IDisposable
 
     private static string ScriptSingleQuoted(string value) => "'" + value.Replace("'", "''") + "'";
 
-    private sealed class FakeReleaseClient(AppUpdateRelease? release) : IAppUpdateReleaseClient
+    private sealed class FakeReleaseClient(AppUpdateRelease? release, string channel = AppUpdateChannels.GitHub,
+        Exception? failure = null) : IAppUpdateReleaseClient
     {
+        public string Channel => channel;
+
         public Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(release);
+            => failure is null ? Task.FromResult(release) : Task.FromException<AppUpdateRelease?>(failure);
     }
 
     private sealed class FakeDownloadService(Func<Uri, string, Task> onDownload) : IHttpDownloadService

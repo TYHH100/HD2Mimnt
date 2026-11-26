@@ -376,6 +376,8 @@ public static class SettingKeys
 
     // 应用更新：启动自动检查默认关闭，手动检查更新按钮始终可用。
     public const string UpdatesCheckOnStartup = "Updates.CheckOnStartup";
+    // 首选更新渠道（GitHub/Codeberg，见 AppUpdateChannels）；不可用时自动改用另一渠道。
+    public const string UpdatesChannel = "Updates.Channel";
 
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";

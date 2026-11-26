@@ -1,0 +1,96 @@
+using System.Text.Json;
+using HD2Mimnt.Core.Interfaces;
+
+namespace HD2Mimnt.Infrastructure.Updates;
+
+/// <summary>
+/// 从 GitHub/Gitea 兼容的 Release API 读取最新发布版本的公共实现：
+/// 结果缓存 15 分钟并尊重限流 Retry-After，避免启动检查耗尽匿名配额。
+/// 子类只提供渠道标识、端点与 Accept 头。
+/// </summary>
+public abstract class ReleaseFeedAppUpdateClient(
+    HttpClient http,
+    string channel,
+    string latestReleaseUrl,
+    string? acceptMediaType = null,
+    TimeProvider? time = null) : IAppUpdateReleaseClient
+{
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
+
+    private readonly HttpClient _http = http;
+    private readonly string _latestReleaseUrl = latestReleaseUrl;
+    private readonly string? _acceptMediaType = acceptMediaType;
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private (AppUpdateRelease? Release, DateTimeOffset Expires) _cache;
+    private DateTimeOffset _retryAfter;
+
+    public string Channel { get; } = channel;
+
+    public async Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_cache.Release is { } cached && _time.GetUtcNow() < _cache.Expires) return cached;
+            if (_time.GetUtcNow() < _retryAfter) return _cache.Release;
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, _latestReleaseUrl);
+            request.Headers.UserAgent.ParseAdd("HD2Mimnt-ModManager");
+            if (_acceptMediaType is not null) request.Headers.Accept.ParseAdd(_acceptMediaType);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                var until = response.Headers.RetryAfter?.Date ?? _time.GetUtcNow() +
+                    (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(5));
+                if (until > _retryAfter) _retryAfter = until;
+            }
+            response.EnsureSuccessStatusCode();
+
+            var release = Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            _cache = (release, _time.GetUtcNow().Add(CacheDuration));
+            return release;
+        }
+        finally { _gate.Release(); }
+    }
+
+    internal static AppUpdateRelease? Parse(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("tag_name", out var tag) ||
+            tag.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var assets = new List<AppUpdateReleaseAsset>();
+        if (root.TryGetProperty("assets", out var assetArray) && assetArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var asset in assetArray.EnumerateArray())
+            {
+                if (asset.ValueKind != JsonValueKind.Object ||
+                    !asset.TryGetProperty("name", out var name) || name.ValueKind != JsonValueKind.String ||
+                    !asset.TryGetProperty("browser_download_url", out var url) || url.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+                // digest 由 GitHub 服务端计算（"sha256:<hex>"），Codeberg 镜像与旧资产可能缺失
+                string? digest = null;
+                if (asset.TryGetProperty("digest", out var digestProperty) && digestProperty.ValueKind == JsonValueKind.String)
+                {
+                    digest = digestProperty.GetString();
+                }
+                assets.Add(new AppUpdateReleaseAsset(name.GetString()!, url.GetString()!, digest));
+            }
+        }
+
+        return new AppUpdateRelease(
+            tag.GetString()!,
+            root.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String ? body.GetString() ?? string.Empty : string.Empty,
+            root.TryGetProperty("html_url", out var htmlUrl) && htmlUrl.ValueKind == JsonValueKind.String ? htmlUrl.GetString() ?? string.Empty : string.Empty,
+            root.TryGetProperty("published_at", out var publishedAt) && publishedAt.ValueKind == JsonValueKind.String &&
+                DateTimeOffset.TryParse(publishedAt.GetString(), out var published) ? published : null,
+            assets);
+    }
+}

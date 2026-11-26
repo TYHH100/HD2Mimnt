@@ -669,6 +669,12 @@
   <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
     <value>Check for updates on startup</value>
   </data>
+  <data name="Updates.Channel" xml:space="preserve">
+    <value>Update channel</value>
+  </data>
+  <data name="Updates.ChannelHelp" xml:space="preserve">
+    <value>If the preferred channel is unavailable, the other one is tried automatically. Codeberg is a mirror of the GitHub releases.</value>
+  </data>
   <data name="Updates.UpToDate" xml:space="preserve">
     <value>You're on the latest version.</value>
   </data>

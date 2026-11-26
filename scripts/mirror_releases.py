@@ -261,7 +261,11 @@ def delete_asset(release_id, asset_id):
         f"/releases/{release_id}/assets/{asset_id}"
     )
 
-    return get_all(url, CB_HEADERS, page_size_param="limit")
+    request(
+        "DELETE",
+        url,
+        headers=CB_HEADERS
+    )
 
 
 def upload_asset(release_id, source_asset, filepath):

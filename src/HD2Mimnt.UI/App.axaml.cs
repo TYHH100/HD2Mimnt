@@ -876,15 +876,16 @@ public partial class App : Avalonia.Application
 
         // 应用自更新：检查/下载/安装编排 + "关于"页视图模型
         services.AddKeyedSingleton<System.Net.Http.HttpClient>("app-update", (_, _) => new System.Net.Http.HttpClient());
-        services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(sp =>
-            new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
-                sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")));
         services.AddSingleton<HD2Mimnt.Core.Interfaces.IAppUpdateService>(sp =>
             new HD2Mimnt.Application.Services.AppUpdateService(
-                sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IAppUpdateReleaseClient>(),
+                new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
+                    sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")),
                 sp.GetRequiredService<IHttpDownloadService>(),
                 sp.GetRequiredService<StorageSettingsService>(),
-                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>()));
+                logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>(),
+                fallbackReleaseClient: new HD2Mimnt.Infrastructure.Updates.CodebergAppUpdateClient(
+                    sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")),
+                settings: sp.GetRequiredService<SettingsService>()));
         services.AddSingleton<AppUpdateViewModel>();
 
         services.AddTransient(sp => new MainWindowViewModel(

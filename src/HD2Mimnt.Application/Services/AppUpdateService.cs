@@ -16,11 +16,12 @@ public static class AppUpdateConstants
     public const string MainExecutableName = "HD2Mimnt.UI.exe";
     public const string AssetNameTemplate = "HD2Mimnt-{0}-win-x64.zip";
     public const string ReleasePageUrl = "https://github.com/TYHH100/HD2Mimnt/releases/latest";
+    public const string CodebergReleasePageUrl = "https://codeberg.org/TYHH10/HD2Mimnt/releases";
 }
 
 /// <summary>
-/// 应用自更新编排：检查 GitHub Release 新版本，把安装包下载解包到暂存目录并生成
-/// PowerShell 安装脚本；脚本在应用退出后覆盖安装目录并重启。安装目录不可写时提前失败。
+/// 应用自更新编排：检查 GitHub Release（或 Codeberg 镜像）新版本，把安装包下载解包到暂存目录
+/// 并生成 PowerShell 安装脚本；脚本在应用退出后覆盖安装目录并重启。安装目录不可写时提前失败。
 /// </summary>
 public sealed class AppUpdateService(
     IAppUpdateReleaseClient releaseClient,
@@ -29,23 +30,26 @@ public sealed class AppUpdateService(
     string? stagingRootOverride = null,
     int? currentProcessId = null,
     string? installDirectoryOverride = null,
-    ILogger<AppUpdateService>? logger = null) : IAppUpdateService
+    ILogger<AppUpdateService>? logger = null,
+    IAppUpdateReleaseClient? fallbackReleaseClient = null,
+    SettingsService? settings = null) : IAppUpdateService
 {
     private static readonly string InstallerScriptFileName = "apply-update.ps1";
     private static readonly string InstallerArchiveFileName = "update.zip";
     private static readonly string StagedDirectoryName = "staged";
 
     private readonly IAppUpdateReleaseClient _releaseClient = releaseClient;
+    private readonly IAppUpdateReleaseClient? _fallbackReleaseClient = fallbackReleaseClient;
     private readonly IHttpDownloadService _downloader = downloader;
     private readonly StorageSettingsService? _storageSettings = storageSettings;
     private readonly string? _stagingRootOverride = stagingRootOverride;
     private readonly int? _currentProcessId = currentProcessId ?? Environment.ProcessId;
     private readonly string? _installDirectoryOverride = installDirectoryOverride;
+    private readonly SettingsService? _settings = settings;
 
     public async Task<AppUpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
     {
-        var release = await _releaseClient.GetLatestReleaseAsync(cancellationToken)
-            ?? throw new InvalidOperationException("GitHub 未返回可用的最新版本信息。");
+        var (release, channel) = await GetLatestReleaseAsync(cancellationToken);
         var candidateVersion = AppUpdateVersion.TryParse(release.TagName, out var parsed)
             ? AppUpdateVersion.Format(parsed)
             : release.TagName.TrimStart('V', 'v');
@@ -53,10 +57,58 @@ public sealed class AppUpdateService(
 
         var asset = FindInstallerAsset(release, candidateVersion);
         var info = new AppUpdateInfo(candidateVersion, release.Body, string.IsNullOrEmpty(release.HtmlUrl)
-            ? AppUpdateConstants.ReleasePageUrl : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt,
+            ? ReleasePageUrlFor(channel) : release.HtmlUrl, asset?.DownloadUrl, asset?.Name, release.PublishedAt,
             asset?.Digest);
         return new AppUpdateCheckResult(AppUpdateVersion.IsNewer(currentVersion, candidateVersion), currentVersion, info);
     }
+
+    /// <summary>按设置把首选渠道排在前面，其余渠道作为网络失败时的回退。</summary>
+    private IReadOnlyList<IAppUpdateReleaseClient> ResolveChannelOrder()
+    {
+        var preferred = AppUpdateChannels.Normalize(
+            _settings?.GetSetting(SettingKeys.UpdatesChannel, AppUpdateChannels.GitHub));
+        IReadOnlyList<IAppUpdateReleaseClient> clients = _fallbackReleaseClient is null
+            ? [_releaseClient]
+            : [_releaseClient, _fallbackReleaseClient];
+        return clients.OrderBy(client =>
+            string.Equals(client.Channel, preferred, StringComparison.OrdinalIgnoreCase) ? 0 : 1).ToArray();
+    }
+
+    private async Task<(AppUpdateRelease Release, string Channel)> GetLatestReleaseAsync(
+        CancellationToken cancellationToken)
+    {
+        var clients = ResolveChannelOrder();
+        Exception? failure = null;
+        foreach (var client in clients)
+        {
+            try
+            {
+                if (await client.GetLatestReleaseAsync(cancellationToken) is { } release)
+                {
+                    return (release, client.Channel);
+                }
+                failure ??= new InvalidOperationException($"更新渠道 {client.Channel} 未返回可用的最新版本信息。");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception error)
+            {
+                failure = error;
+                logger?.LogWarning(error, "从 {Channel} 渠道检查更新失败，尝试下一个渠道。", client.Channel);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"更新渠道（{string.Join(" / ", clients.Select(client => client.Channel))}）均无法获取最新版本" +
+            (failure is null ? "。" : $"：{failure.Message}"), failure);
+    }
+
+    private static string ReleasePageUrlFor(string channel) =>
+        string.Equals(channel, AppUpdateChannels.Codeberg, StringComparison.OrdinalIgnoreCase)
+            ? AppUpdateConstants.CodebergReleasePageUrl
+            : AppUpdateConstants.ReleasePageUrl;
 
     public async Task<AppUpdateStaging> PrepareAsync(AppUpdateInfo update, IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)

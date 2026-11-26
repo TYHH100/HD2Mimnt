@@ -669,6 +669,12 @@
   <data name="Updates.AutoCheckOnStartup" xml:space="preserve">
     <value>啟動時檢查更新</value>
   </data>
+  <data name="Updates.Channel" xml:space="preserve">
+    <value>更新管道</value>
+  </data>
+  <data name="Updates.ChannelHelp" xml:space="preserve">
+    <value>偏好管道無法使用時，會自動改用另一個管道；Codeberg 是 GitHub 發佈頁的鏡像。</value>
+  </data>
   <data name="Updates.UpToDate" xml:space="preserve">
     <value>已是最新版本。</value>
   </data>

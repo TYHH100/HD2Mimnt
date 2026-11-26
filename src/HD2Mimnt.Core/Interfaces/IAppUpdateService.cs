@@ -24,11 +24,14 @@ public sealed record AppUpdateStaging(
     string InstallerScriptPath);
 
 /// <summary>
-/// 读取应用自身最新发布版本（GitHub Release）的客户端；实现位于 Infrastructure，
+/// 读取应用自身最新发布版本（GitHub Release 或其镜像）的客户端；实现位于 Infrastructure，
 /// 接口放 Core 供 Application 服务编排。
 /// </summary>
 public interface IAppUpdateReleaseClient
 {
+    /// <summary>渠道标识（与设置 Updates.Channel 的取值一致，见 <see cref="AppUpdateChannels"/>）。</summary>
+    string Channel { get; }
+
     Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default);
 }
 

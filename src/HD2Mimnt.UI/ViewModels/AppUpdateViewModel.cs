@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HD2Mimnt.Application.Services;
+using HD2Mimnt.Core;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.UI.Localization;
@@ -9,7 +10,7 @@ using HD2Mimnt.UI.Services;
 namespace HD2Mimnt.UI.ViewModels;
 
 /// <summary>
-/// 应用自更新（"关于"页）：检查 GitHub Release 新版本、下载安装包并自动重启安装。
+/// 应用自更新（"关于"页）：检查 GitHub Release（或 Codeberg 镜像）新版本、下载安装包并自动重启安装。
 /// 检查/下载入口都来自 UI 命令或主窗口初始化，属性更新始终回到 UI 线程上下文。
 /// </summary>
 public partial class AppUpdateViewModel : ObservableObject
@@ -23,6 +24,7 @@ public partial class AppUpdateViewModel : ObservableObject
     private CancellationTokenSource? _operation;
     // 绑定初始化可能回写控件默认值；只持久化用户真正改变的值，避免把默认值写进设置库。
     private bool _lastAutoCheckOnStartup;
+    private string _lastChannel;
 
     [ObservableProperty]
     private bool _isChecking;
@@ -63,6 +65,12 @@ public partial class AppUpdateViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoCheckOnStartup;
 
+    /// <summary>首选更新渠道；不可用时服务会自动改用另一个渠道。</summary>
+    [ObservableProperty]
+    private string _channel = AppUpdateChannels.GitHub;
+
+    public IReadOnlyList<string> ChannelOptions => AppUpdateChannels.All;
+
     /// <summary>检测到新版本（手动或启动检查），由主窗口订阅弹通知。</summary>
     public event Action? UpdateAvailableDetected;
 
@@ -83,6 +91,9 @@ public partial class AppUpdateViewModel : ObservableObject
         _settings = settings;
         _lastAutoCheckOnStartup = settings?.GetSetting(SettingKeys.UpdatesCheckOnStartup, true) == true;
         _autoCheckOnStartup = _lastAutoCheckOnStartup;
+        _lastChannel = AppUpdateChannels.Normalize(
+            settings?.GetSetting(SettingKeys.UpdatesChannel, AppUpdateChannels.GitHub));
+        _channel = _lastChannel;
     }
 
     partial void OnIsCheckingChanged(bool value) => OnPropertyChanged(nameof(IsBusy));
@@ -94,6 +105,20 @@ public partial class AppUpdateViewModel : ObservableObject
         if (_settings == null || value == _lastAutoCheckOnStartup) return;
         _lastAutoCheckOnStartup = value;
         _ = _settings.SetSettingAsync(SettingKeys.UpdatesCheckOnStartup, value);
+    }
+
+    partial void OnChannelChanged(string value)
+    {
+        if (value == _lastChannel) return;
+        _lastChannel = value;
+        // 旧渠道的检查结果不再可信，清掉状态让用户按新渠道重新检查。
+        HasUpdate = false;
+        IsUpToDate = false;
+        HasError = false;
+        ErrorDetail = null;
+        _currentInfo = null;
+        if (_settings == null) return;
+        _ = _settings.SetSettingAsync(SettingKeys.UpdatesChannel, value);
     }
 
     [RelayCommand]

@@ -513,6 +513,12 @@
               </StackPanel>
 
               <!-- 应用更新：手动检查始终可用，启动自动检查默认关闭 -->
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{loc:Loc Updates.Channel}" VerticalAlignment="Center" />
+                <ComboBox x:Name="UpdateChannelInput" ItemsSource="{Binding AppUpdate.ChannelOptions}"
+                          SelectedItem="{Binding AppUpdate.Channel, Mode=TwoWay}" Width="160" />
+              </StackPanel>
+              <TextBlock Text="{loc:Loc Updates.ChannelHelp}" Classes="muted" TextWrapping="Wrap" />
               <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding AppUpdate.HasUpdate, Converter={StaticResource InverseBoolConverter}}">
                 <Button Content="{loc:Loc Updates.CheckNow}" Classes="accent" Command="{Binding AppUpdate.CheckCommand}" IsEnabled="{Binding !AppUpdate.IsBusy}" />
                 <CheckBox Content="{loc:Loc Updates.AutoCheckOnStartup}" IsChecked="{Binding AppUpdate.AutoCheckOnStartup, Mode=TwoWay}" VerticalAlignment="Center" Margin="8,0,0,0" />

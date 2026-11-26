@@ -432,15 +432,16 @@ internal static class AgentHost
 
         // 应用自更新。
         services.AddKeyedSingleton<HttpClient>("app-update", (_, _) => new HttpClient());
-        services.AddSingleton<IAppUpdateReleaseClient>(sp =>
-            new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
-                sp.GetRequiredKeyedService<HttpClient>("app-update")));
         services.AddSingleton<IAppUpdateService>(sp =>
             new AppUpdateService(
-                sp.GetRequiredService<IAppUpdateReleaseClient>(),
+                new HD2Mimnt.Infrastructure.Updates.GitHubAppUpdateClient(
+                    sp.GetRequiredKeyedService<HttpClient>("app-update")),
                 sp.GetRequiredService<IHttpDownloadService>(),
                 sp.GetRequiredService<StorageSettingsService>(),
-                logger: sp.GetRequiredService<ILogger<AppUpdateService>>()));
+                logger: sp.GetRequiredService<ILogger<AppUpdateService>>(),
+                fallbackReleaseClient: new HD2Mimnt.Infrastructure.Updates.CodebergAppUpdateClient(
+                    sp.GetRequiredKeyedService<HttpClient>("app-update")),
+                settings: sp.GetRequiredService<SettingsService>()));
     }
 
     /// <summary>run-once：在容器内执行单条命令并返回退出码；进度直接写入控制台输出。</summary>
