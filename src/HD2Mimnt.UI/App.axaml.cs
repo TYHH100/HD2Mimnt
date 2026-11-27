@@ -631,6 +631,7 @@ public partial class App : Avalonia.Application
             taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
             taskService.RegisterProcessWorker("Hd2ClConversion");
+            taskService.RegisterProcessWorker("ModelToIasConversion");
             taskService.RegisterProcessWorker("MmdAdaptation");
             return taskService;
         });
@@ -864,10 +865,15 @@ public partial class App : Avalonia.Application
             new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
                 sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
                 sp.GetRequiredService<TaskService>()));
+        services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IModelToIasConversionService>(sp =>
+            new ModelToIasConversionService(sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
+                sp.GetRequiredService<TaskService>(), sp.GetRequiredService<StorageSettingsService>()));
         services.AddSingleton<HD2Mimnt.Core.Hd2IAS.IMmdAdaptationService>(sp =>
             new MmdAdaptationService(sp.GetRequiredService<ModService>(),
                 sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<TaskService>()));
         services.AddTransient<Hd2ClViewModel>();
+        services.AddTransient<ModelToIasViewModel>();
         services.AddTransient(sp => new MmdAdaptationViewModel(
             sp.GetRequiredService<HD2Mimnt.Core.Hd2IAS.IMmdAdaptationService>(),
             sp.GetRequiredService<NotificationService>(),
@@ -926,6 +932,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<HellForgeViewModel>(),
             sp.GetRequiredService<HellForgeSessionService>(),
             sp.GetRequiredService<Hd2ClViewModel>(),
+            sp.GetRequiredService<ModelToIasViewModel>(),
             sp.GetRequiredService<Hd2ClVariantPromptService>(),
             sp.GetRequiredService<MmdAdaptationViewModel>(),
             sp.GetRequiredService<MmdSourceInfoPromptService>(),

@@ -166,6 +166,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public ModBinarySearchViewModel? ModBinarySearchViewModel { get; }
     public IasSystemViewModel? IasSystemViewModel { get; }
     public Hd2ClViewModel? Hd2ClViewModel { get; }
+    public ModelToIasViewModel? ModelToIasViewModel { get; }
     public MmdAdaptationViewModel? MmdAdaptationViewModel { get; }
     public ManagerMigrationViewModel? ManagerMigrationViewModel { get; }
     public AppUpdateViewModel? AppUpdateViewModel { get; }
@@ -204,6 +205,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         HellForgeViewModel? hellForgeViewModel = null,
         HellForgeSessionService? hellForgeSessionService = null,
         Hd2ClViewModel? hd2ClViewModel = null,
+        ModelToIasViewModel? modelToIasViewModel = null,
         Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
         MmdAdaptationViewModel? mmdAdaptationViewModel = null,
         MmdSourceInfoPromptService? mmdSourceInfoPrompt = null,
@@ -213,6 +215,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _pluginService = pluginService;
         _pluginWebViewEnvironment = pluginWebViewEnvironment;
         Hd2ClViewModel = hd2ClViewModel;
+        ModelToIasViewModel = modelToIasViewModel;
         HellForgeViewModel = hellForgeViewModel;
         _hellForgeSessionService = hellForgeSessionService;
         if (hellForgeSessionService != null)
@@ -290,6 +293,16 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             ModBinarySearchViewModel.RefreshAfterProfileChangeAsync = refresh;
         }
         IasSystemViewModel = iasSystemViewModel;
+        if (ModelToIasViewModel != null)
+        {
+            async Task RefreshModelToIasResultAsync()
+            {
+                await _libraryViewModel.RefreshCommand.ExecuteAsync(null);
+                await _profileViewModel.RefreshAfterProfilesChangedAsync();
+            }
+            ModelToIasViewModel.ConversionCompleted += (_, _) =>
+                SafeAsync.FireAndForget(RefreshModelToIasResultAsync(), "刷新普通模型转 IAS 结果");
+        }
         AppUpdateViewModel = appUpdateViewModel;
         if (AppUpdateViewModel != null)
         {
@@ -330,6 +343,9 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsHd2ClVisible
                 && Hd2ClViewModel is { IsBusy: false } cl)
                 _ = cl.RefreshCommand.ExecuteAsync(null);
+            if (args.PropertyName == nameof(MoreViewModel.SelectedCategory) && MoreViewModel.IsModelToIasVisible
+                && ModelToIasViewModel is { IsBusy: false } converter)
+                _ = converter.RefreshCommand.ExecuteAsync(null);
         };
         async Task ImportArchiveAsync(string archive, CancellationToken token, ModPlatformLink? sourceLink = null)
         {

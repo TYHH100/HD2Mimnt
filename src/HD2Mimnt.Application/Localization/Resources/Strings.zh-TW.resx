@@ -564,6 +564,21 @@
   <data name="UI.Hd2ClTabMmd" xml:space="preserve">
     <value>MMD 資源包</value>
   </data>
+  <data name="UI.ModelToIasTitle" xml:space="preserve">
+    <value>普通模型轉 IAS</value>
+  </data>
+  <data name="UI.ModelToIasDescription" xml:space="preserve">
+    <value>把普通護甲／頭盔模型轉換為帶 IAS 公共骨架、私有 Unit 和局內差分選項的模組。轉換後請重新部署並重啟遊戲；來源普通模型會在目前設定中停用。</value>
+  </data>
+  <data name="UI.ModelToIasRefresh" xml:space="preserve">
+    <value>重新整理可轉換模型</value>
+  </data>
+  <data name="UI.ModelToIasConvert" xml:space="preserve">
+    <value>轉換為 IAS</value>
+  </data>
+  <data name="UI.ModelToIasLoading" xml:space="preserve">
+    <value>正在掃描普通模型…</value>
+  </data>
   <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
     <value>MMD 資源包適配</value>
   </data>

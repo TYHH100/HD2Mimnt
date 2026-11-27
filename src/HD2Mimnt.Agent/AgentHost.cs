@@ -316,6 +316,7 @@ internal static class AgentHost
             taskService.RegisterProcessWorker("HellForgeSync");
             taskService.RegisterProcessWorker("Import");
             taskService.RegisterProcessWorker("Hd2ClConversion");
+            taskService.RegisterProcessWorker("ModelToIasConversion");
             taskService.RegisterProcessWorker("MmdAdaptation");
             return taskService;
         });
@@ -428,6 +429,10 @@ internal static class AgentHost
             new Hd2ClConversionService(sp.GetRequiredService<ModService>(),
                 sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
                 sp.GetRequiredService<TaskService>()));
+        services.AddSingleton<IModelToIasConversionService>(sp =>
+            new ModelToIasConversionService(sp.GetRequiredService<ModService>(),
+                sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<SettingsService>(),
+                sp.GetRequiredService<TaskService>(), sp.GetRequiredService<StorageSettingsService>()));
         services.AddSingleton<IMmdAdaptationService>(sp =>
             new MmdAdaptationService(sp.GetRequiredService<ModService>(),
                 sp.GetRequiredService<ProfileService>(), sp.GetRequiredService<TaskService>()));

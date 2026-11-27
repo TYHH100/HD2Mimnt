@@ -746,6 +746,50 @@ public class ProfileService
         return rows;
     }
 
+    public async Task ReplaceModWithAsync(Guid profileId, Guid sourceModId, Guid replacementModId,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var profile = await _profileRepository.GetByIdAsync(profileId, cancellationToken)
+                ?? throw new InvalidOperationException($"Profile {profileId} not found");
+            var replacement = await _modRepository.GetByIdAsync(replacementModId, cancellationToken)
+                ?? throw new InvalidOperationException($"Mod {replacementModId} not found");
+            var changed = false;
+            var source = profile.Mods.FirstOrDefault(item => item.ModId == sourceModId);
+            if (source is not null && source.Enabled)
+            {
+                source.Enabled = false;
+                changed = true;
+            }
+            var target = profile.Mods.FirstOrDefault(item => item.ModId == replacementModId);
+            if (target is null)
+            {
+                target = new ProfileMod
+                {
+                    ProfileId = profileId,
+                    ModId = replacement.Id,
+                    Enabled = true,
+                    Order = profile.Mods.Any() ? profile.Mods.Max(item => item.Order) + 1 : 0
+                };
+                profile.Mods.Add(target);
+                changed = true;
+            }
+            else if (!target.Enabled)
+            {
+                target.Enabled = true;
+                changed = true;
+            }
+            changed |= await NormalizeBslAsync(profile, cancellationToken, [replacementModId]);
+            if (!changed) return;
+            profile.ModifiedAt = DateTime.UtcNow;
+            await _profileRepository.UpdateAsync(profile, cancellationToken);
+            RaiseProfilesChanged();
+        }
+        finally { _mutationGate.Release(); }
+    }
+
     public async Task SetModsEnabledAsync(
         Guid profileId,
         IReadOnlyCollection<Guid> modIds,

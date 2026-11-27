@@ -13,6 +13,7 @@ public sealed class IasGameData : IDisposable
     private const int MaxResourceBytes = 256 * 1024 * 1024;
     private readonly Dictionary<string, IasDsar> _dsars = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyDictionary<(ulong Type, ulong Id), IasArchiveRow>> _tables = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(ulong Type, ulong Id, string Scope), IReadOnlyList<string>> _resourceArchives = new();
     private byte[]? _packageIndex;
     private readonly Dictionary<string, IasPackageEntry> _packagesByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
@@ -53,6 +54,65 @@ public sealed class IasGameData : IDisposable
         var table = IasArchive.ReadRows(Read(archive, 0, size));
         _tables[archive] = table;
         return table;
+    }
+
+    public IReadOnlyList<string> FindResourceArchives(ulong type, ulong id,
+        IReadOnlyCollection<string>? candidates = null, CancellationToken cancellationToken = default)
+    {
+        var scope = candidates is null ? "*" : string.Join('\0', candidates.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase));
+        var key = (type, id, scope);
+        if (_resourceArchives.TryGetValue(key, out var cached)) return cached;
+        Index();
+        var matches = new List<string>();
+        var names = candidates is null
+            ? _packagesByName.Keys.Order(StringComparer.Ordinal)
+            : candidates.Distinct(StringComparer.OrdinalIgnoreCase).Where(_packagesByName.ContainsKey).Order(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var package = _packagesByName[name];
+            if (name.EndsWith(".gpu_resources", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".stream", StringComparison.OrdinalIgnoreCase)
+                || package.Total < IasArchive.HeaderSize) continue;
+            var header = Read(name, 0, IasArchive.HeaderSize);
+            if (BinaryPrimitives.ReadUInt32LittleEndian(header) != IasArchive.Magic) continue;
+            var typeCount = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
+            var count = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(8));
+            if (typeCount > 1024 || count > 100_000) continue;
+            var typeBytes = checked((int)typeCount * IasArchive.TypeRecordSize);
+            var types = Read(name, (ulong)IasArchive.HeaderSize, typeBytes);
+            var hasType = false;
+            for (var index = 0; index < typeCount; index++)
+            {
+                if (BinaryPrimitives.ReadUInt64LittleEndian(types.AsSpan(index * IasArchive.TypeRecordSize + 8)) == type)
+                {
+                    hasType = true;
+                    break;
+                }
+            }
+            if (!hasType) continue;
+            var rowsOffset = IasArchive.HeaderSize + typeBytes;
+            for (var first = 0; first < count; first += 2048)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var rows = (int)Math.Min(2048U, count - (uint)first);
+                var raw = Read(name, (ulong)(rowsOffset + first * IasArchive.RowSize), rows * IasArchive.RowSize);
+                for (var row = 0; row < rows; row++)
+                {
+                    var offset = row * IasArchive.RowSize;
+                    if (BinaryPrimitives.ReadUInt64LittleEndian(raw.AsSpan(offset)) == id
+                        && BinaryPrimitives.ReadUInt64LittleEndian(raw.AsSpan(offset + 8)) == type)
+                    {
+                        matches.Add(name);
+                        break;
+                    }
+                }
+                if (matches.Count > 0 && matches[^1] == name) break;
+            }
+        }
+        _resourceArchives[key] = matches;
+        return matches;
     }
 
     private byte[] ReadSegment(string archive, ulong offset, uint size)

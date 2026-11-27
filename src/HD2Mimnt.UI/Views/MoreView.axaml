@@ -144,6 +144,37 @@
           </TabControl>
         </StackPanel>
 
+        <StackPanel IsVisible="{Binding MoreViewModel.IsModelToIasVisible}" Classes="section" Spacing="12">
+          <TextBlock x:Name="ModelToIasTitle" Text="{loc:Loc UI.ModelToIasTitle}" Classes="section-title" />
+          <TextBlock Text="{loc:Loc UI.ModelToIasDescription}" Classes="muted" TextWrapping="Wrap" />
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <TextBlock Text="{Binding ModelToIasViewModel.Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <Button Grid.Column="1" Content="{loc:Loc UI.ModelToIasRefresh}" Classes="accent" Command="{Binding ModelToIasViewModel.RefreshCommand}" IsEnabled="{Binding !ModelToIasViewModel.IsBusy}" />
+                <Button Grid.Column="2" Content="{loc:Loc Common.Cancel}" Command="{Binding ModelToIasViewModel.CancelCommand}" IsVisible="{Binding ModelToIasViewModel.IsBusy}" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding ModelToIasViewModel.Candidates}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ModelToIasCandidateItem">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,8">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Path}" Classes="muted" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding UnitSummary}" Classes="caption-text" />
+                      </StackPanel>
+                      <Button Grid.Column="1" Content="{loc:Loc UI.ModelToIasConvert}" Classes="accent"
+                              Command="{Binding $parent[UserControl].((vm:MainWindowViewModel)DataContext).ModelToIasViewModel.ConvertCommand}"
+                              CommandParameter="{Binding}" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock IsVisible="{Binding ModelToIasViewModel.IsLoading}" Text="{loc:Loc UI.ModelToIasLoading}" Classes="muted" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
         <StackPanel IsVisible="{Binding MoreViewModel.IsDevToolsVisible}" Classes="section" Spacing="12">
           <TextBlock Text="{loc:Loc UI.DeveloperTools}" Classes="section-title" />
           <TextBlock Text="{loc:Loc UI.GenerateOrRemoveTestModDataForLocalValidation}" Classes="muted" />

@@ -564,6 +564,21 @@ This will delete the records, remove their profile references, and clean their t
   <data name="UI.Hd2ClTabMmd" xml:space="preserve">
     <value>MMD packs</value>
   </data>
+  <data name="UI.ModelToIasTitle" xml:space="preserve">
+    <value>Convert ordinary models to IAS</value>
+  </data>
+  <data name="UI.ModelToIasDescription" xml:space="preserve">
+    <value>Convert ordinary armor or helmet models into IAS mods with the public skeleton, private Units, and in-game variant selectors. Redeploy and restart the game afterward; the source model is disabled in the current profile.</value>
+  </data>
+  <data name="UI.ModelToIasRefresh" xml:space="preserve">
+    <value>Refresh candidates</value>
+  </data>
+  <data name="UI.ModelToIasConvert" xml:space="preserve">
+    <value>Convert to IAS</value>
+  </data>
+  <data name="UI.ModelToIasLoading" xml:space="preserve">
+    <value>Scanning ordinary models…</value>
+  </data>
   <data name="UI.Hd2ClMmdTitle" xml:space="preserve">
     <value>MMD pack adaptation</value>
   </data>

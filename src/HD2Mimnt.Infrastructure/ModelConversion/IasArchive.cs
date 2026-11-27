@@ -45,7 +45,8 @@ public static class IasArchive
     public const int RowSize = 80;
     public const ulong TypeRecordTail = 0x4000000010UL;
 
-    public static IReadOnlyDictionary<(ulong Type, ulong Id), IasArchiveRow> ReadRows(ReadOnlySpan<byte> toc)
+    public static IReadOnlyDictionary<(ulong Type, ulong Id), IasArchiveRow> ReadRows(ReadOnlySpan<byte> toc,
+        bool replaceDuplicates = false)
     {
         if (toc.Length < HeaderSize) throw new InvalidDataException("模型数据检查：archive header");
         var magic = BinaryPrimitives.ReadUInt32LittleEndian(toc);
@@ -74,16 +75,20 @@ public static class IasArchive
                 BinaryPrimitives.ReadUInt32LittleEndian(toc[(offset + 72)..]),
                 BinaryPrimitives.ReadUInt32LittleEndian(toc[(offset + 76)..]));
             if (!result.TryAdd((row.Type, row.Id), row))
-                throw new InvalidDataException("模型数据检查：duplicate archive identity");
+            {
+                if (!replaceDuplicates)
+                    throw new InvalidDataException("模型数据检查：duplicate archive identity");
+                result[(row.Type, row.Id)] = row;
+            }
         }
         return result;
     }
 
     public static IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> ReadEntries(
-        ReadOnlySpan<byte> toc, IasPayload gpu, IasPayload stream)
+        ReadOnlySpan<byte> toc, IasPayload gpu, IasPayload stream, bool replaceDuplicates = false)
     {
         var result = new Dictionary<(ulong, ulong), IasResource>();
-        foreach (var (key, row) in ReadRows(toc))
+        foreach (var (key, row) in ReadRows(toc, replaceDuplicates))
         {
             var tocData = Slice(toc, row.TocOffset, row.TocSize, "TOC", key);
             var gpuData = Slice(gpu, row.GpuOffset, row.GpuSize, ".gpu_resources", key);
