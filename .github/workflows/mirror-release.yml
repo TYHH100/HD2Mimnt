@@ -2,12 +2,11 @@
 name: Mirror Releases to Codeberg
 
 on:
-  release:
+  workflow_run:
+    workflows:
+      - Release
     types:
-      - published
-      - edited
-      - deleted
-      - unpublished
+      - completed
 
   schedule:
     - cron: "47 3 * * *"
@@ -24,6 +23,14 @@ concurrency:
 jobs:
   mirror:
     name: Release Mirror
+    if: >-
+      ${{
+        github.event_name != 'workflow_run' ||
+        (
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.conclusion == 'success'
+        )
+      }}
     runs-on: ubuntu-latest
 
     steps:
