@@ -271,22 +271,37 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
         List<ModOption> options, List<bool>? toggles)
     {
         if (options.Count < 2) return null;
-        var choices = new List<Hd2ClOptionChoice>(options.Count);
+        var choices = new List<Hd2ClOptionChoice>();
+        var colorOptions = new List<(int Index, ModOption Option, string Material)>();
         var materialDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var modelUseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var modelDirectories = new List<string>();
-        var defaultIndex = -1;
         for (var index = 0; index < options.Count; index++)
         {
             var option = options[index];
             if (option.Include is not { Count: > 0 } include) return null;
             var materials = include.Where(path => IsMaterialDirectory(modPath, path)).ToList();
-            if (materials.Count != 1 || !materialDirectories.Add(materials[0])) return null;
-            var models = include.Except(materials, StringComparer.OrdinalIgnoreCase).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (materials.Count > 1) return null;
+            var enabled = index < (toggles?.Count ?? 0) ? toggles![index] : option.DefaultEnabled ?? true;
+            if (materials.Count == 0)
+            {
+                if (enabled) modelDirectories.AddRange(include);
+                continue;
+            }
+            if (!materialDirectories.Add(materials[0])) return null;
+            colorOptions.Add((index, option, materials[0]));
+        }
+        if (colorOptions.Count < 2) return null;
+
+        var defaultIndex = -1;
+        foreach (var (index, option, material) in colorOptions)
+        {
+            var models = option.Include!.Except([material], StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (models.Count == 0) return null;
             foreach (var model in models)
                 modelUseCounts[model] = modelUseCounts.GetValueOrDefault(model) + 1;
-            choices.Add(new Hd2ClOptionChoice(option.Name, option.Image, materials[0]));
+            choices.Add(new Hd2ClOptionChoice(option.Name, option.Image, material));
             var enabled = index < (toggles?.Count ?? 0) ? toggles![index] : option.DefaultEnabled ?? true;
             if (!enabled) continue;
             defaultIndex = choices.Count - 1;

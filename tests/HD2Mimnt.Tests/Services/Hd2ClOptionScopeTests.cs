@@ -69,27 +69,34 @@ public class Hd2ClOptionScopeTests
         var root = CreateRoot();
         try
         {
-            Write(root, "模型/98da89d0d5132867.patch_0");
-            Write(root, "模型/01/98da89d0d5132867.patch_1");
-            Write(root, "模型/02/9102938b4b2aef9d.patch_1");
-            Write(root, "模型/03/98da89d0d5132867.patch_1");
+            Write(root, "components/0/HD2IndependentRig/5c7587f1808f45b595b7670a35f5cc6d.98da89d0d5132867.rigbin");
+            Write(root, "components/1/本体/98da89d0d5132867.patch_0");
+            Write(root, "components/1/配套/01/98da89d0d5132867.patch_1");
+            Write(root, "components/1/配套/02/9102938b4b2aef9d.patch_1");
+            Write(root, "components/1/配套/03/98da89d0d5132867.patch_1");
             var options = new List<ModOption>();
-            for (var index = 0; index < 7; index++)
+            string[] names = ["默认白蓝", "白红", "白紫", "白粉", "黑蓝", "黑红", "纯黑"];
+            for (var index = 0; index < names.Length; index++)
             {
-                var color = "配色/" + (index + 1);
+                var color = "components/1/配色/" + names[index];
                 Write(root, color + "/9ba626afa44a3aa3.patch_" + (40 + index));
                 options.Add(new ModOption
                 {
-                    Name = "配色" + (index + 1),
-                    Image = color + ".png",
-                    Include = ["模型", index < 4 ? "模型/01" : "模型/03", "模型/02", color]
+                    Name = names[index],
+                    Image = "components/1/封面/" + names[index] + ".png",
+                    Include = ["components/1/本体", index < 4 ? "components/1/配套/01" : "components/1/配套/03",
+                        "components/1/配套/02", color]
                 });
             }
             var mod = Mod(root, new ModManifest
             {
                 ManifestVersion = ManifestVersion.V1,
-                Name = "Milfy",
-                Options = options
+                Name = "FS-23",
+                Options = [new ModOption
+                {
+                    Name = "HD2IAS",
+                    Include = ["components/0/HD2IndependentRig"]
+                }, .. options]
             });
 
             var scope = Hd2ClConversionService.ResolveConversionScope(mod, null);
@@ -100,8 +107,9 @@ public class Hd2ClOptionScopeTests
             Assert.Equal(6, group.DefaultIndex);
             Assert.Equal(options.Select(option => option.Name), group.Choices.Select(choice => choice.Name));
             Assert.Equal(options.Select(option => option.Image), group.Choices.Select(choice => choice.Image));
-            Assert.Equal(["模型", "模型/01", "模型/02", "模型/03"], scope.Components);
-            Assert.DoesNotContain(scope.Components!, directory => directory.StartsWith("配色/", StringComparison.Ordinal));
+            Assert.Equal(["components/0/HD2IndependentRig", "components/1/本体", "components/1/配套/01",
+                "components/1/配套/02", "components/1/配套/03"], scope.Components);
+            Assert.DoesNotContain(scope.Components!, directory => directory.StartsWith("components/1/配色/", StringComparison.Ordinal));
         }
         finally
         {
@@ -115,26 +123,31 @@ public class Hd2ClOptionScopeTests
         var root = CreateRoot();
         try
         {
-            Write(root, "模型/98da89d0d5132867.patch_0");
-            Write(root, "模型/01/98da89d0d5132867.patch_1");
+            Write(root, "components/0/HD2IndependentRig/5c7587f1808f45b595b7670a35f5cc6d.98da89d0d5132867.rigbin");
+            Write(root, "components/1/本体/98da89d0d5132867.patch_0");
+            Write(root, "components/1/配套/01/98da89d0d5132867.patch_1");
             var options = new List<ModOption>();
             for (var index = 0; index < 3; index++)
             {
-                var color = "配色/" + (index + 1);
+                var color = "components/1/配色/" + (index + 1);
                 Write(root, color + "/9ba626afa44a3aa3.patch_" + (40 + index));
                 options.Add(new ModOption
                 {
                     Name = "配色" + (index + 1),
-                    Include = ["模型", "模型/01", color]
+                    Include = ["components/1/本体", "components/1/配套/01", color]
                 });
             }
             var manifest = new ModManifest
             {
                 ManifestVersion = ManifestVersion.V1,
                 Name = "配色模组",
-                Options = options
+                Options = [new ModOption
+                {
+                    Name = "HD2IAS",
+                    Include = ["components/0/HD2IndependentRig"]
+                }, .. options]
             };
-            var state = new ProfileModOptionsState { OptionToggles = [false, true, false] };
+            var state = new ProfileModOptionsState { OptionToggles = [true, false, true, false] };
 
             var scope = Hd2ClConversionService.ResolveConversionScope(Mod(root, manifest),
                 JsonSerializer.Serialize(state));
@@ -145,7 +158,7 @@ public class Hd2ClOptionScopeTests
 
             var group = Assert.Single(scope.OptionGroups!);
             Assert.Equal(1, group.DefaultIndex);
-            Assert.Equal(["模型", "模型/01"], scope.Components);
+            Assert.Equal(["components/0/HD2IndependentRig", "components/1/本体", "components/1/配套/01"], scope.Components);
             var deploy = ProfileModOptionResolver.ResolveDeployPlan(productManifest,
                 Hd2ClConversionService.ProductOptionState(scope.OptionGroups!));
             Assert.Equal([".", "Material/1/2"], deploy.Directories);
