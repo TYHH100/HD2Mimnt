@@ -32,7 +32,8 @@ public sealed class AppUpdateService(
     string? installDirectoryOverride = null,
     ILogger<AppUpdateService>? logger = null,
     IAppUpdateReleaseClient? fallbackReleaseClient = null,
-    SettingsService? settings = null) : IAppUpdateService
+    SettingsService? settings = null,
+    IDownloadOptionsProvider? downloadOptionsProvider = null) : IAppUpdateService
 {
     private static readonly string InstallerScriptFileName = "apply-update.ps1";
     private static readonly string InstallerArchiveFileName = "update.zip";
@@ -46,6 +47,7 @@ public sealed class AppUpdateService(
     private readonly int? _currentProcessId = currentProcessId ?? Environment.ProcessId;
     private readonly string? _installDirectoryOverride = installDirectoryOverride;
     private readonly SettingsService? _settings = settings;
+    private readonly IDownloadOptionsProvider? _downloadOptionsProvider = downloadOptionsProvider;
 
     public async Task<AppUpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
     {
@@ -133,7 +135,13 @@ public sealed class AppUpdateService(
         {
             // api.github.com（digest 来源）与安装包 CDN（objects.githubusercontent.com）分属不同主机：
             // 带上资产摘要后，下载引擎在落盘前做流式哈希校验，MITM/CDN 劫持伪造的安装包在此被拦截。
-            var downloadOptions = new DownloadOptions { EnableResume = true, ExpectedHash = NormalizeDigest(update.AssetDigest) };
+            var configuredOptions = _downloadOptionsProvider is null
+                ? new DownloadOptions()
+                : await _downloadOptionsProvider.GetOptionsAsync();
+            var downloadOptions = new DownloadOptions(configuredOptions)
+            {
+                ExpectedHash = NormalizeDigest(update.AssetDigest)
+            };
             if (downloadOptions.ExpectedHash is null)
             {
                 logger?.LogInformation("更新包 {Version} 未提供可校验的资产摘要，跳过完整性校验。", update.Version);

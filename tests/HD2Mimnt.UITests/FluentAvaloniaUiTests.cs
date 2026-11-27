@@ -890,12 +890,12 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.True(expander.IsEffectivelyVisible);
             Assert.True(expander.Bounds.Height > 200);
             view.FindControl<NumericUpDown>("DownloadParallelInput")!.Value = 7;
-            view.FindControl<NumericUpDown>("DownloadSegmentInput")!.Value = 12;
+            view.FindControl<NumericUpDown>("DownloadSegmentInput")!.Value = 768;
             view.FindControl<NumericUpDown>("DownloadRetriesInput")!.Value = 4;
             view.FindControl<NumericUpDown>("DownloadRetryDelayInput")!.Value = 900;
             Click(view.FindControl<ToggleSwitch>("DownloadResumeToggle")!);
             Assert.Equal(7, vm.DownloadParallelSegments);
-            Assert.Equal(12, vm.DownloadSegmentSizeMiB);
+            Assert.Equal(768, vm.DownloadSegmentSizeKiB);
             Assert.False(vm.DownloadEnableResume);
             var save = view.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "保存设置");
             Click(save);
@@ -904,7 +904,7 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal("下载设置已保存，下次下载生效", vm.StatusMessage);
             var options = await scope.Services.GetRequiredService<HD2Mimnt.Core.Interfaces.IDownloadOptionsProvider>().GetOptionsAsync();
             Assert.Equal(7, options.MaxParallelSegments);
-            Assert.Equal(12 * 1024 * 1024, options.MinimumSegmentSize);
+            Assert.Equal(768 * 1024, options.MinimumSegmentSize);
             Assert.Equal(4, options.MaxRetries);
             Assert.Equal(TimeSpan.FromMilliseconds(900), options.RetryDelay);
             Assert.False(options.EnableResume);

@@ -37,7 +37,7 @@ internal static partial class CliHandlers
             ["CompatibilityCheckOnStartup"] = "bool", ["CompatibilityEnableBatchRepair"] = "bool",
             ["CompatibilityAutoCheckImport"] = "bool",
             ["UpdatesCheckOnStartup"] = "bool", ["DownloadParallelSegments"] = "int",
-            ["DownloadSegmentSizeMiB"] = "int", ["DownloadMaxRetries"] = "int",
+            ["DownloadSegmentSizeKiB"] = "int", ["DownloadMaxRetries"] = "int",
             ["DownloadRetryDelayMs"] = "int", ["DownloadEnableResume"] = "bool",
             ["Hd2ClExportDirectory"] = "path",
             ["Language"] = "string", ["Theme"] = "string", ["ListDensity"] = "string",

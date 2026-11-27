@@ -6,9 +6,12 @@ Core 的 `IHttpDownloadService` 定义接口，Infrastructure 的
 Nexus Mods 与 GitHub 下载入口默认复用此实现，保留原有 `Task<Stream>` 契约。
 
 设置页的独立“下载”Tab 可以调整：并发连接数（1–256，超过 64 保存时给出警告）、
-最小分段大小（1–256 MiB）、分段重试次数（0–10）、重试间隔（0–60000 毫秒）、
+最小分段大小（1–262144 KiB，默认 256 KiB）、分段重试次数（0–10）、重试间隔（0–60000 毫秒）、
 断点续传开关（默认开启）。
 保存后，新下载和重新尝试的下载读取最新设置，正在进行的传输保持启动时的快照。
+软件更新下载同样读取这些设置，并继续保留更新包的 SHA-256/MD5 校验。
+旧版 `Download.SegmentSizeMiB` 配置会按原 MiB 值迁移；新设置保存到
+`Download.SegmentSizeKiB`，之后以 KiB 配置为准。
 此 Tab 可以独立保存，不要求先配置有效游戏路径；“恢复默认”只重置下载设置。
 
 ## 使用
@@ -22,7 +25,7 @@ await downloader.DownloadToFileAsync(
     new DownloadOptions
     {
         MaxParallelSegments = 4,
-        MinimumSegmentSize = 4 * 1024 * 1024,
+        MinimumSegmentSize = 256 * 1024,
         MaxRetries = 2,
         RetryDelay = TimeSpan.FromMilliseconds(500),
         EnableResume = true
@@ -61,9 +64,10 @@ await downloader.DownloadToFileAsync(
 
 ## 行为与边界
 
-- 默认每个文件最多 4 个分段，每段至少 4 MiB；并发数允许 1–256，
+- 默认每个文件最多 4 个分段，最小分段大小为 256 KiB；并发数允许 1–256，
   超过 64 时设置页仍会保存但弹出警告（服务器可能限速或拒绝）。
-  实际分段数受文件大小约束。例如默认 8 MiB 文件使用 2 个分段。
+  实际分段数受文件大小和并发上限约束。例如默认 8 MiB 文件使用 4 个分段，
+  1 MiB 文件使用 4 个分段；增大最小分段会减少小文件的连接数。
 - 首次 GET 读取响应头；文件长度已知、声明 `Accept-Ranges: bytes`，
   且提供强 ETag 或 Last-Modified 时才分段，否则直接使用该响应单连接下载。
   首次响应在分段开始前释放。
@@ -85,7 +89,7 @@ await downloader.DownloadToFileAsync(
 
 ```powershell
 dotnet build HD2Mimnt.slnx --no-restore
-dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore --filter "FullyQualifiedName~HttpDownloadServiceTests|FullyQualifiedName~DownloadManagerServiceTests|FullyQualifiedName~NexusModsPlatformAdapterTests|FullyQualifiedName~GitHubPlatformAdapterTests|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~SettingsServiceTests"
+dotnet test tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj --no-build --no-restore --filter "FullyQualifiedName~HttpDownloadServiceTests|FullyQualifiedName~DownloadManagerServiceTests|FullyQualifiedName~NexusModsPlatformAdapterTests|FullyQualifiedName~GitHubPlatformAdapterTests|FullyQualifiedName~AppUpdateServiceTests|FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~SettingsServiceTests"
 dotnet test tests/HD2Mimnt.UITests/HD2Mimnt.UITests.csproj --no-build --no-restore --filter "FullyQualifiedName~DownloadSettingsTab_Should_Save_Through_Controls_And_Configure_Runtime_Downloader"
 ```
 

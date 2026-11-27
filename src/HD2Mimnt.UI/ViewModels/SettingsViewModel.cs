@@ -119,7 +119,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private string _cacheStatus = "缓存信息未加载";
     [ObservableProperty] private int _downloadParallelSegments = 4;
-    [ObservableProperty] private int _downloadSegmentSizeMiB = 4;
+    [ObservableProperty] private int _downloadSegmentSizeKiB = 256;
     [ObservableProperty] private int _downloadMaxRetries = 2;
     [ObservableProperty] private int _downloadRetryDelayMs = 500;
     [ObservableProperty] private bool _downloadEnableResume = true;
@@ -406,7 +406,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             EnableAnimations = await _settingsService.GetSettingAsync(SettingKeys.EnableAnimations, true);
             var downloads = await _downloadSettingsService.GetOptionsAsync();
             DownloadParallelSegments = downloads.MaxParallelSegments;
-            DownloadSegmentSizeMiB = (int)(downloads.MinimumSegmentSize / (1024 * 1024));
+            DownloadSegmentSizeKiB = (int)(downloads.MinimumSegmentSize / 1024);
             DownloadMaxRetries = downloads.MaxRetries;
             DownloadRetryDelayMs = (int)downloads.RetryDelay.TotalMilliseconds;
             DownloadEnableResume = downloads.EnableResume;
@@ -469,7 +469,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var downloads = new DownloadOptions
                 {
                     MaxParallelSegments = DownloadParallelSegments,
-                    MinimumSegmentSize = DownloadSegmentSizeMiB * 1024L * 1024,
+                    MinimumSegmentSize = DownloadSegmentSizeKiB * 1024L,
                     MaxRetries = DownloadMaxRetries,
                     RetryDelay = TimeSpan.FromMilliseconds(DownloadRetryDelayMs),
                     EnableResume = DownloadEnableResume

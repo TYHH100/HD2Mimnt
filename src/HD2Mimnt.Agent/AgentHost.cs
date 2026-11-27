@@ -443,7 +443,8 @@ internal static class AgentHost
                 logger: sp.GetRequiredService<ILogger<AppUpdateService>>(),
                 fallbackReleaseClient: new HD2Mimnt.Infrastructure.Updates.CodebergAppUpdateClient(
                     sp.GetRequiredKeyedService<HttpClient>("app-update")),
-                settings: sp.GetRequiredService<SettingsService>()));
+                settings: sp.GetRequiredService<SettingsService>(),
+                downloadOptionsProvider: sp.GetRequiredService<IDownloadOptionsProvider>()));
     }
 
     /// <summary>run-once：在容器内执行单条命令并返回退出码；进度直接写入控制台输出。</summary>

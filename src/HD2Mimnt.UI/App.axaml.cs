@@ -888,7 +888,8 @@ public partial class App : Avalonia.Application
                 logger: sp.GetRequiredService<ILogger<HD2Mimnt.Application.Services.AppUpdateService>>(),
                 fallbackReleaseClient: new HD2Mimnt.Infrastructure.Updates.CodebergAppUpdateClient(
                     sp.GetRequiredKeyedService<System.Net.Http.HttpClient>("app-update")),
-                settings: sp.GetRequiredService<SettingsService>()));
+                settings: sp.GetRequiredService<SettingsService>(),
+                downloadOptionsProvider: sp.GetRequiredService<IDownloadOptionsProvider>()));
         services.AddSingleton<AppUpdateViewModel>();
 
         services.AddTransient(sp => new MainWindowViewModel(

@@ -1100,11 +1100,11 @@
   <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
     <value>下载设置已保存；并发连接数超过 64，可能被服务器限速或拒绝，建议保持在 64 以内。</value>
   </data>
-  <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
-    <value>最小分段大小（MiB）</value>
+  <data name="UI.MinimumSegmentSizeKiB" xml:space="preserve">
+    <value>最小分段大小（KiB）</value>
   </data>
-  <data name="UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles" xml:space="preserve">
-    <value>范围 1–256 MiB；较大的分段会减少小文件的连接数。</value>
+  <data name="UI.RangeKiBSmallerSegmentsUseMoreConnectionsForSmallFiles" xml:space="preserve">
+    <value>范围 1–262144 KiB；较小的分段会让小文件使用更多连接，但不超过并发连接数上限。</value>
   </data>
   <data name="UI.RetriesAfterASegmentFails" xml:space="preserve">
     <value>分段失败重试次数</value>

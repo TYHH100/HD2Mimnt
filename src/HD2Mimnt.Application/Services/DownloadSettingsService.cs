@@ -17,10 +17,17 @@ public sealed class DownloadSettingsService(SettingsService settingsService) : I
             catch (Exception ex) when (ex is JsonException or InvalidCastException) { return fallback; }
         }
         var defaults = new DownloadOptions();
+        var defaultSizeKiB = (int)(defaults.MinimumSegmentSize / 1024);
+        var legacySizeMiB = Math.Clamp(Read(SettingKeys.LegacyDownloadSegmentSizeMiB, 4), 1, 256);
+        var sizeKiB = values.ContainsKey(SettingKeys.DownloadSegmentSizeKiB)
+            ? Read(SettingKeys.DownloadSegmentSizeKiB, defaultSizeKiB)
+            : values.ContainsKey(SettingKeys.LegacyDownloadSegmentSizeMiB)
+                ? legacySizeMiB * 1024
+                : defaultSizeKiB;
         var options = new DownloadOptions
         {
             MaxParallelSegments = Math.Clamp(Read(SettingKeys.DownloadParallelSegments, defaults.MaxParallelSegments), 1, DownloadOptions.MaxAllowedParallelSegments),
-            MinimumSegmentSize = Math.Clamp(Read(SettingKeys.DownloadSegmentSizeMiB, 4), 1, 256) * 1024L * 1024,
+            MinimumSegmentSize = Math.Clamp(sizeKiB, 1, 256 * 1024) * 1024L,
             MaxRetries = Math.Clamp(Read(SettingKeys.DownloadMaxRetries, defaults.MaxRetries), 0, 10),
             RetryDelay = TimeSpan.FromMilliseconds(Math.Clamp(Read(SettingKeys.DownloadRetryDelayMs, 500), 0, 60000)),
             EnableResume = Read(SettingKeys.DownloadEnableResume, defaults.EnableResume)
@@ -31,12 +38,12 @@ public sealed class DownloadSettingsService(SettingsService settingsService) : I
     public Task SaveAsync(DownloadOptions options)
     {
         options.Validate();
-        if (options.MinimumSegmentSize % (1024 * 1024) != 0 || options.MinimumSegmentSize is < 1024 * 1024 or > 256 * 1024 * 1024)
-            throw new ArgumentOutOfRangeException(nameof(options.MinimumSegmentSize), "分段大小必须为 1–256 MiB 的整数。");
+        if (options.MinimumSegmentSize % 1024 != 0 || options.MinimumSegmentSize is < 1024 or > 256 * 1024 * 1024)
+            throw new ArgumentOutOfRangeException(nameof(options.MinimumSegmentSize), "分段大小必须为 1–262144 KiB 的整数。");
         return settingsService.SetSettingsAsync(new Dictionary<string, object>
         {
             [SettingKeys.DownloadParallelSegments] = options.MaxParallelSegments,
-            [SettingKeys.DownloadSegmentSizeMiB] = (int)(options.MinimumSegmentSize / (1024 * 1024)),
+            [SettingKeys.DownloadSegmentSizeKiB] = (int)(options.MinimumSegmentSize / 1024),
             [SettingKeys.DownloadMaxRetries] = options.MaxRetries,
             [SettingKeys.DownloadRetryDelayMs] = (int)options.RetryDelay.TotalMilliseconds,
             [SettingKeys.DownloadEnableResume] = options.EnableResume

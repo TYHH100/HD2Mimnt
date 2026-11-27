@@ -382,7 +382,8 @@ public static class SettingKeys
     // 下载相关
     public const string NexusOAuthTestClientId = "Nexus.OAuthTestClientId";
     public const string DownloadParallelSegments = "Download.ParallelSegments";
-    public const string DownloadSegmentSizeMiB = "Download.SegmentSizeMiB";
+    public const string DownloadSegmentSizeKiB = "Download.SegmentSizeKiB";
+    public const string LegacyDownloadSegmentSizeMiB = "Download.SegmentSizeMiB";
     public const string DownloadMaxRetries = "Download.MaxRetries";
     public const string DownloadRetryDelayMs = "Download.RetryDelayMs";
     public const string DownloadEnableResume = "Download.EnableResume";

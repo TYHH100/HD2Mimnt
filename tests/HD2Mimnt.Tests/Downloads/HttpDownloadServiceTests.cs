@@ -67,6 +67,30 @@ public sealed class HttpDownloadServiceTests : IDisposable
         Assert.False(File.Exists(temporary));
     }
 
+    [Fact]
+    public async Task DownloadAsync_KiB_MinimumSegmentSize_Should_Use_More_Connections_For_Small_Files()
+    {
+        var starts = new ConcurrentBag<long>();
+        using var client = new HttpClient(new Handler((request, _) =>
+        {
+            if (request.Headers.Range is null) return Task.FromResult(Full());
+            starts.Add(request.Headers.Range.Ranges.Single().From!.Value);
+            return Task.FromResult(Segment(request));
+        }));
+        var options = new DownloadOptions
+        {
+            MaxParallelSegments = 8, MinimumSegmentSize = 32 * 1024, RetryDelay = TimeSpan.Zero, EnableResume = false
+        };
+
+        await using var stream = await new HttpDownloadService(client).DownloadAsync(Address, options);
+
+        using var result = new MemoryStream();
+        await stream.CopyToAsync(result);
+        Assert.Equal(_data, result.ToArray());
+        Assert.Equal(Enumerable.Range(0, 8).Select(index => (long)index * (_data.Length / 8)),
+            starts.Order());
+    }
+
     [Theory]
     [InlineData(false, true, true)]
     [InlineData(true, false, true)]
@@ -273,6 +297,65 @@ public sealed class HttpDownloadServiceTests : IDisposable
         new DownloadOptions { MaxParallelSegments = 256 }.Validate();
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new DownloadOptions { MaxParallelSegments = 257 }.Validate());
+    }
+
+    [Fact]
+    public async Task DownloadSettings_Should_Default_To_256_KiB()
+    {
+        var options = await new DownloadSettingsService(new SettingsService(_directory)).GetOptionsAsync();
+
+        Assert.Equal(256 * 1024, options.MinimumSegmentSize);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(768)]
+    [InlineData(262144)]
+    public async Task DownloadSettings_Should_RoundTrip_KiB_Values(int sizeKiB)
+    {
+        var settings = new SettingsService(_directory);
+        var service = new DownloadSettingsService(settings);
+
+        await service.SaveAsync(new DownloadOptions { MinimumSegmentSize = sizeKiB * 1024L });
+        var options = await new DownloadSettingsService(new SettingsService(_directory)).GetOptionsAsync();
+
+        Assert.Equal(sizeKiB * 1024L, options.MinimumSegmentSize);
+        Assert.Equal(sizeKiB, settings.GetSetting(SettingKeys.DownloadSegmentSizeKiB, 0));
+    }
+
+    [Fact]
+    public async Task DownloadSettings_Should_Migrate_Legacy_MiB_Value_Without_Changing_Its_Size()
+    {
+        var settings = new SettingsService(_directory);
+        await settings.SetSettingAsync(SettingKeys.LegacyDownloadSegmentSizeMiB, 8);
+
+        var options = await new DownloadSettingsService(settings).GetOptionsAsync();
+
+        Assert.Equal(8 * 1024 * 1024L, options.MinimumSegmentSize);
+    }
+
+    [Fact]
+    public async Task DownloadSettings_Should_Prefer_New_KiB_Value_Over_Legacy_MiB_Value()
+    {
+        var settings = new SettingsService(_directory);
+        await settings.SetSettingsAsync(new Dictionary<string, object>
+        {
+            [SettingKeys.LegacyDownloadSegmentSizeMiB] = 8,
+            [SettingKeys.DownloadSegmentSizeKiB] = 512
+        });
+
+        var options = await new DownloadSettingsService(settings).GetOptionsAsync();
+
+        Assert.Equal(512 * 1024L, options.MinimumSegmentSize);
+    }
+
+    [Fact]
+    public async Task DownloadSettings_Should_Reject_Non_KiB_Aligned_Size()
+    {
+        var service = new DownloadSettingsService(new SettingsService(_directory));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.SaveAsync(new DownloadOptions { MinimumSegmentSize = 1025 }));
     }
 
     [Fact]

@@ -387,8 +387,8 @@
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.ConcurrentConnectionsPerFile}" Description="{loc:Loc UI.UsedWhenTheServerSupportsSegmentsFewerConnectionsAreUsedForSmallFiles}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadParallelInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadParallelSegments}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
-          <fa:FASettingsExpanderItem Content="{loc:Loc UI.MinimumSegmentSizeMiB}" Description="{loc:Loc UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles}">
-            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadSegmentInput" Minimum="1" Maximum="256" Increment="1" FormatString="0" Value="{Binding DownloadSegmentSizeMiB}" Width="160"/></fa:FASettingsExpanderItem.Footer>
+          <fa:FASettingsExpanderItem Content="{loc:Loc UI.MinimumSegmentSizeKiB}" Description="{loc:Loc UI.RangeKiBSmallerSegmentsUseMoreConnectionsForSmallFiles}">
+            <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadSegmentInput" Minimum="1" Maximum="262144" Increment="64" FormatString="0" Value="{Binding DownloadSegmentSizeKiB}" Width="160"/></fa:FASettingsExpanderItem.Footer>
           </fa:FASettingsExpanderItem>
           <fa:FASettingsExpanderItem Content="{loc:Loc UI.RetriesAfterASegmentFails}" Description="{loc:Loc UI.ExcludesTheInitialRequestDisablesRetries}">
             <fa:FASettingsExpanderItem.Footer><NumericUpDown x:Name="DownloadRetriesInput" Minimum="0" Maximum="10" Increment="1" FormatString="0" Value="{Binding DownloadMaxRetries}" Width="160"/></fa:FASettingsExpanderItem.Footer>

@@ -479,7 +479,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var viewModel = CreateViewModel("invalid-game-path");
         viewModel.SelectedCategory = "下载";
         viewModel.DownloadParallelSegments = 8;
-        viewModel.DownloadSegmentSizeMiB = 16;
+        viewModel.DownloadSegmentSizeKiB = 768;
         viewModel.DownloadMaxRetries = 5;
         viewModel.DownloadRetryDelayMs = 1200;
         viewModel.DownloadEnableResume = false;
@@ -489,14 +489,14 @@ public sealed class SettingsViewModelTests : IDisposable
         var reopened = new DownloadSettingsService(new SettingsService(_rootDirectory));
         var options = await reopened.GetOptionsAsync();
         Assert.Equal(8, options.MaxParallelSegments);
-        Assert.Equal(16 * 1024 * 1024, options.MinimumSegmentSize);
+        Assert.Equal(768 * 1024, options.MinimumSegmentSize);
         Assert.Equal(5, options.MaxRetries);
         Assert.Equal(TimeSpan.FromMilliseconds(1200), options.RetryDelay);
         Assert.False(options.EnableResume);
         var reloaded = CreateViewModel("");
         await reloaded.LoadAsync();
         Assert.Equal(8, reloaded.DownloadParallelSegments);
-        Assert.Equal(16, reloaded.DownloadSegmentSizeMiB);
+        Assert.Equal(768, reloaded.DownloadSegmentSizeKiB);
         Assert.Equal(5, reloaded.DownloadMaxRetries);
         Assert.Equal(1200, reloaded.DownloadRetryDelayMs);
         Assert.False(reloaded.DownloadEnableResume);
@@ -514,7 +514,7 @@ public sealed class SettingsViewModelTests : IDisposable
         vm.SelectedCategory = "下载";
         await vm.ResetCommand.ExecuteAsync(null);
         Assert.Equal(4, vm.DownloadParallelSegments);
-        Assert.Equal(4, vm.DownloadSegmentSizeMiB);
+        Assert.Equal(256, vm.DownloadSegmentSizeKiB);
         Assert.Equal(2, vm.DownloadMaxRetries);
         Assert.Equal(500, vm.DownloadRetryDelayMs);
         Assert.True(vm.DownloadEnableResume);
@@ -540,7 +540,7 @@ public sealed class SettingsViewModelTests : IDisposable
     [InlineData(0, 4, 2, 500)]
     [InlineData(257, 4, 2, 500)]
     [InlineData(4, 0, 2, 500)]
-    [InlineData(4, 257, 2, 500)]
+    [InlineData(4, 262145, 2, 500)]
     [InlineData(4, 4, 11, 500)]
     [InlineData(4, 4, 2, -1)]
     public async Task DownloadCategory_Invalid_Values_Should_Not_Persist(int parallel, int size, int retries, int delay)
@@ -548,7 +548,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var vm = CreateViewModel("");
         vm.SelectedCategory = "下载";
         vm.DownloadParallelSegments = parallel;
-        vm.DownloadSegmentSizeMiB = size;
+        vm.DownloadSegmentSizeKiB = size;
         vm.DownloadMaxRetries = retries;
         vm.DownloadRetryDelayMs = delay;
         await vm.SaveCommand.ExecuteAsync(null);

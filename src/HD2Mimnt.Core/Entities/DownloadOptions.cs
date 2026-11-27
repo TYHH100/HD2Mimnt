@@ -6,8 +6,23 @@ public sealed class DownloadOptions
     public const int MaxAllowedParallelSegments = 256;
     public const int ParallelSegmentsWarningThreshold = 64;
 
+    public DownloadOptions() { }
+
+    public DownloadOptions(DownloadOptions source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        MaxParallelSegments = source.MaxParallelSegments;
+        MinimumSegmentSize = source.MinimumSegmentSize;
+        MaxRetries = source.MaxRetries;
+        RetryDelay = source.RetryDelay;
+        EnableResume = source.EnableResume;
+        OverwriteExisting = source.OverwriteExisting;
+        ExpectedHash = source.ExpectedHash;
+        AllowInsecureHttp = source.AllowInsecureHttp;
+    }
+
     public int MaxParallelSegments { get; init; } = 4;
-    public long MinimumSegmentSize { get; init; } = 4 * 1024 * 1024;
+    public long MinimumSegmentSize { get; init; } = 256 * 1024;
     /// <summary>Additional attempts for transient failures of a range request.</summary>
     public int MaxRetries { get; init; } = 2;
     public TimeSpan RetryDelay { get; init; } = TimeSpan.FromMilliseconds(500);

@@ -1100,11 +1100,11 @@ Deny: do not install this plugin</value>
   <data name="Settings.Download.HighConcurrencyWarning" xml:space="preserve">
     <value>Download settings saved. More than 64 concurrent connections may be throttled or rejected by the server; keeping it at 64 or lower is recommended.</value>
   </data>
-  <data name="UI.MinimumSegmentSizeMiB" xml:space="preserve">
-    <value>Minimum segment size (MiB)</value>
+  <data name="UI.MinimumSegmentSizeKiB" xml:space="preserve">
+    <value>Minimum segment size (KiB)</value>
   </data>
-  <data name="UI.RangeMiBLargerSegmentsReduceConnectionsForSmallFiles" xml:space="preserve">
-    <value>Range: 1–256 MiB. Larger segments reduce connections for small files.</value>
+  <data name="UI.RangeKiBSmallerSegmentsUseMoreConnectionsForSmallFiles" xml:space="preserve">
+    <value>Range: 1–262144 KiB. Smaller segments use more connections for small files, up to the concurrency limit.</value>
   </data>
   <data name="UI.RetriesAfterASegmentFails" xml:space="preserve">
     <value>Retries after a segment fails</value>

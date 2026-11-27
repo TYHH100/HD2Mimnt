@@ -211,6 +211,36 @@ public sealed class AppUpdateServiceTests : IDisposable
         await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = digest });
 
         Assert.Equal(digest, downloader.LastOptions!.ExpectedHash);
+        Assert.Equal(256 * 1024, downloader.LastOptions.MinimumSegmentSize);
+    }
+
+    [Fact]
+    public async Task PrepareAsync_Should_Use_Configured_Download_Settings_And_Keep_Digest_Verification()
+    {
+        var digest = "sha256:" + new string('b', 64);
+        var configured = new DownloadOptions
+        {
+            MaxParallelSegments = 12,
+            MinimumSegmentSize = 64 * 1024,
+            MaxRetries = 4,
+            RetryDelay = TimeSpan.FromMilliseconds(900),
+            EnableResume = false
+        };
+        var provider = new FakeDownloadOptionsProvider(configured);
+        var downloader = new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target,
+            CreateZipBytes(("HD2Mimnt.UI.exe", "payload"))));
+        var service = CreateService(CreateRelease("V99.0.0", CreateAsset("V99.0.0")),
+            downloader: downloader, downloadOptionsProvider: provider);
+
+        await service.PrepareAsync(CreateUpdate("99.0.0") with { AssetDigest = digest });
+
+        Assert.Equal(1, provider.Calls);
+        Assert.Equal(configured.MaxParallelSegments, downloader.LastOptions!.MaxParallelSegments);
+        Assert.Equal(configured.MinimumSegmentSize, downloader.LastOptions.MinimumSegmentSize);
+        Assert.Equal(configured.MaxRetries, downloader.LastOptions.MaxRetries);
+        Assert.Equal(configured.RetryDelay, downloader.LastOptions.RetryDelay);
+        Assert.Equal(configured.EnableResume, downloader.LastOptions.EnableResume);
+        Assert.Equal(digest, downloader.LastOptions.ExpectedHash);
     }
 
     [Fact]
@@ -248,7 +278,8 @@ public sealed class AppUpdateServiceTests : IDisposable
 
     private AppUpdateService CreateService(AppUpdateRelease? release, byte[]? downloadBytes = null,
         int? pid = null, string? installDirectory = null, FakeDownloadService? downloader = null,
-        FakeReleaseClient? primary = null, FakeReleaseClient? fallback = null, SettingsService? settings = null)
+        FakeReleaseClient? primary = null, FakeReleaseClient? fallback = null, SettingsService? settings = null,
+        IDownloadOptionsProvider? downloadOptionsProvider = null)
     {
         downloadBytes ??= CreateZipBytes(("HD2Mimnt.UI.exe", "payload"), ("Assets/extra.dll", "extra"));
         downloader ??= new FakeDownloadService((_, target) => File.WriteAllBytesAsync(target, downloadBytes));
@@ -259,7 +290,8 @@ public sealed class AppUpdateServiceTests : IDisposable
             currentProcessId: pid,
             installDirectoryOverride: installDirectory ?? _installDirectory,
             fallbackReleaseClient: fallback,
-            settings: settings);
+            settings: settings,
+            downloadOptionsProvider: downloadOptionsProvider);
     }
 
     private static AppUpdateInfo CreateUpdate(string version) => new(
@@ -301,6 +333,17 @@ public sealed class AppUpdateServiceTests : IDisposable
 
         public Task<AppUpdateRelease?> GetLatestReleaseAsync(CancellationToken cancellationToken = default)
             => failure is null ? Task.FromResult(release) : Task.FromException<AppUpdateRelease?>(failure);
+    }
+
+    private sealed class FakeDownloadOptionsProvider(DownloadOptions options) : IDownloadOptionsProvider
+    {
+        public int Calls { get; private set; }
+
+        public Task<DownloadOptions> GetOptionsAsync()
+        {
+            Calls++;
+            return Task.FromResult(options);
+        }
     }
 
     private sealed class FakeDownloadService(Func<Uri, string, Task> onDownload) : IHttpDownloadService
