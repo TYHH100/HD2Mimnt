@@ -21,6 +21,7 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
     public IReadOnlyList<ProfileModOptionCardViewModel> OptionCards { get; }
     public IReadOnlyList<ProfileModLegacyChoiceViewModel> LegacyChoices { get; }
     public ICommand ToggleOptionCommand { get; }
+    public ICommand ToggleSubOptionCommand { get; }
 
     // 创建预览只展示本次草稿的清单，不生成组件分组，也不保存到任何配置。
     public bool HasGroups => false;
@@ -39,6 +40,8 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
         Name = manifest.Name; Author = manifest.Author; Description = manifest.Description;
         IsLegacyMode = manifest.ManifestVersion == ManifestVersion.Legacy;
         ToggleOptionCommand = new RelayCommand<ProfileModOptionCardViewModel>(card => { if (card != null) card.IsEnabled = !card.IsEnabled; });
+        ToggleSubOptionCommand = new RelayCommand<ProfileModSubOptionChoiceViewModel>(choice =>
+        { if (choice is { HasSubOptions: true }) choice.IsEnabled = !choice.IsEnabled; });
         OpenGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
         ToggleGroupCommand = new RelayCommand<ProfileModOptionGroupViewModel>(_ => { });
         ReturnCommand = new RelayCommand(() => { });
@@ -46,6 +49,7 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
             new ProfileModLegacyChoiceViewModel { Name = name, IsSelected = index == 0 }).ToList() : [];
         OptionCards = IsLegacyMode ? [] : (manifest.Options ?? []).Select(option =>
         {
+            var multiSelect = ProfileModOptionResolver.SupportsSubOptionMultiSelect(option);
             var children = (option.SubOptions ?? []).Select((sub, index) =>
             {
                 // 嵌套（第三层）：快照展示同样支持，选中态不进草稿
@@ -55,7 +59,12 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
                     { Name = nested.Name, Description = nested.Description, IsSelected = nestedIndex == 0 };
                     _images.Add((nested.Image, image => grandchild.Image = image)); return grandchild;
                 }).ToList();
-                var child = new ProfileModSubOptionChoiceViewModel { Name = sub.Name, Description = sub.Description, IsSelected = index == 0, SubOptions = grandchildren };
+                var child = new ProfileModSubOptionChoiceViewModel
+                {
+                    Name = sub.Name, Description = sub.Description,
+                    IsSelected = !multiSelect && index == 0, IsEnabled = multiSelect || index == 0,
+                    SubOptions = grandchildren
+                };
                 foreach (var grandchild in grandchildren) grandchild.Parent = child;
                 _images.Add((sub.Image, image => child.Image = image)); return child;
             }).ToList();
@@ -108,13 +117,22 @@ public sealed class ModCreationPreviewViewModel : IModOptionsSelection, IDisposa
     public void SelectSubOption(ProfileModSubOptionChoiceViewModel? choice)
     {
         if (choice == null) return;
+        if (choice.HasSubOptions)
+        {
+            choice.IsEnabled = !choice.IsEnabled;
+            return;
+        }
         if (choice.Parent is { } parent)
         {
             foreach (var nested in parent.SubOptions) nested.IsSelected = ReferenceEquals(nested, choice);
             return;
         }
         var card = OptionCards.FirstOrDefault(card => card.SubOptions.Contains(choice));
-        if (card != null) foreach (var sub in card.SubOptions) sub.IsSelected = ReferenceEquals(sub, choice);
+        if (card != null) foreach (var sub in card.SubOptions)
+        {
+            sub.IsSelected = ReferenceEquals(sub, choice);
+            sub.IsEnabled = sub.IsSelected;
+        }
     }
     public void SelectLegacyChoice(ProfileModLegacyChoiceViewModel? choice)
     { foreach (var item in LegacyChoices) item.IsSelected = ReferenceEquals(item, choice); }

@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.PluginSDK;
+using HD2Mimnt.UI.Services;
 
 namespace HD2Mimnt.UI.ViewModels;
 
@@ -25,7 +27,12 @@ public sealed partial class PluginUiSurfaceViewModel : ObservableObject
         string? icon,
         IEnumerable<PluginUiBlock> initialBlocks,
         bool isPage,
-        IPluginService? pluginService)
+        IPluginService? pluginService,
+        bool isWebView = false,
+        string? webEntryPath = null,
+        PluginWebView2Environment? webViewEnvironment = null,
+        bool keepAlive = false,
+        bool fillWindow = false)
     {
         _bundle = bundle;
         _pluginService = pluginService;
@@ -36,6 +43,11 @@ public sealed partial class PluginUiSurfaceViewModel : ObservableObject
         Description = description;
         Icon = icon;
         IsPage = isPage;
+        IsWebView = isWebView;
+        WebEntryPath = webEntryPath;
+        WebViewEnvironment = webViewEnvironment;
+        KeepAlive = keepAlive;
+        FillWindow = fillWindow;
 
         foreach (var block in initialBlocks)
         {
@@ -58,13 +70,60 @@ public sealed partial class PluginUiSurfaceViewModel : ObservableObject
 
     public bool IsPage { get; }
 
+    public bool IsWebView { get; }
+
+    public bool KeepAlive { get; }
+
+    public bool FillWindow { get; }
+
+    public Thickness PageMargin => FillWindow ? new Thickness(0) : new Thickness(24, 16, 24, 20);
+
+    public bool IsDeclarative => !IsWebView;
+
+    public string? WebEntryPath { get; }
+
+    public PluginWebView2Environment? WebViewEnvironment { get; }
+
     public ObservableCollection<PluginUiBlock> Blocks { get; } = new();
 
     [ObservableProperty]
     private bool _isBusy;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasWebError))]
+    [NotifyPropertyChangedFor(nameof(IsWebViewActive))]
+    private string? _webErrorMessage;
+
+    [ObservableProperty]
     private string? _statusMessage;
+
+    public bool HasWebError => !string.IsNullOrWhiteSpace(WebErrorMessage);
+
+    public bool IsWebViewActive => IsWebView && !HasWebError;
+
+    /// <summary>从页面声明创建稳定宿主；WebView2 入口在插件根目录内解析。</summary>
+    public static PluginUiSurfaceViewModel CreatePage(
+        PluginUiBundle bundle,
+        PluginPageContribution page,
+        IPluginService? pluginService,
+        PluginWebView2Environment? webViewEnvironment)
+    {
+        var isWebView = PluginUiPageKinds.IsWebView2(page.Kind);
+        return new PluginUiSurfaceViewModel(
+            bundle,
+            page.Id,
+            page.Title,
+            page.Description,
+            page.Icon,
+            page.Blocks,
+            isPage: true,
+            pluginService,
+            isWebView,
+            isWebView ? bundle.ResolveWebEntryPath(page) : null,
+            webViewEnvironment,
+            isWebView && page.KeepAlive,
+            isWebView && page.FillWindow);
+    }
 
     /// <summary>请求打开同插件的另一个浮窗。</summary>
     public event EventHandler<PluginDialogRequestEventArgs>? DialogRequested;
@@ -171,6 +230,55 @@ public sealed partial class PluginUiSurfaceViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>执行 WebView2 页面发起的命令，并原样回传结构化结果。</summary>
+    public async Task<PluginOperationResult> ExecuteWebCommandAsync(
+        string command,
+        IReadOnlyDictionary<string, JsonElement> values)
+    {
+        if (_pluginService is null)
+        {
+            return PluginOperationResult.ErrorResult("插件服务不可用，无法执行该操作。");
+        }
+
+        IsBusy = true;
+        StatusMessage = null;
+        try
+        {
+            var payload = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (key, value) in values)
+            {
+                payload[key] = value.Clone();
+            }
+
+            payload["ui"] = new Dictionary<string, object?>
+            {
+                ["pluginId"] = PluginId,
+                ["surfaceId"] = SurfaceId,
+                ["actionId"] = "webView.invoke",
+                ["values"] = values.ToDictionary(pair => pair.Key, pair => pair.Value.Clone(), StringComparer.OrdinalIgnoreCase)
+            };
+
+            var result = await _pluginService.ExecutePluginCommandAsync(
+                PluginId,
+                command,
+                JsonSerializer.Serialize(payload));
+            if (!result.Success)
+            {
+                StatusMessage = result.Error ?? result.Message ?? "插件命令执行失败。";
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = ex.Message;
+            return PluginOperationResult.ErrorResult(ex.Message);
         }
         finally
         {

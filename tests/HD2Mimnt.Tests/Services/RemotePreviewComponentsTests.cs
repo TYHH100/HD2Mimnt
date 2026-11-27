@@ -76,7 +76,10 @@ public sealed class RemotePreviewComponentsTests
         };
         var reader = new RemoteModelPreviewReader(session);
         var result = await reader.PreviewModelAsync(new DirectoryInfo(Path.GetTempPath()), [],
-            cancellationToken: CancellationToken.None);
+            forceDecodeOversizedStreams: true, cancellationToken: CancellationToken.None);
+
+        var request = JsonSerializer.Deserialize<ModelPreviewLoadRequest>(Assert.Single(session.Requests).Payload!)!;
+        Assert.True(request.ForceDecodeOversizedStreams);
 
         var mesh = Assert.Single(result.Meshes);
         Assert.Equal(7ul, mesh.UnitId);

@@ -47,6 +47,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly ImagePreviewService _imagePreview;
     private readonly NexusModsTestService _nexusModsTestService;
     private readonly IPluginService? _pluginService;
+    private readonly PluginWebView2Environment? _pluginWebViewEnvironment;
     private readonly HellForgeSessionService? _hellForgeSessionService;
     private string? _pluginUiSignature;
     private Avalonia.Controls.Window? _ownerWindow;
@@ -206,9 +207,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         Hd2ClVariantPromptService? hd2ClVariantPrompt = null,
         MmdAdaptationViewModel? mmdAdaptationViewModel = null,
         MmdSourceInfoPromptService? mmdSourceInfoPrompt = null,
-        ModBinarySearchViewModel? modBinarySearchViewModel = null)
+        ModBinarySearchViewModel? modBinarySearchViewModel = null,
+        PluginWebView2Environment? pluginWebViewEnvironment = null)
     {
         _pluginService = pluginService;
+        _pluginWebViewEnvironment = pluginWebViewEnvironment;
         Hd2ClViewModel = hd2ClViewModel;
         HellForgeViewModel = hellForgeViewModel;
         _hellForgeSessionService = hellForgeSessionService;
@@ -410,7 +413,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
             // 设置页每次加载都会触发刷新；贡献没变时不重建页面，避免丢失用户输入
             var signature = string.Join("\n", bundles.Select(b =>
                 $"{b.PluginId}|{b.PluginName}|{string.Join(",", b.GrantedPermissions.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))}|" +
-                string.Join(",", b.Ui.Pages.Select(p => $"{p.Id}:{p.Title}:{p.Blocks.Count}")) + "|" +
+                string.Join(",", b.Ui.Pages.Select(p => $"{p.Id}:{p.Title}:{p.Kind}:{p.Entry}:{p.KeepAlive}:{p.FillWindow}:{p.Blocks.Count}")) + "|" +
                 string.Join(",", b.Ui.Menus.Select(m => $"{m.Id}:{m.Label}:{m.Command}:{m.Dialog}"))));
 
             if (string.Equals(signature, _pluginUiSignature, StringComparison.Ordinal)) return;
@@ -435,15 +438,11 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
                 foreach (var page in bundle.Ui.Pages)
                 {
                     if (string.IsNullOrWhiteSpace(page.Id)) continue;
-                    PluginPages.Add(new PluginUiSurfaceViewModel(
+                    PluginPages.Add(PluginUiSurfaceViewModel.CreatePage(
                         bundle,
-                        page.Id,
-                        page.Title,
-                        page.Description,
-                        page.Icon,
-                        page.Blocks,
-                        isPage: true,
-                        _pluginService));
+                        page,
+                        _pluginService,
+                        _pluginWebViewEnvironment));
                 }
 
                 foreach (var menu in bundle.Ui.Menus)
@@ -707,6 +706,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         // 导入/部署/清理由发起浮层提示结果，这里只刷新运行状态，避免重复通知。
         if (e.NotifyUser) QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
         else QueueUiRefresh(UpdateRunningTasksAsync);
+        // Worker 的部署服务事件不会跨进程到达主窗口，必须按任务终态补刷导航概览。
+        if (e.Task.Type is "Deployment" or "Cleanup") QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);
@@ -785,6 +786,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _profileViewModel.RefreshAfterProfilesChangedAsync();
         SyncConflictProfile();
         UpdateCurrentProfile();
+        if (_libraryViewModel.SelectedModDetail?.LocalVersions is { } libraryVersions)
+            await libraryVersions.RefreshAsync();
     });
 
     private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
@@ -1198,6 +1201,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await StartupCompatibilityTask;
         _closingCompatibility = false;
         await _libraryViewModel.CancelDeploymentAndWaitAsync();
+        if (_libraryViewModel.CleanupMissingModsCommand.ExecutionTask is { IsCompleted: false } cleanup)
+            await cleanup;
         if (ModCreationViewModel != null)
         {
             await ModCreationViewModel.StopAsync();

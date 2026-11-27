@@ -33,7 +33,8 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
         return new(mod.Id, mod.Name, mod.Manifest, ProfileModOptionResolver.ResolveEffective(mod.Manifest, options));
     }
 
-    public async Task<ModelPreviewResult> LoadAsync(Guid modId, string optionsJson, CancellationToken cancellationToken = default)
+    public async Task<ModelPreviewResult> LoadAsync(Guid modId, string optionsJson,
+        bool forceDecodeOversizedStreams = false, CancellationToken cancellationToken = default)
     {
         var mod = await GetModAsync(modId, cancellationToken);
         return await Task.Run(async () =>
@@ -42,7 +43,8 @@ public sealed class ModelPreviewService(IModRepository mods, IProfileRepository 
                 PatchDeploymentPlanner.CollectSelectedFiles(mod, optionsJson, cancellationToken),
                 new(StringComparer.OrdinalIgnoreCase), cancellationToken, mod.Path);
             var patches = files.Where(file => file.Suffix.Length == 0).Select(file => new FileInfo(file.SourcePath!)).ToArray();
-            var result = await reader.PreviewModelAsync(new DirectoryInfo(mod.Path), patches, cancellationToken: cancellationToken);
+            var result = await reader.PreviewModelAsync(new DirectoryInfo(mod.Path), patches,
+                forceDecodeOversizedStreams, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             foreach (var skeleton in result.Meshes.Select(mesh => mesh.Skinning?.Skeleton).OfType<ModelPreviewSkeleton>()
                          .DistinctBy(skeleton => (skeleton.BonesId, skeleton.StateMachineId)))

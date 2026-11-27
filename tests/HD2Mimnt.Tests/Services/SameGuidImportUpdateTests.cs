@@ -29,13 +29,15 @@ public sealed class SameGuidImportUpdateTests : IDisposable
     [Fact]
     public async Task SameGuidImport_UpdatesExistingModInsteadOfAddingCopy()
     {
-        var first = await _mods.ImportModAsync(CreateArchive("1"));
-        var original = (await _mods.GetModByIdAsync(first))!;
+        var first = await _mods.ImportModWithResultAsync(CreateArchive("1"));
+        Assert.False(first.Updated);
+        var original = (await _mods.GetModByIdAsync(first.Id))!;
 
-        var second = await _mods.ImportModAsync(CreateArchive("2"));
+        var second = await _mods.ImportModWithResultAsync(CreateArchive("2"));
 
-        Assert.Equal(first, second);
-        var updated = (await _mods.GetModByIdAsync(first))!;
+        Assert.Equal(first.Id, second.Id);
+        Assert.True(second.Updated);
+        var updated = (await _mods.GetModByIdAsync(first.Id))!;
         // 本地模组版本由管理器递增维护，不再直接采用新包 manifest 版本。
         Assert.Equal("1.1.0", updated.Version);
         Assert.Equal("content-2", await File.ReadAllTextAsync(Path.Combine(updated.Path, Patch)));

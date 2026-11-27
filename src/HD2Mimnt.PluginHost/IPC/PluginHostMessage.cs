@@ -54,6 +54,9 @@ public class PluginCompletedResponse : PluginHostMessage
     /// <summary>声明式界面更新的 JSON（PluginUiUpdate），由主程序渲染；不含任何 UI 对象。</summary>
     public string? UiJson { get; set; }
 
+    /// <summary>WebView2 等富界面命令的结构化 JSON 结果。</summary>
+    public string? DataJson { get; set; }
+
     public List<string>? Errors { get; set; }
 }
 

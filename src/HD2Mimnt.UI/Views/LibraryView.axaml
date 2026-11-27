@@ -38,6 +38,12 @@
                             <TextBlock Text="{loc:Loc UI.RefreshLibrary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="CleanMissingModsButton" Classes="side-nav" Command="{Binding CleanupMissingModsCommand}" ToolTip.Tip="{loc:Loc UI.CleanMissingModsHint}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <controls:UtilityIcon Kind="Clean" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Loc UI.CleanMissingMods}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="CheckLibraryCompatibilityButton" Classes="side-nav" Command="{Binding CheckLibraryCompatibilityCommand}" IsVisible="{Binding Compatibility, Converter={StaticResource NotNullConverter}}">
             <StackPanel Orientation="Horizontal" Spacing="10"><controls:UtilityIcon Kind="Repair" Width="16" Height="16"/><TextBlock Text="{loc:Loc Compatibility.Title}" TextTrimming="CharacterEllipsis"/></StackPanel>
           </Button>

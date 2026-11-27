@@ -1,0 +1,34 @@
+{
+  "id": "com.hd2mimnt.samples.webui",
+  "name": "WebView2 界面示例",
+  "version": "1.0.0",
+  "author": "HD2Mimnt",
+  "description": "使用 HTML/CSS/JavaScript 编写页面，并通过 window.hd2.invoke 调用插件命令。",
+  "apiVersion": "1.4.0",
+  "runtime": "net10.0",
+  "permissionMode": "Sandbox",
+  "requestedPermissions": [],
+  "commands": [
+    {
+      "name": "dashboard",
+      "displayName": "读取仪表盘数据",
+      "description": "返回结构化 JSON，演示 WebView2 页面与插件命令的双向通信。"
+    }
+  ],
+  "assembly": "WebUiDashboard.dll",
+  "entryType": "HD2Mimnt.Samples.WebUiDashboard.WebUiDashboardPlugin",
+  "ui": {
+    "pages": [
+      {
+        "id": "dashboard",
+        "title": "WebView2 仪表盘",
+        "icon": "Code",
+        "description": "本地 HTML 页面 + 受限命令桥接。",
+        "kind": "webView2",
+        "entry": "web/index.html",
+        "keepAlive": true,
+        "fillWindow": true
+      }
+    ]
+  }
+}

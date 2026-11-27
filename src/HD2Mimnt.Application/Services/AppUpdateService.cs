@@ -16,7 +16,7 @@ public static class AppUpdateConstants
     public const string MainExecutableName = "HD2Mimnt.UI.exe";
     public const string AssetNameTemplate = "HD2Mimnt-{0}-win-x64.zip";
     public const string ReleasePageUrl = "https://github.com/TYHH100/HD2Mimnt/releases/latest";
-    public const string CodebergReleasePageUrl = "https://codeberg.org/TYHH10/HD2Mimnt/releases";
+    public const string CodebergReleasePageUrl = "https://codeberg.org/TYHH10/HD2Mimnt/releases/latest";
 }
 
 /// <summary>

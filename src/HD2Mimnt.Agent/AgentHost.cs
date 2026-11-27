@@ -127,6 +127,7 @@ internal static class AgentHost
         Directory.CreateDirectory(locations.ImageCachePath);
         Directory.CreateDirectory(locations.DownloadsPath);
         Directory.CreateDirectory(locations.TempPath);
+        Directory.CreateDirectory(locations.InstalledPluginsPath);
 
         services.AddSingleton(storageSettings);
         // 无控制台日志提供程序：命令结果统一走 stdout/管道，诊断走 AgentLog。
@@ -293,7 +294,8 @@ internal static class AgentHost
             sp.GetRequiredService<IPluginPermissionRepository>(),
             sp.GetRequiredService<IPluginExecutionRepository>(),
             sp.GetRequiredService<IPluginHostManager>(),
-            permissionChecker: sp.GetRequiredService<IPluginPermissionChecker>()));
+            permissionChecker: sp.GetRequiredService<IPluginPermissionChecker>(),
+            installedPluginsPath: locations.InstalledPluginsPath));
 
         services.AddSingleton(sp => new SearchService(
             sp.GetRequiredService<IModRepository>(),

@@ -99,37 +99,42 @@ public class ProfileService
         IReadOnlyCollection<Guid>? enabledIds = null)
     {
         var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken)).ToList();
+        var knownModIds = mods.Select(mod => mod.Id).ToHashSet();
+        var removedOrphans = profile.Mods.RemoveAll(item => !knownModIds.Contains(item.ModId)) > 0;
         foreach (var mod in mods) await BslProfilePolicy.EnsureDetectedAsync(mod, _modRepository, cancellationToken);
         var byId = mods.ToDictionary(mod => mod.Id);
-        var changed = LoaderOrderLocked && AdjustSeparatorsForLockedLoaders(profile, byId);
+        var separatorsChanged = AdjustSeparatorsBeforeNormalization(profile, byId, LoaderOrderLocked);
+        var changed = removedOrphans || separatorsChanged;
         changed |= enabledIds != null && BslProfilePolicy.SelectLoader(profile, byId, enabledIds);
         return BslProfilePolicy.Normalize(profile, byId, LoaderOrderLocked) || changed;
     }
 
-    private static bool AdjustSeparatorsForLockedLoaders(Profile profile, IReadOnlyDictionary<Guid, Mod> mods)
+    private static bool AdjustSeparatorsBeforeNormalization(Profile profile, IReadOnlyDictionary<Guid, Mod> mods,
+        bool loaderOrderLocked)
     {
         if (profile.Separators.Count == 0) return false;
         var ordered = profile.Mods.OrderBy(item => item.Order).ToList();
-        var ordinaryCounts = new int[ordered.Count + 1];
-        for (var index = 0; index < ordered.Count; index++)
-            ordinaryCounts[index + 1] = ordinaryCounts[index]
-                + (!mods.TryGetValue(ordered[index].ModId, out var mod)
-                    || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None ? 1 : 0);
-
-        // 重新锁定加载器时，先按原完整顺序换算边界，再将固定成员移出普通区域。
+        var normal = ordered.Where(item => !loaderOrderLocked || !mods.TryGetValue(item.ModId, out var mod)
+            || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
         var separators = profile.Separators.OrderBy(item => item.Order).ToArray();
+        var endExclusive = ordered.Count > 0 ? Math.Max(0, (long)ordered[^1].Order + 1) : 0;
         var changed = false;
         for (var index = 0; index < separators.Length; index++)
         {
             var separator = separators[index];
-            var start = Math.Clamp(separator.Order, 0, ordered.Count);
-            var end = Math.Clamp(index + 1 < separators.Length ? separators[index + 1].Order : ordered.Count,
-                start, ordered.Count);
-            var count = Math.Clamp(separator.MemberCount ?? end - start, 0, end - start);
-            int? memberCount = separator.MemberCount != null || separator.IsCollapsed
-                ? ordinaryCounts[start + count] - ordinaryCounts[start] : null;
-            changed |= separator.Order != ordinaryCounts[start] || separator.MemberCount != memberCount;
-            separator.Order = ordinaryCounts[start];
+            var start = Math.Max(0, separator.Order);
+            var end = Math.Max(start, index + 1 < separators.Length ? separators[index + 1].Order : endExclusive);
+            var newStart = normal.Count(item => item.Order < start);
+            int? memberCount = null;
+            if (separator.MemberCount != null || separator.IsCollapsed)
+            {
+                var available = end - start;
+                var count = Math.Clamp(separator.MemberCount ?? available, 0, available);
+                var memberEnd = start + count;
+                memberCount = normal.Count(item => item.Order >= start && item.Order < memberEnd);
+            }
+            changed |= separator.Order != newStart || separator.MemberCount != memberCount;
+            separator.Order = newStart;
             separator.MemberCount = memberCount;
         }
         return changed;
@@ -555,23 +560,6 @@ public class ProfileService
             }
 
             var ids = modIds.ToHashSet();
-            if (profile.Separators.Count > 0)
-            {
-                var mods = (await _modRepository.GetByIdsAsync(profile.Mods.Select(item => item.ModId), cancellationToken))
-                    .ToDictionary(mod => mod.Id);
-                var normal = profile.Mods.OrderBy(item => item.Order).Where(item => !mods.TryGetValue(item.ModId, out var mod)
-                    || !LoaderOrderLocked || BslProfilePolicy.Role(mod) == HD2Mimnt.Core.Enums.BslModRole.None).ToList();
-                foreach (var separator in profile.Separators)
-                {
-                    if (separator.MemberCount != null || separator.IsCollapsed)
-                    {
-                        var count = GetSeparatorMemberCount(profile, separator, normal.Count);
-                        separator.MemberCount = count - normal.Skip(separator.Order).Take(count).Count(item => ids.Contains(item.ModId));
-                    }
-                }
-                foreach (var separator in profile.Separators)
-                    separator.Order -= normal.Take(separator.Order).Count(item => ids.Contains(item.ModId));
-            }
             if (profile.Mods.RemoveAll(mod => ids.Contains(mod.ModId)) > 0)
             {
                 await NormalizeBslAsync(profile, cancellationToken);

@@ -60,6 +60,7 @@ public static class IasModelPackager
                 .Concat("]==]\n"u8.ToArray()).ToArray();
             owned[(IasResourceTypes.Lua, IasHash.Murmur64(module))] = LuaResource(raw);
         }
+        var privateMaterialIds = request.Compiled.MorphMaterials?.Keys.Select(key => key.Item2).Distinct().Order().ToList() ?? [];
         var required = new HashSet<ulong>(request.Compiled.VisibleMaterialIds);
         var pending = new Queue<ulong>(required.Order());
         while (pending.Count > 0)
@@ -71,7 +72,7 @@ public static class IasModelPackager
             if (parent != 0 && required.Add(parent)) pending.Enqueue(parent);
         }
         var used = required.Order().Where(id => request.Available.ContainsKey((IasResourceTypes.Material, id))).ToList();
-        var dependenciesUsed = required.Order().ToList();
+        var dependenciesUsed = required.Concat(privateMaterialIds).Distinct().Order().ToList();
         // 源模组自带的材质与它引用的贴图随成品一起打包；否则禁用源模组后游戏只剩默认材质。
         // 只读取当前可见材质及其父链，原生（游戏内）材质仍按资源编号引用。
         var bundledMaterials = new Dictionary<(ulong Type, ulong Id), IasResource>();
@@ -86,7 +87,19 @@ public static class IasModelPackager
             }
         }
         registration = With(registration, "materials",
-            IasValue.Of(used.Select(id => IasValue.Of($"{id:x16}")).ToList()));
+            IasValue.Of(used.Concat(privateMaterialIds).Distinct().Order().Select(id => IasValue.Of($"{id:x16}")).ToList()));
+        var morphMaterials = new Dictionary<(ulong Type, ulong Id), IasResource>();
+        if (request.Compiled.MorphMaterials is not null)
+        {
+            foreach (var (key, material) in request.Compiled.MorphMaterials)
+            {
+                morphMaterials[key] = material;
+                foreach (var textureId in TextureDependencies(material.Toc))
+                    if (request.Available.TryGetValue((IasResourceTypes.Texture, textureId), out var texture)
+                        || request.Compiled.MorphMaterials.TryGetValue((IasResourceTypes.Texture, textureId), out texture))
+                        morphMaterials[(IasResourceTypes.Texture, textureId)] = texture;
+            }
+        }
         var code = Encoding.ASCII.GetBytes("-- HD2CL_MODEL_V1 ")
             .Concat(IasLua.JsonBytes(registration))
             .Concat("\nreturn "u8.ToArray())
@@ -130,6 +143,7 @@ public static class IasModelPackager
         members["manifest.json"] = Encoding.UTF8.GetBytes(IasLua.WriteJson(manifest, ensureAscii: false, sortKeys: false, indent: 2));
         var archives = new List<IasArchivePlan> { new(Patch, owned) };
         if (bundledMaterials.Count > 0) archives.Add(new(MaterialPatch, bundledMaterials));
+        if (morphMaterials.Count > 0) archives.Add(new("9ba626afa44a3aa3.patch_3", morphMaterials));
         return new IasPackagedModel(request.Name, members, archives, manifest, registration,
             IasHash.Sha256Hex(Encoding.UTF8.GetBytes(catalogExpression)));
     }

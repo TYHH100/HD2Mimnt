@@ -1,0 +1,23 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  --bg: #111318;
+  --panel: #1b1e24;
+  --border: #30343d;
+  --text: #f2f4f8;
+  --muted: #a8afbd;
+  --accent: #6ea8fe;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+main { width: min(880px, calc(100% - 48px)); margin: 0 auto; padding: 64px 0; }
+h1 { margin: 8px 0 16px; font-size: clamp(32px, 5vw, 56px); }
+p { line-height: 1.7; color: var(--muted); }
+.eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+.card { margin-top: 32px; padding: 24px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+.card h2 { margin-top: 0; }
+output { display: block; margin: 16px 0; font-size: 48px; font-weight: 700; }
+button { padding: 11px 18px; color: #101318; background: var(--accent); border: 0; border-radius: 8px; font: inherit; font-weight: 650; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.hint { margin-top: 20px; font-size: 13px; }

@@ -31,12 +31,18 @@ public class PluginResult
     /// </summary>
     public PluginUiUpdate? Ui { get; set; }
 
+    /// <summary>WebView2 等富界面命令使用的结构化 JSON 结果；仍经过宿主密钥扫描。</summary>
+    public System.Text.Json.JsonElement? Data { get; set; }
+
     /// <summary>
     /// Create a successful result
     /// </summary>
     public static PluginResult Ok(string? message = null, PluginUiUpdate? ui = null)
+        => Ok(message, ui, null);
+
+    public static PluginResult Ok(string? message, PluginUiUpdate? ui, System.Text.Json.JsonElement? data)
     {
-        return new PluginResult { Success = true, Message = message, Ui = ui };
+        return new PluginResult { Success = true, Message = message, Ui = ui, Data = data };
     }
 
     /// <summary>

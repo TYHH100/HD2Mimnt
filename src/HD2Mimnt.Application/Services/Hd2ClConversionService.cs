@@ -2,6 +2,7 @@ using System.Text.Json;
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Hd2IAS;
 using HD2Mimnt.Core.Interfaces;
+using HD2Mimnt.Core.IO;
 using HD2Mimnt.Infrastructure.ModelConversion;
 
 namespace HD2Mimnt.Application.Services;
@@ -230,6 +231,10 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
 
         var toggles = state.OptionToggles;
         var selections = state.OptionSelections;
+        if (options.All(option => option.SubOptions is not { Count: > 0 })
+            && ResolveIndependentMaterialOptions(mod.Path, options, toggles) is { } materialScope)
+            return materialScope;
+
         var modelDirectories = new List<string>();
         var groups = new List<Hd2ClOptionGroup>();
         for (var index = 0; index < options.Count; index++)
@@ -262,6 +267,52 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
             OptionSelections = new[] { 0 }.Concat(groups.Select(group => group.DefaultIndex)).ToList()
         };
 
+    private static ConversionScope? ResolveIndependentMaterialOptions(string modPath,
+        List<ModOption> options, List<bool>? toggles)
+    {
+        if (options.Count < 2) return null;
+        var choices = new List<Hd2ClOptionChoice>();
+        var colorOptions = new List<(int Index, ModOption Option, string Material)>();
+        var materialDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var modelUseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var modelDirectories = new List<string>();
+        for (var index = 0; index < options.Count; index++)
+        {
+            var option = options[index];
+            if (option.Include is not { Count: > 0 } include) return null;
+            var materials = include.Where(path => IsMaterialDirectory(modPath, path)).ToList();
+            if (materials.Count > 1) return null;
+            var enabled = index < (toggles?.Count ?? 0) ? toggles![index] : option.DefaultEnabled ?? true;
+            if (materials.Count == 0)
+            {
+                if (enabled) modelDirectories.AddRange(include);
+                continue;
+            }
+            if (!materialDirectories.Add(materials[0])) return null;
+            colorOptions.Add((index, option, materials[0]));
+        }
+        if (colorOptions.Count < 2) return null;
+
+        var defaultIndex = -1;
+        foreach (var (index, option, material) in colorOptions)
+        {
+            var models = option.Include!.Except([material], StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (models.Count == 0) return null;
+            foreach (var model in models)
+                modelUseCounts[model] = modelUseCounts.GetValueOrDefault(model) + 1;
+            choices.Add(new Hd2ClOptionChoice(option.Name, option.Image, material));
+            var enabled = index < (toggles?.Count ?? 0) ? toggles![index] : option.DefaultEnabled ?? true;
+            if (!enabled) continue;
+            defaultIndex = choices.Count - 1;
+            modelDirectories.AddRange(models);
+        }
+        // 某个模型目录只属于一个配色时，它可能是模型版本差异，不能合并成配色组。
+        if (defaultIndex < 0 || modelUseCounts.Any(pair => pair.Value < 2)) return null;
+        return new(modelDirectories.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            [new Hd2ClOptionGroup("材质配色", null, null, true, defaultIndex, choices)]);
+    }
+
     private static Hd2ClOptionGroup? MaterialGroup(string modPath, ModOption option,
         List<ModSubOption> subOptions, bool enabled, int defaultIndex)
     {
@@ -280,8 +331,8 @@ public sealed class Hd2ClConversionService : IHd2ClConversionService
     /// <summary>分支目录只含材质/贴图补丁（可选图标），进入成品后才能安全复制成选项。</summary>
     private static bool IsMaterialDirectory(string modPath, string relative)
     {
-        var directory = Path.Combine(modPath, relative.Replace('/', Path.DirectorySeparatorChar));
-        if (!Directory.Exists(directory)) return false;
+        var directory = Path.GetFullPath(Path.Combine(modPath, relative.Replace('/', Path.DirectorySeparatorChar)));
+        if (!PathGuard.IsInsideRoot(modPath, directory) || !Directory.Exists(directory)) return false;
         foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
         {
             var name = Path.GetFileName(file);

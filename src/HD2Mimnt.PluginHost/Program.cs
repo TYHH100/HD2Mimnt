@@ -201,6 +201,9 @@ class Program
                 UiJson = result.Ui is null
                     ? null
                     : JsonSerializer.Serialize(result.Ui, PluginManifestJson.Options),
+                DataJson = result.Data is { } data
+                    ? JsonSerializer.Serialize(data, PluginManifestJson.Options)
+                    : null,
                 Errors = result.Success ? null : new List<string> { result.Error ?? "命令执行失败" }
             });
         }

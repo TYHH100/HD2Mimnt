@@ -1,0 +1,26 @@
+{
+  "id": "com.hd2mimnt.samples.static-web",
+  "name": "纯网页插件示例",
+  "version": "1.0.0",
+  "author": "HD2Mimnt",
+  "description": "无需 DLL 或 Lua，只使用 HTML/CSS/JavaScript 的 WebView2 页面。",
+  "apiVersion": "1.5.0",
+  "runtime": "web",
+  "permissionMode": "Sandbox",
+  "requestedPermissions": [],
+  "kind": "web",
+  "ui": {
+    "pages": [
+      {
+        "id": "home",
+        "title": "纯网页插件",
+        "icon": "Code",
+        "description": "这个插件没有程序集，也没有脚本。",
+        "kind": "webView2",
+        "entry": "web/index.html",
+        "keepAlive": true,
+        "fillWindow": true
+      }
+    ]
+  }
+}

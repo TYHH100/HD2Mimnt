@@ -389,6 +389,10 @@ internal sealed class LuaApiBridge
             {
                 result.Set("ui", args[1]);
             }
+            if (args[2].Type is not DataType.Nil and not DataType.Void)
+            {
+                result.Set("data", args[2]);
+            }
             return DynValue.NewTable(result);
         }));
 

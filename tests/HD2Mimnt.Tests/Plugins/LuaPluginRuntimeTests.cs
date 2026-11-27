@@ -77,6 +77,31 @@ public class LuaPluginRuntimeTests
     }
 
     [Fact]
+    public async Task Execute_ConvertsStructuredDataForWebView2()
+    {
+        var directory = CreatePluginDirectory(BasicManifest, """
+            function on_command(name, args)
+              return hd2.result.ok("ok", nil, { title = "Dashboard", count = 2, enabled = true })
+            end
+            """);
+
+        using var runtime = new LuaPluginRuntime("test.lua.plugin");
+        await runtime.InitializeAsync(
+            Path.Combine(directory, "main.lua"),
+            Path.Combine(directory, "manifest.json"),
+            new FakePluginContext(directory));
+
+        var result = await runtime.ExecuteCommandAsync("report", new PluginCommandContext(
+            new CapturingLogger(), new MemoryStorage(directory), new MemoryConfiguration(), "{}"));
+
+        Assert.True(result.Success, result.Error);
+        Assert.NotNull(result.Data);
+        Assert.Equal("Dashboard", result.Data!.Value.GetProperty("title").GetString());
+        Assert.Equal(2, result.Data.Value.GetProperty("count").GetInt32());
+        Assert.True(result.Data.Value.GetProperty("enabled").GetBoolean());
+    }
+
+    [Fact]
     public async Task Execute_PassesArgumentsAsLuaTable()
     {
         var directory = CreatePluginDirectory(BasicManifest, """

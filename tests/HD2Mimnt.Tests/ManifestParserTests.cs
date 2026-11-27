@@ -152,8 +152,8 @@ public class ManifestParserTests
             ProfileModOptionResolver.ResolveEffective(manifest, null));
 
         Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
-        // 默认：选项全启用，一级子选项取 0，嵌套叶子取 0（黑丝）。
-        Assert.Equal(new[] { "Model", "Material/Pantyhose/Black" }, plan.Directories);
+        // 默认启用所有二级分类，每类各取第 0 个叶子。
+        Assert.Equal(new[] { "Model", "Material/Pantyhose/Black", "Material/Hair/Black", "Material/Clothes/Red" }, plan.Directories);
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public class ManifestParserTests
             ProfileModOptionResolver.ResolveEffective(manifest, stored));
 
         Assert.Equal(OptionDeployScope.DirectoryList, plan.Scope);
-        Assert.Equal(new[] { "Model", "Material/Hair/White" }, plan.Directories);
+        Assert.Equal(new[] { "Model", "Material/Pantyhose/Black", "Material/Hair/White", "Material/Clothes/Red" }, plan.Directories);
     }
 
     [Fact]

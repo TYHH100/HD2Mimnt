@@ -167,17 +167,18 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
     {
         ArgumentNullException.ThrowIfNull(modDirectory);
         ArgumentNullException.ThrowIfNull(patchFiles);
-        var result = new ModelPreviewResult { ForceDecodeOversizedStreams = forceDecodeOversizedStreams };
         if (!RefreshDirectoryExists(modDirectory))
-        {
-            result.Error = "Mod directory no longer exists.";
-            return result;
-        }
+            return new ModelPreviewResult { ForceDecodeOversizedStreams = forceDecodeOversizedStreams, Error = "Mod directory no longer exists." };
 
         // The first pass only supplies TOC, texture metadata, and material resources. GPU
         // stream samples are not needed to resolve materials and would otherwise be read a
         // second time while the actual preview meshes are built.
         var inspection = await InspectCoreAsync(modDirectory, patchFiles, includeGpuStreams: false, cancellationToken);
+        var catalog = await ModelPreviewPartCatalog.ReadAsync(modDirectory, inspection.TocEntries, cancellationToken);
+        // 部件备选也参与预览；保留完整分支，避免后部选项在合并预算处被静默丢弃。
+        var result = new ModelPreviewResult { ForceDecodeOversizedStreams = forceDecodeOversizedStreams || catalog.Parts.Count > 0 };
+        result.Parts.AddRange(catalog.Parts);
+        result.CatalogUnitIds.UnionWith(catalog.CatalogUnitIds);
         var effectiveUnitPatchOrders = new Dictionary<ulong, int>();
         foreach (var entry in inspection.TocEntries)
         {
@@ -243,7 +244,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             },
             async (patchOrder, token) =>
             {
-                var patchResult = new ModelPreviewResult { ForceDecodeOversizedStreams = forceDecodeOversizedStreams };
+                var patchResult = new ModelPreviewResult { ForceDecodeOversizedStreams = result.ForceDecodeOversizedStreams };
                 var patchFile = patchFiles[patchOrder];
                 try
                 {
@@ -257,7 +258,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
                         unitMaterialLayouts,
                         cancellationToken: token,
                         includeGpuStreams: true,
-                        forceDecodeOversizedStreams: forceDecodeOversizedStreams,
+                        forceDecodeOversizedStreams: result.ForceDecodeOversizedStreams,
                         effectiveUnitPatchOrders: effectiveUnitPatchOrders);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1836,7 +1837,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         if (position.Format != 2)
             return null;
 
-        var uv = components.FirstOrDefault(static component => component.Type == 4 && component.Format is 1 or 29 or 33);
+        var uv = components.FirstOrDefault(static component => component.Type == 4 && component.Format is 1 or 3 or 29 or 33);
         var boneIndex = components.FirstOrDefault(static component => component.Type == 6 && component.Format is 24 or 28);
         var boneWeight = components.FirstOrDefault(static component => component.Type == 7 && component.Format is 0 or 4 or 31 or 35);
         var palette = rig is not null && section.LodIndex >= 0 && section.LodIndex < rig.Palettes.Count
@@ -1914,7 +1915,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             return null;
 
         var positions = new float[checked((int)requiredVertexCount * 3)];
-        var textureCoordinates = uv.Format is 1 or 29 or 33
+        var textureCoordinates = uv.Format is 1 or 3 or 29 or 33
             ? new float[checked((int)requiredVertexCount * 2)]
             : null;
         var transformIndices = canDecodeSkinning || attachBoneIndex >= 0
@@ -1950,7 +1951,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             {
                 var uvSourceOffset = checked((int)vertexIndex * (int)vertexStride + uv.Offset);
                 var uvTargetOffset = (int)vertexIndex * 2;
-                if (uv.Format == 1)
+                if (uv.Format is 1 or 3)
                 {
                     textureCoordinates[uvTargetOffset] = BitConverter.ToSingle(vertexBytes, uvSourceOffset);
                     textureCoordinates[uvTargetOffset + 1] = BitConverter.ToSingle(vertexBytes, uvSourceOffset + 4);
@@ -2212,7 +2213,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
         if (position.Format != 2)
             return null;
 
-        var uv = components.FirstOrDefault(static component => component.Type == 4 && component.Format is 1 or 29 or 33);
+        var uv = components.FirstOrDefault(static component => component.Type == 4 && component.Format is 1 or 3 or 29 or 33);
 
         var indexElementSize = indexType == 0 ? 2u : 4u;
         var vertexByteCount = (long)vertexCount * vertexStride;
@@ -2233,7 +2234,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             return null;
 
         var positions = new float[checked((int)vertexCount * 3)];
-        var textureCoordinates = uv.Format is 1 or 29 or 33
+        var textureCoordinates = uv.Format is 1 or 3 or 29 or 33
             ? new float[checked((int)vertexCount * 2)]
             : null;
         for (var vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++)
@@ -2255,7 +2256,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
             {
                 var uvSourceOffset = checked((int)vertexIndex * (int)vertexStride + uv.Offset);
                 var uvTargetOffset = vertexIndex * 2;
-                if (uv.Format == 1)
+                if (uv.Format is 1 or 3)
                 {
                     textureCoordinates[uvTargetOffset] = BitConverter.ToSingle(vertexBytes, uvSourceOffset);
                     textureCoordinates[uvTargetOffset + 1] = BitConverter.ToSingle(vertexBytes, uvSourceOffset + 4);
@@ -2484,7 +2485,7 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
 
     private static string GetFormatName(uint format) => format switch
     {
-        0 => "float", 1 => "float2", 2 => "float3", 4 => "RGBA8", 20 => "uint32x4 (legacy)",
+        0 => "float", 1 => "float2", 2 => "float3", 3 => "float4", 4 => "RGBA8", 20 => "uint32x4 (legacy)",
         24 => "uint8x4 (legacy)", 26 => "oct-normal (legacy)", 28 => "uint8x4", 29 => "half2 (legacy)",
         30 => "oct-normal", 31 => "half4 (legacy)", 33 => "half2", 35 => "half4", _ => $"Format 0x{format:X}"
     };
@@ -2492,8 +2493,8 @@ public sealed class PatchResourceInspectionService : IModelPreviewReader
     private static bool TryGetFormatSize(uint format, bool usesLegacyVertexFormats, out int size)
     {
         size = usesLegacyVertexFormats
-            ? format switch { 0 => 4, 1 => 8, 2 => 12, 4 or 24 or 25 or 26 or 29 => 4, 20 => 16, 31 => 8, _ => 0 }
-            : format switch { 0 => 4, 1 => 8, 2 => 12, 4 or 28 or 30 or 33 => 4, 35 => 8, _ => 0 };
+            ? format switch { 0 => 4, 1 => 8, 2 => 12, 3 => 16, 4 or 24 or 25 or 26 or 29 => 4, 20 => 16, 31 => 8, _ => 0 }
+            : format switch { 0 => 4, 1 => 8, 2 => 12, 3 => 16, 4 or 28 or 30 or 33 => 4, 35 => 8, _ => 0 };
         return size != 0;
     }
 

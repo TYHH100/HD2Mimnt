@@ -338,6 +338,76 @@ public sealed class BslMechanismTests : IDisposable
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
+    public async Task NormalizeProfile_ExternalDeletionWithGaps_ShouldPreserveSeparatorMembers(
+        bool lockLoaders, bool collapsed)
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, lockLoaders);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var mods = new List<Mod>();
+        for (var index = 0; index < 6; index++) mods.Add(await AddModAsync($"普通 {index}"));
+        var id = await service.CreateProfileAsync("外部删除后保留分组");
+        await service.SetModsEnabledAsync(id, mods.Select(mod => mod.Id).ToArray(), true);
+        var firstGroup = await service.AddSeparatorAsync(id, "第一组", 2);
+        var secondGroup = await service.AddSeparatorAsync(id, "第二组", 4);
+        if (collapsed)
+        {
+            await service.SetSeparatorCollapsedAsync(id, firstGroup.Id, true);
+            await service.SetSeparatorCollapsedAsync(id, secondGroup.Id, true);
+        }
+
+        var externallyEdited = (await _profiles.GetByIdAsync(id))!;
+        var removedIds = new[] { mods[1].Id, mods[3].Id }.ToHashSet();
+        externallyEdited.Mods.RemoveAll(item => removedIds.Contains(item.ModId));
+        await _profiles.UpdateAsync(externallyEdited);
+
+        var normalized = (await service.NormalizeProfileAsync(id))!;
+
+        Assert.Equal(new[] { mods[0].Id, mods[2].Id, mods[4].Id, mods[5].Id },
+            normalized.Mods.OrderBy(item => item.Order).Select(item => item.ModId));
+        var separators = normalized.Separators.OrderBy(item => item.Order).ToList();
+        Assert.Equal(new[] { firstGroup.Id, secondGroup.Id }, separators.Select(item => item.Id));
+        Assert.Equal(new[] { 1, 2 }, separators.Select(item => item.Order));
+        if (collapsed) Assert.Equal(new[] { 1, 2 }, separators.Select(item => item.MemberCount!.Value));
+        else Assert.All(separators, item => Assert.Null(item.MemberCount));
+    }
+
+    [Fact]
+    public async Task NormalizeProfile_ExternalModRowDeletion_ShouldRemoveOrphanReferenceAndPreserveGroups()
+    {
+        var settings = new SettingsService(_root);
+        await settings.SetSettingAsync(SettingKeys.ProfilesLockLoaders, false);
+        var service = new ProfileService(_profiles, _mods, settings);
+        var mods = new List<Mod>();
+        for (var index = 0; index < 5; index++) mods.Add(await AddModAsync($"普通 {index}"));
+        var id = await service.CreateProfileAsync("外部删除主记录后保留分组");
+        await service.SetModsEnabledAsync(id, mods.Select(mod => mod.Id).ToArray(), true);
+        var firstGroup = await service.AddSeparatorAsync(id, "第一组", 2);
+        var secondGroup = await service.AddSeparatorAsync(id, "第二组", 4);
+        await service.SetSeparatorCollapsedAsync(id, firstGroup.Id, true);
+        await service.SetSeparatorCollapsedAsync(id, secondGroup.Id, true);
+
+        using var connection = await _db.OpenConnectionAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA foreign_keys=OFF; DELETE FROM Mods WHERE Id=@Id;";
+        command.Parameters.AddWithValue("@Id", mods[1].Id.ToString());
+        await command.ExecuteNonQueryAsync();
+
+        var normalized = (await service.NormalizeProfileAsync(id))!;
+
+        Assert.Equal(new[] { mods[0].Id, mods[2].Id, mods[3].Id, mods[4].Id },
+            normalized.Mods.OrderBy(item => item.Order).Select(item => item.ModId));
+        var separators = normalized.Separators.OrderBy(item => item.Order).ToList();
+        Assert.Equal(new[] { firstGroup.Id, secondGroup.Id }, separators.Select(item => item.Id));
+        Assert.Equal(new[] { 1, 3 }, separators.Select(item => item.Order));
+        Assert.Equal(new[] { 2, 1 }, separators.Select(item => item.MemberCount!.Value));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
     public async Task RemovingFixedMember_ShouldOnlyChangeOrdinarySeparatorBoundariesWhenUnlocked(bool lockLoaders, bool deleteFiles)
     {
         var settings = new SettingsService(_root);

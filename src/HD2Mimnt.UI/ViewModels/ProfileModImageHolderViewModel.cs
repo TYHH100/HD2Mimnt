@@ -131,6 +131,7 @@ public partial class ProfileModOptionCardViewModel : ProfileModImageHolderViewMo
         Array.Empty<ProfileModSubOptionChoiceViewModel>();
 
     public bool HasSubOptions => SubOptions.Count > 0;
+    public bool SupportsSubOptionMultiSelect => SubOptions.Count > 0 && SubOptions.All(sub => sub.HasSubOptions);
 
     /// <summary>所属组件分组（HD2IAS 导入生成）；null 表示单级选项。</summary>
     public string? GroupId { get; init; }
@@ -215,6 +216,10 @@ public partial class ProfileModSubOptionChoiceViewModel : ProfileModImageHolderV
 
     [ObservableProperty]
     private bool _isSelected;
+
+    /// <summary>二级分类独立开关；普通互斥子选项由选中态同步。</summary>
+    [ObservableProperty]
+    private bool _isEnabled = true;
 
     /// <summary>嵌套（第三层）子选项是否展开；仅在有嵌套子选项的行上使用。</summary>
     [ObservableProperty]

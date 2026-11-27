@@ -95,6 +95,18 @@ public sealed class ModelPreviewPackTests
         };
         source.Meshes.Add(mesh);
         source.Textures.Add(texture);
+        source.Parts.Add(new ModelPreviewPartGroup
+        {
+            Id = "part-hat",
+            Name = "Hat",
+            SelectedIndex = 1,
+            Options =
+            [
+                new() { Id = "on", Name = "Wear", UnitIds = [0xAA] },
+                new() { Id = "off", Name = "Remove", UnitIds = [0xBB] }
+            ]
+        });
+        source.CatalogUnitIds.UnionWith([0xAA, 0xBB, 0xCC]);
 
         using var stream = new MemoryStream();
         ModelPreviewPack.Write(stream, source);
@@ -157,6 +169,16 @@ public sealed class ModelPreviewPackTests
         Assert.Equal(texture.AlphaIsMaterialParameter, restoredTexture.AlphaIsMaterialParameter);
         Assert.Equal(texture.PreviewRole, restoredTexture.PreviewRole);
         Assert.Equal(texture.PreviewRoleText, restoredTexture.PreviewRoleText);
+
+        var part = Assert.Single(result.Parts);
+        Assert.Equal("part-hat", part.Id);
+        Assert.Equal("Hat", part.Name);
+        Assert.Equal(1, part.SelectedIndex);
+        Assert.Equal(["on", "off"], part.Options.Select(option => option.Id));
+        Assert.Equal(["Wear", "Remove"], part.Options.Select(option => option.Name));
+        Assert.Equal([0xAAUL], part.Options[0].UnitIds);
+        Assert.Equal([0xBBUL], part.Options[1].UnitIds);
+        Assert.Equal([0xAAUL, 0xBBUL, 0xCCUL], result.CatalogUnitIds.Order());
     }
 
     [Fact]
@@ -195,13 +217,26 @@ public sealed class ModelPreviewPackTests
     }
 
     [Fact]
-    public void Read_RejectsArrayCountLargerThanRemainingStream()
+    public void Read_RejectsUnsupportedVersion()
     {
         using var stream = new MemoryStream();
         using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
         {
             writer.Write(0x31564D50);
             writer.Write(1);
+        }
+        stream.Position = 0;
+        Assert.Throws<InvalidDataException>(() => ModelPreviewPack.Read(stream));
+    }
+
+    [Fact]
+    public void Read_RejectsArrayCountLargerThanRemainingStream()
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(0x31564D50);
+            writer.Write(3);
             writer.Write(false);
             writer.Write(0);
             writer.Write(0);

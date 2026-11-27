@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>纯网页插件</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">HD2MIMNT STATIC WEB PLUGIN</p>
+    <h1>不需要 DLL</h1>
+    <p>这个插件只包含 manifest.json 和本地网页文件。页面交互完全在浏览器内完成。</p>
+    <section class="card">
+      <h2>本地计数器</h2>
+      <output id="count">0</output>
+      <button id="increment" type="button">点击 +1</button>
+    </section>
+    <p class="hint">切走再切回来时，因为声明了 keepAlive，计数会保留。</p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -266,6 +266,92 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task ModOptionsNestedCategories_ToggleIndependentlyAndPersistLeafChoices()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var repository = scope.Services.GetRequiredService<IModRepository>();
+        var mod = (await repository.GetAllAsync()).First();
+        mod.Manifest = new ModManifest
+        {
+            Name = mod.Name,
+            ManifestVersion = ManifestVersion.V1,
+            Options =
+            [
+                new() { Name = "材质", SubOptions =
+                [
+                    new() { Name = "头发换色", SubOptions = [new() { Name = "黑色" }, new() { Name = "白色" }] },
+                    new() { Name = "丝袜换色", SubOptions = [new() { Name = "黑色" }, new() { Name = "白色" }] }
+                ] }
+            ]
+        };
+        await repository.UpdateAsync(mod);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        var vm = main.ProfileViewModel;
+        vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+        var dialog = vm.ModOptionsDialog!;
+        var card = Assert.Single(dialog.OptionCards);
+        var hair = card.SubOptions[0];
+        var socks = card.SubOptions[1];
+        Assert.True(card.SupportsSubOptionMultiSelect);
+        Assert.True(hair.IsEnabled && socks.IsEnabled);
+        Assert.False(hair.IsSelected || socks.IsSelected);
+        var window = new MainWindow { DataContext = main, Width = 1000, Height = 760 };
+        try
+        {
+            window.Show();
+            main.NotificationPanelViewModel.DismissAllToasts();
+            var surface = window.GetVisualDescendants().OfType<ProfileView>().Single()
+                .FindControl<Border>("ModOptionsDialogSurface")!;
+            var expander = surface.GetVisualDescendants().OfType<Expander>()
+                .Single(item => ReferenceEquals(item.DataContext, card));
+            expander.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            using (var frame = window.CaptureRenderedFrame()) { }
+            var hairToggle = surface.GetVisualDescendants().OfType<CheckBox>()
+                .Single(item => ReferenceEquals(item.DataContext, hair));
+            Assert.True(hairToggle.IsEffectivelyVisible);
+            Assert.True(hairToggle.Bounds.Width > 0 && hairToggle.Bounds.Height > 0);
+            hairToggle.BringIntoView();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            using (var frame = window.CaptureRenderedFrame()) { }
+            var point = hairToggle.TranslatePoint(new Point(hairToggle.Bounds.Width / 2, hairToggle.Bounds.Height / 2), window)!.Value;
+            var hit = window.InputHitTest(point);
+            Assert.True(hit is Visual visual && hairToggle.IsVisualAncestorOf(visual));
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(hair.IsEnabled);
+            Assert.True(socks.IsEnabled);
+            dialog.SelectSubOption(hair.SubOptions[1]);
+            Assert.True(hair.SubOptions[1].IsSelected);
+            Assert.False(hair.SubOptions[0].IsSelected);
+            await vm.PersistModOptionsAsync(dialog.TargetMod);
+            var saved = ProfileModOptionsState.FromJson(Assert.Single((await scope.Services
+                .GetRequiredService<ProfileService>().GetProfileByIdAsync(vm.SelectedProfile!.Id))!.Mods,
+                item => item.ModId == mod.Id).OptionsJson);
+            Assert.Equal([false, true], saved.SubOptionToggles![0]);
+            Assert.Equal(1, saved.SubOptionSelections![0][0]);
+
+            vm.CloseModOptions();
+            vm.OpenModOptionsCommand.Execute(vm.ProfileMods.Single(item => item.ModId == mod.Id));
+            var reopened = vm.ModOptionsDialog!;
+            var reopenedCard = Assert.Single(reopened.OptionCards);
+            Assert.False(reopenedCard.SubOptions[0].IsEnabled);
+            Assert.True(reopenedCard.SubOptions[1].IsEnabled);
+            Assert.True(reopenedCard.SubOptions[0].SubOptions[1].IsSelected);
+        }
+        finally
+        {
+            vm.CloseModOptions();
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ModOptionsDialog_CloseReleasesDecodedImages()
     {
         // 反复打开选项弹窗不能累积原生位图内存：关闭时取消未完成解码并释放已加载图片。

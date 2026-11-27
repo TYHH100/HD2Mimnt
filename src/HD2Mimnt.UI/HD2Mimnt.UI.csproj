@@ -53,7 +53,8 @@
                                          and '%(Filename)' != 'HD2Mimnt.Agent'
                                          and '%(Filename)' != 'HD2Mimnt.Cli'
                                          and '%(Filename)' != 'HD2Mimnt.PluginHost'
-                                         and '%(Filename)' != 'HD2Mimnt.Worker'" />
+                                         and '%(Filename)' != 'HD2Mimnt.Worker'
+                                         and '%(Filename)' != 'WebView2Loader'" />
       <_PublishRootPdb Include="$(PublishDir)*.pdb" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)lib" />
@@ -72,10 +73,21 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Web.WebView2" ExcludeAssets="build;buildTransitive" GeneratePathProperty="true" />
+    <Reference Include="Microsoft.Web.WebView2.Core">
+      <HintPath>$(PkgMicrosoft_Web_WebView2)\lib_manual\netcoreapp3.0\Microsoft.Web.WebView2.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll">
+      <Link>WebView2Loader.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="HD2Mimnt.UITests" />
+    <InternalsVisibleTo Include="HD2Mimnt.Tests" />
   </ItemGroup>
 </Project>

@@ -336,6 +336,36 @@
   <data name="UI.RefreshLibrary" xml:space="preserve">
     <value>Refresh library</value>
   </data>
+  <data name="UI.CleanMissingMods" xml:space="preserve">
+    <value>Clean invalid records</value>
+  </data>
+  <data name="UI.CleanMissingModsHint" xml:space="preserve">
+    <value>Find and remove mod records whose folders no longer exist</value>
+  </data>
+  <data name="Library.CleanMissingModsTitle" xml:space="preserve">
+    <value>Clean invalid mod records</value>
+  </data>
+  <data name="Library.CleanMissingModsNone" xml:space="preserve">
+    <value>No mod records with missing folders were found.</value>
+  </data>
+  <data name="Library.CleanMissingModsMore" xml:space="preserve">
+    <value>…and {0} more</value>
+  </data>
+  <data name="Library.CleanMissingModsConfirm" xml:space="preserve">
+    <value>Found {0} mod records whose folders are missing:
+{1}
+
+This will delete the records, remove their profile references, and clean their tracked deployment files. It will not delete mod library files or version history. If a drive or folder is only temporarily unavailable, cancel. Continue?</value>
+  </data>
+  <data name="Library.CleanMissingModsResult" xml:space="preserve">
+    <value>Cleaned {0} invalid records, skipped {1} restored or missing records, and failed to clean {2}.</value>
+  </data>
+  <data name="Library.CleanMissingModsScanFailed" xml:space="preserve">
+    <value>Could not check invalid mod records: {0}</value>
+  </data>
+  <data name="Library.CleanMissingModsFailed" xml:space="preserve">
+    <value>Could not clean invalid mod records: {0}</value>
+  </data>
   <data name="UI.CurrentProfile" xml:space="preserve">
     <value>Current profile</value>
   </data>
@@ -2696,6 +2726,24 @@ See the Conflicts page for details.</value>
   <data name="Plugin.Sandboxed" xml:space="preserve">
     <value>Sandbox</value>
   </data>
+  <data name="PluginWebView.Reload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="PluginWebView.RuntimeMissing" xml:space="preserve">
+    <value>Microsoft Edge WebView2 Runtime is not installed. Install it and reload this page.</value>
+  </data>
+  <data name="PluginWebView.EntryMissing" xml:space="preserve">
+    <value>The plugin web page entry is missing or outside the plugin directory.</value>
+  </data>
+  <data name="PluginWebView.EnvironmentUnavailable" xml:space="preserve">
+    <value>The WebView2 environment is unavailable.</value>
+  </data>
+  <data name="PluginWebView.ProcessFailed" xml:space="preserve">
+    <value>The WebView2 process stopped unexpectedly ({0}). Reload the page to try again.</value>
+  </data>
+  <data name="PluginWebView.NavigationFailed" xml:space="preserve">
+    <value>The plugin web page could not be loaded ({0}).</value>
+  </data>
   <data name="Notification.Success" xml:space="preserve">
     <value>Success</value>
   </data>
@@ -4490,7 +4538,11 @@ Missing entries {3} / media {4}; custom entries {5} / media {6}</value></data>
   <data name="ModelPreview.Summary" xml:space="preserve"><value>{0} meshes · {1:N0} triangles · {2} textures · {3} skipped streams</value></data>
   <data name="ModelPreview.Options" xml:space="preserve"><value>Mod options</value></data>
   <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>Click Update preview after changing options. Preview changes never modify profiles or deployed files.</value></data>
+  <data name="ModelPreview.GameParts" xml:space="preserve"><value>In-game parts</value></data>
+  <data name="ModelPreview.GamePartsHelp" xml:space="preserve"><value>Matches the in-game panel and only affects this preview.</value></data>
   <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>Texture preview resolution</value></data>
+  <data name="ModelPreview.ForceDecodeOversizedStreams" xml:space="preserve"><value>Force-load oversized meshes (raise preview limits)</value></data>
+  <data name="ModelPreview.ForceDecodeOversizedStreamsHelp" xml:space="preserve"><value>Loads high-detail meshes skipped at the default limits. Uses significantly more memory, takes longer, and may reduce preview performance. Hard safety limits still apply.</value></data>
   <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>Original</value></data>
   <data name="ModelPreview.Apply" xml:space="preserve"><value>Update preview</value></data>
   <data name="ModelPreview.Meshes" xml:space="preserve"><value>Meshes</value></data>

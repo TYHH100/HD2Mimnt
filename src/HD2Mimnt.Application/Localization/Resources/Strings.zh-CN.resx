@@ -336,6 +336,36 @@
   <data name="UI.RefreshLibrary" xml:space="preserve">
     <value>刷新模组库</value>
   </data>
+  <data name="UI.CleanMissingMods" xml:space="preserve">
+    <value>清理无效记录</value>
+  </data>
+  <data name="UI.CleanMissingModsHint" xml:space="preserve">
+    <value>查找并移除模组目录已不存在的数据库记录</value>
+  </data>
+  <data name="Library.CleanMissingModsTitle" xml:space="preserve">
+    <value>清理无效模组记录</value>
+  </data>
+  <data name="Library.CleanMissingModsNone" xml:space="preserve">
+    <value>没有发现模组目录不存在的记录。</value>
+  </data>
+  <data name="Library.CleanMissingModsMore" xml:space="preserve">
+    <value>…另有 {0} 条</value>
+  </data>
+  <data name="Library.CleanMissingModsConfirm" xml:space="preserve">
+    <value>发现 {0} 个模组目录已不存在：
+{1}
+
+将删除这些数据库记录、移出配置引用，并清理已追踪的部署文件；不会删除模组库文件或历史版本。若磁盘或目录只是暂时离线，请取消。是否继续？</value>
+  </data>
+  <data name="Library.CleanMissingModsResult" xml:space="preserve">
+    <value>已清理 {0} 条无效记录，跳过 {1} 条已恢复或不存在的记录，失败 {2} 条。</value>
+  </data>
+  <data name="Library.CleanMissingModsScanFailed" xml:space="preserve">
+    <value>检查无效模组记录失败：{0}</value>
+  </data>
+  <data name="Library.CleanMissingModsFailed" xml:space="preserve">
+    <value>清理无效模组记录失败：{0}</value>
+  </data>
   <data name="UI.CurrentProfile" xml:space="preserve">
     <value>当前 Profile</value>
   </data>
@@ -2696,6 +2726,24 @@
   <data name="Plugin.Sandboxed" xml:space="preserve">
     <value>沙盒</value>
   </data>
+  <data name="PluginWebView.Reload" xml:space="preserve">
+    <value>重新加载</value>
+  </data>
+  <data name="PluginWebView.RuntimeMissing" xml:space="preserve">
+    <value>未安装 Microsoft Edge WebView2 Runtime。请安装后重新加载此页面。</value>
+  </data>
+  <data name="PluginWebView.EntryMissing" xml:space="preserve">
+    <value>插件网页入口不存在或越出插件目录。</value>
+  </data>
+  <data name="PluginWebView.EnvironmentUnavailable" xml:space="preserve">
+    <value>WebView2 运行环境不可用。</value>
+  </data>
+  <data name="PluginWebView.ProcessFailed" xml:space="preserve">
+    <value>WebView2 进程意外停止（{0}）。请重新加载页面重试。</value>
+  </data>
+  <data name="PluginWebView.NavigationFailed" xml:space="preserve">
+    <value>插件网页加载失败（{0}）。</value>
+  </data>
   <data name="Notification.Success" xml:space="preserve">
     <value>成功</value>
   </data>
@@ -4490,7 +4538,11 @@ TOC 有效：{2} · 数据范围有效：{3} · 含 stream：{4} · 含 GPU：{5
   <data name="ModelPreview.Summary" xml:space="preserve"><value>{0} 个网格 · {1:N0} 个三角形 · {2} 张贴图 · {3} 个流未加载</value></data>
   <data name="ModelPreview.Options" xml:space="preserve"><value>模组选项</value></data>
   <data name="ModelPreview.OptionsHelp" xml:space="preserve"><value>修改后点击“更新预览”。这里只调整预览，不会修改配置或部署文件。</value></data>
+  <data name="ModelPreview.GameParts" xml:space="preserve"><value>游戏内部件</value></data>
+  <data name="ModelPreview.GamePartsHelp" xml:space="preserve"><value>与游戏内面板一致，仅影响当前预览。</value></data>
   <data name="ModelPreview.TextureResolution" xml:space="preserve"><value>贴图预览分辨率</value></data>
+  <data name="ModelPreview.ForceDecodeOversizedStreams" xml:space="preserve"><value>强制加载超大网格（提高预览上限）</value></data>
+  <data name="ModelPreview.ForceDecodeOversizedStreamsHelp" xml:space="preserve"><value>加载因达到默认上限而跳过的高精度网格。会显著增加内存占用和加载时间，并可能降低预览流畅度；仍保留硬性安全上限。</value></data>
   <data name="ModelPreview.OriginalResolution" xml:space="preserve"><value>原始分辨率</value></data>
   <data name="ModelPreview.Apply" xml:space="preserve"><value>更新预览</value></data>
   <data name="ModelPreview.Meshes" xml:space="preserve"><value>网格</value></data>

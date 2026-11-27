@@ -12,6 +12,7 @@ public interface IModOptionsSelection
     IReadOnlyList<ProfileModOptionCardViewModel> OptionCards { get; }
     IReadOnlyList<ProfileModLegacyChoiceViewModel> LegacyChoices { get; }
     ICommand ToggleOptionCommand { get; }
+    ICommand ToggleSubOptionCommand { get; }
 
     /// <summary>是否存在可导航的组件分组（仅 HD2IAS 导入生成）。</summary>
     bool HasGroups { get; }

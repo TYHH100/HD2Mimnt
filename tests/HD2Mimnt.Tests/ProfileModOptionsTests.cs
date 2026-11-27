@@ -502,8 +502,8 @@ public class ProfileModOptionsTests : IDisposable
             ("Material/Pantyhose/Black", "pantyhose"),
             ("Material/Hair/Black", "hair_black"),
             ("Material/Hair/White", "hair_white"),
-            ("Material/Clothes/Red", "clothes_red"),
-            ("Material/Clothes/Blue", "clothes_blue")
+            ("Material/Clothes/Red", "red_clothes_01"),
+            ("Material/Clothes/Blue", "blue_clothes_02")
         })
         {
             Directory.CreateDirectory(Path.Combine(modPath, directory));
@@ -522,7 +522,7 @@ public class ProfileModOptionsTests : IDisposable
     }
 
     [Fact]
-    public async Task DeployProfileAsync_ThreeLevelOptions_DefaultSelectionDeploysFirstLeaves()
+    public async Task DeployProfileAsync_ThreeLevelOptions_DefaultSelectionDeploysFirstLeafOfEveryCategory()
     {
         var mod = await CreateModAsync("moe_default", new ManifestParser().ParseFromJson(ThreeLevelManifestJson));
         WriteThreeLevelPatches(mod.Path);
@@ -532,21 +532,20 @@ public class ProfileModOptionsTests : IDisposable
         var result = await CreateDeploymentService().DeployProfileAsync(
             profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
 
-        // 三层结构不再触发全目录回退，模组不被整体跳过；默认各级取 0：
-        // 材质选中第 0 个子选项（丝袜换色），其叶子取 0 → 只部署 Model + Material/Pantyhose/Black
+        // 旧配置没有分类开关时默认启用全部分类，每类各部署第 0 个叶子。
         Assert.Equal(DeploymentStatus.Completed, result.Status);
         Assert.Equal(1, result.CompletedMods);
         Assert.Equal(0, result.SkippedMods);
         Assert.True(DataHasPatch(_gameDirRoot, "model"));
         Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
-        Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.True(DataHasPatch(_gameDirRoot, "hair_black"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_white"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+        Assert.False(DataHasPatch(_gameDirRoot, "blue_clothes_02"));
     }
 
     [Fact]
-    public async Task DeployProfileAsync_ThreeLevelOptions_SelectedLeavesDeployTheirDirectories()
+    public async Task DeployProfileAsync_ThreeLevelOptions_SelectedLeavesDeployAcrossCategories()
     {
         var mod = await CreateModAsync("moe_selected", new ManifestParser().ParseFromJson(ThreeLevelManifestJson));
         WriteThreeLevelPatches(mod.Path);
@@ -564,13 +563,36 @@ public class ProfileModOptionsTests : IDisposable
 
         Assert.Equal(DeploymentStatus.Completed, result.Status);
         Assert.Equal(0, result.SkippedMods);
-        // 材质选中第 1 个子选项（头发换色）+ 叶子取 1（白）→ 只部署 Model + Material/Hair/White
+        // 所有分类默认启用；头发取第 1 个叶子（白），丝袜和衣服仍取各自第 0 个叶子。
         Assert.True(DataHasPatch(_gameDirRoot, "model"));
+        Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
         Assert.True(DataHasPatch(_gameDirRoot, "hair_white"));
-        Assert.False(DataHasPatch(_gameDirRoot, "pantyhose"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_red"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+        Assert.False(DataHasPatch(_gameDirRoot, "blue_clothes_02"));
+    }
+
+    [Fact]
+    public async Task DeployProfileAsync_ThreeLevelOptions_DisabledCategoryIsExcluded()
+    {
+        var mod = await CreateModAsync("moe_disabled_category", new ManifestParser().ParseFromJson(ThreeLevelManifestJson));
+        WriteThreeLevelPatches(mod.Path);
+        var profileId = await _profileService.CreateProfileAsync("MoeDisabledCategory");
+        await _profileService.AddModToProfileAsync(profileId, mod.Id);
+        await _profileService.SetModOptionsAsync(profileId, mod.Id, new()
+        {
+            OptionToggles = [true, true], OptionSelections = [0, 0],
+            SubOptionSelections = [[], [0, 1, 0]], SubOptionToggles = [[], [true, false, true]]
+        });
+
+        var result = await CreateDeploymentService().DeployProfileAsync(
+            profileId, DeploymentMethod.Copy, DeploymentOrder.TopToBottom, _gameDirRoot);
+
+        Assert.Equal(DeploymentStatus.Completed, result.Status);
+        Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
+        Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
+        Assert.False(DataHasPatch(_gameDirRoot, "hair_white"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
     }
 
     [Fact]

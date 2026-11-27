@@ -17,6 +17,7 @@
     <Project Path="samples/plugins/HelloWorld/HelloWorld.csproj" />
     <Project Path="samples/plugins/LuaHybrid/HybridTools.csproj" />
     <Project Path="samples/plugins/ThemeShowcase/ThemeShowcase.csproj" />
+    <Project Path="samples/plugins/WebUiDashboard/WebUiDashboard.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HD2Mimnt.Tests/HD2Mimnt.Tests.csproj" />

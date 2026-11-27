@@ -44,6 +44,9 @@ public class PluginCompletedResponse : PluginHostMessage
     /// <summary>声明式界面更新 JSON（与宿主进程侧字段名保持一致，靠 JSON 隐式匹配）。</summary>
     public string? UiJson { get; set; }
 
+    /// <summary>富界面结构化结果 JSON（与 PluginHost 侧字段名保持一致）。</summary>
+    public string? DataJson { get; set; }
+
     public List<string>? Errors { get; set; }
 }
 
@@ -455,12 +458,20 @@ public class PluginHostManager : IPluginHostManager
                             return;
                         }
 
+                        var (dataJson, dataViolation) = Sanitize(completed.DataJson);
+                        if (dataViolation is not null)
+                        {
+                            await HandleViolationAsync(hostProcess, $"界面数据包含真实密钥：{dataViolation}", cancellationToken);
+                            return;
+                        }
+
                         hostProcess.SetCompleted(new PluginOperationResult
                         {
                             Success = completed.Success,
                             Message = message,
                             Error = string.IsNullOrEmpty(errors) ? null : errors,
-                            UiJson = uiJson
+                            UiJson = uiJson,
+                            DataJson = dataJson
                         });
                         break;
                     }

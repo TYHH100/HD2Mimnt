@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.IO;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace HD2Mimnt.Application.Services;
@@ -16,6 +17,8 @@ public class PluginService : IPluginService
     private readonly IPluginHostManager _pluginHostManager;
     private readonly IPluginGrantSession _grantSession;
     private readonly IPluginPermissionChecker _permissionChecker;
+    private readonly string? _installedPluginsPath;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _commandGates = new(StringComparer.OrdinalIgnoreCase);
 
     public PluginService(
         IPluginRepository pluginRepository,
@@ -23,13 +26,15 @@ public class PluginService : IPluginService
         IPluginExecutionRepository pluginExecutionRepository,
         IPluginHostManager pluginHostManager,
         IPluginGrantSession? grantSession = null,
-        IPluginPermissionChecker? permissionChecker = null)
+        IPluginPermissionChecker? permissionChecker = null,
+        string? installedPluginsPath = null)
     {
         _pluginRepository = pluginRepository;
         _pluginPermissionRepository = pluginPermissionRepository;
         _pluginExecutionRepository = pluginExecutionRepository;
         _pluginHostManager = pluginHostManager;
         _grantSession = grantSession ?? new PluginGrantSession();
+        _installedPluginsPath = string.IsNullOrWhiteSpace(installedPluginsPath) ? null : Path.GetFullPath(installedPluginsPath);
         // 权限判定与宿主启动快照共用同一实现；未注入时按现有依赖就地构造
         _permissionChecker = permissionChecker ?? new PluginPermissionChecker(pluginRepository, pluginPermissionRepository, _grantSession);
     }
@@ -69,95 +74,202 @@ public class PluginService : IPluginService
                 return PluginOperationResult.ErrorResult("Plugin already installed", manifest.Id);
             }
 
-            var manifestDirectory = Path.GetDirectoryName(manifestPath);
-            if (string.IsNullOrEmpty(manifestDirectory))
+            var sourceManifestPath = Path.GetFullPath(manifestPath);
+            var sourceDirectory = Path.GetDirectoryName(sourceManifestPath);
+            if (string.IsNullOrEmpty(sourceDirectory))
             {
                 return PluginOperationResult.ErrorResult("Invalid manifest path");
             }
 
-            // 入口文件按类型解析：编译型是程序集，脚本型是 .lua；
-            // 混合插件（脚本 + DLL）以脚本为入口，DLL 由宿主在脚本进程内挂载
-            var entryFile = manifest.EntryFile;
+            string? stagingDirectory = null;
+            var installedDirectory = sourceDirectory;
+            if (_installedPluginsPath is not null)
+            {
+                if (IsSameOrInside(sourceDirectory, _installedPluginsPath))
+                {
+                    return PluginOperationResult.ErrorResult("插件源目录不能包含已安装插件目录。", sourceDirectory);
+                }
+
+                installedDirectory = Path.Combine(_installedPluginsPath, manifest.Id);
+                if (Directory.Exists(installedDirectory) || File.Exists(installedDirectory))
+                {
+                    return PluginOperationResult.ErrorResult("插件安装目录已存在，请先卸载旧插件。", installedDirectory);
+                }
+
+                Directory.CreateDirectory(_installedPluginsPath);
+                stagingDirectory = Path.Combine(_installedPluginsPath, $".installing-{manifest.Id}-{Guid.NewGuid():N}");
+                try
+                {
+                    await CopyPluginDirectoryAsync(sourceDirectory, stagingDirectory, cancellationToken);
+                    Directory.Move(stagingDirectory, installedDirectory);
+                    stagingDirectory = null;
+                }
+                catch
+                {
+                    if (Directory.Exists(stagingDirectory)) Directory.Delete(stagingDirectory, recursive: true);
+                    throw;
+                }
+            }
+
+            manifestPath = Path.Combine(installedDirectory, Path.GetFileName(sourceManifestPath));
+
+            // 入口始终从隔离副本解析，避免数据库继续引用安装源目录。
             string entryPath;
+            if (manifest.IsWebPlugin)
+            {
+                entryPath = manifestPath;
+            }
+            else
+            {
+                try
+                {
+                    entryPath = PathGuard.ResolveInsideRoot(installedDirectory,
+                        Path.Combine(installedDirectory, manifest.EntryFile ?? string.Empty),
+                        "插件清单 EntryFile 越出插件目录，已拒绝安装。");
+                }
+                catch (InvalidDataException ex)
+                {
+                    if (_installedPluginsPath is not null) Directory.Delete(installedDirectory, recursive: true);
+                    return PluginOperationResult.ErrorResult(ex.Message, installedDirectory);
+                }
+                if (!File.Exists(entryPath))
+                {
+                    if (_installedPluginsPath is not null) Directory.Delete(installedDirectory, recursive: true);
+                    return PluginOperationResult.ErrorResult(
+                        manifest.IsScriptPlugin ? "Plugin script not found" : "Plugin assembly not found",
+                        entryPath);
+                }
+            }
+
+            var recordAdded = false;
             try
             {
-                // EntryFile 拼进完整性锚点与宿主加载路径：绝对路径/.. 一律拒绝安装
-                entryPath = PathGuard.ResolveInsideRoot(manifestDirectory,
-                    Path.Combine(manifestDirectory, entryFile ?? string.Empty),
-                    "插件清单 EntryFile 越出插件目录，已拒绝安装。");
-            }
-            catch (InvalidDataException ex)
-            {
-                return PluginOperationResult.ErrorResult(ex.Message, manifestDirectory);
-            }
-            if (!File.Exists(entryPath))
-            {
-                return PluginOperationResult.ErrorResult(
-                    manifest.IsScriptPlugin ? "Plugin script not found" : "Plugin assembly not found",
-                    entryPath);
-            }
-
-            var plugin = new Plugin
-            {
-                Id = manifest.Id,
-                Name = manifest.Name,
-                Version = manifest.Version,
-                Author = manifest.Author,
-                Description = manifest.Description,
-                ManifestPath = manifestPath,
-                // 对脚本型插件，这里记录脚本路径；完整性校验锚定的就是它
-                AssemblyPath = entryPath,
-                // 完整性锚点：安装时固定入口文件、清单与混合 DLL 内容，启动前比对防替换。
-                // 命令权限门控运行时重读清单（RequiredPermission），清单不在锚点内则门控可被摘除。
-                AssemblySha256 = await ComputeFileSha256Async(entryPath, cancellationToken),
-                ManifestSha256 = await ComputeFileSha256Async(manifestPath, cancellationToken),
-                HybridAssemblySha256 = await ComputeHybridAssemblySha256Async(manifest, manifestDirectory, cancellationToken),
-                InstalledAt = DateTime.UtcNow,
-                Enabled = true,
-                PermissionMode = manifest.PermissionMode.ToString()
-            };
-
-            await _pluginRepository.AddAsync(plugin, cancellationToken);
-
-            var selected = consent?.GrantedPermissions is { } granted
-                ? new HashSet<string>(granted, StringComparer.OrdinalIgnoreCase)
-                : null;
-
-            foreach (var permission in manifest.RequestedPermissions)
-            {
-                var shouldGrant = selected is not null
-                    // 用户在对话框中的勾选即最终结果：勾了才授予
-                    ? selected.Contains(permission)
-                    // 未走对话框（CLI/测试）时沿用默认策略：
-                    // 敏感能力（AI 代理）必须由用户显式授权，任何权限模式下都不随安装自动放开
-                    : manifest.PermissionMode == PluginSDK.PluginPermissionMode.Sandbox
-                      && !IsSensitivePermission(permission);
-
-                var persisted = shouldGrant && (consent?.PersistGrants ?? true);
-
-                var pluginPermission = new PluginPermission
+                var plugin = new Plugin
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    PluginId = manifest.Id,
-                    Permission = permission,
-                    Granted = persisted,
-                    GrantedAt = persisted ? DateTime.UtcNow : null
+                    Id = manifest.Id,
+                    Name = manifest.Name,
+                    Version = manifest.Version,
+                    Author = manifest.Author,
+                    Description = manifest.Description,
+                    ManifestPath = manifestPath,
+                    // 对脚本型插件，这里记录脚本路径；对纯网页插件记录 manifest 路径。
+                    AssemblyPath = entryPath,
+                    // 完整性锚点：安装时固定入口文件、清单与混合 DLL 内容，启动前比对防替换。
+                    // 命令权限门控运行时重读清单（RequiredPermission），清单不在锚点内则门控可被摘除。
+                    AssemblySha256 = manifest.IsWebPlugin ? null : await ComputeFileSha256Async(entryPath, cancellationToken),
+                    ManifestSha256 = await ComputeFileSha256Async(manifestPath, cancellationToken),
+                    HybridAssemblySha256 = await ComputeHybridAssemblySha256Async(manifest, installedDirectory, cancellationToken),
+                    InstalledAt = DateTime.UtcNow,
+                    Enabled = true,
+                    PermissionMode = manifest.PermissionMode.ToString()
                 };
 
-                await _pluginPermissionRepository.AddAsync(pluginPermission, cancellationToken);
-            }
+                await _pluginRepository.AddAsync(plugin, cancellationToken);
+                recordAdded = true;
 
-            if (consent is { PersistGrants: false })
+                var selected = consent?.GrantedPermissions is { } granted
+                    ? new HashSet<string>(granted, StringComparer.OrdinalIgnoreCase)
+                    : null;
+
+                foreach (var permission in manifest.RequestedPermissions)
+                {
+                    var shouldGrant = selected is not null
+                        // 用户在对话框中的勾选即最终结果：勾了才授予
+                        ? selected.Contains(permission)
+                        // 未走对话框（CLI/测试）时沿用默认策略：
+                        // 敏感能力（AI 代理）必须由用户显式授权，任何权限模式下都不随安装自动放开
+                        : manifest.PermissionMode == PluginSDK.PluginPermissionMode.Sandbox
+                          && !IsSensitivePermission(permission);
+
+                    var persisted = shouldGrant && (consent?.PersistGrants ?? true);
+
+                    var pluginPermission = new PluginPermission
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        PluginId = manifest.Id,
+                        Permission = permission,
+                        Granted = persisted,
+                        GrantedAt = persisted ? DateTime.UtcNow : null
+                    };
+
+                    await _pluginPermissionRepository.AddAsync(pluginPermission, cancellationToken);
+                }
+
+                if (consent is { PersistGrants: false })
+                {
+                    // “仅本次允许”：勾选的权限只留在内存，进程重启后自动失效
+                    _grantSession.Grant(manifest.Id, (IEnumerable<string>?)selected ?? Array.Empty<string>());
+                }
+
+                return PluginOperationResult.SuccessResult("Plugin installed successfully", plugin);
+            }
+            catch
             {
-                // “仅本次允许”：勾选的权限只留在内存，进程重启后自动失效
-                _grantSession.Grant(manifest.Id, (IEnumerable<string>?)selected ?? Array.Empty<string>());
+                if (recordAdded)
+                {
+                    await _pluginPermissionRepository.DeleteByPluginIdAsync(manifest.Id, CancellationToken.None);
+                    await _pluginRepository.DeleteAsync(manifest.Id, CancellationToken.None);
+                }
+                if (_installedPluginsPath is not null)
+                {
+                    Directory.Delete(installedDirectory, recursive: true);
+                }
+                throw;
             }
-
-            return PluginOperationResult.SuccessResult("Plugin installed successfully", plugin);
+            finally
+            {
+                if (stagingDirectory is not null && Directory.Exists(stagingDirectory))
+                {
+                    Directory.Delete(stagingDirectory, recursive: true);
+                }
+            }
         }
         catch (Exception ex)
         {
             return PluginOperationResult.ErrorResult(ex.Message, "Installation failed");
+        }
+    }
+
+    private static bool IsSameOrInside(string root, string path)
+    {
+        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        return fullPath.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)
+            || PathGuard.IsInsideRoot(fullRoot, fullPath);
+    }
+
+    private static async Task CopyPluginDirectoryAsync(string source, string destination, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Directory.CreateDirectory(destination);
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = 0,
+            IgnoreInaccessible = false
+        };
+
+        foreach (var sourcePath in Directory.EnumerateFileSystemEntries(source, "*", options))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var relativePath = Path.GetRelativePath(source, sourcePath);
+            var destinationPath = PathGuard.ResolveInsideRoot(destination, Path.Combine(destination, relativePath));
+            var attributes = File.GetAttributes(sourcePath);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new InvalidDataException($"插件包含链接或重解析点，已拒绝安装：{relativePath}");
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
+            {
+                Directory.CreateDirectory(destinationPath);
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            await using var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            await using var output = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            await input.CopyToAsync(output, cancellationToken);
         }
     }
 
@@ -173,24 +285,29 @@ public class PluginService : IPluginService
         {
             return PluginOperationResult.ErrorResult("Plugin not found", pluginId);
         }
-        if (!File.Exists(plugin.AssemblyPath))
+        var manifest = await ReadManifestAsync(plugin.ManifestPath, cancellationToken);
+        var isWebPlugin = manifest?.IsWebPlugin == true;
+        if (!isWebPlugin)
         {
-            return PluginOperationResult.ErrorResult("插件入口文件不存在", plugin.AssemblyPath);
-        }
-
-        var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
-        if (plugin.AssemblySha256 is { } recorded)
-        {
-            if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
+            if (!File.Exists(plugin.AssemblyPath))
             {
-                return PluginOperationResult.ErrorResult(
-                    "插件入口文件与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+                return PluginOperationResult.ErrorResult("插件入口文件不存在", plugin.AssemblyPath);
             }
-        }
-        else
-        {
-            plugin.AssemblySha256 = currentSha;
-            await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+
+            var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
+            if (plugin.AssemblySha256 is { } recorded)
+            {
+                if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
+                {
+                    return PluginOperationResult.ErrorResult(
+                        "插件入口文件与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+                }
+            }
+            else
+            {
+                plugin.AssemblySha256 = currentSha;
+                await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+            }
         }
 
         // 清单锚点：权限门控（RequiredPermission）、命令声明、脚本/DLL 路径全部来自清单内容，
@@ -212,6 +329,11 @@ public class PluginService : IPluginService
         {
             plugin.ManifestSha256 = currentManifestSha;
             await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+        }
+
+        if (isWebPlugin)
+        {
+            return PluginOperationResult.SuccessResult("纯网页插件已启用，无需启动宿主进程。");
         }
 
         // 混合插件 DLL 锚点：路径取自已被锚定的清单，哈希与安装时不符即拒绝
@@ -303,6 +425,18 @@ public class PluginService : IPluginService
             await _pluginRepository.DeleteAsync(pluginId, cancellationToken);
 
             _grantSession.Forget(pluginId);
+
+            if (_installedPluginsPath is not null && PluginSDK.PluginId.IsValid(pluginId))
+            {
+                var installedDirectory = Path.Combine(_installedPluginsPath, pluginId);
+                var managedManifest = Path.Combine(installedDirectory, Path.GetFileName(plugin.ManifestPath));
+                if (IsSameOrInside(installedDirectory, plugin.ManifestPath)
+                    && plugin.ManifestPath.Equals(managedManifest, StringComparison.OrdinalIgnoreCase)
+                    && Directory.Exists(installedDirectory))
+                {
+                    Directory.Delete(installedDirectory, recursive: true);
+                }
+            }
 
             return PluginOperationResult.SuccessResult("Plugin uninstalled successfully");
         }
@@ -431,7 +565,18 @@ public class PluginService : IPluginService
 
             var isScript = manifest.IsScriptPlugin;
 
-            if (isScript)
+            if (manifest.IsWebPlugin)
+            {
+                if (manifest.Commands.Count > 0)
+                {
+                    result.Errors.Add("纯网页插件不能声明 commands；需要命令运行时请使用 lua 或 dotnet。");
+                }
+                if (!manifest.Ui.Pages.Any(page => PluginSDK.PluginUiPageKinds.IsWebView2(page.Kind)))
+                {
+                    result.Errors.Add("纯网页插件至少需要一个 kind 为 webView2 的页面。");
+                }
+            }
+            else if (isScript)
             {
                 if (string.IsNullOrWhiteSpace(manifest.Script))
                 {
@@ -479,7 +624,7 @@ public class PluginService : IPluginService
                 result.Warnings.Add($"Plugin requests {manifest.RequestedPermissions.Count} permissions");
             }
 
-            ValidateUiContributions(manifest.Ui, result);
+            ValidateUiContributions(manifest.Ui, Path.GetDirectoryName(manifestPath) ?? ".", result);
 
             var manifestDirectory = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDirectory) && !string.IsNullOrWhiteSpace(manifest.EntryFile))
@@ -748,6 +893,7 @@ public class PluginService : IPluginService
                 PluginId = plugin.Id,
                 PluginName = plugin.Name,
                 Ui = ui,
+                ResourceRoot = Path.GetDirectoryName(plugin.ManifestPath) ?? string.Empty,
                 GrantedPermissions = granted
             });
         }
@@ -761,6 +907,7 @@ public class PluginService : IPluginService
     /// </summary>
     private static void ValidateUiContributions(
         PluginSDK.PluginUiContributions ui,
+        string manifestDirectory,
         PluginValidationResult result)
     {
         var pageIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -782,7 +929,45 @@ public class PluginService : IPluginService
                 result.Warnings.Add($"页面 {page.Id} 缺少标题，将显示插件名称");
             }
 
-            if (page.Blocks.Count == 0)
+            if (PluginSDK.PluginUiPageKinds.IsWebView2(page.Kind))
+            {
+                if (string.IsNullOrWhiteSpace(page.Entry))
+                {
+                    result.Errors.Add($"WebView2 页面 {page.Id} 必须声明 entry（相对插件目录的 HTML 文件）");
+                }
+                else if (Path.IsPathRooted(page.Entry) || page.Entry.Contains(':'))
+                {
+                    result.Errors.Add($"WebView2 页面入口必须是插件目录内的相对路径：{page.Entry}");
+                }
+                else if (!page.Entry.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                         && !page.Entry.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Errors.Add($"WebView2 页面入口必须是 .html 或 .htm 文件：{page.Entry}");
+                }
+                else
+                {
+                    try
+                    {
+                        var entryPath = PathGuard.ResolveInsideRoot(
+                            manifestDirectory,
+                            Path.Combine(manifestDirectory, page.Entry),
+                            "WebView2 页面入口越出插件目录。");
+                        if (!File.Exists(entryPath))
+                        {
+                            result.Errors.Add($"WebView2 页面入口不存在：{page.Entry}");
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or NotSupportedException)
+                    {
+                        result.Errors.Add(ex.Message);
+                    }
+                }
+            }
+            else if (!string.Equals(page.Kind, PluginSDK.PluginUiPageKinds.Declarative, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Errors.Add($"页面 {page.Id} 的 kind 不受支持：{page.Kind}");
+            }
+            else if (page.Blocks.Count == 0)
             {
                 result.Warnings.Add($"页面 {page.Id} 没有任何区块");
             }
@@ -877,6 +1062,21 @@ public class PluginService : IPluginService
 
     public async Task<PluginOperationResult> ExecutePluginCommandAsync(string pluginId, string command, string? arguments = null, CancellationToken cancellationToken = default)
     {
+        var gate = _commandGates.GetOrAdd(pluginId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await ExecutePluginCommandCoreAsync(pluginId, command, arguments, cancellationToken);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // 宿主每个插件进程只接受一个当前命令；在服务层串行化，避免网页或其它入口并发调用互相取消。
+    private async Task<PluginOperationResult> ExecutePluginCommandCoreAsync(string pluginId, string command, string? arguments, CancellationToken cancellationToken)
+    {
         try
         {
             var plugin = await _pluginRepository.GetByIdAsync(pluginId, cancellationToken);
@@ -888,6 +1088,12 @@ public class PluginService : IPluginService
             if (!plugin.Enabled)
             {
                 return PluginOperationResult.ErrorResult("Plugin is disabled", pluginId);
+            }
+
+            var manifest = await ReadManifestAsync(plugin.ManifestPath, cancellationToken);
+            if (manifest?.IsWebPlugin == true)
+            {
+                return PluginOperationResult.ErrorResult("纯网页插件没有命令运行时；需要执行命令请改用 lua 或 dotnet。");
             }
 
             var declared = await ReadDeclaredCommandsAsync(plugin.ManifestPath, cancellationToken);
