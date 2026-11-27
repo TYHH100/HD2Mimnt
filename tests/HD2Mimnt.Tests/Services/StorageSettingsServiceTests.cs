@@ -177,6 +177,7 @@ public sealed class StorageSettingsServiceTests : IDisposable
         await WriteAsync(old.ModsPath, "thumbnails/one.png", "image");
         await WriteAsync(old.CachePath, "Downloads/one.part", "checkpoint");
         await WriteAsync(old.AppDataPath, "Backups/old.zip", "backup");
+        await WriteAsync(old.InstalledPluginsPath, "sample.plugin/assets/page.html", "plugin-page");
         await new SettingsService(old.AppDataPath).SetSettingAsync(SettingKeys.BackgroundImagePath, Path.Combine(old.ModsPath, "thumbnails/one.png"));
         await _service.SaveAsync(Next);
         await _service.InitializeAsync();
@@ -187,6 +188,8 @@ public sealed class StorageSettingsServiceTests : IDisposable
         Assert.Equal("mod", await File.ReadAllTextAsync(Path.Combine(Next.ModsPath, "one/mod.patch_0")));
         Assert.Equal("checkpoint", await File.ReadAllTextAsync(Path.Combine(Next.CachePath, "Downloads/one.part")));
         Assert.True(File.Exists(Path.Combine(Next.AppDataPath, "Backups/old.zip")));
+        Assert.Equal("plugin-page", await File.ReadAllTextAsync(Path.Combine(Next.InstalledPluginsPath, "sample.plugin/assets/page.html")));
+        Assert.False(Directory.Exists(old.InstalledPluginsPath));
         Assert.Equal(Path.Combine(Next.ModsPath, "one"), await ReadAsync(Next.DatabasePath, "SELECT Path FROM Mods WHERE Id='one'"));
         Assert.Equal(Path.GetFullPath(Path.Combine(Next.ModsPath, "thumbnails/one.png")), await ReadAsync(Next.DatabasePath, "SELECT ThumbnailPath FROM Mods WHERE Id='one'"));
         Assert.Equal(Path.GetFullPath(Path.Combine(Next.ModsPath, "one/mod.patch_0")), await ReadAsync(Next.DatabasePath, "SELECT SourcePath FROM DeploymentFiles"));

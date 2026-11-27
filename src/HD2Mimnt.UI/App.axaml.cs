@@ -419,6 +419,7 @@ public partial class App : Avalonia.Application
         Directory.CreateDirectory(imageCachePath);
         Directory.CreateDirectory(storageLocations.DownloadsPath);
         Directory.CreateDirectory(storageLocations.TempPath);
+        Directory.CreateDirectory(storageLocations.InstalledPluginsPath);
         services.AddSingleton(storageSettings);
         services.AddSingleton(new PluginWebView2Environment(Path.Combine(storageLocations.TempPath, "PluginWebView2")));
 
@@ -606,7 +607,8 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<IPluginPermissionRepository>(),
             sp.GetRequiredService<IPluginExecutionRepository>(),
             sp.GetRequiredService<IPluginHostManager>(),
-            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>()));
+            permissionChecker: sp.GetRequiredService<HD2Mimnt.Core.Interfaces.IPluginPermissionChecker>(),
+            installedPluginsPath: storageLocations.InstalledPluginsPath));
 
         services.AddSingleton(sp => new SearchService(
             sp.GetRequiredService<IModRepository>(),

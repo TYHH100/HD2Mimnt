@@ -7,4 +7,5 @@ public sealed record StorageLocations(string AppDataPath, string ModsPath, strin
     public string ImageCachePath => System.IO.Path.Combine(CachePath, "ImageCache");
     public string DownloadsPath => System.IO.Path.Combine(CachePath, "Downloads");
     public string TempPath => System.IO.Path.Combine(CachePath, "Temp");
+    public string InstalledPluginsPath => System.IO.Path.Combine(AppDataPath, "InstalledPlugins");
 }

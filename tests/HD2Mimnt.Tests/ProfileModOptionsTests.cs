@@ -502,8 +502,8 @@ public class ProfileModOptionsTests : IDisposable
             ("Material/Pantyhose/Black", "pantyhose"),
             ("Material/Hair/Black", "hair_black"),
             ("Material/Hair/White", "hair_white"),
-            ("Material/Clothes/Red", "clothes_red"),
-            ("Material/Clothes/Blue", "clothes_blue")
+            ("Material/Clothes/Red", "red_clothes_01"),
+            ("Material/Clothes/Blue", "blue_clothes_02")
         })
         {
             Directory.CreateDirectory(Path.Combine(modPath, directory));
@@ -539,9 +539,9 @@ public class ProfileModOptionsTests : IDisposable
         Assert.True(DataHasPatch(_gameDirRoot, "model"));
         Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
         Assert.True(DataHasPatch(_gameDirRoot, "hair_black"));
-        Assert.True(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_white"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+        Assert.False(DataHasPatch(_gameDirRoot, "blue_clothes_02"));
     }
 
     [Fact]
@@ -567,9 +567,9 @@ public class ProfileModOptionsTests : IDisposable
         Assert.True(DataHasPatch(_gameDirRoot, "model"));
         Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
         Assert.True(DataHasPatch(_gameDirRoot, "hair_white"));
-        Assert.True(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
-        Assert.False(DataHasPatch(_gameDirRoot, "clothes_blue"));
+        Assert.False(DataHasPatch(_gameDirRoot, "blue_clothes_02"));
     }
 
     [Fact]
@@ -592,7 +592,7 @@ public class ProfileModOptionsTests : IDisposable
         Assert.True(DataHasPatch(_gameDirRoot, "pantyhose"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_black"));
         Assert.False(DataHasPatch(_gameDirRoot, "hair_white"));
-        Assert.True(DataHasPatch(_gameDirRoot, "clothes_red"));
+        Assert.True(DataHasPatch(_gameDirRoot, "red_clothes_01"));
     }
 
     [Fact]
