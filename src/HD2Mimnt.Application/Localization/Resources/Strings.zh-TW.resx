@@ -2726,6 +2726,24 @@
   <data name="Plugin.Sandboxed" xml:space="preserve">
     <value>沙盒</value>
   </data>
+  <data name="PluginWebView.Reload" xml:space="preserve">
+    <value>重新載入</value>
+  </data>
+  <data name="PluginWebView.RuntimeMissing" xml:space="preserve">
+    <value>未安裝 Microsoft Edge WebView2 Runtime。請安裝後重新載入此頁面。</value>
+  </data>
+  <data name="PluginWebView.EntryMissing" xml:space="preserve">
+    <value>外掛網頁入口不存在或越出外掛目錄。</value>
+  </data>
+  <data name="PluginWebView.EnvironmentUnavailable" xml:space="preserve">
+    <value>WebView2 執行環境不可用。</value>
+  </data>
+  <data name="PluginWebView.ProcessFailed" xml:space="preserve">
+    <value>WebView2 程序意外停止（{0}）。請重新載入頁面重試。</value>
+  </data>
+  <data name="PluginWebView.NavigationFailed" xml:space="preserve">
+    <value>外掛網頁載入失敗（{0}）。</value>
+  </data>
   <data name="Notification.Success" xml:space="preserve">
     <value>成功</value>
   </data>

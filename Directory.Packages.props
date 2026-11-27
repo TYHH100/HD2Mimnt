@@ -16,6 +16,7 @@
     <PackageVersion Include="FluentAvaloniaUI" Version="3.0.2" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
 
     <!-- 运行时与数据 -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />

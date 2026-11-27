@@ -205,6 +205,9 @@ public sealed class PluginUiBundle
 
     public PluginSDK.PluginUiContributions Ui { get; init; } = new();
 
+    /// <summary>插件包根目录；WebView2 页面只能从该目录内加载资源。</summary>
+    public string ResourceRoot { get; init; } = string.Empty;
+
     /// <summary>当前已授予的权限集合（含本次会话授权）。</summary>
     public IReadOnlyCollection<string> GrantedPermissions { get; init; } = Array.Empty<string>();
 
@@ -212,4 +215,30 @@ public sealed class PluginUiBundle
     public bool HasPermission(string? permission)
         => string.IsNullOrWhiteSpace(permission)
            || GrantedPermissions.Contains(permission, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>安全解析 WebView2 页面入口；缺失、越界或非文件时返回 null。</summary>
+    public string? ResolveWebEntryPath(PluginSDK.PluginPageContribution page)
+    {
+        if (!PluginSDK.PluginUiPageKinds.IsWebView2(page.Kind)
+            || string.IsNullOrWhiteSpace(ResourceRoot)
+            || string.IsNullOrWhiteSpace(page.Entry)
+            || Path.IsPathRooted(page.Entry)
+            || page.Entry.Contains(':'))
+        {
+            return null;
+        }
+
+        try
+        {
+            var path = IO.PathGuard.ResolveInsideRoot(
+                ResourceRoot,
+                Path.Combine(ResourceRoot, page.Entry),
+                "WebView2 页面入口越出插件目录。");
+            return File.Exists(path) ? path : null;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+    }
 }

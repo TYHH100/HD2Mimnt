@@ -420,6 +420,7 @@ public partial class App : Avalonia.Application
         Directory.CreateDirectory(storageLocations.DownloadsPath);
         Directory.CreateDirectory(storageLocations.TempPath);
         services.AddSingleton(storageSettings);
+        services.AddSingleton(new PluginWebView2Environment(Path.Combine(storageLocations.TempPath, "PluginWebView2")));
 
         var diagnosticLogSettings = new DiagnosticLogSettings();
         services.AddSingleton(diagnosticLogSettings);
@@ -925,6 +926,7 @@ public partial class App : Avalonia.Application
             sp.GetRequiredService<Hd2ClVariantPromptService>(),
             sp.GetRequiredService<MmdAdaptationViewModel>(),
             sp.GetRequiredService<MmdSourceInfoPromptService>(),
-            sp.GetRequiredService<ModBinarySearchViewModel>()));
+            sp.GetRequiredService<ModBinarySearchViewModel>(),
+            sp.GetRequiredService<PluginWebView2Environment>()));
     }
 }

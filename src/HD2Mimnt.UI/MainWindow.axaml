@@ -111,6 +111,7 @@
                            IsVisible="{Binding #PageHost.SelectedIndex, Converter={StaticResource EqualConverter}, ConverterParameter=0, FallbackValue=False}"/>
         <views:LibraryView DataContext="{Binding LibraryViewModel}"
                            IsVisible="{Binding #PageHost.SelectedIndex, Converter={StaticResource EqualConverter}, ConverterParameter=1, FallbackValue=False}"/>
+        <Grid x:Name="PluginPageSurface"/>
         </Grid>
       </Border>
     </fa:FANavigationView>

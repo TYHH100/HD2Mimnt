@@ -38,8 +38,33 @@ public sealed class PluginPageContribution
     /// <summary>页面说明，显示在标题下方。</summary>
     public string? Description { get; set; }
 
-    /// <summary>页面初始区块。</summary>
+    /// <summary>页面初始区块；<see cref="Kind"/> 为 WebView2 时不使用。</summary>
     public List<PluginUiBlock> Blocks { get; set; } = new();
+
+    /// <summary>页面渲染方式，取值见 <see cref="PluginUiPageKinds"/>；旧清单缺省为声明式页面。</summary>
+    public string Kind { get; set; } = PluginUiPageKinds.Declarative;
+
+    /// <summary>WebView2 页面的入口 HTML，相对插件包根目录，如 "web/index.html"。</summary>
+    public string? Entry { get; set; }
+
+    /// <summary>切走页面时保留 WebView2 实例与 DOM 状态；声明式页面忽略此设置。</summary>
+    public bool KeepAlive { get; set; }
+
+    /// <summary>WebView2 页面默认填满内容区并隐藏管理器页头/状态栏；声明式页面忽略此设置。</summary>
+    public bool FillWindow { get; set; } = true;
+}
+
+/// <summary>页面渲染方式。</summary>
+public static class PluginUiPageKinds
+{
+    public const string Declarative = "declarative";
+    public const string WebView2 = "webView2";
+
+    public static bool IsWebView2(string? kind)
+        => string.Equals(kind, WebView2, StringComparison.OrdinalIgnoreCase);
+
+    public static string Normalize(string? kind)
+        => IsWebView2(kind) ? WebView2 : Declarative;
 }
 
 /// <summary>浮窗贡献。</summary>

@@ -1,0 +1,45 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  --bg: #111318;
+  --panel: #1b1e24;
+  --border: #30343d;
+  --text: #f2f4f8;
+  --muted: #a8afbd;
+  --accent: #6ea8fe;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+.dashboard { max-width: 980px; margin: 0 auto; padding: 28px; }
+header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+h1 { margin: 4px 0 8px; font-size: 30px; }
+h2 { margin: 0 0 16px; font-size: 18px; }
+p { line-height: 1.6; }
+.eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+.subtitle, .hint, .placeholder { color: var(--muted); }
+.status { border: 1px solid var(--border); border-radius: 999px; padding: 7px 12px; color: var(--muted); white-space: nowrap; }
+.status.ready { color: #8bd49c; border-color: #3c6d48; }
+.status.error { color: #ff9b9b; border-color: #7a3d3d; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+label { display: block; margin-bottom: 10px; font-weight: 600; }
+.command-row { display: flex; gap: 12px; }
+input, button { font: inherit; border-radius: 7px; padding: 10px 13px; }
+input { flex: 1; min-width: 0; color: var(--text); background: #121419; border: 1px solid var(--border); }
+input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { color: #101318; background: var(--accent); border: 0; font-weight: 650; cursor: pointer; }
+button:disabled { opacity: .55; cursor: wait; }
+code { color: #c8d8f5; }
+.facts { border-top: 1px solid var(--border); }
+.fact { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.fact span { color: var(--muted); }
+.fact strong { font-weight: 600; }
+details { margin-top: 16px; }
+summary { cursor: pointer; color: var(--accent); }
+pre { margin: 12px 0 0; overflow: auto; font: 13px/1.55 Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+@media (max-width: 640px) {
+  .dashboard { padding: 18px; }
+  header { display: block; }
+  .status { display: inline-block; margin-top: 12px; }
+  .command-row { flex-direction: column; }
+}

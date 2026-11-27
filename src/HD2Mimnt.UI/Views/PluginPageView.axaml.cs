@@ -22,13 +22,57 @@ public partial class PluginPageView : UserControl
             previous.ResultReady -= OnResultReady;
         }
 
+        WebSurface.ErrorChanged -= OnWebErrorChanged;
         _surface = surface;
 
         if (_surface is { } current)
         {
             current.DialogRequested += OnDialogRequested;
             current.ResultReady += OnResultReady;
+            WebSurface.ErrorChanged += OnWebErrorChanged;
+            if (current.IsWebView)
+            {
+                WebSurface.Configure(
+                    current.PluginId,
+                    current.SurfaceId,
+                    current.WebEntryPath,
+                    current.WebViewEnvironment,
+                    current.ExecuteWebCommandAsync);
+            }
+            else
+            {
+                WebSurface.Reset();
+            }
         }
+        else
+        {
+            WebSurface.Reset();
+        }
+    }
+
+    public void SetWebViewHostVisible(bool visible) => WebSurface.SetHostVisible(visible);
+
+    private void OnWebErrorChanged(object? sender, string? error)
+    {
+        if (_surface is { } current) current.WebErrorMessage = error;
+    }
+
+    private void OnReloadWebViewClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WebSurface.Reload();
+    }
+
+    protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        AttachSurface(DataContext as PluginUiSurfaceViewModel);
+    }
+
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        WebSurface.ErrorChanged -= OnWebErrorChanged;
+        WebSurface.Reset();
+        base.OnDetachedFromVisualTree(e);
     }
 
     private async void OnDialogRequested(object? sender, PluginDialogRequestEventArgs e)

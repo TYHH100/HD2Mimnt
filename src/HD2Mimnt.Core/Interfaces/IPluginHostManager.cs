@@ -13,6 +13,9 @@ public class PluginOperationResult
     /// <summary>插件回传的声明式界面更新（PluginUiUpdate 的 JSON），由 UI 层反序列化渲染。</summary>
     public string? UiJson { get; set; }
 
+    /// <summary>WebView2 等富界面命令的结构化 JSON 结果。</summary>
+    public string? DataJson { get; set; }
+
     public static PluginOperationResult SuccessResult(string? message = null, object? data = null)
     {
         return new PluginOperationResult

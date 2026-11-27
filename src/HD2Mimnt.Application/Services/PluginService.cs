@@ -1,6 +1,7 @@
 using HD2Mimnt.Core.Entities;
 using HD2Mimnt.Core.Interfaces;
 using HD2Mimnt.Core.IO;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace HD2Mimnt.Application.Services;
@@ -16,6 +17,7 @@ public class PluginService : IPluginService
     private readonly IPluginHostManager _pluginHostManager;
     private readonly IPluginGrantSession _grantSession;
     private readonly IPluginPermissionChecker _permissionChecker;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _commandGates = new(StringComparer.OrdinalIgnoreCase);
 
     public PluginService(
         IPluginRepository pluginRepository,
@@ -479,7 +481,7 @@ public class PluginService : IPluginService
                 result.Warnings.Add($"Plugin requests {manifest.RequestedPermissions.Count} permissions");
             }
 
-            ValidateUiContributions(manifest.Ui, result);
+            ValidateUiContributions(manifest.Ui, Path.GetDirectoryName(manifestPath) ?? ".", result);
 
             var manifestDirectory = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDirectory) && !string.IsNullOrWhiteSpace(manifest.EntryFile))
@@ -748,6 +750,7 @@ public class PluginService : IPluginService
                 PluginId = plugin.Id,
                 PluginName = plugin.Name,
                 Ui = ui,
+                ResourceRoot = Path.GetDirectoryName(plugin.ManifestPath) ?? string.Empty,
                 GrantedPermissions = granted
             });
         }
@@ -761,6 +764,7 @@ public class PluginService : IPluginService
     /// </summary>
     private static void ValidateUiContributions(
         PluginSDK.PluginUiContributions ui,
+        string manifestDirectory,
         PluginValidationResult result)
     {
         var pageIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -782,7 +786,45 @@ public class PluginService : IPluginService
                 result.Warnings.Add($"页面 {page.Id} 缺少标题，将显示插件名称");
             }
 
-            if (page.Blocks.Count == 0)
+            if (PluginSDK.PluginUiPageKinds.IsWebView2(page.Kind))
+            {
+                if (string.IsNullOrWhiteSpace(page.Entry))
+                {
+                    result.Errors.Add($"WebView2 页面 {page.Id} 必须声明 entry（相对插件目录的 HTML 文件）");
+                }
+                else if (Path.IsPathRooted(page.Entry) || page.Entry.Contains(':'))
+                {
+                    result.Errors.Add($"WebView2 页面入口必须是插件目录内的相对路径：{page.Entry}");
+                }
+                else if (!page.Entry.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+                         && !page.Entry.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Errors.Add($"WebView2 页面入口必须是 .html 或 .htm 文件：{page.Entry}");
+                }
+                else
+                {
+                    try
+                    {
+                        var entryPath = PathGuard.ResolveInsideRoot(
+                            manifestDirectory,
+                            Path.Combine(manifestDirectory, page.Entry),
+                            "WebView2 页面入口越出插件目录。");
+                        if (!File.Exists(entryPath))
+                        {
+                            result.Errors.Add($"WebView2 页面入口不存在：{page.Entry}");
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or NotSupportedException)
+                    {
+                        result.Errors.Add(ex.Message);
+                    }
+                }
+            }
+            else if (!string.Equals(page.Kind, PluginSDK.PluginUiPageKinds.Declarative, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Errors.Add($"页面 {page.Id} 的 kind 不受支持：{page.Kind}");
+            }
+            else if (page.Blocks.Count == 0)
             {
                 result.Warnings.Add($"页面 {page.Id} 没有任何区块");
             }
@@ -876,6 +918,21 @@ public class PluginService : IPluginService
     }
 
     public async Task<PluginOperationResult> ExecutePluginCommandAsync(string pluginId, string command, string? arguments = null, CancellationToken cancellationToken = default)
+    {
+        var gate = _commandGates.GetOrAdd(pluginId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            return await ExecutePluginCommandCoreAsync(pluginId, command, arguments, cancellationToken);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // 宿主每个插件进程只接受一个当前命令；在服务层串行化，避免网页或其它入口并发调用互相取消。
+    private async Task<PluginOperationResult> ExecutePluginCommandCoreAsync(string pluginId, string command, string? arguments, CancellationToken cancellationToken)
     {
         try
         {

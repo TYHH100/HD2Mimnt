@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>WebUiDashboard</AssemblyName>
+    <RootNamespace>HD2Mimnt.Samples.WebUiDashboard</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\HD2Mimnt.PluginSDK\HD2Mimnt.PluginSDK.csproj" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="manifest.json;web\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

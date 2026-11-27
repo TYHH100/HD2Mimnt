@@ -2726,6 +2726,24 @@ See the Conflicts page for details.</value>
   <data name="Plugin.Sandboxed" xml:space="preserve">
     <value>Sandbox</value>
   </data>
+  <data name="PluginWebView.Reload" xml:space="preserve">
+    <value>Reload</value>
+  </data>
+  <data name="PluginWebView.RuntimeMissing" xml:space="preserve">
+    <value>Microsoft Edge WebView2 Runtime is not installed. Install it and reload this page.</value>
+  </data>
+  <data name="PluginWebView.EntryMissing" xml:space="preserve">
+    <value>The plugin web page entry is missing or outside the plugin directory.</value>
+  </data>
+  <data name="PluginWebView.EnvironmentUnavailable" xml:space="preserve">
+    <value>The WebView2 environment is unavailable.</value>
+  </data>
+  <data name="PluginWebView.ProcessFailed" xml:space="preserve">
+    <value>The WebView2 process stopped unexpectedly ({0}). Reload the page to try again.</value>
+  </data>
+  <data name="PluginWebView.NavigationFailed" xml:space="preserve">
+    <value>The plugin web page could not be loaded ({0}).</value>
+  </data>
   <data name="Notification.Success" xml:space="preserve">
     <value>Success</value>
   </data>

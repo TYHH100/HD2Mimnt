@@ -13,7 +13,7 @@
 | 私有配置 | 可用 | `IPluginConfiguration`，存 `plugin.config.json` |
 | 日志回传 | 可用 | `IPluginLogger`，经 IPC 写入主程序日志 |
 | 受限 AI | 可用 | `IPluginAiClient`，需 `ai.use` 权限；插件**拿不到 API Key** |
-| 独立页面 | 可用 | `ui.pages`，安装后作为导航项出现，区块由管理器渲染 |
+| 独立页面 | 可用 | `ui.pages`，安装后作为导航项出现；默认声明式区块，也可用 `kind: "webView2"` 内嵌本地 HTML |
 | 浮窗 | 可用 | `ui.dialogs`，可由功能菜单、模组库工具栏或页面按钮打开 |
 | 功能菜单 / 工具栏入口 | 可用 | `ui.menus`，支持 `mainMenu` 与 `libraryToolbar` |
 | 主题包 | 可用 | `ui.themes`，白名单设计令牌（颜色/圆角/字号），可一键还原 |
@@ -23,7 +23,7 @@
 | 模组数据读取 | 未接通 | `IPluginModAccess` 在宿主侧仍抛 `NotImplementedException` |
 | 导入/部署事件 | 未接通 | `IModPlugin` / `IDeploymentPlugin` / `IAnalysisPlugin` 无调用点 |
 
-> 为什么界面扩展必须走声明式：插件运行在独立进程，一旦让插件程序集加载进 UI 进程，它就能读取主程序内存中的 API Key，第 6 节的安全边界将完全失效。
+> 为什么界面扩展必须保持数据边界：插件业务程序集运行在独立进程，一旦让插件程序集加载进 UI 进程，它就能读取主程序内存中的 API Key，第 6 节的安全边界将完全失效。WebView2 页面同样只通过受限消息桥调用命令，不暴露宿主对象或密钥。
 
 ## 2. 最小插件
 
@@ -86,7 +86,7 @@ MyLuaPlugin/
   "id": "com.example.lua-plugin",
   "name": "Lua 插件",
   "version": "1.0.0",
-  "apiVersion": "1.3.0",
+  "apiVersion": "1.4.0",
   "kind": "lua",
   "script": "main.lua",
   "assembly": "MyTools.dll",     // 可选，混合插件才填
@@ -149,7 +149,7 @@ end
 | `hd2.ai` | `available()` / `chat(prompt, opts)` | 受限 AI；请求由主程序代发，脚本拿不到密钥 |
 | `hd2.json` | `encode` / `decode` | 表与 JSON 互转 |
 | `hd2.ui` | `markdown` / `text` / `heading` / `divider` / `notice` / `facts` / `list` / `input` / `actions` / `update` / `status` | 构造声明式界面 |
-| `hd2.result` | `ok` / `fail` / `ui` | 构造返回值 |
+| `hd2.result` | `ok(message, ui, data)` / `fail` / `ui` | 构造返回值；第三个参数用于 WebView2 结构化数据 |
 | `hd2.dll` | `available()` / `names()` / `has(name)` / `call(name, args)` | 混合插件调用 DLL 命令 |
 | `hd2.require` | `require("util")` | 加载插件目录内的 `.lua`，拒绝 `..` 与绝对路径 |
 
@@ -211,7 +211,7 @@ public sealed class DigestCommand : IPluginCommand
 | `permissionMode` | 否 | `Sandbox`（默认）或 `FullAccess` |
 | `requestedPermissions` | 否 | 权限标识列表，见下表 |
 | `commands` | 否 | 命令声明，供界面在宿主启动前展示 |
-| `ui` | 否 | 声明式界面：`pages` / `dialogs` / `menus` / `themes`，见第 5 节 |
+| `ui` | 否 | 界面贡献：`pages` / `dialogs` / `menus` / `themes`；页面支持声明式区块与 WebView2，见第 5 节 |
 | `kind` | 否 | `dotnet`（缺省）或 `lua`；缺省时按编译型处理，旧清单无需改动 |
 | `script` | 脚本型必填 | 入口脚本（如 `main.lua`），必须是 `.lua` 文件 |
 | `assembly` / `entryType` | 编译型必填 | 程序集文件名与入口类型全名；脚本型不需要 `entryType`，`assembly` 仅混合插件填 |
@@ -242,9 +242,9 @@ public sealed class DigestCommand : IPluginCommand
 
 模组上下文只包含展示信息：**不含文件路径，也不含任何密钥**。插件想读文件仍需 `mods.read` 与后续的 `IPluginModAccess` IPC 通道。
 
-## 5. 声明式界面：页面 / 浮窗 / 菜单 / 主题
+## 5. 界面：页面 / 浮窗 / 菜单 / 主题
 
-插件的界面能力全部写在 manifest 的 `ui` 节点里，**插件程序集不会加载进 UI 进程**：管理器读取声明，用自己的控件渲染，交互结果再以命令调用回传给插件。这样插件可以加页面、加菜单、开浮窗、换主题，但始终接触不到任何 UI 对象或密钥材料。
+插件的界面能力全部写在 manifest 的 `ui` 节点里，**插件程序集不会加载进 UI 进程**：管理器读取声明，用自己的控件或受限 WebView2 宿主渲染，交互结果再以命令调用回传给插件。这样插件可以加页面、加菜单、开浮窗、换主题，但始终接触不到任何 UI 对象或密钥材料。
 
 ```json
 "ui": {
@@ -270,6 +270,56 @@ public sealed class DigestCommand : IPluginCommand
   "themes": [{ "id": "midnight", "name": "午夜蓝", "tokens": { "accent": "#4C8DFF", "cardCornerRadius": "10" } }]
 }
 ```
+
+### WebView2 页面
+
+需要自定义布局、Canvas、图表或前端框架时，把页面声明为 WebView2。入口必须是插件包内的相对 `.html` / `.htm` 路径；安装校验会拒绝绝对路径、路径穿越和不存在的入口。
+
+```json
+"ui": {
+  "pages": [{
+    "id": "dashboard",
+    "title": "仪表盘",
+    "icon": "Code",
+    "kind": "webView2",
+    "entry": "web/index.html",
+    "keepAlive": true,
+    "fillWindow": true
+  }]
+}
+```
+
+页面由管理器通过 Avalonia `NativeControlHost` + CoreWebView2 内嵌显示，HTML/CSS/JavaScript 不进入插件进程，插件 DLL 也不进入 UI 进程。宿主只提供 `window.hd2.invoke`：
+
+```js
+const result = await window.hd2.invoke('dashboard', { name: 'Helldiver' });
+console.log(result.message, result.data);
+```
+
+调用会按现有 `IPluginService.ExecutePluginCommandAsync` 链路校验命令声明、权限、懒启动插件进程并写执行历史；同一插件的命令在服务层串行执行，避免宿主进程只有一个当前命令时互相取消。参数原样放在命令参数顶层，同时附加 `ui: { pluginId, surfaceId, actionId: "webView.invoke", values }`。命令可返回结构化 JSON：
+
+```csharp
+var data = JsonSerializer.SerializeToElement(new { title = "仪表盘", count = 3 });
+return PluginResult.Ok("加载完成", ui: null, data: data);
+```
+
+Lua 插件使用第三个参数回传数据：
+
+```lua
+return hd2.result.ok("加载完成", nil, { title = "仪表盘", count = 3 })
+```
+
+`DataJson` 与消息、声明式界面一样经过密钥扫描。WebView2 页面默认 `"fillWindow": true`，填满顶部导航下方的内容区并隐藏管理器页头、页脚和状态栏；需要旧式标题/说明/状态栏时设为 `false`。默认页面切走时会释放 WebView2 控制器；需要连续编辑、保留 DOM/输入/滚动位置时声明 `"keepAlive": true`，管理器会隐藏但保留实例，插件停用、卸载或应用关闭时仍会释放。跨重启状态仍应写入 `IPluginStorage` 或 `IPluginConfiguration`。
+
+安全与运行限制：
+
+- 每个页面使用独立的 `.hd2mimnt.invalid` 虚拟源，只能读取入口所在目录；资源请求逐文件做根目录校验。
+- 外链导航、子框架跨源、新窗口、脚本对话框、下载、权限请求、浏览器快捷键与默认上下文菜单均被阻止；HTML 响应带 CSP，远程脚本、样式、图片、字体和网络连接不可用。
+- 不注册 .NET Host Object，只接受本虚拟源发来的 JSON 消息；消息上限 256 KiB，命令名上限 128 字符。
+- Windows 需要 Microsoft Edge WebView2 Runtime。缺失时页面显示三语错误与“重新加载”按钮，不影响其它插件页面。
+- WebView2 是原生子窗口，不能参与 Avalonia 的透明、变换和浮层合成；页面标题与状态栏仍由管理器渲染，网页内容应自行适配深色背景。
+
+完整示例见 `samples/plugins/WebUiDashboard`，构建后安装其输出目录中的 `manifest.json` 即可。
 
 ### 区块类型
 
@@ -389,6 +439,7 @@ SDK 是**对外契约**，不是独立产品，因此不拆到单独分支：
 | `samples/plugins/HelloWorld` | 生命周期、命令贡献、参数解析、私有存储计数 |
 | `samples/plugins/AiSummarizer` | `ai.use` 权限、AI 代理调用、模组右键菜单命令、独立页面、浮窗、功能菜单与模组库工具栏入口 |
 | `samples/plugins/ThemeShowcase` | `ui.theme` 权限、设计令牌主题包（两套配色）、声明式说明页 |
+| `samples/plugins/WebUiDashboard` | `kind: "webView2"` 本地 HTML 页面、`window.hd2.invoke`、结构化 JSON 回传 |
 | `samples/plugins/LuaModCheck` | 纯 Lua 插件：无编译产物、脚本读写私有存储、脚本生成报告与浮窗 |
 | `samples/plugins/LuaHybrid` | 混合插件：`main.lua` 编排界面，`HybridTools.dll` 计算 SHA-256 并回传区块 |
 | `samples/plugins/SandboxProbe` | 安全测试：以恶意插件的姿势撞脚本层边界（全局环境、模块加载逃逸、存储穿越），逐项给出拦截判定 |
@@ -407,3 +458,4 @@ dotnet build samples/plugins/HelloWorld/HelloWorld.csproj
 - 宿主进程异常或被杀时，当前命令返回明确原因，执行历史同步落库；
 - 命令未出现在界面：检查 manifest 的 `commands` 名称是否与 `Descriptor.Name` 完全一致（忽略大小写）；
 - 安装后无法启动：检查 `apiVersion` 主版本、程序集是否被替换（安装时记录了 SHA-256）。
+- WebView2 页面提示 Runtime 缺失：安装 Microsoft Edge WebView2 Runtime 后点击“重新加载”；页面空白时检查 `entry` 是否位于插件包内且资源引用使用相对路径。

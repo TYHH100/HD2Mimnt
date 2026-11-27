@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebView2 仪表盘</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="dashboard">
+    <header>
+      <div>
+        <p class="eyebrow">HD2MIMNT PLUGIN SDK 1.4</p>
+        <h1>WebView2 仪表盘</h1>
+        <p class="subtitle">页面在管理器内嵌运行，业务逻辑仍留在独立插件进程。</p>
+      </div>
+      <span class="status" id="status">等待调用</span>
+    </header>
+
+    <section class="panel">
+      <label for="name">你的称呼</label>
+      <div class="command-row">
+        <input id="name" value="Helldiver" maxlength="80" autocomplete="off">
+        <button id="run" type="button">调用插件命令</button>
+      </div>
+      <p class="hint">点击后执行 <code>window.hd2.invoke('dashboard', { name })</code>。</p>
+    </section>
+
+    <section class="panel result" id="result" aria-live="polite">
+      <h2>结构化结果</h2>
+      <p class="placeholder">尚未加载数据。</p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -279,6 +279,7 @@ public sealed class LuaPluginRuntime : IDisposable
         var table = value.Table!;
         var successValue = table.Get("success");
         var ui = table.Get("ui");
+        var data = ParseData(LuaJson.Serialize(table.Get("data")));
         var message = LuaTables.Str(table, "message");
         var error = LuaTables.Str(table, "error");
 
@@ -289,19 +290,27 @@ public sealed class LuaPluginRuntime : IDisposable
                 Success = successValue.Boolean,
                 Message = message,
                 Error = successValue.Boolean ? null : error ?? message ?? "命令执行失败",
-                Ui = LuaUi.ToUpdate(ui)
+                Ui = LuaUi.ToUpdate(ui),
+                Data = data
             };
         }
 
         // 只返回了界面更新
         if (ui.Type == DataType.Table)
         {
-            return PluginResult.Ok(message, LuaUi.ToUpdate(ui));
+            return PluginResult.Ok(message, LuaUi.ToUpdate(ui), data);
         }
 
         // 直接返回区块数组
         var blocks = LuaUi.ToUpdate(value);
         return blocks is null ? null : PluginResult.Ok(message, blocks);
+    }
+
+    private static System.Text.Json.JsonElement? ParseData(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        return document.RootElement.Clone();
     }
 
     private bool HasHandler(string name)

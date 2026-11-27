@@ -172,7 +172,13 @@ public partial class MainWindow : Window
             PageHost.Items.RemoveAt(PageHost.Items.Count - 1);
         }
 
-        if (_viewModel is null) return;
+        var existingKeepAliveViews = PluginPageSurface.Children.OfType<PluginPageView>().ToList();
+        var reusedKeepAliveViews = new HashSet<PluginPageView>();
+        if (_viewModel is null)
+        {
+            foreach (var view in existingKeepAliveViews) PluginPageSurface.Children.Remove(view);
+            return;
+        }
 
         for (var i = 0; i < _viewModel.PluginPages.Count; i++)
         {
@@ -185,11 +191,47 @@ public partial class MainWindow : Window
             };
 
             NavigationView.MenuItems.Add(navItem);
-            PageHost.Items.Add(new TabItem
+            var tabItem = new TabItem { IsVisible = false };
+            if (page.KeepAlive)
             {
-                IsVisible = false,
-                Content = new PluginPageView { DataContext = page }
-            });
+                var key = GetPluginPageKey(page);
+                var view = existingKeepAliveViews.FirstOrDefault(candidate => GetPluginPageKey(candidate.DataContext as PluginUiSurfaceViewModel) == key);
+                if (view is null)
+                {
+                    view = new PluginPageView();
+                    PluginPageSurface.Children.Add(view);
+                }
+                view.DataContext = page;
+                view.Tag = i;
+                view.SetWebViewHostVisible(false);
+                view.IsVisible = false;
+                reusedKeepAliveViews.Add(view);
+            }
+            else
+            {
+                tabItem.Content = new PluginPageView { DataContext = page };
+            }
+            PageHost.Items.Add(tabItem);
+        }
+
+        foreach (var view in existingKeepAliveViews.Except(reusedKeepAliveViews))
+        {
+            PluginPageSurface.Children.Remove(view);
+        }
+        UpdatePluginPageVisibility();
+    }
+
+    private static string GetPluginPageKey(PluginUiSurfaceViewModel? page)
+        => page is null ? string.Empty : $"{page.PluginId}\n{page.SurfaceId}";
+
+    private void UpdatePluginPageVisibility()
+    {
+        var pluginIndex = (_viewModel?.SelectedTabIndex ?? 0) - FixedPageCount;
+        foreach (var view in PluginPageSurface.Children.OfType<PluginPageView>())
+        {
+            var isActive = view.Tag is int index && index == pluginIndex;
+            view.SetWebViewHostVisible(isActive);
+            view.IsVisible = isActive;
         }
     }
 
@@ -346,6 +388,11 @@ public partial class MainWindow : Window
 
         NavigationView.SelectedItem = NavigationView.MenuItems.OfType<FANavigationViewItem>()
             .FirstOrDefault(item => item.Tag?.ToString() == targetTag.ToString());
+        var selectedPluginPage = index >= FixedPageCount
+            ? _viewModel?.PluginPages.ElementAtOrDefault(index - FixedPageCount)
+            : null;
+        StatusBar.IsVisible = selectedPluginPage?.FillWindow != true;
+        UpdatePluginPageVisibility();
     }
 
     private void OnVersionBadgePointerPressed(object? sender, PointerPressedEventArgs e)
