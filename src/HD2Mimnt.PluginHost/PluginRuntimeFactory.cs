@@ -21,6 +21,11 @@ internal static class PluginRuntimeFactory
         var manifest = PluginManifestJson.Deserialize(manifestJson)
             ?? throw new InvalidOperationException("插件清单解析失败");
 
+        if (PluginKinds.IsWeb(manifest.Kind))
+        {
+            throw new InvalidOperationException("纯网页插件没有命令运行时，不应启动插件宿主。");
+        }
+
         if (!PluginKinds.IsLua(manifest.Kind))
         {
             var loader = new PluginLoader(pluginId);

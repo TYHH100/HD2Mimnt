@@ -18,6 +18,7 @@
 | 功能菜单 / 工具栏入口 | 可用 | `ui.menus`，支持 `mainMenu` 与 `libraryToolbar` |
 | 主题包 | 可用 | `ui.themes`，白名单设计令牌（颜色/圆角/字号），可一键还原 |
 | Markdown 结果渲染 | 可用 | 命令返回的 Markdown 在结果窗口按格式渲染，可切换原文 |
+| 纯网页插件 | 可用 | `kind: "web"`，只提供 WebView2 页面，无需 DLL 或 Lua |
 | Lua 脚本插件 | 可用 | `kind: "lua"` + `script`，宿主内置解释器执行，无需编译 |
 | 脚本 + DLL 混合 | 可用 | 脚本主控，`hd2.dll.call` 调用程序集里的命令 |
 | 模组数据读取 | 未接通 | `IPluginModAccess` 在宿主侧仍抛 `NotImplementedException` |
@@ -27,7 +28,7 @@
 
 ## 2. 最小插件
 
-一个插件 = 一个实现 `IPlugin` 的入口类 + 任意数量的 `IPluginCommand` 实现 + `manifest.json`。
+编译型插件 = 一个实现 `IPlugin` 的入口类 + 任意数量的 `IPluginCommand` 实现 + `manifest.json`。纯网页插件不需要入口类，见第 3 节。
 
 ```csharp
 public sealed class MyPlugin : IPlugin
@@ -59,17 +60,51 @@ public sealed class HelloCommand : IPluginCommand
 
 > **宿主启动时机（懒加载）**：应用启动、安装、启用插件都**不会**拉起插件进程，只有第一次执行该插件的命令（且所需权限已授予）时才启动宿主并调用 `InitializeAsync`。因此界面贡献（页面/菜单/浮窗）在安装后立即出现——它们直接来自 manifest 的静态解析，不依赖插件运行；而 `InitializeAsync` 里的日志要到首次使用才会出现，这是设计行为。不要在 `InitializeAsync` 里假设"应用刚启动"，也不要用它做必须开机执行的工作。
 
-## 3. 用 Lua 写插件（无需编译）
+## 3. 插件形态
 
-插件有两种写法，跑在同一套进程隔离、权限与界面模型下：
+插件有四种常见形态，共用同一套清单、权限与界面模型：
 
 | 写法 | `kind` | 入口 | 适合 |
 |---|---|---|---|
+| 纯网页 | `web` | 无入口文件，只提供 `webView2` 页面 | 静态页面、布局工具、本地交互 |
 | 编译型 | `dotnet`（缺省） | `assembly` + `entryType` | 需要强类型、复杂逻辑、第三方库 |
 | 脚本型 | `lua` | `script`（`main.lua`） | 快速迭代、轻量逻辑、改完即生效 |
 | 混合型 | `lua` + `assembly` | 脚本主控，DLL 提供底层能力 | 大部分逻辑用脚本写，重活交给 DLL |
 
-三者都是**独立进程**，都拿不到密钥，都通过声明式界面渲染。
+`dotnet`、`lua` 和混合型运行在独立宿主进程中；`web` 不启动宿主进程。四者都通过 manifest 贡献界面，插件程序集不会进入 UI 进程。
+
+### 纯网页插件（无需 DLL）
+
+```json
+{
+  "id": "com.example.web-panel",
+  "name": "网页面板",
+  "version": "1.0.0",
+  "apiVersion": "1.5.0",
+  "kind": "web",
+  "ui": {
+    "pages": [{
+      "id": "home",
+      "title": "网页面板",
+      "kind": "webView2",
+      "entry": "web/index.html"
+    }]
+  }
+}
+```
+
+目录中只需要 `manifest.json` 和网页资源：
+
+```
+WebPanel/
+├── manifest.json
+└── web/
+    ├── index.html
+    ├── styles.css
+    └── app.js
+```
+
+`web` 插件不能声明 `commands`，也不会启动插件宿主。页面可以用普通 JavaScript 在本地完成交互；只有需要访问管理器数据、部署模组、读写插件存储或 AI 时，才改用 `lua` / `dotnet`，或添加混合运行时。完整示例见 `samples/plugins/WebUiStatic`。
 
 ### 3.1 目录结构
 
@@ -207,12 +242,12 @@ public sealed class DigestCommand : IPluginCommand
 | `id` | 是 | 稳定标识，反向域名或 GUID 均可（内部按字符串传递，不再强制 GUID） |
 | `name` / `version` / `author` / `description` | 是 / 是 / 否 / 否 | 展示信息；`version` 需为 2–4 段数字 |
 | `apiVersion` | 建议 | SDK 契约版本；主版本高于宿主会被拒绝安装 |
-| `runtime` | 否 | 目标运行时，如 `net10.0` |
+| `runtime` | 否 | 目标运行时，如 `net10.0`；纯网页插件可写 `web` |
 | `permissionMode` | 否 | `Sandbox`（默认）或 `FullAccess` |
 | `requestedPermissions` | 否 | 权限标识列表，见下表 |
 | `commands` | 否 | 命令声明，供界面在宿主启动前展示 |
 | `ui` | 否 | 界面贡献：`pages` / `dialogs` / `menus` / `themes`；页面支持声明式区块与 WebView2，见第 5 节 |
-| `kind` | 否 | `dotnet`（缺省）或 `lua`；缺省时按编译型处理，旧清单无需改动 |
+| `kind` | 否 | `web`、`dotnet`（缺省）或 `lua`；缺省时按编译型处理，旧清单无需改动 |
 | `script` | 脚本型必填 | 入口脚本（如 `main.lua`），必须是 `.lua` 文件 |
 | `assembly` / `entryType` | 编译型必填 | 程序集文件名与入口类型全名；脚本型不需要 `entryType`，`assembly` 仅混合插件填 |
 
@@ -289,7 +324,7 @@ public sealed class DigestCommand : IPluginCommand
 }
 ```
 
-页面由管理器通过 Avalonia `NativeControlHost` + CoreWebView2 内嵌显示，HTML/CSS/JavaScript 不进入插件进程，插件 DLL 也不进入 UI 进程。宿主只提供 `window.hd2.invoke`：
+页面由管理器通过 Avalonia `NativeControlHost` + CoreWebView2 内嵌显示，HTML/CSS/JavaScript 不进入插件进程，插件 DLL 也不进入 UI 进程。对 `dotnet` / `lua` / 混合插件，宿主提供 `window.hd2.invoke`；纯 `web` 插件没有命令运行时，只能使用页面本地 JavaScript。
 
 ```js
 const result = await window.hd2.invoke('dashboard', { name: 'Helldiver' });
@@ -439,6 +474,7 @@ SDK 是**对外契约**，不是独立产品，因此不拆到单独分支：
 | `samples/plugins/HelloWorld` | 生命周期、命令贡献、参数解析、私有存储计数 |
 | `samples/plugins/AiSummarizer` | `ai.use` 权限、AI 代理调用、模组右键菜单命令、独立页面、浮窗、功能菜单与模组库工具栏入口 |
 | `samples/plugins/ThemeShowcase` | `ui.theme` 权限、设计令牌主题包（两套配色）、声明式说明页 |
+| `samples/plugins/WebUiStatic` | `kind: "web"` 纯网页插件：无 DLL、无 Lua，只含 manifest 与本地网页 |
 | `samples/plugins/WebUiDashboard` | `kind: "webView2"` 本地 HTML 页面、`window.hd2.invoke`、结构化 JSON 回传 |
 | `samples/plugins/LuaModCheck` | 纯 Lua 插件：无编译产物、脚本读写私有存储、脚本生成报告与浮窗 |
 | `samples/plugins/LuaHybrid` | 混合插件：`main.lua` 编排界面，`HybridTools.dll` 计算 SHA-256 并回传区块 |
@@ -450,6 +486,8 @@ SDK 是**对外契约**，不是独立产品，因此不拆到单独分支：
 ```powershell
 dotnet build samples/plugins/HelloWorld/HelloWorld.csproj
 # 设置 → 插件 → 安装，选择 bin/Debug/net10.0/manifest.json
+
+# 纯网页插件无需构建，直接安装 samples/plugins/WebUiStatic/manifest.json
 ```
 
 ## 9. 调试
@@ -457,5 +495,5 @@ dotnet build samples/plugins/HelloWorld/HelloWorld.csproj
 - 插件日志会带 `插件 {PluginId}` 前缀写入主程序日志；
 - 宿主进程异常或被杀时，当前命令返回明确原因，执行历史同步落库；
 - 命令未出现在界面：检查 manifest 的 `commands` 名称是否与 `Descriptor.Name` 完全一致（忽略大小写）；
-- 安装后无法启动：检查 `apiVersion` 主版本、程序集是否被替换（安装时记录了 SHA-256）。
+- 安装后无法启动：检查 `apiVersion` 主版本、程序集是否被替换（安装时记录了 SHA-256）；`web` 插件没有宿主进程，不需要启动。
 - WebView2 页面提示 Runtime 缺失：安装 Microsoft Edge WebView2 Runtime 后点击“重新加载”；页面空白时检查 `entry` 是否位于插件包内且资源引用使用相对路径。

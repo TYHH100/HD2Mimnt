@@ -59,6 +59,121 @@ public class PluginWebUiTests : IDisposable
     }
 
     [Fact]
+    public void Manifest_WebKind_DoesNotRequireDllOrScript()
+    {
+        var manifest = PluginManifestJson.Deserialize("""
+        {
+          "id": "com.test.static", "name": "Static", "version": "1.0.0",
+          "apiVersion": "1.5.0", "kind": "web",
+          "ui": { "pages": [{ "id": "home", "title": "Home", "kind": "webView2", "entry": "web/index.html" }] }
+        }
+        """);
+
+        Assert.NotNull(manifest);
+        Assert.True(PluginKinds.IsWeb(manifest!.Kind));
+        Assert.True(manifest.IsWebPlugin);
+        Assert.Empty(manifest.EntryFile);
+        Assert.Empty(manifest.Assembly);
+        Assert.Empty(manifest.Script);
+    }
+
+    [Fact]
+    public async Task ValidateManifestAsync_StaticWebPlugin_IsAcceptedWithoutRuntimeEntry()
+    {
+        var path = await WriteStaticWebManifestAsync();
+
+        var result = await _service.ValidateManifestAsync(path);
+
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Errors));
+    }
+
+    [Fact]
+    public async Task ValidateManifestAsync_StaticWebPluginWithoutWebView2Page_IsRejected()
+    {
+        var path = await WriteStaticWebManifestAsync(includeWebPage: false);
+
+        var result = await _service.ValidateManifestAsync(path);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("webView2"));
+    }
+
+    [Fact]
+    public async Task ValidateManifestAsync_StaticWebPluginWithCommands_IsRejected()
+    {
+        var path = await WriteStaticWebManifestAsync(includeCommands: true);
+
+        var result = await _service.ValidateManifestAsync(path);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("commands"));
+    }
+
+    [Fact]
+    public async Task InstallPluginAsync_StaticWebPlugin_SucceedsWithoutAssembly()
+    {
+        var path = await WriteStaticWebManifestAsync();
+        _pluginRepo.Setup(repo => repo.ExistsAsync("com.test.static", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        Plugin? installed = null;
+        _pluginRepo.Setup(repo => repo.AddAsync(It.IsAny<Plugin>(), It.IsAny<CancellationToken>()))
+            .Callback<Plugin, CancellationToken>((plugin, _) => installed = plugin)
+            .Returns(Task.CompletedTask);
+
+        var result = await _service.InstallPluginAsync(path);
+
+        Assert.True(result.Success, result.Error);
+        Assert.NotNull(installed);
+        Assert.Equal(Path.GetFullPath(path), installed!.AssemblyPath);
+        Assert.Null(installed.AssemblySha256);
+        Assert.NotNull(installed.ManifestSha256);
+    }
+
+    [Fact]
+    public async Task StartPluginAsync_StaticWebPlugin_DoesNotStartHost()
+    {
+        var path = await WriteStaticWebManifestAsync();
+        _pluginRepo.Setup(repo => repo.GetByIdAsync("com.test.static", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Plugin
+            {
+                Id = "com.test.static",
+                Name = "Static",
+                ManifestPath = path,
+                AssemblyPath = path,
+                Enabled = true
+            });
+
+        var result = await _service.StartPluginAsync("com.test.static");
+
+        Assert.True(result.Success, result.Error);
+        _hostManager.Verify(manager => manager.StartPluginAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecutePluginCommandAsync_StaticWebPlugin_ReturnsClearErrorWithoutHistory()
+    {
+        var path = await WriteStaticWebManifestAsync();
+        _pluginRepo.Setup(repo => repo.GetByIdAsync("com.test.static", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Plugin
+            {
+                Id = "com.test.static",
+                Name = "Static",
+                ManifestPath = path,
+                AssemblyPath = path,
+                Enabled = true
+            });
+
+        var result = await _service.ExecutePluginCommandAsync("com.test.static", "anything");
+
+        Assert.False(result.Success);
+        Assert.Contains("没有命令运行时", result.Error);
+        _executionRepo.Verify(repo => repo.AddAsync(It.IsAny<PluginExecutionHistory>(), It.IsAny<CancellationToken>()), Times.Never);
+        _hostManager.Verify(manager => manager.ExecutePluginCommandAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ValidateManifestAsync_WebView2EntryInsidePlugin_IsAccepted()
     {
         var path = await WriteManifestAsync("web/index.html");
@@ -232,6 +347,38 @@ public class PluginWebUiTests : IDisposable
         surface.WebErrorMessage = null;
         Assert.False(surface.HasWebError);
         Assert.True(surface.IsWebViewActive);
+    }
+
+    private async Task<string> WriteStaticWebManifestAsync(bool includeWebPage = true, bool includeCommands = false)
+    {
+        var manifest = new PluginManifest
+        {
+            Id = "com.test.static",
+            Name = "Static Web",
+            Version = "1.0.0",
+            ApiVersion = PluginSdkInfo.Version,
+            Kind = PluginKinds.Web,
+            Ui = new PluginUiContributions()
+        };
+        if (includeCommands)
+        {
+            manifest.Commands.Add(new PluginCommandDescriptor { Name = "run", DisplayName = "Run" });
+        }
+        if (includeWebPage)
+        {
+            manifest.Ui.Pages.Add(new PluginPageContribution
+            {
+                Id = "home",
+                Title = "Home",
+                Kind = PluginUiPageKinds.WebView2,
+                Entry = "web/index.html"
+            });
+            Directory.CreateDirectory(Path.Combine(_directory, "web"));
+            await File.WriteAllTextAsync(Path.Combine(_directory, "web", "index.html"), "<h1>Static</h1>");
+        }
+        var path = Path.Combine(_directory, "manifest.json");
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(manifest, PluginManifestJson.Options));
+        return path;
     }
 
     private async Task<string> WriteManifestAsync(string entry, string kind = PluginUiPageKinds.WebView2)

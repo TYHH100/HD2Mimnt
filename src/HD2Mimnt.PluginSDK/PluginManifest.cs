@@ -76,7 +76,7 @@ public class PluginManifest
     public string EntryType { get; set; } = string.Empty;
 
     /// <summary>
-    /// 实现形态，取值见 <see cref="PluginKinds"/>：dotnet（默认）或 lua。
+    /// 实现形态，取值见 <see cref="PluginKinds"/>：dotnet（默认）、lua 或 web。
     /// 缺省按 dotnet 处理，旧清单无需改动。
     /// </summary>
     public string Kind { get; set; } = PluginKinds.DotNet;
@@ -91,16 +91,20 @@ public class PluginManifest
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsScriptPlugin => PluginKinds.IsLua(Kind);
 
+    /// <summary>是否为不需要 DLL/脚本的纯网页插件。</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsWebPlugin => PluginKinds.IsWeb(Kind);
+
     /// <summary>是否为“脚本主控 + DLL 提供底层能力”的混合插件。</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsHybrid => IsScriptPlugin && !string.IsNullOrWhiteSpace(Assembly);
 
     /// <summary>
     /// 插件入口文件（相对清单目录）。脚本型返回 <see cref="Script"/>，
-    /// 编译型返回 <see cref="Assembly"/>。安装与完整性校验都以它为准。
+    /// 编译型返回 <see cref="Assembly"/>；纯网页插件没有入口文件。
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public string EntryFile => IsScriptPlugin ? Script : Assembly;
+    public string EntryFile => IsWebPlugin ? string.Empty : IsScriptPlugin ? Script : Assembly;
 }
 
 /// <summary>

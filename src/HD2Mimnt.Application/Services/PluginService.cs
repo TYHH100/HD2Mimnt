@@ -78,25 +78,33 @@ public class PluginService : IPluginService
             }
 
             // 入口文件按类型解析：编译型是程序集，脚本型是 .lua；
-            // 混合插件（脚本 + DLL）以脚本为入口，DLL 由宿主在脚本进程内挂载
+            // 混合插件（脚本 + DLL）以脚本为入口，DLL 由宿主在脚本进程内挂载。
+            // 纯网页插件没有入口文件，安装记录用 manifest 路径作为资源定位。
             var entryFile = manifest.EntryFile;
             string entryPath;
-            try
+            if (manifest.IsWebPlugin)
             {
-                // EntryFile 拼进完整性锚点与宿主加载路径：绝对路径/.. 一律拒绝安装
-                entryPath = PathGuard.ResolveInsideRoot(manifestDirectory,
-                    Path.Combine(manifestDirectory, entryFile ?? string.Empty),
-                    "插件清单 EntryFile 越出插件目录，已拒绝安装。");
+                entryPath = Path.GetFullPath(manifestPath);
             }
-            catch (InvalidDataException ex)
+            else
             {
-                return PluginOperationResult.ErrorResult(ex.Message, manifestDirectory);
-            }
-            if (!File.Exists(entryPath))
-            {
-                return PluginOperationResult.ErrorResult(
-                    manifest.IsScriptPlugin ? "Plugin script not found" : "Plugin assembly not found",
-                    entryPath);
+                try
+                {
+                    // EntryFile 拼进完整性锚点与宿主加载路径：绝对路径/.. 一律拒绝安装
+                    entryPath = PathGuard.ResolveInsideRoot(manifestDirectory,
+                        Path.Combine(manifestDirectory, entryFile ?? string.Empty),
+                        "插件清单 EntryFile 越出插件目录，已拒绝安装。");
+                }
+                catch (InvalidDataException ex)
+                {
+                    return PluginOperationResult.ErrorResult(ex.Message, manifestDirectory);
+                }
+                if (!File.Exists(entryPath))
+                {
+                    return PluginOperationResult.ErrorResult(
+                        manifest.IsScriptPlugin ? "Plugin script not found" : "Plugin assembly not found",
+                        entryPath);
+                }
             }
 
             var plugin = new Plugin
@@ -107,11 +115,11 @@ public class PluginService : IPluginService
                 Author = manifest.Author,
                 Description = manifest.Description,
                 ManifestPath = manifestPath,
-                // 对脚本型插件，这里记录脚本路径；完整性校验锚定的就是它
+                // 对脚本型插件，这里记录脚本路径；对纯网页插件记录 manifest 路径。
                 AssemblyPath = entryPath,
                 // 完整性锚点：安装时固定入口文件、清单与混合 DLL 内容，启动前比对防替换。
                 // 命令权限门控运行时重读清单（RequiredPermission），清单不在锚点内则门控可被摘除。
-                AssemblySha256 = await ComputeFileSha256Async(entryPath, cancellationToken),
+                AssemblySha256 = manifest.IsWebPlugin ? null : await ComputeFileSha256Async(entryPath, cancellationToken),
                 ManifestSha256 = await ComputeFileSha256Async(manifestPath, cancellationToken),
                 HybridAssemblySha256 = await ComputeHybridAssemblySha256Async(manifest, manifestDirectory, cancellationToken),
                 InstalledAt = DateTime.UtcNow,
@@ -175,24 +183,29 @@ public class PluginService : IPluginService
         {
             return PluginOperationResult.ErrorResult("Plugin not found", pluginId);
         }
-        if (!File.Exists(plugin.AssemblyPath))
+        var manifest = await ReadManifestAsync(plugin.ManifestPath, cancellationToken);
+        var isWebPlugin = manifest?.IsWebPlugin == true;
+        if (!isWebPlugin)
         {
-            return PluginOperationResult.ErrorResult("插件入口文件不存在", plugin.AssemblyPath);
-        }
-
-        var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
-        if (plugin.AssemblySha256 is { } recorded)
-        {
-            if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
+            if (!File.Exists(plugin.AssemblyPath))
             {
-                return PluginOperationResult.ErrorResult(
-                    "插件入口文件与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+                return PluginOperationResult.ErrorResult("插件入口文件不存在", plugin.AssemblyPath);
             }
-        }
-        else
-        {
-            plugin.AssemblySha256 = currentSha;
-            await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+
+            var currentSha = await ComputeFileSha256Async(plugin.AssemblyPath, cancellationToken);
+            if (plugin.AssemblySha256 is { } recorded)
+            {
+                if (!string.Equals(recorded, currentSha, StringComparison.OrdinalIgnoreCase))
+                {
+                    return PluginOperationResult.ErrorResult(
+                        "插件入口文件与安装时不一致，已拒绝启动；请重新安装或更新插件。", pluginId);
+                }
+            }
+            else
+            {
+                plugin.AssemblySha256 = currentSha;
+                await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+            }
         }
 
         // 清单锚点：权限门控（RequiredPermission）、命令声明、脚本/DLL 路径全部来自清单内容，
@@ -214,6 +227,11 @@ public class PluginService : IPluginService
         {
             plugin.ManifestSha256 = currentManifestSha;
             await _pluginRepository.UpdateAsync(plugin, cancellationToken);
+        }
+
+        if (isWebPlugin)
+        {
+            return PluginOperationResult.SuccessResult("纯网页插件已启用，无需启动宿主进程。");
         }
 
         // 混合插件 DLL 锚点：路径取自已被锚定的清单，哈希与安装时不符即拒绝
@@ -433,7 +451,18 @@ public class PluginService : IPluginService
 
             var isScript = manifest.IsScriptPlugin;
 
-            if (isScript)
+            if (manifest.IsWebPlugin)
+            {
+                if (manifest.Commands.Count > 0)
+                {
+                    result.Errors.Add("纯网页插件不能声明 commands；需要命令运行时请使用 lua 或 dotnet。");
+                }
+                if (!manifest.Ui.Pages.Any(page => PluginSDK.PluginUiPageKinds.IsWebView2(page.Kind)))
+                {
+                    result.Errors.Add("纯网页插件至少需要一个 kind 为 webView2 的页面。");
+                }
+            }
+            else if (isScript)
             {
                 if (string.IsNullOrWhiteSpace(manifest.Script))
                 {
@@ -945,6 +974,12 @@ public class PluginService : IPluginService
             if (!plugin.Enabled)
             {
                 return PluginOperationResult.ErrorResult("Plugin is disabled", pluginId);
+            }
+
+            var manifest = await ReadManifestAsync(plugin.ManifestPath, cancellationToken);
+            if (manifest?.IsWebPlugin == true)
+            {
+                return PluginOperationResult.ErrorResult("纯网页插件没有命令运行时；需要执行命令请改用 lua 或 dotnet。");
             }
 
             var declared = await ReadDeclaredCommandsAsync(plugin.ManifestPath, cancellationToken);
