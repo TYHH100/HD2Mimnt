@@ -29,14 +29,49 @@
                         <DataTemplate x:DataType="vm:ModelPreviewOptionRow">
                           <StackPanel Margin="0,4,0,10" Spacing="4">
                             <CheckBox IsChecked="{Binding IsEnabled}"><TextBlock Text="{Binding Name}" TextWrapping="Wrap"/></CheckBox>
-                            <ComboBox ItemsSource="{Binding SubOptions}" SelectedIndex="{Binding SelectedIndex}" IsVisible="{Binding HasSubOptions}" IsEnabled="{Binding IsEnabled}" HorizontalAlignment="Stretch"/>
+                            <ComboBox ItemsSource="{Binding SubOptions}" SelectedIndex="{Binding SelectedIndex}"
+                                      DisplayMemberBinding="{Binding Name}" IsVisible="{Binding HasExclusiveSubOptions}"
+                                      IsEnabled="{Binding IsEnabled}" HorizontalAlignment="Stretch"/>
+                            <ItemsControl ItemsSource="{Binding SubOptions}" IsVisible="{Binding SupportsSubOptionMultiSelect}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ModelPreviewSubOptionRow">
+                                  <StackPanel Spacing="4" Margin="0,4,0,8">
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled}"
+                                              IsEnabled="{Binding ParentEnabled}"/>
+                                    <ComboBox ItemsSource="{Binding NestedSubOptions}"
+                                              SelectedIndex="{Binding SelectedNestedIndex, Mode=TwoWay}"
+                                              IsVisible="{Binding HasNestedSubOptions}" IsEnabled="{Binding CanEdit}"
+                                              HorizontalAlignment="Stretch"/>
+                                  </StackPanel>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                           </StackPanel>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <StackPanel IsVisible="{Binding HasParts}" Spacing="6">
+                      <TextBlock Text="{loc:Loc ModelPreview.GameParts}" Classes="section-title"/>
+                      <TextBlock Text="{loc:Loc ModelPreview.GamePartsHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                      <ItemsControl ItemsSource="{Binding Parts}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:ModelPreviewPartRow">
+                            <StackPanel Margin="0,4,0,8" Spacing="4">
+                              <TextBlock Text="{Binding Name}" TextWrapping="Wrap"/>
+                              <ComboBox ItemsSource="{Binding OptionNames}" SelectedIndex="{Binding SelectedIndex}" HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
                   </StackPanel>
                 </ScrollViewer>
                 <StackPanel Grid.Row="2" Spacing="8" IsEnabled="{Binding !IsBusy}">
+                  <StackPanel Spacing="4">
+                    <CheckBox x:Name="ForceDecodeOversizedStreamsToggle" Content="{loc:Loc ModelPreview.ForceDecodeOversizedStreams}"
+                              IsChecked="{Binding ForceDecodeOversizedStreams}" ToolTip.Tip="{loc:Loc ModelPreview.ForceDecodeOversizedStreamsHelp}"/>
+                    <TextBlock Text="{loc:Loc ModelPreview.ForceDecodeOversizedStreamsHelp}" Classes="caption-text" TextWrapping="Wrap"/>
+                  </StackPanel>
                   <TextBlock Text="{loc:Loc ModelPreview.TextureResolution}" Classes="caption-text"/>
                   <ComboBox ItemsSource="{Binding TextureResolutions}" SelectedValue="{Binding TextureResolution}"
                             SelectedValueBinding="{Binding Value}" DisplayMemberBinding="{loc:LocalizedBinding Display}"

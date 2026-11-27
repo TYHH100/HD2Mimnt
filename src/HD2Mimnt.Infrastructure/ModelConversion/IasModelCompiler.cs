@@ -13,7 +13,9 @@ public sealed record IasCompileRequest(
     IasRouting Routing,
     IasGameData? Game,
     string AvatarArchive = "18235e0c9ec0e636",
-    string PreferredBodyType = "Slim");
+    string PreferredBodyType = "Slim",
+    IReadOnlyList<IasMorphSourceProgram>? MorphPrograms = null,
+    IReadOnlyDictionary<(ulong Type, ulong Id), IasResource>? AdditionalResources = null);
 
 public sealed record IasCompiledModel(
     string Name,
@@ -23,7 +25,9 @@ public sealed record IasCompiledModel(
     IReadOnlyList<IasPhysicsDomain> Domains,
     IReadOnlyList<ulong> MaterialIds,
     IReadOnlyList<ulong> VisibleMaterialIds,
-    IReadOnlyDictionary<string, IasGeometryStats> Geometry);
+    IReadOnlyDictionary<string, IasGeometryStats> Geometry,
+    IasNativeMorphProof? MorphProof = null,
+    IReadOnlyDictionary<(ulong Type, ulong Id), IasResource>? MorphMaterials = null);
 
 public sealed record IasNativeGraphNode(string Name, int Parent, IasPose LocalRest, IasPose Rest);
 
@@ -57,6 +61,7 @@ public static class IasModelCompiler
         IasResource Resolve(ulong kind, ulong id, bool nativeFallback, bool nativeAvatar = false)
         {
             if (request.Resources.TryGetValue((kind, id), out var value)) return value;
+            if (request.AdditionalResources is not null && request.AdditionalResources.TryGetValue((kind, id), out value)) return value;
             if (loaded.TryGetValue((kind, id), out value)) return value;
             if (request.Game is not null)
             {
@@ -276,8 +281,33 @@ public static class IasModelCompiler
         var registration = IasValue.Obj(registrationEntries.ToArray());
         var visibleMaterials = assembled.Selected.SelectMany(uid => geometry[uid].RenderMaterials)
             .Distinct().Order().ToList();
-        return new IasCompiledModel(title, owned, catalog, registration, domains,
+        var compiled = new IasCompiledModel(title, owned, catalog, registration, domains,
             materialIds.Order().ToList(), visibleMaterials, geometry);
+        if (request.MorphPrograms is not { Count: > 0 }) return compiled;
+
+        var morphMaterials = new Dictionary<(ulong Type, ulong Id), IasResource>();
+        foreach (var pair in request.Resources.Concat(request.AdditionalResources ?? Enumerable.Empty<KeyValuePair<(ulong, ulong), IasResource>>())
+                     .Where(pair => pair.Key.Item1 == IasResourceTypes.Material))
+            morphMaterials[pair.Key] = pair.Value;
+        foreach (var id in materialIds)
+        {
+            if (morphMaterials.ContainsKey((IasResourceTypes.Material, id))) continue;
+            try { morphMaterials[(IasResourceTypes.Material, id)] = Resolve(IasResourceTypes.Material, id, false); }
+            catch (InvalidDataException) { }
+            catch (KeyNotFoundException) { }
+            catch (FileNotFoundException) { }
+        }
+        var morphUnitIds = request.MorphPrograms.SelectMany(program => program.Document.Meshes)
+            .Select(mesh => mesh.UnitId).Distinct(StringComparer.Ordinal).ToList();
+        var morphUnits = new Dictionary<string, IasUnit>(StringComparer.Ordinal);
+        foreach (var uid in morphUnitIds)
+        {
+            if (!allUnits.TryGetValue(uid, out var resource)) continue;
+            morphUnits[uid] = new IasUnit(uid, resource, known,
+                externalBones.TryGetValue(uid, out var bones) ? bones.Resource : null, allowUnnamed: true);
+        }
+        var converted = IasNativeMorph.Apply(compiled, request.MorphPrograms, morphUnits, morphMaterials);
+        return converted.Compiled with { MorphMaterials = converted.Materials };
     }
 
     private static (Dictionary<string, IasProfileTable> Profiles, List<IasCompanionGroup> Groups,

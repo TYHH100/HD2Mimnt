@@ -50,6 +50,8 @@ public static class Hd2ClArtifactBuilder
 
         progress?.Report(new(15, "合并配套数据", request.Name));
         var set = IasCompanionSets.Read(scan.Companions, request.Seed);
+        var morphPrograms = IasMorphInputs.Pair(IasMorphFormat.ReadPrograms(set.Members), set.Data, set.Members, scan.Resources);
+        var additionalResources = ScanSelectedMaterialResources(request.ModPath, request.OptionGroups, token);
         var icon = FindIcon(request.ThumbnailPath, request.ManifestIconPath, out var iconPath, out var iconMime);
         token.ThrowIfCancellationRequested();
 
@@ -57,7 +59,8 @@ public static class Hd2ClArtifactBuilder
         progress?.Report(new(25, "编译私有模型、目录与物理数据", request.Name));
         var modelId = "ias_" + set.Data.Metadata.Id;
         var compiled = IasModelCompiler.Compile(new IasCompileRequest(
-            modelId, request.Name, scan.Resources, set.Members, set.Data, set.Routing, game));
+            modelId, request.Name, scan.Resources, set.Members, set.Data, set.Routing, game,
+            MorphPrograms: morphPrograms, AdditionalResources: additionalResources));
         token.ThrowIfCancellationRequested();
 
         progress?.Report(new(70, "生成安装包", request.Name));
@@ -65,9 +68,11 @@ public static class Hd2ClArtifactBuilder
         var optionGroups = request.OptionGroups is { Count: > 0 }
             ? CopyOptionImages(request.ModPath, request.OutputDirectory, request.OptionGroups, token)
             : null;
+        var available = new Dictionary<(ulong Type, ulong Id), IasResource>(scan.Resources);
+        foreach (var (key, value) in additionalResources) available[key] = value;
         var packaged = IasModelPackager.Build(new IasPackageRequest(modelId,
             request.Name, request.Author, request.Description,
-            iconPath, icon, iconMime, compiled, scan.Resources, game,
+            iconPath, icon, iconMime, compiled, available, game,
             scan.ArchiveIds.Concat(set.Routing.BodyOwners.Select(owner => owner.Archive))
                 .Concat(set.Data.Metadata.Members.Select(member => member.Archive))
                 .Select(archive => archive.ToLowerInvariant().StartsWith("0x", StringComparison.Ordinal)
@@ -194,6 +199,9 @@ public static class Hd2ClArtifactBuilder
            || name.EndsWith(".hd2phys", StringComparison.OrdinalIgnoreCase)
            || name.EndsWith(".hd2shared", StringComparison.OrdinalIgnoreCase)
            || name.EndsWith(".hd2pose", StringComparison.OrdinalIgnoreCase)
+           || name.EndsWith(".hd2morph", StringComparison.OrdinalIgnoreCase)
+           || name.EndsWith(".hd2preview", StringComparison.OrdinalIgnoreCase)
+           || name.EndsWith(".isolation.ini", StringComparison.OrdinalIgnoreCase)
            || Path.GetFileName(name).Equals("mod_group.json", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsPatchFile(string name) => PatchName.IsMatch(Path.GetFileName(name));
@@ -203,6 +211,32 @@ public static class Hd2ClArtifactBuilder
         => name.EndsWith(".gpu_resources", StringComparison.OrdinalIgnoreCase)
            || name.EndsWith(".stream", StringComparison.OrdinalIgnoreCase)
            || IsPatchFile(name);
+
+    private static IReadOnlyDictionary<(ulong Type, ulong Id), IasResource> ScanSelectedMaterialResources(
+        string root, IReadOnlyList<Hd2ClOptionGroup>? groups, CancellationToken token)
+    {
+        var result = new Dictionary<(ulong, ulong), IasResource>();
+        if (groups is null) return result;
+        foreach (var group in groups)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!group.Enabled || group.Choices.Count == 0) continue;
+            var relative = group.Choices[Math.Clamp(group.DefaultIndex, 0, group.Choices.Count - 1)].SourceDirectory;
+            var directory = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
+            IasBinary.Require(PathGuard.IsInsideRoot(root, directory), "配色选项目录不在模组内：" + relative);
+            if (!Directory.Exists(directory)) continue;
+            foreach (var path in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                         .Where(file => IsPatchFile(Path.GetFileName(file)))
+                         .OrderBy(file => file, StringComparer.Ordinal))
+            {
+                token.ThrowIfCancellationRequested();
+                var toc = File.ReadAllBytes(path);
+                foreach (var (key, value) in IasArchive.ReadEntries(toc, PayloadOf(path + ".gpu_resources"), PayloadOf(path + ".stream")))
+                    if (key.Type is IasResourceTypes.Material or IasResourceTypes.Texture) result[key] = value;
+            }
+        }
+        return result;
+    }
 
     private static IasPayload PayloadOf(string path)
     {

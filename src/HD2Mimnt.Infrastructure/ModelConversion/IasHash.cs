@@ -57,6 +57,20 @@ public static class IasHash
 
     public static string Sha256Hex(string value) => Sha256Hex(System.Text.Encoding.UTF8.GetBytes(value));
 
+    public static string ResourceFingerprint(IasResource resource)
+    {
+        Span<byte> lengths = stackalloc byte[24];
+        BinaryPrimitives.WriteUInt64LittleEndian(lengths, (ulong)resource.Toc.Length);
+        BinaryPrimitives.WriteUInt64LittleEndian(lengths[8..], (ulong)resource.Gpu.Length);
+        BinaryPrimitives.WriteUInt64LittleEndian(lengths[16..], (ulong)resource.Stream.Length);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(lengths);
+        hash.AppendData(resource.Toc);
+        Append(hash, resource.Gpu);
+        Append(hash, resource.Stream);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
     /// <summary>分段哈希，避免为拼接 TOC/GPU/Stream 再分配一份同等大小的缓冲区。</summary>
     public static string Sha256Hex(params byte[][] parts)
     {

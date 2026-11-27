@@ -1743,6 +1743,49 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task LibraryCleanMissingRecordsButton_ShouldConfirmAndRemoveOnlyMissingMods()
+    {
+        var confirmation = new RecordingConfirmation();
+        await using var scope = await UiScope.CreateAsync(seedMods: true, confirmation: confirmation);
+        var repository = scope.Services.GetRequiredService<HD2Mimnt.Core.Interfaces.IModRepository>();
+        var stored = (await repository.GetAllAsync()).ToArray();
+        var missing = stored[0];
+        Directory.Delete(missing.Path, recursive: true);
+        var viewModel = scope.Services.GetRequiredService<LibraryViewModel>();
+        await viewModel.InitializeAsync();
+        var view = new LibraryView { DataContext = viewModel };
+        var window = new Window { Content = view, Width = 1280, Height = 800 };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var button = view.FindControl<Button>("CleanMissingModsButton")!;
+            Assert.Same(viewModel.CleanupMissingModsCommand, button.Command);
+            Assert.True(button.IsEffectivelyVisible);
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "清理无效记录");
+            var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            var completion = viewModel.CleanupMissingModsCommand.ExecutionTask;
+            Assert.NotNull(completion);
+            await completion;
+
+            Assert.Contains(missing.Name, confirmation.Message);
+            Assert.Contains(missing.Path, confirmation.Message);
+            Assert.Null(await repository.GetByIdAsync(missing.Id));
+            Assert.Equal(stored.Length - 1, viewModel.FilteredMods.Count);
+            Assert.DoesNotContain(viewModel.FilteredMods, mod => mod.Id == missing.Id);
+        }
+        finally
+        {
+            window.DataContext = null;
+            view.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task AddToProfileDialog_ShouldStayOpaqueWhenCardOpacityChangesAndFollowTheme()
     {
         await using var scope = await UiScope.CreateAsync(seedMods: true);

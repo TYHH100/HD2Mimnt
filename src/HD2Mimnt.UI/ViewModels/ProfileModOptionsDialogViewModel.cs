@@ -16,6 +16,7 @@ namespace HD2Mimnt.UI.ViewModels;
 public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOptionsSelection
 {
     System.Windows.Input.ICommand IModOptionsSelection.ToggleOptionCommand => ToggleOptionCommand;
+    System.Windows.Input.ICommand IModOptionsSelection.ToggleSubOptionCommand => ToggleSubOptionCommand;
     System.Windows.Input.ICommand IModOptionsSelection.OpenGroupCommand => OpenGroupCommand;
     System.Windows.Input.ICommand IModOptionsSelection.ToggleGroupCommand => ToggleGroupCommand;
     System.Windows.Input.ICommand IModOptionsSelection.ReturnCommand => ReturnToGroupsCommand;
@@ -106,8 +107,10 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                     var selectedIndex = i < state.OptionSelections?.Count
                         ? Math.Clamp(state.OptionSelections[i], 0, option.SubOptions.Count - 1)
                         : 0;
+                    var multiSelect = ProfileModOptionResolver.SupportsSubOptionMultiSelect(option);
                     // 嵌套（第三层）选择：SubOptionSelections[i][s] 是子选项 s 下选中的叶子索引，缺省 0
                     var storedSubSelections = i < state.SubOptionSelections?.Count ? state.SubOptionSelections[i] : null;
+                    var storedSubToggles = i < state.SubOptionToggles?.Count ? state.SubOptionToggles[i] : null;
                     for (var s = 0; s < option.SubOptions.Count; s++)
                     {
                         var sub = option.SubOptions[s];
@@ -135,7 +138,10 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                             Name = sub.Name,
                             Description = sub.Description,
                             ImagePath = ResolveImagePath(modPath, sub.Image),
-                            IsSelected = s == selectedIndex,
+                            IsSelected = !multiSelect && s == selectedIndex,
+                            IsEnabled = multiSelect
+                                ? storedSubToggles is null || s >= storedSubToggles.Count || storedSubToggles[s]
+                                : s == selectedIndex,
                             SubOptions = nestedChoices
                         };
                         foreach (var nested in nestedChoices) nested.Parent = subChoice;
@@ -187,6 +193,14 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
         if (card == null) return;
         card.IsEnabled = !card.IsEnabled;
         SyncGroup(card);
+        SaveState();
+    }
+
+    [RelayCommand]
+    public void ToggleSubOption(ProfileModSubOptionChoiceViewModel? choice)
+    {
+        if (choice is not { HasSubOptions: true }) return;
+        choice.IsEnabled = !choice.IsEnabled;
         SaveState();
     }
 
@@ -276,6 +290,13 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
             return;
         }
 
+        if (choice.HasSubOptions)
+        {
+            choice.IsEnabled = !choice.IsEnabled;
+            SaveState();
+            return;
+        }
+
         foreach (var card in OptionCards)
         {
             if (card.SubOptions.Contains(choice))
@@ -283,6 +304,7 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
                 foreach (var sub in card.SubOptions)
                 {
                     sub.IsSelected = ReferenceEquals(sub, choice);
+                    sub.IsEnabled = sub.IsSelected;
                 }
                 break;
             }
@@ -414,6 +436,12 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
             state.OptionToggles = OptionCards.Select(card => card.IsEnabled).ToList();
             state.OptionSelections = OptionCards.Select(card =>
             {
+                if (card.SupportsSubOptionMultiSelect)
+                {
+                    for (var s = 0; s < card.SubOptions.Count; s++)
+                        if (card.SubOptions[s].IsEnabled) return s;
+                    return 0;
+                }
                 for (var s = 0; s < card.SubOptions.Count; s++)
                 {
                     if (card.SubOptions[s].IsSelected)
@@ -424,6 +452,8 @@ public partial class ProfileModOptionsDialogViewModel : ObservableObject, IModOp
 
                 return 0;
             }).ToList();
+            state.SubOptionToggles = OptionCards.Select(card =>
+                card.SubOptions.Select(sub => sub.IsEnabled).ToList()).ToList();
             // 第三层：每个一级子选项一行，值为其嵌套列表中选中的叶子索引（无嵌套时 0），与清单子选项下标对齐
             state.SubOptionSelections = OptionCards.Select(card =>
             {

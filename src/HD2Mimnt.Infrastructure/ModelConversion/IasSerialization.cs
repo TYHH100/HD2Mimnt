@@ -20,7 +20,11 @@ public abstract record IasValue
     public sealed record Float(double Value) : IasValue;
     public sealed record Text(string Value) : IasValue;
     public sealed record Array(IReadOnlyList<IasValue> Items) : IasValue;
-    public sealed record Object(IReadOnlyList<KeyValuePair<string, IasValue>> Entries) : IasValue;
+    public sealed record Object : IasValue
+    {
+        public Object(IReadOnlyList<KeyValuePair<string, IasValue>> entries) => Entries = entries;
+        public IReadOnlyList<KeyValuePair<string, IasValue>> Entries { get; internal set; }
+    }
 
     public static IasValue Of(string value) => new Text(value);
     public static IasValue Of(long value) => new Integer(value);

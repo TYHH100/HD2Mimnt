@@ -1,5 +1,8 @@
+using System.Text.Json;
 using HD2Mimnt.Application.Services;
 using HD2Mimnt.Core.Entities;
+using HD2Mimnt.Core.Services;
+using HD2Mimnt.Infrastructure.ModelConversion;
 using Xunit;
 
 namespace HD2Mimnt.Tests.Services;
@@ -53,6 +56,164 @@ public class Hd2ClOptionScopeTests
 
             Assert.Null(scope.OptionGroups);
             Assert.Equal(["components/0/头发/Black1", "components/0/本体", "components/1/HD2IndependentRig"], scope.Components);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_IndependentColorSwitchesWithSharedModels_BecomesExclusiveMaterialGroup()
+    {
+        var root = CreateRoot();
+        try
+        {
+            Write(root, "模型/98da89d0d5132867.patch_0");
+            Write(root, "模型/01/98da89d0d5132867.patch_1");
+            Write(root, "模型/02/9102938b4b2aef9d.patch_1");
+            Write(root, "模型/03/98da89d0d5132867.patch_1");
+            var options = new List<ModOption>();
+            for (var index = 0; index < 7; index++)
+            {
+                var color = "配色/" + (index + 1);
+                Write(root, color + "/9ba626afa44a3aa3.patch_" + (40 + index));
+                options.Add(new ModOption
+                {
+                    Name = "配色" + (index + 1),
+                    Image = color + ".png",
+                    Include = ["模型", index < 4 ? "模型/01" : "模型/03", "模型/02", color]
+                });
+            }
+            var mod = Mod(root, new ModManifest
+            {
+                ManifestVersion = ManifestVersion.V1,
+                Name = "Milfy",
+                Options = options
+            });
+
+            var scope = Hd2ClConversionService.ResolveConversionScope(mod, null);
+
+            var group = Assert.Single(scope.OptionGroups!);
+            Assert.Equal("材质配色", group.Name);
+            Assert.True(group.Enabled);
+            Assert.Equal(6, group.DefaultIndex);
+            Assert.Equal(options.Select(option => option.Name), group.Choices.Select(choice => choice.Name));
+            Assert.Equal(options.Select(option => option.Image), group.Choices.Select(choice => choice.Image));
+            Assert.Equal(["模型", "模型/01", "模型/02", "模型/03"], scope.Components);
+            Assert.DoesNotContain(scope.Components!, directory => directory.StartsWith("配色/", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_IndependentColorSwitches_PreservesSavedChoiceAndExcludesOtherMaterials()
+    {
+        var root = CreateRoot();
+        try
+        {
+            Write(root, "模型/98da89d0d5132867.patch_0");
+            Write(root, "模型/01/98da89d0d5132867.patch_1");
+            var options = new List<ModOption>();
+            for (var index = 0; index < 3; index++)
+            {
+                var color = "配色/" + (index + 1);
+                Write(root, color + "/9ba626afa44a3aa3.patch_" + (40 + index));
+                options.Add(new ModOption
+                {
+                    Name = "配色" + (index + 1),
+                    Include = ["模型", "模型/01", color]
+                });
+            }
+            var manifest = new ModManifest
+            {
+                ManifestVersion = ManifestVersion.V1,
+                Name = "配色模组",
+                Options = options
+            };
+            var state = new ProfileModOptionsState { OptionToggles = [false, true, false] };
+
+            var scope = Hd2ClConversionService.ResolveConversionScope(Mod(root, manifest),
+                JsonSerializer.Serialize(state));
+            var productManifest = new ManifestParser().ParseFromJson(
+                IasLua.WriteJson(IasValue.Obj(("Version", IasValue.Of(1)),
+                    ("Options", IasModelPackager.OptionManifest(scope.OptionGroups!))), ensureAscii: false,
+                    sortKeys: false, indent: 2))!;
+
+            var group = Assert.Single(scope.OptionGroups!);
+            Assert.Equal(1, group.DefaultIndex);
+            Assert.Equal(["模型", "模型/01"], scope.Components);
+            var deploy = ProfileModOptionResolver.ResolveDeployPlan(productManifest,
+                Hd2ClConversionService.ProductOptionState(scope.OptionGroups!));
+            Assert.Equal([".", "Material/1/2"], deploy.Directories);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_IndependentSwitchesWithDifferentModels_FallsBackInsteadOfMergingVariants()
+    {
+        var root = CreateRoot();
+        try
+        {
+            Write(root, "模型/A/1111111111111111.patch_0");
+            Write(root, "模型/B/2222222222222222.patch_0");
+            Write(root, "配色/A/9ba626afa44a3aa3.patch_40");
+            Write(root, "配色/B/9ba626afa44a3aa3.patch_41");
+            var mod = Mod(root, new ModManifest
+            {
+                ManifestVersion = ManifestVersion.V1,
+                Name = "不同模型",
+                Options =
+                [
+                    new ModOption { Name = "A", Include = ["模型/A", "配色/A"] },
+                    new ModOption { Name = "B", Include = ["模型/B", "配色/B"] }
+                ]
+            });
+
+            var scope = Hd2ClConversionService.ResolveConversionScope(mod, null);
+
+            Assert.Null(scope.OptionGroups);
+            Assert.Equal(["模型/A", "配色/A", "模型/B", "配色/B"], scope.Components);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Resolve_IndependentSwitchesWithMultipleMaterials_FallsBackInsteadOfMakingPartsExclusive()
+    {
+        var root = CreateRoot();
+        try
+        {
+            Write(root, "模型/1111111111111111.patch_0");
+            Write(root, "头发/A/9ba626afa44a3aa3.patch_40");
+            Write(root, "头发/B/9ba626afa44a3aa3.patch_41");
+            Write(root, "丝袜/A/9ba626afa44a3aa3.patch_42");
+            Write(root, "丝袜/B/9ba626afa44a3aa3.patch_43");
+            var mod = Mod(root, new ModManifest
+            {
+                ManifestVersion = ManifestVersion.V1,
+                Name = "独立部件开关",
+                Options =
+                [
+                    new ModOption { Name = "头发", Include = ["模型", "头发/A", "头发/B"] },
+                    new ModOption { Name = "丝袜", Include = ["模型", "丝袜/A", "丝袜/B"] }
+                ]
+            });
+
+            var scope = Hd2ClConversionService.ResolveConversionScope(mod, null);
+
+            Assert.Null(scope.OptionGroups);
+            Assert.Equal(["模型", "头发/A", "头发/B", "模型", "丝袜/A", "丝袜/B"], scope.Components);
         }
         finally
         {

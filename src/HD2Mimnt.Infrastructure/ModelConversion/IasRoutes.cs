@@ -94,6 +94,27 @@ public static class IasRoutes
             publishedDomains.ToDictionary(pair => pair.Key, pair => pair.Value.First(), StringComparer.Ordinal));
     }
 
+    public static IReadOnlyList<IasRoutePart> ReadParts(IReadOnlyDictionary<string, byte[]> members)
+    {
+        var parts = new List<IasRoutePart>();
+        var partIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (name, raw) in members.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            if (!name.EndsWith(".difference.ini", StringComparison.OrdinalIgnoreCase)) continue;
+            var entries = Records(Encoding.UTF8.GetString(raw).TrimStart('\uFEFF')).ToList();
+            var header = entries.Where(entry => entry.Key is "manifest_version" or "difference_logic" or "domain")
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+            IasBinary.Require(header.GetValueOrDefault("manifest_version") == "6"
+                              && header.GetValueOrDefault("difference_logic") == "free_parts", "unsupported difference version");
+            foreach (var part in ParseParts(entries, [], new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)))
+            {
+                IasBinary.Require(partIds.Add(part.Id), "duplicate part");
+                parts.Add(part);
+            }
+        }
+        return parts;
+    }
+
     private static List<IasRoutePart> ParseParts(List<(string Key, string Value)> entries, HashSet<string> replaced,
         Dictionary<string, HashSet<string>> slotOptions)
     {

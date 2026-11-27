@@ -10,12 +10,17 @@ using Microsoft.Extensions.Logging;
 
 namespace HD2Mimnt.Application.Services;
 
+public sealed record ModImportResult(Guid Id, bool Updated);
+
 /// <summary>
 /// Mod 管理服务
 /// 协调 Mod 的导入、删除、搜索等操作
 /// </summary>
 public partial class ModService
 {
+    public sealed record MissingModCleanupResult(int RemovedCount, int SkippedCount, int FailedCount,
+        IReadOnlyList<string> Errors);
+
     private readonly IModRepository _modRepository;
     private readonly ModImportService _importService;
     private readonly ThumbnailService _thumbnailService;
@@ -504,6 +509,59 @@ public partial class ModService
     private static bool HasNestedSubOptions(ModManifest manifest)
         => manifest.Options?.Any(option => option.SubOptions?.Any(sub => sub.SubOptions is { Count: > 0 }) == true) == true;
 
+    public async Task<IReadOnlyList<Mod>> GetMissingModsAsync(CancellationToken cancellationToken = default)
+    {
+        var mods = (await _modRepository.GetAllAsync(cancellationToken)).ToList();
+        return await Task.Run(() => mods.Where(mod => !Directory.Exists(mod.Path)).ToList(), cancellationToken);
+    }
+
+    public async Task<MissingModCleanupResult> CleanupMissingModsAsync(
+        IReadOnlyCollection<Guid> modIds,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        var removed = 0;
+        var skipped = 0;
+        var errors = new List<string>();
+        try
+        {
+            foreach (var id in modIds.Distinct())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
+                if (mod == null || Directory.Exists(mod.Path))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    if (await DeleteModCoreAsync(id, cancellationToken, raiseChanged: false, deleteFiles: false))
+                        removed++;
+                    else
+                        skipped++;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{mod.Name}: {ex.Message}");
+                    _logger?.LogWarning(ex, "清理缺失模组记录失败: {ModName}", mod.Name);
+                }
+            }
+        }
+        finally
+        {
+            if (removed > 0) RaiseModsChanged();
+            _mutationGate.Release();
+        }
+
+        return new MissingModCleanupResult(removed, skipped, errors.Count, errors);
+    }
+
     public async Task<bool> DeleteModAsync(Guid id, CancellationToken cancellationToken = default)
     {
         await _mutationGate.WaitAsync(cancellationToken);
@@ -511,7 +569,8 @@ public partial class ModService
         finally { _mutationGate.Release(); }
     }
 
-    private async Task<bool> DeleteModCoreAsync(Guid id, CancellationToken cancellationToken)
+    private async Task<bool> DeleteModCoreAsync(Guid id, CancellationToken cancellationToken,
+        bool raiseChanged = true, bool deleteFiles = true)
     {
         var mod = await _modRepository.GetByIdAsync(id, cancellationToken);
         if (mod == null)
@@ -541,21 +600,24 @@ public partial class ModService
 
         // 以下均为派生物或已确认要删除的用户文件；不再受取消影响，失败只记录日志。
         // 递归删除整棵模组目录与全部历史版本可达数秒到数十秒，保持在 UI 线程会冻结界面。
-        await Task.Run(async () =>
+        if (deleteFiles)
         {
-            await DeleteSavedVersionsBestEffortAsync(id);
-            DeleteModDirectoryBestEffort(mod.Path);
-            try { await _metadata.DeleteAsync(id); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            await Task.Run(async () =>
             {
-                _logger?.LogWarning(ex, "删除 Mod 元数据失败: {ModId}", id);
-            }
-            await _thumbnailService.DeleteThumbnailAsync(id, CancellationToken.None);
-            await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, CancellationToken.None);
-        });
+                await DeleteSavedVersionsBestEffortAsync(id);
+                DeleteModDirectoryBestEffort(mod.Path);
+                try { await _metadata.DeleteAsync(id); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger?.LogWarning(ex, "删除 Mod 元数据失败: {ModId}", id);
+                }
+                await _thumbnailService.DeleteThumbnailAsync(id, CancellationToken.None);
+                await _thumbnailService.DeleteThumbnailFileAsync(mod.ThumbnailPath, CancellationToken.None);
+            });
+        }
 
         _logger?.LogInformation("Mod 已删除: {ModId}", id);
-        RaiseModsChanged();
+        if (raiseChanged) RaiseModsChanged();
         return true;
     }
 
@@ -632,6 +694,11 @@ public partial class ModService
     public async Task<Guid> ImportModAsync(string sourcePath, CancellationToken cancellationToken = default,
         IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
         Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
+        => (await ImportModWithResultAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir)).Id;
+
+    public async Task<ModImportResult> ImportModWithResultAsync(string sourcePath, CancellationToken cancellationToken = default,
+        IProgress<ModImportProgress>? progress = null, ModPlatformLink? sourceLink = null,
+        Func<Hd2IrImportPreview, CancellationToken, Task>? confirmHd2Ir = null)
     {
         var (modId, updated) = await _importService.ImportModCoreAsync(sourcePath, cancellationToken, progress, sourceLink, confirmHd2Ir);
 
@@ -657,7 +724,7 @@ public partial class ModService
         if (!updated) await AddImportedModsToActiveProfileAsync(new[] { modId });
         progress?.Report(new(100, "添加完成", Path.GetFileName(sourcePath)));
         RaiseModsChanged();
-        return modId;
+        return new ModImportResult(modId, updated);
     }
 
     /// <summary>

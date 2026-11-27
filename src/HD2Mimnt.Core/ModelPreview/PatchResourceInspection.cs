@@ -26,6 +26,8 @@ public sealed class ModelPreviewResult
     /// armor alternatives choose which Unit package identities are rendered.
     /// </summary>
     public List<ModelPreviewArmorOption> Armors { get; } = [];
+    public List<ModelPreviewPartGroup> Parts { get; } = [];
+    public HashSet<ulong> CatalogUnitIds { get; } = [];
     public List<ModelPreviewAnimationLibrary> AnimationLibraries { get; } = [];
     /// <summary>
     /// Bones/StateMachine/Animation payloads bundled in the mod patches, keyed by the
@@ -181,6 +183,49 @@ public sealed class ModelPreviewMesh : System.ComponentModel.INotifyPropertyChan
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 }
 
+public sealed class ModelPreviewPartOption
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public IReadOnlyList<ulong> UnitIds { get; init; } = [];
+}
+
+public sealed class ModelPreviewPartGroup
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public int SelectedIndex { get; set; }
+    public List<ModelPreviewPartOption> Options { get; init; } = [];
+}
+
+public static class ModelPreviewPartSelection
+{
+    public static IReadOnlyList<ModelPreviewMesh> Filter(
+        IReadOnlyList<ModelPreviewMesh> meshes,
+        IReadOnlyList<ModelPreviewPartGroup> groups,
+        IReadOnlyList<int> selectedIndices)
+    {
+        ArgumentNullException.ThrowIfNull(meshes);
+        ArgumentNullException.ThrowIfNull(groups);
+        ArgumentNullException.ThrowIfNull(selectedIndices);
+        if (groups.Count == 0) return meshes;
+
+        var controlledUnits = new HashSet<ulong>();
+        var visibleUnits = new HashSet<ulong>();
+        for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+        {
+            var group = groups[groupIndex];
+            foreach (var option in group.Options)
+                controlledUnits.UnionWith(option.UnitIds);
+            var selectedIndex = groupIndex < selectedIndices.Count ? selectedIndices[groupIndex] : group.SelectedIndex;
+            if (selectedIndex >= 0 && selectedIndex < group.Options.Count)
+                visibleUnits.UnionWith(group.Options[selectedIndex].UnitIds);
+        }
+
+        return meshes.Where(mesh => !controlledUnits.Contains(mesh.UnitId) || visibleUnits.Contains(mesh.UnitId)).ToArray();
+    }
+}
+
 public sealed class ModelPreviewArmorOption : System.ComponentModel.INotifyPropertyChanged
 {
     public required string Id { get; init; }
@@ -236,24 +281,35 @@ public static class ModelPreviewMeshSelector
     private const double MaximumCollisionSphereAxisRatio = 1.05;
     private const double MaximumCollisionSphereRelativeRadiusDeviation = 0.03;
 
-    public static ModelPreviewSelection Select(IReadOnlyList<ModelPreviewMesh> meshes)
+    public static ModelPreviewSelection Select(IReadOnlyList<ModelPreviewMesh> meshes,
+        IReadOnlySet<ulong>? partUnitIds = null)
     {
         ArgumentNullException.ThrowIfNull(meshes);
 
         foreach (var mesh in meshes)
         {
             mesh.BoundsDiagonal = CalculateBoundsDiagonal(mesh.Positions);
-            mesh.RenderStatus = mesh.IsCullingBody
-                ? ModelPreviewMeshRenderStatus.HiddenCullingBody
-                : IsLikelyProxyGeometry(mesh)
+            var isPartUnit = partUnitIds?.Contains(mesh.UnitId) == true;
+            mesh.RenderStatus = isPartUnit
+                ? IsDegeneratePointGeometry(mesh) || IsBoxProxyGeometry(mesh)
                     ? ModelPreviewMeshRenderStatus.HiddenProxyGeometry
                     : IsLikelyCollisionSphere(mesh)
                         ? ModelPreviewMeshRenderStatus.HiddenCollisionSphere
-                        : ModelPreviewMeshRenderStatus.Visible;
+                        : mesh.IsCullingBody
+                            ? ModelPreviewMeshRenderStatus.HiddenCullingBody
+                            : ModelPreviewMeshRenderStatus.Visible
+                : mesh.IsCullingBody
+                    ? ModelPreviewMeshRenderStatus.HiddenCullingBody
+                    : IsLikelyProxyGeometry(mesh)
+                        ? ModelPreviewMeshRenderStatus.HiddenProxyGeometry
+                        : IsLikelyCollisionSphere(mesh)
+                            ? ModelPreviewMeshRenderStatus.HiddenCollisionSphere
+                            : ModelPreviewMeshRenderStatus.Visible;
         }
 
         foreach (var unitMeshes in meshes.GroupBy(static mesh => mesh.UnitId))
         {
+            if (partUnitIds?.Contains(unitMeshes.Key) == true) continue;
             var measurable = unitMeshes
                 .Where(static mesh => mesh.RenderStatus == ModelPreviewMeshRenderStatus.Visible &&
                                       mesh.BoundsDiagonal > 0 &&
@@ -300,6 +356,73 @@ public static class ModelPreviewMeshSelector
             return [selectedMesh];
 
         return showFilteredMeshes ? allMeshes : selection.VisibleMeshes;
+    }
+
+    private static bool IsDegeneratePointGeometry(ModelPreviewMesh mesh)
+    {
+        if (mesh.VertexCount != 3 || mesh.TriangleIndices.Length != 3) return false;
+        var a = mesh.TriangleIndices[0];
+        var b = mesh.TriangleIndices[1];
+        var c = mesh.TriangleIndices[2];
+        if ((uint)a >= mesh.VertexCount || (uint)b >= mesh.VertexCount || (uint)c >= mesh.VertexCount) return false;
+        var abX = mesh.Positions[b * 3] - mesh.Positions[a * 3];
+        var abY = mesh.Positions[b * 3 + 1] - mesh.Positions[a * 3 + 1];
+        var abZ = mesh.Positions[b * 3 + 2] - mesh.Positions[a * 3 + 2];
+        var acX = mesh.Positions[c * 3] - mesh.Positions[a * 3];
+        var acY = mesh.Positions[c * 3 + 1] - mesh.Positions[a * 3 + 1];
+        var acZ = mesh.Positions[c * 3 + 2] - mesh.Positions[a * 3 + 2];
+        var crossX = abY * acZ - abZ * acY;
+        var crossY = abZ * acX - abX * acZ;
+        var crossZ = abX * acY - abY * acX;
+        return crossX * crossX + crossY * crossY + crossZ * crossZ <= 1e-12f;
+    }
+
+    private static bool IsBoxProxyGeometry(ModelPreviewMesh mesh)
+    {
+        if (mesh.MaterialId.HasValue || mesh.VertexCount != 24 || mesh.TriangleIndices.Length != 36 ||
+            mesh.Positions.Length != mesh.VertexCount * 3) return false;
+        var min = new double[3] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
+        var max = new double[3] { double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity };
+        for (var index = 0; index < mesh.Positions.Length; index++)
+        {
+            var axis = index % 3;
+            min[axis] = Math.Min(min[axis], mesh.Positions[index]);
+            max[axis] = Math.Max(max[axis], mesh.Positions[index]);
+        }
+        var extent = Math.Max(max[0] - min[0], Math.Max(max[1] - min[1], max[2] - min[2]));
+        if (!double.IsFinite(extent) || extent <= 0) return false;
+        var tolerance = extent * 1e-4 + 1e-6;
+        var toleranceSquared = tolerance * tolerance;
+        var points = new List<(double X, double Y, double Z)>();
+        var counts = new List<int>();
+        for (var vertex = 0; vertex < mesh.VertexCount; vertex++)
+        {
+            var x = mesh.Positions[vertex * 3];
+            var y = mesh.Positions[vertex * 3 + 1];
+            var z = mesh.Positions[vertex * 3 + 2];
+            var pointIndex = -1;
+            for (var index = 0; index < points.Count; index++)
+            {
+                var dx = x - points[index].X;
+                var dy = y - points[index].Y;
+                var dz = z - points[index].Z;
+                if (dx * dx + dy * dy + dz * dz <= toleranceSquared)
+                {
+                    pointIndex = index;
+                    break;
+                }
+            }
+            if (pointIndex < 0)
+            {
+                points.Add((x, y, z));
+                counts.Add(1);
+            }
+            else
+            {
+                counts[pointIndex]++;
+            }
+        }
+        return points.Count == 8 && counts.All(count => count == 3);
     }
 
     private static bool IsLikelyProxyGeometry(ModelPreviewMesh mesh) =>

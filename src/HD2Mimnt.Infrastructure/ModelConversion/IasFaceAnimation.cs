@@ -75,7 +75,7 @@ public static class IasFaceAnimationAudit
         var lidCount = rows.Sum(row => row.EyelidOrBlinkTargets.Count);
         return new IasFaceAnimation(rows, morphPrograms, eyeCount, lidCount,
             eyeCount > 0 ? "named_eye_targets_present" : "no_named_eye_targets",
-            morphPrograms.Count > 0 ? "morph_program_present_but_unsupported"
+            morphPrograms.Count > 0 ? "native_morph_conversion_available_runtime_verification_pending"
                 : lidCount > 0 ? "eyelid_or_blink_targets_present_runtime_unverified"
                 : "not_determined_from_rig_names");
     }

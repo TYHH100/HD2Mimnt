@@ -27,7 +27,7 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     private int _generation;
     private ModelPreviewSource? _source;
     private ModelPreviewResult? _result;
-    private IReadOnlyDictionary<ulong, TexturePreviewData> _textures = new Dictionary<ulong, TexturePreviewData>();
+    private Dictionary<ulong, TexturePreviewData> _textures = new();
     private bool _updatingRows;
     private Matrix4x4 _presentationTransform = Matrix4x4.Identity;
     private int _missingTextureCount;
@@ -62,16 +62,19 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty] private ModelPreviewMeshRow? _selectedMesh;
     [ObservableProperty] private int _textureResolution = 1024;
     [ObservableProperty] private int _legacySelectedIndex;
+    [ObservableProperty] private bool _forceDecodeOversizedStreams;
     public IReadOnlyList<ModelPreviewResolutionOption> TextureResolutions { get; } =
     [
         new("512", 512), new("1024", 1024), new("2048", 2048),
         new("Original", ModelPreviewService.OriginalTextureResolution)
     ];
     public ObservableCollection<ModelPreviewOptionRow> Options { get; } = [];
+    public ObservableCollection<ModelPreviewPartRow> Parts { get; } = [];
     public ObservableCollection<ModelPreviewMeshRow> Meshes { get; } = [];
     public ObservableCollection<string> LegacyOptions { get; } = [];
     public bool HasLegacyOptions => LegacyOptions.Count > 0;
     public bool HasOptions => HasLegacyOptions || Options.Count > 0;
+    public bool HasParts => Parts.Count > 0;
     public bool HasError => Error.Length > 0;
     public bool HasBodyShapes => _result is not null && ModelPreviewBodyShapeSelection.GetSwitchableSlots(_result.Meshes).Count > 0;
     public Task Completion => _operation;
@@ -112,13 +115,39 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             {
                 var option = options[i];
                 var group = source.Manifest.OptionGroups?.FirstOrDefault(group => group.Id == option.GroupId)?.Name;
-                Options.Add(new ModelPreviewOptionRow
+                var optionState = source.Options;
+                var multiSelect = ProfileModOptionResolver.SupportsSubOptionMultiSelect(option);
+                var selectedIndex = optionState.OptionSelections![i];
+                var subOptionSelections = i < optionState.SubOptionSelections?.Count
+                    ? optionState.SubOptionSelections[i] : null;
+                var subOptionToggles = i < optionState.SubOptionToggles?.Count
+                    ? optionState.SubOptionToggles[i] : null;
+                var subOptions = new List<ModelPreviewSubOptionRow>();
+                var optionSubOptions = option.SubOptions ?? [];
+                for (var subIndex = 0; subIndex < optionSubOptions.Count; subIndex++)
+                {
+                    var subOption = optionSubOptions[subIndex];
+                    subOptions.Add(new ModelPreviewSubOptionRow
+                    {
+                        Name = subOption.Name,
+                        NestedSubOptions = subOption.SubOptions?.Select(item => item.Name).ToArray() ?? [],
+                        IsEnabled = multiSelect
+                            ? subOptionToggles is null || subIndex >= subOptionToggles.Count || subOptionToggles[subIndex]
+                            : subIndex == selectedIndex,
+                        SelectedNestedIndex = subIndex < subOptionSelections?.Count
+                            ? subOptionSelections[subIndex] : 0
+                    });
+                }
+                var row = new ModelPreviewOptionRow
                 {
                     Name = string.IsNullOrEmpty(group) ? option.Name : $"{group} / {option.Name}",
-                    IsEnabled = source.Options.OptionToggles![i],
-                    SubOptions = option.SubOptions?.Select(item => item.Name).ToArray() ?? [],
-                    SelectedIndex = source.Options.OptionSelections![i]
-                });
+                    IsEnabled = optionState.OptionToggles![i],
+                    SupportsSubOptionMultiSelect = multiSelect,
+                    SubOptions = subOptions,
+                    SelectedIndex = selectedIndex
+                };
+                foreach (var subOption in row.SubOptions) subOption.ParentEnabled = row.IsEnabled;
+                Options.Add(row);
             }
         }
         else if (source.Manifest?.LegacyOptions is { } legacy)
@@ -138,6 +167,16 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         var state = HasLegacyOptions ? new ProfileModOptionsState { LegacySelectedIndex = LegacySelectedIndex }
             : new ProfileModOptionsState { OptionToggles = Options.Select(option => option.IsEnabled).ToList(),
                 OptionSelections = Options.Select(option => option.SelectedIndex).ToList() };
+        if (!HasLegacyOptions)
+        {
+            var subOptionSelections = Options.Select(option =>
+                option.SubOptions.Select(subOption => subOption.SelectedNestedIndex).ToList()).ToList();
+            state.SubOptionSelections = subOptionSelections.Any(row => row.Count > 0) ? subOptionSelections : null;
+            var subOptionToggles = Options.Select(option => option.SubOptions
+                .Select((subOption, index) => option.SupportsSubOptionMultiSelect
+                    ? subOption.IsEnabled : index == option.SelectedIndex).ToList()).ToList();
+            state.SubOptionToggles = subOptionToggles.Any(row => row.Count > 0) ? subOptionToggles : null;
+        }
         var resolution = TextureResolution;
         // 重新预览会同时持有上一代和新一代贴图；旧场景断开引用后先压实大对象堆，
         // 避免 1024 → 原版这类切换在 UI 进程里叠加两份大缓冲区。
@@ -149,33 +188,17 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
             await PreviewMemoryReclaimer.CompactLargeObjectHeapAsync();
             token.ThrowIfCancellationRequested();
         }
-        var result = await _service.LoadAsync(source.ModId, state.ToJson(), token);
+        var result = await _service.LoadAsync(source.ModId, state.ToJson(), ForceDecodeOversizedStreams, token);
         token.ThrowIfCancellationRequested();
-        var (selection, rotation) = await Task.Run(() => (ModelPreviewMeshSelector.Select(result.Meshes),
-            ModelPreviewCharacterOrientation.GetRequiredRotation(result.Meshes)), token);
-        // 除颜色贴图外同时解码自发光贴图：渲染器对任意 mesh 叠加自发光层，
-        // 现代护甲的局部发光件与纯发光材质都依赖这些输入。
-        var visibleMeshes = selection.VisibleMeshes;
-        var colorAndEmissiveIds = visibleMeshes
-            .SelectMany(static mesh =>
-            {
-                IEnumerable<ulong> ids = mesh.MaterialTextures.Get(ModelPreviewTextureRole.Emissive);
-                if (mesh.ColorTextureId is { } colorId)
-                    ids = ids.Prepend(colorId);
-                return ids;
-            })
-            .Distinct()
-            .ToArray();
-        // Nar 这类打包数据贴图（法线 xy + AO + 粗糙度）与颜色贴图一起解码；它的 Alpha 由
-        // 读取器标记为材质参数，解码路径会跳过"假 alpha 回填"。缺它只影响细节质感，
-        // 所以不计入"贴图缺失"提示。
-        var dataTextureIds = visibleMeshes
-            .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
-                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalRoughnessOpacity))
-                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)))
-            .Distinct()
-            .ToArray();
-        var textureIds = colorAndEmissiveIds.Concat(dataTextureIds).Distinct().ToArray();
+        var partUnitIds = result.Parts.SelectMany(part => part.Options).SelectMany(option => option.UnitIds).ToHashSet();
+        IReadOnlyList<ModelPreviewMesh> orientationMeshes = result.CatalogUnitIds.Count == 0
+            ? result.Meshes
+            : result.Meshes.Where(mesh => result.CatalogUnitIds.Contains(mesh.UnitId)).ToArray();
+        var (selection, rotation) = await Task.Run(() => (ModelPreviewMeshSelector.Select(result.Meshes, partUnitIds),
+            ModelPreviewCharacterOrientation.GetRequiredRotation(orientationMeshes)), token);
+        SetParts(result);
+        var visibleMeshes = FilterParts(result, selection.VisibleMeshes);
+        var (colorAndEmissiveIds, textureIds) = GetTextureIds(visibleMeshes);
         var textures = await _service.LoadTexturesAsync(source.ModId, result.Textures, textureIds, resolution, token);
         var normalized = await Task.Run(() => NormalizeTextures(textures, resolution, token), token);
         token.ThrowIfCancellationRequested();
@@ -198,7 +221,78 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         RebuildScene();
     }
 
-    private static IReadOnlyDictionary<ulong, TexturePreviewData> NormalizeTextures(
+    private void SetParts(ModelPreviewResult result)
+    {
+        foreach (var row in Parts) row.PropertyChanged -= OnPartChanged;
+        Parts.Clear();
+        foreach (var group in result.Parts)
+        {
+            var row = new ModelPreviewPartRow
+            {
+                Name = group.Name,
+                OptionNames = group.Options.Select(option => option.Name).ToArray(),
+                SelectedIndex = group.SelectedIndex
+            };
+            row.PropertyChanged += OnPartChanged;
+            Parts.Add(row);
+        }
+        OnPropertyChanged(nameof(HasParts));
+    }
+
+    private IReadOnlyList<ModelPreviewMesh> FilterParts(ModelPreviewResult result, IEnumerable<ModelPreviewMesh> meshes)
+    {
+        var scoped = result.CatalogUnitIds.Count == 0
+            ? meshes
+            : meshes.Where(mesh => result.CatalogUnitIds.Contains(mesh.UnitId));
+        return ModelPreviewPartSelection.Filter(scoped.ToArray(), result.Parts, Parts.Select(row => row.SelectedIndex).ToArray());
+    }
+
+    private static (ulong[] ColorAndEmissiveIds, ulong[] TextureIds) GetTextureIds(IEnumerable<ModelPreviewMesh> meshes)
+    {
+        var visibleMeshes = meshes.ToArray();
+        var colorAndEmissiveIds = visibleMeshes
+            .SelectMany(static mesh =>
+            {
+                IEnumerable<ulong> ids = mesh.MaterialTextures.Get(ModelPreviewTextureRole.Emissive);
+                if (mesh.ColorTextureId is { } colorId)
+                    ids = ids.Prepend(colorId);
+                return ids;
+            })
+            .Distinct()
+            .ToArray();
+        var dataTextureIds = visibleMeshes
+            .SelectMany(static mesh => mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalOcclusionRoughness)
+                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.NormalRoughnessOpacity))
+                .Concat(mesh.MaterialTextures.Get(ModelPreviewTextureRole.MetallicRoughnessOcclusion)))
+            .Distinct()
+            .ToArray();
+        return (colorAndEmissiveIds, colorAndEmissiveIds.Concat(dataTextureIds).Distinct().ToArray());
+    }
+
+    private void OnPartChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (!_updatingRows && args.PropertyName == nameof(ModelPreviewPartRow.SelectedIndex) && _result is not null)
+            _ = RunAsync(LoadPartTexturesAsync);
+    }
+
+    private async Task LoadPartTexturesAsync(CancellationToken token)
+    {
+        if (_source is null || _result is null) return;
+        var (colorAndEmissiveIds, textureIds) = GetTextureIds(GetRenderableMeshes());
+        var missingIds = textureIds.Except(_textures.Keys).ToArray();
+        if (missingIds.Length > 0)
+        {
+            var loaded = await _service.LoadTexturesAsync(_source.ModId, _result.Textures, missingIds, TextureResolution, token);
+            var normalized = await Task.Run(() => NormalizeTextures(loaded, TextureResolution, token), token);
+            token.ThrowIfCancellationRequested();
+            foreach (var (id, texture) in normalized)
+                _textures.TryAdd(id, texture);
+        }
+        _missingTextureCount = colorAndEmissiveIds.Count(id => !_textures.ContainsKey(id));
+        RebuildScene();
+    }
+
+    private static Dictionary<ulong, TexturePreviewData> NormalizeTextures(
         IReadOnlyDictionary<ulong, TexturePreviewData> source, int resolution, CancellationToken token)
     {
         var result = new Dictionary<ulong, TexturePreviewData>();
@@ -238,12 +332,19 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
         if (!_updatingRows && args.PropertyName == nameof(ModelPreviewMeshRow.IsVisible)) RebuildScene();
     }
 
+    private ModelPreviewMesh[] GetRenderableMeshes()
+    {
+        if (_result is null) return [];
+        var partVisible = FilterParts(_result, Meshes.Select(row => row.Mesh)).ToHashSet();
+        var meshes = Meshes.Where(row => partVisible.Contains(row.Mesh) && row.IsVisible &&
+            (ShowFilteredMeshes || row.Mesh.RenderStatus == ModelPreviewMeshRenderStatus.Visible)).Select(row => row.Mesh).ToArray();
+        return ModelPreviewBodyShapeSelection.Filter(meshes, meshes, ShowStockyBody).ToArray();
+    }
+
     private void RebuildScene()
     {
         if (_result is null || !IsOpen) { Scene = null; return; }
-        var meshes = Meshes.Where(row => row.IsVisible &&
-            (ShowFilteredMeshes || row.Mesh.RenderStatus == ModelPreviewMeshRenderStatus.Visible)).Select(row => row.Mesh).ToArray();
-        var filtered = ModelPreviewBodyShapeSelection.Filter(meshes, meshes, ShowStockyBody);
+        var filtered = GetRenderableMeshes();
         if (IsolateSelectedMesh && SelectedMesh is { } selected)
             filtered = filtered.Where(mesh => ReferenceEquals(mesh, selected.Mesh)).ToArray();
         Scene = new(filtered, _textures, _presentationTransform);
@@ -327,6 +428,7 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     private void ClearContent()
     {
         _source = null; Title = string.Empty; Error = string.Empty;
+        ForceDecodeOversizedStreams = false;
         Options.Clear(); LegacyOptions.Clear();
         OnPropertyChanged(nameof(HasOptions)); OnPropertyChanged(nameof(HasLegacyOptions));
         ClearResult();
@@ -335,10 +437,12 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
     private void ClearResult()
     {
         _result = null; Scene = null; SelectedMesh = null; _missingTextureCount = 0;
+        foreach (var row in Parts) row.PropertyChanged -= OnPartChanged;
+        Parts.Clear();
         foreach (var row in Meshes) row.PropertyChanged -= OnMeshChanged;
         Meshes.Clear();
         _textures = new Dictionary<ulong, TexturePreviewData>();
-        OnPropertyChanged(nameof(HasBodyShapes)); OnPropertyChanged(nameof(Summary));
+        OnPropertyChanged(nameof(HasParts)); OnPropertyChanged(nameof(HasBodyShapes)); OnPropertyChanged(nameof(Summary));
     }
 
     public void ReportRenderFailure(string message) => Error = message;
@@ -364,9 +468,48 @@ public partial class ModelPreviewViewModel : ObservableObject, IAsyncDisposable
 public partial class ModelPreviewOptionRow : ObservableObject
 {
     public required string Name { get; init; }
-    public string[] SubOptions { get; init; } = [];
-    public bool HasSubOptions => SubOptions.Length > 0;
+    public IReadOnlyList<ModelPreviewSubOptionRow> SubOptions { get; init; } = [];
+    public bool SupportsSubOptionMultiSelect { get; init; }
+    public bool HasSubOptions => SubOptions.Count > 0;
+    public bool HasExclusiveSubOptions => HasSubOptions && !SupportsSubOptionMultiSelect;
+    public ModelPreviewSubOptionRow? SelectedSubOption => SubOptions.ElementAtOrDefault(SelectedIndex);
     [ObservableProperty] private bool _isEnabled;
+    [ObservableProperty] private int _selectedIndex;
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        foreach (var subOption in SubOptions) subOption.ParentEnabled = value;
+    }
+
+    partial void OnSelectedIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(SelectedSubOption));
+        foreach (var subOption in SubOptions)
+        {
+            subOption.ParentEnabled = IsEnabled;
+            if (!SupportsSubOptionMultiSelect) subOption.IsEnabled = ReferenceEquals(subOption, SelectedSubOption);
+        }
+    }
+}
+
+public partial class ModelPreviewSubOptionRow : ObservableObject
+{
+    public required string Name { get; init; }
+    public string[] NestedSubOptions { get; init; } = [];
+    public bool HasNestedSubOptions => NestedSubOptions.Length > 0;
+    public bool CanEdit => ParentEnabled && IsEnabled;
+    [ObservableProperty] private bool _parentEnabled = true;
+    [ObservableProperty] private bool _isEnabled;
+    [ObservableProperty] private int _selectedNestedIndex;
+
+    partial void OnParentEnabledChanged(bool value) => OnPropertyChanged(nameof(CanEdit));
+    partial void OnIsEnabledChanged(bool value) => OnPropertyChanged(nameof(CanEdit));
+}
+
+public partial class ModelPreviewPartRow : ObservableObject
+{
+    public required string Name { get; init; }
+    public required IReadOnlyList<string> OptionNames { get; init; }
     [ObservableProperty] private int _selectedIndex;
 }
 

@@ -126,6 +126,68 @@ public sealed partial class FluentAvaloniaUiTests
     }
 
     [AvaloniaFact]
+    public async Task SameGuidImport_WithGroupChoice_ShouldKeepExistingGroupMembership()
+    {
+        await using var scope = await UiScope.CreateAsync(seedMods: true);
+        var settings = scope.Services.GetRequiredService<SettingsService>();
+        await settings.SetSettingAsync(SettingKeys.ProfilesAutoAddImportedMods, true);
+        await settings.SetSettingAsync(SettingKeys.ProfilesChooseGroupWhenAdding, true);
+        await settings.SetSettingAsync(SettingKeys.AllowDuplicateImports, true);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var active = (await profiles.GetActiveProfileAsync())!;
+        var firstGroup = await profiles.AddSeparatorAsync(active.Id, "第一组", 1);
+        var secondGroup = await profiles.AddSeparatorAsync(active.Id, "第二组", 2);
+        var library = scope.Services.GetRequiredService<MainWindowViewModel>().LibraryViewModel;
+        await library.InitializeAsync();
+        var source = Path.Combine(scope.Root, "same-guid-group-source");
+        Directory.CreateDirectory(source);
+        var guid = Guid.NewGuid();
+        await File.WriteAllTextAsync(Path.Combine(source, "manifest.json"), $$"""
+            {"Guid":"{{guid}}","Name":"同 GUID 分组回归","Version":"1","Author":"Tester"}
+            """);
+        var patch = Path.Combine(source, "body.patch");
+        await File.WriteAllTextAsync(patch, "first");
+        var newSource = Path.Combine(scope.Root, "new-group-source");
+        Directory.CreateDirectory(newSource);
+        await File.WriteAllTextAsync(Path.Combine(newSource, "manifest.json"), $$"""
+            {"Guid":"{{Guid.NewGuid()}}","Name":"新增模组分组回归","Version":"1","Author":"Tester"}
+            """);
+        await File.WriteAllTextAsync(Path.Combine(newSource, "body.patch"), "new");
+        try
+        {
+            await library.ImportPathsAsync([source]);
+            Assert.True(library.Import.IsImportGroupSelectionVisible);
+            library.Import.SelectedImportGroup = library.Import.ImportGroupChoices.Single(choice => choice.Id == firstGroup.Id);
+            await library.ApplyImportGroupCommand.ExecuteAsync(null);
+            var before = (await profiles.GetProfileByIdAsync(active.Id))!;
+            var beforeMods = before.Mods.OrderBy(item => item.Order).Select(item => item.ModId).ToArray();
+            var beforeSeparators = before.Separators.OrderBy(item => item.Order)
+                .Select(item => (item.Id, item.Order, item.MemberCount)).ToArray();
+
+            await File.WriteAllTextAsync(patch, "second");
+            await library.ImportPathsAsync([source, newSource]);
+            Assert.True(library.Import.IsImportGroupSelectionVisible);
+            library.Import.SelectedImportGroup = library.Import.ImportGroupChoices.Single(choice => choice.Id == secondGroup.Id);
+            await library.ApplyImportGroupCommand.ExecuteAsync(null);
+
+            Assert.False(library.Import.IsImportGroupSelectionVisible);
+            var newId = Assert.Single(library.Import.NewImportedIds);
+            Assert.Equal(new[] { beforeMods[2], newId }, library.Import.ImportedIds);
+            var after = (await profiles.GetProfileByIdAsync(active.Id))!;
+            Assert.Equal(beforeMods, after.Mods.OrderBy(item => item.Order)
+                .Select(item => item.ModId).Where(id => id != newId));
+            Assert.Equal(beforeSeparators, after.Separators.OrderBy(item => item.Order)
+                .Select(item => (item.Id, item.Order, item.MemberCount)));
+        }
+        finally
+        {
+            library.Import.CloseCommand.Execute(null);
+            await Task.Delay(200);
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task ImportPreferences_ShouldPersistAndApplyThroughRealServices()
     {
         await using var scope = await UiScope.CreateAsync();

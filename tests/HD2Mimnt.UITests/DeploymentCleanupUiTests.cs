@@ -142,6 +142,64 @@ public sealed partial class FluentAvaloniaUiTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task WorkerDeploymentAndCleanup_ShouldRefreshNavigationSummary()
+    {
+        await using var scope = await UiScope.CreateAsync(
+            confirmation: new RecordingConfirmation(),
+            workerHostManagerFactory: services => new LoopbackWorkerHost(services,
+                deploymentServiceFactory: CreateWorkerScopedDeploymentService));
+        var source = Path.Combine(scope.Root, "sources", "navigation-summary");
+        Directory.CreateDirectory(Path.Combine(source, "data"));
+        await File.WriteAllTextAsync(Path.Combine(source, "manifest.json"),
+            "{\"Version\":1,\"Guid\":\"1d9f8c4a-3b2e-4f60-9a7d-5c1e2b8f4a70\",\"Name\":\"Navigation Summary Mod\",\"ModVersion\":\"1.0.0\"}");
+        await File.WriteAllTextAsync(Path.Combine(source, "data", "0123456789abcdef.patch_0"), "patch");
+        var modId = await scope.Services.GetRequiredService<ModService>().ImportModAsync(source);
+        var profiles = scope.Services.GetRequiredService<ProfileService>();
+        var profileId = await profiles.CreateProfileAsync("Navigation Summary");
+        await profiles.AddModToProfileAsync(profileId, modId);
+        await profiles.SetActiveProfileAsync(profileId);
+        var gamePath = Path.Combine(scope.Root, "Helldivers 2");
+        Directory.CreateDirectory(Path.Combine(gamePath, "data"));
+        Directory.CreateDirectory(Path.Combine(gamePath, "tools"));
+        Directory.CreateDirectory(Path.Combine(gamePath, "bin"));
+        await File.WriteAllTextAsync(Path.Combine(gamePath, "bin", "helldivers2.exe"), "test");
+        await scope.Services.GetRequiredService<SettingsService>().SetSettingAsync(SettingKeys.GamePath, gamePath);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        await main.InitializeAsync();
+        try
+        {
+            Assert.Equal(0, main.DeployedModCount);
+            Assert.Equal(0, main.ManagedFileCount);
+            Assert.Equal(0, main.UnmanagedFileCount);
+
+            await main.LibraryViewModel.DeployCommand.ExecuteAsync(main.ProfileViewModel.SelectedProfile!.Id);
+            await main.WaitForRefreshesAsync();
+
+            var deployments = scope.Services.GetRequiredService<IDeploymentRepository>();
+            Assert.NotEmpty(await deployments.GetCurrentDeploymentsAsync(gamePath));
+            Assert.Equal(1, (await scope.Services.GetRequiredService<DeploymentService>().GetSummaryAsync()).DeployedModCount);
+            Assert.Equal(1, main.DeployedModCount);
+            Assert.True(main.ManagedFileCount > 0);
+
+            await main.LibraryViewModel.CleanupCommand.ExecuteAsync(null);
+            await main.WaitForRefreshesAsync();
+
+            Assert.Equal(0, main.DeployedModCount);
+            Assert.Equal(0, main.ManagedFileCount);
+            Assert.Equal(0, main.UnmanagedFileCount);
+        }
+        finally
+        {
+            await main.DisposeAsync();
+        }
+    }
+
+    private static DeploymentService CreateWorkerScopedDeploymentService(IServiceProvider services)
+        => new(services.GetRequiredService<IProfileRepository>(), services.GetRequiredService<IModRepository>(),
+            services.GetRequiredService<IDeploymentRepository>(), services.GetServices<IDeploymentMethod>(),
+            settingsService: services.GetRequiredService<SettingsService>());
+
     private sealed class PausedCleanupMethod : IDeploymentMethod, IDisposable
     {
         public string Name => "Copy";
@@ -186,7 +244,8 @@ public sealed partial class FluentAvaloniaUiTests
     /// 模拟子进程自己的 ModService/ProfileService：主进程收不到它们的内存事件。
     /// </summary>
     private sealed class LoopbackWorkerHost(IServiceProvider services,
-        Func<IServiceProvider, ModService>? importModServiceFactory = null) : IWorkerHostManager
+        Func<IServiceProvider, ModService>? importModServiceFactory = null,
+        Func<IServiceProvider, DeploymentService>? deploymentServiceFactory = null) : IWorkerHostManager
     {
         private sealed record Run(CancellationTokenSource Cancellation, Task<WorkerResult> Completion);
 
@@ -205,8 +264,10 @@ public sealed partial class FluentAvaloniaUiTests
                 {
                     IWorkerTask task = workerType switch
                     {
-                        "Deployment" => new DeploymentWorkerTask(services.GetRequiredService<DeploymentService>()),
-                        "Cleanup" => new CleanupWorkerTask(services.GetRequiredService<DeploymentService>()),
+                        "Deployment" => new DeploymentWorkerTask(deploymentServiceFactory?.Invoke(services)
+                            ?? services.GetRequiredService<DeploymentService>()),
+                        "Cleanup" => new CleanupWorkerTask(deploymentServiceFactory?.Invoke(services)
+                            ?? services.GetRequiredService<DeploymentService>()),
                         "HellForgeSync" => new HellForgeSyncWorkerTask(services.GetRequiredService<HellForgeModSyncService>()),
                         "Import" => new ImportWorkerTask(importModServiceFactory?.Invoke(services)
                             ?? services.GetRequiredService<ModService>()),

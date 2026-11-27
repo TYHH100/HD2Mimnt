@@ -60,12 +60,24 @@ public sealed partial class FluentAvaloniaUiTests
             Assert.Equal([512, 1024, 2048, ModelPreviewService.OriginalTextureResolution],
                 resolutionBox.ItemsSource!.Cast<ModelPreviewResolutionOption>().Select(option => option.Value));
             Assert.Equal(1024, resolutionBox.SelectedValue);
+            var forceToggle = overlay.FindControl<CheckBox>("ForceDecodeOversizedStreamsToggle")!;
+            Assert.False(forceToggle.IsChecked);
+            Assert.False(firstRead.ForceDecodeOversizedStreams);
+            Assert.False(preview.ForceDecodeOversizedStreams);
+            Assert.True(forceToggle.IsEffectivelyVisible && forceToggle.IsEffectivelyEnabled);
+            Assert.True(forceToggle.Bounds.Width > 0 && forceToggle.Bounds.Height > 0);
+            ClickVersionControl(window, forceToggle);
+            Assert.True(preview.ForceDecodeOversizedStreams);
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.True((await reader.NextAsync()).ForceDecodeOversizedStreams);
+            RenderModelPreviewWindow(window);
             Assert.Contains(resolutionBox.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "1024");
             resolutionBox.SelectedValue = ModelPreviewService.OriginalTextureResolution;
             Assert.Equal(ModelPreviewService.OriginalTextureResolution, preview.TextureResolution);
             RenderModelPreviewWindow(window);
             Assert.Contains(resolutionBox.GetVisualDescendants().OfType<TextBlock>(),
-                text => text.Text == HD2Mimnt.UI.Localization.UiLocalization.Current["ModelPreview.OriginalResolution"]);
+                text => text.Text == HD2Mimnt.UI.Localization.UiLocalization.Current.Translate("Original"));
             resolutionBox.SelectedValue = 1024;
             ClickVersionControl(window, overlay.FindControl<Button>("CloseModelPreviewButton")!);
             await preview.CloseCommand.ExecutionTask!;
@@ -79,7 +91,9 @@ public sealed partial class FluentAvaloniaUiTests
             detailButton.BringIntoView();
             ClickVersionControl(window, detailButton);
             await preview.Completion;
-            await reader.NextAsync();
+            var reopenedRead = await reader.NextAsync();
+            Assert.False(reopenedRead.ForceDecodeOversizedStreams); // 重新打开恢复安全默认值。
+            Assert.False(preview.ForceDecodeOversizedStreams);
             var secondViewport = AssertModelPreviewOpen(window, main, mod.Name);
             Assert.NotSame(viewport, secondViewport);
             Assert.True(library.IsDetailPanelOpen);
@@ -94,6 +108,120 @@ public sealed partial class FluentAvaloniaUiTests
             reader.ReleaseAll();
             await preview.StopAsync();
             library.CloseDetailPanelCommand.Execute(null);
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ModelPreview_NestedCategoriesMultiSelectAndColorsRemainExclusive()
+    {
+        var reader = new ControlledModelPreviewReader();
+        await using var scope = await UiScope.CreateAsync(modelPreviewReader: reader);
+        var id = await ImportNestedModelPreviewMod(scope, "HD2Mimnt Test nested model");
+        var imported = await scope.Services.GetRequiredService<IModRepository>().GetByIdAsync(id);
+        var importedMaterial = imported!.Manifest!.Options!.Single(option => option.Name == "Material");
+        Assert.True(ProfileModOptionResolver.SupportsSubOptionMultiSelect(importedMaterial));
+        Assert.Equal(2, importedMaterial.SubOptions![0].SubOptions!.Count);
+        var importedState = ProfileModOptionResolver.ResolveEffective(imported.Manifest, null);
+        Assert.Equal([true, true, true], importedState.OptionToggles);
+        Assert.Equal([true, true], importedState.SubOptionToggles![1]);
+        Assert.Contains("material/hair/black", ProfileModOptionResolver.ResolveDeployPlan(imported.Manifest, importedState).Directories);
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var mod = library.FilteredMods.Single(item => item.Id == id);
+        var preview = main.ModelPreview!;
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 780 };
+        try
+        {
+            window.Show();
+            RenderModelPreviewWindow(window);
+            var libraryView = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            ClickModelPreviewMenu(window, libraryView, mod, library.PreviewModelCommand);
+            await library.PreviewModelCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "material/hair/black/1234567890abcdef.patch_0",
+                    "material/socks/black/1234567890abcdef.patch_0", "variant/a/1234567890abcdef.patch_0"],
+                (await reader.NextAsync()).Patches);
+            AssertModelPreviewOpen(window, main, mod.Name);
+            var overlay = window.FindControl<ModelPreviewOverlay>("ModelPreviewOverlay")!;
+            var material = preview.Options.Single(option => option.Name == "Material");
+            var hair = material.SubOptions[0];
+            var socks = material.SubOptions[1];
+            Assert.True(material.SupportsSubOptionMultiSelect);
+            Assert.True(hair.IsEnabled && socks.IsEnabled);
+            Assert.Equal(["Black", "White"], hair.NestedSubOptions);
+            Assert.Equal(["Black", "White"], socks.NestedSubOptions);
+            var hairToggle = overlay.GetVisualDescendants().OfType<CheckBox>()
+                .Single(toggle => ReferenceEquals(toggle.DataContext, hair));
+            var socksToggle = overlay.GetVisualDescendants().OfType<CheckBox>()
+                .Single(toggle => ReferenceEquals(toggle.DataContext, socks));
+            var hairBox = overlay.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => ReferenceEquals(box.DataContext, hair));
+            var socksBox = overlay.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => ReferenceEquals(box.DataContext, socks));
+            Assert.Contains(hairBox.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Black");
+            Assert.Contains(socksBox.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "Black");
+
+            hairBox.SelectedIndex = 1;
+            socksBox.SelectedIndex = 1;
+            Assert.Equal(1, hair.SelectedNestedIndex);
+            Assert.Equal(1, socks.SelectedNestedIndex);
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "material/hair/white/1234567890abcdef.patch_0",
+                    "material/socks/white/1234567890abcdef.patch_0", "variant/a/1234567890abcdef.patch_0"],
+                (await reader.NextAsync()).Patches);
+
+            ClickVersionControl(window, socksToggle);
+            RenderModelPreviewWindow(window);
+            Assert.False(socks.IsEnabled);
+            Assert.False(socksBox.IsEffectivelyEnabled);
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "material/hair/white/1234567890abcdef.patch_0",
+                    "variant/a/1234567890abcdef.patch_0"], (await reader.NextAsync()).Patches);
+
+            ClickVersionControl(window, socksToggle);
+            RenderModelPreviewWindow(window);
+            Assert.True(socksBox.IsEffectivelyEnabled);
+            Assert.Equal(1, socksBox.SelectedIndex);
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "material/hair/white/1234567890abcdef.patch_0",
+                    "material/socks/white/1234567890abcdef.patch_0", "variant/a/1234567890abcdef.patch_0"],
+                (await reader.NextAsync()).Patches);
+
+            var materialToggle = overlay.GetVisualDescendants().OfType<CheckBox>()
+                .Single(toggle => ReferenceEquals(toggle.DataContext, material));
+            ClickVersionControl(window, materialToggle);
+            RenderModelPreviewWindow(window);
+            Assert.False(hairToggle.IsEffectivelyEnabled);
+            Assert.False(hairBox.IsEffectivelyEnabled);
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "variant/a/1234567890abcdef.patch_0"],
+                (await reader.NextAsync()).Patches);
+            ClickVersionControl(window, materialToggle);
+
+            var variant = preview.Options.Single(option => option.Name == "Variant");
+            Assert.False(variant.SupportsSubOptionMultiSelect);
+            var variantBox = overlay.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => ReferenceEquals(box.DataContext, variant));
+            RenderModelPreviewWindow(window);
+            Assert.Contains(variantBox.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "A");
+            variantBox.SelectedIndex = 1;
+            ClickVersionControl(window, overlay.FindControl<Button>("ReloadModelPreviewButton")!);
+            await preview.ReloadCommand.ExecutionTask!;
+            Assert.Equal(["body/1234567890abcdef.patch_0", "material/hair/white/1234567890abcdef.patch_0",
+                    "material/socks/white/1234567890abcdef.patch_0", "variant/b/1234567890abcdef.patch_0"],
+                (await reader.NextAsync()).Patches);
+        }
+        finally
+        {
+            reader.ReleaseAll();
+            await preview.StopAsync();
             window.DataContext = null;
             window.Close();
         }
@@ -215,6 +343,57 @@ public sealed partial class FluentAvaloniaUiTests
             reader.ReleaseAll();
             await preview.StopAsync();
             await profile.CloseModDetailAsync();
+            window.DataContext = null;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ModelPreview_GamePartSelectionFiltersSceneWithoutReload()
+    {
+        var reader = new ControlledModelPreviewReader(resultFactory: CreatePartPreviewResult);
+        await using var scope = await UiScope.CreateAsync(modelPreviewReader: reader);
+        var id = await ImportModelPreviewMod(scope, "HD2Mimnt Test model parts");
+        var main = scope.Services.GetRequiredService<MainWindowViewModel>();
+        var library = main.LibraryViewModel;
+        await library.InitializeAsync();
+        main.SelectedTabIndex = 1;
+        var mod = library.FilteredMods.Single(item => item.Id == id);
+        var preview = Assert.IsType<ModelPreviewViewModel>(main.ModelPreview);
+        var window = new MainWindow { DataContext = main, Width = 1100, Height = 780 };
+        try
+        {
+            window.Show();
+            RenderModelPreviewWindow(window);
+            var libraryView = window.GetVisualDescendants().OfType<LibraryView>().Single();
+            ClickModelPreviewMenu(window, libraryView, mod, library.PreviewModelCommand);
+            await library.PreviewModelCommand.ExecutionTask!;
+            await reader.NextAsync();
+            var viewport = AssertModelPreviewOpen(window, main, mod.Name);
+            var part = Assert.Single(preview.Parts);
+            Assert.Equal("Coat", part.Name);
+            Assert.Equal(0, part.SelectedIndex);
+            Assert.Equal([0x10UL, 0x30UL], preview.Scene!.Meshes.Select(mesh => mesh.UnitId));
+            Assert.Equal(4, preview.Meshes.Count);
+
+            var overlay = window.FindControl<ModelPreviewOverlay>("ModelPreviewOverlay")!;
+            var selector = overlay.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => ReferenceEquals(box.DataContext, part));
+            selector.SelectedIndex = 1;
+            RenderModelPreviewWindow(window);
+            await preview.Completion;
+            Assert.Equal([0x20UL, 0x30UL], preview.Scene!.Meshes.Select(mesh => mesh.UnitId));
+            Assert.Equal(4, preview.Meshes.Count);
+
+            ClickVersionControl(window, overlay.FindControl<Button>("CloseModelPreviewButton")!);
+            await preview.CloseCommand.ExecutionTask!;
+            AssertModelPreviewClosed(window, main, viewport);
+            Assert.Empty(preview.Parts);
+        }
+        finally
+        {
+            reader.ReleaseAll();
+            await preview.StopAsync();
             window.DataContext = null;
             window.Close();
         }
@@ -399,6 +578,47 @@ public sealed partial class FluentAvaloniaUiTests
         return id;
     }
 
+    private static async Task<Guid> ImportNestedModelPreviewMod(UiScope scope, string name)
+    {
+        var source = Path.Combine(scope.Root, "nested-model-source-" + Guid.NewGuid().ToString("N"));
+        var manifestGuid = Guid.NewGuid();
+        foreach (var folder in new[] { "body", "material/hair/black", "material/hair/white", "material/socks/black", "material/socks/white", "variant/a", "variant/b" })
+            WritePatch(Path.Combine(source, folder), "1234567890abcdef.patch_0", resources: [new(1, UnitType, Unit())]);
+        await File.WriteAllTextAsync(Path.Combine(source, "manifest.json"), $$"""
+            {"Version":1,"Name":"{{name}}","Guid":"{{manifestGuid}}","Options":[
+              {"Name":"Body","Include":["body"]},
+              {"Name":"Material","SubOptions":[{"Name":"Hair"},{"Name":"Socks"}]},
+              {"Name":"Variant","SubOptions":[
+                {"Name":"A","Include":["variant/a"]},{"Name":"B","Include":["variant/b"]}]}]}
+            """);
+        await File.WriteAllTextAsync(Path.Combine(source, "hd2mimnt.json"), $$"""
+            {
+              "SchemaVersion": 1,
+              "ManifestGuid": "{{manifestGuid}}",
+              "Extensions": {
+                "Options": [
+                  {"Name": "Body"},
+                  {"Name": "Material", "SubOptions": [
+                    {"Name": "Hair", "SubOptions": [
+                      {"Name": "Black", "Include": ["material/hair/black"]},
+                      {"Name": "White", "Include": ["material/hair/white"]}
+                    ]},
+                    {"Name": "Socks", "SubOptions": [
+                      {"Name": "Black", "Include": ["material/socks/black"]},
+                      {"Name": "White", "Include": ["material/socks/white"]}
+                    ]}
+                  ]},
+                  {"Name": "Variant"}
+                ]
+              }
+            }
+            """);
+        var mods = scope.Services.GetRequiredService<ModService>();
+        var id = await mods.ImportModAsync(source);
+        await mods.EnsureModHashAsync(id);
+        return id;
+    }
+
     private static void RenderModelPreviewWindow(Window window)
     {
         Dispatcher.UIThread.RunJobs();
@@ -491,6 +711,35 @@ public sealed partial class FluentAvaloniaUiTests
 
     private static ModelPreviewResult CreateModelPreviewResult(ulong unitId)
     {
+        var result = new ModelPreviewResult();
+        result.Meshes.Add(CreateModelPreviewMesh(unitId));
+        return result;
+    }
+
+    private static ModelPreviewResult CreatePartPreviewResult()
+    {
+        var result = new ModelPreviewResult();
+        result.Meshes.Add(CreateModelPreviewMesh(0x10));
+        result.Meshes.Add(CreateModelPreviewMesh(0x20));
+        result.Meshes.Add(CreateModelPreviewMesh(0x30));
+        result.Meshes.Add(CreateModelPreviewMesh(0x99));
+        result.CatalogUnitIds.UnionWith([0x10, 0x20, 0x30]);
+        result.Parts.Add(new ModelPreviewPartGroup
+        {
+            Id = "coat",
+            Name = "Coat",
+            SelectedIndex = 0,
+            Options =
+            [
+                new() { Id = "on", Name = "Wear", UnitIds = [0x10] },
+                new() { Id = "off", Name = "Remove", UnitIds = [0x20] }
+            ]
+        });
+        return result;
+    }
+
+    private static ModelPreviewMesh CreateModelPreviewMesh(ulong unitId)
+    {
         // 5×5 网格的 25 个顶点与 32 个三角形，避免被代理几何过滤器隐藏。
         var positions = new float[25 * 3];
         var indices = new List<int>();
@@ -503,24 +752,23 @@ public sealed partial class FluentAvaloniaUiTests
             if (x < 4 && y < 4)
                 indices.AddRange([index, index + 1, index + 6, index, index + 6, index + 5]);
         }
-        var result = new ModelPreviewResult();
-        result.Meshes.Add(new ModelPreviewMesh
+        return new ModelPreviewMesh
         {
             PatchFile = "1234567890abcdef.patch_0", UnitId = unitId, StreamIndex = 0, MeshInfoIndex = 0,
             Positions = positions, TriangleIndices = indices.ToArray()
-        });
-        return result;
+        };
     }
 
-    private sealed class ModelPreviewRead(DirectoryInfo directory, IReadOnlyList<FileInfo> patches)
+    private sealed class ModelPreviewRead(DirectoryInfo directory, IReadOnlyList<FileInfo> patches, bool forceDecodeOversizedStreams)
     {
         public string Directory { get; } = directory.FullName;
         public string[] Patches { get; } = patches.Select(file => Path.GetRelativePath(directory.FullName, file.FullName).Replace('\\', '/')).ToArray();
+        public bool ForceDecodeOversizedStreams { get; } = forceDecodeOversizedStreams;
         public TaskCompletionSource<ModelPreviewResult> Result { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    private sealed class ControlledModelPreviewReader(bool holdReads = false) : IModelPreviewReader
+    private sealed class ControlledModelPreviewReader(bool holdReads = false, Func<ModelPreviewResult>? resultFactory = null) : IModelPreviewReader
     {
         private readonly Channel<ModelPreviewRead> _started = Channel.CreateUnbounded<ModelPreviewRead>();
         private readonly ConcurrentQueue<ModelPreviewRead> _reads = new();
@@ -531,11 +779,11 @@ public sealed partial class FluentAvaloniaUiTests
         public async Task<ModelPreviewResult> PreviewModelAsync(DirectoryInfo modDirectory, IReadOnlyList<FileInfo> patchFiles,
             bool forceDecodeOversizedStreams = false, CancellationToken cancellationToken = default)
         {
-            var read = new ModelPreviewRead(modDirectory, patchFiles);
+            var read = new ModelPreviewRead(modDirectory, patchFiles, forceDecodeOversizedStreams);
             using var registration = cancellationToken.Register(() => read.Cancelled.TrySetResult());
             _reads.Enqueue(read);
             _started.Writer.TryWrite(read);
-            if (!Volatile.Read(ref _holdReads)) read.Result.TrySetResult(CreateModelPreviewResult(1));
+            if (!Volatile.Read(ref _holdReads)) read.Result.TrySetResult(resultFactory?.Invoke() ?? CreateModelPreviewResult(1));
             // 故意允许取消后返回结果；由真实 Application/ViewModel 阻止过期结果回填。
             return await read.Result.Task;
         }

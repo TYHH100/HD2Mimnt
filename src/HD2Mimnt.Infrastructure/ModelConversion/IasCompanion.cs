@@ -277,11 +277,8 @@ public static class IasCompanionReader
         {
             foreach (var (name, data) in members.OrderBy(entry => entry.Key, StringComparer.Ordinal))
             {
-                if (!name.EndsWith(".hd2morph", StringComparison.OrdinalIgnoreCase)) continue;
-                // 上游会先解析 HD2Morph1，然后在 require_supported_programs 中拒绝旧制作后端。
-                throw new InvalidDataException(
-                    "形态键需要通过包含来源配对与私有材质检查的手动转换入口处理：" + name
-                    + "。禁止使用旧制作后端 procedural_cpu_v1；当前要求 native_vertex_morph_v1（version=3，保留原脸及匹配私有材质）。原始文件保持不变。");
+                if (name.EndsWith(".hd2morph", StringComparison.OrdinalIgnoreCase))
+                    morphPrograms.Add(new IasMorphProgram(name, IasHash.Sha256Hex(data), data.Length));
             }
         }
         var archived = members.ContainsKey("mod_group.json");

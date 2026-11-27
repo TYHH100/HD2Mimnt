@@ -22,7 +22,7 @@ public sealed class ImportWorkerTask(ModService modService) : IWorkerTask
             (name, token) => RequestPasswordAsync(host, name, token));
 
         var reporter = new WorkerProgressReporter(host, cancellationToken);
-        var importedIds = new List<Guid>();
+        var imported = new List<ModImportResult>();
         var errors = new List<string>();
         for (var index = 0; index < paths.Count; index++)
         {
@@ -36,9 +36,9 @@ public sealed class ImportWorkerTask(ModService modService) : IWorkerTask
 
             try
             {
-                var modId = await modService.ImportModAsync(path, cancellationToken, progress, sourceLink,
+                var result = await modService.ImportModWithResultAsync(path, cancellationToken, progress, sourceLink,
                     (preview, token) => ConfirmHd2IrAsync(host, preview, token));
-                importedIds.Add(modId);
+                imported.Add(result);
                 reporter.Report(offset + span, "导入完成", fileName, "已导入");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -53,11 +53,11 @@ public sealed class ImportWorkerTask(ModService modService) : IWorkerTask
 
         reporter.Flush();
         await host.SendCompletedAsync(errors.Count == 0,
-            $"已导入 {importedIds.Count} 个模组，失败 {errors.Count} 个",
+            $"已导入 {imported.Count} 个模组，失败 {errors.Count} 个",
             errors.Count > 0 ? errors : null,
             partiallyFailed: errors.Count > 0,
             cancellationToken: cancellationToken,
-            data: JsonSerializer.Serialize(importedIds));
+            data: JsonSerializer.Serialize(imported));
     }
 
     private static List<string> ParsePaths(Dictionary<string, string> arguments)

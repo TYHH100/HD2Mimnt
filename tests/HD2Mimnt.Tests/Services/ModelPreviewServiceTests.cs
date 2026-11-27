@@ -23,7 +23,7 @@ public sealed class ModelPreviewServiceTests : IDisposable
         _mod = new() { Id = Guid.NewGuid(), Path = _root, Name = "Preview test" };
         _mods.Setup(repo => repo.GetByIdAsync(_mod.Id, It.IsAny<CancellationToken>())).ReturnsAsync(_mod);
         _reader.Setup(reader => reader.PreviewModelAsync(It.IsAny<DirectoryInfo>(), It.IsAny<IReadOnlyList<FileInfo>>(),
-            false, It.IsAny<CancellationToken>())).ReturnsAsync(new ModelPreviewResult());
+            It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ModelPreviewResult());
         _service = new(_mods.Object, _profiles.Object, _reader.Object);
     }
 
@@ -73,6 +73,60 @@ public sealed class ModelPreviewServiceTests : IDisposable
             It.Is<IReadOnlyList<FileInfo>>(files => files.Count == 0), false, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoadAsync_ForwardsForceDecodeOption(bool forceDecodeOversizedStreams)
+    {
+        await _service.LoadAsync(_mod.Id, new ProfileModOptionsState().ToJson(), forceDecodeOversizedStreams);
+        _reader.Verify(reader => reader.PreviewModelAsync(It.IsAny<DirectoryInfo>(), It.IsAny<IReadOnlyList<FileInfo>>(),
+            forceDecodeOversizedStreams, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadAsync_NestedProfileSelectionUsesThirdLevelLeaf()
+    {
+        _mod.Manifest = new() { ManifestVersion = ManifestVersion.V1, Options =
+        [
+            new() { Name = "Material", SubOptions =
+            [
+                new() { Name = "Hair", SubOptions =
+                [
+                    new() { Name = "Black", Include = ["hair/black"] },
+                    new() { Name = "White", Include = ["hair/white"] }
+                ] },
+                new() { Name = "Socks", SubOptions =
+                [
+                    new() { Name = "Black", Include = ["socks/black"] },
+                    new() { Name = "White", Include = ["socks/white"] }
+                ] }
+            ] }
+        ] };
+        foreach (var folder in new[] { "hair/black", "hair/white", "socks/black", "socks/white" })
+            CompatibilityFixture.WritePatch(Path.Combine(_root, folder), resources: []);
+        var profile = new Profile { Id = Guid.NewGuid(), Mods = [new() { ModId = _mod.Id,
+            OptionsJson = new ProfileModOptionsState
+            {
+                OptionToggles = [true], OptionSelections = [0], SubOptionSelections = [[1, 1]],
+                SubOptionToggles = [[false, true]]
+            }.ToJson() }] };
+        _profiles.Setup(repo => repo.GetByIdAsync(profile.Id, It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        IReadOnlyList<FileInfo>? selected = null;
+        _reader.Setup(reader => reader.PreviewModelAsync(It.IsAny<DirectoryInfo>(), It.IsAny<IReadOnlyList<FileInfo>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<DirectoryInfo, IReadOnlyList<FileInfo>, bool, CancellationToken>((_, files, _, _) => selected = files)
+            .ReturnsAsync(new ModelPreviewResult());
+
+        var source = await _service.GetSourceAsync(_mod.Id, profile.Id);
+        Assert.Equal(1, source.Options.SubOptionSelections![0][0]);
+        Assert.Equal(1, source.Options.SubOptionSelections[0][1]);
+        Assert.Equal([false, true], source.Options.SubOptionToggles![0]);
+        await _service.LoadAsync(_mod.Id, source.Options.ToJson());
+
+        Assert.Equal("socks/white/abcdeffedcba9876.patch_0",
+            Path.GetRelativePath(_root, Assert.Single(selected!).FullName).Replace('\\', '/'));
+    }
+
     [Fact]
     public async Task Reader_CancellationPropagatesAndBrokenPatchIsReported()
     {
@@ -96,6 +150,39 @@ public sealed class ModelPreviewServiceTests : IDisposable
         var missing = CompatibilityFixture.WritePatch(_root, companions: false, resources: [CompatibilityFixture.GpuUnit()]);
         var result = await reader.PreviewModelAsync(new DirectoryInfo(_root), [new FileInfo(missing)]);
         Assert.Empty(result.Meshes);
+    }
+
+    [Fact]
+    public async Task Reader_ForceDecodeLoadsMeshAboveDefaultPerStreamIndexLimit()
+    {
+        const int indexCount = 1_500_003;
+        var resource = CompatibilityFixture.GpuUnit();
+        const int streamInfo = 0x98;
+        const int vertexBytes = 3 * 3 * sizeof(float);
+        CompatibilityFixture.Put32(resource.Data, streamInfo + 0x160, 3);
+        CompatibilityFixture.Put32(resource.Data, streamInfo + 0x1a4, vertexBytes);
+        CompatibilityFixture.Put32(resource.Data, streamInfo + 0x188, indexCount);
+        CompatibilityFixture.Put32(resource.Data, streamInfo + 0x1a8, vertexBytes);
+        CompatibilityFixture.Put32(resource.Data, streamInfo + 0x1ac, indexCount * sizeof(ushort));
+        var gpu = new byte[vertexBytes + indexCount * sizeof(ushort)];
+        for (var index = 0; index < indexCount; index++)
+            gpu[vertexBytes + index * sizeof(ushort)] = (byte)(index % 3);
+        var patch = CompatibilityFixture.WritePatch(_root, resources: [resource with { Gpu = gpu }]);
+        var reader = new PatchResourceInspectionService();
+        var directory = new DirectoryInfo(_root);
+        var patches = new[] { new FileInfo(patch) };
+
+        var standard = await reader.PreviewModelAsync(directory, patches);
+        Assert.Null(standard.Error);
+        Assert.Empty(standard.Meshes);
+        Assert.Equal(1, standard.SkippedStreams);
+
+        var forced = await reader.PreviewModelAsync(directory, patches, forceDecodeOversizedStreams: true);
+        Assert.Null(forced.Error);
+        var mesh = Assert.Single(forced.Meshes);
+        Assert.Equal(indexCount, mesh.TriangleIndices.Length);
+        Assert.Equal(indexCount / 3, mesh.TriangleCount);
+        Assert.Equal(0, forced.SkippedStreams);
     }
 
     [Fact]

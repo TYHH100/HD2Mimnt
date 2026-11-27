@@ -139,9 +139,12 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
     }
 
     private readonly List<Guid> _importedIds = [];
+    private readonly List<Guid> _newImportedIds = [];
     private string _lastWorkerFile = string.Empty;
     /// <summary>本批次成功落库的模组 ID；新批次开始时清空。</summary>
     public IReadOnlyList<Guid> ImportedIds => _importedIds;
+    /// <summary>本批次真正新增、可参与自动归组的模组 ID；同 GUID 更新不改变原配置归属。</summary>
+    public IReadOnlyList<Guid> NewImportedIds => _newImportedIds;
     public bool CanSelect => !IsImporting;
     public bool CanClose => !IsImporting;
     public bool CanCancel => IsImporting && !IsCancelling;
@@ -162,6 +165,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         Errors.Clear();
         DismissImportGroupSelection();
         _importedIds.Clear();
+        _newImportedIds.Clear();
         TotalCount = ProcessedCount = SuccessCount = FailedCount = 0;
         FileProgress = OverallProgress = 0;
         CurrentFile = string.Empty;
@@ -242,8 +246,9 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
                 });
                 try
                 {
-                    var modId = await Task.Run(() => modService.ImportModAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
-                    _importedIds.Add(modId);
+                    var result = await Task.Run(() => modService.ImportModWithResultAsync(source, token, progress, sourceLink, ConfirmHd2IrAsync), token);
+                    _importedIds.Add(result.Id);
+                    if (!result.Updated) _newImportedIds.Add(result.Id);
                     SuccessCount++;
                     FileProgress = 100;
                 }
@@ -268,7 +273,7 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
             Step = cancelled ? "添加已取消" : FailedCount > 0 ? "添加结束，部分模组失败" : "添加完成";
             Detail = cancelled ? $"还有 {RemainingCount} 个未完成；已添加的模组会保留。" : "可关闭浮窗查看模组库，或继续添加。";
             IsImporting = IsCancelling = false;
-            IsImportGroupSelectionVisible = ImportGroupChoices.Count > 0;
+            IsImportGroupSelectionVisible = ImportGroupChoices.Count > 0 && _newImportedIds.Count > 0;
             _cancellation?.Dispose();
             _cancellation = null;
             if (!cancelled && !token.IsCancellationRequested && FailedCount == 0 && Errors.Count == 0
@@ -315,8 +320,9 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
 
         var outcome = await taskService!.RunProcessTaskAsync("导入模组", "Import", arguments, progress,
             HandleWorkerPromptAsync, token);
-        var imported = ParseImportedIds(outcome.Data);
-        _importedIds.AddRange(imported);
+        var imported = ParseImportedResults(outcome.Data);
+        _importedIds.AddRange(imported.Select(item => item.Id));
+        _newImportedIds.AddRange(imported.Where(item => !item.Updated).Select(item => item.Id));
         SuccessCount = imported.Count;
         foreach (var error in outcome.Task?.Errors ?? []) Errors.Add(error);
 
@@ -360,10 +366,10 @@ public partial class ModImportViewModel(ModService modService, SettingsService? 
         }
     }
 
-    private static IReadOnlyList<Guid> ParseImportedIds(string? data)
+    private static IReadOnlyList<ModImportResult> ParseImportedResults(string? data)
     {
         if (string.IsNullOrWhiteSpace(data)) return [];
-        try { return JsonSerializer.Deserialize<List<Guid>>(data) ?? []; }
+        try { return JsonSerializer.Deserialize<List<ModImportResult>>(data) ?? []; }
         catch (JsonException) { return []; }
     }
 

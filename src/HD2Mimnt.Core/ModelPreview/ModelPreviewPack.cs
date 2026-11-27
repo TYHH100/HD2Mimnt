@@ -4,13 +4,13 @@ using System.Text;
 namespace HD2Mimnt.Core.ModelPreview;
 
 /// <summary>
-/// 模型预览结果的二进制包（Worker 写、UI 读）。只包含渲染需要的网格、贴图元数据与错误信息；
+/// 模型预览结果的二进制包（Worker 写、UI 读）。只包含渲染需要的网格、贴图元数据、部件路由与错误信息；
 /// 动画库/护甲选项当前预览界面不消费，留在 Worker 内，不随包传输。
 /// </summary>
 public static class ModelPreviewPack
 {
     private const int Magic = 0x31564D50; // "PMV1"
-    private const int Version = 1;
+    private const int Version = 3;
     private const int MaxElements = 256 * 1024 * 1024;
     private const int MaxItems = 1_000_000;
     private const int MaxStringBytes = 16 * 1024 * 1024;
@@ -30,6 +30,10 @@ public static class ModelPreviewPack
 
         writer.Write(result.Textures.Count);
         foreach (var texture in result.Textures) WriteTexture(stream, writer, texture);
+
+        writer.Write(result.Parts.Count);
+        foreach (var group in result.Parts) WritePartGroup(stream, writer, group);
+        WriteArray(stream, writer, result.CatalogUnitIds.ToArray());
     }
 
     public static ModelPreviewResult Read(Stream stream)
@@ -53,7 +57,48 @@ public static class ModelPreviewPack
 
         var textureCount = ReadCount(reader, "textures", MaxItems);
         for (var i = 0; i < textureCount; i++) result.Textures.Add(ReadTexture(reader));
+
+        var partCount = ReadCount(reader, "part groups", MaxItems);
+        for (var i = 0; i < partCount; i++) result.Parts.Add(ReadPartGroup(stream, reader));
+        result.CatalogUnitIds.UnionWith(ReadArray<ulong>(stream, reader));
         return result;
+    }
+
+    private static void WritePartGroup(Stream stream, BinaryWriter writer, ModelPreviewPartGroup group)
+    {
+        writer.Write(group.Id);
+        writer.Write(group.Name);
+        writer.Write(group.SelectedIndex);
+        writer.Write(group.Options.Count);
+        foreach (var option in group.Options)
+        {
+            writer.Write(option.Id);
+            writer.Write(option.Name);
+            WriteArray(stream, writer, option.UnitIds.ToArray());
+        }
+    }
+
+    private static ModelPreviewPartGroup ReadPartGroup(Stream stream, BinaryReader reader)
+    {
+        var group = new ModelPreviewPartGroup
+        {
+            Id = ReadStringChecked(reader),
+            Name = ReadStringChecked(reader),
+            SelectedIndex = reader.ReadInt32()
+        };
+        var optionCount = ReadCount(reader, "part options", MaxItems);
+        for (var i = 0; i < optionCount; i++)
+        {
+            group.Options.Add(new ModelPreviewPartOption
+            {
+                Id = ReadStringChecked(reader),
+                Name = ReadStringChecked(reader),
+                UnitIds = ReadArray<ulong>(stream, reader)
+            });
+        }
+        if (group.SelectedIndex < 0 || group.SelectedIndex >= group.Options.Count)
+            group.SelectedIndex = 0;
+        return group;
     }
 
     private static void WriteMesh(Stream stream, BinaryWriter writer, ModelPreviewMesh mesh)

@@ -38,6 +38,8 @@ public partial class ModVersionsViewModel(ModService service, IConfirmationServi
         Start(LoadAsync);
     }
 
+    public Task RefreshAsync() => _target == null ? Completion : Start(LoadAsync);
+
     private async Task LoadAsync(CancellationToken token)
     {
         Versions = (await service.GetLocalVersionsAsync(_target!.Id, token))

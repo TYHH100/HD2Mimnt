@@ -335,6 +335,67 @@ public partial class LibraryViewModel : ObservableObject
     [RelayCommand]
     private void OpenImport() => Import.Open();
 
+    [RelayCommand]
+    private async Task CleanupMissingModsAsync()
+    {
+        IReadOnlyList<Mod> missing;
+        IsLoading = true;
+        try
+        {
+            missing = await _modService.GetMissingModsAsync();
+            if (missing.Count == 0)
+            {
+                _notificationService.ShowInfo(UiLocalization.Current["Library.CleanMissingModsNone"],
+                    UiLocalization.Current["Library.CleanMissingModsTitle"]);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(
+                UiLocalization.Current.Format("Library.CleanMissingModsScanFailed", ex.Message),
+                UiLocalization.Current["Library.CleanMissingModsTitle"]);
+            return;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+
+        var preview = string.Join("\n", missing.Take(8).Select(mod => $"• {mod.Name}\n  {mod.Path}"));
+        if (missing.Count > 8)
+            preview += $"\n{UiLocalization.Current.Format("Library.CleanMissingModsMore", missing.Count - 8)}";
+        var message = UiLocalization.Current.Format("Library.CleanMissingModsConfirm", missing.Count, preview);
+        if (!await _confirmationService.ConfirmAsync(UiLocalization.Current["Library.CleanMissingModsTitle"], message))
+            return;
+
+        IsLoading = true;
+        try
+        {
+            var result = await _modService.CleanupMissingModsAsync(missing.Select(mod => mod.Id).ToArray());
+            await LoadModsAsync();
+            await _searchService.BuildIndexAsync();
+            var summary = UiLocalization.Current.Format("Library.CleanMissingModsResult",
+                result.RemovedCount, result.SkippedCount, result.FailedCount);
+            if (result.Errors.Count > 0)
+                summary += $"\n{string.Join("\n", result.Errors.Take(5))}";
+            if (result.FailedCount > 0)
+                _notificationService.ShowWarning(summary, UiLocalization.Current["Library.CleanMissingModsTitle"]);
+            else
+                _notificationService.ShowSuccess(summary, UiLocalization.Current["Library.CleanMissingModsTitle"]);
+        }
+        catch (Exception ex)
+        {
+            _notificationService.ShowError(
+                UiLocalization.Current.Format("Library.CleanMissingModsFailed", ex.Message),
+                UiLocalization.Current["Library.CleanMissingModsTitle"]);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public IEnumerable<DeploymentMethod> DeploymentMethods => Enum.GetValues<DeploymentMethod>();
 
     /// <summary>排序下拉的本地化选项（直接绑定枚举会显示英文名）。</summary>
@@ -1665,7 +1726,7 @@ public partial class LibraryViewModel : ObservableObject
         {
             await Import.ImportAsync(sourcePaths, cancellationToken, sourceLink, PrepareImportGroupSelectionAsync);
             await LoadModsAsync();
-            if (Import.ImportedIds.Count == 0) Import.DismissImportGroupSelection();
+            if (Import.NewImportedIds.Count == 0) Import.DismissImportGroupSelection();
             if (Import.FailedCount > 0 || Import.RemainingCount > 0)
                 _notificationService.ShowWarning($"{Import.ResultText}，未完成 {Import.RemainingCount} 个", Import.Step);
             else
@@ -1710,12 +1771,12 @@ public partial class LibraryViewModel : ObservableObject
     private async Task ApplyImportGroupAsync()
     {
         var group = Import.SelectedImportGroup;
-        if (group == null || Import.ImportGroupProfileId == Guid.Empty || Import.ImportedIds.Count == 0) return;
+        if (group == null || Import.ImportGroupProfileId == Guid.Empty || Import.NewImportedIds.Count == 0) return;
         IsLoading = true;
         try
         {
             var moved = await _profileService.MoveModsToGroupAsync(
-                Import.ImportGroupProfileId, group.Id, Import.ImportedIds.ToArray());
+                Import.ImportGroupProfileId, group.Id, Import.NewImportedIds.ToArray());
             Import.DismissImportGroupSelection();
             if (moved == 0)
                 _notificationService.ShowInfo("本次导入的模组都位于固定加载器区域，不能加入用户分组。", "导入完成");

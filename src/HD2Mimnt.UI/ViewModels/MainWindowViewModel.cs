@@ -707,6 +707,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         // 导入/部署/清理由发起浮层提示结果，这里只刷新运行状态，避免重复通知。
         if (e.NotifyUser) QueueUiRefresh(() => HandleTaskCompletedAsync(e.Task));
         else QueueUiRefresh(UpdateRunningTasksAsync);
+        // Worker 的部署服务事件不会跨进程到达主窗口，必须按任务终态补刷导航概览。
+        if (e.Task.Type is "Deployment" or "Cleanup") QueueUiRefresh(RefreshDeploymentSummaryAsync);
     }
 
     private void OnTaskStarted(object? sender, EventArgs e) => QueueUiRefresh(UpdateRunningTasksAsync);
@@ -785,6 +787,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await _profileViewModel.RefreshAfterProfilesChangedAsync();
         SyncConflictProfile();
         UpdateCurrentProfile();
+        if (_libraryViewModel.SelectedModDetail?.LocalVersions is { } libraryVersions)
+            await libraryVersions.RefreshAsync();
     });
 
     private void OnProfilesChanged(object? sender, ProfilesChangedEventArgs e)
@@ -1198,6 +1202,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         await StartupCompatibilityTask;
         _closingCompatibility = false;
         await _libraryViewModel.CancelDeploymentAndWaitAsync();
+        if (_libraryViewModel.CleanupMissingModsCommand.ExecutionTask is { IsCompleted: false } cleanup)
+            await cleanup;
         if (ModCreationViewModel != null)
         {
             await ModCreationViewModel.StopAsync();

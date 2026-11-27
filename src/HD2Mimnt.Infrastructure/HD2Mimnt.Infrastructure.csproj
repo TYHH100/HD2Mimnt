@@ -33,6 +33,7 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!-- 仅测试工程可见内部实现（贴图解码助手等）；不对其他程序集开放 -->
